@@ -80,6 +80,10 @@ type wrong_kind_sort =
   | List
   | Unit
 
+type contains_gadt =
+  | Contains_gadt
+  | No_gadt
+
 let wrong_kind_sort_of_constructor (lid : Longident.t) =
   match lid with
   | Lident "true" | Lident "false" | Ldot(_, "true") | Ldot(_, "false") ->
@@ -4725,13 +4729,17 @@ type type_function_result =
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
     newtypes: (string loc * Jane_asttypes.jkind_annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
-    params_contain_gadt: bool;
+    params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". It's None only
        when the parameter suffix of the "rest of the function" is
        empty.
     *)
     fun_alloc_mode: Mode.Alloc.t option;
-    ret_sort: Jkind.sort option;
+    (* The sort of the function's body. It's None only when the
+       parameter suffix of the of the "rest of the function" is
+       empty.
+    *)
+    body_sort: Jkind.sort option;
   }
 
 let rec type_exp ?recarg env expected_mode sexp =
@@ -6368,13 +6376,13 @@ and type_function
   match params_suffix with
   | { pparam_desc = Pparam_newtype (newtype_var, layout) } :: rest ->
       (* Check everything else in the scope of (type a). *)
-      let (params, body, newtypes, params_contain_gadt, fun_alloc_mode,
-           ret_sort),
+      let (fun_alloc_mode, params, body, body_sort, newtypes, contains_gadt),
           exp_type
         =
         type_newtype_gen loc env newtype_var.txt layout (fun env ->
           let { function_ = exp_type, params, body;
-                fun_alloc_mode; ret_sort; newtypes; params_contain_gadt;
+                fun_alloc_mode; newtypes; params_contain_gadt = contains_gadt;
+                body_sort;
               }
             =
             (* mimic the typing of Pexp_newtype by minting a new type var,
@@ -6384,16 +6392,15 @@ and type_function
               (newvar (Jkind.any ~why:Dummy_jkind))
               rest body_constraint body ~in_function ~param_index:(param_index+1)
           in
-          (params, body, newtypes, params_contain_gadt, fun_alloc_mode,
-           ret_sort),
+          (fun_alloc_mode, params, body, body_sort, newtypes, contains_gadt),
           exp_type)
       in
       let newtype = newtype_var, layout in
       with_explanation ty_fun.explanation (fun () ->
           unify_exp_types loc env exp_type (instance ty_expected));
       { function_ = exp_type, params, body;
-        params_contain_gadt; newtypes = newtype :: newtypes;
-        fun_alloc_mode; ret_sort;
+        params_contain_gadt = contains_gadt; newtypes = newtype :: newtypes;
+        fun_alloc_mode; body_sort;
       }
   | { pparam_desc = Pparam_val (arg_label, default_arg, pat); pparam_loc }
       :: rest
@@ -6455,31 +6462,9 @@ and type_function
             in
             ty_default_arg, Some (default_arg, arg_label, default_arg_sort)
       in
-      let open struct
-        (* The result of checking the "rest" of the function (the param suffix
-           plus the body).
-        *)
-        type typed_suffix =
-          { pat : pattern;
-            (* The eventual body. *)
-            body : Typedtree.function_body;
-            (* All params, excluding [pat]. *)
-            param_suffix : Typedtree.function_param list;
-            (* The newtypes that appear prior to [param_suffix] and after
-               [param]. *)
-            newtypes :
-              (string loc * Jane_asttypes.jkind_annotation option) list;
-            (* Whether any param ([pat] + [param_suffix]) contains a GADT. *)
-            params_contain_gadt : bool;
-            (* The sort of the body. [None] if the body is not a function. *)
-            innermost_ret_sort : Jkind.sort option;
-          }
-      end
-      in
-      let { pat; param_suffix; body; newtypes; params_contain_gadt;
-            innermost_ret_sort;
-          }
-        , partial =
+      let (pat, params_suffix, body, body_sort, newtypes, contains_gadt),
+          partial
+        =
         (* Check everything else in the scope of the parameter. *)
         map_half_typed_cases Value env expected_pat_mode
           ty_arg_internal_mono ty_ret pat.ppat_loc
@@ -6489,19 +6474,22 @@ and type_function
           ~type_body:begin
             fun () pat ~ext_env ~ty_expected ~ty_infer:_
               ~contains_gadt:param_contains_gadt ->
-              let { function_ = _, param_suffix, body;
-                    newtypes;
-                    params_contain_gadt = suffix_contains_gadt;
-                    fun_alloc_mode = _; ret_sort = innermost_ret_sort;
+              let { function_ = _, params_suffix, body;
+                    newtypes; params_contain_gadt = suffix_contains_gadt;
+                    fun_alloc_mode = _; body_sort;
                   }
                 =
                 type_function ext_env expected_inner_mode ty_expected
                   rest body_constraint body
                   ~in_function ~param_index:(param_index+1)
               in
-              let params_contain_gadt = param_contains_gadt || suffix_contains_gadt in
-              { pat; param_suffix; body; newtypes; params_contain_gadt;
-                innermost_ret_sort }
+              let contains_gadt =
+                if param_contains_gadt then
+                  Contains_gadt
+                else
+                  suffix_contains_gadt
+              in
+              pat, params_suffix, body, body_sort, newtypes, contains_gadt
           end
         |> function
           (* The result must be a singleton because we passed a singleton
@@ -6555,15 +6543,13 @@ and type_function
           fp_loc = pparam_loc;
         }
       in
-      let ret_sort =
-        Some (Option.value innermost_ret_sort ~default:ret_sort)
-      in
-      { function_ = exp_type, param :: param_suffix, body;
-        newtypes = []; params_contain_gadt; ret_sort;
+      let body_sort = Some (Option.value body_sort ~default:ret_sort) in
+      { function_ = exp_type, param :: params_suffix, body;
+        newtypes = []; params_contain_gadt = contains_gadt; body_sort;
         fun_alloc_mode = Some alloc_mode;
       }
   | [] ->
-    let exp_type, body, fun_alloc_mode_opt, ret_sort_opt =
+    let exp_type, body, fun_alloc_mode, body_sort =
       match body with
       | Pfunction_body body ->
           let body =
@@ -6588,7 +6574,7 @@ and type_function
             type_function_cases_expect
               env expected_mode ty_expected loc cases attributes ~in_function
           in
-          let (body, fun_alloc_mode, ret_sort, exp_type), exp_extra =
+          let (body, fun_alloc_mode, body_sort, exp_type), exp_extra =
             match body_constraint with
             | None -> type_cases_expect env expected_mode ty_expected, None
             | Some constraint_ ->
@@ -6606,39 +6592,38 @@ and type_function
               let function_cases_constraint_arg =
                 { is_self = (fun _ -> false);
                   type_with_constraint = (fun env expected_mode ty ->
-                    let cases, fun_alloc_mode, ret_sort, _ =
+                    let cases, fun_alloc_mode, body_sort, _ =
                       type_cases_expect env expected_mode ty
                     in
-                    cases, fun_alloc_mode, ret_sort);
+                    cases, fun_alloc_mode, body_sort);
                   type_without_constraint = (fun env expected_mode ->
-                    let cases, fun_alloc_mode, ret_sort, ty_fun =
+                    let cases, fun_alloc_mode, body_sort, ty_fun =
                       (* The analogy to [type_exp] for expressions. *)
                       type_cases_expect env expected_mode
                         (newvar (Jkind.any ~why:Dummy_jkind))
                     in
-                    (cases, fun_alloc_mode, ret_sort), ty_fun);
+                    (cases, fun_alloc_mode, body_sort), ty_fun);
                 }
               in
-              let (body, fun_alloc_mode, ret_sort), exp_type, exp_extra =
+              let (body, fun_alloc_mode, body_sort), exp_type, exp_extra =
                 type_constraint_expect function_cases_constraint_arg
                   env expected_mode loc constraint_ ty_expected ~loc_arg:loc
               in
-              (body, fun_alloc_mode, ret_sort, exp_type), Some exp_extra
+              (body, fun_alloc_mode, body_sort, exp_type), Some exp_extra
           in
           let body =
             match exp_extra with
             | None -> body
             | Some _ as fc_exp_extra -> { body with fc_exp_extra }
           in
-          exp_type, Tfunction_cases body, Some fun_alloc_mode, Some ret_sort
+          exp_type, Tfunction_cases body, Some fun_alloc_mode, Some body_sort
      in
-     { function_ = exp_type, [], body; newtypes = [];
-       fun_alloc_mode = fun_alloc_mode_opt; ret_sort = ret_sort_opt;
-     (* [false] is fine because this return value is only meant to indicate
+     { function_ = exp_type, [], body; newtypes = []; fun_alloc_mode; body_sort;
+     (* [No_gadt] is fine because this return value is only meant to indicate
         whether [params] (here, the empty list) contains any GADT, not whether
         the body is a [Tfunction_cases] whose patterns include a GADT.
      *)
-       params_contain_gadt = false;
+       params_contain_gadt = No_gadt;
      }
 
 and type_label_access env srecord usage lid =
@@ -7569,7 +7554,7 @@ and map_half_typed_cases
       caselist in
   let patl = List.map (fun { typed_pat; _ } -> typed_pat) half_typed_cases in
   let does_contain_gadt =
-    List.exists (fun { contains_gadt; _ } -> contains_gadt) half_typed_cases
+    List.exists (function { contains_gadt; _ } -> contains_gadt) half_typed_cases
   in
   let ty_res, do_copy_types =
     if does_contain_gadt && not !Clflags.principal then
@@ -8350,14 +8335,14 @@ and type_n_ary_function
         param_indexes;
       }
     in
-    let { function_ = exp_type, params, body;
-          newtypes; params_contain_gadt; ret_sort; fun_alloc_mode
+    let { function_ = exp_type, params, body; body_sort;
+          newtypes; params_contain_gadt = contains_gadt; fun_alloc_mode
         } =
       type_function env expected_mode ty_expected params constraint_ body
         ~in_function ~param_index:0
     in
-    let fun_alloc_mode, ret_sort =
-      match fun_alloc_mode, ret_sort with
+    let fun_alloc_mode, body_sort =
+      match fun_alloc_mode, body_sort with
       | Some x, Some y -> x, y
       | None, _ ->
           Misc.fatal_error
@@ -8365,7 +8350,7 @@ and type_n_ary_function
              no parameters."
       | _, None ->
           Misc.fatal_error
-            "[ret_sort] can't be None -- that indicates a function with \
+            "[body_sort] can't be None -- that indicates a function with \
              no parameters."
     in
     (* Require that the n-ary function is known to have at least n arrows
@@ -8375,9 +8360,9 @@ and type_n_ary_function
         GADT, as this is the only opportunity for arrows to be hidden from the
         resulting type.
     *)
-    begin match params_contain_gadt with
-    | false -> ()
-    | true ->
+    begin match contains_gadt with
+    | No_gadt -> ()
+    | Contains_gadt ->
         let jkind_arg_var () =
           newvar (Jkind.of_new_sort ~why:Function_argument)
         in
@@ -8422,7 +8407,7 @@ and type_n_ary_function
     re
       { exp_desc =
           Texp_function
-            { params; body; region = region_locked; ret_sort;
+            { params; body; region = region_locked; ret_sort = body_sort;
               alloc_mode = fun_alloc_mode;
             };
         exp_loc = loc;
