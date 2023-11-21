@@ -118,6 +118,10 @@ let run_mdflx_file filename : Outcome.t =
     Error
 
 let _ =
+  if not Config.stack_allocation
+  then (
+    Printf.printf "flexpect not supported when stack allocation disabled";
+    exit 0);
   let file = Sys.argv.(1) in
   let ext = Filename.extension file in
   let outcome =
