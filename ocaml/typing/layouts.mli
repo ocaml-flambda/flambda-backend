@@ -208,6 +208,7 @@ module Layout : sig
     (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
     | Separability_check
 
+  (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
 
   type any_creation_reason =
