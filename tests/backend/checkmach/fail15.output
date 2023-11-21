@@ -2,4 +2,4 @@ File "fail15.ml", line 6, characters 40-50:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
 
 File "fail15.ml", line 8, characters 5-15:
-Error: Annotation check for zero_alloc strict failed on function Fail15.call (camlFail15__call_HIDE_STAMP)
+Error: Annotation check for zero_alloc strict failed on function Fail15.call (camlFail15.call_HIDE_STAMP)
