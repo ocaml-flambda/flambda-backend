@@ -882,9 +882,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Punboxed_float_comp comp, [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
-          ( Float_comp (Yielding_bool (convert_float_comparison comp)),
-            arg1,
-            arg2 )) ]
+           ( Float_comp (Yielding_bool (convert_float_comparison comp)),
+             arg1,
+             arg2 )) ]
   | Punbox_float, [[arg]] -> [Unary (Unbox_number Naked_float, arg)]
   | Pbox_float mode, [[arg]] ->
     [ Unary
@@ -1457,14 +1457,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
       | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _ | Pintcomp _
-      | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-      | Pfloatcomp _ | Punboxed_float_comp _
-      | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-      | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
-      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-      | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
+      | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _
+      | Punboxed_float_comp _ | Pstringrefu | Pbytesrefu | Pstringrefs
+      | Pbytesrefs | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _
+      | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
+      | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
       | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Pbigstring_load_128 _
