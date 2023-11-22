@@ -3008,6 +3008,11 @@ let rec check_counter_example_pat
       end
   | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
   | Tpat_constant cst ->
+      let cst =
+        match Untypeast.constant cst with
+        | `Parsetree cst -> constant_or_raise !env loc cst
+        | `Jane_syntax cst -> unboxed_constant_or_raise !env loc cst
+      in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple tpl ->
       let tpl_ann =
