@@ -18,7 +18,7 @@ module Float_u = struct
   let ( > ) x y = (compare x y) > 0
 end
 
-let test s f = Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
+let test s f = Format.printf "%s: %f\n%!" s (Float_u.to_float f)
 
 (*****************************************)
 (* Expressions *)
