@@ -95,6 +95,7 @@
     debuginfo
     lambda
     runtimedef
+    runtimetags
     instruct
     opcodes
     bytesections
@@ -129,6 +130,7 @@
 ;  (package ocaml))
 
 ;; .ml:
+(copy_files ../../utils/runtimetags.ml)
 (copy_files ../../utils/binutils.ml)
 (copy_files ../../utils/local_store.ml)
 (copy_files ../../utils/config.ml)
@@ -190,6 +192,7 @@
 (copy_files ../../bytecomp/symtable.ml)
 
 ;; .mli:
+(copy_files ../../utils/runtimetags.mli)
 (copy_files ../../utils/binutils.mli)
 (copy_files ../../utils/local_store.mli)
 (copy_files ../../utils/config.mli)
@@ -298,6 +301,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Runtimetags.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
@@ -376,6 +380,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Runtimetags.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
