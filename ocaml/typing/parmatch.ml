@@ -1048,6 +1048,12 @@ let build_other ext env =
                     | _ -> assert false)
             (function f -> Tpat_constant(Const_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
+      | Constant Const_unboxed_float _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_float f) -> float_of_string f
+                    | _ -> assert false)
+            (function f -> Tpat_constant(Const_unboxed_float (string_of_float f)))
+            0.0 (fun f -> f +. 1.0) d env
       | Array (am, arg_sort, _) ->
           let all_lengths =
             List.map

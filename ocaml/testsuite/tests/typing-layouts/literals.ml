@@ -196,6 +196,28 @@ result: 7.000000
 - : unit = ()
 |}];;
 
+let f x =
+  match x with
+  | #4. -> #0.
+  | #5. -> #1.
+;;
+
+test "result" (f #7.);;
+(* This is here to test the [partial-match] warning *)
+[%%expect {|
+Lines 2-4, characters 2-14:
+2 | ..match x with
+3 |   | #4. -> #0.
+4 |   | #5. -> #1.
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+#0.
+
+val f : float# -> float# = <fun>
+Exception: Match_failure ("", 2, 2).
+|}];;
+
+
 (*****************************************)
 (* Lexing edge cases *)
 
