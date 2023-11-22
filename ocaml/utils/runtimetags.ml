@@ -30,7 +30,6 @@ let string_tag = 252
 let double_tag = 253
 let double_array_tag = 254
 let custom_tag = 255
-let final_tag = custom_tag
 let int_tag = 1000
 let out_of_heap_tag = 1001
 let unaligned_tag = 1002
