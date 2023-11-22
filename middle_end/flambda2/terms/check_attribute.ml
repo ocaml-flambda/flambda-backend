@@ -58,8 +58,10 @@ let from_lambda : Lambda.check_attribute -> t = function
         never_returns_normally;
         loc
       }
-  | Check { property; strict; loc } ->
-    Check { property = Property.from_lambda property; strict; loc }
+  | Check { property; strict; opt; loc } ->
+    if Lambda.is_check_enabled ~opt property
+    then Check { property = Property.from_lambda property; strict; loc }
+    else Default_check
 
 let equal x y =
   match x, y with

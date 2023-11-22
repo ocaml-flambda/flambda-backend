@@ -1,9 +1,13 @@
 (* TEST
 * hassysthreads
 include systhreads
-** bytecode
-** native
+** runtime4
+*** bytecode
+*** native
 *)
+
+(* CR ocaml 5 runtime: Once statmemprof is ported, remove "runtime4" stanzas
+   for the tests/statmemprof/ tests. *)
 
 let _ =
   let main_thread = Thread.id (Thread.self ()) in

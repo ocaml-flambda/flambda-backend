@@ -22,16 +22,22 @@ val afl_instrument : bool
 (** Whether AFL support has been enabled in the compiler *)
 
 val asm : string
-(** Path to the assembler*)
+(** Path to the assembler *)
 
 val cc : string
-(** Path to the C compiler*)
+(** Path to the C compiler *)
 
 val cflags : string
 (** Flags to pass to the C compiler *)
 
 val ccomptype : string
 (** Type of C compiler (msvc, cc, etc.) *)
+
+val diff : string
+(** Path to the diff tool *)
+
+val diff_flags : string
+(** Flags to pass to the diff tool *)
 
 val shared_libraries : bool
 (** [true] if shared libraries are supported, [false] otherwise *)
@@ -42,6 +48,9 @@ val libunix : bool option
 
 val systhreads : bool
 (** Indicates whether systhreads is available. *)
+
+val systhreads_path : string
+(** Indicates where the systhreads library is installed under otherlibs/. *)
 
 val str : bool
 (** Indicates whether str is available. *)
@@ -76,11 +85,8 @@ val flambda : bool
 val flambda2 : bool
 (** Whether flambda2 has been enabled at configure time *)
 
-val safe_string : bool
-(** Whether the compiler was configured with -safe-string *)
-
 val flat_float_array : bool
-(* Whether the compiler was configured with -flat-float-array *)
+(* Whether the compiler was configured with --enable-flat-float-array *)
 
 val ocamldoc : bool
 (** Whether ocamldoc has been enabled at configure time *)
@@ -125,9 +131,6 @@ val function_sections : bool
 val instrumented_runtime : bool
 (** Whether the instrumented runtime is available *)
 
-val naked_pointers : bool
-(** Whether the runtime system supports naked pointers outside the heap *)
-
 val probes : bool
 (** Whether the target supports tracing probes *)
 
@@ -136,3 +139,9 @@ val stack_allocation : bool
 
 val poll_insertion : bool
 (** Whether poll insertion is enabled *)
+
+val frame_pointers : bool
+(** Whether frame-pointers have been enabled at configure time *)
+
+val naked_pointers : bool
+(** Whether the runtime system supports naked pointers outside the heap *)

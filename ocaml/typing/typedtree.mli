@@ -22,7 +22,6 @@
 *)
 
 open Asttypes
-open Jane_asttypes
 
 module Uid = Shape.Uid
 
@@ -84,7 +83,7 @@ and pat_extra =
         (** (module P)     { pat_desc  = Tpat_var "P"
                            ; pat_extra = (Tpat_unpack, _, _) :: ... }
             (module _)     { pat_desc  = Tpat_any
-                           ; pat_extra = (Tpat_unpack, _, _) :: ... }
+            ; pat_extra = (Tpat_unpack, _, _) :: ... }
          *)
 
 and 'k pattern_desc =
@@ -99,8 +98,10 @@ and 'k pattern_desc =
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
-  | Tpat_tuple : value general_pattern list -> value pattern_desc
-        (** (P1, ..., Pn)
+  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
+        (** (P1, ..., Pn)                  [(None,P1); ...; (None,Pn)])
+            (L1:P1, ... Ln:Pn)             [(Some L1,P1); ...; (Some Ln,Pn)])
+            Any mix, e.g. (L1:P1, P2)      [(Some L1,P1); ...; (None,P2)])
 
             Invariant: n >= 2
          *)
@@ -134,7 +135,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -186,7 +187,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * const_jkind option
+  | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
 
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
@@ -215,6 +216,7 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
+<<<<<<< HEAD
   | Texp_function of
       { params : function_param list;
         body : function_body;
@@ -231,6 +233,56 @@ and expression_desc =
           Parameters' effects are run left-to-right when an n-ary function is
           saturated with n arguments.
       *)
+||||||| 697d5479
+  | Texp_function of { arg_label : arg_label; param : Ident.t;
+      cases : value case list; partial : partial;
+      region : bool; curry : fun_curry_state;
+      warnings : Warnings.state;
+      arg_mode : Mode.Alloc.t;
+      arg_sort : Jkind.sort;
+      ret_sort : Jkind.sort;
+      alloc_mode : Mode.Alloc.t}
+        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
+            See {!Parsetree} for more details.
+
+            [param] is the identifier that is to be used to name the
+            parameter of the function.
+
+            partial =
+              [Partial] if the pattern match is partial
+              [Total] otherwise.
+
+            partial_mode is the mode of the resulting closure if this function
+            is partially applied to a single argument.
+         *)
+=======
+  | Texp_function of { arg_label : arg_label; param : Ident.t;
+      cases : value case list; partial : partial;
+      region : bool; curry : fun_curry_state;
+      warnings : Warnings.state;
+      arg_mode : Mode.Alloc.t;
+      arg_sort : Jkind.sort;
+      ret_mode : Mode.Alloc.t;
+      (* Mode where the function allocates, ie local for a function of
+         type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
+      ret_sort : Jkind.sort;
+      alloc_mode : Mode.Alloc.t
+      (* Mode at which the closure is allocated *)
+    }
+        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
+            See {!Parsetree} for more details.
+
+            [param] is the identifier that is to be used to name the
+            parameter of the function.
+
+            partial =
+              [Partial] if the pattern match is partial
+              [Total] otherwise.
+
+            partial_mode is the mode of the resulting closure if this function
+            is partially applied to a single argument.
+         *)
+>>>>>>> origin/main
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.t
         (** E0 ~l1:E1 ... ~ln:En
 
@@ -258,8 +310,12 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of expression list * Mode.Alloc.t
-        (** (E1, ..., EN) *)
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.t
+        (** [Texp_tuple(el)] represents
+            - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
+            - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
+            - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+          *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
       expression list * Mode.Alloc.t option
@@ -334,7 +390,7 @@ and expression_desc =
       Ident.t option * string option loc * Types.module_presence * module_expr *
         expression
   | Texp_letexception of extension_constructor * expression
-  | Texp_assert of expression
+  | Texp_assert of expression * Location.t
   | Texp_lazy of expression
   | Texp_object of class_structure * string list
   | Texp_pack of module_expr
@@ -465,7 +521,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * unique_use
+  | Kept of Types.type_expr * mutable_flag * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -581,6 +637,7 @@ and module_expr_desc =
   | Tmod_structure of structure
   | Tmod_functor of functor_parameter * module_expr
   | Tmod_apply of module_expr * module_expr * module_coercion
+  | Tmod_apply_unit of module_expr
   | Tmod_constraint of
       module_expr * Types.module_type * module_type_constraint * module_coercion
     (** ME          (constraint = Tmodtype_implicit)
@@ -779,15 +836,15 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_jkind option
+  | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
-  | Ttyp_tuple of core_type list
+  | Ttyp_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_jkind option
+  | Ttyp_alias of core_type * string option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_jkind option) list * core_type
+  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
 
 and package_type = {
@@ -839,6 +896,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
+    typ_jkind_annotation: Jane_asttypes.jkind_annotation option;
    }
 
 and type_kind =
@@ -862,7 +920,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_jkind option) list;
+     cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -902,7 +960,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_jkind option) list *
+    Text_decl of (string * Jkind.annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc
@@ -957,7 +1015,6 @@ and 'a class_infos =
     ci_id_class: Ident.t;
     ci_id_class_type : Ident.t;
     ci_id_object : Ident.t;
-    ci_id_typehash : Ident.t;
     ci_expr: 'a;
     ci_decl: Types.class_declaration;
     ci_type_decl : Types.class_type_declaration;
@@ -1033,3 +1090,7 @@ val pat_bound_idents_full:
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:
   computation general_pattern -> pattern option * pattern option
+
+(** Whether an expression looks nice as the subject of a sentence in a error
+    message. *)
+val exp_is_nominal : expression -> bool

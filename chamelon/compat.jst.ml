@@ -21,9 +21,16 @@ type texp_apply_identifier = apply_position * Locality.t
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
   Texp_apply (exp, args, pos, mode)
 
-type texp_tuple_identifier = Alloc.t
+type texp_tuple_identifier = string option list * Alloc.t
 
-let mkTexp_tuple ?id:(mode = Alloc.legacy) exps = Texp_tuple (exps, mode)
+let mkTexp_tuple ?id exps =
+  let labels, alloc =
+    match id with
+    | None -> (List.map (fun _ -> None) exps, Alloc.legacy)
+    | Some id -> id
+  in
+  let exps = List.combine labels exps in
+  Texp_tuple (exps, alloc)
 
 type texp_construct_identifier = Alloc.t option
 
@@ -71,15 +78,41 @@ type texp_function = {
 type texp_function_identifier = {
   alloc_mode : Alloc.t;
   ret_sort : Jkind.sort;
+<<<<<<< HEAD
   region : bool;
+||||||| 697d5479
+=======
+  ret_mode : Alloc.t;
+>>>>>>> origin/main
 }
 
 let texp_function_cases_identifier_defaults =
   {
+<<<<<<< HEAD
     last_arg_mode = Alloc.legacy;
     last_arg_sort = Jkind.Sort.value;
     last_arg_exp_extra = None;
     last_arg_attributes = [];
+||||||| 697d5479
+    partial = Total;
+    arg_mode = Alloc.legacy;
+    alloc_mode = Alloc.legacy;
+    region = false;
+    curry = Final_arg { partial_mode = Alloc.legacy };
+    warnings = Warnings.backup ();
+    arg_sort = Jkind.Sort.value;
+    ret_sort = Jkind.Sort.value;
+=======
+    partial = Total;
+    arg_mode = Alloc.legacy;
+    alloc_mode = Alloc.legacy;
+    region = false;
+    curry = Final_arg { partial_mode = Alloc.legacy };
+    warnings = Warnings.backup ();
+    arg_sort = Jkind.Sort.value;
+    ret_sort = Jkind.Sort.value;
+    ret_mode = Alloc.legacy;
+>>>>>>> origin/main
   }
 
 let texp_function_param_identifier_defaults =
@@ -142,6 +175,7 @@ let mkTexp_function ?(id = texp_function_defaults)
       alloc_mode = id.alloc_mode;
       region = id.region;
       ret_sort = id.ret_sort;
+      ret_mode = id.ret_mode;
     }
 
 type texp_sequence_identifier = Jkind.sort
@@ -153,6 +187,8 @@ type texp_match_identifier = Jkind.sort
 
 let mkTexp_match ?id:(sort = Jkind.Sort.value) (e, cases, partial) =
   Texp_match (e, sort, cases, partial)
+
+let mkTexp_assert e loc = Texp_assert (e, loc)
 
 type matched_expression_desc =
   | Texp_ident of
@@ -181,6 +217,7 @@ let view_texp (e : expression_desc) =
   | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
+<<<<<<< HEAD
   | Texp_tuple (args, mode) -> Texp_tuple (args, mode)
   | Texp_function { params; body; alloc_mode; region; ret_sort } ->
       let params =
@@ -227,6 +264,67 @@ let view_texp (e : expression_desc) =
               }
       in
       Texp_function ({ params; body }, { alloc_mode; region; ret_sort })
+||||||| 697d5479
+  | Texp_tuple (args, mode) -> Texp_tuple (args, mode)
+  | Texp_function
+      {
+        arg_label;
+        param;
+        cases;
+        partial;
+        arg_mode;
+        alloc_mode;
+        region;
+        curry;
+        warnings;
+        arg_sort;
+        ret_sort;
+      } ->
+      Texp_function
+        ( { arg_label; param; cases },
+          {
+            partial;
+            arg_mode;
+            alloc_mode;
+            region;
+            curry;
+            warnings;
+            arg_sort;
+            ret_sort;
+          } )
+=======
+  | Texp_tuple (args, mode) ->
+      let labels, args = List.split args in
+      Texp_tuple (args, (labels, mode))
+  | Texp_function
+      {
+        arg_label;
+        param;
+        cases;
+        partial;
+        arg_mode;
+        alloc_mode;
+        region;
+        curry;
+        warnings;
+        arg_sort;
+        ret_sort;
+        ret_mode;
+      } ->
+      Texp_function
+        ( { arg_label; param; cases },
+          {
+            partial;
+            arg_mode;
+            alloc_mode;
+            region;
+            curry;
+            warnings;
+            arg_sort;
+            ret_sort;
+            ret_mode;
+          } )
+>>>>>>> origin/main
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
@@ -241,9 +339,20 @@ type tpat_alias_identifier = Value.t
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = Asttypes.mutable_flag
+type tpat_array_identifier = Asttypes.mutable_flag * Jkind.sort
 
-let mkTpat_array ?id:(mut = Asttypes.Mutable) l = Tpat_array (mut, l)
+let mkTpat_array ?id:(mut, arg_sort = (Asttypes.Mutable, Jkind.Sort.value)) l =
+  Tpat_array (mut, arg_sort, l)
+
+type tpat_tuple_identifier = string option list
+
+let mkTpat_tuple ?id pats =
+  let labels =
+    match id with
+    | None -> List.map (fun _ -> None) pats
+    | Some labels -> labels
+  in
+  Tpat_tuple (List.combine labels pats)
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -258,13 +367,19 @@ type 'a matched_pattern_desc =
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
       -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
   | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
-  | Tpat_array (mut, l) -> Tpat_array (l, mut)
+  | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
+  | Tpat_tuple pats ->
+      let labels, pats = List.split pats in
+      Tpat_tuple (pats, labels)
   | _ -> O p
 
 type tstr_eval_identifier = Jkind.sort
@@ -332,3 +447,18 @@ let is_type_name_used desc typ_name =
   | Ttyp_alias (_, Some s, _) -> s = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
+
+let rec print_path p =
+  match (p : Path.t) with
+  | Pident id -> Ident.name id
+  | Pdot (p, s) -> print_path p ^ "." ^ s
+  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
+  | Pextra_ty _ -> Format.asprintf "%a" Path.print p
+
+let rec replace_id_in_path path to_rep : Path.t =
+  match (path : Path.t) with
+  | Pident _ -> Pident to_rep
+  | Papply (p1, p2) ->
+      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
+  | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
+  | Pextra_ty (p, extra_ty) -> Pextra_ty (replace_id_in_path p to_rep, extra_ty)

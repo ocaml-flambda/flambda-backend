@@ -42,7 +42,7 @@ let rec eliminate_ref id = function
   | Lletrec(idel, e2) ->
       Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
               eliminate_ref id e2)
-  | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
+  | Lprim(Pfield (0, _, _), [Lvar v], _) when Ident.same v id ->
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
       Lassign(id, eliminate_ref id e)
@@ -233,8 +233,8 @@ let simplify_exits lam =
   | Lapply ap ->
       Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
-  | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
-     lfunction ~kind ~params ~return ~mode ~region
+  | Lfunction{kind; params; return; mode; ret_mode; region; body = l; attr; loc} ->
+     lfunction ~kind ~params ~return ~mode ~region ~ret_mode
        ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
@@ -556,12 +556,24 @@ let simplify_lets lam =
       | _ -> no_opt ()
       end
   | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
+<<<<<<< HEAD
               attr=attr1; loc; mode; region=outer_region} ->
+||||||| 697d5479
+              attr; loc; mode; region=outer_region} ->
+=======
+              attr; loc; ret_mode; mode; region=outer_region} ->
+>>>>>>> origin/main
       begin match outer_kind, outer_region, simplif l with
         Curried {nlocal=0},
         true,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
+<<<<<<< HEAD
                   body; attr=attr2; loc; mode=inner_mode; region}
+||||||| 697d5479
+                  body; attr; loc; mode=inner_mode; region}
+=======
+                  body; attr; loc; mode=inner_mode; ret_mode; region}
+>>>>>>> origin/main
         when optimize &&
              attr1.may_fuse_arity && attr2.may_fuse_arity &&
              List.length params + List.length params' <= Lambda.max_arity() ->
@@ -572,9 +584,21 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
+<<<<<<< HEAD
           lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~region
+||||||| 697d5479
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~region
+=======
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~ret_mode ~region
+>>>>>>> origin/main
       | kind, region, body ->
+<<<<<<< HEAD
           lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~region
+||||||| 697d5479
+          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
+=======
+          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~ret_mode ~region
+>>>>>>> origin/main
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -760,7 +784,7 @@ and list_emit_tail_infos is_tail =
    function's body. *)
 
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
-      ~attr ~loc ~mode ~region:orig_region =
+      ~attr ~loc ~mode ~ret_mode ~region:orig_region =
   let rec aux map add_region = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
        to:
@@ -837,7 +861,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
             ~params:new_ids
-            ~return ~body ~attr ~loc ~mode ~region:true
+            ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
   in
@@ -850,9 +874,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true); inner]
   with Exit ->
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:orig_region)]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the
@@ -884,6 +908,8 @@ let simplify_local_functions lam =
      is in tail position. *)
   let current_scope = ref lam in
   let current_region_scope = ref None in
+  (* PR11383: We will only apply the transformation if we don't have to move
+     code across function boundaries *)
   let current_function_scope = ref lam in
   let check_static lf =
     if lf.attr.local = Always_local then
@@ -909,7 +935,9 @@ let simplify_local_functions lam =
   let rec tail = function
     | Llet (_str, _kind, id, Lfunction lf, cont) when enabled lf.attr ->
         let r =
-          {func = lf; function_scope = !current_function_scope; scope = None}
+          { func = lf;
+            function_scope = !current_function_scope;
+            scope = None }
         in
         Hashtbl.add slots id r;
         tail cont;

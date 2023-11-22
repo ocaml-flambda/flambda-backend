@@ -184,11 +184,9 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
-let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
-let xmm0v () = phys_reg Vec128 100
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm15 () =
@@ -311,7 +309,7 @@ let win64_float_external_arguments =
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
-  and ofs = ref 32 in
+  and ofs = ref (if Config.runtime5 then 0 else 32) in
   for i = 0 to Array.length arg - 1 do
     match arg.(i) with
     | Val | Int | Addr as ty ->
@@ -371,15 +369,18 @@ let dwarf_register_numbers ~reg_class =
 let stack_ptr_dwarf_register_number = 7
 let domainstate_ptr_dwarf_register_number = 14
 
-(* Volatile registers: none *)
-
-let regs_are_volatile _rs = false
-
 (* Registers destroyed by operations *)
 
+let int_regs_destroyed_at_c_call_win64 =
+  if Config.runtime5 then [|0;1;4;5;6;7;10;11;12|] else [|0;4;5;6;7;10;11|]
+
+let int_regs_destroyed_at_c_call =
+  if Config.runtime5 then [|0;1;2;3;4;5;6;7;10;11|] else [|0;2;3;4;5;6;7;10;11|]
+
 let destroyed_at_c_call_win64 =
+  (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
   let basic_regs = Array.append
-    (Array.map (phys_reg Int) [|0;4;5;6;7;10;11|])
+    (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
   fun () -> if simd_regalloc_disabled ()
@@ -387,9 +388,9 @@ let destroyed_at_c_call_win64 =
             else Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
 
 let destroyed_at_c_call_unix =
-  (* Unix: rbp, rbx, r12-r15 preserved *)
+  (* Unix: rbx, rbp, r12-r15 preserved *)
   let basic_regs = Array.append
-    (Array.map (phys_reg Int) [|0;2;3;4;5;6;7;10;11|])
+      (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
   fun () -> if simd_regalloc_disabled ()
@@ -397,6 +398,9 @@ let destroyed_at_c_call_unix =
             else Array.append basic_regs (hard_vec128_reg ())
 
 let destroyed_at_c_call =
+  (* C calling conventions preserve rbx, but it is clobbered
+     by the code sequence used for C calls in emit.mlp, so it
+     is marked as destroyed. *)
   if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
 let destroyed_at_alloc_or_poll =
@@ -413,9 +417,12 @@ let has_pushtrap traps =
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
-    Iop(Icall_ind | Icall_imm _ | Iextcall { alloc = true; })
-        -> all_phys_regs ()
-  | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call ()
+    Iop(Icall_ind | Icall_imm _) ->
+      all_phys_regs ()
+  | Iop(Iextcall {alloc; stack_ofs; }) ->
+      assert (stack_ofs >= 0);
+      if alloc || stack_ofs > 0 then all_phys_regs ()
+      else destroyed_at_c_call ()
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _))
@@ -449,8 +456,8 @@ let destroyed_at_oper = function
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
-       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
+       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
+       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
   | Iop(Ibeginregion | Iendregion)
@@ -510,7 +517,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ | Isimd _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
-       | Name_for_debugger _)
+       | Name_for_debugger _ | Dls_get)
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
 
@@ -528,9 +535,10 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs () else destroyed_at_c_call ()
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
+    assert (stack_ofs >= 0);
+    if alloc || stack_ofs > 0 then all_phys_regs () else destroyed_at_c_call ()
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs ()
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
@@ -586,11 +594,11 @@ let safe_register_pressure = function
   | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
+  | Istackoffset _ | Iload _ | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
   | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Idls_get
     -> if fp then 10 else 11
 
 let max_register_pressure =
@@ -625,14 +633,14 @@ let max_register_pressure =
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _, _)
+  | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence | Isimd _
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Idls_get
     -> consumes ~int:0 ~float:0
 
 (* Layout of the stack frame *)
@@ -727,6 +735,7 @@ let operation_supported = function
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _
+  | Cdls_get
     -> true
 
 let trap_size_in_bytes = 16

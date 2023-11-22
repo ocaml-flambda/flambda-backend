@@ -504,10 +504,11 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
-  | Pfield (n, _), _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
+  | Pfield (n, _, _, _), _,
+    [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
     when n < List.length l ->
       make_const (List.nth l n)
-  | Pfield (n, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
+  | Pfield (n, _, _, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
     when n < List.length ul ->
       (* This case is particularly useful for removing allocations
          for optional parameters *)
@@ -917,7 +918,8 @@ let check_constant_result ulam approx =
           let glb =
             Uprim(P.Pread_symbol id, [], Debuginfo.none)
           in
-          Uprim(P.Pfield (i, Lambda.layout_any_value), [glb], Debuginfo.none), approx
+          Uprim(P.Pfield (i, Lambda.layout_any_value, Pointer, Immutable),
+            [glb], Debuginfo.none), approx
       end
   | _ -> (ulam, approx)
 
@@ -995,7 +997,8 @@ let load_env_field ~base_offset
     | Atom { offset = var_offset; layout } ->
       let pos = var_offset + base_offset in
       let layout = layout_of_atom layout in
-      Uprim (Pfield (pos, layout), [closure], Debuginfo.none), layout
+      Uprim (Pfield (pos, layout, Pointer, Mutable), [closure], Debuginfo.none),
+        layout
     | Product parts ->
       let parts = Array.to_list @@ Array.map rebuild parts in
       let parts, layouts = List.split parts in
@@ -1050,7 +1053,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                  time is not enough, since the unit could be linked
                  with another one compiled without -safe-string, and
                  that one could modify our string literal.  *)
-            str ~shared:Config.safe_string (Uconst_string s)
+            str ~shared:true (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
@@ -1099,6 +1102,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             _) as fapprox)), uargs)
           when nargs < List.length params_layout ->
         let (first_layouts, rem_layouts) = split_list nargs params_layout in
+        let (_, rem_modes) = split_list nargs fundesc.fun_argmodes in
         let first_args = List.map2 (fun arg kind ->
           (V.create_local "arg", arg, kind) ) uargs first_layouts in
         let kinds =
@@ -1119,15 +1123,13 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             alloc_local, Curried {nlocal = nlocal - supplied_local_args}
         in
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
-        (* CR ncourant: mode = new_clos_mode is incorrect; but the modes will
-           not be used for anything, so it is fine here. *)
         let final_args =
-          List.map (fun kind -> {
+          List.map2 (fun kind mode -> {
                 name = V.create_local "arg";
                 layout = kind;
                 attributes = Lambda.default_param_attribute;
-                mode = new_clos_mode
-              }) rem_layouts
+                mode = mode
+              }) rem_layouts rem_modes
         in
         let rec iter args body =
           match args with
@@ -1164,6 +1166,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                })
                ~loc
                ~mode:new_clos_mode
+               ~ret_mode:fundesc.fun_retmode
                ~region:fundesc.fun_region
                ~attr:default_function_attribute)
         in
@@ -1339,6 +1342,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Ostype_cygwin -> make_const_bool (Sys.os_type = "Cygwin")
         | Backend_type ->
             make_const_int 0 (* tag 0 is the same as Native here *)
+        | Runtime5 -> make_const_bool Config.runtime5
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
@@ -1357,11 +1361,17 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lprim(Pgetpredef id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       getpredef dbg id, Value_unknown
-  | Lprim(Pfield (n, _), [lam], loc) ->
+  | Lprim(Pfield (n, ptr, mut), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
-      check_constant_result (Uprim(P.Pfield (n, Lambda.layout_any_value), [ulam], dbg))
-                            (field_approx n approx)
+      let mut : Lambda.mutable_flag =
+        match mut with
+        | Reads_agree -> Immutable
+        | Reads_vary -> Mutable
+      in
+      check_constant_result
+        (Uprim(P.Pfield (n, Lambda.layout_any_value, ptr, mut), [ulam], dbg))
+        (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
           [Lprim(Pgetglobal cu, [], _); lam], loc)->
       let (ulam, approx) = close env lam in
@@ -1519,8 +1529,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (List.map
          (function
            | (id, Lfunction{kind; params; return; body; attr;
-                            loc; mode; region}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
+                            loc; mode; ret_mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )
@@ -1545,7 +1555,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     List.map
       (function
           (id, Lfunction(
-              {kind; params; return; body; attr; loc; mode; region})) ->
+              {kind; params; return; body; attr; loc; mode; region; ret_mode})) ->
             let attrib = attr.check in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
@@ -1563,7 +1573,10 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
                fun_poll = attr.poll;
-               fun_region = region} in
+               fun_region = region;
+               fun_argmodes = List.map (fun (p : Lambda.lparam) -> p.mode) params;
+               fun_retmode = ret_mode;
+              } in
             let dbg = Debuginfo.from_location loc in
             (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
              return, body, mode, attrib, fundesc, dbg)
@@ -1598,7 +1611,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, _return, body, mode, check, fundesc, dbg)
+        env_pos =
     let env_param = V.create_local "env" in
     let decomposition =
       Clambda_layout.decompose_free_vars

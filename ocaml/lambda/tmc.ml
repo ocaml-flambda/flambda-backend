@@ -897,6 +897,12 @@ let rec choice ctx t =
     | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+
+    (* we don't handle effect or DLS primitives *)
+    | Prunstack | Pperform | Presume | Preperform | Pdls_get
+
+    (* we don't handle atomic primitives *)
+    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
     | Punbox_float | Pbox_float _
     | Punbox_int _ | Pbox_int _
 
@@ -985,9 +991,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
-    let { kind; params; return; body = _; attr; loc; mode; region } = lfun in
+    let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1015,6 +1021,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~attr:lfun.attr
       ~loc:lfun.loc
       ~mode:lfun.mode
+      ~ret_mode:lfun.ret_mode
       ~region:true
   in
   let dps_var = special.dps_id in

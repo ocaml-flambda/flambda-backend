@@ -138,8 +138,15 @@ val warning_scope:
     misplaced attribute warnings. *)
 val has_attribute : string list -> Parsetree.attributes -> bool
 
-(** [filter_attributes nms_and_conds attrs] finds those attrs which
-    appear in one of the sublists of nms_and_conds with cond=true.
+module Attributes_filter : sig
+  type t
+
+  val create : (string list * bool) list -> t
+end
+
+(** [filter_attributes (Attributes_filter.create nms_and_conds) attrs] finds
+    those attrs which appear in one of the sublists of nms_and_conds with
+    cond=true.
 
     Each element [(nms, conds)] of the [nms_and_conds] list is a list of
     attribute names along with a boolean indicating whether to include
@@ -148,9 +155,10 @@ val has_attribute : string list -> Parsetree.attributes -> bool
     "unrolled" only in the case where flambda or flambda2 is configured).  We
     handle this by taking a bool, rather than simply passing fewer nms in those
     cases, to support misplaced attribute warnings - the attribute should not
-    count as misplaced if the compiler could use it in some configuration. *)
+    count as misplaced if the compiler could use it in some configuration.
+*)
 val filter_attributes :
-  (string list * bool) list -> Parsetree.attributes -> Parsetree.attributes
+  Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -175,37 +183,26 @@ val has_unique: Parsetree.attributes -> (bool,unit) result
 
 val has_once : Parsetree.attributes -> (bool, unit) result
 
-(* [jkind] gets the jkind in the attributes if one is present.  We always
-   allow the [value] annotation, even if the layouts extensions are disabled.
-   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
-   attributes even if the layouts extensions are disabled - this is used to
-   support the original immediacy attributes, which are now implemented in terms
-   of jkinds.
+(** This filter selects attributes corresponding to mode annotations on
+    let-bindings.
 
-   The return value is [Error <jkind>] if a jkind attribute is present but
-   not allowed by the current set of extensions.  Otherwise it is [Ok None] if
-   there is no jkind annotation and [Ok (Some jkind)] if there is one.
-
-   - If no layout extensions are on and [~legacy_immediate] is false, this will
-     always return [Ok None], [Ok (Some Value)], or [Error ...].
-   - If no layout extensions are on and [~legacy_immediate] is true, this will
-     error on [void], [float64], or [any], but allow [immediate], [immediate64],
-     and [value].
-   - If the [Layouts_beta] extension is on, this behaves like the previous case
-     regardless of the value of [~legacy_immediate], except that it allows
-     [float64] and [any].
-   - If the [Layouts_alpha] extension is on, this can return any jkind and
-     never errors.
-
-   Currently, the [Layouts] extension is ignored - it's no different than
-   turning on no layout extensions.
-
-   This is not the only place the layouts extension level is checked.  If you're
-   changing what's allowed in a given level, you may also need to make changes
-   in the parser, Jkind.get_required_layouts_level, and Typeopt.
+    This filter is used principally by the type-checker when it copies [local_],
+    [unique_], and [once_] mode annotation attributes from let-bindings to both
+    the let-bound expression and its pattern.
 *)
-(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
-   turn on layouts by default). *)
-val jkind : legacy_immediate:bool -> Parsetree.attributes ->
-  (Jane_asttypes.jkind_annotation option,
-   Jane_asttypes.jkind_annotation) result
+val mode_annotation_attributes_filter : Attributes_filter.t
+
+(* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
+   after rerouting [@@immediate]. *)
+type jkind_attribute =
+  | Immediate64
+  | Immediate
+
+val jkind_attribute_to_string : jkind_attribute -> string
+val jkind_attribute_of_string : string -> jkind_attribute option
+
+(* [jkind] gets the first jkind in the attributes if one is present.  All such
+   attributes can be provided even in the absence of the layouts extension
+   as the attribute mechanism predates layouts.
+*)
+val jkind : Parsetree.attributes -> jkind_attribute Location.loc option

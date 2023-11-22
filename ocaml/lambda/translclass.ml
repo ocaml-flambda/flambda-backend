@@ -37,13 +37,19 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
+<<<<<<< HEAD
 let lfunction ?(kind=Curried {nlocal=0}) ?(region=true)
     return_layout params body =
+||||||| 697d5479
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
+=======
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
+>>>>>>> origin/main
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
-               body = body'; attr; loc}
+               body = body'; attr; loc; mode = Alloc_heap; ret_mode; region}
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
@@ -51,6 +57,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true)
                 ~attr
                 ~loc
                 ~mode:alloc_heap
+                ~ret_mode
                 ~region
   |  _ ->
       lfunction ~kind ~params ~return:return_layout
@@ -58,6 +65,7 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true)
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
+                ~ret_mode
                 ~region
 
 let lapply ap =
@@ -86,13 +94,13 @@ let mkappl (func, args, layout) =
          ap_specialised=Default_specialise;
          ap_probe=None;
        }],
-     Loc_unknown);;
+     Loc_unknown)
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
 
 let lfield v i =
-  Lprim(Pfield (i, Reads_vary), [Lvar v], Loc_unknown)
+  Lprim(Pfield (i, Pointer, Reads_vary), [Lvar v], Loc_unknown)
 
 let transl_label l = share (Const_immstring l)
 
@@ -164,7 +172,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let env =
         match envs with None -> []
         | Some envs ->
-            [Lprim(Pfield (List.length inh_init + 1, Reads_vary),
+            [Lprim(Pfield (List.length inh_init + 1, Pointer, Reads_vary),
                    [Lvar envs],
                    Loc_unknown)]
       in
@@ -227,6 +235,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~loc:(of_location ~scopes pat.pat_loc)
                    ~body
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap
                    ~region:true
        in
        begin match obj_init with
@@ -322,7 +331,7 @@ let rec index a = function
 
 let bind_id_as_val (id, _) = ("", id)
 
-let class_field i = Pfield (i, Reads_vary)
+let class_field i = Pfield (i, Pointer, Reads_vary)
 
 let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
   match cl.cl_desc with
@@ -515,6 +524,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~loc:(of_location ~scopes pat.pat_loc)
                   ~body
                   ~mode:alloc_heap
+                  ~ret_mode:alloc_heap
                   ~region:true
       in
       (path, path_lam,
@@ -624,7 +634,7 @@ let rec builtin_meths self env env2 body =
     | p when const_path p -> "const", [p]
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
-    | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
+    | Lprim(Pfield(n, _, _), [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
     | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
         "meth", [met]
@@ -793,7 +803,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
   let msubst arr = function
-      Lfunction {kind = Curried _ as kind; region;
+      Lfunction {kind = Curried _ as kind; region; ret_mode;
                  params = self :: args; return; body} ->
         let env = Ident.create_local "env" in
         let body' =
@@ -805,7 +815,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self.name] env env2 (lfunction return args body')
         with Not_found ->
-          [lfunction ~kind ~region return (self :: args)
+          [lfunction ~kind ~region ~ret_mode return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, layout_block, env,
                    Lprim(Pfield_computed Reads_vary,
@@ -876,6 +886,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~loc:Loc_unknown
                            ~return:layout_function
                            ~mode:alloc_heap
+                           ~ret_mode:alloc_heap
                            ~region:true
                            ~params:[lparam cla layout_table] ~body:cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
@@ -901,6 +912,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~loc:Loc_unknown
                           ~return:layout_function
                           ~mode:alloc_heap
+                          ~ret_mode:alloc_heap
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
@@ -962,6 +974,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
+                   ~ret_mode:alloc_heap
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
@@ -987,6 +1000,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap
+         ~ret_mode:alloc_heap
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]

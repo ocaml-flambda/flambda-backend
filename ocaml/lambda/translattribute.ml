@@ -51,7 +51,11 @@ let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
 let find_attribute p attributes =
-  let inline_attribute = Builtin_attributes.filter_attributes p attributes in
+  let inline_attribute =
+    Builtin_attributes.filter_attributes
+      (Builtin_attributes.Attributes_filter.create p)
+      attributes
+  in
   let attr =
     match inline_attribute with
     | [] -> None
@@ -251,11 +255,13 @@ let parse_property_attribute attr property =
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
       parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Check { property; strict = false; loc; } )
+        ~empty:(Check { property; strict = false; opt = false; loc; } )
         [
           ["assume"],
           Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; loc; };
+          ["strict"], Check { property; strict = true; opt = false; loc; };
+          ["opt"], Check { property; strict = false; opt = true; loc; };
+          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
           ["assume"; "strict"],
           Assume { property; strict = true; never_returns_normally = false; loc; };
           ["assume"; "never_returns_normally"],
@@ -312,8 +318,8 @@ let get_property_attribute l p =
    | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
    | Some _, Ignore_assert_all _ -> ()
    | Some _, Assume _ -> ()
-   | Some attr, Check _ ->
-     if !Clflags.zero_alloc_check && !Clflags.native_code then
+   | Some attr, Check { opt; _ } ->
+     if Lambda.is_check_enabled ~opt p && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is requested
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
@@ -341,7 +347,7 @@ let check_poll_inline loc attr =
   | Error_poll, (Always_inline | Available_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Inlining_impossible
-          "[@poll error] is incompatible with inlining")
+           "[@poll error] is incompatible with inlining")
   | _ ->
       ()
 
@@ -355,8 +361,8 @@ let check_poll_local loc attr =
       ()
 
 let lfunction_with_attr ~attr
-  { kind; params; return; body; attr=_; loc; mode; region } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region
+  { kind; params; return; body; attr=_; loc; mode; ret_mode; region } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
 
 let add_inline_attribute expr loc attributes =
   match expr with

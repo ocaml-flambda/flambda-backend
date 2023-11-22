@@ -1,5 +1,5 @@
 File "fail19.ml", line 7, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19__foo_HIDE_STAMP)
+Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19.foo_HIDE_STAMP)
 File "fail19.ml", line 18, characters 5-26:
   allocate 48 bytes (fail19.ml:18,5--26;dep19.ml:1,38--52)
 File "fail19.ml", line 18, characters 5-26:
@@ -7,11 +7,11 @@ File "fail19.ml", line 18, characters 5-26:
 File "fail19.ml", line 10, characters 12-17:
   allocate 24 bytes
 File "fail19.ml", line 12, characters 10-15:
-  direct call camlFail19__bar_HIDE_STAMP
+  direct call camlFail19.bar_HIDE_STAMP
 File "fail19.ml", line 13, characters 13-16:
   indirect call
 File "fail19.ml", line 14, characters 15-44:
-  probe test handler camlFail19__probe_handler_test_HIDE_STAMP
+  probe test handler camlFail19.probe_handler_test_HIDE_STAMP
 File "fail19.ml", line 14, characters 46-54:
   allocate 24 bytes
 File "fail19.ml", line 15, characters 11-20:

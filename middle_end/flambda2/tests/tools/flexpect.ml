@@ -118,6 +118,12 @@ let run_mdflx_file filename : Outcome.t =
     Error
 
 let _ =
+  (* CR ocaml 5 runtime: remove this once we are on the 5 runtime *)
+  Symbol0.force_runtime4_symbols ();
+  if not Config.stack_allocation
+  then (
+    Printf.printf "flexpect not supported when stack allocation disabled";
+    exit 0);
   let file = Sys.argv.(1) in
   let ext = Filename.extension file in
   let outcome =

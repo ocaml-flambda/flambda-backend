@@ -3,8 +3,6 @@ module Domain = struct
     | Reachable
     | Unreachable
 
-  let top = Reachable
-
   let bot = Unreachable
 
   let less_equal left right =

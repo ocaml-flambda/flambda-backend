@@ -280,6 +280,7 @@ let dump_op ppf = function
   | Begin_region -> Format.fprintf ppf "beginregion"
   | End_region -> Format.fprintf ppf "endregion"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
+  | Dls_get -> Format.fprintf ppf "dls_get"
 
 let dump_basic ppf (basic : basic) =
   let open Format in
@@ -371,8 +372,9 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match prim with
-      | External { func_symbol = func; ty_res; ty_args; alloc } ->
-        Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
+      | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
+        Mach.Iextcall
+          { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
@@ -497,6 +499,7 @@ let is_pure_operation : operation -> bool = function
     assert (not (Arch.operation_can_raise s));
     Arch.operation_is_pure s
   | Name_for_debugger _ -> false
+  | Dls_get -> true
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
@@ -542,7 +545,7 @@ let is_noop_move instr =
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
       | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region )
+      | Begin_region | End_region | Dls_get )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

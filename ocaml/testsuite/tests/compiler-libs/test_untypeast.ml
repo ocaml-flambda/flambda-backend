@@ -8,7 +8,7 @@
 
 let run s =
   let pe = Parse.expression (Lexing.from_string s) in
-  let te = Typecore.type_expression (Lazy.force Env.initial_safe_string) pe in
+  let te = Typecore.type_expression (Lazy.force Env.initial) pe in
   let ute = Untypeast.untype_expression te in
   Format.asprintf "%a" Pprintast.expression ute
 

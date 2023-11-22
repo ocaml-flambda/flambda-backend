@@ -24,13 +24,13 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <sys/time.h>
-#include <time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "caml/config.h"
 #if defined(SUPPORT_DYNAMIC_LINKING) && !defined(BUILDING_LIBCAMLRUNS)
 #define WITH_DYNAMIC_LINKING
@@ -43,6 +43,10 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
+#include <time.h>
+#ifdef HAS_MACH_ABSOLUTE_TIME
+#include <mach/mach_time.h>
+#endif
 #ifdef HAS_DIRENT
 #include <dirent.h>
 #else
@@ -50,6 +54,9 @@
 #endif
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
+#endif
+#ifdef HAS_SYS_MMAN_H
+#include <sys/mman.h>
 #endif
 #include "caml/fail.h"
 #include "caml/memory.h"
@@ -59,6 +66,7 @@
 #include "caml/sys.h"
 #include "caml/io.h"
 #include "caml/alloc.h"
+#include "caml/platform.h"
 
 #ifndef S_ISREG
 #define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
@@ -232,10 +240,9 @@ caml_stat_string caml_search_dll_in_path(struct ext_table * path,
 #ifdef __CYGWIN__
 /* Use flexdll */
 
-void * caml_dlopen(char * libname, int for_execution, int global)
+void * caml_dlopen(char * libname, int global)
 {
   int flags = (global ? FLEXDLL_RTLD_GLOBAL : 0);
-  if (!for_execution) flags |= FLEXDLL_RTLD_NOEXEC;
   return flexdll_dlopen(libname, flags);
 }
 
@@ -269,10 +276,9 @@ char * caml_dlerror(void)
 #define RTLD_LOCAL 0
 #endif
 
-void * caml_dlopen(char * libname, int for_execution, int global)
+void * caml_dlopen(char * libname, int global)
 {
   return dlopen(libname, RTLD_NOW | (global ? RTLD_GLOBAL : RTLD_LOCAL));
-  /* Could use RTLD_LAZY if for_execution == 0, but needs testing */
 }
 
 void caml_dlclose(void * handle)
@@ -302,7 +308,7 @@ char * caml_dlerror(void)
 #endif /* __CYGWIN__ */
 #else
 
-void * caml_dlopen(char * libname, int for_execution, int global)
+void * caml_dlopen(char * libname, int global)
 {
   return NULL;
 }
@@ -423,6 +429,38 @@ char *caml_secure_getenv (char const *var)
 #endif
 }
 
+int64_t caml_time_counter(void)
+{
+#if defined(HAS_MACH_ABSOLUTE_TIME)
+  static mach_timebase_info_data_t time_base = {0};
+  uint64_t now;
+
+  if (time_base.denom == 0) {
+    if (mach_timebase_info(&time_base) != KERN_SUCCESS)
+      return 0;
+  }
+
+  now = mach_absolute_time();
+  return (int64_t)((now * time_base.numer) / time_base.denom);
+#elif defined(HAS_POSIX_MONOTONIC_CLOCK)
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return
+    (int64_t)t.tv_sec  * (int64_t)1000000000 +
+    (int64_t)t.tv_nsec;
+#elif defined(HAS_GETTIMEOFDAY)
+  struct timeval t;
+  gettimeofday(&t, 0);
+  return
+    (int64_t)t.tv_sec  * (int64_t)1000000000 +
+    (int64_t)t.tv_usec * (int64_t)1000;
+#else
+# error "No timesource available"
+#endif
+}
+
+
+
 int caml_num_rows_fd(int fd)
 {
 #ifdef TIOCGWINSZ
@@ -464,4 +502,113 @@ void caml_print_timestamp(FILE* channel, int formatted)
             (int)tv.tv_usec,
             tz);
   }
+}
+
+void caml_init_os_params(void)
+{
+  caml_plat_mmap_alignment = caml_plat_pagesize = sysconf(_SC_PAGESIZE);
+  return;
+}
+
+#ifndef __CYGWIN__
+
+/* Standard Unix implementation: reserve with mmap (and trim to alignment) with
+   commit done using mmap as well. */
+
+Caml_inline void safe_munmap(uintnat addr, uintnat size)
+{
+  if (size > 0) {
+    caml_gc_message(0x1000, "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                            " bytes at %" ARCH_INTNAT_PRINTF_FORMAT "x"
+                            " for heaps\n", size, addr);
+    munmap((void*)addr, size);
+  }
+}
+
+void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
+{
+  uintnat alloc_sz = size + alignment;
+  uintnat base, aligned_start, aligned_end;
+  void* mem;
+
+  mem = mmap(0, alloc_sz, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
+             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mem == MAP_FAILED)
+    return 0;
+
+  /* trim to an aligned region */
+  base = (uintnat)mem;
+  aligned_start = (base + alignment - 1) & ~(alignment - 1);
+  aligned_end = aligned_start + size;
+  safe_munmap(base, aligned_start - base);
+  safe_munmap(aligned_end, (base + alloc_sz) - aligned_end);
+  mem = (void*)aligned_start;
+
+  return mem;
+}
+
+static void* map_fixed(void* mem, uintnat size, int prot)
+{
+  if (mmap(mem, size, prot, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+           -1, 0) == MAP_FAILED) {
+    return 0;
+  } else {
+    return mem;
+  }
+}
+
+#else
+
+/* Cygwin implementation: memory reserved using mmap, but relying on the large
+   allocation granularity of the underlying Windows VirtualAlloc call to ensure
+   alignment (since on Windows it is not possible to trim the region). Commit
+   done using mprotect, since Cygwin's mmap doesn't implement the required
+   functions for committing using mmap. */
+
+void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
+{
+  void* mem;
+
+  if (alignment > caml_plat_mmap_alignment)
+    caml_fatal_error("Cannot align memory to %lx on this platform", alignment);
+
+  mem = mmap(0, size, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
+             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mem == MAP_FAILED)
+    return 0;
+
+  return mem;
+}
+
+static void* map_fixed(void* mem, uintnat size, int prot)
+{
+  if (mprotect(mem, size, prot) != 0) {
+    return 0;
+  } else {
+    return mem;
+  }
+}
+
+#endif /* !__CYGWIN__ */
+
+void* caml_plat_mem_commit(void* mem, uintnat size)
+{
+  void* p = map_fixed(mem, size, PROT_READ | PROT_WRITE);
+  /*
+    FIXME: On Linux, it might be useful to populate page tables with
+    MAP_POPULATE to reduce the time spent blocking on page faults at
+    a later point.
+  */
+  return p;
+}
+
+void caml_plat_mem_decommit(void* mem, uintnat size)
+{
+  map_fixed(mem, size, PROT_NONE);
+}
+
+void caml_plat_mem_unmap(void* mem, uintnat size)
+{
+  if (munmap(mem, size) != 0)
+    CAMLassert(0);
 }

@@ -345,7 +345,7 @@ let make_writer dest ?getpid (info : Info.t) =
 
 module IntTbl = Hashtbl.MakeSeeded (struct
   type t = int
-  let hash _seed (id : t) =
+  let seeded_hash _seed (id : t) =
     let h = id * 189696287 in
     h lxor (h lsr 23)
   let equal (a : t) (b : t) = a = b

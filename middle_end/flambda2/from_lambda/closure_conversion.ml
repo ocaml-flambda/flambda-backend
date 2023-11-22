@@ -102,12 +102,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Tagged_immediate (Targetint_31_63.of_char c), "char"
   | Const_base (Const_string (s, _, _)) ->
-    let const, name =
-      if Flambda_features.safe_string ()
-      then SC.immutable_string s, "immstring"
-      else SC.mutable_string ~initial_value:s, "string"
-    in
-    register_const acc const name
+    register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
@@ -346,7 +341,13 @@ module Inlining = struct
   let inline acc ~apply ~apply_depth ~func_desc:code =
     let apply_dbg = Apply.dbg apply in
     let callee = Apply.callee apply in
-    let region_inlined_into = Apply.region apply in
+    let region_inlined_into =
+      match Apply.call_kind apply with
+      | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> alloc_mode
+      | C_call _ ->
+        Misc.fatal_error
+          "Trying to call [Closure_conversion.Inlining.inline] on a C call."
+    in
     let args = Apply.args apply in
     let apply_return_continuation = Apply.continuation apply in
     let apply_exn_continuation = Apply.exn_continuation apply in
@@ -403,8 +404,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
-    ~current_region (k : Acc.t -> Named.t list -> Expr_with_acc.t) :
-    Expr_with_acc.t =
+    (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let args =
     List.map
       (function
@@ -548,13 +548,13 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
-        Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~args_arity:param_arity ~return_arity
-          ~call_kind dbg ~inlined:Default_inlined
+        Apply.create ~callee:(Some callee)
+          ~continuation:(Return return_continuation) exn_continuation ~args
+          ~args_arity:param_arity ~return_arity ~call_kind dbg
+          ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
           ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
-          ~region:current_region
       in
       Expr_with_acc.create_apply acc apply
   in
@@ -698,7 +698,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_c_call acc env ~loc ~let_bound_ids_with_kinds prim ~args
-      exn_continuation dbg ~current_region k
+      exn_continuation dbg k
   | Pgetglobal cu, [] ->
     if Compilation_unit.equal cu (Env.current_unit env)
     then
@@ -771,7 +771,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
       | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _ ->
+      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
+      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -807,20 +809,17 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
-  | Begin_region { try_region_parent } ->
+  | Begin_region { is_try_region } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      match try_region_parent with
-      | None -> Nullary Begin_region
-      | Some try_region_parent ->
-        let try_region_parent = find_simple_from_id env try_region_parent in
-        Unary (Begin_try_region, Simple try_region_parent)
+      Nullary (if is_try_region then Begin_try_region else Begin_region)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
-  | End_region id ->
-    let named = find_simple_from_id env id in
+  | End_region { is_try_region; region } ->
+    let named = find_simple_from_id env region in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Unary (End_region, Simple named)
+      Unary
+        ((if is_try_region then End_try_region else End_region), Simple named)
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
@@ -1143,35 +1142,35 @@ let close_exact_or_unknown_apply acc env
     | None -> fst (Env.find_var env region)
     | Some region -> region
   in
-  let mode = Alloc_mode.For_types.from_lambda mode in
-  let acc, call_kind =
+  let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+  let acc, call_kind, can_erase_callee =
     match kind with
     | Function -> (
-      ( acc,
-        match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let is_tupled =
-            let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.is_tupled meta
+      match (callee_approx : Env.value_approximation option) with
+      | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
+        let meta = Code_or_metadata.code_metadata code_or_meta in
+        if Code_metadata.is_tupled meta
+        then
+          (* CR keryan : We could do better here since we know the arity, but we
+             would have to untuple the arguments and we lack information for
+             now *)
+          acc, Call_kind.indirect_function_call_unknown_arity mode, false
+        else
+          let can_erase_callee =
+            Flambda_features.classic_mode ()
+            && not (Code_metadata.is_my_closure_used meta)
           in
-          if is_tupled
-          then
-            (* CR keryan : We could do better here since we know the arity, but
-               we would have to untuple the arguments and we lack information
-               for now *)
-            Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id mode
-        | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some
-            ( Value_unknown | Value_symbol _ | Value_int _
-            | Block_approximation _ ) ->
-          assert false
-        (* See [close_apply] *) ))
+          acc, Call_kind.direct_function_call code_id mode, can_erase_callee
+      | None -> acc, Call_kind.indirect_function_call_unknown_arity mode, false
+      | Some
+          (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
+        ->
+        assert false (* See [close_apply] *))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
       ( acc,
-        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode
-      )
+        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode,
+        false )
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
@@ -1186,14 +1185,15 @@ let close_exact_or_unknown_apply acc env
     | Rc_nontail -> Apply.Position.Nontail
   in
   let apply =
-    Apply.create ~callee ~continuation:(Return continuation)
-      apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
+    Apply.create
+      ~callee:(if can_erase_callee then None else Some callee)
+      ~continuation:(Return continuation) apply_exn_continuation ~args
+      ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
-      ~region:current_region
   in
   if Flambda_features.classic_mode ()
   then
@@ -1624,6 +1624,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~param_modes
       ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
       ~result_arity:return ~result_types:Unknown
+      ~result_mode:(Function_decl.result_mode decl)
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -1723,10 +1724,10 @@ let close_functions acc external_env ~current_region function_declarations =
       (fun approx_map decl ->
         (* The only fields of metadata which are used for this pass are
            params_arity, param_modes, is_tupled, first_complex_local_param,
-           contains_no_escaping_local_allocs, and result_arity. We try to
-           populate the different fields as much as possible, but put dummy
-           values when they are not yet computed or simply too expensive to
-           compute for the other fields. *)
+           contains_no_escaping_local_allocs, result_mode, and result_arity. We
+           try to populate the different fields as much as possible, but put
+           dummy values when they are not yet computed or simply too expensive
+           to compute for the other fields. *)
         let function_slot = Function_decl.function_slot decl in
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
@@ -1756,6 +1757,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~first_complex_local_param:
               (Function_decl.first_complex_local_param decl)
             ~param_modes ~result_arity ~result_types:Unknown
+            ~result_mode:(Function_decl.result_mode decl)
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
             ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
@@ -2038,7 +2040,7 @@ let close_let_rec acc env ~function_declarations
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     approx ~provided ~provided_arity ~missing_arity ~missing_param_modes
-    ~result_arity ~arity ~first_complex_local_param
+    ~result_arity ~arity ~first_complex_local_param ~result_mode
     ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
@@ -2066,11 +2068,6 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let all_args =
     provided @ List.map (fun (p : Function_decl.param) -> IR.Var p.name) params
-  in
-  let result_mode =
-    if contains_no_escaping_local_allocs
-    then Lambda.alloc_heap
-    else Lambda.alloc_local
   in
   let fbody acc env =
     close_exact_or_unknown_apply acc env
@@ -2130,7 +2127,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~return:result_arity ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
-        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
+        ~result_mode ~contains_no_escaping_local_allocs Recursive.Non_recursive
+    ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
@@ -2145,7 +2143,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     ~current_region:apply.region
 
 let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
-    ~remaining_arity ~contains_no_escaping_local_allocs =
+    ~remaining_arity ~result_mode =
   let wrapper_cont = Continuation.create () in
   let returned_func = Variable.create "func" in
   (* See comments in [Simplify_common.split_direct_over_application] about this
@@ -2156,11 +2154,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   let acc, remaining = find_simples acc env remaining in
   let apply_dbg = Debuginfo.from_location apply.loc in
   let needs_region =
-    match apply.mode, contains_no_escaping_local_allocs with
-    | Alloc_heap, false ->
+    match apply.mode, (result_mode : Lambda.alloc_mode) with
+    | Alloc_heap, Alloc_local ->
       let over_app_region = Variable.create "over_app_region" in
       Some (over_app_region, Continuation.create ())
-    | Alloc_heap, true | Alloc_local, _ -> None
+    | Alloc_heap, Alloc_heap | Alloc_local, _ -> None
   in
   let apply_region =
     match needs_region with
@@ -2181,7 +2179,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let call_kind =
       Call_kind.indirect_function_call_unknown_arity
-        (Alloc_mode.For_types.from_lambda apply.mode)
+        (Alloc_mode.For_allocations.from_lambda apply.mode
+           ~current_region:apply_region)
     in
     let continuation =
       match needs_region with
@@ -2189,13 +2188,14 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
     let over_application =
-      Apply.create ~callee:(Simple.var returned_func) ~continuation
-        apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
-        ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
+      Apply.create
+        ~callee:(Some (Simple.var returned_func))
+        ~continuation apply_exn_continuation ~args:remaining
+        ~args_arity:remaining_arity ~return_arity:apply.return_arity ~call_kind
+        apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
         ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
-        ~region:apply_region
     in
     match needs_region with
     | None -> Expr_with_acc.create_apply acc over_application
@@ -2257,7 +2257,8 @@ type call_args_split =
       { full : IR.simple list;
         provided_arity : [`Complex] Flambda_arity.t;
         remaining : IR.simple list;
-        remaining_arity : [`Complex] Flambda_arity.t
+        remaining_arity : [`Complex] Flambda_arity.t;
+        result_mode : Lambda.alloc_mode
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -2273,6 +2274,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.is_tupled metadata,
           Code_metadata.param_modes metadata,
           Code_metadata.first_complex_local_param metadata,
+          Code_metadata.result_mode metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata )
     | Value_unknown -> None
     | Value_symbol _ | Value_int _ | Block_approximation _ ->
@@ -2292,6 +2294,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         is_tupled,
         param_modes,
         first_complex_local_param,
+        result_mode,
         contains_no_escaping_local_allocs ) -> (
     let acc, _ = find_simples_and_arity acc env apply.args in
     let split_args =
@@ -2347,7 +2350,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
             { full;
               provided_arity = non_unarized_arity;
               remaining;
-              remaining_arity
+              remaining_arity;
+              result_mode
             }
       in
       split apply.args arity
@@ -2374,21 +2378,17 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~provided_arity ~missing_arity ~missing_param_modes ~result_arity
-        ~arity:params_arity ~first_complex_local_param
+        ~arity:params_arity ~first_complex_local_param ~result_mode
         ~contains_no_escaping_local_allocs
-    | Over_app { full; provided_arity; remaining; remaining_arity } ->
+    | Over_app { full; provided_arity; remaining; remaining_arity; result_mode }
+      ->
       let full_args_call apply_continuation ~region acc =
-        let mode =
-          if contains_no_escaping_local_allocs
-          then Lambda.alloc_heap
-          else Lambda.alloc_local
-        in
         close_exact_or_unknown_apply acc env
           { apply with
             args = full;
             args_arity = provided_arity;
             continuation = apply_continuation;
-            mode;
+            mode = result_mode;
             return_arity =
               Flambda_arity.create_singletons
                 [Flambda_kind.With_subkind.any_value]
@@ -2396,7 +2396,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           (Some approx) ~replace_region:(Some region)
       in
       wrap_over_application acc env full_args_call apply ~remaining
-        ~remaining_arity ~contains_no_escaping_local_allocs)
+        ~remaining_arity ~result_mode)
 
 module CIS = Code_id_or_symbol
 module GroupMap = Numbers.Int.Map

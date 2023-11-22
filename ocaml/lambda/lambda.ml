@@ -27,6 +27,7 @@ type compile_time_constant =
   | Ostype_win32
   | Ostype_cygwin
   | Backend_type
+  | Runtime5
 
 type immediate_or_pointer =
   | Immediate
@@ -69,6 +70,11 @@ include (struct
     if Config.stack_allocation then Modify_maybe_stack
     else Modify_heap
 
+  let equal_alloc_mode mode1 mode2 =
+    match mode1, mode2 with
+    | Alloc_local, Alloc_local | Alloc_heap, Alloc_heap -> true
+    | (Alloc_local | Alloc_heap), _ -> false
+
 end : sig
 
   type locality_mode = private
@@ -91,6 +97,7 @@ end : sig
 
   val join_mode : alloc_mode -> alloc_mode -> alloc_mode
 
+  val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 end)
 
 let is_local_mode = function
@@ -136,7 +143,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * field_read_semantics
+  | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -148,7 +155,11 @@ type primitive =
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
-  (* Force lazy values *)
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -238,6 +249,11 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -253,6 +269,8 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of alloc_mode
+  (* Fetching domain-local state *)
+  | Pdls_get
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -509,6 +527,7 @@ type check_attribute =
   | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -602,6 +621,7 @@ and lfunction =
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
     mode: alloc_mode;
+    ret_mode: alloc_mode;
     region: bool; }
 
 and lambda_while =
@@ -665,7 +685,7 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
@@ -688,7 +708,7 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
      if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
-  Lfunction { kind; params; return; body; attr; loc; mode; region }
+  Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region }
 
 let lambda_unit = Lconst const_unit
 
@@ -1052,7 +1072,8 @@ let rec transl_address loc = function
       then Lprim (Pgetpredef id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
-      Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
+      Lprim(Pfield(pos, Pointer, Reads_agree),
+                   [transl_address loc addr], loc)
 
 let transl_path find loc env path =
   match find path env with
@@ -1269,9 +1290,9 @@ let shallow_map ~tail ~non_tail:f = function
         ap_specialised;
         ap_probe;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
+  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode; region } ->
       Lfunction { kind; params; return; body = f body; attr; loc;
-                  mode; region }
+                  mode; ret_mode; region }
   | Llet (str, layout, v, e1, e2) ->
       Llet (str, layout, v, f e1, tail e2)
   | Lmutlet (layout, v, e1, e2) ->
@@ -1420,7 +1441,7 @@ let reset () =
   raise_count := 0
 
 let mod_field ?(read_semantics=Reads_agree) pos =
-  Pfield (pos, read_semantics)
+  Pfield (pos, Pointer, read_semantics)
 
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
@@ -1514,6 +1535,13 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pobj_magic _ -> None
   | Punbox_float | Punbox_int _ -> None
   | Pbox_float m | Pbox_int (_, m) -> Some m
+  | Prunstack | Presume | Pperform | Preperform ->
+    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Patomic_load _
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+  | Pdls_get -> None
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1539,6 +1567,11 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     | Float64 -> layout_unboxed_float
     | Void -> assert false
     end
+
+let array_ref_kind_result_layout = function
+  | Pintarray_ref -> layout_int
+  | Pfloatarray_ref _ -> layout_boxed_float
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1580,10 +1613,7 @@ let primitive_result_layout (p : primitive) =
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
   | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
-      (match array_ref_kind with
-       | Pintarray_ref -> layout_int
-       | Pfloatarray_ref _ -> layout_boxed_float
-       | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
+    array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
@@ -1613,7 +1643,7 @@ let primitive_result_layout (p : primitive) =
       end
   | Pctconst (
       Big_endian | Word_size | Int_size | Max_wosize
-      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type
+      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type | Runtime5
     ) ->
       (* Compile-time constants only ever return ints for now,
          enumerate them all to be sure to modify this if it becomes wrong. *)
@@ -1623,6 +1653,15 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxedint Pnativeint
+  | Prunstack | Presume | Pperform | Preperform ->
+    (* CR mshinwell/ncourant: to be thought about later *)
+    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Patomic_load { immediate_or_pointer = Immediate } -> layout_int
+  | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+  | Pdls_get -> layout_any_value
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
@@ -1673,3 +1712,12 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let is_check_enabled ~opt property =
+  match property with
+  | Zero_alloc ->
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_all -> true
+    | Check_default -> not opt
+    | Check_opt_only -> opt

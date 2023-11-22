@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+* runtime4
+*)
 module MP = Gc.Memprof
 
 let allocs_by_memprof f =

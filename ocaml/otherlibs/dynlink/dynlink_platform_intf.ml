@@ -60,11 +60,18 @@ module type S = sig
     -> priv:bool
     -> handle * (Unit_header.t list)
 
-  val run_shared_startup : handle -> filename:string -> priv:bool -> unit
+  val register
+     : handle
+    -> Unit_header.t list
+    -> priv:bool
+    -> filename:string
+    -> unit
+
+  val run_shared_startup : handle -> unit
 
   val run
-     : handle
-    -> filename:string
+     : Mutex.t option
+    -> handle
     -> unit_header:Unit_header.t
     -> priv:bool
     -> unit

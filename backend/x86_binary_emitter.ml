@@ -897,9 +897,9 @@ let emit_rcpps = emit_rf_rfm 0x53
 let emit_sqrtps = emit_rf_rfm 0x51
 let emit_rsqrtps = emit_rf_rfm 0x52
 let emit_unpcklps = emit_rf_rfm 0x14
-let emit_movhlps = emit_rf_rfm 0x12
+let emit_unpckhps = emit_rf_rfm 0x15
+let emit_movhlps = emit_rf_rf 0x12
 let emit_movlhps = emit_rf_rf 0x16
-let emit_unpckhps = emit_rf_rf 0x15
 let emit_paddb = emit_osize_rf_rfm 0xFC
 let emit_paddw = emit_osize_rf_rfm 0xFD
 let emit_paddd = emit_osize_rf_rfm 0xFE
@@ -1031,6 +1031,8 @@ let emit_dpps = suffix emit_osize_rf_rfm_3A 0x40
 let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
 let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
 let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
+
+let emit_pclmulqdq = suffix emit_osize_rf_rfm_3A 0x44
 
 let emit_osize_rf op rmod b dst =
   match dst with
@@ -1955,6 +1957,7 @@ let assemble_instr b loc = function
   | PALIGNR (n, src, dst) -> emit_palignr b (imm n) dst src
   | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
   | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
+  | PCLMULQDQ (n, src, dst) -> emit_pclmulqdq b (imm n) dst src
 
 let assemble_line b loc ins =
   try
@@ -1990,6 +1993,10 @@ let assemble_line b loc ins =
     | Cfi_startproc -> ()
     | Cfi_endproc -> ()
     | Cfi_adjust_cfa_offset _ -> ()
+    | Cfi_remember_state -> ()
+    | Cfi_restore_state -> ()
+    | Cfi_def_cfa_register _ -> ()
+    | Cfi_def_cfa_offset _ -> ()
     | File _ -> ()
     | Loc _ -> ()
     | Private_extern _ -> assert false

@@ -1,5 +1,6 @@
 (* TEST
    flags = "-g"
+   * runtime4
 *)
 
 open Gc.Memprof

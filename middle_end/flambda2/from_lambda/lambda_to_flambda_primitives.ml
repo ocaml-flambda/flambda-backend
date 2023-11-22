@@ -1085,7 +1085,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Simple.const (Reg_width_const.tagged_immediate (Targetint_31_63.of_int n))
     in
     [Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)]
-  | Pfield (index, sem), [[arg]] ->
+  | Pfield (index, _int_or_ptr, sem), [[arg]] ->
+    (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
@@ -1234,13 +1235,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       [ Simple
           (Simple.const_int
              (Targetint_31_63.of_int
-                ((1 lsl ((8 * size_int) - (10 + Config.profinfo_width))) - 1)))
-      ]
+                ((1 lsl ((8 * size_int) - (10 + Config.reserved_header_bits)))
+                - 1))) ]
     | Ostype_unix -> [Simple (Simple.const_bool (Sys.os_type = "Unix"))]
     | Ostype_win32 -> [Simple (Simple.const_bool (Sys.os_type = "Win32"))]
     | Ostype_cygwin -> [Simple (Simple.const_bool (Sys.os_type = "Cygwin"))]
     | Backend_type ->
-      [Simple Simple.const_zero] (* constructor 0 is the same as Native here *))
+      [Simple Simple.const_zero] (* constructor 0 is the same as Native here *)
+    | Runtime5 -> [Simple (Simple.const_bool Config.runtime5)])
   | Pbswap16, [[arg]] ->
     [ tag_int
         (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))
@@ -1408,6 +1410,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
   | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
+  | Patomic_load { immediate_or_pointer }, [[atomic]] ->
+    [ Unary
+        ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
+          atomic ) ]
+  | Patomic_exchange, [[atomic]; [new_value]] ->
+    [Binary (Atomic_exchange, atomic, new_value)]
+  | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
+    [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
+  | Patomic_fetch_add, [[atomic]; [i]] ->
+    [Binary (Atomic_fetch_and_add, atomic, i)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1430,7 +1442,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _ ),
+      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
+      | Patomic_load _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1452,7 +1465,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
       | Parrayrefs
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
-      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ ),
+      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ | Patomic_exchange
+      | Patomic_fetch_add ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -1469,7 +1483,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set)
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
       | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ ),
+      | Pbigstring_set_128 _ | Patomic_cas ),
       ( []
       | [_]
       | [_; _]
@@ -1490,6 +1504,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
+      Printlambda.primitive prim
+  | (Prunstack | Pperform | Presume | Preperform | Pdls_get), _ ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc

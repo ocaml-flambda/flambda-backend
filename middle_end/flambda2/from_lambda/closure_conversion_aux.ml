@@ -35,8 +35,11 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region of { try_region_parent : Ident.t option }
-    | End_region of Ident.t
+    | Begin_region of { is_try_region : bool }
+    | End_region of
+        { is_try_region : bool;
+          region : Ident.t
+        }
     | Prim of
         { prim : Lambda.primitive;
           args : simple list list;
@@ -89,11 +92,14 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region { try_region_parent = None } -> fprintf ppf "Begin_region"
-    | Begin_region { try_region_parent = Some try_region_parent } ->
-      fprintf ppf "@[<2>(Begin_region@ (try_region_parent %a))@]" Ident.print
-        try_region_parent
-    | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
+    | Begin_region { is_try_region } ->
+      if is_try_region
+      then fprintf ppf "Begin_try_region"
+      else fprintf ppf "Begin_region"
+    | End_region { is_try_region; region } ->
+      if is_try_region
+      then fprintf ppf "@[<2>(End_try_region@ %a)@]" Ident.print region
+      else fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print region
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
         (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->
@@ -712,6 +718,7 @@ module Function_decls = struct
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
         first_complex_local_param : int;
+        result_mode : Lambda.alloc_mode;
         contains_no_escaping_local_allocs : bool
       }
 
@@ -719,7 +726,8 @@ module Function_decls = struct
         ~removed_params ~return ~return_continuation ~exn_continuation
         ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
         ~free_idents_of_body recursive ~closure_alloc_mode
-        ~first_complex_local_param ~contains_no_escaping_local_allocs =
+        ~first_complex_local_param ~result_mode
+        ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -742,6 +750,7 @@ module Function_decls = struct
         recursive;
         closure_alloc_mode;
         first_complex_local_param;
+        result_mode;
         contains_no_escaping_local_allocs
       }
 
@@ -788,6 +797,8 @@ module Function_decls = struct
     let closure_alloc_mode t = t.closure_alloc_mode
 
     let first_complex_local_param t = t.first_complex_local_param
+
+    let result_mode t = t.result_mode
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs
@@ -893,8 +904,16 @@ module Expr_with_acc = struct
         | C_call _ -> false)
     in
     let acc =
-      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc
-        (Apply.callee apply)
+      match Apply.callee apply with
+      | None ->
+        (* Since [is_my_closure_used] is initialized to [true] by default for
+           recursive functions, this can't affect the result of the loopify
+           attribute, because the recursive calls will keep the callee. Besides,
+           if we are in this case, we are compiling in classic mode, and loopify
+           won't run anyway. *)
+        acc
+      | Some callee ->
+        Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc callee
     in
     let acc =
       Acc.add_free_names_and_check_my_closure_use
