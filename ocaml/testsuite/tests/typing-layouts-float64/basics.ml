@@ -179,23 +179,6 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
 
 type t5_1 = { x : t_float64 };;
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 10-31:
-1 | let f x = Stdlib__Float_u.sin x
-              ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout float64 detected as sort for type float#,
-       but this requires extension layouts_beta, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
-||||||| 697d5479
-Line 1, characters 6-31:
-1 | let f x = Stdlib__Float_u.sin x
-          ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout float64 detected as sort for type float#,
-       but this requires extension layouts_beta, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
-=======
 type t5_1 = { x : t_float64; }
 |}];;
 
@@ -814,5 +797,4 @@ val a' : float = 42.
 val b' : float = 20.
 val c' : float = 3.1
 val f14_4 : t14_1 -> float# = <fun>
->>>>>>> origin/main
 |}]

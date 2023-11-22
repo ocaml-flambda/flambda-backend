@@ -71,20 +71,10 @@ let () =
     Buffer.output_buffer Out_channel.stdout buf
   in
   let default_cutoff = 20 in
-<<<<<<< HEAD
-  print_test ~flambda_only:false ~deps:"s.ml t.ml";
-  print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
-  print_test ~flambda_only:false ~deps:"test_match_on_mutable_state.ml";
-  print_test ~flambda_only:true ~deps:"test_flambda.ml";
-||||||| 697d5479
-  print_test ~flambda_only:false ~deps:"s.ml t.ml";
-  print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
-  print_test ~flambda_only:true ~deps:"test_flambda.ml";
-=======
   print_test ~flambda_only:false "s.ml t.ml";
   print_test ~flambda_only:false "t5.ml test_assume.ml";
+  print_test ~flambda_only:false "test_match_on_mutable_state.ml";
   print_test ~flambda_only:true "test_flambda.ml";
->>>>>>> origin/main
 
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail1";
   print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail2";

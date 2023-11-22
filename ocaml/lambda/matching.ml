@@ -3069,15 +3069,16 @@ let split_extension_cases tag_lambda_list =
     tag_lambda_list
 
 let transl_match_on_option value_kind arg loc ~if_some ~if_none =
+  (* This case is very frequent, it corresponds to
+      options and lists. *)
+  (* Keeping the Pisint test would make the bytecode
+      slightly worse, but it lets the native compiler generate
+      better code -- see #10681. *)
   if !Clflags.native_code then
     Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
                 if_none, if_some, value_kind)
   else
-    (* PR#10681: we use [arg] directly as the test here;
-        it generates better bytecode for this common case
-        (typically options and lists), but would prevent
-        some optimizations with the native compiler. *)
-    Lifthenelse (arg, if_some, if_none, value_kind)
+    Lifthenelse(arg, if_some, if_none, value_kind)
 
 let combine_constructor value_kind loc arg pat_env cstr partial ctx def
     (descr_lambda_list, total1, pats) =
@@ -3171,31 +3172,8 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
             with
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-<<<<<<< HEAD
                 transl_match_on_option value_kind arg loc
                   ~if_none:act1 ~if_some:act2
-||||||| 697d5479
-                if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
-                              act1, act2, value_kind)
-                else
-                  (* PR#10681: we use [arg] directly as the test here;
-                     it generates better bytecode for this common case
-                     (typically options and lists), but would prevent
-                     some optimizations with the native compiler. *)
-                  Lifthenelse (arg, act2, act1, value_kind)
-=======
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                (* Keeping the Pisint test would make the bytecode
-                   slightly worse, but it lets the native compiler generate
-                   better code -- see #10681. *)
-                if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
-                              act1, act2, value_kind)
-                else
-                  Lifthenelse(arg, act2, act1, value_kind)
->>>>>>> origin/main
             | n, 0, _, [] ->
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
@@ -4272,7 +4250,8 @@ let for_optional_arg_default
       ~if_none:default_arg
       ~if_some:
         (Lprim
-           (Pfield (0, Reads_agree),
+           (* CR ncik-roberts: Check whether we need something better here. *)
+           (Pfield (0, Pointer, Reads_agree),
             [ Lvar param ],
             Loc_unknown))
   in

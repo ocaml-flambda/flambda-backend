@@ -93,6 +93,7 @@ Line 5, characters 16-48:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
+
 val ok : ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b = <fun>
 |}];;
 
@@ -106,6 +107,7 @@ Line 2, characters 6-38:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
+
 Line 2, characters 2-49:
 2 |   fun (Eq : (a, int -> int) eq_or_not) x -> x + 1;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

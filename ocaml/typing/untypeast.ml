@@ -99,26 +99,6 @@ let rec lident_of_path = function
 
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 
-<<<<<<< HEAD
-||||||| 697d5479
-(** Try a name [$name$0], check if it's free, if not, increment and repeat. *)
-let fresh_name s env =
-  let rec aux i =
-    let name = s ^ Int.to_string i in
-    if Env.bound_value name env then aux (i+1)
-    else name
-  in
-  aux 0
-
-=======
-(** Try a name [$name$0], check if it's free, if not, increment and repeat. *)
-let fresh_name s env =
-  let name i = s ^ Int.to_string i in
-  let available i = not (Env.bound_value (name i) env) in
-  let first_i = Misc.find_first_mono available in
-  name first_i
-
->>>>>>> origin/main
 (** Extract the [n] patterns from the case of a letop *)
 let rec extract_letop_patterns n pat =
   if n = 0 then pat, []
@@ -555,8 +535,8 @@ let expression sub exp =
                let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
-                   (fun (x, layout) ->
-                      { pparam_desc = Pparam_newtype (x, layout);
+                   (fun (x, annot) ->
+                      { pparam_desc = Pparam_newtype (x, Option.map snd annot);
                         pparam_loc = x.loc;
                       })
                    fp.fp_newtypes

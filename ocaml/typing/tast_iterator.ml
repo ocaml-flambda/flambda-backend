@@ -281,7 +281,7 @@ let function_body sub body =
       List.iter (sub.case sub) fc_cases;
       Option.iter (extra sub) fc_exp_extra
 
-let expr sub {exp_extra; exp_desc; exp_env; _} =
+let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   let extra x = extra sub x in
   sub.location sub exp_loc;
   sub.attributes sub exp_attributes;

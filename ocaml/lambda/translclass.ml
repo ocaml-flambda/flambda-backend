@@ -37,14 +37,7 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-<<<<<<< HEAD
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true)
-    return_layout params body =
-||||||| 697d5479
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
-=======
 let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
->>>>>>> origin/main
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},

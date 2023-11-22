@@ -199,7 +199,7 @@ and function_param =
     fp_sort: Jkind.sort;
     fp_mode: Mode.Alloc.t;
     fp_curry: function_curry;
-    fp_newtypes: (string loc * jkind_annotation option) list;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
     fp_loc: Location.t;
   }
 
