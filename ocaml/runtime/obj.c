@@ -258,6 +258,11 @@ CAMLprim value caml_lazy_update_to_forcing (value v)
   }
 }
 
+CAMLprim value caml_obj_is_stack (value v)
+{
+  return Val_int(caml_is_local(v));
+}
+
 /* For mlvalues.h and camlinternalOO.ml
    See also GETPUBMET in interp.c
  */

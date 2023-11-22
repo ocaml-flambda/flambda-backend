@@ -55,31 +55,23 @@ let print_maybe_header ppf header =
   | None -> Format.fprintf ppf "None"
   | Some header -> Format.fprintf ppf "Some(%a)" print_header header
 
-let is_local repr =
-  match get_header_parsed repr with
-  | None -> false
-  | Some {color; _} -> color = 2
-
 (* immediate *)
 let () =
   let x = 42 in
   let rp = repr x in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
+  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
 
 (* global*)
 let () =
   let s = "hello" in
   let _r = ref s in
   let rp = repr s in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
+  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
 
 (* local *)
 let foo x =
   let local_ s = ref x in
   let rp = repr s in
-  Format.printf "%a %a\n" print_maybe_header (get_header_parsed rp)
-    Format.pp_print_bool (is_local rp)
+  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
 
 let () = foo 42
