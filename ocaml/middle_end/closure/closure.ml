@@ -1543,7 +1543,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_region = region;
                fun_poll = attr.poll } in
             let dbg = Debuginfo.from_location loc in
-            (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
+            (id, List.map (fun (p : Lambda.lparam) -> (p.name, p.layout, p.mode)) params,
              return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in

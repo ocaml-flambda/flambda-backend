@@ -1464,7 +1464,88 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
-  let body_cont = Continuation.create ~sort:Return () in
+  let unboxing_kind (layout : Lambda.layout) :
+      Function_decl.unboxing_kind option =
+    match layout with
+    | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
+      Some
+        (Multiple_values
+           (List.map Flambda_kind.With_subkind.from_lambda_value_kind
+              field_kinds))
+    | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
+      when tag = Obj.double_array_tag ->
+      assert (List.for_all (fun kind -> kind = Lambda.Pfloatval) field_kinds);
+      Some (Unboxed_float_record (List.length field_kinds))
+    | Pvalue Pfloatval -> Some (Unboxed_number Naked_float)
+    | Pvalue (Pboxedintval bi) ->
+      let bn : Flambda_kind.Boxable_number.t =
+        match bi with
+        | Pint32 -> Naked_int32
+        | Pint64 -> Naked_int64
+        | Pnativeint -> Naked_nativeint
+      in
+      Some (Unboxed_number bn)
+    | Pvalue (Pboxedvectorval bv) ->
+      let bn : Flambda_kind.Boxable_number.t =
+        match bv with Pvec128 _ -> Naked_vec128
+      in
+      Some (Unboxed_number bn)
+    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+    | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
+    | Punboxed_product _ ->
+      (* CR ncourant: warn *)
+      None
+  in
+  let params_arity =
+    Flambda_arity.from_lambda_list
+      (List.map (fun (p : L.lparam) -> p.layout) params)
+  in
+  let unarized_per_param = Flambda_arity.unarize_per_parameter params_arity in
+  assert (List.compare_lengths params unarized_per_param = 0);
+  let calling_convention : Function_decl.calling_convention =
+    if attr.stub
+       || not
+            (attr.unbox_return
+            || List.exists
+                 (fun (p : Lambda.lparam) -> p.attributes.unbox_param)
+                 params)
+    then Normal_calling_convention
+    else
+      let unboxed_function_slot =
+        Function_slot.create
+          (Compilation_unit.get_current_exn ())
+          ~name:(Ident.name fid ^ "_unboxed")
+          Flambda_kind.With_subkind.any_value
+      in
+      let unboxed_return =
+        if attr.unbox_return then unboxing_kind return else None
+      in
+      let unboxed_param (param : Lambda.lparam) =
+        if param.attributes.unbox_param
+        then unboxing_kind param.layout
+        else None
+      in
+      let unboxed_params =
+        List.concat
+          (List.map2
+             (fun param kinds ->
+               match unboxed_param param, kinds with
+               | unboxed, [_] -> [unboxed]
+               | None, _ -> List.map (fun _ -> None) kinds
+               | Some _, ([] | _ :: _ :: _) ->
+                 Misc.fatal_error "Trying to unbox an unboxed product.")
+             params unarized_per_param)
+      in
+      Unboxed_calling_convention
+        (unboxed_params, unboxed_return, unboxed_function_slot)
+  in
+  let body_cont =
+    match calling_convention with
+    | Normal_calling_convention | Unboxed_calling_convention (_, None, _) ->
+      Continuation.create ~sort:Return ()
+    | Unboxed_calling_convention (_, Some _, _) ->
+      Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
+  in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
     match precomputed_free_idents with
@@ -1484,12 +1565,6 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (Compilation_unit.get_current_exn ())
       ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
-  let params_arity =
-    Flambda_arity.from_lambda_list
-      (List.map (fun (p : L.lparam) -> p.layout) params)
-  in
-  let unarized_per_param = Flambda_arity.unarize_per_parameter params_arity in
-  assert (List.compare_lengths params unarized_per_param = 0);
   let unboxed_products = ref Ident.Map.empty in
   let params =
     List.concat_map
@@ -1540,10 +1615,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
-    ~params_arity ~removed_params ~return ~return_continuation:body_cont
-    ~exn_continuation ~my_region ~body ~attr ~loc ~free_idents_of_body recursive
-    ~closure_alloc_mode:mode ~first_complex_local_param
-    ~contains_no_escaping_local_allocs:region ~result_mode:ret_mode
+    ~params_arity ~removed_params ~return ~calling_convention
+    ~return_continuation:body_cont ~exn_continuation ~my_region ~body ~attr ~loc
+    ~free_idents_of_body recursive ~closure_alloc_mode:mode
+    ~first_complex_local_param ~contains_no_escaping_local_allocs:region
+    ~result_mode:ret_mode
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =

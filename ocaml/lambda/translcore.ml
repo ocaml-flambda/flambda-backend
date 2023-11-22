@@ -963,6 +963,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           stub = false;
           poll = Default_poll;
           tmc_candidate = false;
+          unbox_return = false;
           may_fuse_arity = false;
         } in
       let funcid = Ident.create_local ("probe_handler_" ^ name) in
@@ -1332,10 +1333,15 @@ and transl_curried_function ~scopes loc repr params body
               layout_of_sort fc_loc fc_arg_sort
         in
         let arg_mode = transl_alloc_mode fc_arg_mode in
+        let attributes =
+          match fc_cases with
+          | [ { c_lhs }] -> Translattribute.transl_param_attributes c_lhs
+          | [] | _ :: _ :: _ -> Lambda.default_param_attribute
+        in
         let param =
           { name = fc_param;
             layout = arg_layout;
-            attributes = Lambda.default_param_attribute;
+            attributes;
             mode = arg_mode;
           }
         in
@@ -1350,18 +1356,19 @@ and transl_curried_function ~scopes loc repr params body
     List.fold_right
       (fun fp (body, params) ->
         let { fp_param; fp_kind; fp_mode; fp_sort; fp_partial; fp_loc } = fp in
-        let arg_env, arg_type =
+        let arg_env, arg_type, attributes =
           match fp_kind with
-          | Tparam_pat pat -> pat.pat_env, pat.pat_type
-          | Tparam_optional_default (_, expr, _) ->
-              expr.exp_env, Predef.type_option expr.exp_type
+          | Tparam_pat pat ->
+              pat.pat_env, pat.pat_type, Translattribute.transl_param_attributes pat
+          | Tparam_optional_default (pat, expr, _) ->
+              expr.exp_env, Predef.type_option expr.exp_type, Translattribute.transl_param_attributes pat
         in
         let arg_layout = layout arg_env fp_loc fp_sort arg_type in
         let arg_mode = transl_alloc_mode fp_mode in
         let param =
           { name = fp_param;
             layout = arg_layout;
-            attributes = Lambda.default_param_attribute;
+            attributes;
             mode = arg_mode;
           }
         in

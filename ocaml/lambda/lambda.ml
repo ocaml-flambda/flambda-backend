@@ -584,11 +584,14 @@ type function_attribute = {
   stub: bool;
   tmc_candidate: bool;
   may_fuse_arity: bool;
+  unbox_return: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
 
-type parameter_attribute = No_attributes
+type parameter_attribute = {
+  unbox_param: bool;
+}
 
 type lparam = {
   name : Ident.t;
@@ -785,12 +788,13 @@ let default_function_attribute = {
      them multi-argument. So, we keep arity fusion turned on by default for now.
   *)
   may_fuse_arity = true;
+  unbox_return = false;
 }
 
 let default_stub_attribute =
   { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
 
-let default_param_attribute = No_attributes
+let default_param_attribute = { unbox_param = false }
 
 (* Build sharing keys *)
 (*
