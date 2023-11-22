@@ -110,34 +110,14 @@ and expression_desc =
       Path.t * Longident.t loc * Types.value_description * ident_kind * unique_use
   | Texp_constant of constant
   | Texp_let of rec_flag * value_binding list * expression
-<<<<<<< HEAD
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        alloc_mode : Mode.Alloc.t;
         region : bool;
+        ret_mode : Mode.Alloc.t;
         ret_sort : Jkind.sort;
+        alloc_mode : Mode.Alloc.t;
       }
-||||||| 697d5479
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t }
-=======
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_mode : Mode.Alloc.t;
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t }
->>>>>>> origin/main
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
         Mode.Locality.t

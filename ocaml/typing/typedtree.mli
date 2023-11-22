@@ -216,13 +216,16 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-<<<<<<< HEAD
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        alloc_mode : Mode.Alloc.t;
         region : bool;
+        ret_mode : Mode.Alloc.t;
+        (* Mode where the function allocates, ie local for a function of
+           type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
         ret_sort : Jkind.sort;
+        alloc_mode : Mode.Alloc.t
+        (* Mode at which the closure is allocated *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
           fun P0 P1 -> E                             (body = Tfunction_body _)
@@ -233,56 +236,6 @@ and expression_desc =
           Parameters' effects are run left-to-right when an n-ary function is
           saturated with n arguments.
       *)
-||||||| 697d5479
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t}
-        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
-            See {!Parsetree} for more details.
-
-            [param] is the identifier that is to be used to name the
-            parameter of the function.
-
-            partial =
-              [Partial] if the pattern match is partial
-              [Total] otherwise.
-
-            partial_mode is the mode of the resulting closure if this function
-            is partially applied to a single argument.
-         *)
-=======
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_mode : Mode.Alloc.t;
-      (* Mode where the function allocates, ie local for a function of
-         type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t
-      (* Mode at which the closure is allocated *)
-    }
-        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
-            See {!Parsetree} for more details.
-
-            [param] is the identifier that is to be used to name the
-            parameter of the function.
-
-            partial =
-              [Partial] if the pattern match is partial
-              [Total] otherwise.
-
-            partial_mode is the mode of the resulting closure if this function
-            is partially applied to a single argument.
-         *)
->>>>>>> origin/main
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.t
         (** E0 ~l1:E1 ... ~ln:En
 
@@ -432,7 +385,7 @@ and function_param =
     fp_sort: Jkind.sort;
     fp_mode: Mode.Alloc.t;
     fp_curry: function_curry;
-    fp_newtypes: (string loc * jkind_annotation option) list;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
     (** [fp_newtypes] are the new type declarations that come *after* that
         parameter. The newtypes that come before the first parameter are
         placed as exp_extras on the Texp_function node. This is just used in

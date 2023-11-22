@@ -341,7 +341,6 @@ let function_param sub
       let expr = sub.expr sub expr in
       Tparam_optional_default (pat, expr, sort)
   in
-<<<<<<< HEAD
   { fp_kind;
     fp_param;
     fp_arg_label;
@@ -377,13 +376,8 @@ let function_body sub body =
 
 let expr sub x =
   let extra x = extra sub x in
-  let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
-||||||| 697d5479
-  let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
-=======
-  let exp_loc = sub.location sub x.exp_loc in
   let exp_extra = List.map (tuple3 extra (sub.location sub) id) x.exp_extra in
->>>>>>> origin/main
+  let exp_loc = sub.location sub x.exp_loc in
   let exp_env = sub.env sub x.exp_env in
   let map_comprehension {comp_body; comp_clauses} =
     { comp_body =
@@ -430,24 +424,10 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-<<<<<<< HEAD
-    | Texp_function { params; body; alloc_mode; region; ret_sort } ->
+    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort } ->
         let params = List.map (function_param sub) params in
         let body = function_body sub body in
-        Texp_function { params; body; alloc_mode; region; ret_sort }
-||||||| 697d5479
-    | Texp_function { arg_label; param; cases; partial; region; curry;
-                      warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
-        let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases; partial; region; curry;
-                        warnings; arg_mode; arg_sort; ret_sort; alloc_mode }
-=======
-    | Texp_function { arg_label; param; cases; partial; region; curry;
-                      warnings; arg_mode; arg_sort; ret_mode; ret_sort; alloc_mode } ->
-        let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases; partial; region; curry;
-                        warnings; arg_mode; arg_sort; ret_mode; ret_sort; alloc_mode }
->>>>>>> origin/main
+        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort }
     | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,

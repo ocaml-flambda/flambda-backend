@@ -135,7 +135,6 @@ let dummy1_str_it_desc =
           ~vb_expr:
             (exp_desc_to_exp
                (mkTexp_function
-<<<<<<< HEAD
                   (Function_compat.cases_view_to_function
                      {
                        arg_label = Nolabel;
@@ -151,43 +150,12 @@ let dummy1_str_it_desc =
                              c_guard = None;
                              c_rhs =
                                exp_desc_to_exp
-                                 (Texp_assert (exp_desc_to_exp false_expr));
+                                 (mkTexp_assert
+                                    (exp_desc_to_exp false_expr)
+                                    Location.none);
                            };
                          ];
                      })))
-||||||| 697d5479
-                  {
-                    arg_label = Nolabel;
-                    param = create_local "()";
-                    cases =
-                      [
-                        {
-                          c_lhs = any_pat;
-                          c_guard = None;
-                          c_rhs =
-                            exp_desc_to_exp
-                              (Texp_assert (exp_desc_to_exp false_expr));
-                        };
-                      ];
-                  }))
-=======
-                  {
-                    arg_label = Nolabel;
-                    param = create_local "()";
-                    cases =
-                      [
-                        {
-                          c_lhs = any_pat;
-                          c_guard = None;
-                          c_rhs =
-                            exp_desc_to_exp
-                              (mkTexp_assert
-                                 (exp_desc_to_exp false_expr)
-                                 Location.none);
-                        };
-                      ];
-                  }))
->>>>>>> origin/main
           ~vb_attributes:[ inline_never ];
       ] )
 

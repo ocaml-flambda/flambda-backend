@@ -258,7 +258,6 @@ let pat
       sub.pat sub p1;
       sub.pat sub p2
 
-<<<<<<< HEAD
 let extra sub = function
   | Texp_constraint cty -> sub.typ sub cty
   | Texp_coerce (cty1, cty2) ->
@@ -284,32 +283,9 @@ let function_body sub body =
 
 let expr sub {exp_extra; exp_desc; exp_env; _} =
   let extra x = extra sub x in
-  List.iter (fun (e, _, _) -> extra e) exp_extra;
-||||||| 697d5479
-let expr sub {exp_extra; exp_desc; exp_env; _} =
-  let extra = function
-    | Texp_constraint cty -> sub.typ sub cty
-    | Texp_coerce (cty1, cty2) ->
-        Option.iter (sub.typ sub) cty1;
-        sub.typ sub cty2
-    | Texp_newtype _ -> ()
-    | Texp_poly cto -> Option.iter (sub.typ sub) cto
-  in
-  List.iter (fun (e, _, _) -> extra e) exp_extra;
-=======
-let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
-  let extra = function
-    | Texp_constraint cty -> sub.typ sub cty
-    | Texp_coerce (cty1, cty2) ->
-        Option.iter (sub.typ sub) cty1;
-        sub.typ sub cty2
-    | Texp_newtype _ -> ()
-    | Texp_poly cto -> Option.iter (sub.typ sub) cto
-  in
   sub.location sub exp_loc;
   sub.attributes sub exp_attributes;
   List.iter (fun (e, loc, _) -> extra e; sub.location sub loc) exp_extra;
->>>>>>> origin/main
   sub.env sub exp_env;
   match exp_desc with
   | Texp_ident (_, lid, _, _, _)  -> iter_loc sub lid

@@ -825,11 +825,6 @@ end
 
 (** Propositional equality *)
 type (_, _) eq = Refl : ('a, 'a) eq
-<<<<<<< HEAD
-||||||| 697d5479
-
-
-=======
 
 
 (** {1 Miscellaneous type aliases} *)
@@ -837,4 +832,3 @@ type (_, _) eq = Refl : ('a, 'a) eq
 type filepath = string
 
 type alerts = string Stdlib.String.Map.t
->>>>>>> origin/main

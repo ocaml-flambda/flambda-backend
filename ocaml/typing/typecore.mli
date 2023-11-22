@@ -196,19 +196,12 @@ type error =
   | Orpat_vars of Ident.t * Ident.t list
   | Expr_type_clash of
       Errortrace.unification_error * type_forcing_context option
-<<<<<<< HEAD
-      * Typedtree.expression_desc option
+      * Parsetree.expression_desc option
   | Function_arity_type_clash of
       { syntactic_arity :  int;
         type_constraint : type_expr;
         trace : Errortrace.unification_error;
       }
-  | Apply_non_function of type_expr
-||||||| 697d5479
-      * Typedtree.expression_desc option
-  | Apply_non_function of type_expr
-=======
-      * Parsetree.expression_desc option
   | Apply_non_function of {
       funct : Typedtree.expression;
       func_ty : type_expr;
@@ -216,7 +209,6 @@ type error =
       previous_arg_loc : Location.t;
       extra_arg_loc : Location.t;
     }
->>>>>>> origin/main
   | Apply_wrong_label of arg_label * type_expr * bool
   | Label_multiply_defined of string
   | Label_missing of Ident.t list

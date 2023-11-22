@@ -115,35 +115,11 @@ val pressure_variants_in_computation_pattern:
     [refute] indicates that [check_unused] was called on a refutation clause.
  *)
 val check_partial:
-<<<<<<< HEAD
-    ((string, constructor_description) Hashtbl.t ->
-     (string, label_description) Hashtbl.t ->
-     Parsetree.pattern -> pattern option) ->
-    Location.t -> value typed_case list -> partial
-||||||| 697d5479
-    ((string, constructor_description) Hashtbl.t ->
-     (string, label_description) Hashtbl.t ->
-     Parsetree.pattern -> pattern option) ->
-    Location.t -> value case list -> partial
-=======
-    (pattern -> pattern option) -> Location.t -> value case list -> partial
->>>>>>> origin/main
+    (pattern -> pattern option) -> Location.t -> value typed_case list
+    -> partial
+
 val check_unused:
-<<<<<<< HEAD
-    (bool ->
-     (string, constructor_description) Hashtbl.t ->
-     (string, label_description) Hashtbl.t ->
-     Parsetree.pattern -> pattern option) ->
-    value typed_case list -> unit
-||||||| 697d5479
-    (bool ->
-     (string, constructor_description) Hashtbl.t ->
-     (string, label_description) Hashtbl.t ->
-     Parsetree.pattern -> pattern option) ->
-    value case list -> unit
-=======
-    (bool -> pattern -> pattern option) -> value case list -> unit
->>>>>>> origin/main
+    (bool -> pattern -> pattern option) -> value typed_case list -> unit
 
 (* Irrefutability tests *)
 val irrefutable : pattern -> bool
