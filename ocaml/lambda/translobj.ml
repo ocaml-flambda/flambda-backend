@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes
 open Lambda
 
 (* Get oo primitives identifiers *)

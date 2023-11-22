@@ -17,7 +17,6 @@
 
 open Config
 open Misc
-open Asttypes
 open Lambda
 open Instruct
 open Opcodes

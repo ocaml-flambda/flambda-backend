@@ -389,7 +389,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_ident(path, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
         e.exp_env e.exp_type path desc kind
-  | Texp_constant cst -> transl_constant (of_location ~scopes e.exp_loc) cst
+  | Texp_constant cst -> transl_constant cst
   | Texp_let(rec_flag, pat_expr_list, body) ->
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list

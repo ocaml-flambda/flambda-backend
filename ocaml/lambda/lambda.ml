@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+type constant = Typedtree.constant
+
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
 type compile_time_constant =
@@ -1096,16 +1098,7 @@ let transl_prim mod_name name =
 
 (* Translation of constants *)
 
-let transl_constant loc (cst : Typedtree.constant) = match cst with
-| Const_int c -> Lconst(Const_base (Const_int c))
-| Const_char c -> Lconst(Const_base (Const_char c))
-| Const_string (s,loc,d) -> Lconst(Const_base (Const_string (s,loc,d)))
-| Const_float c -> Lconst(Const_base (Const_float c))
-| Const_int32 c -> Lconst(Const_base (Const_int32 c))
-| Const_int64 c -> Lconst(Const_base (Const_int64 c))
-| Const_nativeint c -> Lconst(Const_base (Const_nativeint c))
-| Const_unboxed_float f ->
-  Lprim (Punbox_float, [Lconst (Const_base (Const_float f))], loc)
+let transl_constant (cst : Typedtree.constant) = Lconst(Const_base cst)
 
 (* Compile a sequence of expressions *)
 
@@ -1546,13 +1539,14 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_fetch_add
   | Pdls_get -> None
 
-let constant_layout = function
+let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
   | Const_string _ -> Pvalue Pgenval
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
   | Const_float _ -> Pvalue Pfloatval
+  | Const_unboxed_float _ -> Punboxed_float
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const

@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -665,7 +667,7 @@ val transl_prim: string -> string -> lambda
     ]}
 *)
 
-val transl_constant : scoped_location -> Typedtree.constant -> lambda
+val transl_constant : Typedtree.constant -> lambda
 
 val free_variables: lambda -> Ident.Set.t
 

@@ -2828,7 +2828,6 @@ let mk_failaction_pos partial seen ctx defs =
 let combine_constant value_kind loc arg cst partial ctx def
     (const_lambda_list, total, _pats) =
   let fail, local_jumps = mk_failaction_neg partial ctx def in
-  let transl_const = transl_constant loc in
   let lambda1 =
     match cst with
     | Const_int _ ->
@@ -2868,27 +2867,27 @@ let combine_constant value_kind loc arg cst partial ctx def
     | Const_float _ ->
         make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
           (Pfloatcomp CFlt) arg
-          const_lambda_list transl_const
+          const_lambda_list transl_constant
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
           (Punboxed_float_comp CFneq)
           (Punboxed_float_comp CFlt)
-          arg const_lambda_list transl_const
+          arg const_lambda_list transl_constant
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint32, Cne))
           (Pbintcomp (Pint32, Clt))
-          arg const_lambda_list transl_const
+          arg const_lambda_list transl_constant
     | Const_int64 _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint64, Cne))
           (Pbintcomp (Pint64, Clt))
-          arg const_lambda_list transl_const
+          arg const_lambda_list transl_constant
     | Const_nativeint _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
-          arg const_lambda_list transl_const
+          arg const_lambda_list transl_constant
   in
   (lambda1, Jumps.union local_jumps total)
 
