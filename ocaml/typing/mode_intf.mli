@@ -22,18 +22,6 @@ type equate_step =
   | Left_le_right
   | Right_le_left
 
-module type Allow_Disallow = sig
-  type 'd t
-
-  val disallow_right : ('l * 'r) t -> ('l * disallowed) t
-
-  val disallow_left : ('l * 'r) t -> (disallowed * 'r) t
-
-  val allow_right : ('l * allowed) t -> ('l * 'r) t
-
-  val allow_left : (allowed * 'r) t -> ('l * 'r) t
-end
-
 module type Common = sig
   module Const : Lattice
 
@@ -52,7 +40,7 @@ module type Common = sig
   (** Left-right mode *)
   type lr = (allowed * allowed) t
 
-  include Allow_Disallow with type 'd t := 'd t
+  include Allow_disallow with type (_, _, 'd) t := 'd t
 
   val min : lr
 

@@ -8,6 +8,22 @@ type right_only = disallowed * allowed
 
 type both = allowed * allowed
 
+module type Allow_disallow = sig
+  type ('a, 'b, 'd) t
+
+  (** Disallows on the right.  *)
+  val disallow_right : ('a, 'b, 'l * 'r) t -> ('a, 'b, 'l * disallowed) t
+
+  (** Disallows a the left.  *)
+  val disallow_left : ('a, 'b, 'l * 'r) t -> ('a, 'b, disallowed * 'r) t
+
+  (** Generalizes a right-hand-side [allowed] to be any allowance.  *)
+  val allow_right : ('a, 'b, 'l * allowed) t -> ('a, 'b, 'l * 'r) t
+
+  (** Generalizes a left-hand-side [allowed] to be any allowance.  *)
+  val allow_left : ('a, 'b, allowed * 'r) t -> ('a, 'b, 'l * 'r) t
+end
+
 (** A collection of lattices, indexed by [obj] *)
 module type Lattices = sig
   (** Lattice identifers, indexed by ['a] the carrier type of that lattice *)
@@ -87,18 +103,7 @@ module type Lattices_mono = sig
   val right_adjoint :
     'b obj -> ('a, 'b, allowed * 'r) morph -> ('b, 'a, right_only) morph
 
-  (** Forget whether a function can be on the right. *)
-  val disallow_right :
-    ('a, 'b, 'l * 'r) morph -> ('a, 'b, 'l * disallowed) morph
-
-  (** Forget whether a morphism can be on the left. *)
-  val disallow_left : ('a, 'b, 'l * 'r) morph -> ('a, 'b, disallowed * 'r) morph
-
-  (** Generalize a morphism that can be on the right   *)
-  val allow_right : ('a, 'b, 'l * allowed) morph -> ('a, 'b, 'l * 'r) morph
-
-  (** Generalize a morphism that can be on the left  *)
-  val allow_left : ('a, 'b, allowed * 'r) morph -> ('a, 'b, 'l * 'r) morph
+  include Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) morph
 
   (** Apply morphism on constant *)
   val apply : 'b obj -> ('a, 'b, 'd) morph -> 'a -> 'b
@@ -114,6 +119,9 @@ module type S = sig
     { left : 'a;
       right : 'a
     }
+
+  module Allow_disallow (X : Misc.T3) :
+    Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) X.t
 
   (** Solver that supports polarized lattices; needed because some morphisms
       are antitone  *)
@@ -182,17 +190,7 @@ module type S = sig
        morphism it contains. See comments for [morph] for the format of ['d] *)
     type ('a, 'd) mode
 
-    (** Disallows a mode of being on the RHS of [submode].  *)
-    val disallow_right : ('a, 'l * 'r) mode -> ('a, 'l * disallowed) mode
-
-    (** Disallows a mode of being on the LHS of [submode].  *)
-    val disallow_left : ('a, 'l * 'r) mode -> ('a, disallowed * 'r) mode
-
-    (** Generalizes a mode's ability to be on the RHS of [submode].  *)
-    val allow_right : ('a, 'l * allowed) mode -> ('a, 'l * 'r) mode
-
-    (** Generalizes a mode's ability to be on the LHS of [submode].  *)
-    val allow_left : ('a, allowed * 'r) mode -> ('a, 'l * 'r) mode
+    include Allow_disallow with type ('a, _, 'd) t := ('a, 'd) mode
 
     (** Returns the result of applying the morphism to the mode. *)
     val apply :

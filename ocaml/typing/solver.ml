@@ -1,5 +1,22 @@
 open Solver_intf
 
+module Allow_disallow (X : Misc.T3) :
+  Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) X.t = struct
+  let disallow_right :
+      type a b l r. (a, b, l * r) X.t -> (a, b, l * disallowed) X.t =
+    Obj.magic
+
+  let disallow_left :
+      type a b l r. (a, b, l * r) X.t -> (a, b, disallowed * r) X.t =
+    Obj.magic
+
+  let allow_right : type a b l r. (a, b, l * allowed) X.t -> (a, b, l * r) X.t =
+    Obj.magic
+
+  let allow_left : type a b l r. (a, b, allowed * r) X.t -> (a, b, l * r) X.t =
+    Obj.magic
+end
+
 (** Error returned by failed [submode a b]. [left] will be the lowest mode [a]
    can be, and [right] will be the highest mode [b] can be. And [left <= right]
    will be false, which is why the submode failed. *)
@@ -100,17 +117,9 @@ module Solver_mono (C : Lattices_mono) = struct
            (print_morphvar ?traversed obj))
         mvs
 
-  let disallow_right : type a l r. (a, l * r) mode -> (a, l * disallowed) mode =
-    Obj.magic
-
-  let disallow_left : type a l r. (a, l * r) mode -> (a, disallowed * r) mode =
-    Obj.magic
-
-  let allow_right : type a l r. (a, l * allowed) mode -> (a, l * r) mode =
-    Obj.magic
-
-  let allow_left : type a l r. (a, allowed * r) mode -> (a, l * r) mode =
-    Obj.magic
+  include Allow_disallow (struct
+    type ('a, _, 'd) t = ('a, 'd) mode
+  end)
 
   let mlower dst (Amorphvar (var, morph)) = C.apply dst morph var.lower
 
