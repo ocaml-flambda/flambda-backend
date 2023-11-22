@@ -186,7 +186,7 @@ struct caml_locking_scheme caml_default_locking_scheme =
     default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
 
-static void acquire_runtime_lock()
+static void acquire_runtime_lock(void)
 {
   struct caml_locking_scheme* s;
 
@@ -205,7 +205,7 @@ static void acquire_runtime_lock()
   }
 }
 
-static void release_runtime_lock()
+static void release_runtime_lock(void)
 {
   /* There is no tricky case here like in acquire, as only the holder
      of the lock can change it. (Here, that's us) */
@@ -616,7 +616,7 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
 }
 
 /* Start tick thread, if not already running */
-static st_retcode start_tick_thread()
+static st_retcode start_tick_thread(void)
 {
   st_retcode err;
   if (caml_tick_thread_running) return 0;
@@ -626,7 +626,7 @@ static st_retcode start_tick_thread()
 }
 
 /* Stop tick thread, if currently running */
-static void stop_tick_thread()
+static void stop_tick_thread(void)
 {
   if (!caml_tick_thread_running) return;
   caml_tick_thread_stop = 1;

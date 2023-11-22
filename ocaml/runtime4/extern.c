@@ -1301,7 +1301,7 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
   return size;
 }
 
-void reachable_words_init()
+void reachable_words_init(void)
 {
   obj_counter = 0;
   extern_flags = 0;
@@ -1315,7 +1315,7 @@ void reachable_words_mark_root(value v)
   extern_record_location_with_data(v, h, RootUnprocessed);
 }
 
-void reachable_words_cleanup()
+void reachable_words_cleanup(void)
 {
   extern_free_stack();
   extern_free_position_table();
