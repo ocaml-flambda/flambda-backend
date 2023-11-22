@@ -69,8 +69,8 @@ let from_fun (f : unit -> 'arg) =
 
 let from_val4 (v : 'arg) =
   let t = Obj.tag (Obj.repr v) in
-  if t = Obj.forward_tag || t = Obj.lazy_tag
-    || t = Obj.double_tag then begin
+  if t = Obj.forward_tag || t = Obj.lazy_tag ||
+     t = Obj.forcing_tag || t = Obj.double_tag then begin
     make_forward v
   end else begin
     (Obj.magic v : 'arg t)
