@@ -1570,7 +1570,7 @@ module Alloc = struct
 end
 
 let alloc_as_value m =
-  let { comonadic; monadic } = Alloc.disallow_right m in
+  let { comonadic; monadic } = m in
   let comonadic =
     S.apply Value.Comonadic.Obj.obj_s
       (S.Pos_Pos (C.Set (Product.SAxis0, C.Locality_as_regionality)))
@@ -1587,8 +1587,9 @@ let alloc_to_value_l2r m =
   in
   { comonadic; monadic }
 
-let value_to_alloc_r2g m =
-  let { comonadic; monadic } = Alloc.disallow_right m in
+let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
+ fun m ->
+  let { comonadic; monadic } = m in
   let comonadic =
     S.apply Alloc.Comonadic.Obj.obj_s
       (S.Pos_Pos (C.Set (Product.SAxis0, C.Regional_to_global)))
