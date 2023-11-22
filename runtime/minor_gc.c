@@ -82,10 +82,20 @@ static void reset_table (struct generic_table *tbl)
   tbl->base = tbl->ptr = tbl->threshold = tbl->limit = tbl->end = NULL;
 }
 
-static void clear_table (struct generic_table *tbl)
+static void clear_table (struct generic_table *tbl,
+                         asize_t element_size,
+                         const char *name)
 {
+  asize_t maxsz = Caml_state->minor_heap_wsz;
+  if (tbl->size <= maxsz) {
     tbl->ptr = tbl->base;
     tbl->limit = tbl->threshold;
+  } else {
+    caml_gc_message (0x08, "Shrinking %s to %ldk bytes\n",
+                     name,
+                     (long)((maxsz * element_size) / 1024));
+    alloc_generic_table(tbl, Caml_state->minor_heap_wsz, 256, element_size);
+  }
 }
 
 struct caml_minor_tables* caml_alloc_minor_tables(void)
@@ -448,9 +458,15 @@ void caml_empty_minor_heap_domain_clear(caml_domain_state* domain)
 
   caml_final_empty_young(domain);
 
-  clear_table ((struct generic_table *)&minor_tables->major_ref);
-  clear_table ((struct generic_table *)&minor_tables->ephe_ref);
-  clear_table ((struct generic_table *)&minor_tables->custom);
+  clear_table ((struct generic_table *)&minor_tables->major_ref,
+               sizeof(value *),
+               "major_ref");
+  clear_table ((struct generic_table *)&minor_tables->ephe_ref,
+               sizeof(struct caml_ephe_ref_elt),
+               "ephe_ref");
+  clear_table ((struct generic_table *)&minor_tables->custom,
+               sizeof(struct caml_custom_elt),
+               "custom");
 
   domain->extra_heap_resources_minor = 0.0;
 }
