@@ -216,6 +216,11 @@ utils/profile.cmx : \
     utils/misc.cmx \
     utils/profile.cmi
 utils/profile.cmi :
+utils/runtimetags.cmo : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmx : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmi :
 utils/strongly_connected_components.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -230,6 +235,7 @@ utils/symbol.cmo : \
     utils/linkage_name.cmi \
     utils/identifiable.cmi \
     typing/ident.cmi \
+    utils/config.cmi \
     utils/compilation_unit.cmi \
     utils/symbol.cmi
 utils/symbol.cmx : \
@@ -237,6 +243,7 @@ utils/symbol.cmx : \
     utils/linkage_name.cmx \
     utils/identifiable.cmx \
     typing/ident.cmx \
+    utils/config.cmx \
     utils/compilation_unit.cmx \
     utils/symbol.cmi
 utils/symbol.cmi : \
@@ -1853,7 +1860,6 @@ typing/typedecl.cmi : \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
-    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 typing/typedecl_properties.cmo : \
     typing/types.cmi \
@@ -3705,11 +3711,13 @@ middle_end/clambda.cmi : \
 middle_end/clambda_primitives.cmo : \
     typing/types.cmi \
     typing/primitive.cmi \
+    utils/misc.cmi \
     lambda/lambda.cmi \
     middle_end/clambda_primitives.cmi
 middle_end/clambda_primitives.cmx : \
     typing/types.cmx \
     typing/primitive.cmx \
+    utils/misc.cmx \
     lambda/lambda.cmx \
     middle_end/clambda_primitives.cmi
 middle_end/clambda_primitives.cmi : \
@@ -3955,6 +3963,7 @@ lambda/matching.cmo : \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
+    utils/config.cmi \
     utils/clflags.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -3978,6 +3987,7 @@ lambda/matching.cmx : \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
+    utils/config.cmx \
     utils/clflags.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -4594,6 +4604,7 @@ middle_end/closure/closure.cmo : \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     middle_end/convert_primitives.cmi \
+    utils/config.cmi \
     middle_end/compilenv.cmi \
     utils/compilation_unit.cmi \
     utils/clflags.cmi \
@@ -4619,6 +4630,7 @@ middle_end/closure/closure.cmx : \
     typing/env.cmx \
     lambda/debuginfo.cmx \
     middle_end/convert_primitives.cmx \
+    utils/config.cmx \
     middle_end/compilenv.cmx \
     utils/compilation_unit.cmx \
     utils/clflags.cmx \
@@ -4815,6 +4827,7 @@ middle_end/flambda/closure_conversion.cmo : \
     middle_end/flambda/flambda.cmi \
     lambda/debuginfo.cmi \
     middle_end/convert_primitives.cmi \
+    utils/config.cmi \
     utils/compilation_unit.cmi \
     middle_end/flambda/base_types/closure_origin.cmi \
     middle_end/flambda/base_types/closure_id.cmi \
@@ -4844,6 +4857,7 @@ middle_end/flambda/closure_conversion.cmx : \
     middle_end/flambda/flambda.cmx \
     lambda/debuginfo.cmx \
     middle_end/convert_primitives.cmx \
+    utils/config.cmx \
     utils/compilation_unit.cmx \
     middle_end/flambda/base_types/closure_origin.cmx \
     middle_end/flambda/base_types/closure_id.cmx \
