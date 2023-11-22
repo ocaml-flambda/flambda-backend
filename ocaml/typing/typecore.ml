@@ -809,6 +809,10 @@ let has_mode_annotation annots annot =
 let mode_annots_none =
   {locality = None; uniqueness = None; linearity = None}
 
+(* CR-someday: The [mode_annots_from_*] family of functions sweeps through
+   the list of attributes multiple times. Once should be enough.
+*)
+
 let mode_annots_from_pat_attrs sp =
   let locality =
     if has_local_attr_pat sp then Some Locality.Const.Local
