@@ -6,6 +6,21 @@ type nonrec allowed = allowed
 
 type nonrec disallowed = disallowed
 
+module type T1 = sig
+  type 'd t
+end
+
+module Allow_Disallow (X : T1) : Allow_Disallow with type 'd t := 'd X.t =
+struct
+  let disallow_right : type l r. (l * r) X.t -> (l * disallowed) X.t = Obj.magic
+
+  let disallow_left : type l r. (l * r) X.t -> (disallowed * r) X.t = Obj.magic
+
+  let allow_right : type l r. (l * allowed) X.t -> (l * r) X.t = Obj.magic
+
+  let allow_left : type l r. (allowed * r) X.t -> (l * r) X.t = Obj.magic
+end
+
 module Product = struct
   type ('a0, 'a1) t = 'a0 * 'a1
 
@@ -1075,7 +1090,11 @@ module Value = struct
   module Comonadic = Comonadic_with_regionality
   module Monadic = Monadic
 
-  type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
+  module T = struct
+    type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
+  end
+
+  include T
 
   type l = (allowed * disallowed) t
 
@@ -1090,13 +1109,7 @@ module Value = struct
       monadic = Monadic.max |> Monadic.allow_left |> Monadic.allow_right
     }
 
-  let disallow_right = Obj.magic
-
-  let disallow_left = Obj.magic
-
-  let allow_right = Obj.magic
-
-  let allow_left = Obj.magic
+  include Allow_Disallow (T)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
@@ -1302,7 +1315,11 @@ module Alloc = struct
   module Comonadic = Comonadic_with_locality
   module Monadic = Monadic
 
-  type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
+  module T = struct
+    type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
+  end
+
+  include T
 
   type l = (allowed * disallowed) t
 
@@ -1314,13 +1331,7 @@ module Alloc = struct
 
   let max = { comonadic = Comonadic.min; monadic = Monadic.max }
 
-  let disallow_right = Obj.magic
-
-  let disallow_left = Obj.magic
-
-  let allow_right = Obj.magic
-
-  let allow_left = Obj.magic
+  include Allow_Disallow (T)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
