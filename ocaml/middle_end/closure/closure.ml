@@ -16,7 +16,6 @@
 (* Introduction of closures, uncurrying, recognition of direct calls *)
 
 open Misc
-open Asttypes
 open Primitive
 open Lambda
 open Switch
