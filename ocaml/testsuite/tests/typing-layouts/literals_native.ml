@@ -1,7 +1,8 @@
 (* TEST
+   * flambda2
    flags = "-extension layouts_alpha"
-   * native
-   * bytecode
+   ** native
+   ** bytecode
 *)
 
 (*****************************************)
