@@ -2400,7 +2400,7 @@ let rec do_tests_fail value_kind loc fail tst arg = function
   | [] -> fail
   | (c, act) :: rem ->
       Lifthenelse
-        ( Lprim (tst, [ arg; c ], loc),
+        ( Lprim (tst, [ arg; Lconst (Const_base c) ], loc),
           do_tests_fail value_kind loc fail tst arg rem,
           act, value_kind )
 
@@ -2409,16 +2409,15 @@ let rec do_tests_nofail value_kind loc tst arg = function
   | [ (_, act) ] -> act
   | (c, act) :: rem ->
       Lifthenelse
-        ( Lprim (tst, [ arg; c ], loc),
+        ( Lprim (tst, [ arg; Lconst (Const_base c) ], loc),
           do_tests_nofail value_kind loc tst arg rem,
           act, value_kind )
 
-let make_test_sequence value_kind loc fail tst lt_tst arg const_lambda_list transl_const =
+let make_test_sequence value_kind loc fail tst lt_tst arg const_lambda_list =
   let const_lambda_list = sort_lambda_list const_lambda_list in
   let hs, const_lambda_list, fail =
     share_actions_tree value_kind const_lambda_list fail
   in
-  let const_lambda_list = List.map (fun (c, l) -> transl_const c, l) const_lambda_list in
   let rec make_test_sequence const_lambda_list =
     if List.length const_lambda_list >= 4 && lt_tst <> Pignore then
       split_sequence const_lambda_list
@@ -2431,7 +2430,7 @@ let make_test_sequence value_kind loc fail tst lt_tst arg const_lambda_list tran
       rev_split_at (List.length const_lambda_list / 2) const_lambda_list
     in
     Lifthenelse
-      ( Lprim (lt_tst, [ arg; fst (List.hd list2) ], loc),
+      ( Lprim (lt_tst, [ arg; Lconst (Const_base (fst (List.hd list2))) ], loc),
         make_test_sequence list1,
         make_test_sequence list2, value_kind )
   in
@@ -2867,27 +2866,27 @@ let combine_constant value_kind loc arg cst partial ctx def
     | Const_float _ ->
         make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
           (Pfloatcomp CFlt) arg
-          const_lambda_list transl_constant
+          const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
           (Punboxed_float_comp CFneq)
           (Punboxed_float_comp CFlt)
-          arg const_lambda_list transl_constant
+          arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint32, Cne))
           (Pbintcomp (Pint32, Clt))
-          arg const_lambda_list transl_constant
+          arg const_lambda_list
     | Const_int64 _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint64, Cne))
           (Pbintcomp (Pint64, Clt))
-          arg const_lambda_list transl_constant
+          arg const_lambda_list
     | Const_nativeint _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
-          arg const_lambda_list transl_constant
+          arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)
 

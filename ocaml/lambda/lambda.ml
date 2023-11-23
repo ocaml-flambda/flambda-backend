@@ -1096,10 +1096,6 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-(* Translation of constants *)
-
-let transl_constant (cst : Typedtree.constant) = Lconst(Const_base cst)
-
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
