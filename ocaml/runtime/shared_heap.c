@@ -59,6 +59,7 @@ CAML_STATIC_ASSERT(sizeof(pool) == Bsize_wsize(POOL_HEADER_WSIZE));
 #define POOL_FIRST_BLOCK(p, sz) ((header_t*)(p) + POOL_SLAB_WOFFSET(sz))
 #define POOL_END(p) ((header_t*)(p) + POOL_WSIZE)
 #define POOL_BLOCKS(p) ((POOL_WSIZE - POOL_HEADER_WSIZE) /  \
+                        wsize_sizeclass[(p)->sz])
 
 typedef struct large_alloc {
   caml_domain_state* owner;
@@ -226,10 +227,10 @@ static void pool_free(struct caml_heap_state* local,
                       pool* pool,
                       sizeclass sz)
 {
-      CAMLassert(pool->sz == sz);
-      local->stats.pool_words -= POOL_WSIZE;
-      local->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
-      caml_mem_unmap(pool, Bsize_wsize(POOL_WSIZE));
+    CAMLassert(pool->sz == sz);
+    local->stats.pool_words -= POOL_WSIZE;
+    local->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
+    caml_mem_unmap(pool, Bsize_wsize(POOL_WSIZE));
 }
 
 static void calc_pool_stats(pool* a, sizeclass sz, struct heap_stats* s)
