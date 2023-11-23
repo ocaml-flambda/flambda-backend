@@ -235,7 +235,9 @@ void caml_free_shared_libs(void)
 
 #define Handle_val(v) (*((void **) (v)))
 
-CAMLprim value caml_dynlink_open_lib(value filename)
+/* The mode argument is here for compatibility with runtime4. */
+/* CR ocaml 5 runtime: Remove [mode] when all-runtime5. */
+CAMLprim value caml_dynlink_open_lib(value mode, value filename)
 {
   void * handle;
   value result;
