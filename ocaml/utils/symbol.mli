@@ -49,3 +49,6 @@ val is_predef_exn : t -> bool
 (* Temporary means by which to force symbol names to use __.  Only for use
    for flambda2 flexpect tests. *)
 val force_runtime4_symbols : unit -> unit
+
+(* Temporary means to identify that the program running is ocamlc. *)
+val this_is_ocamlc : unit -> unit
