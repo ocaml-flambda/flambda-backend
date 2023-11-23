@@ -50,6 +50,8 @@ let caml_symbol_prefix = "caml"
 let force_runtime4_symbols = ref false
 
 let separator () =
+  if not !Clflags.native_code then
+    Misc.fatal_error "Didn't expect utils/symbol.ml to be used in bytecode";
   if Config.runtime5 && not !force_runtime4_symbols then "." else "__"
 
 let force_runtime4_symbols () = force_runtime4_symbols := true
