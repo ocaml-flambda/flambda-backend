@@ -280,6 +280,14 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
   | Pfloatcomp CFnge, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
+  | Punboxed_float_comp CFnlt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFlt, args, loc)], loc)
+  | Punboxed_float_comp CFngt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFgt, args, loc)], loc)
+  | Punboxed_float_comp CFnle, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFle, args, loc)], loc)
+  | Punboxed_float_comp CFnge, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFge, args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
