@@ -533,7 +533,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot; kind = _ } ->
+  | Project_value_slot { project_from; value_slot } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in
     Project_value_slot { project_from; value_slot }

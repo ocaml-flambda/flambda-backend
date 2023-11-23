@@ -562,11 +562,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
           | In_closure { var; value_slot; value = _ } ->
             let arg = VB.create var Name_mode.normal in
-            let kind = Value_slot.kind value_slot in
             let prim =
               P.Unary
                 ( Project_value_slot
-                    { project_from = wrapper_function_slot; value_slot; kind },
+                    { project_from = wrapper_function_slot; value_slot },
                   Simple.var my_closure )
             in
             let cost_metrics_of_defining_expr =

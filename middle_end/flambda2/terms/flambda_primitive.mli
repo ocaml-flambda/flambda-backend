@@ -311,8 +311,7 @@ type unary_primitive =
           closures. *)
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t;
-        kind : Flambda_kind.With_subkind.t
+        value_slot : Value_slot.t
       }
       (** Project a value slot from a set of closures -- in other words, read an
           entry from the closure environment (the captured variables). *)
