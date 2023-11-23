@@ -40,7 +40,6 @@
     (callback.h as caml/callback.h)
     (camlatomic.h as caml/camlatomic.h)
     (codefrag.h as caml/codefrag.h)
-    (compact.h as caml/compact.h)
     (compare.h as caml/compare.h)
     (config.h as caml/config.h)
     (custom.h as caml/custom.h)
