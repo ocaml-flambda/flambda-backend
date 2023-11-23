@@ -47,11 +47,17 @@ end)
 
 let caml_symbol_prefix = "caml"
 
+(* CR ocaml 5 runtime: Remove this_is_ocamlc and force_runtime4_symbols once
+   fully on runtime5 *)
+let this_is_ocamlc = ref false
 let force_runtime4_symbols = ref false
 
 let separator () =
+  if !this_is_ocamlc then
+    Misc.fatal_error "Didn't expect utils/symbol.ml to be used in ocamlc";
   if Config.runtime5 && not !force_runtime4_symbols then "." else "__"
 
+let this_is_ocamlc () = this_is_ocamlc := true
 let force_runtime4_symbols () = force_runtime4_symbols := true
 
 let linkage_name t = t.linkage_name
