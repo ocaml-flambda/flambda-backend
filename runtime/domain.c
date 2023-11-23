@@ -629,6 +629,8 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
     goto reallocate_minor_heap_failure;
   }
 
+  domain_state->in_minor_collection = 0;
+
   domain_state->dls_root = Val_unit;
   caml_register_generational_global_root(&domain_state->dls_root);
 
