@@ -130,14 +130,14 @@ $(ocamldir)/dune.runtime_selection:
 	fi
 
 $(ocamldir)/dune.menhir_selection:
-	if [ "$(USE_MENHIR)" = "yes" ]; then \
+	if [ "$(WITH_MENHIR)" != "no" ]; then \
 		cp $(ocamldir)/dune.with_menhir $@; \
 	else \
 		cp $(ocamldir)/dune.no_menhir $@; \
 	fi
 
 $(ocamldir)/parsing/dune.parsing_menhir_selection:
-	if [ "$(USE_MENHIR)" = "yes" ]; then \
+	if [ "$(WITH_MENHIR)" != "no" ]; then \
 		cp $(ocamldir)/parsing/dune.with_menhir $@; \
 	else \
 		cp $(ocamldir)/parsing/dune.no_menhir $@; \

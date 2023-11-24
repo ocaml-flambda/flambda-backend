@@ -42,6 +42,12 @@ AC_ARG_ENABLE([runtime5],
   [runtime5_arg=--enable-runtime5],
   [runtime5_arg=])
 
+AC_ARG_WITH([menhir],
+  [AS_HELP_STRING([--with-menhir],
+    [Use menhir instead of the pregenerated parsers])],
+  [withmenhir_arg=--with-menhir="$with_menhir"],
+  [withmenhir_arg=--without-menhir])
+
 AC_ARG_ENABLE([coverage],
   [AS_HELP_STRING([--enable-coverage],
     [Run compiler tests instrumented to output coverage data using bisect_ppx
@@ -68,7 +74,7 @@ AC_SUBST([legacy_layout])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,$runtime5_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
+  [$middle_end_arg,$runtime5_arg,$withmenhir_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
   [],
   [],
   [])

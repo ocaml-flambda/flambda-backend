@@ -91,9 +91,18 @@ AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
     [Use the OCaml 5 runtime])])
 
+# Using menhir
+
+AC_ARG_WITH([menhir],
+  [AS_HELP_STRING([--with-menhir],
+    [Use system-installed menhir instead of the pregenerated parsers])],
+  [],
+  [with_menhir=no])
+
 ## Output variables
 
 AC_SUBST([enable_runtime5])
+AC_SUBST([with_menhir])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([default_build_target])
