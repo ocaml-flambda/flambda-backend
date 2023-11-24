@@ -1015,7 +1015,7 @@ $(DEPDIR)/$(RUNTIME_DIR)/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 # The major GC performs better with this flag on Intel processors
 # This is a workaround for an Intel CPU bug:
 # https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
-$(RUNTIME_DIR)/major_gc.$(O): OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
+$(RUNTIME_DIR)/major_gc.%.$(O): OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
 
 ## Compilation of runtime C files
 
