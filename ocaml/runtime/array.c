@@ -404,7 +404,7 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
     return caml_floatarray_blit(a1, ofs1, a2, ofs2, n);
 #endif
   CAMLassert (Tag_val(a2) != Double_array_tag);
-  if (Is_young(a2) || caml_is_local(a2)) {
+  if (Is_young(a2) || caml_is_stack(a2)) {
     /* Arrays of values, destination is local or in young generation.
        Here too we can do a direct copy since this cannot create
        old-to-young pointers, nor mess up with the incremental major GC.
@@ -638,7 +638,7 @@ CAMLprim value caml_array_fill(value array,
   }
 #endif
   fp = &Field(array, ofs);
-  if (Is_young(array) || caml_is_local(array)) {
+  if (Is_young(array) || caml_is_stack(array)) {
     for (; len > 0; len--, fp++) *fp = val;
   } else {
     int is_val_young_block = Is_block(val) && Is_young(val);

@@ -166,7 +166,7 @@ CAMLextern caml_stat_string caml_stat_strconcat(int n, ...);
 CAMLextern wchar_t* caml_stat_wcsconcat(int n, ...);
 #endif
 
-CAMLextern int caml_is_local(value);
+CAMLextern int caml_is_stack(value);
 
 /* void caml_shrink_heap (char *);        Only used in compact.c */
 
