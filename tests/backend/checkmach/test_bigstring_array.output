@@ -1,0 +1,9 @@
+File "test_bigstring_array.ml", line 29, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_bigstring_array.set (camlTest_bigstring_array.set_HIDE_STAMP)
+File "test_bigstring_array.ml", line 30, characters 22-31:
+  allocate 16 bytes
+
+File "test_bigstring_array.ml", line 32, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_bigstring_array.get (camlTest_bigstring_array.get_HIDE_STAMP)
+File "test_bigstring_array.ml", line 33, characters 24-33:
+  allocate 16 bytes
