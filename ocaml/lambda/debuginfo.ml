@@ -227,18 +227,20 @@ module Dbg = struct
 
 end
 
-type t = { dbg : Dbg.t; assume_zero_alloc : bool }
+type t = { dbg : Dbg.t; assume_zero_alloc : bool; from_flat_float_array: bool }
 
 type alloc_dbginfo_item =
   { alloc_words : int;
     alloc_dbg : t }
 type alloc_dbginfo = alloc_dbginfo_item list
 
-let none = { dbg = []; assume_zero_alloc = false }
+let none = { dbg = []; assume_zero_alloc = false; from_flat_float_array = false; }
 
-let to_string { dbg; assume_zero_alloc; } =
+let to_string { dbg; assume_zero_alloc; from_flat_float_array; } =
   let s = Dbg.to_string dbg in
-  if assume_zero_alloc then s^"(assume zero_alloc)" else s
+  let s = if assume_zero_alloc then s^"(assume zero_alloc)" else s in
+  if from_flat_float_array then s^"(from_flat_float_array)" else s
+
 
 let item_from_location ~scopes loc =
   let valid_endpos =
@@ -261,11 +263,14 @@ let item_from_location ~scopes loc =
   }
 
 let from_location = function
-  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = false; }
+  | Scoped_location.Loc_unknown -> none
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
     let assume_zero_alloc = Scoped_location.get_assume_zero_alloc ~scopes in
-    { dbg = [item_from_location ~scopes loc]; assume_zero_alloc; }
+    { dbg = [item_from_location ~scopes loc];
+      assume_zero_alloc;
+      from_flat_float_array = false
+    }
 
 let to_location { dbg; assume_zero_alloc=_ } =
   match dbg with
@@ -285,9 +290,11 @@ let to_location { dbg; assume_zero_alloc=_ } =
       } in
     { loc_ghost = false; loc_start; loc_end; }
 
-let inline { dbg = dbg1; assume_zero_alloc = a1; }
-      { dbg = dbg2; assume_zero_alloc = a2; } =
-  { dbg = dbg1 @ dbg2; assume_zero_alloc = a1 || a2; }
+let inline { dbg = dbg1; assume_zero_alloc = a1; from_flat_float_array = f1 }
+      { dbg = dbg2; assume_zero_alloc = a2; from_flat_float_array = f2 } =
+  { dbg = dbg1 @ dbg2; assume_zero_alloc = a1 || a2;
+    from_flat_float_array = f1 || f2
+  }
 
 let is_none { dbg; assume_zero_alloc } =
   (not assume_zero_alloc) && Dbg.is_none dbg
@@ -316,17 +323,20 @@ let rec print_compact ppf t =
 
 let print_compact ppf { dbg; } = print_compact ppf dbg
 
-let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
-      { dbg = dbg2; assume_zero_alloc = a2 } =
+let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; from_flat_float_array = f1; }
+      { dbg = dbg2; assume_zero_alloc = a2; from_flat_float_array = f2; } =
   (* Keep the first [dbg] info to match existing behavior.
      When assume_zero_alloc is only on one of the inputs but not both, keep [dbg]
      from the other.
   *)
   { dbg = if a1 && not a2 then dbg2 else dbg1;
-    assume_zero_alloc = a1 && a2
+    assume_zero_alloc = a1 && a2;
+    from_flat_float_array = f1 && f2;
   }
 
 let assume_zero_alloc t = t.assume_zero_alloc
 
+let set_from_flat_float_array t = { t with from_flat_float_array = true }
+let from_flat_float_array t = t.from_flat_float_array
 let get_dbg t = t.dbg
 
