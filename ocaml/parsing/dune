@@ -12,36 +12,7 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(rule
- (targets camlinternalMenhirLib.ml)
- (deps    (:dep ../boot/menhir/menhirLib.ml))
- (action
-  (with-stdout-to %{targets}
-   ;; Partial applications of the form Obj.magic f x in menhirLib cause
-   ;; an issue with locals, so rewrite these to Obj.magic (f x)
-   (bash "cat ../boot/menhir/menhirLib.ml |
-          sed 's/\\b\\(in\\|then\\|with\\|else\\)\\b/@@@\\1/g; s/Obj.magic \\([a-z0-9_]\\+\\( [a-z0-9_]\\+\\)\\+\\)/Obj.magic (\\1)/g;  s/@@@//g'"))))
-
-(rule
- (targets camlinternalMenhirLib.mli)
- (mode    fallback)
- (action  (copy# ../boot/menhir/menhirLib.mli %{targets})))
-
-(rule
- (targets parser.ml)
- (mode    fallback)
- (deps    (:dep ../boot/menhir/parser.ml))
- (action
-   (with-stdout-to %{targets}
-     (bash "cat %{dep} | sed 's/MenhirLib/CamlinternalMenhirLib/g'"))))
-
-(rule
- (targets parser.mli)
- (mode    fallback)
- (deps    (:dep ../boot/menhir/parser.mli))
- (action
-   (with-stdout-to %{targets}
-     (bash "cat %{dep} | sed 's/MenhirLib/CamlinternalMenhirLib/g'"))))
+(include dune.parsing_menhir_selection)
 
 (ocamllex
  (modules lexer)

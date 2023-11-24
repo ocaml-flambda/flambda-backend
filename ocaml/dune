@@ -28,7 +28,6 @@
 
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
-;(copy_files parsing/parser.mly)
 (copy_files# typing/*.ml{,i})
 (copy_files# bytecomp/*.ml{,i})
 (copy_files# driver/*.ml{,i})
@@ -41,6 +40,8 @@
 ;(copy_files# middle_end/flambda/*.ml{,i})
 ;(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
+(include dune.menhir_selection)
+
 (library
  (name ocamlcommon)
  (wrapped false)
@@ -51,6 +52,13 @@
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (preprocess
+   (per_module
+     ((action
+        (progn
+          (echo "module MenhirLib = CamlinternalMenhirLib\n")
+          (run cat %{input-file})))
+       parser)))
  (library_flags -linkall)
  (modules_without_implementation
    annot asttypes cmo_format outcometree parsetree debug_event)

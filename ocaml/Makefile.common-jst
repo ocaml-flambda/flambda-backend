@@ -111,7 +111,9 @@ dune_config_targets = \
   dune-project \
   $(ocamldir)/stdlib/ocaml_compiler_internal_params \
   $(ocamldir)/dune.runtime_selection \
-  $(ocamldir)/otherlibs/dune
+  $(ocamldir)/otherlibs/dune \
+  $(ocamldir)/dune.menhir_selection \
+  $(ocamldir)/parsing/dune.parsing_menhir_selection
 
 $(ocamldir)/otherlibs/dune:
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
@@ -125,6 +127,20 @@ $(ocamldir)/dune.runtime_selection:
           echo "(dirs (:standard \ runtime debugger))" > $@; \
 	else \
           echo "(dirs (:standard \ runtime4 debugger4))" > $@; \
+	fi
+
+$(ocamldir)/dune.menhir_selection:
+	if [ "$(USE_MENHIR)" = "yes" ]; then \
+		cp $(ocamldir)/dune.with_menhir $@; \
+	else \
+		cp $(ocamldir)/dune.no_menhir $@; \
+	fi
+
+$(ocamldir)/parsing/dune.parsing_menhir_selection:
+	if [ "$(USE_MENHIR)" = "yes" ]; then \
+		cp $(ocamldir)/parsing/dune.with_menhir $@; \
+	else \
+		cp $(ocamldir)/parsing/dune.no_menhir $@; \
 	fi
 
 _build/_bootinstall: Makefile.config $(dune_config_targets)
