@@ -826,7 +826,7 @@ let get_header ptr dbg =
      data race on headers. This saves performance with ThreadSanitizer
      instrumentation by avoiding to instrument header loads. *)
   Cop
-    ( mk_load_immut Word_int,
+    ( mk_load_mut Word_int, (* CR xclerc: consider whether that could be changed to mk_load_immut *)
       [Cop (Cadda, [ptr; Cconst_int (-size_int, dbg)], dbg)],
       dbg )
 
