@@ -31,7 +31,8 @@ module Witness = struct
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Debuginfo.alloc_dbginfo;
+          from_flat_float_array : bool;
         }
     | Indirect_call
     | Indirect_tailcall
@@ -62,7 +63,11 @@ module Witness = struct
   let print_kind ppf kind =
     let open Format in
     match kind with
-    | Alloc { bytes; dbginfo = _ } -> fprintf ppf "allocate %d bytes" bytes
+    | Alloc { bytes; dbginfo = _; from_flat_float_array } ->
+      fprintf ppf "allocate %d bytes%s" bytes
+        (if from_flat_float_array
+         then " that may originate from flat float array access"
+         else "")
     | Indirect_call -> fprintf ppf "indirect call"
     | Indirect_tailcall -> fprintf ppf "indirect tailcall"
     | Direct_call { callee } -> fprintf ppf "direct call %s" callee
@@ -78,7 +83,7 @@ module Witness = struct
 
   let get_alloc_dbginfo kind =
     match kind with
-    | Alloc { bytes = _; dbginfo } -> Some dbginfo
+    | Alloc { bytes = _; dbginfo; from_flat_float_array = _ } -> Some dbginfo
     | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
     | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
       ->
@@ -1020,7 +1025,8 @@ end = struct
       if Debuginfo.assume_zero_alloc dbg
       then next
       else
-        let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+        let from_flat_float_array = Debuginfo.from_flat_float_array dbg in
+        let w = create_witnesses t (Alloc { bytes; dbginfo; from_flat_float_array }) dbg in
         let r = Value.transform w next in
         check t r "heap allocation" dbg
     | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
