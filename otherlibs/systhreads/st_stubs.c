@@ -80,6 +80,7 @@ struct caml_thread_struct {
   /* Note: we do not save Caml_state->stack_cache, because it can
      safely be shared between all threads on the same domain. */
   struct caml__roots_block *local_roots; /* saved value of local_roots */
+  struct caml_local_arenas *local_arenas;
   int backtrace_pos;           /* saved value of Caml_state->backtrace_pos */
   backtrace_slot * backtrace_buffer;
     /* saved value of Caml_state->backtrace_buffer */
@@ -173,7 +174,8 @@ static void caml_thread_scan_roots(
       if (th != Active_thread) {
         if (th->current_stack != NULL)
           caml_do_local_roots(action, fflags, fdata,
-                              th->local_roots, th->current_stack, th->gc_regs);
+                              th->local_roots, th->current_stack, th->gc_regs,
+                              th->local_arenas);
       }
       th = th->next;
     } while (th != Active_thread);
@@ -198,6 +200,7 @@ static void save_runtime_state(void)
   this_thread->gc_regs_buckets = Caml_state->gc_regs_buckets;
   this_thread->exn_handler = Caml_state->exn_handler;
   this_thread->local_roots = Caml_state->local_roots;
+  this_thread->local_arenas = caml_get_local_arenas(Caml_state);
   this_thread->backtrace_pos = Caml_state->backtrace_pos;
   this_thread->backtrace_buffer = Caml_state->backtrace_buffer;
   this_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
@@ -218,6 +221,7 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->gc_regs_buckets = th->gc_regs_buckets;
   Caml_state->exn_handler = th->exn_handler;
   Caml_state->local_roots = th->local_roots;
+  caml_set_local_arenas(Caml_state, th->local_arenas);
   Caml_state->backtrace_pos = th->backtrace_pos;
   Caml_state->backtrace_buffer = th->backtrace_buffer;
   Caml_state->backtrace_last_exn = th->backtrace_last_exn;
@@ -285,6 +289,7 @@ static caml_thread_t caml_thread_new_info(void)
   }
   th->c_stack = NULL;
   th->local_roots = NULL;
+  th->local_arenas = NULL;
   th->backtrace_pos = 0;
   th->backtrace_buffer = NULL;
   th->backtrace_last_exn = Val_unit;
@@ -320,6 +325,8 @@ void caml_thread_free_info(caml_thread_t th)
   */
   caml_free_stack(th->current_stack);
   caml_free_backtrace_buffer(th->backtrace_buffer);
+
+  // CR sdolan: free local arenas
 
   /* Remark: we could share gc_regs_buckets between threads on a same
      domain, but this might break the invariant that it is always
