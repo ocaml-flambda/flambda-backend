@@ -1,15 +1,14 @@
 (* TEST
-  * stack-allocation
-    ** native
-      reference = "${test_source_directory}/get_header.opt.local.reference"
-    ** bytecode
-      reference = "${test_source_directory}/get_header.byte.local.reference"
-  * no-stack-allocation
-    ** native
-      reference = "${test_source_directory}/get_header.opt.reference"
-    ** bytecode
-      reference = "${test_source_directory}/get_header.byte.reference"
+   * native
+     reference = "${test_source_directory}/get_header.opt.reference"
+   * bytecode
+     reference = "${test_source_directory}/get_header.byte.reference"
 *)
+
+(* We're likely to remove %get_header in favour of calls to
+   caml_obj_is_stack under runtime5 (since testing a block's colour isn't
+   sufficient to check for local allocations) so this doesn't check for local
+   allocations any more. *)
 
 external repr : ('a[@local_opt]) -> (Obj.t[@local_opt]) = "%identity"
 external get_header_unsafe : (Obj.t[@local_opt]) -> nativeint = "%get_header"
@@ -67,11 +66,3 @@ let () =
   let _r = ref s in
   let rp = repr s in
   Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
-
-(* local *)
-let foo x =
-  let local_ s = ref x in
-  let rp = repr s in
-  Format.printf "%a\n" print_maybe_header (get_header_parsed rp)
-
-let () = foo 42
