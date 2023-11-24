@@ -259,7 +259,7 @@ void caml_oldify_one (value v, value *p)
             }
           }
         }
-        if (!vv || ft == Forward_tag || ft == Lazy_tag
+        if (!vv || ft == Forward_tag || ft == Lazy_tag || ft == Forcing_tag
 #ifdef FLAT_FLOAT_ARRAY
             || ft == Double_tag
 #endif
