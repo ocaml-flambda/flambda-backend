@@ -220,8 +220,8 @@ enum caml_alloc_small_flags {
 #define Alloc_small(result, wosize, tag, GC) \
   Alloc_small_with_reserved(result, wosize, tag, GC, (uintnat)0)
 
-caml_local_arenas* caml_get_local_arenas(caml_domain_state*);
-void caml_set_local_arenas(caml_domain_state*, caml_local_arenas* s);
+CAMLextern caml_local_arenas* caml_get_local_arenas(caml_domain_state*);
+CAMLextern void caml_set_local_arenas(caml_domain_state*, caml_local_arenas* s);
 
 #endif /* CAML_INTERNALS */
 
