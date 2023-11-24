@@ -92,8 +92,9 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | Proved Tagged_immediate, Proved Tagged_immediate ->
     simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
-  | Proved (Boxed (_, Naked_float, _)), Proved (Boxed (_, Naked_float, _)) ->
-    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
+  | Proved (Boxed (_, Naked_float _, _)), Proved (Boxed (_, Naked_float _, _)) ->
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
+      ~kind:(Naked_float { from_flat_float_array = false } )
       ~cmp_prim:float_prim
   | Proved (Boxed (_, Naked_int32, _)), Proved (Boxed (_, Naked_int32, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
@@ -112,7 +113,7 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | ( Proved
         (Boxed
           ( _,
-            ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
+            ( Naked_float _ | Naked_int32 | Naked_int64 | Naked_nativeint
             | Naked_vec128 ),
             _ )),
       Proved (Boxed _) )

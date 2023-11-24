@@ -233,7 +233,7 @@ end
 
 module Boxable_number = struct
   type t =
-    | Naked_float
+    | Naked_float of { from_flat_float_array: bool }
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -241,7 +241,7 @@ module Boxable_number = struct
 
   let unboxed_kind t : kind =
     match t with
-    | Naked_float -> Naked_number Naked_float
+    | Naked_float _ -> Naked_number Naked_float
     | Naked_int32 -> Naked_number Naked_int32
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
@@ -249,7 +249,7 @@ module Boxable_number = struct
 
   let primitive_kind t : Primitive.boxed_integer =
     match t with
-    | Naked_vec128 | Naked_float -> assert false
+    | Naked_vec128 | Naked_float _ -> assert false
     | Naked_int32 -> Pint32
     | Naked_int64 -> Pint64
     | Naked_nativeint -> Pnativeint
@@ -259,7 +259,9 @@ module Boxable_number = struct
 
     let print ppf t =
       match t with
-      | Naked_float -> Format.pp_print_string ppf "Naked_float"
+      | Naked_float { from_flat_float_array } ->
+        Format.pp_print_string ppf
+          ("Naked_float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -274,7 +276,9 @@ module Boxable_number = struct
 
   let print_lowercase ppf t =
     match t with
-    | Naked_float -> Format.pp_print_string ppf "naked_float"
+    | Naked_float { from_flat_float_array } ->
+      Format.pp_print_string ppf
+        ("naked_float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -282,7 +286,9 @@ module Boxable_number = struct
 
   let print_lowercase_short ppf t =
     match t with
-    | Naked_float -> Format.pp_print_string ppf "float"
+    | Naked_float { from_flat_float_array } ->
+      Format.pp_print_string ppf
+        ("float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
     | Naked_int32 -> Format.pp_print_string ppf "int32"
     | Naked_int64 -> Format.pp_print_string ppf "int64"
     | Naked_nativeint -> Format.pp_print_string ppf "nativeint"

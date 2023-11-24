@@ -204,7 +204,8 @@ val raise_symbol : Debuginfo.t -> string -> expression
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
-val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_float : from_flat_float_array:bool ->
+  Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
 
@@ -335,9 +336,6 @@ val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 
 val unboxed_float_array_ref :
   expression -> expression -> Debuginfo.t -> expression
-
-val float_array_ref :
-  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression

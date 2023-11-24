@@ -62,6 +62,7 @@ type env = {
    quite heavy, and probably less efficient that the callback approach).
 *)
 
+let box_float dbg m arg = box_float dbg m arg ~from_flat_float_array:false
 
 let empty_env =
   {

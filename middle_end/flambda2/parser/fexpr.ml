@@ -177,7 +177,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Naked_floats
 
 type box_kind = Flambda_kind.Boxable_number.t =
-  | Naked_float
+  | Naked_float of { from_flat_float_array: bool }
   | Naked_int32
   | Naked_int64
   | Naked_nativeint

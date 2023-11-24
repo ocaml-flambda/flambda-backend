@@ -201,16 +201,18 @@ let tag_int (arg : H.expr_primitive) : H.expr_primitive =
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Untag_immediate, arg))
 
-let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
+let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region
+      ~from_flat_float_array :
     H.expr_primitive =
   Unary
     ( Box_number
-        ( K.Boxable_number.Naked_float,
+        ( (K.Boxable_number.Naked_float { from_flat_float_array }),
           Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
 let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
-  Prim (Unary (Unbox_number K.Boxable_number.Naked_float, arg))
+  Prim (Unary (Unbox_number
+                 ((K.Boxable_number.Naked_float { from_flat_float_array = false })), arg))
 
 let box_bint bi mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
     =
@@ -482,7 +484,7 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
   | Value -> Fun.id
   | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
   | Naked_number Naked_float ->
-    fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
+    fun arg -> H.Unary (Box_number (Naked_float {from_flat_float_array = false }, alloc_mode), Prim arg)
   | Naked_number Naked_int32 ->
     fun arg -> H.Unary (Box_number (Naked_int32, alloc_mode), Prim arg)
   | Naked_number Naked_int64 ->
@@ -504,7 +506,8 @@ let bigarray_unbox_or_untag_value_to_store kind =
   | Naked_number Naked_immediate ->
     fun arg -> H.Prim (Unary (Untag_immediate, arg))
   | Naked_number Naked_float ->
-    fun arg -> H.Prim (Unary (Unbox_number Naked_float, arg))
+    fun arg -> H.Prim
+                 (Unary (Unbox_number (Naked_float { from_flat_float_array = false }), arg))
   | Naked_number Naked_int32 ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_int32, arg))
   | Naked_number Naked_int64 ->
@@ -599,6 +602,7 @@ let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
   | Naked_floats mode ->
     box_float mode
       (Binary (Array_load (Naked_floats, Mutable), array, index))
+      ~from_flat_float_array:true
       ~current_region
 
 let array_set_unsafe ~array ~index ~new_value
@@ -852,38 +856,45 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pfloatofint mode, [[arg]] ->
     let src = K.Standard_int_or_float.Tagged_immediate in
     let dst = K.Standard_int_or_float.Naked_float in
-    [box_float mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
+    [box_float mode (Unary (Num_conv { src; dst }, arg)) ~current_region
+       ~from_flat_float_array:false]
   | Pnegfloat mode, [[arg]] ->
-    [box_float mode (Unary (Float_arith Neg, unbox_float arg)) ~current_region]
+    [box_float mode (Unary (Float_arith Neg, unbox_float arg)) ~current_region
+       ~from_flat_float_array:false]
   | Pabsfloat mode, [[arg]] ->
-    [box_float mode (Unary (Float_arith Abs, unbox_float arg)) ~current_region]
+    [box_float mode (Unary (Float_arith Abs, unbox_float arg)) ~current_region
+       ~from_flat_float_array:false]
   | Paddfloat mode, [[arg1]; [arg2]] ->
     [ box_float mode
         (Binary (Float_arith Add, unbox_float arg1, unbox_float arg2))
-        ~current_region ]
+        ~current_region
+        ~from_flat_float_array:false
+    ]
   | Psubfloat mode, [[arg1]; [arg2]] ->
     [ box_float mode
         (Binary (Float_arith Sub, unbox_float arg1, unbox_float arg2))
-        ~current_region ]
+        ~current_region ~from_flat_float_array:false
+    ]
   | Pmulfloat mode, [[arg1]; [arg2]] ->
     [ box_float mode
         (Binary (Float_arith Mul, unbox_float arg1, unbox_float arg2))
-        ~current_region ]
+        ~current_region ~from_flat_float_array:false ]
   | Pdivfloat mode, [[arg1]; [arg2]] ->
     [ box_float mode
         (Binary (Float_arith Div, unbox_float arg1, unbox_float arg2))
-        ~current_region ]
+        ~current_region ~from_flat_float_array:false]
   | Pfloatcomp comp, [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
            ( Float_comp (Yielding_bool (convert_float_comparison comp)),
              unbox_float arg1,
              unbox_float arg2 )) ]
-  | Punbox_float, [[arg]] -> [Unary (Unbox_number Naked_float, arg)]
+  | Punbox_float, [[arg]] ->
+    [Unary (Unbox_number (Naked_float { from_flat_float_array = false}) , arg)]
   | Pbox_float mode, [[arg]] ->
     [ Unary
         ( Box_number
-            ( Naked_float,
+            ( Naked_float { from_flat_float_array = false },
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
   | Punbox_int bi, [[arg]] ->
@@ -1105,7 +1116,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     [ box_float mode
         (Binary (Block_load (block_access, mutability), arg, Simple field))
-        ~current_region ]
+        ~current_region ~from_flat_float_array:false]
   | Pufloatfield (field, sem), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pufloatfield";
@@ -1395,8 +1406,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ tag_int
         (Binary
            ( Float_comp (Yielding_int_like_compare_functions ()),
-             Prim (Unary (Unbox_number Naked_float, f1)),
-             Prim (Unary (Unbox_number Naked_float, f2)) )) ]
+             Prim (Unary (Unbox_number (Naked_float { from_flat_float_array = false }), f1)),
+             Prim (Unary (Unbox_number (Naked_float { from_flat_float_array = false }), f2)) )) ]
   | Pcompare_bints int_kind, [[i1]; [i2]] ->
     let unboxing_kind = boxable_number_of_boxed_integer int_kind in
     [ tag_int

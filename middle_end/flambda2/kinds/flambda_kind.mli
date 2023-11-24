@@ -111,7 +111,7 @@ module Boxable_number : sig
       representation exists. *)
 
   type t =
-    | Naked_float
+    | Naked_float of { from_flat_float_array: bool }
     | Naked_int32
     | Naked_int64
     | Naked_nativeint

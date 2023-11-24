@@ -62,7 +62,8 @@ module Float = struct
       prove_is_a_boxed_number = T.prove_is_a_boxed_float
     }
 
-  let unboxing_prim simple = P.(Unary (Unbox_number Naked_float, simple))
+  let unboxing_prim simple =
+    P.(Unary (Unbox_number (Naked_float { from_flat_float_array = false }), simple))
 
   let unboxer =
     { var_name = "unboxed_float";

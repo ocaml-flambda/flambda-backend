@@ -449,7 +449,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
     | _, Unboxed_float ->
-      Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
+      Some (P.Box_number (Naked_float { from_flat_float_array = false },
+                          Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pint32 ->
@@ -565,7 +566,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
-          | _, Unboxed_float -> Some (P.Unbox_number Naked_float)
+          | _, Unboxed_float -> Some (P.Unbox_number
+                                        (Naked_float { from_flat_float_array = false }))
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)

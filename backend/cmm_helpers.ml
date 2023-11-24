@@ -691,7 +691,14 @@ let test_bool dbg cmm =
 
 (* Float *)
 
-let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
+let box_float ~from_flat_float_array dbg m c =
+  let dbg =
+    if from_flat_float_array then
+      Debuginfo.set_from_flat_float_array dbg
+    else
+      dbg
+  in
+  Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let rec unbox_float dbg =
   map_tail ~kind:Any (function
@@ -940,7 +947,7 @@ let unboxed_float_array_ref arr ofs dbg =
   Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
 let float_array_ref mode arr ofs dbg =
-  box_float dbg mode (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg mode (unboxed_float_array_ref arr ofs dbg) ~from_flat_float_array:true
 
 let addr_array_set_heap arr ofs newval dbg =
   Cop
@@ -3354,7 +3361,7 @@ let arrayref_safe rkind arg1 arg2 dbg =
                     idx ],
                 int_array_ref arr idx dbg )))
   | Pfloatarray_ref mode ->
-    box_float dbg mode
+    box_float dbg mode ~from_flat_float_array:true
       (bind "index" arg2 (fun idx ->
            bind "arr" arg1 (fun arr ->
                Csequence

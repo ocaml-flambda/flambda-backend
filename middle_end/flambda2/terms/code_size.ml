@@ -122,14 +122,14 @@ let arith_conversion_size src dst =
 
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> 1 (* 1 load *)
+  | Naked_float _ | Naked_vec128 -> 1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> alloc_size (* 1 alloc *)
+  | Naked_float _ | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)

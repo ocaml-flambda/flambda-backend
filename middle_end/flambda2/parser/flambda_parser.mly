@@ -387,7 +387,7 @@ unop:
   | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
-    { Box_number (Naked_float, alloc) }
+    { Box_number (Naked_float { from_flat_float_array = false }, alloc) }
   | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_int32, alloc) }
   | PRIM_BOX_INT64; alloc = alloc_mode_for_allocations_opt
@@ -415,7 +415,7 @@ unop:
     { Project_function_slot { move_from; move_to } }
   | PRIM_STRING_LENGTH { String_length String }
   | PRIM_TAG_IMM { Tag_immediate }
-  | PRIM_UNBOX_FLOAT { Unbox_number Naked_float }
+  | PRIM_UNBOX_FLOAT { Unbox_number (Naked_float { from_flat_float_array = false } )}
   | PRIM_UNBOX_INT32 { Unbox_number Naked_int32 }
   | PRIM_UNBOX_INT64 { Unbox_number Naked_int64 }
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }

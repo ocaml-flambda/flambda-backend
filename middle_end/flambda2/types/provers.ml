@@ -388,7 +388,7 @@ let prove_is_a_boxed_or_tagged_number env t :
       then Proved Tagged_immediate
       else Unknown)
   | Value (Ok (Boxed_float (contents_ty, alloc_mode))) ->
-    Proved (Boxed (alloc_mode, Naked_float, contents_ty))
+    Proved (Boxed (alloc_mode, Naked_float { from_flat_float_array = false }, contents_ty))
   | Value (Ok (Boxed_int32 (contents_ty, alloc_mode))) ->
     Proved (Boxed (alloc_mode, Naked_int32, contents_ty))
   | Value (Ok (Boxed_int64 (contents_ty, alloc_mode))) ->

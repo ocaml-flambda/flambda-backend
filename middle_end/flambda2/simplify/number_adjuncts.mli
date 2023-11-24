@@ -114,7 +114,7 @@ end
 module type Boxable = sig
   module Num : Container_types.S
 
-  val boxable_number_kind : Flambda_kind.Boxable_number.t
+  val boxable_number_kind : from_flat_float_array:bool -> Flambda_kind.Boxable_number.t
 
   val this_boxed : Num.t -> Alloc_mode.For_types.t -> Flambda2_types.t
 

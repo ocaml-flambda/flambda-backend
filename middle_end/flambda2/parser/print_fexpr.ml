@@ -501,7 +501,9 @@ let unop ppf u =
   let box_or_unbox verb_not_imm (bk : box_kind) =
     let print verb obj = Format.fprintf ppf "%%%s_%s" verb obj in
     match bk with
-    | Naked_float -> print verb_not_imm "float"
+    | Naked_float { from_flat_float_array } ->
+      print verb_not_imm
+        ("float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
