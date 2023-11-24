@@ -693,10 +693,9 @@ let test_bool dbg cmm =
 
 let box_float ~from_flat_float_array dbg m c =
   let dbg =
-    if from_flat_float_array then
-      Debuginfo.set_from_flat_float_array dbg
-    else
-      dbg
+    if from_flat_float_array
+    then Debuginfo.set_from_flat_float_array dbg
+    else dbg
   in
   Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
@@ -947,7 +946,9 @@ let unboxed_float_array_ref arr ofs dbg =
   Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
 let float_array_ref mode arr ofs dbg =
-  box_float dbg mode (unboxed_float_array_ref arr ofs dbg) ~from_flat_float_array:true
+  box_float dbg mode
+    (unboxed_float_array_ref arr ofs dbg)
+    ~from_flat_float_array:true
 
 let addr_array_set_heap arr ofs newval dbg =
   Cop

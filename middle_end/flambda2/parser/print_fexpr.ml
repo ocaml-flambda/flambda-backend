@@ -503,7 +503,8 @@ let unop ppf u =
     match bk with
     | Naked_float { from_flat_float_array } ->
       print verb_not_imm
-        ("float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
+        ("float"
+        ^ if from_flat_float_array then "_from_flat_float_array" else "")
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"

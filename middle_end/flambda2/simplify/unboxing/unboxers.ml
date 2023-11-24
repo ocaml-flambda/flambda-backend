@@ -63,7 +63,9 @@ module Float = struct
     }
 
   let unboxing_prim simple =
-    P.(Unary (Unbox_number (Naked_float { from_flat_float_array = false }), simple))
+    P.(
+      Unary
+        (Unbox_number (Naked_float { from_flat_float_array = false }), simple))
 
   let unboxer =
     { var_name = "unboxed_float";

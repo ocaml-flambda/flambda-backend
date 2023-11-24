@@ -32,7 +32,7 @@ module Witness = struct
     | Alloc of
         { bytes : int;
           dbginfo : Debuginfo.alloc_dbginfo;
-          from_flat_float_array : bool;
+          from_flat_float_array : bool
         }
     | Indirect_call
     | Indirect_tailcall
@@ -66,8 +66,8 @@ module Witness = struct
     | Alloc { bytes; dbginfo = _; from_flat_float_array } ->
       fprintf ppf "allocate %d bytes%s" bytes
         (if from_flat_float_array
-         then " that may originate from flat float array access"
-         else "")
+        then " that may originate from flat float array access"
+        else "")
     | Indirect_call -> fprintf ppf "indirect call"
     | Indirect_tailcall -> fprintf ppf "indirect tailcall"
     | Direct_call { callee } -> fprintf ppf "direct call %s" callee
@@ -1026,7 +1026,11 @@ end = struct
       then next
       else
         let from_flat_float_array = Debuginfo.from_flat_float_array dbg in
-        let w = create_witnesses t (Alloc { bytes; dbginfo; from_flat_float_array }) dbg in
+        let w =
+          create_witnesses t
+            (Alloc { bytes; dbginfo; from_flat_float_array })
+            dbg
+        in
         let r = Value.transform w next in
         check t r "heap allocation" dbg
     | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->

@@ -233,7 +233,7 @@ end
 
 module Boxable_number = struct
   type t =
-    | Naked_float of { from_flat_float_array: bool }
+    | Naked_float of { from_flat_float_array : bool }
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -261,7 +261,8 @@ module Boxable_number = struct
       match t with
       | Naked_float { from_flat_float_array } ->
         Format.pp_print_string ppf
-          ("Naked_float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
+          ("Naked_float"
+          ^ if from_flat_float_array then "_from_flat_float_array" else "")
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -278,7 +279,8 @@ module Boxable_number = struct
     match t with
     | Naked_float { from_flat_float_array } ->
       Format.pp_print_string ppf
-        ("naked_float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
+        ("naked_float"
+        ^ if from_flat_float_array then "_from_flat_float_array" else "")
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -288,7 +290,8 @@ module Boxable_number = struct
     match t with
     | Naked_float { from_flat_float_array } ->
       Format.pp_print_string ppf
-        ("float"^(if from_flat_float_array then "_from_flat_float_array" else ""))
+        ("float"
+        ^ if from_flat_float_array then "_from_flat_float_array" else "")
     | Naked_int32 -> Format.pp_print_string ppf "int32"
     | Naked_int64 -> Format.pp_print_string ppf "int64"
     | Naked_nativeint -> Format.pp_print_string ppf "nativeint"

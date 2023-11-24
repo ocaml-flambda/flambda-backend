@@ -409,7 +409,8 @@ module For_int32s : Boxable_int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Naked_int32
 
-  let boxable_number_kind ~from_flat_float_array:_ = K.Boxable_number.Naked_int32
+  let boxable_number_kind ~from_flat_float_array:_ =
+    K.Boxable_number.Naked_int32
 
   let unboxed_prover = T.meet_naked_int32s
 
@@ -478,7 +479,8 @@ module For_int64s : Boxable_int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Naked_int64
 
-  let boxable_number_kind ~from_flat_float_array:_ = K.Boxable_number.Naked_int64
+  let boxable_number_kind ~from_flat_float_array:_ =
+    K.Boxable_number.Naked_int64
 
   let unboxed_prover = T.meet_naked_int64s
 
@@ -548,7 +550,8 @@ module For_nativeints : Boxable_int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Naked_nativeint
 
-  let boxable_number_kind ~from_flat_float_array:_ = K.Boxable_number.Naked_nativeint
+  let boxable_number_kind ~from_flat_float_array:_ =
+    K.Boxable_number.Naked_nativeint
 
   let unboxed_prover = T.meet_naked_nativeints
 
