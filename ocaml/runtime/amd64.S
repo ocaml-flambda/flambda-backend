@@ -581,6 +581,20 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_allocN))
 
+FUNCTION(G(caml_call_local_realloc))
+CFI_STARTPROC
+        CFI_SIGNAL_FRAME
+        ENTER_FUNCTION
+        SAVE_ALL_REGS
+        SWITCH_OCAML_TO_C
+        C_call  (GCALL(caml_local_realloc))
+        SWITCH_C_TO_OCAML
+        RESTORE_ALL_REGS
+        LEAVE_FUNCTION
+        ret
+CFI_ENDPROC
+ENDFUNCTION(G(caml_call_local_realloc))
+
 /******************************************************************************/
 /* Call a C function from OCaml */
 /******************************************************************************/

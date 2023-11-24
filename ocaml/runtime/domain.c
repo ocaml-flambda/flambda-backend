@@ -667,6 +667,11 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
   domain_state->backtrace_active = 0;
   caml_register_generational_global_root(&domain_state->backtrace_last_exn);
 
+  domain_state->local_arenas = NULL;
+  domain_state->local_sp = 0;
+  domain_state->local_top = NULL;
+  domain_state->local_limit = 0;
+
   domain_state->compare_unordered = 0;
   domain_state->oo_next_id_local = 0;
 
@@ -1865,6 +1870,8 @@ static void domain_terminate (void)
   }
   caml_free_backtrace_buffer(domain_state->backtrace_buffer);
   caml_free_gc_regs_buckets(domain_state->gc_regs_buckets);
+
+  // CR sdolan: free locals stack
 
   /* signal the domain termination to the backup thread
      NB: for a program with no additional domains, the backup thread

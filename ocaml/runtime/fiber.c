@@ -32,6 +32,7 @@
 #include "caml/major_gc.h"
 #include "caml/memory.h"
 #include "caml/startup_aux.h"
+#include "caml/shared_heap.h"
 #ifdef NATIVE_CODE
 #include "caml/stack.h"
 #include "caml/frame_descriptors.h"
@@ -222,9 +223,164 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
   *sp = p + sizeof(value);
 }
 
+
+static const header_t Hd_high_bit =
+  ((uintnat)-1) << (sizeof(uintnat) * 8 - 1);
+
+
+/* Returns the arena number of a block,
+   or -1 if it is not in any local arena */
+static int get_local_ix(caml_local_arenas* loc, value v)
+{
+  int i;
+  CAMLassert(Is_block(v));
+  /* Search local arenas, starting from the largest (last) */
+  for (i = 0; i < loc->count; i++) {
+    struct caml_local_arena arena = loc->arenas[i];
+    if (arena.base <= (char*)v && (char*)v < arena.base + arena.length)
+      return i;
+  }
+  return -1;
+}
+
+
+/* If it visits an unmarked local block,
+      returns the index of the containing arena
+   Otherwise returns -1. */
+static int visit(scanning_action f, void* fdata,
+                 struct caml_local_arenas* locals,
+                 value* p)
+{
+  value v = *p, vblock = v;
+  header_t hd;
+  int ix;
+  if (!Is_block(v))
+    return -1;
+
+  if (Is_young(v)) {
+    f(fdata, v, p);
+    return -1;
+  }
+
+  /* major or local or external */
+
+  hd = Hd_val(vblock);
+  if (Tag_hd(hd) == Infix_tag) {
+    vblock -= Infix_offset_val(v);
+    hd = Hd_val(vblock);
+  }
+
+  if (Color_hd(hd) != NOT_MARKABLE) {
+    /* Major heap */
+    f(fdata, v, p);
+    return -1;
+  } else {
+    /* Local or external */
+    if (hd & Hd_high_bit)
+      /* Local, marked */
+      return -1;
+
+    if (locals == NULL)
+      /* external */
+      return -1;
+
+    ix = get_local_ix(locals, vblock);
+
+    if (ix != -1) {
+      /* Mark this unmarked local */
+      *Hp_val(vblock) = hd | Hd_high_bit;
+    }
+
+    return ix;
+  }
+}
+
+static void scan_local_allocations(scanning_action f, void* fdata,
+                                   caml_local_arenas* loc)
+{
+  int arena_ix;
+  intnat sp;
+  struct caml_local_arena arena;
+
+  if (loc == NULL) return;
+  CAMLassert(loc->count > 0);
+  sp = loc->saved_sp;
+  arena_ix = loc->count - 1;
+  arena = loc->arenas[arena_ix];
+#ifdef DEBUG
+  { header_t* hp;
+    for (hp = (header_t*)arena.base;
+         hp < (header_t*)(arena.base + arena.length + sp);
+         hp++) {
+      *hp = Debug_free_local;
+    }
+  }
+#endif
+
+  while (sp < 0) {
+    header_t* hp = (header_t*)(arena.base + arena.length + sp), hd = *hp;
+    intnat i;
+
+    if (hd == Local_uninit_hd) {
+      CAMLassert(arena_ix > 0);
+      arena = loc->arenas[--arena_ix];
+#ifdef DEBUG
+      for (hp = (header_t*)arena.base;
+           hp < (header_t*)(arena.base + arena.length + sp);
+           hp++) {
+        *hp = Debug_free_local;
+      }
+#endif
+      continue;
+    }
+    CAMLassert(Color_hd(hd) == NOT_MARKABLE);
+    if (!(hd & Hd_high_bit)) {
+      /* Local allocation, not marked */
+#ifdef DEBUG
+      for (i = 0; i < Wosize_hd(hd); i++)
+        Field(Val_hp(hp), i) = Debug_free_local;
+#endif
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    /* reset mark */
+    hd &= ~Hd_high_bit;
+    *hp = hd;
+    CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
+    CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
+    if (Tag_hd(hd) >= No_scan_tag) {
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    i = 0;
+    if (Tag_hd(hd) == Closure_tag)
+      i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+    for (; i < Wosize_hd(hd); i++) {
+      value *p = Op_val(Val_hp(hp)) + i;
+      int marked_ix = visit(f, fdata, loc, p);
+      if (marked_ix != -1) {
+        struct caml_local_arena a = loc->arenas[marked_ix];
+        intnat newsp = (char*)*p - (a.base + a.length);
+        if (sp <= newsp) {
+          /* forwards pointer, common case */
+          CAMLassert(marked_ix <= arena_ix);
+        } else {
+          /* If backwards pointers are ever supported (e.g. local recursive
+             values), then this should reset sp and iterate to a fixpoint */
+          CAMLassert(marked_ix >= arena_ix);
+          caml_fatal_error("backwards local pointer");
+        }
+      }
+    }
+    sp += Bhsize_hd(hd);
+  }
+}
+
+
 Caml_inline void scan_stack_frames(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   char * sp;
   uintnat retaddr;
@@ -259,7 +415,7 @@ next_chunk:
           } else {
             root = (value *)(sp + ofs);
           }
-          f (fdata, *root, root);
+          visit (f, fdata, locals, root);
         }
       } else {
         uint16_t *p;
@@ -271,7 +427,7 @@ next_chunk:
           } else {
             root = (value *)(sp + ofs);
           }
-          f (fdata, *root, root);
+          visit (f, fdata, locals, root);
         }
       }
       /* Move to next frame */
@@ -291,10 +447,11 @@ next_chunk:
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   while (stack != NULL) {
-    scan_stack_frames(f, fflags, fdata, stack, gc_regs);
+    scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
     f(fdata, Stack_handle_value(stack), &Stack_handle_value(stack));
     f(fdata, Stack_handle_exception(stack), &Stack_handle_exception(stack));
@@ -377,7 +534,8 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs)
+  struct stack_info* stack, value* v_gc_regs,
+  struct caml_local_arenas* unused)
 {
   value *low, *high, *sp;
 
@@ -405,6 +563,40 @@ void caml_scan_stack(
 }
 
 #endif /* end BYTE_CODE */
+
+CAMLexport void caml_do_local_roots (
+  scanning_action f, scanning_action_flags fflags, void* fdata,
+  struct caml__roots_block *local_roots,
+  struct stack_info *current_stack,
+  value * v_gc_regs,
+  struct caml_local_arenas* locals)
+{
+  struct caml__roots_block *lr;
+  int i, j;
+  value* sp;
+
+  for (lr = local_roots; lr != NULL; lr = lr->next) {
+    for (i = 0; i < lr->ntables; i++){
+      for (j = 0; j < lr->nitems; j++){
+        sp = &(lr->tables[i][j]);
+        if (*sp != 0) {
+#ifdef NATIVE_CODE
+          visit (f, fdata, locals, sp);
+#else
+          f (fdata, *sp, sp);
+#endif
+        }
+      }
+    }
+  }
+  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs, locals);
+#ifdef NATIVE_CODE
+  scan_local_allocations(f, fdata, locals);
+#else
+  CAMLassert(locals == NULL);
+#endif
+}
+
 
 /*
   Stack management.
