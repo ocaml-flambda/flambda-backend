@@ -578,3 +578,22 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_zero_alloc_opt2.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check opt -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_bigstring_array.output.corrected)
+ (deps (:ml test_bigstring_array.ml) filter.sh)
+ (action
+   (with-outputs-to test_bigstring_array.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_bigstring_array.output test_bigstring_array.output.corrected)
+ (action (diff test_bigstring_array.output test_bigstring_array.output.corrected)))

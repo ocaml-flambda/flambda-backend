@@ -99,6 +99,9 @@ val merge : into:t -> t -> t
 
 val assume_zero_alloc : t -> bool
 
+val set_from_flat_float_array : t -> t
+val from_flat_float_array : t -> bool
+
 module Dbg : sig
   type t
 

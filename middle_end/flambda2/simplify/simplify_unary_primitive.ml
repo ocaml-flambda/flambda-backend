@@ -94,7 +94,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
   let result_var' = Bound_var.var result_var in
   let shape, result_kind =
     match boxable_number_kind with
-    | Naked_float ->
+    | Naked_float _ ->
       ( T.boxed_float_alias_to ~naked_float:result_var'
           (Alloc_mode.For_types.unknown ()),
         K.naked_float )
@@ -165,7 +165,7 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
   let ty =
     let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
     match boxable_number_kind with
-    | Naked_float -> T.box_float naked_number_ty alloc_mode
+    | Naked_float _ -> T.box_float naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
     | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
     | Naked_nativeint -> T.box_nativeint naked_number_ty alloc_mode
@@ -577,7 +577,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     in
     let boxer =
       match boxable_number with
-      | Naked_float -> T.box_float
+      | Naked_float _ -> T.box_float
       | Naked_int32 -> T.box_int32
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint

@@ -124,4 +124,5 @@ let () =
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
   print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
   print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_bigstring_array";
   ()
