@@ -2120,8 +2120,6 @@ AS_CASE([$host],
 
 if [[ x"$enable_runtime5" = x"yes" ]]; then
   runtime_suffix=
-  # CR ocaml 5 runtime: forward port locals
-  enable_stack_allocation="no"
 else
   runtime_suffix=4
 fi

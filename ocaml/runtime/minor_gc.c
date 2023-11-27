@@ -82,10 +82,20 @@ static void reset_table (struct generic_table *tbl)
   tbl->base = tbl->ptr = tbl->threshold = tbl->limit = tbl->end = NULL;
 }
 
-static void clear_table (struct generic_table *tbl)
+static void clear_table (struct generic_table *tbl,
+                         asize_t element_size,
+                         const char *name)
 {
+  asize_t maxsz = Caml_state->minor_heap_wsz;
+  if (tbl->size <= maxsz) {
     tbl->ptr = tbl->base;
     tbl->limit = tbl->threshold;
+  } else {
+    caml_gc_message (0x08, "Shrinking %s to %ldk bytes\n",
+                     name,
+                     (long)((maxsz * element_size) / 1024));
+    alloc_generic_table(tbl, Caml_state->minor_heap_wsz, 256, element_size);
+  }
 }
 
 struct caml_minor_tables* caml_alloc_minor_tables(void)
@@ -151,7 +161,7 @@ static value alloc_shared(caml_domain_state* d,
                           mlsize_t wosize, tag_t tag, reserved_t reserved)
 {
   void* mem = caml_shared_try_alloc(d->shared_heap, wosize, tag,
-                                    reserved, 0 /* not pinned */);
+                                    reserved);
   d->allocated_words += Whsize_wosize(wosize);
   if (mem == NULL) {
     caml_fatal_error("allocation failure during minor GC");
@@ -277,7 +287,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
       Field(result, 0) = Val_ptr(stk);
       if (stk != NULL) {
         caml_scan_stack(&oldify_one, oldify_scanning_flags, st,
-                        stk, 0);
+                        stk, 0, NULL);
       }
     }
     else
@@ -448,9 +458,15 @@ void caml_empty_minor_heap_domain_clear(caml_domain_state* domain)
 
   caml_final_empty_young(domain);
 
-  clear_table ((struct generic_table *)&minor_tables->major_ref);
-  clear_table ((struct generic_table *)&minor_tables->ephe_ref);
-  clear_table ((struct generic_table *)&minor_tables->custom);
+  clear_table ((struct generic_table *)&minor_tables->major_ref,
+               sizeof(value *),
+               "major_ref");
+  clear_table ((struct generic_table *)&minor_tables->ephe_ref,
+               sizeof(struct caml_ephe_ref_elt),
+               "ephe_ref");
+  clear_table ((struct generic_table *)&minor_tables->custom,
+               sizeof(struct caml_custom_elt),
+               "custom");
 
   domain->extra_heap_resources_minor = 0.0;
 }
@@ -460,7 +476,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
                                    caml_domain_state** participating)
 {
   struct caml_minor_tables *self_minor_tables = domain->minor_tables;
-  struct caml_custom_elt *elt;
   value* young_ptr = domain->young_ptr;
   value* young_end = domain->young_end;
   uintnat minor_allocated_bytes = (uintnat)young_end - (uintnat)young_ptr;
@@ -478,6 +493,9 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   caml_gc_log ("Minor collection of domain %d starting", domain->id);
   CAML_EV_BEGIN(EV_MINOR);
   call_timing_hook(&caml_minor_gc_begin_hook);
+  if (Caml_state->in_minor_collection)
+    caml_fatal_error("Minor GC triggered recursively");
+  Caml_state->in_minor_collection = 1;
 
   if( participating[0] == Caml_state ) {
     CAML_EV_BEGIN(EV_MINOR_GLOBAL_ROOTS);
@@ -570,20 +588,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
     }
   #endif
 
-  /* unconditionally promote custom blocks so accounting is correct */
-  for (elt = self_minor_tables->custom.base;
-       elt < self_minor_tables->custom.ptr; elt++) {
-    value *v = &elt->block;
-    if (Is_block(*v) && Is_young(*v)) {
-      caml_adjust_gc_speed(elt->mem, elt->max);
-      if (get_header_val(*v) == 0) { /* value copied to major heap */
-        *v = Field(*v, 0);
-      } else {
-        oldify_one(&st, *v, v);
-      }
-    }
-  }
-
   CAML_EV_BEGIN(EV_MINOR_FINALIZERS_OLDIFY);
   /* promote the finalizers unconditionally as we want to avoid barriers */
   caml_final_do_young_roots (&oldify_one, oldify_scanning_flags, &st,
@@ -607,19 +611,13 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
     CAMLassert (!Is_block(vnew)
             || (get_header_val(vnew) != 0 && !Is_young(vnew)));
   }
-
-  for (elt = self_minor_tables->custom.base;
-       elt < self_minor_tables->custom.ptr; elt++) {
-    value vnew = elt->block;
-    CAMLassert (!Is_block(vnew)
-            || (get_header_val(vnew) != 0 && !Is_young(vnew)));
-  }
 #endif
 
   CAML_EV_BEGIN(EV_MINOR_LOCAL_ROOTS);
   caml_do_local_roots(
     &oldify_one, oldify_scanning_flags, &st,
-    domain->local_roots, domain->current_stack, domain->gc_regs);
+    domain->local_roots, domain->current_stack, domain->gc_regs,
+    caml_get_local_arenas(domain));
 
   scan_roots_hook = atomic_load(&caml_scan_roots_hook);
   if (scan_roots_hook != NULL)
@@ -645,6 +643,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   domain->stat_minor_words += Wsize_bsize (minor_allocated_bytes);
   domain->stat_promoted_words += domain->allocated_words - prev_alloc_words;
 
+  Caml_state->in_minor_collection = 0;
   call_timing_hook(&caml_minor_gc_end_hook);
   CAML_EV_COUNTER(EV_C_MINOR_PROMOTED,
                   Bsize_wsize(domain->allocated_words - prev_alloc_words));
@@ -656,6 +655,28 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
                domain->id,
                100.0 * (double)st.live_bytes / (double)minor_allocated_bytes,
                (unsigned)(minor_allocated_bytes + 512)/1024);
+}
+
+/* Finalize dead custom blocks and do the accounting for the live
+   ones. This must be done right after leaving the barrier. At this
+   point, all domains have finished minor GC, but this domain hasn't
+   resumed running OCaml code. Other domains may have resumed OCaml
+   code, but they cannot have any pointers into our minor heap. */
+static void custom_finalize_minor (caml_domain_state * domain)
+{
+  struct caml_custom_elt *elt;
+  for (elt = domain->minor_tables->custom.base;
+       elt < domain->minor_tables->custom.ptr; elt++) {
+    value *v = &elt->block;
+    if (Is_block(*v) && Is_young(*v)) {
+      if (get_header_val(*v) == 0) { /* value copied to major heap */
+        caml_adjust_gc_speed(elt->mem, elt->max);
+      } else {
+        void (*final_fun)(value) = Custom_ops_val(*v)->finalize;
+        if (final_fun != NULL) final_fun(*v);
+      }
+    }
+  }
 }
 
 void caml_do_opportunistic_major_slice
@@ -717,6 +738,11 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
   }
 
+  CAML_EV_BEGIN(EV_MINOR_FINALIZED);
+  caml_gc_log("finalizing dead minor custom blocks");
+  custom_finalize_minor(domain);
+  CAML_EV_END(EV_MINOR_FINALIZED);
+
   CAML_EV_BEGIN(EV_MINOR_FINALIZERS_ADMIN);
   caml_gc_log("running finalizer data structure book-keeping");
   caml_final_update_last_minor(domain);
@@ -725,6 +751,7 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   CAML_EV_BEGIN(EV_MINOR_CLEAR);
   caml_gc_log("running stw empty_minor_heap_domain_clear");
   caml_empty_minor_heap_domain_clear(domain);
+
 #ifdef DEBUG
   {
     for (uintnat* p = initial_young_ptr; p < (uintnat*)domain->young_end; ++p)

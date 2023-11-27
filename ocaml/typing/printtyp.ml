@@ -783,24 +783,6 @@ let rec normalize_type_path ?(cache=false) env p =
     Not_found ->
       (Env.normalize_type_path None env p, Id)
 
-let penalty s =
-  if s <> "" && s.[0] = '_' then
-    10
-  else
-    match find_double_underscore s with
-    | None -> 1
-    | Some _ -> 10
-
-let rec path_size = function
-    Pident id ->
-      penalty (Ident.name id), -Ident.scope id
-  | Pdot (p, _) | Pextra_ty (p, Pcstr_ty _) ->
-      let (l, b) = path_size p in (1+l, b)
-  | Papply (p1, p2) ->
-      let (l, b) = path_size p1 in
-      (l + fst (path_size p2), b)
-  | Pextra_ty (p, _) -> path_size p
-
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
   Env.same_types !printing_old env
@@ -868,7 +850,34 @@ let is_unambiguous path env =
       List.for_all (fun p -> lid_of_path p = id) rem &&
       Path.same p (fst (Env.find_type_by_name id env))
 
-let rec get_best_path r =
+let penalty_size = 10
+
+let name_penalty s =
+  if s <> "" && s.[0] = '_' then
+    penalty_size
+  else
+    match find_double_underscore s with
+    | None -> 1
+    | Some _ -> penalty_size
+
+let ambiguity_penalty path env =
+  if is_unambiguous path env then 0 else penalty_size
+
+let path_size path env =
+  let rec size = function
+      Pident id ->
+        name_penalty (Ident.name id), -Ident.scope id
+    | Pdot (p, _) | Pextra_ty (p, Pcstr_ty _) ->
+        let (l, b) = size p in (1+l, b)
+    | Papply (p1, p2) ->
+        let (l, b) = size p1 in
+        (l + fst (size p2), b)
+    | Pextra_ty (p, _) -> size p
+  in
+  let l, s = size path in
+  l + ambiguity_penalty path env, s
+
+let rec get_best_path r env =
   match !r with
     Best p' -> p'
   | Paths [] -> raise Not_found
@@ -878,11 +887,10 @@ let rec get_best_path r =
         (fun p ->
           (* Format.eprintf "evaluating %a@." path p; *)
           match !r with
-            Best p' when path_size p >= path_size p' -> ()
-          | _ -> if is_unambiguous p !printing_env then r := Best p)
-              (* else Format.eprintf "%a ignored as ambiguous@." path p *)
+            Best p' when path_size p env >= path_size p' env -> ()
+          | _ -> r := Best p)
         l;
-      get_best_path r
+      get_best_path r env
 
 let best_type_path p =
   if !printing_env == Env.empty
@@ -891,14 +899,18 @@ let best_type_path p =
   then (p, Id)
   else
     let (p', s) = normalize_type_path !printing_env p in
-    let get_path () = get_best_path (Path.Map.find  p' !printing_map) in
+    let get_path () =
+      try
+        get_best_path (Path.Map.find p' !printing_map) !printing_env
+      with Not_found -> p'
+    in
     while !printing_cont <> [] &&
-      try fst (path_size (get_path ())) > !printing_depth with Not_found -> true
+      fst (path_size (get_path ()) !printing_env) > !printing_depth
     do
       printing_cont := List.map snd (Env.run_iter_cont !printing_cont);
       incr printing_depth;
     done;
-    let p'' = try get_path () with Not_found -> p' in
+    let p'' = get_path () in
     (* Format.eprintf "%a = %a -> %a@." path p path p' path p''; *)
     (p'', s)
 

@@ -452,7 +452,7 @@ Caml_inline void mark_ephe_darken(struct mark_stack* stk, value v, mlsize_t i,
       if ((in_ephemeron && Is_long(f)) ||
           (Is_block (f)
            && (!Is_in_value_area(f) || Tag_val (f) == Forward_tag
-               || Tag_val (f) == Lazy_tag
+               || Tag_val (f) == Lazy_tag || Tag_val (f) == Forcing_tag
 #ifdef FLAT_FLOAT_ARRAY
                || Tag_val (f) == Double_tag
 #endif
@@ -534,7 +534,7 @@ static void mark_ephe_aux (struct mark_stack *stk, intnat *work,
           if (Is_long (f) ||
               (Is_block (f) &&
                (!Is_in_value_area(f) || Tag_val (f) == Forward_tag
-                || Tag_val (f) == Lazy_tag
+                || Tag_val (f) == Lazy_tag || Tag_val (f) == Forcing_tag
 #ifdef FLAT_FLOAT_ARRAY
                 || Tag_val (f) == Double_tag
 #endif

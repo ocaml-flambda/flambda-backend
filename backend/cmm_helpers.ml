@@ -49,7 +49,8 @@ let bind_list name args fn =
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
-let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
+let caml_local =
+  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -826,7 +827,8 @@ let get_header ptr dbg =
      data race on headers. This saves performance with ThreadSanitizer
      instrumentation by avoiding to instrument header loads. *)
   Cop
-    ( (if Config.runtime5 then mk_load_immut Word_int else mk_load_mut Word_int),
+    ( mk_load_mut Word_int,
+      (* CR xclerc: consider whether that could be changed to mk_load_immut *)
       [Cop (Cadda, [ptr; Cconst_int (-size_int, dbg)], dbg)],
       dbg )
 

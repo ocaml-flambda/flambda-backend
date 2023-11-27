@@ -247,7 +247,8 @@ CAMLextern struct stack_info* caml_alloc_main_stack (uintnat init_wsize);
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs);
+  struct stack_info* stack, value* v_gc_regs,
+  struct caml_local_arenas* locals);
 
 struct stack_info* caml_alloc_stack_noexc(mlsize_t wosize, value hval,
                                           value hexn, value heff, int64_t id);

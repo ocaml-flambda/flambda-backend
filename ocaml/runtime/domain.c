@@ -629,6 +629,8 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
     goto reallocate_minor_heap_failure;
   }
 
+  domain_state->in_minor_collection = 0;
+
   domain_state->dls_root = Val_unit;
   caml_register_generational_global_root(&domain_state->dls_root);
 
@@ -664,6 +666,11 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
   domain_state->backtrace_last_exn = Val_unit;
   domain_state->backtrace_active = 0;
   caml_register_generational_global_root(&domain_state->backtrace_last_exn);
+
+  domain_state->local_arenas = NULL;
+  domain_state->local_sp = 0;
+  domain_state->local_top = NULL;
+  domain_state->local_limit = 0;
 
   domain_state->compare_unordered = 0;
   domain_state->oo_next_id_local = 0;
@@ -733,8 +740,7 @@ static void reserve_minor_heaps(void) {
   minor_heap_reservation_bsize = minor_heap_max_bsz * Max_domains;
 
   /* reserve memory space for minor heaps */
-  heaps_base = caml_mem_map(minor_heap_reservation_bsize, caml_plat_pagesize,
-                1 /* reserve_only */);
+  heaps_base = caml_mem_map(minor_heap_reservation_bsize, 1 /* reserve_only */);
   if (heaps_base == NULL)
     caml_fatal_error("Not enough heap memory to reserve minor heaps");
 
@@ -1745,7 +1751,7 @@ static void handover_finalisers(caml_domain_state* domain_state)
     if (caml_gc_phase != Phase_sweep_and_mark_main) {
       /* Force a major GC cycle to simplify constraints for
        * handing over finalisers. */
-      caml_finish_major_cycle();
+      caml_finish_major_cycle(0);
       CAMLassert(caml_gc_phase == Phase_sweep_and_mark_main);
     }
     caml_add_orphaned_finalisers (f);
@@ -1864,6 +1870,8 @@ static void domain_terminate (void)
   }
   caml_free_backtrace_buffer(domain_state->backtrace_buffer);
   caml_free_gc_regs_buckets(domain_state->gc_regs_buckets);
+
+  // CR sdolan: free locals stack
 
   /* signal the domain termination to the backup thread
      NB: for a program with no additional domains, the backup thread

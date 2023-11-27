@@ -327,9 +327,14 @@ type unary_primitive =
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
-          an immediate value.
+          an immediate value. It should also not be used to read tags above
+          [No_scan_tag].
           Note: The GC color bits in the header are not reliable except for
-          checking if the value is locally allocated *)
+          checking if the value is locally allocated
+          Invariant: never read the tag of a possibly-lazy value from
+          ocamlopt-generated code. Tag reads that are allowed to be lazy tags
+          (by the type system) should always go through caml_obj_tag, which is
+          opaque to the compiler. *)
   | Atomic_load of Block_access_field_kind.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
