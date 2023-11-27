@@ -771,17 +771,12 @@ CAMLprim value caml_array_fill(value array,
   return Val_unit;
 }
 
-/* Linker compatibility with stdlib externals
-   CR ocaml 5 runtime: implement iarrays */
-
 CAMLprim value caml_iarray_of_array(value a)
 {
   return a;
 }
 
-extern value caml_obj_dup(value);
-
 CAMLprim value caml_array_of_iarray(value a)
 {
-  return caml_obj_dup(a);
+  return a;
 }
