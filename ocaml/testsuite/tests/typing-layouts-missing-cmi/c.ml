@@ -37,8 +37,6 @@ type bar = B.b_value value_arg
 type boz = B.b_imm value_arg
 |}];;
 
-(* CR layouts v2.9: the error message below is unreviewed *)
-
 (* These should not *)
 type err1 = b_value imm_arg;;
 [%%expect {|

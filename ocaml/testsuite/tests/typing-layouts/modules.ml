@@ -2,7 +2,6 @@
    * expect
    flags = "-extension layouts"
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_value : value
 type t_imm   : immediate

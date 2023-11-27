@@ -2,7 +2,6 @@
    flags = "-extension layouts_alpha"
    * expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_any   : any
 type t_value : value

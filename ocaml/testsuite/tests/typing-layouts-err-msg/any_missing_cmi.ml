@@ -10,8 +10,6 @@ module = "any_missing_cmi_lib.ml"
 script = "rm -f any_missing_cmi_lib2.cmi"
 ***** expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
-
 
 #directory "ocamlc.byte";;
 #load "any_missing_cmi_lib.cmo";;

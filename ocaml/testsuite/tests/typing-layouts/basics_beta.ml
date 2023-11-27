@@ -2,7 +2,6 @@
    flags = "-extension layouts_beta"
    * expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_value : value
 type t_imm   : immediate
@@ -165,7 +164,6 @@ Error:
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
-(* CR layouts v2.9: improve error, which requires layout histories *)
 
 (* CR layouts: bring [: any] and [: void] bits back here from [basics_alpha.ml] when we allow
    them in beta. *)

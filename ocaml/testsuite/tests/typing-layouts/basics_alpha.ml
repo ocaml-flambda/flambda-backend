@@ -2,7 +2,6 @@
    flags = "-extension layouts_alpha"
    * expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 type t_any   : any
 type t_value : value
@@ -326,7 +325,6 @@ Error:
        But the layout of s5 must be a sublayout of immediate, because
          of the annotation on 'a in the declaration of the type t4.
 |}]
-(* CR layouts v2.9: improve error, which will require layout histories *)
 
 type ('a : any) t4 = 'a
 and s4 = string t4;;
@@ -1374,9 +1372,6 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
        But the layout of M.t_void must overlap with immediate, because
          of the definition of t_imm at line 5, characters 2-24.
 |}]
-(* CR layouts v2.9: error message is OK, but it could probably be better.
-   But a similar case without layouts is already pretty bad, so try
-   that before spending too much time here. *)
 
 (*****************************************************)
 (* Test 24: Polymorphic parameter with exotic layout *)

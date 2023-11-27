@@ -3,8 +3,6 @@
    * toplevel
 *)
 
-(* CR layouts v2.9: error message here is unreviewed *)
-
 type ('a : value) t0 = 'a list;;
 
 type ('a : immediate) t0 = 'a list;;

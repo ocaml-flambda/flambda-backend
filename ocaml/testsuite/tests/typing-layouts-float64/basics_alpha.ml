@@ -2,7 +2,6 @@
    flags = "-extension layouts_alpha"
    * expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 (* This file contains typing tests for the layout [float64].
 
@@ -378,7 +377,6 @@ Error: This type ('a : value) should be an instance of type ('a0 : float64)
        But the layout of 'a must overlap with value, because
          it's a field of a polymorphic variant.
 |}];;
-(* CR layouts v2.9: This error could be improved *)
 
 (************************************************************)
 (* Test 8: Normal polymorphic functions don't work on them. *)
@@ -628,7 +626,6 @@ Error: This type ('a : float64) should be an instance of type ('a0 : value)
        But the layout of 'a must overlap with float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
 |}];;
-(* CR layouts v2.9: Error could be improved *)
 
 class c12_5 = object val x : t_float64 = assert false end;;
 [%%expect{|
@@ -653,7 +650,6 @@ Error: The method x has type float# but is expected to have type ('a : value)
        But the layout of float# must be a sublayout of value, because
          it's an object field.
 |}];;
-(* CR layouts v2.9: Error could be improved *)
 
 class type c12_7 = object val x : float# end
 [%%expect{|

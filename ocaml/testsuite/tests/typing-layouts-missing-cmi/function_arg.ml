@@ -10,8 +10,6 @@ module = "function_b.ml"
 script = "rm -f function_a.cmi"
 ***** expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
-
 
 #directory "ocamlc.byte";;
 #load "function_b.cmo";;

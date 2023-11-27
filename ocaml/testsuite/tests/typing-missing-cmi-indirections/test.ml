@@ -14,5 +14,3 @@ module = "client.ml"
 ocamlc_byte_exit_status = "2"
 ****** check-ocamlc.byte-output
 *)
-
-(* CR layouts v2.9: error message here is unreviewed *)
