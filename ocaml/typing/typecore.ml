@@ -7847,7 +7847,7 @@ and map_half_typed_cases
     then Some false else None
   in
   let half_typed_cases, ty_res, do_copy_types, ty_arg' =
-    (* propagation of the argument *)
+   (* propagation of the argument *)
     with_local_level begin fun () ->
       let pattern_force = ref [] in
       (*  Format.printf "@[%i %i@ %a@]@." lev (get_current_level())

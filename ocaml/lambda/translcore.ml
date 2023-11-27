@@ -1515,7 +1515,7 @@ and transl_function ~in_new_scope ~scopes e params body
     end
     else enter_anonymous_function ~scopes ~assume_zero_alloc
   in
-  (* [ret_mode] may differ from [sreturn_sort] if:
+  (* [ret_mode] may differ from [sreturn_mode] if:
        - [e] is a method. (See [fuse_method_arity].)
        - [e] is a function whose arity exceeds [Lambda.max_arity].
          (See the chunking code in [transl_curried_function].)
