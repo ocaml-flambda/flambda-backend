@@ -961,8 +961,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let lclass lam =
     Llet(Strict, layout_function, class_init,
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0})
-                   ~params:[lparam cla layout_table]
+                   ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
                    ~return:layout_function
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
