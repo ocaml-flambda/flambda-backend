@@ -327,6 +327,7 @@ type fusable_function =
   ; body : function_body
   ; return_sort : Jkind.sort
   ; return_mode : alloc_mode
+  ; region : bool
   }
 
 (* [fuse_method_arity] is what ensures that a n-ary method is compiled as a
@@ -354,7 +355,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
       begin match transl_alloc_mode method_.alloc_mode with
       | Alloc_heap -> ()
       | Alloc_local ->
-          (* If we support local-returning methods, we'll also have to
+          (* If we support locally-allocated objects, we'll also have to
              pass the new mode back to the caller.
           *)
           Misc.fatal_error "Locally-allocated method body!"
@@ -368,6 +369,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         body = method_.body;
         return_mode = transl_alloc_mode method_.ret_mode;
         return_sort = method_.ret_sort;
+        region = method_.region;
       }
   | _ -> parent
 
@@ -1504,7 +1506,7 @@ and transl_curried_function ~scopes loc repr params body
     ((Curried { nlocal }, params, return_layout, region, return_mode ), body)
 
 and transl_function ~in_new_scope ~scopes e params body
-    ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region =
+    ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode alloc_mode in
   let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
@@ -1515,6 +1517,15 @@ and transl_function ~in_new_scope ~scopes e params body
     end
     else enter_anonymous_function ~scopes ~assume_zero_alloc
   in
+  let sreturn_mode = transl_alloc_mode sreturn_mode in
+  let { params; body; return_sort; return_mode; region } =
+    fuse_method_arity
+      { params; body;
+        return_sort = sreturn_sort;
+        return_mode = sreturn_mode;
+        region = sregion;
+      }
+  in
   (* [ret_mode] may differ from [sreturn_mode] if:
        - [e] is a method. (See [fuse_method_arity].)
        - [e] is a function whose arity exceeds [Lambda.max_arity].
@@ -1523,14 +1534,6 @@ and transl_function ~in_new_scope ~scopes e params body
   let ((kind, params, return, region, ret_mode), body) =
     event_function ~scopes e
       (function repr ->
-         let sreturn_mode = transl_alloc_mode sreturn_mode in
-         let { params; body; return_sort; return_mode } =
-           fuse_method_arity
-             { params; body;
-               return_sort = sreturn_sort;
-               return_mode = sreturn_mode;
-             }
-         in
          transl_function_without_attributes
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
