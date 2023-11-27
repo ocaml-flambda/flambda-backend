@@ -41,8 +41,7 @@ type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
   param_mode : Alloc.t;
   param_curry : function_curry;
-  param_newtypes :
-    (string Location.loc * Jane_asttypes.jkind_annotation option) list;
+  param_newtypes : (string Location.loc * Jkind.annotation option) list;
 }
 
 type texp_function_param = {
@@ -99,7 +98,12 @@ let texp_function_param_identifier_defaults =
   }
 
 let texp_function_defaults =
-  { alloc_mode = Alloc.legacy; ret_sort = Jkind.Sort.value; region = false }
+  {
+    alloc_mode = Alloc.legacy;
+    ret_sort = Jkind.Sort.value;
+    ret_mode = Alloc.legacy;
+    region = false;
+  }
 
 let mkTexp_function ?(id = texp_function_defaults)
     ({ params; body } : texp_function) =
