@@ -249,8 +249,4 @@ Error: Signature mismatch:
          type ('a : void) t = 'a
        The type ('a : value) is not equal to the type ('a0 : void)
        because their layouts are different.
-       The layout of 'a is value, because
-         of the definition of t at line 8, characters 2-16.
-       The layout of 'a is void, because
-         of the definition of t at line 2, characters 2-25.
 |}]

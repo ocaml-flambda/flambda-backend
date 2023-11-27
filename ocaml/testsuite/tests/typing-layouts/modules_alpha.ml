@@ -94,10 +94,6 @@ Error: Signature mismatch:
          type ('a : immediate) t = 'a list
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
-       The layout of 'a is value, because
-         of the definition of t at line 2, characters 2-21.
-       The layout of 'a is immediate, because
-         of the definition of t at line 2, characters 2-25.
 |}]
 
 (************************************************************************)
