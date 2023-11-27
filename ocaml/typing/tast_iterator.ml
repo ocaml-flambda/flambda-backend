@@ -266,8 +266,14 @@ let extra sub = function
   | Texp_newtype _ -> ()
   | Texp_poly cto -> Option.iter (sub.typ sub) cto
 
-let function_param sub fp =
-  match fp.fp_kind with
+let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
+  sub.location sub fp_loc;
+  List.iter
+    (fun (var, annot) ->
+       iter_loc sub var;
+       Option.iter (sub.jkind_annotation sub) annot)
+    fp_newtypes;
+  match fp_kind with
   | Tparam_pat pat -> sub.pat sub pat
   | Tparam_optional_default (pat, default_arg, _) ->
       sub.pat sub pat;
@@ -277,9 +283,11 @@ let function_body sub body =
   match body with
   | Tfunction_body body ->
       sub.expr sub body
-  | Tfunction_cases { fc_cases; fc_exp_extra; } ->
+  | Tfunction_cases { fc_cases; fc_exp_extra; fc_loc; fc_attributes } ->
       List.iter (sub.case sub) fc_cases;
-      Option.iter (extra sub) fc_exp_extra
+      Option.iter (extra sub) fc_exp_extra;
+      sub.location sub fc_loc;
+      sub.attributes sub fc_attributes
 
 let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   let extra x = extra sub x in

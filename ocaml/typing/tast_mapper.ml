@@ -333,6 +333,7 @@ let function_param sub
       fp_loc;
     }
   =
+  let fp_loc = sub.location sub fp_loc in
   let fp_kind =
     match fp_kind with
     | Tparam_pat pat -> Tparam_pat (sub.pat sub pat)
@@ -340,6 +341,12 @@ let function_param sub
       let pat = sub.pat sub pat in
       let expr = sub.expr sub expr in
       Tparam_optional_default (pat, expr, sort)
+  in
+  let fp_newtypes =
+    List.map
+      (fun (var, annot) ->
+         map_loc sub var, Option.map (sub.jkind_annotation sub) annot)
+      fp_newtypes
   in
   { fp_kind;
     fp_param;
@@ -368,6 +375,8 @@ let function_body sub body =
       { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
         fc_arg_mode; fc_arg_sort; }
     ->
+      let fc_loc = sub.location sub fc_loc in
+      let fc_attributes = sub.attributes sub fc_attributes in
       let fc_cases = List.map (sub.case sub) fc_cases in
       let fc_exp_extra = Option.map (extra sub) fc_exp_extra in
       Tfunction_cases
