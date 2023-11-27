@@ -98,6 +98,7 @@ type ('a, 'variety) elt =
   | Bad_layout_sort : type_expr * Layout.Violation.t -> ('a, _) elt
   | Unequal_var_layouts :
       type_expr * layout * type_expr * layout -> ('a, _) elt
+  | Unequal_var_layouts_with_no_history
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 

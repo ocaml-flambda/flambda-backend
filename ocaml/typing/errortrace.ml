@@ -113,6 +113,7 @@ type ('a, 'variety) elt =
   | Bad_layout_sort : type_expr * Layout.Violation.t -> ('a, _) elt
   | Unequal_var_layouts :
       type_expr * layout * type_expr * layout -> ('a, _) elt
+  | Unequal_var_layouts_with_no_history
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 
@@ -129,6 +130,7 @@ let map_elt (type variety) f : ('a, variety) elt -> ('b, variety) elt = function
   | Bad_layout _ as x -> x
   | Bad_layout_sort _ as x -> x
   | Unequal_var_layouts _ as x -> x
+  | Unequal_var_layouts_with_no_history as x -> x
 
 let map f t = List.map (map_elt f) t
 
