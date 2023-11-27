@@ -333,7 +333,7 @@ CAMLexport void caml_set_fields (value obj, value v)
   }
 }
 
-CAMLexport int caml_is_local (value v)
+CAMLexport int caml_is_stack (value v)
 {
   int i;
   struct caml_local_arenas* loc = Caml_state->local_arenas;
@@ -359,7 +359,7 @@ CAMLexport void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
     /* This function should not be used on external values */
-    CAMLassert(caml_is_local(obj));
+    CAMLassert(caml_is_stack(obj));
     Field(obj, i) = val;
   } else {
     caml_modify(&Field(obj, i), val);
