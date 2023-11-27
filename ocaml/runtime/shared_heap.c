@@ -875,7 +875,7 @@ static void compact_update_block(header_t* p)
   if (tag == Cont_tag) {
     value stk = Field(Val_hp(p), 0);
     if (Ptr_val(stk)) {
-      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0);
+      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0, NULL);
     }
   } else {
     uintnat offset = 0;
