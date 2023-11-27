@@ -15,7 +15,7 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps test_match_on_mutable_state.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
