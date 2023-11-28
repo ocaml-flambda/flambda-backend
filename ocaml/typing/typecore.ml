@@ -3544,8 +3544,12 @@ let type_absent_parameters expected_mode env ty_ret ~mode_ret ~mode_funct args =
   in
   match dummy_args with
   | [] ->
-        (* No effect; just to type check *)
-        type_dummy_arguments ty_ret ~mode_ret ~mode_funct closed_args args
+      let args = List.map (function
+        | (_, Dummy _) -> assert false
+        | (_, (Arg _ | Omitted _)) as a -> a
+        ) args
+      in
+      ty_ret, mode_ret, args
   | _ :: _ ->
     let new_closed_args = close_open_args open_args in
     let closed_args = new_closed_args @ closed_args in

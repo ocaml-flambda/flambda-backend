@@ -250,6 +250,13 @@ module Alloc : sig
 
     val close_over : t -> t
 
+    (** [partial_apply] is a special case of [close_over], where some function
+        is closed over by some closure, but only used in a limited capacity and
+        thus imposes less constraints on the closure. Concretely speaking,
+        [close_over] an unique variable gives an once closure; but in the
+        special case of [partial_apply], the unique variable (the function) does
+        not exercise its uniqueness capability, and does not make the closure
+        once. *)
     val partial_apply : t -> t
 
     val min_with_uniqueness : Uniqueness.Const.t -> t
