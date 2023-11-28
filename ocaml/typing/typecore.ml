@@ -4920,13 +4920,19 @@ let split_function_ty
     expected_inner_mode; expected_pat_mode; curry;
   }
 
+type type_function_result_param =
+  { param : function_param;
+    has_poly : bool;
+  }
+
 (* The result of calling [type_function]. For the outer call to
    [type_function], it's the result of typechecking the entire function;
    for recursive calls to [type_function], it's the result of typechecking
    the "rest of the function": the parameter suffix followed by the body.
 *)
 type type_function_result =
-  { function_ : type_expr * function_param list * function_body;
+  { function_ :
+      type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
     newtypes: (string loc * Jkind.annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
@@ -6778,15 +6784,18 @@ and type_function
             Tparam_optional_default (pat, default_arg, default_arg_sort), param
       in
       let param =
-        { fp_kind;
-          fp_arg_label = arg_label;
-          fp_param;
-          fp_partial = partial;
-          fp_newtypes = newtypes;
-          fp_sort = arg_sort;
-          fp_mode = arg_mode;
-          fp_curry = curry;
-          fp_loc = pparam_loc;
+        { has_poly;
+          param =
+            { fp_kind;
+              fp_arg_label = arg_label;
+              fp_param;
+              fp_partial = partial;
+              fp_newtypes = newtypes;
+              fp_sort = arg_sort;
+              fp_mode = arg_mode;
+              fp_curry = curry;
+              fp_loc = pparam_loc;
+            };
         }
       in
       let ret_info =
@@ -8679,47 +8688,71 @@ and type_n_ary_function
     begin match contains_gadt with
     | No_gadt -> ()
     | Contains_gadt ->
-        let jkind_arg_var () =
-          newvar (Jkind.of_new_sort ~why:Function_argument)
+        (* Assert that [ty] is a function, and return its return type. *)
+        let filter_ty_ret_exn ty arg_label ~force_tpoly =
+          match filter_arrow env ty arg_label ~force_tpoly with
+          | { ty_ret; _ } -> ty_ret
+          | exception (Filter_arrow_failed error) ->
+              let trace =
+                match error with
+                | Unification_error trace -> trace
+                | Not_a_function ->
+                    let tarrow =
+                      let new_ty_var why = newvar (Jkind.of_new_sort ~why) in
+                      let new_mode_var () = Mode.Alloc.newvar () in
+                      (newty
+                         (Tarrow
+                            ( (arg_label, new_mode_var (), new_mode_var ())
+                            , new_ty_var Function_argument
+                            , new_ty_var Function_result
+                            , commu_ok )));
+                    in
+                    (* We go to some trouble to try to generate a unification
+                       error to help the error printing code's heuristic to
+                       identify the type equation at fault.
+                    *)
+                    (try
+                       unify env tarrow ty;
+                       fatal_error "unification unexpectedly succeeded"
+                     with Unify trace -> trace)
+                | Label_mismatch _ ->
+                    fatal_error
+                      "Label_mismatch not expected as this point; this should \
+                       have been caught when the function was typechecked."
+                | Jkind_error _ ->
+                    fatal_error
+                      "Jkind_error not expected as this point; this should \
+                       have been caught when the function was typechecked."
+              in
+              let syntactic_arity =
+                List.length params +
+                (match body with
+                | Tfunction_body _ -> 0
+                | Tfunction_cases _ -> 1)
+              in
+              let err =
+                Function_arity_type_clash
+                  { syntactic_arity;
+                    type_constraint = exp_type;
+                    trace;
+                  }
+              in
+              raise (Error (loc, env, err))
         in
-        let jkind_ret_var () =
-          newvar (Jkind.of_new_sort ~why:Function_result)
-        in
-        let tarrow arg_label ret_ty =
-          (* Internally to Jane Street, we wrap in [Tpoly] because that's
-             consistent with the polymorphic parameters language feature.
-          *)
-          let arg_ty = newty (Tpoly (jkind_arg_var (), [])) in
-          newty
-            (Tarrow
-               ((arg_label, Mode.Alloc.newvar (), Mode.Alloc.newvar ()),
-                arg_ty, ret_ty, commu_ok))
-        in
-        let ty_function =
-          List.fold_right
-            (fun param rest_ty -> tarrow param.fp_arg_label rest_ty)
+        let ret_ty =
+          List.fold_left (fun ret_ty { param; has_poly } ->
+              filter_ty_ret_exn ret_ty param.fp_arg_label
+                ~force_tpoly:(not has_poly))
+            exp_type
             params
-            (match body with
-            | Tfunction_body _ -> jkind_ret_var ()
-            | Tfunction_cases _ -> tarrow Nolabel (jkind_ret_var ()))
         in
-        try unify env ty_function exp_type
-        with Unify trace ->
-          let syntactic_arity =
-            List.length params +
-            (match body with
-             | Tfunction_body _ -> 0
-             | Tfunction_cases _ -> 1)
-          in
-          let err =
-            Function_arity_type_clash
-              { syntactic_arity;
-                type_constraint = exp_type;
-                trace;
-              }
-          in
-          raise (Error (loc, env, err))
+        match body with
+        | Tfunction_body _ -> ()
+        | Tfunction_cases _ ->
+            ignore
+              (filter_ty_ret_exn ret_ty Nolabel ~force_tpoly:true : type_expr)
     end;
+    let params = List.map (fun { param } -> param) params in
     re
       { exp_desc =
           Texp_function
