@@ -84,7 +84,7 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
           (Flambda_arity.unarized_components result_arity)
       in
       let trap_action =
-        Trap_action.Pop { exn_handler = wrapper; raise_kind = Some Reraise }
+        Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
       in
       let args = List.map Bound_parameter.simple kinded_params in
       let handler acc =
