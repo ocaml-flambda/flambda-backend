@@ -25,7 +25,7 @@ external reraise : exn -> 'a = "%reraise"
 (* cannot inline, otherwise flambda might move code around. *)
 let[@inline never] protect m f =
   lock m;
-  match f() with
+  match Sys.with_async_exns f with
   | x ->
     unlock m; x
   | exception e ->
