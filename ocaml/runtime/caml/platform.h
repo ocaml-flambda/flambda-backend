@@ -25,6 +25,7 @@
 #include <string.h>
 #include "config.h"
 #include "mlvalues.h"
+#include "sync.h"
 #include "sys.h"
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
@@ -106,7 +107,7 @@ void caml_plat_assert_locked(caml_plat_mutex*);
 void caml_plat_assert_all_locks_unlocked(void);
 Caml_inline void caml_plat_unlock(caml_plat_mutex*);
 void caml_plat_mutex_free(caml_plat_mutex*);
-typedef struct { pthread_cond_t cond; caml_plat_mutex* mutex; } caml_plat_cond;
+typedef struct { custom_condvar cond; caml_plat_mutex* mutex; } caml_plat_cond;
 #define CAML_PLAT_COND_INITIALIZER(m) { PTHREAD_COND_INITIALIZER, m }
 void caml_plat_cond_init(caml_plat_cond*, caml_plat_mutex*);
 void caml_plat_wait(caml_plat_cond*);
