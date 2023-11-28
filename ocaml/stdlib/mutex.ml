@@ -23,6 +23,7 @@ external unlock: t -> unit = "caml_ml_mutex_unlock"
 external reraise : exn -> 'a = "%reraise"
 
 (* cannot inline, otherwise flambda might move code around. *)
+(* CR mshinwell: [@inline never] should not be needed on flambda-backend *)
 let[@inline never] protect m f =
   lock m;
   match Sys.with_async_exns f with
