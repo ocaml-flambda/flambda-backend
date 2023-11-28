@@ -421,15 +421,15 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let new_closure_alloc_mode = apply_alloc_mode in
   let first_complex_local_param =
     if num_non_unarized_args <= first_complex_local_param
-    then
-      first_complex_local_param - num_non_unarized_args
+    then first_complex_local_param - num_non_unarized_args
     else
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
       | Heap ->
-        Misc.fatal_errorf "Partial application of %a with wrong mode:@.apply = %a@callee's_code_metadata = %a@."
-          Code_id.print callee's_code_id
-          Apply.print apply
-          Code_metadata.print callee's_code_metadata
+        Misc.fatal_errorf
+          "Partial application of %a with wrong mode:@.apply = \
+           %a@callee's_code_metadata = %a@."
+          Code_id.print callee's_code_id Apply.print apply Code_metadata.print
+          callee's_code_metadata
       | Local _ -> 0
   in
   (match closure_alloc_mode_from_type with

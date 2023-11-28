@@ -116,45 +116,45 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
   in
   match region_inlined_into, Code.result_mode code with
   | Heap, Alloc_local ->
-    (* The alloc_mode of the application and of the code are incompatible.
-       This should have been prevented by the typer; therefore we are in
-       GADT-caused unreachable code; we replace the inlined body by [Invalid].
-    *)
+    (* The alloc_mode of the application and of the code are incompatible. This
+       should have been prevented by the typer; therefore we are in GADT-caused
+       unreachable code; we replace the inlined body by [Invalid]. *)
     dacc, Expr.create_invalid (Flambda.Invalid.Closure_type_was_invalid apply)
   | Local _, Alloc_heap (* This is allowed by subtyping *)
-  | Local _, Alloc_local | Heap, Alloc_heap ->
-  let denv =
-    DE.enter_inlined_apply ~called_code:code ~apply ~was_inline_always denv
-  in
-  let params_and_body = Code.params_and_body code in
-  Function_params_and_body.pattern_match params_and_body
-    ~f:(fun
-         ~return_continuation
-         ~exn_continuation
-         params
-         ~body
-         ~my_closure
-         ~is_my_closure_used:_
-         ~my_region
-         ~my_depth
-         ~free_names_of_body:_
-       ->
-      let make_inlined_body () =
-        make_inlined_body ~callee ~region_inlined_into ~unroll_to
-          ~params:(Bound_parameters.to_list params)
-          ~args ~my_closure ~my_region ~my_depth ~rec_info ~body
-          ~exn_continuation ~return_continuation
-      in
-      let expr =
-        match Exn_continuation.extra_args apply_exn_continuation with
-        | [] ->
-          make_inlined_body ()
-            ~apply_exn_continuation:
-              (Exn_continuation.exn_handler apply_exn_continuation)
-            ~apply_return_continuation
-        | extra_args ->
-          wrap_inlined_body_for_exn_extra_args ~extra_args
-            ~apply_exn_continuation ~apply_return_continuation
-            ~result_arity:(Code.result_arity code) ~make_inlined_body
-      in
-      DA.with_denv dacc denv, expr)
+  | Local _, Alloc_local
+  | Heap, Alloc_heap ->
+    let denv =
+      DE.enter_inlined_apply ~called_code:code ~apply ~was_inline_always denv
+    in
+    let params_and_body = Code.params_and_body code in
+    Function_params_and_body.pattern_match params_and_body
+      ~f:(fun
+           ~return_continuation
+           ~exn_continuation
+           params
+           ~body
+           ~my_closure
+           ~is_my_closure_used:_
+           ~my_region
+           ~my_depth
+           ~free_names_of_body:_
+         ->
+        let make_inlined_body () =
+          make_inlined_body ~callee ~region_inlined_into ~unroll_to
+            ~params:(Bound_parameters.to_list params)
+            ~args ~my_closure ~my_region ~my_depth ~rec_info ~body
+            ~exn_continuation ~return_continuation
+        in
+        let expr =
+          match Exn_continuation.extra_args apply_exn_continuation with
+          | [] ->
+            make_inlined_body ()
+              ~apply_exn_continuation:
+                (Exn_continuation.exn_handler apply_exn_continuation)
+              ~apply_return_continuation
+          | extra_args ->
+            wrap_inlined_body_for_exn_extra_args ~extra_args
+              ~apply_exn_continuation ~apply_return_continuation
+              ~result_arity:(Code.result_arity code) ~make_inlined_body
+        in
+        DA.with_denv dacc denv, expr)
