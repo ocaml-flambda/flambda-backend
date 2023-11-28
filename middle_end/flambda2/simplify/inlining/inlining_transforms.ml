@@ -114,6 +114,15 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
     | Need_meet -> Rec_info_expr.unknown
     | Invalid -> (* CR vlaviron: ? *) Rec_info_expr.do_not_inline
   in
+  match region_inlined_into, Code.result_mode code with
+  | Heap, Alloc_local ->
+    (* The alloc_mode of the application and of the code are incompatible.
+       This should have been prevented by the typer; therefore we are in
+       GADT-caused unreachable code; we replace the inlined body by [Invalid].
+    *)
+    dacc, Expr.create_invalid (Flambda.Invalid.Closure_type_was_invalid apply)
+  | Local _, Alloc_heap (* This is allowed by subtyping *)
+  | Local _, Alloc_local | Heap, Alloc_heap ->
   let denv =
     DE.enter_inlined_apply ~called_code:code ~apply ~was_inline_always denv
   in
