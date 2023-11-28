@@ -84,7 +84,7 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
           (Flambda_arity.unarized_components result_arity)
       in
       let trap_action =
-        Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
+        Trap_action.Pop { exn_handler = wrapper; raise_kind = Some Reraise }
       in
       let args = List.map Bound_parameter.simple kinded_params in
       let handler acc =
@@ -101,7 +101,7 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
     |> Bound_parameters.create
   in
   let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
-  let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
+  let trap_action = Trap_action.Pop { exn_handler; raise_kind = Some Reraise} in
   let wrapper_handler acc =
     (* Backtrace building functions expect compiler-generated raises not to have
        any debug info *)
