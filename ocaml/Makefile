@@ -646,6 +646,7 @@ runtime4_COMMON_C_SOURCES = \
   obj \
   parsing \
   printexc \
+  prng \
   signals \
   simd \
   skiplist \
