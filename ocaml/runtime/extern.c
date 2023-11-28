@@ -1380,7 +1380,7 @@ enum reachable_words_node_state {
    * root that we reached it from */
 };
 
-/* CR ocaml 5 runtime (mshinwell): think about what to do here */
+/* CR ocaml 5 domains (mshinwell): think about what to do here */
 /* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
 static void add_to_long_value(volatile value *v, intnat x) {
   *v = Val_long(Long_val(*v) + x);

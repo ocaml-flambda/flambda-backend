@@ -13,9 +13,10 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* CR ocaml 5 runtime: This file is the 4.x version together with
+/* CR ocaml 5 domains: This file is the 4.x version together with
    adjustments to the names of exported functions ("unix_" -> "caml_unix").
-   (mshinwell/xclerc)
+   (mshinwell/xclerc).
+   For multi-domain support we'll need to revisit this.
 */
 
 #define CAML_INTERNALS

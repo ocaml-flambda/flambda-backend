@@ -21,8 +21,10 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-(* CR ocaml 5 runtime: domain-local-storage assumes single-domain,
-   i.e. calling split will never be necessary. *)
+(* CR ocaml 5 domains: domain-local-storage assumes single-domain,
+   i.e. calling split will never be necessary.
+   For multi-domain support we'll need the upstream 5.x implementation.
+*)
 
 module DLS = struct
 
@@ -107,7 +109,7 @@ let do_at_exit () =
 
 let _ = Stdlib.do_domain_local_at_exit := do_at_exit
 
-(* CR ocaml 5 runtime: domains not supported on 4.x
+(* CR ocaml 5 domains: use this code
 
 module Raw = struct
   (* Low-level primitives provided by the runtime *)

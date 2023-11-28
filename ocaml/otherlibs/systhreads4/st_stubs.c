@@ -13,10 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-// CR ocaml 5 runtime: We will need to pull in changes from the same file in
-// [tip-5] tag in ocaml-jst. We're considering this file to be part of the
-// runtime.
-
 #define CAML_INTERNALS
 
 #define CAML_NAME_SPACE
