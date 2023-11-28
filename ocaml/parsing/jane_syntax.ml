@@ -1771,18 +1771,19 @@ end
 module Dummy_arguments = struct
   type expression = Dummy_argument
 
-  let embedded_name = "jane.non_erasable.dummy_arguments"
+  let embedded_name = Embedded_name.of_feature (Language_extension Dummy_arguments) []
+  let embedded_name_str = Embedded_name.to_string embedded_name
 
   let expr_of ~loc = function
     | Dummy_argument ->
       (* the string doesn't exist anywhere in the source code *)
-      let name = Location.mknoloc embedded_name in
+      let name = Location.mknoloc embedded_name_str in
       Ast_helper.Exp.extension ~loc (name, PStr [])
 
   let of_expr e =
     match e.pexp_desc with
     | Pexp_extension ({ txt; loc }, PStr []) ->
-      if txt = embedded_name
+      if txt = embedded_name_str
       then (
         assert_extension_enabled ~loc Dummy_arguments ();
         Some Dummy_argument)

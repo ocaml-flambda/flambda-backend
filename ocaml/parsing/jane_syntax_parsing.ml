@@ -244,8 +244,9 @@ module Embedded_name : sig
   val components : t -> components
 
   (** Convert one of these Jane syntax names to the embedded string form used in
-      the OCaml AST as the name of an extension node or an attribute; not
-      exposed. *)
+      the OCaml AST as the name of an extension node or an attribute; exposed
+      for extensions that only uses [Embedded_name] instead of the whole
+      infrastructure in this module, such as the dummy argument extension *)
   val to_string : t -> string
 
   (** Parse a Jane syntax name from the OCaml AST, either as the name of an

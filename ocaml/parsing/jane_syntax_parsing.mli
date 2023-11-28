@@ -131,6 +131,8 @@ module Embedded_name : sig
 
   val components : t -> components
 
+  val to_string : t -> string
+
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
   val pp_quoted_name : Format.formatter -> t -> unit
