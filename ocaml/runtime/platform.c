@@ -34,6 +34,7 @@
 #endif
 
 #include "caml/alloc.h"
+#define CAML_NO_SYNC_CHECK_ERROR
 #include "sync_posix.h"
 
 /* Error reporting */

@@ -92,7 +92,7 @@ Caml_inline int sync_mutex_unlock(sync_mutex m)
 
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
-   
+
    For now we only have this on linux because it directly uses the linux futex
    syscalls. */
 #if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
@@ -206,6 +206,10 @@ Caml_inline int sync_condvar_wait(sync_condvar c, sync_mutex m)
 
 /* Reporting errors */
 
+/* Silence warnings about the following function when pulled into
+   e.g. platform.c by the flambda-backend custom-condvar fix. */
+#ifndef CAML_NO_SYNC_CHECK_ERROR
+
 static void sync_check_error(int retcode, char * msg)
 {
   char * err;
@@ -224,5 +228,7 @@ static void sync_check_error(int retcode, char * msg)
   memcpy (&Byte(str, msglen + 2), err, errlen);
   caml_raise_sys_error(str);
 }
+
+#endif
 
 #endif /* CAML_SYNC_POSIX_H */
