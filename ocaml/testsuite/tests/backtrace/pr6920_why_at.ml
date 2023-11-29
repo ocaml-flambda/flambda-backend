@@ -5,7 +5,7 @@
    exit_status = "2"
 *)
 
-let why : unit -> unit = fun () -> raise Exit [@@inline never]
+let why : unit -> unit = fun () -> raise Exit [@@inline never][@@opaque]
 let f () =
   why @@ ();
   ignore (3 + 2);
