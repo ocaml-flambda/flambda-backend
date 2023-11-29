@@ -6,7 +6,7 @@ include systhreads
 *** native
 *)
 
-(* CR ocaml 5 runtime: Once statmemprof is ported, remove "runtime4" stanzas
+(* CR ocaml 5 statmemprof: Once statmemprof is ported, remove "runtime4" stanzas
    for the tests/statmemprof/ tests. *)
 
 let _ =
