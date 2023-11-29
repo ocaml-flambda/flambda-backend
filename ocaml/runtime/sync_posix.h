@@ -206,11 +206,7 @@ Caml_inline int sync_condvar_wait(sync_condvar c, sync_mutex m)
 
 /* Reporting errors */
 
-/* Silence warnings about the following function when pulled into
-   e.g. platform.c by the flambda-backend custom-condvar fix. */
-#ifndef CAML_NO_SYNC_CHECK_ERROR
-
-static void sync_check_error(int retcode, char * msg)
+Caml_inline void sync_check_error(int retcode, char * msg)
 {
   char * err;
   char buf[1024];
@@ -228,7 +224,5 @@ static void sync_check_error(int retcode, char * msg)
   memcpy (&Byte(str, msglen + 2), err, errlen);
   caml_raise_sys_error(str);
 }
-
-#endif
 
 #endif /* CAML_SYNC_POSIX_H */
