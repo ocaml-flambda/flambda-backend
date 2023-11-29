@@ -1,0 +1,4 @@
+#!/bin/sh
+
+(${program} > ${output}) 2>&1 | grep -q 'Thread switch from inside minor GC'
+exit $?
