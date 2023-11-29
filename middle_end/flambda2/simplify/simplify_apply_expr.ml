@@ -421,14 +421,28 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let new_closure_alloc_mode, first_complex_local_param =
     if num_non_unarized_args <= first_complex_local_param
     then
+      (* At this point, we *have* to allocate the closure on the heap, even if
+         the alloc_mode of the application was local. Indeed, consider a
+         three-argument function, of type [string -> string -> string ->
+         string], coerced to [string -> local_ t] where [type t = string ->
+         string -> string].
+
+         If we apply this function twice to single arguments, the first
+         application will have a local alloc_mode. However, the second
+         application has a heap alloc_mode, and contains a reference to the
+         partial closure made by the first application. Due to this, the first
+         application must have a closure allocated on the heap as well, even
+         though it was with a local alloc_mode. *)
       ( Alloc_mode.For_allocations.heap,
         first_complex_local_param - num_non_unarized_args )
     else
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
       | Heap ->
-        Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
-          Code_id.print callee's_code_id
-          (Debuginfo.to_string (Apply.dbg apply))
+        Misc.fatal_errorf
+          "Partial application of %a with wrong mode:@.apply = \
+           %a@callee's_code_metadata = %a@."
+          Code_id.print callee's_code_id Apply.print apply Code_metadata.print
+          callee's_code_metadata
       | Local _ -> apply_alloc_mode, 0
   in
   (match closure_alloc_mode_from_type with
@@ -637,7 +651,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         applied_values
       |> Value_slot.Map.of_list
     in
-    ( Set_of_closures.create ~value_slots apply_alloc_mode function_decls,
+    ( Set_of_closures.create ~value_slots new_closure_alloc_mode function_decls,
       dacc,
       code_id,
       code )
