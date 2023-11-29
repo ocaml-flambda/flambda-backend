@@ -493,9 +493,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   caml_gc_log ("Minor collection of domain %d starting", domain->id);
   CAML_EV_BEGIN(EV_MINOR);
   call_timing_hook(&caml_minor_gc_begin_hook);
-  if (Caml_state->in_minor_collection)
-    caml_fatal_error("Minor GC triggered recursively");
-  Caml_state->in_minor_collection = 1;
 
   if( participating[0] == Caml_state ) {
     CAML_EV_BEGIN(EV_MINOR_GLOBAL_ROOTS);
@@ -643,7 +640,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   domain->stat_minor_words += Wsize_bsize (minor_allocated_bytes);
   domain->stat_promoted_words += domain->allocated_words - prev_alloc_words;
 
-  Caml_state->in_minor_collection = 0;
   call_timing_hook(&caml_minor_gc_end_hook);
   CAML_EV_COUNTER(EV_C_MINOR_PROMOTED,
                   Bsize_wsize(domain->allocated_words - prev_alloc_words));
@@ -712,6 +708,9 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   uintnat* initial_young_ptr = (uintnat*)domain->young_ptr;
   CAMLassert(caml_domain_is_in_stw());
 #endif
+  if (Caml_state->in_minor_collection)
+    caml_fatal_error("Minor GC triggered recursively");
+  Caml_state->in_minor_collection = 1;
 
   if( participating[0] == Caml_state ) {
     atomic_fetch_add(&caml_minor_cycles_started, 1);
@@ -761,6 +760,7 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
 
   CAML_EV_END(EV_MINOR_CLEAR);
   caml_gc_log("finished stw empty_minor_heap");
+  Caml_state->in_minor_collection = 0;
 }
 
 static void caml_stw_empty_minor_heap (caml_domain_state* domain, void* unused,
