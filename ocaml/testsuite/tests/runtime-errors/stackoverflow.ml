@@ -1,6 +1,10 @@
 (* TEST
-flags = "-w -a"
-ocamlrunparam += "l=100000"
+   flags = "-w -a"
+   ocamlrunparam += "l=100000"
+   * bytecode
+     reference = "${test_source_directory}/stackoverflow.byte.reference"
+   * native
+     reference = "${test_source_directory}/stackoverflow.opt.reference"
 *)
 
 let rec f x =
@@ -28,6 +32,16 @@ let _ =
   try
     Sys.with_async_exns (fun () -> ignore(f 0))
   with Stack_overflow ->
-    print_string "second Stack overflow caught"; print_newline()
+    print_string "second Stack overflow caught";
+    print_newline();
+    (* Try to make the backtrace reasonably stable *)
+    let backtrace =
+      Printexc.get_backtrace ()
+      |> String.split_on_char '\n'
+      |> List.filter (fun s -> String.length s > 0)
+      |> List.rev
+      |> List.hd
+    in
+    print_endline backtrace
  end;
  print_string "!p = "; print_int !p; print_newline ()
