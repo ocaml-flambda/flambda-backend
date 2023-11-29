@@ -6373,7 +6373,7 @@ and type_function
     | _ -> false
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
+  let { ty_arg; arg_mode; ty_ret; ret_mode } =
     with_local_level_if separate begin fun () ->
       let force_tpoly =
         (* If [has_poly] is true then we rely on the later call to
@@ -6393,6 +6393,13 @@ and type_function
         generalize_structure ty_arg;
         generalize_structure ty_ret)
   in
+  let type_sort ~why ty =
+    match Ctype.type_sort ~why env ty with
+    | Ok sort -> sort
+    | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
+  in
+  let arg_sort = type_sort ~why:Function_argument ty_arg in
+  let ret_sort = type_sort ~why:Function_result ty_ret in
   apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
        && get_level ty_arg < Btype.generic_level then begin
@@ -7144,11 +7151,17 @@ and type_application env app_loc expected_mode position_and_mode
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
     [Nolabel, sarg] when is_ignore funct ->
-      let {ty_arg; arg_mode; arg_sort; ty_ret; ret_mode} =
+      let {ty_arg; arg_mode; ty_ret; ret_mode} =
         with_local_level_if_principal (fun () ->
           filter_arrow_mono env (instance funct.exp_type) Nolabel
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
+      let type_sort ~why ty =
+        match Ctype.type_sort ~why env ty with
+        | Ok sort -> sort
+        | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
+      in
+      let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ap_mode = Alloc.locality ret_mode in
       let mode_res =
         mode_cross_to_min env ty_ret (Value.of_alloc ret_mode)

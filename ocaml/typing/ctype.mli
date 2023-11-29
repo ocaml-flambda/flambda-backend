@@ -278,10 +278,8 @@ val unify_delaying_jkind_checks :
 type filtered_arrow =
   { ty_arg : type_expr;
     arg_mode : Mode.Alloc.t;
-    arg_sort : Jkind.sort;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t;
-    ret_sort : Jkind.sort
+    ret_mode : Mode.Alloc.t
   }
 
 val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
