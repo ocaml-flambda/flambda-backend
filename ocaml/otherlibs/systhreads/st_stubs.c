@@ -89,12 +89,14 @@ struct caml_thread_struct {
   value * gc_regs;           /* saved value of Caml_state->gc_regs */
   value * gc_regs_buckets;   /* saved value of Caml_state->gc_regs_buckets */
   void * exn_handler;        /* saved value of Caml_state->exn_handler */
-
+  char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
   intnat trap_barrier_off; /* saved value of Caml_state->trap_barrier_off */
   struct caml_exception_context* external_raise;
     /* saved value of Caml_state->external_raise */
+  struct caml_exception_context* external_raise_async;
+    /* saved value of Caml_state->external_raise_async */
 #endif
 
 #ifdef POSIX_SIGNALS
@@ -199,6 +201,7 @@ static void save_runtime_state(void)
   this_thread->gc_regs = Caml_state->gc_regs;
   this_thread->gc_regs_buckets = Caml_state->gc_regs_buckets;
   this_thread->exn_handler = Caml_state->exn_handler;
+  this_thread->async_exn_handler = Caml_state->async_exn_handler;
   this_thread->local_roots = Caml_state->local_roots;
   this_thread->local_arenas = caml_get_local_arenas(Caml_state);
   this_thread->backtrace_pos = Caml_state->backtrace_pos;
@@ -208,6 +211,7 @@ static void save_runtime_state(void)
   this_thread->trap_sp_off = Caml_state->trap_sp_off;
   this_thread->trap_barrier_off = Caml_state->trap_barrier_off;
   this_thread->external_raise = Caml_state->external_raise;
+  this_thread->external_raise_async = Caml_state->external_raise_async;
 #endif
 }
 
@@ -220,6 +224,7 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->gc_regs = th->gc_regs;
   Caml_state->gc_regs_buckets = th->gc_regs_buckets;
   Caml_state->exn_handler = th->exn_handler;
+  Caml_state->async_exn_handler = th->async_exn_handler;
   Caml_state->local_roots = th->local_roots;
   caml_set_local_arenas(Caml_state, th->local_arenas);
   Caml_state->backtrace_pos = th->backtrace_pos;
@@ -229,6 +234,7 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->trap_sp_off = th->trap_sp_off;
   Caml_state->trap_barrier_off = th->trap_barrier_off;
   Caml_state->external_raise = th->external_raise;
+  Caml_state->external_raise_async = th->external_raise_async;
 #endif
 }
 
@@ -296,11 +302,13 @@ static caml_thread_t caml_thread_new_info(void)
   th->gc_regs = NULL;
   th->gc_regs_buckets = NULL;
   th->exn_handler = NULL;
+  th->async_exn_handler = NULL;
 
 #ifndef NATIVE_CODE
   th->trap_sp_off = 1;
   th->trap_barrier_off = 2;
   th->external_raise = NULL;
+  th->external_raise_async = NULL;
 #endif
 
   return th;
@@ -321,6 +329,8 @@ void caml_thread_free_info(caml_thread_t th)
         use in this variable nor on the stack)
      exn_handler: stack-allocated
      external_raise: stack-allocated
+     async_exn_handler: stack-allocated
+     external_raise_async: stack-allocated
      init_mask: stack-allocated
   */
   caml_free_stack(th->current_stack);
@@ -752,11 +762,11 @@ CAMLprim value caml_thread_yield(value unit)
      with saving errno.)
   */
 
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
   save_runtime_state();
   st_thread_yield(m);
   restore_runtime_state(This_thread);
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
 
   return Val_unit;
 }

@@ -651,6 +651,7 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
 
   domain_state->c_stack = NULL;
   domain_state->exn_handler = NULL;
+  domain_state->async_exn_handler = NULL;
 
   domain_state->action_pending = 0;
 
@@ -686,8 +687,11 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
     caml_record_backtraces(1);
   }
 
+  domain_state->raising_async_exn = 0;
+
 #ifndef NATIVE_CODE
   domain_state->external_raise = NULL;
+  domain_state->external_raise_async = NULL;
   domain_state->trap_sp_off = 1;
   domain_state->trap_barrier_off = 0;
   domain_state->trap_barrier_block = -1;
