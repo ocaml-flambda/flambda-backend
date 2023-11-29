@@ -3856,24 +3856,14 @@ exception Filter_arrow_failed of filter_arrow_failure
 type filtered_arrow =
   { ty_arg : type_expr;
     arg_mode : Mode.Alloc.t;
-    arg_sort : Jkind.sort;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t;
-    ret_sort : Jkind.sort
+    ret_mode : Mode.Alloc.t
   }
 
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
-    (* CR layouts v3: This is one of two primary places where we are restricting
-       function arguments / returns to be representable.  This one handles
-       function types that arise from inference, and the check in
-       [Typetexp.transl_type_aux] handles function types explicitly written in
-       the source program.  When we decide to drop that restriction, we can
-       allow both to be any.  Separately, the relevant checks on function
-       arguments should happen when functions are constructed, not their
-       types. *)
-    let k_arg, arg_sort = Jkind.of_new_sort_var ~why:Function_argument in
-    let k_res, ret_sort = Jkind.of_new_sort_var ~why:Function_result in
+    let k_arg = Jkind.any ~why:Inside_of_Tarrow in
+    let k_res = Jkind.any ~why:Inside_of_Tarrow in
     let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
@@ -3899,7 +3889,7 @@ let filter_arrow env t l ~force_tpoly =
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
-    t', { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
+    t', { ty_arg; arg_mode; ty_ret; ret_mode }
   in
   let t =
     try expand_head_trace env t
@@ -3928,20 +3918,7 @@ let filter_arrow env t l ~force_tpoly =
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
       then
-        (* CR layouts v2.5: When we move the restrictions on argument from
-           arrows to functions, this function doesn't need to return a sort and
-           these calls to [type_sort] can move.  We could eliminate them
-           entirely by storing sorts on [TArrow], but that seems incompatible
-           with the future plan to shift the jkind requirements from the types
-           to the terms. *)
-        let type_sort ~why ty =
-          match type_sort ~why env ty with
-          | Ok sort -> sort
-          | Error err -> raise (Filter_arrow_failed (Jkind_error (ty, err)))
-        in
-        let arg_sort = type_sort ~why:Function_argument ty_arg in
-        let ret_sort = type_sort ~why:Function_result ty_ret in
-        { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
+        { ty_arg; arg_mode; ty_ret; ret_mode }
       else raise (Filter_arrow_failed
                     (Label_mismatch
                        { got = l; expected = l'; expected_type = t }))

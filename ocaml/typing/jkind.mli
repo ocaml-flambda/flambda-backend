@@ -269,6 +269,7 @@ type any_creation_reason =
        key example: when creating a fresh tyvar that is immediately
        unified to correct levels *)
   | Type_expression_call
+  | Inside_of_Tarrow
 
 type float64_creation_reason = Primitive of Ident.t
 

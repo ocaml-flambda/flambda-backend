@@ -665,22 +665,6 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
-          (* CR layouts v3: For now, we require function arguments and returns
-             to have a representable jkind.  See comment in
-             [Ctype.filter_arrow].  *)
-          begin match
-            Ctype.type_sort ~why:Function_argument env arg_ty,
-            Ctype.type_sort ~why:Function_result env ret_cty.ctyp_type
-          with
-          | Ok _, Ok _ -> ()
-          | Error e, _ ->
-            raise (Error(arg.ptyp_loc, env,
-                         Non_sort {vloc = Fun_arg; err = e; typ = arg_ty}))
-          | _, Error e ->
-            raise (Error(ret.ptyp_loc, env,
-                         Non_sort
-                           {vloc = Fun_ret; err = e; typ = ret_cty.ctyp_type}))
-          end;
           let ty =
             newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in

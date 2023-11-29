@@ -707,6 +707,7 @@ type any_creation_reason =
   | Initial_typedecl_env
   | Dummy_jkind
   | Type_expression_call
+  | Inside_of_Tarrow
 
 type float64_creation_reason = Primitive of Ident.t
 
@@ -1084,6 +1085,7 @@ end = struct
     (* CR layouts: Improve output or remove this constructor ^^ *)
     | Type_expression_call ->
       fprintf ppf "a call to [type_expression] via the ocaml API"
+    | Inside_of_Tarrow -> fprintf ppf "argument or result of a Tarrow"
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1472,6 +1474,7 @@ module Debug_printers = struct
     | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
+    | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"
