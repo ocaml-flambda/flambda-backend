@@ -3937,6 +3937,7 @@ lambda/lambda.cmi : \
     typing/types.cmi \
     typing/subst.cmi \
     typing/primitive.cmi \
+    typing/typedtree.cmi \
     typing/path.cmi \
     parsing/location.cmi \
     typing/ident.cmi \

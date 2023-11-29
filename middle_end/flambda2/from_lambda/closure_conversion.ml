@@ -754,26 +754,27 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
       | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
       | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
-      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
-      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
-      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
-      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _
-      | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
-      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
-      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
-      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _
+      | Punboxed_float_comp _ | Pstringlength | Pstringrefu | Pstringrefs
+      | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
+      | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+      | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _
+      | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
+      | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
+      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
+      | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
+      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
+      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
+      | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+      | Pbytes_set_128 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
+      | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pbigstring_set_16 _
+      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+      | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
+      | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Punbox_float
+      | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+      | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
+      | Presume | Preperform | Patomic_exchange | Patomic_cas
+      | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in

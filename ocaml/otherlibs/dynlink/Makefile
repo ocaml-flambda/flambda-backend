@@ -117,6 +117,7 @@ COMPILERLIBS_SOURCES=\
   typing/jkind.ml \
   typing/primitive.ml \
   typing/types.ml \
+  typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \
   typing/predef.ml \
