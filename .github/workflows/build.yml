@@ -34,7 +34,6 @@ jobs:
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            expected_fail: true
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
