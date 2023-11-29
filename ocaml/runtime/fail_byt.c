@@ -56,6 +56,10 @@ CAMLexport void caml_raise_async(value v)
   Unlock_exn();
   CAMLassert(!Is_exception_result(v));
 
+  if (Stack_parent(Caml_state->current_stack) != NULL) {
+    caml_fatal_error("Effects not supported in conjunction with async exns");
+  }
+
   if (Caml_state->external_raise_async == NULL) {
     caml_terminate_signals();
     caml_fatal_uncaught_exception(v);

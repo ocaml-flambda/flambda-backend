@@ -105,6 +105,11 @@ CAMLno_asan void caml_raise_async(value v)
 
   CAMLassert(!Is_exception_result(v));
 
+  if (Stack_parent(Caml_state->current_stack) != NULL) {
+    /* CR ocaml 5 effects: implement async exns + effects */
+    caml_fatal_error("Effects not supported in conjunction with async exns");
+  }
+
   /* Do not run callbacks here: we are already raising an async exn,
      so no need to check for another one, and avoiding polling here
      removes the risk of recursion in caml_raise */

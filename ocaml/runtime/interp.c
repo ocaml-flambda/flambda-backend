@@ -359,6 +359,11 @@ value caml_interprete(code_t prog, asize_t prog_size)
        trap. */
     domain_state->trap_sp_off = 1;
 
+    /* Effects not supported yet in conjunction with async exns
+       (see caml_raise_async) */
+    if (Stack_parent(domain_state->current_stack) != NULL)
+      caml_fatal_error("Effects not supported in conjunction with async exns");
+
     domain_state->external_raise = initial_external_raise;
     domain_state->external_raise_async = initial_external_raise_async;
     domain_state->trap_sp_off = initial_trap_sp_off;
