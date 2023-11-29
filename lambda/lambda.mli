@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -664,8 +666,6 @@ val transl_prim: string -> string -> lambda
       transl_internal_value "CamlinternalLazy" "force"
     ]}
 *)
-
-val transl_constant : scoped_location -> Typedtree.constant -> lambda
 
 val free_variables: lambda -> Ident.Set.t
 
