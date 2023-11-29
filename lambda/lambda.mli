@@ -140,6 +140,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -663,6 +664,8 @@ val transl_prim: string -> string -> lambda
       transl_internal_value "CamlinternalLazy" "force"
     ]}
 *)
+
+val transl_constant : scoped_location -> Typedtree.constant -> lambda
 
 val free_variables: lambda -> Ident.Set.t
 

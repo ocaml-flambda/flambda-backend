@@ -181,6 +181,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -1093,6 +1094,19 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
+(* Translation of constants *)
+
+let transl_constant loc (cst : Typedtree.constant) = match cst with
+| Const_int c -> Lconst(Const_base (Const_int c))
+| Const_char c -> Lconst(Const_base (Const_char c))
+| Const_string (s,loc,d) -> Lconst(Const_base (Const_string (s,loc,d)))
+| Const_float c -> Lconst(Const_base (Const_float c))
+| Const_int32 c -> Lconst(Const_base (Const_int32 c))
+| Const_int64 c -> Lconst(Const_base (Const_int64 c))
+| Const_nativeint c -> Lconst(Const_base (Const_nativeint c))
+| Const_unboxed_float f ->
+  Lprim (Punbox_float, [Lconst (Const_base (Const_float f))], loc)
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -1471,7 +1485,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pnegfloat m | Pabsfloat m
   | Paddfloat m | Psubfloat m
   | Pmulfloat m | Pdivfloat m -> Some m
-  | Pfloatcomp _ -> None
+  | Pfloatcomp _ | Punboxed_float_comp _ -> None
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
@@ -1593,7 +1607,7 @@ let primitive_result_layout (p : primitive) =
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Pintoffloat | Pfloatcomp _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _ | Punboxed_float_comp _
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _

@@ -399,6 +399,7 @@ let primitive ppf = function
   | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
   | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
   | Pfloatcomp(cmp) -> float_comparison ppf cmp
+  | Punboxed_float_comp(cmp) -> fprintf ppf "%a (unboxed)" float_comparison cmp
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"
@@ -621,6 +622,7 @@ let name_of_primitive = function
   | Pmulfloat _ -> "Pmulfloat"
   | Pdivfloat _ -> "Pdivfloat"
   | Pfloatcomp _ -> "Pfloatcomp"
+  | Punboxed_float_comp _ -> "Punboxed_float_comp"
   | Pstringlength -> "Pstringlength"
   | Pstringrefu -> "Pstringrefu"
   | Pstringrefs -> "Pstringrefs"
