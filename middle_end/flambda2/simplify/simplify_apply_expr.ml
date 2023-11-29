@@ -421,6 +421,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let new_closure_alloc_mode, first_complex_local_param =
     if num_non_unarized_args <= first_complex_local_param
     then
+      (* At this point, we *have* to allocate the closure on the heap, even if
+         the alloc_mode of the application was local. Indeed, consider a
+         three-argument function, of type [string -> string -> string ->
+         string], coerced to [string -> local_ t] where [type t = string ->
+         string -> string].
+
+         If we apply this function twice to single arguments, the first
+         application will have a local alloc_mode. However, the second
+         application has a heap alloc_mode, and contains a reference to the
+         partial closure made by the first application. Due to this, the first
+         application must have a closure allocated on the heap as well, even
+         though it was with a local alloc_mode. *)
       ( Alloc_mode.For_allocations.heap,
         first_complex_local_param - num_non_unarized_args )
     else
