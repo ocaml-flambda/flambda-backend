@@ -50,10 +50,7 @@ external from_channel: in_channel -> 'a = "caml_input_value"
 external from_bytes_unsafe: bytes -> int -> 'a = "caml_input_value_from_bytes"
 external data_size_unsafe: bytes -> int -> int = "caml_marshal_data_size"
 
-external runtime5 : unit -> bool = "%runtime5"
-let runtime5 = runtime5 ()
-
-let header_size = if runtime5 then 16 else 20
+let header_size = 16
 
 let data_size buff ofs =
   if ofs < 0 || ofs > Bytes.length buff - header_size
