@@ -151,8 +151,9 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           match f with
           | Field f -> acc, f
           | Unboxed_float _ ->
-            Misc.fatal_error
-              "Unboxed floats are not allowed inside of Const_block")
+            Misc.fatal_errorf
+              "Unboxed floats are not allowed inside of Const_block: %a"
+              Printlambda.structured_constant const)
         acc consts
     in
     let const : SC.t =

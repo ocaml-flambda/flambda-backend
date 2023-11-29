@@ -31,7 +31,7 @@ let rec struct_const ppf = function
       match String.split_on_char '-' f with
       | [""; f] -> "-#" ^ f
       | [f] -> "#" ^ f
-      | _ -> assert false
+      | _ -> Misc.fatal_errorf "Invalid Const_unboxed_float constant: %s" f
     in
     fprintf ppf "%s" s
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
