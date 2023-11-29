@@ -357,6 +357,9 @@ val with_async_exns : (unit -> 'a) -> 'a
     causing any asynchronous [Break] or [Stack_overflow] exceptions
     (e.g. from finalisers, signal handlers or the GC) to be raised from the
     call site of [with_async_exns].
+
+    The asynchronous exception handler context is per-domain, not per-fiber:
+    delimited continuations do not capture it.
 *)
 
 

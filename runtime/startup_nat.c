@@ -130,6 +130,9 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_sys_init(exe_name, argv);
   caml_maybe_expand_stack();
   res = caml_start_program(Caml_state);
+  /* ignore distinction between async and normal,
+     it's an uncaught exception either way */
+  Caml_state->raising_async_exn = 0;
   caml_terminate_signals();
   return res;
 }

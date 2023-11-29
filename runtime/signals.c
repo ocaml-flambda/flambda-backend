@@ -34,6 +34,7 @@
 #include "caml/sys.h"
 #include "caml/memprof.h"
 #include "caml/finalise.h"
+#include "caml/printexc.h"
 
 /* The set of pending signals (received but not yet processed).
    It is represented as a bit vector.
@@ -201,6 +202,36 @@ void caml_init_signal_handling(void) {
   caml_register_generational_global_root(&caml_signal_handlers);
 }
 
+static void check_async_exn(value res, const char *msg)
+{
+  value exn;
+  const value *break_exn;
+
+  if (!Is_exception_result(res))
+    return;
+
+  exn = Extract_exception(res);
+
+  /* [Break] is not introduced as a predefined exception (in predef.ml and
+     stdlib.ml) since it causes trouble in conjunction with warnings about
+     constructor shadowing e.g. in format.ml.
+     "Sys.Break" must match stdlib/sys.mlp. */
+  break_exn = caml_named_value("Sys.Break");
+  if (break_exn != NULL && exn == *break_exn)
+    return;
+
+  caml_fatal_uncaught_exception_with_message(exn, msg);
+}
+
+value caml_raise_async_if_exception(value res, const char* where)
+{
+  if (Is_exception_result(res)) {
+    check_async_exn(res, where);
+    caml_raise_async(Extract_exception(res));
+  }
+  return res;
+}
+
 /* Execute a signal handler immediately */
 
 value caml_execute_signal_exn(int signal_number, int in_signal_handler)
@@ -312,6 +343,7 @@ value caml_do_pending_actions_exn(void)
 
   /* Call signal handlers first */
   value exn = caml_process_pending_signals_exn();
+  check_async_exn(exn, "signal handler");
   if (Is_exception_result(exn)) goto exception;
 
 #if 0
@@ -322,6 +354,7 @@ value caml_do_pending_actions_exn(void)
 
   /* Call finalisers */
   exn = caml_final_do_calls_exn();
+  check_async_exn(exn, "finaliser");
   if (Is_exception_result(exn)) goto exception;
 
   return Val_unit;
@@ -348,8 +381,9 @@ value caml_process_pending_actions_with_root_exn(value root)
 
 value caml_process_pending_actions_with_root(value root)
 {
-  return caml_raise_if_exception(
-    caml_process_pending_actions_with_root_exn(root));
+  return caml_raise_async_if_exception(
+    caml_process_pending_actions_with_root_exn(root),
+    "");
 }
 
 CAMLexport value caml_process_pending_actions_exn(void)
@@ -670,6 +704,6 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
     caml_plat_unlock(&signal_install_mutex);
   }
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
   CAMLreturn (res);
 }

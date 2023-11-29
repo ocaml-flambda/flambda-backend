@@ -482,7 +482,7 @@ Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
                                    wosize, tag, reserved);
   if (v == NULL) {
     if (!noexc)
-      caml_raise_out_of_memory();
+      caml_fatal_out_of_memory();
     else
       return (value)NULL;
   }
@@ -613,7 +613,7 @@ CAMLexport void caml_stat_create_pool(void)
   if (pool == NULL) {
     pool = malloc(SIZEOF_POOL_BLOCK);
     if (pool == NULL)
-      caml_fatal_error("Fatal error: out of memory.\n");
+      caml_fatal_out_of_memory ();
 #ifdef DEBUG
     pool->magic = Debug_pool_magic;
 #endif
@@ -689,7 +689,7 @@ CAMLexport void* caml_stat_alloc_aligned(asize_t sz, int modulo,
   void *result = caml_stat_alloc_aligned_noexc(sz, modulo, b);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -699,7 +699,7 @@ CAMLexport caml_stat_block caml_stat_alloc(asize_t sz)
   void *result = caml_stat_alloc_noexc(sz);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -748,7 +748,7 @@ CAMLexport caml_stat_block caml_stat_resize(caml_stat_block b, asize_t sz)
 {
   void *result = caml_stat_resize_noexc(b, sz);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -780,7 +780,7 @@ CAMLexport caml_stat_string caml_stat_strdup(const char *s)
 {
   caml_stat_string result = caml_stat_strdup_noexc(s);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -791,7 +791,7 @@ CAMLexport wchar_t * caml_stat_wcsdup(const wchar_t *s)
   int slen = wcslen(s);
   wchar_t* result = caml_stat_alloc((slen + 1)*sizeof(wchar_t));
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   memcpy(result, s, (slen + 1)*sizeof(wchar_t));
   return result;
 }
