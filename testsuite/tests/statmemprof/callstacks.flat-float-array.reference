@@ -56,7 +56,7 @@ Called from Callstacks.test in file "callstacks.ml", line 94, characters 2-10
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
 Called from Callstacks in file "callstacks.ml", line 101, characters 2-27
 -----------
-Raised by primitive operation at Stdlib__Marshal.from_bytes in file "marshal.ml", line 70, characters 9-35
+Raised by primitive operation at Stdlib__Marshal.from_bytes in file "marshal.ml", line 67, characters 9-35
 Called from Callstacks.alloc_unmarshal in file "callstacks.ml", line 64, characters 12-87
 Called from Callstacks.test in file "callstacks.ml", line 94, characters 2-10
 Called from Stdlib__List.iter in file "list.ml", line 116, characters 12-15
