@@ -6,5 +6,5 @@ x = 20000
 x = 10000
 x = 0
 second Stack overflow caught
-Called from Stackoverflow in file "stackoverflow.ml", line 33, characters 4-47
+Called from Stackoverflow in file "stackoverflow.ml", line 34, characters 4-47
 !p = 42
