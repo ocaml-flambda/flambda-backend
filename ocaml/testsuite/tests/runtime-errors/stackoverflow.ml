@@ -1,10 +1,11 @@
 (* TEST
    flags = "-w -a"
    ocamlrunparam += "l=100000"
-   * bytecode
-     reference = "${test_source_directory}/stackoverflow.byte.reference"
-   * native
-     reference = "${test_source_directory}/stackoverflow.opt.reference"
+   * flambda
+   ** bytecode
+      reference = "${test_source_directory}/stackoverflow.byte.reference"
+   ** native
+      reference = "${test_source_directory}/stackoverflow.opt.reference"
 *)
 
 let rec f x =
@@ -34,7 +35,8 @@ let _ =
   with Stack_overflow ->
     print_string "second Stack overflow caught";
     print_newline();
-    (* Try to make the backtrace reasonably stable *)
+    (* Try to make the backtrace reasonably stable.
+       Note that Closure produces an empty backtrace here. *)
     let backtrace =
       Printexc.get_backtrace ()
       |> String.split_on_char '\n'
