@@ -59,6 +59,45 @@ Warning 6 [labels-omitted]: labels x, y were omitted in the application of this 
 val g : x:string -> y:int -> char -> unit = <fun>
 |}]
 
+(* Interaction with |> and @@ *)
+let g = 42 |> f ~x:"hello" ~y:_
+[%%expect{|
+val g : char -> unit = <fun>
+|}]
+
+let g = 42 |> f ~x:_ ~y:84
+[%%expect{|
+Line 1, characters 8-10:
+1 | let g = 42 |> f ~x:_ ~y:84
+            ^^
+Error: This expression has type int but an expression was expected of type
+         string
+|}]
+
+let g = 42 |> f ~x:"hello" ~y:_ _
+[%%expect{|
+val g : char -> unit = <fun>
+|}]
+
+let g = f ~x:"hello" ~y:_ @@ 42
+[%%expect{|
+val g : char -> unit = <fun>
+|}]
+
+let g = f ~x:_ ~y:84 @@ 42
+[%%expect{|
+Line 1, characters 24-26:
+1 | let g = f ~x:_ ~y:84 @@ 42
+                            ^^
+Error: This expression has type int but an expression was expected of type
+         string
+|}]
+
+let g = f ~x:"hello" ~y:_ _ @@ 42
+[%%expect{|
+val g : char -> unit = <fun>
+|}]
+
 let f ?foo () = "hello"
 [%%expect{|
 val f : ?foo:'a -> unit -> string = <fun>

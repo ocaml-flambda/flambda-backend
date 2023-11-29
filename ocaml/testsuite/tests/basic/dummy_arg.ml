@@ -40,3 +40,15 @@ let g = f ~y:_
   (apply (field 1 (global Toploop!)) "g" g/286))
 val g : y:'a -> string -> x:'b -> int -> string = <fun>
 |}]
+
+(* |> optimization works with dummy arguments *)
+let g = 42 |> f "hello" ~x:_ ~y:_
+[%%expect{|
+(let
+  (f/274 = (apply (field 0 (global Toploop!)) "f")
+   g/291 =
+     (function {nlocal = 0} dummy/292 stub ignore assert all zero_alloc
+       (apply f/274 "hello" 42 dummy/292)))
+  (apply (field 1 (global Toploop!)) "g" g/291))
+val g : y:'a -> int -> string = <fun>
+|}]

@@ -4949,9 +4949,25 @@ and type_expect_
         let rt = wrap_trace_gadt_instances env (ret_tvar TypeSet.empty) ty in
         rt, funct
       in
+      let rec fill_in_dummy args extra_args =
+        match args, extra_args with
+        | [], _ -> args, extra_args
+        | _, [] -> args, extra_args
+        | (l, arg) :: args', (extra_l, extra_arg) :: extra_args' -> begin
+          assert (extra_l = Nolabel);
+          match Jane_syntax.Dummy_arguments.of_expr arg with
+          | Some Dummy_argument ->
+            let args0, extra_args0 = fill_in_dummy args' extra_args' in
+            (l, extra_arg) :: args0, extra_args0
+          | None ->
+            let args0, extra_args0 = fill_in_dummy args' extra_args in
+            (l, arg) :: args0, extra_args0
+        end
+      in
       let type_sfunct_args sfunct extra_args =
         match Jane_syntax.Expression.of_ast sfunct, sfunct.pexp_desc with
         | None, Pexp_apply (sfunct, args) ->
+           let args, extra_args = fill_in_dummy args extra_args in
            type_sfunct sfunct, args @ extra_args
         | _ ->
            type_sfunct sfunct, extra_args
