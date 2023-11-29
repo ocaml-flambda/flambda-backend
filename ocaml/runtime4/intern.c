@@ -922,7 +922,7 @@ CAMLprim value caml_marshal_data_size(value buff, value ofs)
   default:
     caml_failwith("Marshal.data_size: bad object");
   }
-  return Val_long((header_len - 20) + data_len);
+  return Val_long((header_len - 16) + data_len);
 }
 
 /* Resolution of code pointers */
