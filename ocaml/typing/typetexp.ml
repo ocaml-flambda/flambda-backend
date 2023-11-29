@@ -619,7 +619,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   match styp.ptyp_desc with
     Ptyp_any ->
      let ty =
-       TyVarEnv.new_any_var loc env (Jkind.any ~why:Wildcard) policy
+       TyVarEnv.new_any_var loc env (Jkind.of_new_sort ~why:Wildcard) policy
      in
      ctyp (Ttyp_var (None, None)) ty
   | Ptyp_var name ->
@@ -983,7 +983,7 @@ and transl_type_var env ~policy ~row_context loc name jkind_annot_opt =
       ty, jkind_annot
     with Not_found ->
       let jkind, jkind_annot = match jkind_annot_opt with
-        | None -> Jkind.any ~why:Unification_var, None
+        | None -> Jkind.of_new_sort ~why:Unification_var, None
         | Some jkind_annot ->
             let jkind, jkind_annot = of_annot jkind_annot in
             jkind, Some jkind_annot

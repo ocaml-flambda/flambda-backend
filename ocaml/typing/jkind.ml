@@ -569,6 +569,8 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+  | Wildcard
+  | Unification_var
 
 type value_creation_reason =
   | Class_let_binding
@@ -623,8 +625,6 @@ type void_creation_reason = V1_safety_check
 
 type any_creation_reason =
   | Missing_cmi of Path.t
-  | Wildcard
-  | Unification_var
   | Initial_typedecl_env
   | Dummy_jkind
   | Type_expression_call
@@ -955,6 +955,8 @@ end = struct
     | External_result ->
       fprintf ppf "used as the result of an external declaration"
     | Statement -> fprintf ppf "used as a statement"
+    | Wildcard -> fprintf ppf "a _ in a type"
+    | Unification_var -> fprintf ppf "a fresh unification variable"
 
   let format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -976,8 +978,6 @@ end = struct
 
   let format_any_creation_reason ppf : any_creation_reason -> unit = function
     | Missing_cmi p -> fprintf ppf "a missing .cmi file for %a" !printtyp_path p
-    | Wildcard -> fprintf ppf "a _ in a type"
-    | Unification_var -> fprintf ppf "a fresh unification variable"
     | Initial_typedecl_env ->
       fprintf ppf "a dummy layout used in checking mutually recursive datatypes"
     | Dummy_jkind ->
@@ -1335,6 +1335,8 @@ module Debug_printers = struct
     | External_argument -> fprintf ppf "External_argument"
     | External_result -> fprintf ppf "External_result"
     | Statement -> fprintf ppf "Statement"
+    | Wildcard -> fprintf ppf "Wildcard"
+    | Unification_var -> fprintf ppf "Unification_var"
 
   let annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p
@@ -1353,8 +1355,6 @@ module Debug_printers = struct
 
   let any_creation_reason ppf : any_creation_reason -> unit = function
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
-    | Wildcard -> fprintf ppf "Wildcard"
-    | Unification_var -> fprintf ppf "Unification_var"
     | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
