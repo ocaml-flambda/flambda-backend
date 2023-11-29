@@ -905,7 +905,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:Default_check
               (* CR gyorsh: should [check] be set properly? *)
-            ~is_a_functor:false ~recursive
+            ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~poll_attribute:Default ~dbg:Debuginfo.none ~is_tupled

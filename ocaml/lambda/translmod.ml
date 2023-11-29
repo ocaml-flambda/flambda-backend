@@ -588,6 +588,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       poll = Default_poll;
       loop = Never_loop;
       is_a_functor = true;
+      is_opaque = false;
       check = Ignore_assert_all Zero_alloc;
       stub = false;
       tmc_candidate = false;
