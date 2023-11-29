@@ -36,22 +36,14 @@ module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : int -> t_any end
 |}];;
 
 module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : t_any -> int end
 |}];;
 
 module type S1 = sig
@@ -279,7 +271,7 @@ Error:
 |}]
 (* CR layouts v2.9: improve error, which requires layout histories *)
 
-type ('a : any) t4 = 'a
+type ('a : any) t4 = ('a : any)
 and s4 = string t4;;
 [%%expect{|
 type ('a : any) t4 = 'a
@@ -1090,7 +1082,7 @@ val f : ('a : float64). unit -> 'a t22f t22f = <fun>
 
 (* CR layouts v5: bring void version here from layouts_alpha *)
 
-type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl :  ('a : any). ('a, 'a) eq
 
 module Mf : sig
   type t_float64 : float64

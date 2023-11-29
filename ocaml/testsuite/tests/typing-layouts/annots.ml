@@ -242,14 +242,13 @@ val f : 'a -> 'a = <fun>
 let f : ('a : any). 'a -> 'a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 8-28:
+Line 1, characters 31-41:
 1 | let f : ('a : any). 'a -> 'a = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                   ^^^^^^^^^^
+Error: This definition has type 'b -> 'b which is less general than
+         ('a : any). 'a -> 'a
+       'a has layout any, which is not representable.
 |}]
-(* CR layouts v2.5: This error message should change to complain
-   about the [fun x], not the arrow type. *)
 
 let f : ('a : float64). 'a -> 'a = fun x -> x
 ;;
@@ -401,14 +400,12 @@ val f : ('a : float64). 'a -> 'a = <fun>
 let f : type (a : any). a -> a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 24-30:
+Line 1, characters 33-43:
 1 | let f : type (a : any). a -> a = fun x -> x
-                            ^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                     ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       a has layout any, which is not representable.
 |}]
-(* CR layouts v2.5: This error message will change to complain
-   about the fun x, not the arrow type. *)
 
 (**************************************************)
 (* Test 7: Defaulting universal variable to value *)
