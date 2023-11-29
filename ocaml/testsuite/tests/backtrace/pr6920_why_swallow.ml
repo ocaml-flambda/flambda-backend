@@ -5,7 +5,7 @@
    exit_status = "2"
 *)
 
-let why : unit -> unit = fun () -> raise Exit [@@inline never][@@opaque]
+let why : unit -> unit = fun () -> raise Exit [@@opaque]
 let f () =
   for i = 1 to 10 do
     why @@ ();
