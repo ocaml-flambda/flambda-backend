@@ -15,7 +15,6 @@
 
 (* Translation of primitives *)
 
-open Asttypes
 open Primitive
 open Types
 open Typedtree

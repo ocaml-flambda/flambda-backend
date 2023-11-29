@@ -47,6 +47,10 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
+type declare_const_result =
+  | Field of Field_of_static_block.t
+  | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+
 let manufacture_symbol acc proposed_name =
   let acc, linkage_name =
     if Flambda_features.Expert.shorten_symbol_names ()
@@ -88,19 +92,21 @@ let register_const0 acc constant name =
     acc, symbol
   | symbol -> acc, symbol
 
-let register_const acc constant name : Acc.t * Field_of_static_block.t * string
-    =
+let register_const acc constant name : Acc.t * declare_const_result * string =
   let acc, symbol = register_const0 acc constant name in
-  acc, Symbol symbol, name
+  acc, Field (Symbol symbol), name
 
 let rec declare_const acc (const : Lambda.structured_constant) :
-    Acc.t * Field_of_static_block.t * string =
+    Acc.t * declare_const_result * string =
   let module SC = Static_const in
   match const with
   | Const_base (Const_int c) ->
-    acc, Tagged_immediate (Targetint_31_63.of_int c), "int"
+    acc, Field (Tagged_immediate (Targetint_31_63.of_int c)), "int"
   | Const_base (Const_char c) ->
-    acc, Tagged_immediate (Targetint_31_63.of_char c), "char"
+    acc, Field (Tagged_immediate (Targetint_31_63.of_char c)), "char"
+  | Const_base (Const_unboxed_float c) ->
+    let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
+    acc, Unboxed_float c, "unboxed_float"
   | Const_base (Const_string (s, _, _)) ->
     register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
@@ -142,7 +148,12 @@ let rec declare_const acc (const : Lambda.structured_constant) :
       List.fold_left_map
         (fun acc c ->
           let acc, f, _ = declare_const acc c in
-          acc, f)
+          match f with
+          | Field f -> acc, f
+          | Unboxed_float _ ->
+            Misc.fatal_errorf
+              "Unboxed floats are not allowed inside of Const_block: %a"
+              Printlambda.structured_constant const)
         acc consts
     in
     let const : SC.t =
@@ -153,13 +164,19 @@ let rec declare_const acc (const : Lambda.structured_constant) :
 let close_const0 acc (const : Lambda.structured_constant) =
   let acc, const, name = declare_const acc const in
   match const with
-  | Tagged_immediate i ->
+  | Field (Tagged_immediate i) ->
     ( acc,
       Simple.const (Reg_width_const.tagged_immediate i),
       name,
       Flambda_kind.With_subkind.tagged_immediate )
-  | Symbol s -> acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
-  | Dynamically_computed _ ->
+  | Unboxed_float f ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_float f),
+      name,
+      Flambda_kind.With_subkind.naked_float )
+  | Field (Symbol s) ->
+    acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
+  | Field (Dynamically_computed _) ->
     Misc.fatal_errorf "Declaring a computed constant %s" name
 
 let close_const acc const =

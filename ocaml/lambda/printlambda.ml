@@ -26,6 +26,14 @@ let rec struct_const ppf = function
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
+  | Const_base(Const_unboxed_float f) ->
+    let s =
+      match String.split_on_char '-' f with
+      | [""; f] -> "-#" ^ f
+      | [f] -> "#" ^ f
+      | _ -> Misc.fatal_errorf "Invalid Const_unboxed_float constant: %s" f
+    in
+    fprintf ppf "%s" s
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
