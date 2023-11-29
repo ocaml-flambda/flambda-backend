@@ -762,8 +762,8 @@ int caml_try_realloc_stack(asize_t required_space)
         link->sp = (void*)((char*)Stack_high(new_stack) -
                            ((char*)Stack_high(old_stack) - (char*)link->sp));
       }
-      if (link->async_exn_handler > (char*) Stack_base(old_stack)
-          && link->async_exn_handler <= (char*) Stack_high(old_stack)) {
+      if (link->async_exn_handler >= (char*) Stack_base(old_stack)
+          && link->async_exn_handler < (char*) Stack_high(old_stack)) {
         /* The asynchronous exception trap frame pointed to by the current
            c_stack_link lies on the OCaml stack being reallocated.  Repoint the
            trap frame to the new stack. */

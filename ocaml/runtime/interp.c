@@ -359,7 +359,12 @@ value caml_interprete(code_t prog, asize_t prog_size)
        trap. */
     domain_state->trap_sp_off = 1;
 
-    goto raise_notrace_ignoring_parent_stacks;
+    domain_state->external_raise = initial_external_raise;
+    domain_state->external_raise_async = initial_external_raise_async;
+    domain_state->trap_sp_off = initial_trap_sp_off;
+    domain_state->current_stack->sp =
+      Stack_high(domain_state->current_stack) - initial_stack_words ;
+    return Make_exception_result(accu);
   }
   domain_state->external_raise_async = &exception_ctx_async;
 
@@ -1002,7 +1007,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
     raise_notrace:
       if (domain_state->trap_sp_off > 0) {
         if (Stack_parent(domain_state->current_stack) == NULL) {
-    raise_notrace_ignoring_parent_stacks:
           domain_state->external_raise = initial_external_raise;
           domain_state->external_raise_async = initial_external_raise_async;
           domain_state->trap_sp_off = initial_trap_sp_off;

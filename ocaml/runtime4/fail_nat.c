@@ -76,7 +76,6 @@ void caml_raise(value v)
   /* Run callbacks here, so that a signal handler that arrived during
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
-  /* XXX should this still have Extract_exception? */
 
   if (Caml_state->exn_handler == NULL) {
     caml_terminate_signals();

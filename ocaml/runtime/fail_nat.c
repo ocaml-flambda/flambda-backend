@@ -82,8 +82,6 @@ void caml_raise(value v)
   /* Run callbacks here, so that a signal handler that arrived during
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
 
   limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
 
@@ -117,11 +115,6 @@ CAMLno_asan void caml_raise_async(value v)
     caml_terminate_signals();
     caml_fatal_uncaught_exception(v);
   }
-
-  /* XXX in runtime4 we had this (similarly for caml_raise above):
-  if (Caml_state->async_exception_pointer == NULL)
-    caml_fatal_uncaught_exception(v);
-  */
 
   unwind_local_roots(limit_of_current_c_stack_chunk);
   Caml_state->exn_handler = Caml_state->async_exn_handler;
