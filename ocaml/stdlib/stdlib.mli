@@ -1410,7 +1410,7 @@ module Domain         = Domain
 [@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
 ]
-(* CR ocaml 5 runtime:
+(* CR ocaml 5 effects:
 BACKPORT
 module Effect         = Effect
 [@@alert "-unstable"]

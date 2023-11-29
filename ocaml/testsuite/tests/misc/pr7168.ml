@@ -76,7 +76,7 @@ let _ =
    * to simplify this test along the same
    * lines as upstream, as stack overflow
    * detection is always supported in
-* ocaml 5. *)
+  * ocaml 5. *)
   if (Gc.get ()).Gc.stack_limit = 0 then begin
     (* We are in native code. Skip the test because some platforms cannot
        reliably detect stack overflow. *)

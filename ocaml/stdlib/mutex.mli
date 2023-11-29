@@ -70,4 +70,5 @@ val protect : t -> (unit -> 'a) -> 'a
 
     @since 5.1 *)
 (* CR ocaml 5 runtime (mshinwell): looks like [protect] needs to use
-   Sys.with_async_exns? *)
+   Sys.with_async_exns?
+   (PR2007 fixes this) *)
