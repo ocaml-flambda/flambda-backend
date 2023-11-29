@@ -420,7 +420,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
      [first_complex_local_param]. *)
   let new_closure_alloc_mode, first_complex_local_param =
     if num_non_unarized_args <= first_complex_local_param
-    then Alloc_mode.For_allocations.heap, first_complex_local_param - num_non_unarized_args
+    then
+      ( Alloc_mode.For_allocations.heap,
+        first_complex_local_param - num_non_unarized_args )
     else
       match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
       | Heap ->
