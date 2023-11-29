@@ -119,7 +119,10 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
     (* The alloc_mode of the application and of the code are incompatible. This
        should have been prevented by the typer; therefore we are in GADT-caused
        unreachable code; we replace the inlined body by [Invalid]. *)
-    dacc, Expr.create_invalid (Flambda.Invalid.Closure_type_was_invalid apply)
+    ( dacc,
+      Expr.create_invalid
+        (Flambda.Invalid.Calling_local_returning_closure_with_normal_apply apply)
+    )
   | Local _, Alloc_heap (* This is allowed by subtyping *)
   | Local _, Alloc_local
   | Heap, Alloc_heap ->
