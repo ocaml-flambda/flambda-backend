@@ -569,6 +569,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
 }
@@ -758,6 +759,7 @@ let default_function_attribute = {
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
+  is_opaque = false;
   stub = false;
   tmc_candidate = false;
 }

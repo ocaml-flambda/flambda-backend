@@ -1650,6 +1650,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
+      ~is_opaque:(Function_decl.is_opaque decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
       ~dbg ~is_tupled
@@ -1781,6 +1782,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
             ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
+            ~is_opaque:(Function_decl.is_opaque decl)
             ~recursive:(Function_decl.recursive decl)
             ~newer_version_of:None ~cost_metrics
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -2109,6 +2111,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         check = Default_check;
         loop = Default_loop;
         is_a_functor = false;
+        is_opaque = false;
         stub = true;
         poll = Default_poll;
         tmc_candidate = false
