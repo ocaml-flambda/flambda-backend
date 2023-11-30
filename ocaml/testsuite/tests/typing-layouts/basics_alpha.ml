@@ -26,8 +26,8 @@ type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
 |}];;
 
-(************************************************************)
-(* Test 1: Disallow non-representable function args/returns *)
+(******************************************************************)
+(* Test 1: Allow non-representable function args/returns in types *)
 module type S1 = sig
   val f : int -> t_any
 end;;
@@ -41,6 +41,24 @@ end;;
 [%%expect {|
 module type S1 = sig val f : t_any -> int end
 |}];;
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = ('a : any) -> int constraint ('a : any) = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = int -> ('a : any) constraint ('a : any) = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
+|}]
 
 module type S1 = sig
   type t : any
