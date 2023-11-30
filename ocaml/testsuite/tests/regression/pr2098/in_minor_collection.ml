@@ -15,4 +15,6 @@ let f () =
   ignore (alloc ());
   ()
 
-let () = f ()
+let () =
+  f ();
+  Gc.minor()
