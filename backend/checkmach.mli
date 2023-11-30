@@ -94,3 +94,5 @@ end
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 
 val iter_witnesses : iter_witnesses
+
+val is_check_enabled : Cmm.codegen_option list -> string -> Debuginfo.t -> bool
