@@ -1,4 +1,7 @@
 (* TEST
+* runtime4
+** skip
+* runtime5
 include runtime_events
 set OCAML_RUNTIME_EVENTS_START = "1"
 *)

@@ -1,10 +1,13 @@
 (* TEST
+* runtime4
+** skip
+* runtime5
    include runtime_events
    include unix
    set OCAML_RUNTIME_EVENTS_PRESERVE = "1"
-   * libunix
-   ** bytecode
-   ** native
+   ** libunix
+   *** bytecode
+   *** native
 *)
 open Runtime_events
 

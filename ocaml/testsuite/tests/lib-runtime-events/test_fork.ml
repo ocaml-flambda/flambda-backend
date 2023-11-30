@@ -1,9 +1,12 @@
 (* TEST
+* runtime4
+** skip
+* runtime5
    include runtime_events
    include unix
-   * libunix
-   ** bytecode
-   ** native *)
+   ** libunix
+   *** bytecode
+   *** native *)
 
 let got_start = ref false
 let got_fork_child = ref false
