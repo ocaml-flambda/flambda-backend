@@ -21,7 +21,7 @@ Line 1, characters 9-24:
 1 | type t = C of nativeint#;;
              ^^^^^^^^^^^^^^^
 Error: Type nativeint# has layout word.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t = C : nativeint# -> t;;
@@ -30,7 +30,7 @@ Line 1, characters 9-28:
 1 | type t = C : nativeint# -> t;;
              ^^^^^^^^^^^^^^^^^^^
 Error: Type nativeint# has layout word.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 (* nativeint# works as an argument to normal type constructors, not just

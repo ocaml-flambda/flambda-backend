@@ -1,5 +1,7 @@
 File "unboxed_bits32s_beta.ml", line 19, characters 6-18:
 19 |   let _not_allowed = Stdlib__Int32_u.of_int32 42l in
            ^^^^^^^^^^^^
-Error: Non-value layout bits32 detected in [Typeopt.layout] as sort for type
-       int32#. Please report this error to the Jane Street compilers team.
+Error: Non-value layout bits32 detected as sort for type int32#,
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.

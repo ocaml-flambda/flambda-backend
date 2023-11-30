@@ -21,7 +21,7 @@ Line 1, characters 9-20:
 1 | type t = C of int32#;;
              ^^^^^^^^^^^
 Error: Type int32# has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t = C : int32# -> t;;
@@ -30,7 +30,7 @@ Line 1, characters 9-24:
 1 | type t = C : int32# -> t;;
              ^^^^^^^^^^^^^^^
 Error: Type int32# has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 (* int32# works as an argument to normal type constructors, not just

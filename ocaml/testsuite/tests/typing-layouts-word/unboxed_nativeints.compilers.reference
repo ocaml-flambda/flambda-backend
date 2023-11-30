@@ -1,6 +1,7 @@
 File "unboxed_nativeints.ml", line 19, characters 6-18:
 19 |   let _not_allowed = Stdlib__Nativeint_u.of_nativeint 42n in
            ^^^^^^^^^^^^
-Error: Non-value layout word detected in [Typeopt.layout] as sort for type
-       nativeint#.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout word detected as sort for type nativeint#,
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.

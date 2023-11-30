@@ -11,7 +11,7 @@
    concrete [bits32] type in some tests, but its behavior isn't the primary
    purpose of this test. *)
 
-type t_bits32 [@@bits32]
+type t_bits32 : bits32
 type ('a : bits32) t_bits32_id = 'a
 
 (*********************************)
@@ -21,10 +21,10 @@ let f1_1 (x : t_bits32) = x;;
 let f1_2 (x : 'a t_bits32_id) = x;;
 let f1_3 (x : int32#) = x;;
 [%%expect{|
-type t_bits32 [@@bits32]
+type t_bits32 : bits32
 type ('a : bits32) t_bits32_id = 'a
 val f1_1 : t_bits32 -> t_bits32 = <fun>
-val f1_2 : 'a t_bits32_id -> 'a t_bits32_id = <fun>
+val f1_2 : ('a : bits32). 'a t_bits32_id -> 'a t_bits32_id = <fun>
 val f1_3 : int32# -> int32# = <fun>
 |}];;
 
@@ -43,7 +43,7 @@ let f2_3 (x : int32#) =
   y;;
 [%%expect{|
 val f2_1 : t_bits32 -> t_bits32 = <fun>
-val f2_2 : 'a t_bits32_id -> 'a t_bits32_id = <fun>
+val f2_2 : ('a : bits32). 'a t_bits32_id -> 'a t_bits32_id = <fun>
 val f2_3 : int32# -> int32# = <fun>
 |}];;
 
@@ -180,7 +180,7 @@ Line 1, characters 14-26:
 1 | type t5_1 = { x : t_bits32 };;
                   ^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts v5: this should work *)
@@ -190,7 +190,7 @@ Line 1, characters 23-35:
 1 | type t5_2 = { y : int; x : t_bits32 };;
                            ^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts: this runs afoul of the mixed block restriction, but should work
@@ -201,7 +201,7 @@ Line 1, characters 27-39:
 1 | type t5_2' = { y : string; x : t_bits32 };;
                                ^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -211,7 +211,7 @@ Line 1, characters 14-26:
 1 | type t5_3 = { x : t_bits32 } [@@unboxed];;
                   ^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Unboxed records may not yet contain types of this layout.
 |}];;
 
 type t5_4 = A of t_bits32;;
@@ -220,7 +220,7 @@ Line 1, characters 12-25:
 1 | type t5_4 = A of t_bits32;;
                 ^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_5 = A of int * t_bits32;;
@@ -229,7 +229,7 @@ Line 1, characters 12-31:
 1 | type t5_5 = A of int * t_bits32;;
                 ^^^^^^^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type t5_6 = A of t_bits32 [@@unboxed];;
@@ -238,7 +238,7 @@ Line 1, characters 12-25:
 1 | type t5_6 = A of t_bits32 [@@unboxed];;
                 ^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}];;
 
 type ('a : bits32) t5_7 = A of int
@@ -249,7 +249,7 @@ Line 2, characters 26-33:
 2 | type ('a : bits32) t5_8 = A of 'a;;
                               ^^^^^^^
 Error: Type 'a has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 (****************************************************)
@@ -321,7 +321,7 @@ type f7_4 = [ `A of t_bits32 ];;
 Line 1, characters 20-28:
 1 | type f7_4 = [ `A of t_bits32 ];;
                         ^^^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
         t_bits32 has layout bits32, which is not a sublayout of value.
 |}];;
 
@@ -345,7 +345,7 @@ let make_int32u () : int32# = assert false
 let id_value x = x;;
 [%%expect{|
 val make_t_bits32 : unit -> t_bits32 = <fun>
-val make_t_bits32_id : unit -> 'a t_bits32_id = <fun>
+val make_t_bits32_id : ('a : bits32). unit -> 'a t_bits32_id = <fun>
 val make_int32u : unit -> int32# = <fun>
 val id_value : 'a -> 'a = <fun>
 |}];;
@@ -390,10 +390,11 @@ let f9_2 () = twice f1_2 (make_t_bits32_id ())
 let f9_3 () = twice f1_3 (make_int32u ());;
 [%%expect{|
 val twice :
-  ('a t_bits32_id -> 'a t_bits32_id) -> 'a t_bits32_id -> 'a t_bits32_id =
+  ('a : bits32).
+    ('a t_bits32_id -> 'a t_bits32_id) -> 'a t_bits32_id -> 'a t_bits32_id =
   <fun>
 val f9_1 : unit -> t_bits32 t_bits32_id = <fun>
-val f9_2 : unit -> 'a t_bits32_id = <fun>
+val f9_2 : ('a : bits32). unit -> 'a t_bits32_id = <fun>
 val f9_3 : unit -> int32# t_bits32_id = <fun>
 |}];;
 
@@ -448,7 +449,7 @@ Line 1, characters 18-24:
 1 | external f10_6 : (int32#[@unboxed]) -> bool -> string  = "foo" "bar";;
                       ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 external f10_7 : string -> (int32#[@unboxed])  = "foo" "bar";;
@@ -457,7 +458,7 @@ Line 1, characters 28-34:
 1 | external f10_7 : string -> (int32#[@unboxed])  = "foo" "bar";;
                                 ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 external f10_8 : int32 -> int32#  = "foo" "bar" [@@unboxed];;
@@ -466,7 +467,7 @@ Line 1, characters 26-32:
 1 | external f10_8 : int32 -> int32#  = "foo" "bar" [@@unboxed];;
                               ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 (*******************************************************)
@@ -481,7 +482,7 @@ Line 3, characters 14-27:
 3 | type t11_1 += A of t_bits32;;
                   ^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 type t11_1 += B of int32#;;
@@ -490,7 +491,7 @@ Line 1, characters 14-25:
 1 | type t11_1 += B of int32#;;
                   ^^^^^^^^^^^
 Error: Type int32# has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 type ('a : bits32) t11_2 = ..
@@ -506,7 +507,7 @@ Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
 Error: Type 'a has layout bits32.
-       Types of this layout are not yet allowed in blocks (like records or variants).
+       Variants may not yet contain types of this layout.
 |}]
 
 (***************************************)

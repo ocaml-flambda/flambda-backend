@@ -14,11 +14,12 @@
 (* CR layouts: We'll be moving code from [basics_alpha] to this file as support
    for different features becomes available at this level of stability. *)
 
-type t_word [@@word]
+type t_word : word
 type ('a : word) t_word_id = 'a;;
 [%%expect{|
-Line 1, characters 12-20:
-1 | type t_word [@@word]
-                ^^^^^^^^
-Error: Layout word is used here, but the appropriate layouts extension is not enabled
+Line 1, characters 14-18:
+1 | type t_word : word
+                  ^^^^
+Error: Layout word is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}]

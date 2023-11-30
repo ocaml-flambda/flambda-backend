@@ -14,11 +14,12 @@
 (* CR layouts: We'll be moving code from [basics_alpha] to this file as support
    for different features becomes available at this level of stability. *)
 
-type t_bits64 [@@bits64]
+type t_bits64 : bits64
 type ('a : bits64) t_bits64_id = 'a;;
 [%%expect{|
-Line 1, characters 14-24:
-1 | type t_bits64 [@@bits64]
-                  ^^^^^^^^^^
-Error: Layout bits64 is used here, but the appropriate layouts extension is not enabled
+Line 1, characters 16-22:
+1 | type t_bits64 : bits64
+                    ^^^^^^
+Error: Layout bits64 is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
 |}]
