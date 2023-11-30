@@ -461,6 +461,7 @@
   .stdlib.objs/native/stdlib__Bigarray.cmx
   .stdlib.objs/native/stdlib__Array.cmx
   .stdlib.objs/native/stdlib__Int32.cmx
+  .stdlib.objs/native/stdlib__Int32_u.cmx
   .stdlib.objs/native/stdlib__Lexing.cmx
   .stdlib.objs/native/stdlib__ArrayLabels.cmx
   .stdlib.objs/native/stdlib__Obj.cmx
@@ -481,6 +482,7 @@
   .stdlib.objs/native/stdlib__Ephemeron.cmx
   .stdlib.objs/native/stdlib__String.cmx
   .stdlib.objs/native/stdlib__Nativeint.cmx
+  .stdlib.objs/native/stdlib__Nativeint_u.cmx
   .stdlib.objs/native/stdlib__Set.cmx
   .stdlib.objs/native/stdlib__ListLabels.cmx
   .stdlib.objs/native/stdlib__Bool.cmx
@@ -489,6 +491,7 @@
   .stdlib.objs/native/stdlib__Random.cmx
   .stdlib.objs/native/stdlib__Int.cmx
   .stdlib.objs/native/stdlib__Int64.cmx
+  .stdlib.objs/native/stdlib__Int64_u.cmx
   .stdlib.objs/native/stdlib__Scanf.cmx
   .stdlib.objs/native/stdlib__Printf.cmx
   .stdlib.objs/native/stdlib__Complex.cmx
