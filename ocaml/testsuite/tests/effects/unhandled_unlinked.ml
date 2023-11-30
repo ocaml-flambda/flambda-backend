@@ -3,7 +3,7 @@
 
      exit_status= "2"
      * skip
-     reason = "OCaml 5 only"
+     reason = "CR ocaml 5 effects: re-enable this test"
 *)
 
 open Effect
