@@ -667,12 +667,15 @@ AS_CASE([$host],
     [exeext=".exe"],
   [exeext=''])
 
-dnl CR ocaml 5 runtime:
-dnl otherlibraries="dynlink runtime_events"
 otherlibraries="dynlink"
 lib_dynlink=true
-dnl CR ocaml 5 runtime:
-dnl lib_runtime_events = true
+
+AS_IF(
+  [test x"$enable_runtime5" = x"yes"],
+  [otherlibraries = "$otherlibraries runtime_events"
+   lib_runtime_events = true],
+  [])
+
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [enable_unix_lib=yes
   AC_CONFIG_FILES([otherlibs/unix/META])
@@ -2118,11 +2121,10 @@ AS_CASE([$host],
 
 ## Activate the systhread library
 
-if [[ x"$enable_runtime5" = x"yes" ]]; then
-  runtime_suffix=
-else
-  runtime_suffix=4
-fi
+AS_IF(
+  [test x"$enable_runtime5" = x"yes"],
+  [runtime_suffix=],
+  [runtime_suffix=4])
 
 AS_CASE([$enable_systhreads,$enable_unix_lib],
   [yes,no],

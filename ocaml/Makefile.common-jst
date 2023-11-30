@@ -117,7 +117,7 @@ $(ocamldir)/otherlibs/dune:
 	if [ "$(RUNTIME_DIR)" = "runtime4" ]; then \
           echo "(dirs (:standard \ systhreads))" > $@; \
 	else \
-          echo "(dirs (:standard \ systhreads4))" > $@; \
+          echo "(dirs (:standard \ systhreads4 runtime_events))" > $@; \
 	fi
 
 $(ocamldir)/dune.runtime_selection:
@@ -249,11 +249,14 @@ install_for_test: _install
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
-	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
+	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
+	if [[ x"$(RUNTIME_DIR)" = x ]]; then \
+		$(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
+	fi; \
 	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
 	)
 

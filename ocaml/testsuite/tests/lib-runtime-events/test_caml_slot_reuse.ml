@@ -1,7 +1,7 @@
 (* TEST
 include runtime_events
 * skip
-reason = "OCaml 5 only"
+reason = "CR OCaml 5 Domain.spawn"
 *)
 open Runtime_events
 

@@ -1,11 +1,8 @@
 (* TEST
    include runtime_events
    flags = "-runtime-variant=i"
-
-   * skip
-   reason = "OCaml 5 only"
-   ** instrumented-runtime
-   *** native
+   * instrumented-runtime
+   ** native
 *)
 
 open Runtime_events
