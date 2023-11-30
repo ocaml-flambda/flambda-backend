@@ -1,7 +1,7 @@
 (* TEST
    ocamlopt_flags += " -O3 "
    * skip
-     reason = "OCaml 5 only"
+     reason = "CR ocaml 5 domains: re-enable this test"
 *)
 
 exception E
