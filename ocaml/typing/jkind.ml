@@ -41,6 +41,9 @@ module Legacy = struct
     | "immediate64" -> Some Immediate64
     | "immediate" -> Some Immediate
     | "float64" -> Some Float64
+    | "word" -> Some Word
+    | "bits32" -> Some Bits32
+    | "bits64" -> Some Bits64
     | _ -> None
 
   let string_of_const const =
