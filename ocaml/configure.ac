@@ -672,8 +672,8 @@ lib_dynlink=true
 
 AS_IF(
   [test x"$enable_runtime5" = x"yes"],
-  [otherlibraries = "$otherlibraries runtime_events"
-   lib_runtime_events = true],
+  [otherlibraries="$otherlibraries runtime_events"
+   lib_runtime_events=true],
   [])
 
 AS_IF([test x"$enable_unix_lib" != "xno"],

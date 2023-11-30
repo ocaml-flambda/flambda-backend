@@ -3,7 +3,7 @@
    include unix
    set OCAMLRUNPARAM = "e=6"
    * skip
-   reason = "CR OCaml 5 domain"
+   reason = "CR OCaml 5 domains"
    ** libunix
    *** native
    *** bytecode

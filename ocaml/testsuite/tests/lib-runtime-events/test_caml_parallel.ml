@@ -1,7 +1,7 @@
 (* TEST
 include runtime_events
 * skip
-reason = "CR OCaml 5 domain"
+reason = "CR OCaml 5 domains"
 *)
 open Runtime_events
 
