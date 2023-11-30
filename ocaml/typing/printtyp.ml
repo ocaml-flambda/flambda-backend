@@ -732,6 +732,9 @@ let apply_subst s1 tyl =
     | Map l1 -> List.map (List.nth tyl) l1
     | Id -> tyl
 
+(* In the [Paths] constructor, more preferred paths are stored later in the
+   list. *)
+
 type best_path = Paths of Path.t list | Best of Path.t
 
 (** Short-paths cache: the five mutable variables below implement a one-slot
@@ -813,18 +816,13 @@ let set_printing_env env =
               Paths l -> r := Paths (p :: l)
             | Best p' -> r := Paths [p; p'] (* assert false *)
           with Not_found ->
+            (* Jane Street: Often the best choice for printing [p1] is
+               [p1] itself. And often [p1] is a path whose "penalty"
+               would be reduced if the double-underscore rewrite
+               applied.
+            *)
             let rewritten_p1 = rewrite_double_underscore_paths env p1 in
-            let candidates =
-              (* Jane Street: Often the best choice for printing [p1] is
-                 [p1] itself. And often [p1] is a path whose "penalty"
-                 would be reduced if the double-underscore rewrite
-                 applied.
-              *)
-              if Path.same p1 rewritten_p1
-              then [ p1; p ]
-              else [ rewritten_p1; p1; p ]
-            in
-            printing_map := Path.Map.add p1 (ref (Paths candidates)) !printing_map)
+            printing_map := Path.Map.add p1 (ref (Paths [ p; rewritten_p1 ])) !printing_map)
         env in
     printing_cont := [cont];
   end
@@ -900,7 +898,7 @@ let rec get_best_path r env =
           match !r with
             Best p' when path_size p env >= path_size p' env -> ()
           | _ -> r := Best p)
-        l;
+        (List.rev l);
       get_best_path r env
 
 let best_type_path p =
