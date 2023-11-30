@@ -1,7 +1,6 @@
 (* TEST
 
-* skip
-reason = "OCaml 5 only"
+* runtime5
 ** frame_pointers
 *** native
 readonly_files = "fp_backtrace.c c_call_.c"
