@@ -5,7 +5,8 @@
 
 static void caml_test_finalize(value v)
 {
-  caml_enter_blocking_section();
+  if (Caml_state -> in_minor_collection)
+    caml_fatal_error("Thread switch from inside minor GC");
 }
 
 static struct custom_operations caml_test_ops = {

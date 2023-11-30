@@ -1,11 +1,9 @@
 (* TEST
-   * skip
-   reason = "flaky tests"
    modules = "stub.c"
-   ** hassysthreads
    include systhreads
-   *** not-windows
-   **** native
+   * hassysthreads
+   ** not-windows
+   *** native
 *)
 
 type t
