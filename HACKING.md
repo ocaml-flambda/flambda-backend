@@ -95,10 +95,6 @@ To rebuild after making changes, you can just type `make`. You need to
 have a working OCaml 4.14 or 4.14.1 compiler on your PATH before doing so,
 e.g. installed via OPAM.
 
-<!-- CR someone: investigate this -->
-The build currently fails when using the latest version of `dune` (3.11.1).
-To install a known-good dune, run `opam pin add dune 3.8.1`.
-
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
 compiler itself, but doesn't rebuild the stdlib or anything else with the new compiler.
