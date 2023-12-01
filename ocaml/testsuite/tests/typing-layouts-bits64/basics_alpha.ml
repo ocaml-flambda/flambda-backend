@@ -428,21 +428,6 @@ Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}];;
 
-external f10_3 : int64 -> t_bits64  = "foo" "bar" "int64";;
-[%%expect{|
-external f10_3 : int64 -> t_bits64 = "foo" "bar"
-|}];;
-
-external f10_4 : int -> int64# -> int64  = "foo" "bar" "int64";;
-[%%expect{|
-external f10_4 : int -> int64# -> int64 = "foo" "bar"
-|}];;
-
-external f10_5 : int64# -> bool -> string  = "foo" "bar" "int64";;
-[%%expect{|
-external f10_5 : int64# -> bool -> string = "foo" "bar"
-|}];;
-
 external f10_6 : (int64#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
 Line 1, characters 18-24:

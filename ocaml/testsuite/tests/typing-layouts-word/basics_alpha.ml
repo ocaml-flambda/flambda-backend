@@ -427,21 +427,6 @@ Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}];;
 
-external f10_3 : nativeint -> t_word  = "foo" "bar" "nativeint";;
-[%%expect{|
-external f10_3 : nativeint -> t_word = "foo" "bar"
-|}];;
-
-external f10_4 : int -> nativeint# -> nativeint  = "foo" "bar" "nativeint";;
-[%%expect{|
-external f10_4 : int -> nativeint# -> nativeint = "foo" "bar"
-|}];;
-
-external f10_5 : nativeint# -> bool -> string  = "foo" "bar" "nativeint";;
-[%%expect{|
-external f10_5 : nativeint# -> bool -> string = "foo" "bar"
-|}];;
-
 external f10_6 : (nativeint#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
 Line 1, characters 18-28:

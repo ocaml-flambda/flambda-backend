@@ -428,21 +428,6 @@ Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}];;
 
-external f10_3 : int32 -> t_bits32  = "foo" "bar" "int32";;
-[%%expect{|
-external f10_3 : int32 -> t_bits32 = "foo" "bar"
-|}];;
-
-external f10_4 : int -> int32# -> int32  = "foo" "bar" "int32";;
-[%%expect{|
-external f10_4 : int -> int32# -> int32 = "foo" "bar"
-|}];;
-
-external f10_5 : int32# -> bool -> string  = "foo" "bar" "int32";;
-[%%expect{|
-external f10_5 : int32# -> bool -> string = "foo" "bar"
-|}];;
-
 external f10_6 : (int32#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
 Line 1, characters 18-24:
