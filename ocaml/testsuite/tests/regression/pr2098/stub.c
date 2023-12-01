@@ -1,10 +1,8 @@
-#define CAML_INTERNALS
-
 #include <caml/custom.h>
 
 static void caml_test_finalize(value v)
 {
-  if (Caml_state -> _in_minor_collection)
+  if (Caml_state_field(in_minor_collection))
     caml_fatal_error("Thread switch from inside minor GC");
 }
 
