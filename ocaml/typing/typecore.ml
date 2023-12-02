@@ -1402,6 +1402,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
             annotations on explicitly quantified vars in gadt constructors.
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
+                     ~jkind_annot:None
                      (Jkind.value ~why:Existential_type_variable) in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !env in
@@ -7656,7 +7657,7 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
   (* Use [with_local_level] just for scoping *)
   let body, ety = with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc jkind in
+    let decl = new_local_type ~loc jkind ~jkind_annot in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
