@@ -1,4 +1,4 @@
 #!/bin/sh
 ulimit -c 0
-(${program} > ${output}) 2>&1 | grep -q 'Thread switch from inside minor GC'
+(${program} > ${output}) 2>&1 | grep -q 'from inside minor GC'
 exit $?
