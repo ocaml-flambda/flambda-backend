@@ -732,6 +732,9 @@ let apply_subst s1 tyl =
     | Map l1 -> List.map (List.nth tyl) l1
     | Id -> tyl
 
+(* In the [Paths] constructor, more preferred paths are stored later in the
+   list. *)
+
 type best_path = Paths of Path.t list | Best of Path.t
 
 (** Short-paths cache: the five mutable variables below implement a one-slot
@@ -813,7 +816,13 @@ let set_printing_env env =
               Paths l -> r := Paths (p :: l)
             | Best p' -> r := Paths [p; p'] (* assert false *)
           with Not_found ->
-            printing_map := Path.Map.add p1 (ref (Paths [p])) !printing_map)
+            (* Jane Street: Often the best choice for printing [p1] is
+               [p1] itself. And often [p1] is a path whose "penalty"
+               would be reduced if the double-underscore rewrite
+               applied.
+            *)
+            let rewritten_p1 = rewrite_double_underscore_paths env p1 in
+            printing_map := Path.Map.add p1 (ref (Paths [ p; rewritten_p1 ])) !printing_map)
         env in
     printing_cont := [cont];
   end
@@ -867,8 +876,8 @@ let path_size path env =
   let rec size = function
       Pident id ->
         name_penalty (Ident.name id), -Ident.scope id
-    | Pdot (p, _) | Pextra_ty (p, Pcstr_ty _) ->
-        let (l, b) = size p in (1+l, b)
+    | Pdot (p, id) | Pextra_ty (p, Pcstr_ty id) ->
+        let (l, b) = size p in (name_penalty id + l, b)
     | Papply (p1, p2) ->
         let (l, b) = size p1 in
         (l + fst (size p2), b)
@@ -889,7 +898,7 @@ let rec get_best_path r env =
           match !r with
             Best p' when path_size p env >= path_size p' env -> ()
           | _ -> r := Best p)
-        l;
+        (List.rev l);
       get_best_path r env
 
 let best_type_path p =
@@ -902,7 +911,7 @@ let best_type_path p =
     let get_path () =
       try
         get_best_path (Path.Map.find p' !printing_map) !printing_env
-      with Not_found -> p'
+      with Not_found -> rewrite_double_underscore_paths !printing_env p'
     in
     while !printing_cont <> [] &&
       fst (path_size (get_path ()) !printing_env) > !printing_depth
