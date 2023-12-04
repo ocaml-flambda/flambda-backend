@@ -38,7 +38,9 @@ val make : 'a -> 'a t
     modifying these disjoint memory regions simultaneously becomes impossible,
     which can create a bottleneck. Hence, as a general guideline, if an atomic
     reference is experiencing contention, assigning it its own cache line may
-    enhance performance. *)
+    enhance performance.
+
+    CR ocaml 5 all-runtime5: does not support runtime4 *)
 val make_contended : 'a -> 'a t
 
 (** Get the current value of the atomic reference. *)
