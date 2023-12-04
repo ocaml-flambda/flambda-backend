@@ -66,11 +66,11 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode : 'a -> ('a, 'l * 'r) mode
     | Amodevar : ('a, 'd) morphvar -> ('a, 'd) mode
     | Amodejoin :
-        'a * ('a, allowed * disallowed) morphvar list
-        -> ('a, allowed * disallowed) mode
+        'a * ('a, 'l * disallowed) morphvar list
+        -> ('a, 'l * disallowed) mode
     | Amodemeet :
-        'a * ('a, disallowed * allowed) morphvar list
-        -> ('a, disallowed * allowed) mode
+        'a * ('a, disallowed * 'r) morphvar list
+        -> ('a, disallowed * 'r) mode
 
   let address_of : 'a var -> int = Obj.magic
 
@@ -120,6 +120,55 @@ module Solver_mono (C : Lattices_mono) = struct
   include Allow_disallow (struct
     type ('a, _, 'd) t = ('a, 'd) mode
   end)
+
+  module Allow_disallow_soundness :
+    Allow_disallow with type ('a, _, 'd) t := ('a, 'd) mode = struct
+    let rec allow_left : type a l r. (a, allowed * r) mode -> (a, l * r) mode =
+      function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (allow_left_mv mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map allow_left_mv mvs)
+
+    and allow_left_mv :
+        type a l r. (a, allowed * r) morphvar -> (a, l * r) morphvar = function
+      | Amorphvar (v, m) -> Amorphvar (v, C.allow_left m)
+
+    let rec allow_right : type a l r. (a, l * allowed) mode -> (a, l * r) mode =
+      function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (allow_right_mv mv)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map allow_right_mv mvs)
+
+    and allow_right_mv :
+        type a l r. (a, l * allowed) morphvar -> (a, l * r) morphvar = function
+      | Amorphvar (v, m) -> Amorphvar (v, C.allow_right m)
+
+    let rec disallow_left :
+        type a l r. (a, l * r) mode -> (a, disallowed * r) mode = function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (disallow_left_mv mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map disallow_left_mv mvs)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map disallow_left_mv mvs)
+
+    and disallow_left_mv :
+        type a l r. (a, l * r) morphvar -> (a, disallowed * r) morphvar =
+      function
+      | Amorphvar (v, m) -> Amorphvar (v, C.disallow_left m)
+
+    let rec disallow_right :
+        type a l r. (a, l * r) mode -> (a, l * disallowed) mode = function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (disallow_right_mv mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map disallow_right_mv mvs)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map disallow_right_mv mvs)
+
+    and disallow_right_mv :
+        type a l r. (a, l * r) morphvar -> (a, l * disallowed) morphvar =
+      function
+      | Amorphvar (v, m) -> Amorphvar (v, C.disallow_right m)
+  end
+
+  let _ = Allow_disallow_soundness.allow_left
 
   let mlower dst (Amorphvar (var, morph)) = C.apply dst morph var.lower
 
@@ -414,11 +463,13 @@ module Solver_mono (C : Lattices_mono) = struct
         (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv))
         a mvs
 
-  let join :
-      type a r.
-      a C.obj -> (a, allowed * r) mode list -> (a, allowed * disallowed) mode =
-   fun obj l ->
-    let rec loop a mvs =
+  let join (type a r) obj l =
+    let rec loop :
+        a ->
+        (a, allowed * disallowed) morphvar list ->
+        (a, allowed * r) mode list ->
+        (a, allowed * disallowed) mode =
+     fun a mvs ->
       if C.le obj (C.max obj) a
       then fun _ -> Amode (C.max obj)
       else
@@ -432,11 +483,13 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.min obj) [] l
 
-  let meet :
-      type a l.
-      a C.obj -> (a, l * allowed) mode list -> (a, disallowed * allowed) mode =
-   fun obj l ->
-    let rec loop a mvs =
+  let meet (type a l) obj l =
+    let rec loop :
+        a ->
+        (a, disallowed * allowed) morphvar list ->
+        (a, l * allowed) mode list ->
+        (a, disallowed * allowed) mode =
+     fun a mvs ->
       if C.le obj a (C.min obj)
       then fun _ -> Amode (C.min obj)
       else

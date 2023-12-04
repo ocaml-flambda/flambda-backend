@@ -655,6 +655,101 @@ module Lattices_mono = struct
   include Allow_disallow (struct
     type ('a, 'b, 'd) t = ('a, 'b, 'd) morph
   end)
+
+  module Allow_disallow_soundness :
+    Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) morph = struct
+    let rec allow_left :
+        type a b l r. (a, b, allowed * r) morph -> (a, b, l * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = allow_left f in
+        let g = allow_left g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = allow_left f in
+        Set (sax, f)
+
+    let rec allow_right :
+        type a b l r. (a, b, l * allowed) morph -> (a, b, l * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Compose (f, g) ->
+        let f = allow_right f in
+        let g = allow_right g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = allow_right f in
+        Set (sax, f)
+
+    let rec disallow_left :
+        type a b l r. (a, b, l * r) morph -> (a, b, disallowed * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = disallow_left f in
+        let g = disallow_left g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = disallow_left f in
+        Set (sax, f)
+
+    let rec disallow_right :
+        type a b l r. (a, b, l * r) morph -> (a, b, l * disallowed) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = disallow_right f in
+        let g = disallow_right g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = disallow_right f in
+        Set (sax, f)
+  end
+
+  let _ = Allow_disallow_soundness.allow_left
 end
 
 module C = Lattices_mono
@@ -1082,6 +1177,31 @@ module Value = struct
     type nonrec (_, _, 'd) t = 'd t
   end)
 
+  module Allow_disallow_soundness :
+    Allow_disallow with type (_, _, 'd) t := 'd t = struct
+    let allow_left { monadic; comonadic } =
+      let monadic = Monadic.allow_left monadic in
+      let comonadic = Comonadic.allow_left comonadic in
+      { monadic; comonadic }
+
+    let allow_right { monadic; comonadic } =
+      let monadic = Monadic.allow_right monadic in
+      let comonadic = Comonadic.allow_right comonadic in
+      { monadic; comonadic }
+
+    let disallow_left { monadic; comonadic } =
+      let monadic = Monadic.disallow_left monadic in
+      let comonadic = Comonadic.disallow_left comonadic in
+      { monadic; comonadic }
+
+    let disallow_right { monadic; comonadic } =
+      let monadic = Monadic.disallow_right monadic in
+      let comonadic = Comonadic.disallow_right comonadic in
+      { monadic; comonadic }
+  end
+
+  let _ = Allow_disallow_soundness.allow_left
+
   let newvar () =
     let comonadic = Comonadic.newvar () in
     let monadic = Monadic.newvar () in
@@ -1301,6 +1421,31 @@ module Alloc = struct
   include Allow_disallow (struct
     type nonrec (_, _, 'd) t = 'd t
   end)
+
+  module Allow_disallow_soundness :
+    Allow_disallow with type (_, _, 'd) t := 'd t = struct
+    let allow_left { monadic; comonadic } =
+      let monadic = Monadic.allow_left monadic in
+      let comonadic = Comonadic.allow_left comonadic in
+      { monadic; comonadic }
+
+    let allow_right { monadic; comonadic } =
+      let monadic = Monadic.allow_right monadic in
+      let comonadic = Comonadic.allow_right comonadic in
+      { monadic; comonadic }
+
+    let disallow_left { monadic; comonadic } =
+      let monadic = Monadic.disallow_left monadic in
+      let comonadic = Comonadic.disallow_left comonadic in
+      { monadic; comonadic }
+
+    let disallow_right { monadic; comonadic } =
+      let monadic = Monadic.disallow_right monadic in
+      let comonadic = Comonadic.disallow_right comonadic in
+      { monadic; comonadic }
+  end
+
+  let _ = Allow_disallow_soundness.allow_left
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
