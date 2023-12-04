@@ -282,6 +282,18 @@ CAMLprim value caml_sys_is_directory(value name)
 #endif
 }
 
+CAMLprim value caml_sys_is_regular_file(value name)
+{
+  CAMLparam1(name);
+  int mode = caml_sys_file_mode(name);
+  if (mode == -1) caml_sys_error(name);
+#ifdef S_ISREG
+  CAMLreturn(Val_bool(S_ISREG(mode)));
+#else
+  CAMLreturn(Val_bool(mode & S_IFREG));
+#endif
+}
+
 CAMLprim value caml_sys_remove(value name)
 {
   CAMLparam1(name);
