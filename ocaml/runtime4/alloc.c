@@ -289,3 +289,8 @@ CAMLexport value caml_alloc_some(value v)
   Field(some, 0) = v;
   CAMLreturn(some);
 }
+
+CAMLprim value caml_atomic_make_contended(value v)
+{
+  caml_fatal_error("not supported by runtime4");
+}

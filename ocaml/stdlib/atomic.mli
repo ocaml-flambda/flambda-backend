@@ -39,8 +39,7 @@ val make : 'a -> 'a t
     which can create a bottleneck. Hence, as a general guideline, if an atomic
     reference is experiencing contention, assigning it its own cache line may
     enhance performance. *)
-(* CR ocaml 5 all-runtime5 *)
-(* val make_contended : 'a -> 'a t *)
+val make_contended : 'a -> 'a t
 
 (** Get the current value of the atomic reference. *)
 val get : 'a t -> 'a
