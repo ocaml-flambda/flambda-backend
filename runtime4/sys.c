@@ -253,6 +253,25 @@ CAMLprim value caml_sys_close(value fd_v)
   return Val_unit;
 }
 
+static int caml_sys_file_mode(value name)
+{
+#ifdef _WIN32
+  struct _stati64 st;
+#else
+  struct stat st;
+#endif
+  char_os * p;
+  int ret;
+
+  if (! caml_string_is_c_safe(name)) { errno = ENOENT; return -1; }
+  p = caml_stat_strdup_to_os(String_val(name));
+  caml_enter_blocking_section();
+  ret = stat_os(p, &st);
+  caml_leave_blocking_section();
+  caml_stat_free(p);
+  if (ret == -1) return -1; else return st.st_mode;
+}
+
 CAMLprim value caml_sys_file_exists(value name)
 {
 #ifdef _WIN32
@@ -296,6 +315,18 @@ CAMLprim value caml_sys_is_directory(value name)
   CAMLreturn(Val_bool(S_ISDIR(st.st_mode)));
 #else
   CAMLreturn(Val_bool(st.st_mode & S_IFDIR));
+#endif
+}
+
+CAMLprim value caml_sys_is_regular_file(value name)
+{
+  CAMLparam1(name);
+  int mode = caml_sys_file_mode(name);
+  if (mode == -1) caml_sys_error(name);
+#ifdef S_ISREG
+  CAMLreturn(Val_bool(S_ISREG(mode)));
+#else
+  CAMLreturn(Val_bool(mode & S_IFREG));
 #endif
 }
 
