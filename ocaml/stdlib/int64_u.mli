@@ -231,7 +231,7 @@ type t = int64#
 val compare: t -> t -> int
 (** The comparison function for unboxed 64-bit integers, with the same
     specification as {!Stdlib.compare}. *)
-(* CR layouts XXX ASZ: Restore the below comment when we have an appropriate
+(* CR layouts v2.1: Restore the below comment when we have an appropriate
    functor *)
 (* Along with the type [t], this function [compare]
     allows the module [Int64_u] to be passed as argument to the functors

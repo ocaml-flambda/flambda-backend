@@ -29,7 +29,7 @@ open! Stdlib
    [nativeint#] are wrapping, not truncating.
 *)
 
-(* CR layouts XXX ASZ: add back this comment to the above when we support
+(* CR layouts v2.1: add back this comment to the above when we support
    literals.
 
     Literals for unboxed native integers are prefixed by # and suffixed by n:
@@ -219,7 +219,7 @@ type t = nativeint#
 val compare: t -> t -> int
 (** The comparison function for unboxed native integers, with the same
     specification as {!Stdlib.compare}. *)
-(* CR layouts XXX ASZ: Restore the below comment when we have an appropriate
+(* CR layouts v2.1: Restore the below comment when we have an appropriate
    functor *)
 (* Along with the type [t], this function [compare]
     allows the module [Nativeint_u] to be passed as argument to the functors
