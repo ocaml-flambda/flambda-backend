@@ -911,7 +911,7 @@ let best_type_path p =
     let get_path () =
       try
         get_best_path (Path.Map.find p' !printing_map) !printing_env
-      with Not_found -> p'
+      with Not_found -> rewrite_double_underscore_paths !printing_env p'
     in
     while !printing_cont <> [] &&
       fst (path_size (get_path ()) !printing_env) > !printing_depth
