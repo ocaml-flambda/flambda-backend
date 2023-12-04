@@ -404,8 +404,6 @@ val f9_3 : unit -> nativeint# t_word_id = <fun>
    for uses the typechecker should reject.  In particular
    - if using a non-value layout in an external, you must supply separate
      bytecode and native code implementations,
-   - if using a non-value layout in an external, you may not use the old-style
-     unboxed nativeint directive, and
    - unboxed types can't be unboxed more.
 *)
 
