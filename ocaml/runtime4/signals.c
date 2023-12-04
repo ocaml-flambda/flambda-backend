@@ -154,7 +154,7 @@ CAMLexport void caml_enter_blocking_section(void)
 {
   while (1){
     if (Caml_state->in_minor_collection)
-      caml_fatal_error("Thread switch from inside minor GC");
+      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
     /* Process all pending signals now */
     caml_raise_async_if_exception(caml_process_pending_signals_exn(),
                                   "signal handler");
