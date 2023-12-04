@@ -53,8 +53,6 @@ typedef struct pool {
   sizeclass sz;
 } pool;
 CAML_STATIC_ASSERT(sizeof(pool) == Bsize_wsize(POOL_HEADER_WSIZE));
-#define POOL_HEADER_SZ sizeof(pool)
-
 #define POOL_SLAB_WOFFSET(sz) (POOL_HEADER_WSIZE + wastage_sizeclass[sz])
 #define POOL_FIRST_BLOCK(p, sz) ((header_t*)(p) + POOL_SLAB_WOFFSET(sz))
 #define POOL_END(p) ((header_t*)(p) + POOL_WSIZE)
@@ -238,7 +236,7 @@ static void calc_pool_stats(pool* a, sizeclass sz, struct heap_stats* s)
   header_t* p = POOL_FIRST_BLOCK(a, sz);
   header_t* end = POOL_END(a);
   mlsize_t wh = wsize_sizeclass[sz];
-  s->pool_frag_words += Wsize_bsize(POOL_HEADER_SZ);
+  s->pool_frag_words += POOL_SLAB_WOFFSET(sz);
 
   while (p + wh <= end) {
     header_t hd = (header_t)atomic_load_relaxed((atomic_uintnat*)p);
@@ -250,8 +248,7 @@ static void calc_pool_stats(pool* a, sizeclass sz, struct heap_stats* s)
 
     p += wh;
   }
-  CAMLassert(end - p == wastage_sizeclass[sz]);
-  s->pool_frag_words += end - p;
+  CAMLassert(end == p);
   s->pool_words += POOL_WSIZE;
 }
 
@@ -283,6 +280,8 @@ Caml_inline void pool_initialize(pool* r,
     #endif
     p += wh;
   }
+  CAMLassert(p == end);
+  CAMLassert((uintptr_t)end % Cache_line_bsize == 0);
   r->next_obj = (value*)(p - wh);
 }
 
@@ -1311,7 +1310,7 @@ static void verify_pool(pool* a, sizeclass sz, struct mem_stats* s) {
     header_t* p = POOL_FIRST_BLOCK(a, sz);
     header_t* end = POOL_END(a);
     mlsize_t wh = wsize_sizeclass[sz];
-    s->overhead += Wsize_bsize(POOL_HEADER_SZ);
+    s->overhead += POOL_SLAB_WOFFSET(sz);
 
     while (p + wh <= end) {
       header_t hd = (header_t)*p;
@@ -1325,8 +1324,7 @@ static void verify_pool(pool* a, sizeclass sz, struct mem_stats* s) {
       }
       p += wh;
     }
-    CAMLassert(end - p == wastage_sizeclass[sz]);
-    s->overhead += end - p;
+    CAMLassert(end == p);
     s->alloced += POOL_WSIZE;
   }
 }
