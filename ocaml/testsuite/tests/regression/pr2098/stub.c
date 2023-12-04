@@ -1,9 +1,10 @@
 #include <caml/custom.h>
+#include <caml/signals.h>
 
 static void caml_test_finalize(value v)
 {
-  if (Caml_state_field(in_minor_collection))
-    caml_fatal_error("Thread switch from inside minor GC");
+  caml_enter_blocking_section();
+  caml_leave_blocking_section();
 }
 
 static struct custom_operations caml_test_ops = {

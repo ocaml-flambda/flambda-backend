@@ -147,6 +147,8 @@ CAMLexport void caml_enter_blocking_section(void)
 {
   caml_domain_state * domain = Caml_state;
   while (1){
+    if (Caml_state->in_minor_collection)
+      caml_fatal_error("Thread switch from inside minor GC");
     /* Process all pending signals now */
     caml_process_pending_actions();
     caml_enter_blocking_section_hook ();
