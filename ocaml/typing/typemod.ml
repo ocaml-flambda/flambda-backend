@@ -1953,7 +1953,7 @@ and transl_recmodule_modtypes env sdecls =
              md_uid }
          in
          let id_shape =
-           Option.map (fun id -> id, Shape.var ~uid:md_uid id) id
+           Option.map (fun id -> id, Shape.var md_uid id) id
          in
          (id_shape, pmd.pmd_name, md, ()))
       ids sdecls
@@ -2378,7 +2378,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
                 }
               in
               let id = Ident.create_scoped ~scope name in
-              let shape = Shape.var ~uid:md_uid id in
+              let shape = Shape.var md_uid id in
               let newenv = Env.add_module_declaration
                 ~shape ~arg:true ~check:true id Mp_present arg_md env
               in

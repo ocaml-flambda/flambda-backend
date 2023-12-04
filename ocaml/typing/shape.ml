@@ -257,8 +257,8 @@ let fresh_var ?(name="shape-var") uid =
 
 let for_unnamed_functor_param = Ident.create_local "()"
 
-let var ?uid id =
-  { uid; desc = Var id; hash = Hashtbl.hash (hash_var, uid, id) }
+let var uid id =
+  { uid = Some uid; desc = Var id; hash = Hashtbl.hash (hash_var, uid, id) }
 
 let abs ?uid var body =
   { uid; desc = Abs (var, body); hash = Hashtbl.hash (hash_abs, uid, body.hash) }
@@ -269,8 +269,10 @@ let str ?uid map =
   in
   { uid; desc = Struct map; hash = Hashtbl.hash (hash_struct, uid, h)  }
 
-let leaf ?uid () =
+let leaf' uid =
   { uid; desc = Leaf; hash = Hashtbl.hash (hash_leaf, uid) }
+
+let leaf uid = leaf' (Some uid)
 
 let proj ?uid t item =
   match t.desc with
@@ -561,7 +563,7 @@ end) = struct
   in
   match desc with
   | NVar v ->
-    var ?uid v
+    var (Option.get uid) v
   | NApp (nft, nfu) ->
       let f = read_back nft in
       let arg = read_back nfu in
@@ -575,7 +577,7 @@ end) = struct
   | NProj (nf, item) ->
       let t = read_back nf in
       proj ?uid t item
-  | NLeaf -> leaf ?uid ()
+  | NLeaf -> leaf' uid
   | NComp_unit s -> comp_unit ?uid s
   | NoFuelLeft t -> { t with uid }
 
@@ -625,7 +627,7 @@ let of_path ~find_shape ~namespace =
 let for_persistent_unit s =
   comp_unit ~uid:(Compilation_unit s) s
 
-let leaf_for_unpack = leaf ()
+let leaf_for_unpack = leaf' None
 
 let set_uid_if_none t uid =
   match t.uid with
@@ -640,12 +642,12 @@ module Map = struct
 
   let add t item shape = Item.Map.add item shape t
 
-  let add_value t id uid = Item.Map.add (Item.value id) (leaf ~uid ()) t
+  let add_value t id uid = Item.Map.add (Item.value id) (leaf uid) t
   let add_value_proj t id shape =
     let item = Item.value id in
     Item.Map.add item (proj shape item) t
 
-  let add_type t id uid = Item.Map.add (Item.type_ id) (leaf ~uid ()) t
+  let add_type t id uid = Item.Map.add (Item.type_ id) (leaf uid) t
   let add_type_proj t id shape =
     let item = Item.type_ id in
     Item.Map.add item (proj shape item) t
@@ -656,23 +658,23 @@ module Map = struct
     Item.Map.add item (proj shape item) t
 
   let add_module_type t id uid =
-    Item.Map.add (Item.module_type id) (leaf ~uid ()) t
+    Item.Map.add (Item.module_type id) (leaf uid) t
   let add_module_type_proj t id shape =
     let item = Item.module_type id in
     Item.Map.add item (proj shape item) t
 
   let add_extcons t id uid =
-    Item.Map.add (Item.extension_constructor id) (leaf ~uid ()) t
+    Item.Map.add (Item.extension_constructor id) (leaf uid) t
   let add_extcons_proj t id shape =
     let item = Item.extension_constructor id in
     Item.Map.add item (proj shape item) t
 
-  let add_class t id uid = Item.Map.add (Item.class_ id) (leaf ~uid ()) t
+  let add_class t id uid = Item.Map.add (Item.class_ id) (leaf uid) t
   let add_class_proj t id shape =
     let item = Item.class_ id in
     Item.Map.add item (proj shape item) t
 
-  let add_class_type t id uid = Item.Map.add (Item.class_type id) (leaf ~uid ()) t
+  let add_class_type t id uid = Item.Map.add (Item.class_type id) (leaf uid) t
   let add_class_type_proj t id shape =
     let item = Item.class_type id in
     Item.Map.add item (proj shape item) t
