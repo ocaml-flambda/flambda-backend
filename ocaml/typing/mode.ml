@@ -652,12 +652,10 @@ module Lattices_mono = struct
       let f' = right_adjoint (proj_obj (Product.dst sax) dst) f in
       Set (Product.flip sax, f')
 
-  include Allow_disallow (struct
+  module Allow_disallow_no_magic :
+    Allow_disallow with type ('a, 'b, 'd) t = ('a, 'b, 'd) morph = struct
     type ('a, 'b, 'd) t = ('a, 'b, 'd) morph
-  end)
 
-  module Allow_disallow_soundness :
-    Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) morph = struct
     let rec allow_left :
         type a b l r. (a, b, allowed * r) morph -> (a, b, l * r) morph =
       function
@@ -749,7 +747,7 @@ module Lattices_mono = struct
         Set (sax, f)
   end
 
-  let _ = Allow_disallow_soundness.allow_left
+  include Allow_disallow (Allow_disallow_no_magic)
 end
 
 module C = Lattices_mono
@@ -1173,12 +1171,10 @@ module Value = struct
       monadic = Monadic.max |> Monadic.allow_left |> Monadic.allow_right
     }
 
-  include Allow_disallow (struct
+  module Allow_disallow_no_magic :
+    Allow_disallow with type (_, _, 'd) t = 'd t = struct
     type nonrec (_, _, 'd) t = 'd t
-  end)
 
-  module Allow_disallow_soundness :
-    Allow_disallow with type (_, _, 'd) t := 'd t = struct
     let allow_left { monadic; comonadic } =
       let monadic = Monadic.allow_left monadic in
       let comonadic = Comonadic.allow_left comonadic in
@@ -1200,7 +1196,7 @@ module Value = struct
       { monadic; comonadic }
   end
 
-  let _ = Allow_disallow_soundness.allow_left
+  include Allow_disallow (Allow_disallow_no_magic)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
@@ -1418,12 +1414,10 @@ module Alloc = struct
 
   let max = { comonadic = Comonadic.min; monadic = Monadic.max }
 
-  include Allow_disallow (struct
+  module Allow_disallow_no_magic :
+    Allow_disallow with type (_, _, 'd) t = 'd t = struct
     type nonrec (_, _, 'd) t = 'd t
-  end)
 
-  module Allow_disallow_soundness :
-    Allow_disallow with type (_, _, 'd) t := 'd t = struct
     let allow_left { monadic; comonadic } =
       let monadic = Monadic.allow_left monadic in
       let comonadic = Comonadic.allow_left comonadic in
@@ -1445,7 +1439,7 @@ module Alloc = struct
       { monadic; comonadic }
   end
 
-  let _ = Allow_disallow_soundness.allow_left
+  include Allow_disallow (Allow_disallow_no_magic)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
