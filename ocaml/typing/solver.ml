@@ -1,6 +1,6 @@
 open Solver_intf
 
-module Allow_disallow (X : Allow_disallow) :
+module Magic_allow_disallow (X : Allow_disallow) :
   Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) X.t = struct
   let disallow_right :
       type a b l r. (a, b, l * r) X.t -> (a, b, l * disallowed) X.t =
@@ -117,8 +117,7 @@ module Solver_mono (C : Lattices_mono) = struct
            (print_morphvar ?traversed obj))
         mvs
 
-  module Allow_disallow_no_magic :
-    Allow_disallow with type ('a, _, 'd) t = ('a, 'd) mode = struct
+  include Magic_allow_disallow (struct
     type ('a, _, 'd) t = ('a, 'd) mode
 
     let rec allow_left : type a l r. (a, allowed * r) mode -> (a, l * r) mode =
@@ -164,9 +163,7 @@ module Solver_mono (C : Lattices_mono) = struct
         type a l r. (a, l * r) morphvar -> (a, l * disallowed) morphvar =
       function
       | Amorphvar (v, m) -> Amorphvar (v, C.disallow_right m)
-  end
-
-  include Allow_disallow (Allow_disallow_no_magic)
+  end)
 
   let mlower dst (Amorphvar (var, morph)) = C.apply dst morph var.lower
 

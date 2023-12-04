@@ -652,8 +652,7 @@ module Lattices_mono = struct
       let f' = right_adjoint (proj_obj (Product.dst sax) dst) f in
       Set (Product.flip sax, f')
 
-  module Allow_disallow_no_magic :
-    Allow_disallow with type ('a, 'b, 'd) t = ('a, 'b, 'd) morph = struct
+  include Magic_allow_disallow (struct
     type ('a, 'b, 'd) t = ('a, 'b, 'd) morph
 
     let rec allow_left :
@@ -745,9 +744,7 @@ module Lattices_mono = struct
       | Set (sax, f) ->
         let f = disallow_right f in
         Set (sax, f)
-  end
-
-  include Allow_disallow (Allow_disallow_no_magic)
+  end)
 end
 
 module C = Lattices_mono
@@ -1171,8 +1168,7 @@ module Value = struct
       monadic = Monadic.max |> Monadic.allow_left |> Monadic.allow_right
     }
 
-  module Allow_disallow_no_magic :
-    Allow_disallow with type (_, _, 'd) t = 'd t = struct
+  include Magic_allow_disallow (struct
     type nonrec (_, _, 'd) t = 'd t
 
     let allow_left { monadic; comonadic } =
@@ -1194,9 +1190,7 @@ module Value = struct
       let monadic = Monadic.disallow_right monadic in
       let comonadic = Comonadic.disallow_right comonadic in
       { monadic; comonadic }
-  end
-
-  include Allow_disallow (Allow_disallow_no_magic)
+  end)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in
@@ -1414,8 +1408,7 @@ module Alloc = struct
 
   let max = { comonadic = Comonadic.min; monadic = Monadic.max }
 
-  module Allow_disallow_no_magic :
-    Allow_disallow with type (_, _, 'd) t = 'd t = struct
+  include Magic_allow_disallow (struct
     type nonrec (_, _, 'd) t = 'd t
 
     let allow_left { monadic; comonadic } =
@@ -1437,9 +1430,7 @@ module Alloc = struct
       let monadic = Monadic.disallow_right monadic in
       let comonadic = Comonadic.disallow_right comonadic in
       { monadic; comonadic }
-  end
-
-  include Allow_disallow (Allow_disallow_no_magic)
+  end)
 
   let newvar () =
     let comonadic = Comonadic.newvar () in

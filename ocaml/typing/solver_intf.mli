@@ -120,7 +120,7 @@ module type S = sig
       right : 'a
     }
 
-  module Allow_disallow (X : Allow_disallow) :
+  module Magic_allow_disallow (X : Allow_disallow) :
     Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) X.t
 
   (** Solver that supports polarized lattices; needed because some morphisms
