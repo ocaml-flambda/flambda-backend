@@ -42,9 +42,9 @@ module Sort : sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
-    | Word  (** Unboxed native-size integers (no tag bit) *)
+    | Word  (** Unboxed native-size integers *)
     | Bits32  (** Unboxed 32-bit integers *)
-    | Bits64  (** Unboxed 64-bit integers (no tag bit) *)
+    | Bits64  (** Unboxed 64-bit integers *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var

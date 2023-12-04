@@ -52,7 +52,7 @@ let measure_alloc fmt f =
 (* We mark key functions [[@inline never]].  Without this, flambda2 might be
    able to eliminate all allocations in the boxed case, and it's important to
    have neither inlined for a fair comparison.  (This was the case in the
-   [float64] version of this test. *)
+   [float64] version of this test.) *)
 
 module Collatz_unboxed = struct
   open Int32_u
