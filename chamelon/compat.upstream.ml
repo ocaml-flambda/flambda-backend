@@ -44,6 +44,8 @@ type texp_match_identifier = unit
 let mkTexp_match ?id:(() = ()) (e, cases, partial) =
   Texp_match (e, cases, partial)
 
+let mkTexp_assert e _loc = Texp_assert e
+
 type matched_expression_desc =
   | Texp_ident of
       Path.t
@@ -88,6 +90,10 @@ type tpat_array_identifier = unit
 
 let mkTpat_array ?id:(() = ()) l = Tpat_array l
 
+type tpat_tuple_identifier = unit
+
+let mkTpat_tuple ?id:(() = ()) l = Tpat_tuple l
+
 type 'a matched_pattern_desc =
   | Tpat_var :
       Ident.t * string Location.loc * tpat_var_identifier
@@ -101,6 +107,9 @@ type 'a matched_pattern_desc =
   | Tpat_array :
       value general_pattern list * tpat_array_identifier
       -> value matched_pattern_desc
+  | Tpat_tuple :
+      value general_pattern list * tpat_tuple_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
@@ -108,6 +117,7 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   | Tpat_var (ident, name) -> Tpat_var (ident, name, ())
   | Tpat_alias (p, ident, name) -> Tpat_alias (p, ident, name, ())
   | Tpat_array l -> Tpat_array (l, ())
+  | Tpat_tuple l -> Tpat_tuple (l, ())
   | _ -> O p
 
 type tstr_eval_identifier = unit
@@ -163,3 +173,16 @@ let is_type_name_used desc typ_name =
   | Ttyp_alias (_, s) -> s = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
+
+let rec print_path p =
+  match (p : Path.t) with
+  | Pident id -> Ident.name id
+  | Pdot (p, s) -> print_path p ^ "." ^ s
+  | Papply (t1, t2) -> "app " ^ print_path t1 ^ " " ^ print_path t2
+
+let rec replace_id_in_path path to_rep : Path.t =
+  match (path : Path.t) with
+  | Pident _ -> Pident to_rep
+  | Papply (p1, p2) ->
+      Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
+  | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)

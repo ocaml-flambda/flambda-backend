@@ -31,7 +31,7 @@ let alloc_kind = function
   | Lambda.Alloc_local -> "[L]"
 
 let print_boxed_integer name ppf bi m =
-  fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m);;
+  fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m)
 
 let array_kind array_kind =
   let open Lambda in
@@ -108,7 +108,15 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
       fprintf ppf "%s" name
-  | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
+  | Pfield (n, layout, ptr, mut) ->
+      let instr =
+        match ptr, mut with
+        | Immediate, _ -> "field_int"
+        | Pointer, Mutable -> "field_mut"
+        | Pointer, Immutable -> "field_imm"
+        | Pointer, Immutable_unique -> "field_imm_unique"
+      in
+      fprintf ppf "%s%a %i" instr Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
       let instr =
@@ -161,6 +169,10 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
+  | Prunstack -> fprintf ppf "runstack"
+  | Pperform -> fprintf ppf "perform"
+  | Presume -> fprintf ppf "resume"
+  | Preperform -> fprintf ppf "reperform"
   | Pccall p -> fprintf ppf "%s" p.Primitive.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -195,6 +207,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
   | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
   | Pfloatcomp(cmp) -> Printlambda.float_comparison ppf cmp
+  | Punboxed_float_comp(cmp) ->
+    fprintf ppf "%a (unboxed)" Printlambda.float_comparison cmp
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"
@@ -274,6 +288,13 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer.%s" (alloc_kind m)
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_load_imm"
+        | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_exchange -> fprintf ppf "atomic_exchange"
+  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
@@ -282,3 +303,4 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
   | Pget_header m -> fprintf ppf "get_header.%s" (alloc_kind m)
+  | Pdls_get -> fprintf ppf "dls_get"

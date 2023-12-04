@@ -890,13 +890,19 @@ let rec choice ctx t =
     | Pintoffloat | Pfloatofint _
     | Pnegfloat _ | Pabsfloat _
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-    | Pfloatcomp _
+    | Pfloatcomp _ | Punboxed_float_comp _
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
     | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+
+    (* we don't handle effect or DLS primitives *)
+    | Prunstack | Pperform | Presume | Preperform | Pdls_get
+
+    (* we don't handle atomic primitives *)
+    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
     | Punbox_float | Pbox_float _
     | Punbox_int _ | Pbox_int _
 
@@ -929,11 +935,12 @@ let rec choice ctx t =
     (* more common cases... *)
     | Pbigarrayref _ | Pbigarrayset _
     | Pbigarraydim _
-    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+    | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
+    | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
+    | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-    | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+    | Pbigstring_set_64 _ | Pbigstring_set_128 _
     | Pget_header _
     | Pctconst _
     | Pbswap16
@@ -984,9 +991,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
-    let { kind; params; return; body = _; attr; loc; mode; region } = lfun in
+    let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
+    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1014,6 +1021,7 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       ~attr:lfun.attr
       ~loc:lfun.loc
       ~mode:lfun.mode
+      ~ret_mode:lfun.ret_mode
       ~region:true
   in
   let dps_var = special.dps_id in

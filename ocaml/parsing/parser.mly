@@ -96,13 +96,13 @@ let push_loc x acc =
 
 let reloc_pat ~loc x =
   { x with ppat_loc = make_loc loc;
-           ppat_loc_stack = push_loc x.ppat_loc x.ppat_loc_stack };;
+           ppat_loc_stack = push_loc x.ppat_loc x.ppat_loc_stack }
 let reloc_exp ~loc x =
   { x with pexp_loc = make_loc loc;
-           pexp_loc_stack = push_loc x.pexp_loc x.pexp_loc_stack };;
+           pexp_loc_stack = push_loc x.pexp_loc x.pexp_loc_stack }
 let reloc_typ ~loc x =
   { x with ptyp_loc = make_loc loc;
-           ptyp_loc_stack = push_loc x.ptyp_loc x.ptyp_loc_stack };;
+           ptyp_loc_stack = push_loc x.ptyp_loc x.ptyp_loc_stack }
 
 let mkexpvar ~loc (name : string) =
   mkexp ~loc (Pexp_ident(mkrhs (Lident name) loc))
@@ -205,18 +205,6 @@ let mktyp_once typ loc =
   {typ with
    ptyp_attributes = once_attr (make_loc loc) :: typ.ptyp_attributes}
 
-let wrap_exp_stack exp loc =
-  {exp with
-   pexp_attributes = local_attr (make_loc loc) :: exp.pexp_attributes}
-
-let wrap_exp_unique exp loc =
-  {exp with
-   pexp_attributes = unique_attr (make_loc loc) :: exp.pexp_attributes}
-
-let wrap_exp_once exp loc =
-  {exp with
-   pexp_attributes = once_attr (make_loc loc) :: exp.pexp_attributes}
-
 type mode_annotation = N_ary.mode_annotation =
   | Local
   | Unique
@@ -262,13 +250,17 @@ let mktyp_with_mode = function
 let mktyp_with_modes flags typ =
   List.fold_left (fun typ (flag, loc) -> mktyp_with_mode flag typ loc) typ flags
 
-let wrap_exp_with_mode = function
-  | Local -> wrap_exp_stack
-  | Unique -> wrap_exp_unique
-  | Once -> wrap_exp_once
-
-let wrap_exp_with_modes flags exp =
-  List.fold_left (fun exp (flag, loc) -> wrap_exp_with_mode flag exp loc) exp flags
+let let_binding_mode_attrs mode_annots =
+  List.map
+    (fun (annot, loc) ->
+       let mk_attr =
+         match annot with
+         | Local -> local_attr
+         | Unique -> unique_attr
+         | Once -> once_attr
+       in
+       mk_attr (make_loc loc))
+    mode_annots
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -448,6 +440,30 @@ let expecting_loc (loc : Location.t) (nonterm : string) =
 let expecting (loc : Lexing.position * Lexing.position) nonterm =
      expecting_loc (make_loc loc) nonterm
 
+let removed_string_set loc =
+  raise(Syntaxerr.Error(Syntaxerr.Removed_string_set(make_loc loc)))
+
+let ppat_lttuple loc elts closed =
+  Jane_syntax.Labeled_tuples.pat_of
+    ~loc:(make_loc loc)
+    (Ltpat_tuple (elts, closed))
+
+let ptyp_lttuple loc tl =
+  Jane_syntax.Labeled_tuples.typ_of
+    ~loc:(make_loc loc)
+    (Lttyp_tuple tl)
+
+let mktyp_tuple loc ltys =
+  if List.for_all (fun (lbl, _) -> Option.is_none lbl) ltys then
+    mktyp ~loc (Ptyp_tuple (List.map snd ltys))
+  else
+    ptyp_lttuple loc ltys
+
+let pexp_lttuple loc args =
+  Jane_syntax.Labeled_tuples.expr_of
+    ~loc:(make_loc loc)
+    (Ltexp_tuple args)
+
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
    idiom is used in a few places to produce ad hoc syntax error messages. *)
@@ -527,7 +543,9 @@ let builtin_arraylike_name loc _ ~assign paren_kind n =
   let opname = if !Clflags.unsafe then "unsafe_" ^ opname else opname in
   let prefix = match paren_kind with
     | Paren -> Lident "Array"
-    | Bracket -> Lident "String"
+    | Bracket ->
+        if assign then removed_string_set loc
+        else Lident "String"
     | Brace ->
        let submodule_name = match n with
          | One -> "Array1"
@@ -631,7 +649,10 @@ let mk_newtypes ~loc newtypes exp =
   in
   List.fold_right mk_one newtypes exp
 
-let wrap_type_annotation ~loc newtypes core_type body =
+(* The [typloc] argument is used to adjust a location for something we're
+   parsing a bit differently than upstream.  See comment about [Pvc_constraint]
+   in [let_binding_body_no_punning]. *)
+let wrap_type_annotation ~loc ?(typloc=loc) newtypes core_type body =
   let mk_newtypes = mk_newtypes ~loc in
   let exp = mkexp ~loc (Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
@@ -641,7 +662,7 @@ let wrap_type_annotation ~loc newtypes core_type body =
   in
   (exp,
      Jane_syntax.Layouts.type_of
-       ~loc:(Location.ghostify (make_loc loc)) ltyp)
+       ~loc:(Location.ghostify (make_loc typloc)) ltyp)
 
 let wrap_exp_attrs ~loc body (ext, attrs) =
   let ghexp = ghexp ~loc in
@@ -733,6 +754,7 @@ let extra_rhs_core_type ct ~pos =
 type let_binding =
   { lb_pattern: pattern;
     lb_expression: expression;
+    lb_constraint: value_constraint option;
     lb_is_pun: bool;
     lb_attributes: attributes;
     lb_docs: docs Lazy.t;
@@ -744,10 +766,11 @@ type let_bindings =
     lbs_rec: rec_flag;
     lbs_extension: string Asttypes.loc option }
 
-let mklb first ~loc (p, e, is_pun) attrs =
+let mklb first ~loc (p, e, typ, is_pun) attrs =
   {
     lb_pattern = p;
     lb_expression = e;
+    lb_constraint=typ;
     lb_is_pun = is_pun;
     lb_attributes = attrs;
     lb_docs = symbol_docs_lazy loc;
@@ -775,7 +798,7 @@ let val_of_let_bindings ~loc lbs =
          Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
            ~docs:(Lazy.force lb.lb_docs)
            ~text:(Lazy.force lb.lb_text)
-           lb.lb_pattern lb.lb_expression)
+           ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
   let str = mkstr ~loc (Pstr_value(lbs.lbs_rec, List.rev bindings)) in
@@ -788,7 +811,7 @@ let expr_of_let_bindings ~loc lbs body =
     List.map
       (fun lb ->
          Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
-           lb.lb_pattern lb.lb_expression)
+          ?value_constraint:lb.lb_constraint  lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
     mkexp_attrs ~loc (Pexp_let(lbs.lbs_rec, List.rev bindings, body))
@@ -799,7 +822,7 @@ let class_of_let_bindings ~loc lbs body =
     List.map
       (fun lb ->
          Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
-           lb.lb_pattern lb.lb_expression)
+          ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
     (* Our use of let_bindings(no_ext) guarantees the following: *)
@@ -912,16 +935,6 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
-let check_jkind ~loc id : const_jkind =
-  match id with
-  | "any" -> Any
-  | "value" -> Value
-  | "void" -> Void
-  | "immediate64" -> Immediate64
-  | "immediate" -> Immediate
-  | "float64" -> Float64
-  | _ -> expecting_loc loc "layout"
-
 (* Unboxed literals *)
 
 (* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
@@ -949,7 +962,7 @@ end = struct
 
   let assert_unboxed_literals ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
   let unboxed ~loc x =
     assert_unboxed_literals ~loc:(make_loc loc);
@@ -994,7 +1007,7 @@ let unboxed_float sloc sign (f, m) =
 
 let assert_unboxed_float_type ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Stable)
 
 let unboxed_float_type sloc tys =
   assert_unboxed_float_type ~loc:(make_loc sloc);
@@ -1188,7 +1201,7 @@ The precedences must be listed from low to high.
 %nonassoc AS
 %left     BAR                           /* pattern (p|p|p) */
 %nonassoc below_COMMA
-%left     COMMA                         /* expr/expr_comma_list (e,e,e) */
+%left     COMMA                         /* expr/labeled_tuple (e,e,e) */
 %nonassoc below_FUNCTOR                 /* include M */
 %nonassoc FUNCTOR                       /* include functor M */
 %right    MINUSGREATER                  /* function_type (t -> t -> t) */
@@ -1712,6 +1725,8 @@ module_expr:
       { mkmod ~loc:$sloc ~attrs (Pmod_structure s) }
   | STRUCT attributes structure error
       { unclosed "struct" $loc($1) "end" $loc($4) }
+  | SIG error
+      { expecting $loc($1) "struct" }
   | FUNCTOR attrs = attributes args = functor_args MINUSGREATER me = module_expr
       { wrap_mod_attrs ~loc:$sloc attrs (
           List.fold_left (fun acc (startpos, arg) ->
@@ -1729,10 +1744,9 @@ module_expr:
     | (* In a functor application, the actual argument must be parenthesized. *)
       me1 = module_expr me2 = paren_module_expr
         { Pmod_apply(me1, me2) }
-    | (* Application to unit is sugar for application to an empty structure. *)
-      me1 = module_expr LPAREN RPAREN
-        { (* TODO review mkmod location *)
-          Pmod_apply(me1, mkmod ~loc:$sloc (Pmod_structure [])) }
+    | (* Functor applied to unit. *)
+      me = module_expr LPAREN RPAREN
+        { Pmod_apply_unit me }
     | (* An extension. *)
       ex = extension
         { Pmod_extension ex }
@@ -1880,6 +1894,8 @@ structure_item:
 module_binding_body:
     EQUAL me = module_expr
       { me }
+  | COLON error
+      { expecting $loc($1) "=" }
   | mkmod(
       COLON mty = module_type EQUAL me = module_expr
         { Pmod_constraint(me, mty) }
@@ -2022,6 +2038,8 @@ module_type:
       { mkmty ~loc:$sloc ~attrs (Pmty_signature s) }
   | SIG attributes signature error
       { unclosed "sig" $loc($1) "end" $loc($4) }
+  | STRUCT error
+      { expecting $loc($1) "sig" }
   | FUNCTOR attrs = attributes args = functor_args
     MINUSGREATER mty = module_type
       %prec below_WITH
@@ -2041,6 +2059,8 @@ module_type:
   | mkmty(
       mkrhs(mty_longident)
         { Pmty_ident $1 }
+    | LPAREN RPAREN MINUSGREATER module_type
+        { Pmty_functor(Unit, $4) }
     | module_type MINUSGREATER module_type
         %prec below_WITH
         { Pmty_functor(Named (mknoloc None, $1), $3) }
@@ -2145,6 +2165,8 @@ signature_item:
 module_declaration_body:
     COLON mty = module_type
       { mty }
+  | EQUAL error
+      { expecting $loc($1) ":" }
   | mkmty(
       arg_and_pos = functor_arg body = module_declaration_body
         { let (_, arg) = arg_and_pos in
@@ -2772,7 +2794,7 @@ fun_expr:
         in
         mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2
       }
-  | mkexp(expr_)
+  | expr_
       { $1 }
   | let_bindings(ext) IN seq_expr
       { expr_of_let_bindings ~loc:$sloc $1 $3 }
@@ -2825,11 +2847,11 @@ fun_expr:
       { Pexp_ifthenelse($3, $5, Some $7), $2 }
   | IF ext_attributes seq_expr THEN expr
       { Pexp_ifthenelse($3, $5, None), $2 }
-  | WHILE ext_attributes seq_expr DO seq_expr DONE
-      { Pexp_while($3, $5), $2 }
-  | FOR ext_attributes pattern EQUAL seq_expr direction_flag seq_expr DO
-    seq_expr DONE
-      { Pexp_for($3, $5, $7, $6, $9), $2 }
+  | WHILE ext_attributes seq_expr do_done_expr
+      { Pexp_while($3, $4), $2 }
+  | FOR ext_attributes pattern EQUAL seq_expr direction_flag seq_expr
+    do_done_expr
+      { Pexp_for($3, $5, $7, $6, $8), $2 }
   | ASSERT ext_attributes simple_expr %prec below_HASH
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH
@@ -2841,17 +2863,27 @@ fun_expr:
       { let desc, attrs = mkuplus ~oploc:$loc($1) $1 $2 in
         desc, (None, attrs) }
 ;
+%inline do_done_expr:
+  | DO e = seq_expr DONE
+      { e }
+  | DO seq_expr error
+      { unclosed "do" $loc($1) "done" $loc($2) }
+;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
-      { Pexp_apply($1, $2) }
-  | expr_comma_list %prec below_COMMA
-      { Pexp_tuple($1) }
+      { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
+  | labeled_tuple %prec below_COMMA
+      { if List.for_all (fun (l,_) -> Option.is_none l) $1 then
+          mkexp ~loc:$sloc (Pexp_tuple (List.map snd $1))
+        else
+          pexp_lttuple $sloc $1
+      }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
-      { Pexp_construct($1, Some $2) }
+      { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
   | name_tag simple_expr %prec below_HASH
-      { Pexp_variant($1, Some $2) }
+      { mkexp ~loc:$sloc (Pexp_variant($1, Some $2)) }
   | e1 = fun_expr op = op(infix_operator) e2 = expr
-      { mkinfix e1 op e2 }
+      { mkexp ~loc:$sloc (mkinfix e1 op e2) }
 ;
 
 simple_expr:
@@ -3103,59 +3135,66 @@ labeled_simple_expr:
 ;
 let_binding_body_no_punning:
     let_ident strict_binding
-      { ($1, $2) }
+      { ($1, $2, None, []) }
   | mode_flags let_ident type_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
         let t =
           match $3 with
-          | N_ary.Pconstraint t -> t
-          | N_ary.Pcoerce (_, t) -> t
+          | N_ary.Pconstraint t ->
+             Pvc_constraint { locally_abstract_univars = []; typ=t }
+          | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
         in
-        let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
-        let typ = ghtyp ~loc (Ptyp_poly([],t)) in
-        let patloc = ($startpos($2), $endpos($3)) in
-        let pat =
-          mkpat_with_modes $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
-        in
-        let exp =
-          ghexp_with_modes $sloc $1
-            (wrap_exp_with_modes $1 (mkexp_constraint ~loc:$sloc $5 $3))
-        in
-        (pat, exp) }
+        let exp = ghexp_with_modes $sloc $1 $5 in
+        (v, exp, Some t, let_binding_mode_attrs $1)
+      }
   | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
-      { let patloc = ($startpos($2), $endpos($4)) in
-        let bound_vars, inner_type = $4 in
+      { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
         let typ_loc = Location.ghostify (make_loc $loc($4)) in
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let pat =
-          mkpat_with_modes $1
-            (ghpat ~loc:patloc
-               (Ppat_constraint($2, typ)))
-        in
         let exp = ghexp_with_modes $sloc $1 $6 in
-        (pat, exp) }
+        ($2, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
+         let_binding_mode_attrs $1)
+      }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
+      (* The code upstream looks like:
+         {[
+           let constraint' =
+             Pvc_constraint { locally_abstract_univars=$4; typ = $6}
+           in
+           ($1, $8, Some constraint')
+         ]}
+
+         But this would require encoding [newtypes] (which, internally, may
+         associate a layout with a newtype) in Jane Syntax, which will require
+         a small amount of work.
+
+         The [typloc] argument to [wrap_type_annotation] is used to make the
+         location on the [core_type] node for the annotation match the upstream
+         version, even though we are creating a slightly different [core_type].
+      *)
       { let exp, poly =
-          wrap_type_annotation ~loc:$sloc $4 $6 $8 in
+          wrap_type_annotation ~loc:$sloc ~typloc:$loc($6) $4 $6 $8
+        in
         let loc = ($startpos($1), $endpos($6)) in
-        (ghpat ~loc (Ppat_constraint($1, poly)), exp) }
+        (ghpat ~loc (Ppat_constraint($1, poly)), exp, None, [])
+       }
   | pattern_no_exn EQUAL seq_expr
-      { ($1, $3) }
+      { ($1, $3, None, []) }
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
-      { let loc = ($startpos($1), $endpos($3)) in
-        (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
+      { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 }), []) }
   | mode_flag+ let_ident strict_binding_modes
-    { ($2, ghexp_with_modes $sloc $1 ($3 $1)) }
+      { ($2, ghexp_with_modes $sloc $1 ($3 $1), None,
+         let_binding_mode_attrs $1) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
-      { let p,e = $1 in (p,e,false) }
+      { let p,e,c,attrs = $1 in (p,e,c,false), attrs }
 /* BEGIN AVOID */
   | val_ident %prec below_HASH
-      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, true) }
+      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true), [] }
   (* The production that allows puns is marked so that [make list-parse-errors]
      does not attempt to exploit it. That would be problematic because it
      would then generate bindings such as [let x], which are rejected by the
@@ -3173,20 +3212,22 @@ let_bindings(EXT):
   ext = EXT
   attrs1 = attributes
   rec_flag = rec_flag
-  body = let_binding_body
-  attrs2 = post_item_attributes
+  body_with_attrs2 = let_binding_body
+  attrs3 = post_item_attributes
     {
-      let attrs = attrs1 @ attrs2 in
+      let body, attrs2 = body_with_attrs2 in
+      let attrs = attrs1 @ attrs2 @ attrs3 in
       mklbs ext rec_flag (mklb ~loc:$sloc true body attrs)
     }
 ;
 and_let_binding:
   AND
   attrs1 = attributes
-  body = let_binding_body
-  attrs2 = post_item_attributes
+  body_with_attrs2 = let_binding_body
+  attrs3 = post_item_attributes
     {
-      let attrs = attrs1 @ attrs2 in
+      let body, attrs2 = body_with_attrs2 in
+      let attrs = attrs1 @ attrs2 @ attrs3 in
       mklb ~loc:$sloc false body attrs
     }
 ;
@@ -3295,10 +3336,87 @@ fun_param_as_list:
 ;
 fun_params:
   | nonempty_concat(fun_param_as_list) { $1 }
-%inline expr_comma_list:
-  es = separated_nontrivial_llist(COMMA, expr)
-    { es }
 ;
+
+(* Parsing labeled tuple expressions
+
+   The grammar we want to parse is something like:
+
+     labeled_tuple_element := expr | ~x:expr | ~x | ~(x:ty)
+     labeled_tuple := lt_element [, lt_element]+
+
+   (The last case of [labeled_tuple_element] is a punned label with a type
+   constraint, which is allowed for functions, so we allow it here).
+
+   So you might think [labeled_tuple] could therefore just be:
+
+     labeled_tuple :
+       separated_nontrivial_llist(COMMA, labeled_tuple_element)
+
+   But this doesn't work:
+
+   - If we don't mark [labeled_tuple_element] %inline, this causes many
+     reduce/reduce conflicts (basically just ambiguities) because
+     [labeled_tuple_element] trivially reduces to [expr].
+
+   - If we do mark [labeled_tuple_element] %inline, it is not allowed to have
+     %prec annotations.  Menhir doesn't permit these on %inline non-terminals
+     that are used in non-tail position.
+
+   To get around this, we do mark it inlined, and then because we can only use
+   it in tail position it is _manually_ inlined into the occurrences in
+   [separated_nontrivial_llist] where it doesn't appear in tail position.  This
+   results in [labeled_tuple] and [reversed_labeled_tuple_body] below.  So the
+   latter is just a list of comma-separated labeled tuple elements, with length
+   at least two, where the first element in the base case is inlined (resulting
+   in one base case for each case of [labeled_tuple_element].  *)
+%inline labeled_tuple_element :
+  | expr
+     { None, $1 }
+  | LABEL simple_expr %prec below_HASH
+     { Some $1, $2 }
+  | TILDE label = LIDENT
+     { let loc = $loc(label) in
+       Some label, mkexpvar ~loc label }
+  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN %prec below_HASH
+      { Some label,
+        mkexp_constraint
+          ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
+;
+reversed_labeled_tuple_body:
+  (* > 2 elements *)
+  xs = reversed_labeled_tuple_body
+  COMMA
+  x = labeled_tuple_element
+    { x :: xs }
+  (* base cases (2 elements) *)
+| x1 = expr
+  COMMA
+  x2 = labeled_tuple_element
+    { [ x2; None, x1 ] }
+| l1 = LABEL x1 = simple_expr
+  COMMA
+  x2 = labeled_tuple_element
+    { [ x2; Some l1, x1 ] }
+| TILDE l1 = LIDENT
+  COMMA
+  x2 = labeled_tuple_element
+  { let loc = $loc(l1) in
+    [ x2; Some l1, mkexpvar ~loc l1] }
+| TILDE LPAREN l1 = LIDENT ty1 = type_constraint RPAREN
+  COMMA
+  x2 = labeled_tuple_element
+  { let x1 =
+      mkexp_constraint
+        ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(l1) l1) ty1
+    in
+    [ x2; Some l1, x1] }
+;
+%inline labeled_tuple:
+  xs = rev(reversed_labeled_tuple_body)
+    { xs }
+;
+
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
   fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
@@ -3403,8 +3521,6 @@ pattern_no_exn:
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
-    | pattern_comma_list(self) %prec below_COMMA
-        { Ppat_tuple(List.rev $1) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
     | self BAR pattern
@@ -3412,7 +3528,70 @@ pattern_no_exn:
     | self BAR error
         { expecting $loc($3) "pattern" }
   ) { $1 }
+  | reversed_labeled_tuple_pattern(self)
+      { let closed, pats = $1 in
+        if    closed = Closed
+           && List.for_all (fun (l,_) -> Option.is_none l) pats
+        then
+          mkpat ~loc:$sloc (Ppat_tuple(List.rev_map snd pats))
+        else
+          ppat_lttuple $sloc (List.rev pats) closed
+      }
 ;
+
+(* Parsing labeled tuple patterns
+
+   Here we play essentially the same game we did for expressions - see the
+   comment beginning "Parsing labeled tuple expressions".
+
+   One difference is that we would need to manually inline the definition of
+   individual elements in two places: Once in the base case for lists 2 or more
+   elements, and once in the special case for open patterns with just one
+   element (e.g., [~x, ..]).  Rather than manually inlining
+   [labeled_tuple_pat_element] twice, we simply define it twice: once with the
+   [%prec] annotations needed for its occurrences in tail position, and once
+   without them suitable for use in other locations.
+*)
+%inline labeled_tuple_pat_element(self):
+  | self { None, $1 }
+  | LABEL simple_pattern %prec COMMA
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN %prec COMMA
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+
+%inline labeled_tuple_pat_element_noprec(self):
+  | self { None, $1 }
+  | LABEL simple_pattern
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+
+labeled_tuple_pat_element_list(self):
+  | labeled_tuple_pat_element_list(self) COMMA labeled_tuple_pat_element(self)
+      { $3 :: $1 }
+  | labeled_tuple_pat_element_noprec(self) COMMA labeled_tuple_pat_element(self)
+      { [ $3; $1 ] }
+  | self COMMA error
+      { expecting $loc($3) "pattern" }
+;
+
+reversed_labeled_tuple_pattern(self):
+  | labeled_tuple_pat_element_list(self) %prec below_COMMA
+      { Closed, $1 }
+  | labeled_tuple_pat_element_list(self) COMMA DOTDOT
+      { Open, $1 }
+  | labeled_tuple_pat_element_noprec(self) COMMA DOTDOT
+      { Open, [ $1 ] }
 
 pattern_gen:
     simple_pattern
@@ -3514,11 +3693,6 @@ simple_delimited_pattern:
           $1
       }
 
-pattern_comma_list(self):
-    pattern_comma_list(self) COMMA pattern      { $3 :: $1 }
-  | self COMMA pattern                          { [$3; $1] }
-  | self COMMA error                            { expecting $loc($3) "pattern" }
-;
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
     { ps }
@@ -3629,7 +3803,7 @@ generic_type_declaration(flag, kind):
   flag = flag
   params = type_parameters
   id = mkrhs(LIDENT)
-  jkind = jkind_attr?
+  jkind = jkind_constraint?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3639,7 +3813,8 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       (flag, ext),
-      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
+      Jane_syntax.Layouts.type_declaration_of
+        id ~params ~cstrs ~kind ~priv ~manifest ~attrs ~loc ~docs ~text:None ~jkind
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3647,7 +3822,7 @@ generic_type_declaration(flag, kind):
   attrs1 = attributes
   params = type_parameters
   id = mkrhs(LIDENT)
-  jkind = jkind_attr?
+  jkind = jkind_constraint?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3657,7 +3832,8 @@ generic_type_declaration(flag, kind):
       let attrs = attrs1 @ attrs2 in
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
-      Type.mk id ~params ?jkind ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
+      Jane_syntax.Layouts.type_declaration_of
+        id ~params ~jkind ~cstrs ~kind ~priv ~manifest ~attrs ~loc ~docs ~text:(Some text)
     }
 ;
 %inline constraints:
@@ -3711,21 +3887,11 @@ type_parameters:
 ;
 
 jkind_annotation: (* : jkind_annotation *)
-  ident { let loc = make_loc $sloc in
-          mkloc (check_jkind ~loc $1) loc }
+  ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
 ;
 
-jkind_string: (* : string with_loc *)
-  (* the [check_jkind] just ensures this is the name of a jkind *)
-  ident { let loc = make_loc $sloc in
-          ignore (check_jkind ~loc $1 : const_jkind);
-          mkloc $1 loc }
-;
-
-jkind_attr:
-  COLON
-  jkind=jkind_string
-    { Attr.mk ~loc:jkind.loc jkind (PStr []) }
+jkind_constraint:
+  COLON jkind_annotation { $2 }
 ;
 
 %inline type_param_with_jkind:
@@ -4093,17 +4259,17 @@ function_type:
   | ty = tuple_type
     %prec MINUSGREATER
       { ty }
-  | ty = strict_function_type
+  | ty = strict_function_or_labeled_tuple_type
       { ty }
 ;
 
-strict_function_type:
+strict_function_or_labeled_tuple_type:
   | mktyp(
       label = arg_label
       unique_local = mode_flags
       domain = extra_rhs(param_type)
       MINUSGREATER
-      codomain = strict_function_type
+      codomain = strict_function_or_labeled_tuple_type
         { Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
     )
     { $1 }
@@ -4120,12 +4286,65 @@ strict_function_type:
             mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain))) }
     )
     { $1 }
+  (* These next three cases are for labled tuples - see comment on [tuple_type]
+     below.
+
+     The first two cases are present just to resolve a shift reduce conflict
+     in a module type [S with t := x:t1 * t2 -> ...] which might be the
+     beginning of
+       [S with t := x:t1 * t2 -> S']    or    [S with t := x:t1 * t2 -> t3]
+     They are the same as the previous two cases, but with [arg_label] replaced
+     with the more specific [LIDENT COLON] and [param_type] replaced with the
+     more specific [proper_tuple_type].  Apparently, this is sufficient for
+     menhir to be able to delay a decision about which of the above module type
+     cases we are in.  *)
+  | mktyp(
+      label = LIDENT COLON
+      unique_local = mode_flags
+      tuple = proper_tuple_type
+      MINUSGREATER
+      codomain = strict_function_or_labeled_tuple_type
+         {
+           let ty, ltys = tuple in
+           let label = Labelled label in
+           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
+           let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
+           Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
+    )
+    { $1 }
+  | mktyp(
+      label = LIDENT COLON
+      arg_unique_local = mode_flags
+      tuple = proper_tuple_type
+      MINUSGREATER
+      ret_unique_local = mode_flags
+      codomain = tuple_type
+         { let ty, ltys = tuple in
+           let label = Labelled label in
+           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
+           let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
+           Ptyp_arrow(label,
+            mktyp_with_modes arg_unique_local domain ,
+            mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain)))
+         }
+    )
+    { $1 }
+  | label = LIDENT COLON proper_tuple_type %prec MINUSGREATER
+    { let ty, ltys = $3 in
+      ptyp_lttuple $sloc ((Some label, ty) :: ltys)
+    }
 ;
-%inline arg_label:
+
+%inline strict_arg_label:
   | label = optlabel
       { Optional label }
   | label = LIDENT COLON
       { Labelled label }
+;
+
+%inline arg_label:
+  | strict_arg_label
+      { $1 }
   | /* empty */
       { Nolabel }
 ;
@@ -4150,21 +4369,40 @@ strict_function_type:
   | ty = tuple_type
     { ty }
 ;
+
 (* Tuple types include:
    - atomic types (see below);
    - proper tuple types:                  int * int * int list
    A proper tuple type is a star-separated list of at least two atomic types.
- *)
+   Tuple components can also be labeled, as an [int * int list * y:bool].
+
+   However, the special case of labeled tuples where the first element has a
+   label is not parsed as a proper_tuple_type, but rather as a case of
+   strict_function_or_labled_tuple_type above.  This helps in dealing with
+   ambiguities around [x:t1 * t2 -> t3] which must continue to parse as a
+   function with one labeled argument even in the presense of labled tuples.
+*)
 tuple_type:
   | ty = atomic_type
     %prec below_HASH
       { ty }
-  | mktyp(
-      tys = separated_nontrivial_llist(STAR, atomic_type)
-        { Ptyp_tuple tys }
-    )
-    { $1 }
+  | proper_tuple_type %prec below_FUNCTOR
+    { let ty, ltys = $1 in
+      mktyp_tuple $sloc ((None, ty) :: ltys)
+    }
 ;
+
+%inline proper_tuple_type:
+  | ty = atomic_type
+    STAR
+    ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
+      { ty, ltys }
+
+%inline labeled_tuple_typ_element :
+  | atomic_type %prec STAR
+     { None, $1 }
+  | label = LIDENT COLON ty = atomic_type %prec STAR
+     { Some label, ty }
 
 (* Atomic types are the most basic level in the syntax of types.
    Atomic types include:

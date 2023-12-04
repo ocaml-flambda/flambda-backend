@@ -19,11 +19,13 @@ open Clflags
 module Options = Main_args.Make_bytecomp_options (Main_args.Default.Main)
 
 let main argv ppf =
+  Symbol.this_is_ocamlc ();
   let program = "ocamlc" in
   Clflags.add_arguments __LOC__ Options.list;
   Clflags.add_arguments __LOC__
     ["-depend", Arg.Unit Makedepend.main_from_option,
      "<options> Compute dependencies (use 'ocamlc -depend -help' for details)"];
+  let exception Continue in
   match
     Compenv.readenv ppf Before_args;
     Compenv.parse_arguments (ref argv) Compenv.anonymous program;
@@ -44,6 +46,8 @@ let main argv ppf =
         exit 2
       end
     end;
+    if Clflags.(should_stop_after Compiler_pass.Lambda)
+      then raise Continue;
     Compenv.readenv ppf Before_link;
     if
       List.length
@@ -56,7 +60,7 @@ let main argv ppf =
       | None ->
           Compenv.fatal
             "Please specify at most one of -pack, -a, -c, -output-obj";
-      | Some ((P.Parsing | P.Typing) as p) ->
+      | Some ((P.Parsing | P.Typing | P.Lambda) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
@@ -107,10 +111,12 @@ let main argv ppf =
   with
   | exception (Compenv.Exit_with_status n) ->
     n
+  | exception Continue
+  | () ->
+    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
+      (fun ppf -> Profile.print ppf !Clflags.profile_columns
+        ~timings_precision:!Clflags.timings_precision);
+    0
   | exception x ->
     Location.report_exception ppf x;
     2
-  | () ->
-    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
-      (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
-    0

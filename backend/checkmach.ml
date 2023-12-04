@@ -62,7 +62,7 @@ module Witness = struct
   let print_kind ppf kind =
     let open Format in
     match kind with
-    | Alloc { bytes; dbginfo = _ } -> fprintf ppf "allocate %d bytes" bytes
+    | Alloc { bytes; dbginfo = _ } -> fprintf ppf "allocation of %d bytes" bytes
     | Indirect_call -> fprintf ppf "indirect call"
     | Indirect_tailcall -> fprintf ppf "indirect tailcall"
     | Direct_call { callee } -> fprintf ppf "direct call %s" callee
@@ -86,41 +86,6 @@ module Witness = struct
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
-
-  let print_error component t : Location.msg list =
-    let mkloc pp dbg suffix =
-      let loc = Debuginfo.to_location dbg in
-      Location.mkloc
-        (fun ppf ->
-          pp ppf;
-          (* Show inlined locations. If dbg has only one item, it will already
-             be shown as [loc]. *)
-          if Debuginfo.Dbg.length (Debuginfo.get_dbg t.dbg) > 1
-          then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
-          if not (String.equal "" component)
-          then Format.fprintf ppf " on a path to %s" component;
-          Format.fprintf ppf "%s" suffix)
-        loc
-    in
-    let pp_kind ppf = print_kind ppf t.kind in
-    match get_alloc_dbginfo t.kind with
-    | None | Some [] | Some [_] -> [mkloc pp_kind t.dbg ""]
-    | Some alloc_dbginfo ->
-      (* One Ialloc is a result of comballoc, print details of each location. *)
-      let suffix =
-        Printf.sprintf " combining %d allocations below"
-          (List.length alloc_dbginfo)
-      in
-      let details =
-        List.map
-          (fun (item : Debuginfo.alloc_dbginfo_item) ->
-            let pp_alloc ppf =
-              Format.fprintf ppf "allocate %d words" item.alloc_words
-            in
-            mkloc pp_alloc item.alloc_dbg "")
-          alloc_dbginfo
-      in
-      mkloc pp_kind t.dbg suffix :: details
 end
 
 module Witnesses : sig
@@ -372,16 +337,7 @@ module Annotation : sig
 
   val is_assume : t -> bool
 
-  val report_error : exn -> Location.error option
-
-  exception
-    Invalid of
-      { a : t;
-        fun_name : string;
-        fun_dbg : Debuginfo.t;
-        property : Cmm.property;
-        witnesses : Witnesses.components
-      }
+  val is_strict : t -> bool
 end = struct
   (**
    ***************************************************************************
@@ -415,6 +371,8 @@ end = struct
     if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
+
+  let is_strict t = t.strict
 
   let find codegen_options spec fun_name dbg =
     let ignore_assert_all = ref false in
@@ -450,61 +408,143 @@ end = struct
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
+end
 
-  exception
-    Invalid of
-      { a : t;
-        fun_name : string;
-        fun_dbg : Debuginfo.t;
-        property : Cmm.property;
-        witnesses : Witnesses.components
-      }
+module Report : sig
+  type t =
+    { a : Annotation.t;
+      fun_name : string;
+      fun_dbg : Debuginfo.t;
+      witnesses : Witnesses.components
+    }
 
-  let print_error ppf t ~fun_name ~fun_dbg ~property =
-    Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
-      (Printcmm.property_to_string property)
-      (if t.strict then " strict" else "")
-      (fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
-      |> List.map (fun dbg ->
-             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
-      |> String.concat ",")
-      fun_name
+  exception Fail of t list * Cmm.property
 
-  let print_witnesses w : Location.msg list =
-    let { Witnesses.nor; exn; div } = Witnesses.simplify w in
-    let f t component =
-      t |> Witnesses.elements
-      |> List.map (Witness.print_error component)
-      |> List.concat
+  val print : exn -> Location.error option
+end = struct
+  type t =
+    { a : Annotation.t;
+      fun_name : string;
+      fun_dbg : Debuginfo.t;
+      witnesses : Witnesses.components
+    }
+
+  exception Fail of t list * Cmm.property
+
+  let annotation_error ~property_name t =
+    (* print location of the annotation, print function name as part of the
+       message. *)
+    let loc = Annotation.get_loc t.a in
+    let print_annotated_fun ppf () =
+      let scoped_name =
+        t.fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
+        |> List.map (fun dbg ->
+               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+        |> String.concat ","
+      in
+      Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
+        property_name
+        (if Annotation.is_strict t.a then " strict" else "")
+        scoped_name t.fun_name
     in
-    let l =
+    Location.error_of_printer ~loc print_annotated_fun ()
+
+  let error_messages ~property_name t : Location.error list =
+    let pp_inlined_dbg ppf dbg =
+      (* Show inlined locations, if dbg has more than one item. The first item
+         will be shown at the start of the error message. *)
+      if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
+      then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
+    in
+    let print_comballoc (w : Witness.t) =
+      match Witness.get_alloc_dbginfo w.kind with
+      | None | Some [] | Some [_] -> "", []
+      | Some alloc_dbginfo ->
+        (* If one Ialloc is a result of combining multiple allocations, print
+           details of each location. Currently, this cannot happen because
+           checkmach is before comballoc. In the future, this may be done in the
+           middle-end. *)
+        let msg =
+          Printf.sprintf " combining %d allocations below"
+            (List.length alloc_dbginfo)
+        in
+        let details =
+          List.map
+            (fun (item : Debuginfo.alloc_dbginfo_item) ->
+              let pp_alloc ppf =
+                Format.fprintf ppf "allocate %d words%a" item.alloc_words
+                  pp_inlined_dbg item.alloc_dbg
+              in
+              let aloc = Debuginfo.to_location item.alloc_dbg in
+              Location.mkloc pp_alloc aloc)
+            alloc_dbginfo
+        in
+        msg, details
+    in
+    let print_witness (w : Witness.t) ~component =
+      (* print location of the witness, print witness description. *)
+      let loc = Debuginfo.to_location w.dbg in
+      let comballoc_msg, sub = print_comballoc w in
+      let component_msg =
+        if String.equal "" component
+        then component
+        else " on a path to " ^ component
+      in
+      let pp ppf () =
+        Format.fprintf ppf "Unexpected %a%a%s%s" Witness.print_kind w.kind
+          pp_inlined_dbg w.dbg component_msg comballoc_msg
+      in
+      Location.error_of_printer ~loc ~sub pp ()
+    in
+    let print_witnesses ws : Location.error list =
+      let { Witnesses.nor; exn; div } = Witnesses.simplify ws in
+      let f ws component =
+        ws |> Witnesses.elements |> List.map (print_witness ~component)
+      in
       List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
-    let len = List.length l in
-    match !Flambda_backend_flags.checkmach_details_cutoff with
-    | Keep_all -> l
-    | No_details ->
-      (* don't even print the dots *)
-      assert (len = 0);
-      []
-    | At_most cutoff ->
-      let print_with_dots l =
-        let dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-        l @ [dots]
-      in
-      if len <= cutoff
-      then l
-      else
-        let details, _ = Misc.Stdlib.List.split_at cutoff l in
-        print_with_dots details
+    let details =
+      match !Flambda_backend_flags.checkmach_details_cutoff with
+      | No_details ->
+        (* do not print witnesses. *)
+        []
+      | Keep_all -> print_witnesses t.witnesses
+      | At_most cutoff ->
+        let all = print_witnesses t.witnesses in
+        if List.compare_length_with all cutoff <= 0
+        then all
+        else
+          let result, _ = Misc.Stdlib.List.split_at cutoff all in
+          result
+    in
+    annotation_error ~property_name t :: details
 
-  let report_error = function
-    | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
-      let sub = print_witnesses witnesses in
-      Some
-        (Location.error_of_printer ~loc:a.loc ~sub
-           (print_error ~fun_name ~fun_dbg ~property)
-           a)
+  let rec print_all msgs =
+    (* Print all errors message in a compilation unit as separate messages to
+       make editor integration easier. *)
+    match msgs with
+    | [] -> assert false
+    | [last_error] ->
+      (* Finally, raise Error with the last function. *)
+      Some last_error
+    | error :: tl ->
+      Location.print_report Format.err_formatter error;
+      print_all tl
+
+  let print = function
+    | Fail (reports, property) ->
+      let property_name = Printcmm.property_to_string property in
+      (* Sort by function's location. If debuginfo is missing, keep sorted by
+         function name. *)
+      let compare t1 t2 =
+        let c = Debuginfo.compare t1.fun_dbg t2.fun_dbg in
+        if not (Int.equal c 0)
+        then c
+        else String.compare t1.fun_name t2.fun_name
+      in
+      reports |> List.stable_sort compare
+      |> List.concat_map (error_messages ~property_name)
+      |> print_all
     | _ -> None
 end
 
@@ -799,6 +839,7 @@ end = struct
   let record_unit unit_info ppf =
     report_unit_info ppf unit_info ~msg:"before resolve_all";
     Unit_info.resolve_all unit_info;
+    let errors = ref [] in
     let record (func_info : Func_info.t) =
       (match func_info.annotation with
       | None -> ()
@@ -823,18 +864,20 @@ end = struct
             Value.diff_witnesses ~expected:expected_value
               ~actual:func_info.value
           in
-          raise
-            (Annotation.Invalid
-               { a;
+          errors
+            := { Report.a;
                  fun_name = func_info.name;
                  fun_dbg = func_info.dbg;
-                 property = S.property;
                  witnesses
-               }));
+               }
+               :: !errors);
       report_func_info ~msg:"record" ppf func_info;
       S.set_value func_info.name func_info.value
     in
-    Unit_info.iter unit_info ~f:record
+    Unit_info.iter unit_info ~f:record;
+    match !errors with
+    | [] -> ()
+    | errors -> raise (Report.Fail (errors, S.property))
 
   let record_unit unit_info ppf =
     Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
@@ -981,6 +1024,10 @@ end = struct
       (* does not allocate even when it raises because checkbound exception is
          static. *)
       transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
+    | Iintop (Icheckalign _) | Iintop_imm (Icheckalign _, _) ->
+      (* does not allocate even when it raises because checkalign exception is
+         static. *)
+      transform t ~next ~exn ~effect:Value.safe "checkalign" dbg
     | Ipoll _
     (* Ignore poll points even though they may trigger an allocations, because
        otherwise all loops would be considered allocating when poll insertion is
@@ -1043,6 +1090,7 @@ end = struct
           S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    | Idls_get -> Misc.fatal_error "Idls_get not supported"
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
@@ -1135,7 +1183,13 @@ end
 module Spec_zero_alloc : Spec = struct
   let property = Cmm.Zero_alloc
 
-  let enabled () = !Clflags.zero_alloc_check
+  let enabled () =
+    (* Checkmach no longer distinguishes between opt and default checks. *)
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_default -> true
+    | Check_all -> true
+    | Check_opt_only -> true
 
   (* Compact the mapping from function name to Value.t to reduce size of Checks
      in cmx and memory consumption Compilenv. Different components have
@@ -1209,4 +1263,4 @@ let iter_witnesses f =
       f func_info.name
         (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
-let () = Location.register_error_of_exn Annotation.report_error
+let () = Location.register_error_of_exn Report.print

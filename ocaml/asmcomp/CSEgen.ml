@@ -226,21 +226,24 @@ method class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false       (* treated specially *)
   | Istackoffset _ -> Op_other
-  | Iload(_,_,mut) -> Op_load mut
+  | Iload { mutability; is_atomic } ->
+    (* #12173: disable CSE for atomic loads. *)
+    if is_atomic then Op_other
+    else Op_load mutability
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
   | Iintop(Icheckbound) -> Op_checkbound
   | Iintop _ -> Op_pure
   | Iintop_imm(Icheckbound, _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat -> Op_pure
   | Ispecific _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
+  | Idls_get -> Op_load Mutable
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
-
 method is_cheap_operation op =
   match op with
   | Iconst_int _ -> true
@@ -306,8 +309,7 @@ method private cse n i =
               (* This operation was computed earlier. *)
               (* Are there registers that hold the results computed earlier? *)
               begin match find_regs_containing n1 vres with
-              | Some res when (not (self#is_cheap_operation op))
-                           && (not (Proc.regs_are_volatile res)) ->
+              | Some res when (not (self#is_cheap_operation op)) ->
                   (* We can replace res <- op args with r <- move res,
                      provided res are stable (non-volatile) registers.
                      If the operation is very cheap to compute, e.g.

@@ -1,7 +1,12 @@
 (* TEST
-   flags = "-extension layouts_beta"
-   * native
+   * flambda2
+   flags = "-extension layouts_alpha"
+   ** native
 *)
+
+(* mshinwell: This test is now only run with flambda2, as the corresponding
+   ocamltest predicate is reliable for testing whether this is an
+   flambda-backend build. *)
 
 (* A test comparing allocations with unboxed floats to allocations with boxed
    floats. *)
@@ -162,3 +167,18 @@ let _ =
   let _ = measure_alloc_value (fun () -> cse_test false r) in
   let allocs = get_exact_allocations () in
   Printf.printf "CSE test (0 bytes):\n  allocated bytes: %.2f\n" allocs
+
+let[@inline never] literal_test x y =
+  let open Float_u in
+  (#1. + x) * (y - #4.) / (#3. ** #1.)
+
+let print_allocs s =
+  let allocs = get_exact_allocations () in
+  Printf.printf
+    "%s:\n  allocated bytes: %.2f\n"
+    s allocs
+
+let _ =
+  let r = measure_alloc (fun () -> literal_test #2. #3.) in
+  assert (Float_u.equal r (-#1.));
+  print_allocs "Float literals";

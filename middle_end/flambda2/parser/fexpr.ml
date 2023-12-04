@@ -224,11 +224,6 @@ type alloc_mode_for_allocations =
   | Heap
   | Local of { region : region }
 
-type alloc_mode_for_types =
-  | Heap
-  | Heap_or_local
-  | Local
-
 type alloc_mode_for_assignments =
   | Heap
   | Local
@@ -254,7 +249,9 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
-type nullop = Begin_region
+type nullop =
+  | Begin_region
+  | Begin_try_region
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
@@ -262,10 +259,10 @@ type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
 
 type unop =
   | Array_length
-  | Begin_try_region
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
+  | End_try_region
   | Get_tag
   | Int_arith of standard_int * unary_int_arith_op
   | Is_flat_float_array
@@ -319,6 +316,7 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 type string_like_value = Flambda_primitive.string_like_value =
   | String
@@ -368,9 +366,9 @@ type function_call =
   | Direct of
       { code_id : code_id;
         function_slot : function_slot option;
-        alloc : alloc_mode_for_types
+        alloc : alloc_mode_for_allocations
       }
-  | Indirect of alloc_mode_for_types
+  | Indirect of alloc_mode_for_allocations
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -420,8 +418,7 @@ type apply =
     call_kind : call_kind;
     arities : function_arities option;
     inlined : inlined_attribute option;
-    inlining_state : inlining_state option;
-    region : region
+    inlining_state : inlining_state option
   }
 
 type size = int
@@ -517,7 +514,8 @@ and code =
     params_and_body : params_and_body;
     code_size : code_size;
     is_tupled : bool;
-    loopify : loopify_attribute option
+    loopify : loopify_attribute option;
+    result_mode : alloc_mode_for_assignments
   }
 
 and code_size = int

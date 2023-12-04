@@ -86,7 +86,10 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     ->
     Word_int
   | Naked_number Naked_float -> Double
-  | Naked_number Naked_vec128 -> Onetwentyeight
+  | Naked_number Naked_vec128 ->
+    (* 128-bit memory operations are default unaligned. Aligned (big)array
+       operations are handled separately via cmm. *)
+    Onetwentyeight_unaligned
   | Region | Rec_info ->
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind
@@ -245,12 +248,27 @@ let invalid res ~message =
   in
   call_expr, res
 
-let make_update env res dbg kind ~symbol var ~index ~prev_updates =
+let make_update env res dbg (kind : Cmm.memory_chunk) ~symbol var ~index
+    ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
-  let addr = field_address symbol index dbg in
-  let cmm = store ~dbg kind Initialization ~addr ~new_value:cmm in
+  let cmm =
+    if Config.runtime5
+    then
+      let imm_or_ptr : Lambda.immediate_or_pointer =
+        match kind with
+        | Word_val -> Pointer
+        | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+        | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+        | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+          Immediate
+      in
+      Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
+    else
+      let addr = field_address symbol index dbg in
+      store ~dbg kind Initialization ~addr ~new_value:cmm
+  in
   let update =
     match prev_updates with
     | None -> To_cmm_env.{ cmm; free_vars; effs }

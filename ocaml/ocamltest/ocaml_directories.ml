@@ -24,14 +24,14 @@ let stdlib =
   Filename.make_path [srcdir; "stdlib"]
 
 let libunix =
-  let subdir = if Sys.win32 then "win32unix" else "unix" in
-  Filename.make_path [srcdir; "otherlibs"; subdir]
+  Filename.make_path [srcdir; "otherlibs"; "unix"]
 
 let toplevel =
   Filename.make_path [srcdir; "toplevel"]
 
 let runtime =
-  Filename.make_path [srcdir; "runtime"]
+  let suffix = if Config.runtime5 then "" else "4" in
+  Filename.make_path [srcdir; "runtime" ^ suffix]
 
 let tools =
   Filename.make_path [srcdir; "tools"]

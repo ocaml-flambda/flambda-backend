@@ -1,15 +1,20 @@
 File "test_attribute_error_duplicate.ml", line 1, characters 25-35:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
+
 File "test_attribute_error_duplicate.ml", line 2, characters 66-76:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
+
 File "test_attribute_error_duplicate.ml", line 3, characters 5-15:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
-It must be either 'assume', 'strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+It must be either 'assume', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+
 File "test_attribute_error_duplicate.ml", line 4, characters 5-15:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
-It must be either 'assume', 'strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+It must be either 'assume', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+
 File "test_attribute_error_duplicate.ml", line 5, characters 5-15:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
-It must be either 'assume', 'strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+It must be either 'assume', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume strict never_returns_normally', 'ignore' or empty
+
 File "test_attribute_error_duplicate.ml", line 1, characters 5-15:
-Error: Annotation check for zero_alloc strict failed on function Test_attribute_error_duplicate.test1 (camlTest_attribute_error_duplicate__test1_HIDE_STAMP)
+Error: Annotation check for zero_alloc strict failed on function Test_attribute_error_duplicate.test1 (camlTest_attribute_error_duplicate.test1_HIDE_STAMP)

@@ -142,6 +142,7 @@ let prim_table =
     "bytes_load", PRIM_BYTES_LOAD;
     "bytes_set", PRIM_BYTES_SET;
     "end_region", PRIM_END_REGION;
+    "end_try_region", PRIM_END_TRY_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;
@@ -161,6 +162,7 @@ let prim_table =
     "unbox_int32", PRIM_UNBOX_INT32;
     "unbox_int64", PRIM_UNBOX_INT64;
     "unbox_nativeint", PRIM_UNBOX_NATIVEINT;
+    "unbox_vec128", PRIM_UNBOX_VEC128;
     "untag_imm", PRIM_UNTAG_IMM;
 ]
 

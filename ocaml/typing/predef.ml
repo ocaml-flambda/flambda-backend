@@ -162,16 +162,38 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let predef_jkind_annotation const =
+  Option.map
+    (fun const ->
+       (* This is a bit of a hack: we're trying to figure out what a user
+          could have written on a predef type declaration to give it the
+          right kind. But this hack is OK as its result is just used in
+          printing/untypeast.
+       *)
+       let user_written : _ Location.loc =
+         { txt = Jane_asttypes.jkind_of_string (Jkind.string_of_const const);
+           loc = Location.none;
+         }
+       in
+       const, user_written)
+    const
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
       ?(jkind=Jkind.value ~why:(Primitive type_ident))
+      (* [jkind_annotation] is just used for printing. It's best to
+         provide it if the jkind is not implied by the kind of the
+         type, as then the type, if printed, will be clearer.
+      *)
+      ?jkind_annotation
       env =
   let decl =
     {type_params = [];
      type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
+     type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -188,11 +210,14 @@ let mk_add_type add_type
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
-let common_initial_env add_type add_extension empty_env =
+let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract Abstract_def)
         ?(jkind=Jkind.value ~why:(Primitive type_ident))
+        (* See the comment on the [jkind_annotation] argument to [mk_add_type]
+        *)
+        ?jkind_annotation
       ~variance ~separability env =
     let param = newgenvar (Jkind.value ~why:Type_argument) in
     let decl =
@@ -200,6 +225,7 @@ let common_initial_env add_type add_extension empty_env =
        type_arity = 1;
        type_kind = kind param;
        type_jkind = jkind;
+       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
        type_loc = Location.none;
        type_private = Asttypes.Public;
        type_manifest = None;
@@ -244,6 +270,7 @@ let common_initial_env add_type add_extension empty_env =
                 [| [| |]; [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
+      ~jkind_annotation:Immediate
   |> add_type ident_exn
        ~kind:Type_open
        ~jkind:(Jkind.value ~why:Extensible_variant)
@@ -251,6 +278,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_float
   |> add_type ident_floatarray
   |> add_type ident_int ~jkind:(Jkind.immediate ~why:(Primitive ident_int))
+      ~jkind_annotation:Immediate
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -277,12 +305,14 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
+       ~jkind_annotation:Float64
+  |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Jkind.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
@@ -291,7 +321,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_extension ident_invalid_argument [type_string]
        [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Jkind.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
@@ -300,15 +330,8 @@ let common_initial_env add_type add_extension empty_env =
   |> add_extension ident_sys_error [type_string]
        [| Jkind.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Jkind.value ~why:Tuple |]
-
-let build_initial_env add_type add_exception empty_env =
-  let common = common_initial_env add_type add_exception empty_env in
-  let add_type = mk_add_type add_type in
-  let safe_string = add_type ident_bytes common in
-  let unsafe_string = add_type ident_bytes ~manifest:type_string common in
-  (safe_string, unsafe_string)
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in

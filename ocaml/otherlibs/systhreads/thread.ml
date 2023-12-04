@@ -1,4 +1,5 @@
 # 1 "thread.ml"
+
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -30,7 +31,6 @@ external yield : unit -> unit = "caml_thread_yield"
 external self : unit -> t = "caml_thread_self" [@@noalloc]
 external id : t -> int = "caml_thread_id" [@@noalloc]
 external join : t -> unit = "caml_thread_join"
-external exit_stub : unit -> unit = "caml_thread_exit"
 
 (* For new, make sure the function passed to thread_new never
    raises an exception. *)
@@ -73,17 +73,7 @@ let create fn arg =
           flush stderr)
 
 let exit () =
-  ignore (Sys.opaque_identity (check_memprof_cb ()));
-  exit_stub ()
-
-let exit () =
-  ignore (Sys.opaque_identity (check_memprof_cb ()));
-  exit_stub ()
-
-(* Thread.kill is currently not implemented due to problems with
-   cleanup handlers on several platforms *)
-
-let kill th = invalid_arg "Thread.kill: not implemented"
+  raise Exit
 
 (* Preemption *)
 
@@ -97,8 +87,9 @@ let preempt_signal =
   | _       -> Sys.sigvtalrm
 
 let () =
-  Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
   thread_initialize ();
+  Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
+  (* Callback in [caml_shutdown], when the last domain exits. *)
   Callback.register "Thread.at_shutdown" (fun () ->
     thread_cleanup();
     (* In case of DLL-embedded OCaml the preempt_signal handler
@@ -111,9 +102,6 @@ let () =
 (* Wait functions *)
 
 let delay = Unix.sleepf
-
-let wait_read fd = ()
-let wait_write fd = ()
 
 let wait_timed_read fd d =
   match Unix.select [fd] [] [] d with ([], _, _) -> false | (_, _, _) -> true

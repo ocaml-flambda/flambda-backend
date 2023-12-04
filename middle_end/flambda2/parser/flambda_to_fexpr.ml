@@ -497,13 +497,6 @@ let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
     Fexpr.alloc_mode_for_assignments =
   match alloc with Heap -> Heap | Local -> Local
 
-let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
-    Fexpr.alloc_mode_for_types =
-  match alloc with
-  | Heap -> Heap
-  | Heap_or_local -> Heap_or_local
-  | Local -> Local
-
 let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
     Fexpr.init_or_assign =
   match ia with
@@ -513,6 +506,7 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
   | Begin_region -> Begin_region
+  | Begin_try_region -> Begin_try_region
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
@@ -524,8 +518,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | Begin_try_region -> Begin_try_region
   | End_region -> End_region
+  | End_try_region -> End_try_region
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -545,7 +539,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
-  | Get_header ->
+  | Get_header | Atomic_load _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -587,7 +581,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_comp c -> Infix (Float_comp c)
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
-  | Bigarray_load _ ->
+  | Bigarray_load _ | Atomic_exchange | Atomic_fetch_and_add ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
@@ -609,7 +603,7 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
     Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
-  | Bigarray_set _ ->
+  | Bigarray_set _ | Atomic_compare_and_set ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
@@ -882,6 +876,11 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
       in
+      let result_mode : Fexpr.alloc_mode_for_assignments =
+        match Code.result_mode code with
+        | Alloc_heap -> Heap
+        | Alloc_local -> Local
+      in
       Code
         { id = code_id;
           newer_version_of;
@@ -892,7 +891,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           loopify;
           params_and_body;
           code_size;
-          is_tupled
+          is_tupled;
+          result_mode
         }
     | Code code_id, Deleted_code ->
       Deleted_code (code_id |> Env.find_code_id_exn env)
@@ -988,7 +988,15 @@ and cont_handler env cont_id (sort : Continuation.Sort.t) h =
       { name = cont_id; params; sort; handler })
 
 and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
-  let func = simple env (Apply_expr.callee app) in
+  (* CR mshinwell: support optional callee *)
+  let callee =
+    match Apply_expr.callee app with
+    | None ->
+      Misc.fatal_errorf "Missing callees are not yet supported:@ %a"
+        Apply_expr.print app
+    | Some callee -> callee
+  in
+  let func = simple env callee in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
     | Return c -> Return (Env.find_continuation_exn env c)
@@ -1010,13 +1018,13 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      let alloc = alloc_mode_for_types alloc_mode in
+      let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Direct { code_id; function_slot; alloc })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode
         } ->
-      let alloc = alloc_mode_for_types alloc_mode in
+      let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Indirect alloc)
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
@@ -1059,7 +1067,6 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       | Never_inlined -> Some Never_inlined
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
-  let region = Env.find_region_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -1068,8 +1075,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities;
-      region
+      arities
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =

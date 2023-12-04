@@ -16,9 +16,6 @@
 #ifndef CAML_MLVALUES_H
 #define CAML_MLVALUES_H
 
-#ifndef CAML_NAME_SPACE
-#include "compatibility.h"
-#endif
 #include "config.h"
 #include "misc.h"
 
@@ -59,10 +56,15 @@ extern "C" {
 
 typedef intnat value;
 typedef uintnat header_t;
+typedef header_t reserved_t;
 typedef uintnat mlsize_t;
 typedef unsigned int tag_t;             /* Actually, an unsigned char */
 typedef uintnat color_t;
 typedef uintnat mark_t;
+typedef atomic_intnat atomic_value;
+typedef volatile value * value_ptr;
+typedef int32_t opcode_t;
+typedef opcode_t * code_t;
 
 #include "domain_state.h"
 
@@ -98,46 +100,65 @@ bits  31    10 9     8 7   0
 
 For 64-bit architectures:
 
-     +--------+-------+-----+
-     | wosize | color | tag |
-     +--------+-------+-----+
-bits  63    10 9     8 7   0
+     +----------+--------+-------+-----+
+     | reserved | wosize | color | tag |
+     +----------+--------+-------+-----+
+bits  63    64-R 63-R  10 9     8 7   0
 
-For x86-64 with Spacetime profiling:
-  P = PROFINFO_WIDTH (as set by "configure", currently 26 bits, giving a
-    maximum block size of just under 4Gb)
-     +----------------+----------------+-------------+
-     | profiling info | wosize         | color | tag |
-     +----------------+----------------+-------------+
-bits  63        (64-P) (63-P)        10 9     8 7   0
+where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
+--enable-reserved-header-bits=R argument to configure.
 
 */
 
-#define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
+#define HEADER_BITS (sizeof(header_t) * CHAR_BIT)
 
-#define Gen_profinfo_shift(width) (64 - (width))
-#define Gen_profinfo_mask(width) ((1ull << (width)) - 1ull)
-#define Gen_profinfo_hd(width, hd) \
-  (((mlsize_t) ((hd) >> (Gen_profinfo_shift(width)))) \
-   & (Gen_profinfo_mask(width)))
+#define HEADER_TAG_BITS 8
+#define HEADER_TAG_MASK ((1ull << HEADER_TAG_BITS) - 1ull)
 
-#ifdef WITH_PROFINFO
-#define PROFINFO_SHIFT (Gen_profinfo_shift(PROFINFO_WIDTH))
-#define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
-/* Use NO_PROFINFO to debug problems with profinfo macros */
-#define NO_PROFINFO 0xff
-#define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
-#define Wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
-#define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))
-#else
-#define NO_PROFINFO 0
-#define Wosize_hd(hd) ((mlsize_t) ((hd) >> 10))
-#define Profinfo_hd(hd) NO_PROFINFO
-#endif /* WITH_PROFINFO */
+#define HEADER_COLOR_BITS 2
+#define HEADER_COLOR_SHIFT HEADER_TAG_BITS
+#define HEADER_COLOR_MASK (((1ull << HEADER_COLOR_BITS) - 1ull) \
+                            << HEADER_COLOR_SHIFT)
 
-#define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
-#define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */
-#define Hd_bp(bp) (Hd_val (bp))                        /* Also an l-value. */
+#define HEADER_WOSIZE_BITS (HEADER_BITS - HEADER_TAG_BITS \
+                            - HEADER_COLOR_BITS - HEADER_RESERVED_BITS)
+#define HEADER_WOSIZE_SHIFT (HEADER_COLOR_SHIFT  + HEADER_COLOR_BITS)
+#define HEADER_WOSIZE_MASK (((1ull << HEADER_WOSIZE_BITS) - 1ull) \
+                             << HEADER_WOSIZE_SHIFT)
+
+#define Tag_hd(hd) ((tag_t) ((hd) & HEADER_TAG_MASK))
+#define Hd_with_tag(hd, tag) (((hd) &~ HEADER_TAG_MASK) | (tag))
+#define Wosize_hd(hd) ((mlsize_t) (((hd) & HEADER_WOSIZE_MASK) \
+                                     >> HEADER_WOSIZE_SHIFT))
+
+/* A "clean" header, without reserved or color bits. */
+#define Cleanhd_hd(hd) (((header_t)(hd)) & \
+                        (HEADER_TAG_MASK | HEADER_WOSIZE_MASK))
+
+#if HEADER_RESERVED_BITS > 0
+
+#define HEADER_RESERVED_SHIFT (HEADER_BITS - HEADER_RESERVED_BITS)
+#define Reserved_hd(hd)   (((header_t) (hd)) >> HEADER_RESERVED_SHIFT)
+#define Hd_reserved(res)  ((header_t)(res) << HEADER_RESERVED_SHIFT)
+
+#else /* HEADER_RESERVED_BITS is 0 */
+
+#define Reserved_hd(hd)   ((reserved_t)0)
+#define Hd_reserved(res)  ((header_t)0)
+
+#endif
+
+/* Color values are pre-shifted */
+
+#define Color_hd(hd) ((hd) & HEADER_COLOR_MASK)
+#define Hd_with_color(hd, color) (((hd) &~ HEADER_COLOR_MASK) | (color))
+
+#define Hp_atomic_val(val) ((atomic_uintnat *)(val) - 1)
+#define Hd_val(val) ((header_t) \
+  (atomic_load_explicit(Hp_atomic_val(val), memory_order_relaxed)))
+
+#define Color_val(val) (Color_hd (Hd_val (val)))
+
 #define Hd_hp(hp) (* ((header_t *) (hp)))              /* Also an l-value. */
 #define Hp_val(val) (((header_t *) (val)) - 1)
 #define Hp_op(op) (Hp_val (op))
@@ -147,16 +168,8 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Op_hp(hp) ((value *) Val_hp (hp))
 #define Bp_hp(hp) ((char *) Val_hp (hp))
 
-#define Num_tags (1 << 8)
-#ifdef ARCH_SIXTYFOUR
-#ifdef WITH_PROFINFO
-#define Max_wosize (((intnat)1 << (54-PROFINFO_WIDTH)) - 1)
-#else
-#define Max_wosize (((intnat)1 << 54) - 1)
-#endif
-#else
-#define Max_wosize ((1 << 22) - 1)
-#endif /* ARCH_SIXTYFOUR */
+#define Num_tags (1ull << HEADER_TAG_BITS)
+#define Max_wosize ((1ull << HEADER_WOSIZE_BITS) - 1ull)
 
 #define Wosize_val(val) (Wosize_hd (Hd_val (val)))
 #define Wosize_op(op) (Wosize_val (op))
@@ -180,19 +193,27 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Bhsize_hp(hp) (Bsize_wsize (Whsize_hp (hp)))
 #define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
 
-#define Profinfo_val(val) (Profinfo_hd (Hd_val (val)))
+#define Reserved_val(val) (Reserved_hd (Hd_val (val)))
 
 #ifdef ARCH_BIG_ENDIAN
-#define Tag_val(val) (((unsigned char *) (val)) [-1])
+#define Tag_val(val) (((volatile unsigned char *) (val)) [-1])
                                                  /* Also an l-value. */
-#define Tag_hp(hp) (((unsigned char *) (hp)) [sizeof(value)-1])
+#define Tag_hp(hp) (((volatile unsigned char *) (hp)) [sizeof(value)-1])
                                                  /* Also an l-value. */
 #else
-#define Tag_val(val) (((unsigned char *) (val)) [-sizeof(value)])
+#define Tag_val(val) (((volatile unsigned char *) (val)) [-sizeof(value)])
                                                  /* Also an l-value. */
-#define Tag_hp(hp) (((unsigned char *) (hp)) [0])
+#define Tag_hp(hp) (((volatile unsigned char *) (hp)) [0])
                                                  /* Also an l-value. */
 #endif
+
+#define Unsafe_store_tag_val(dst, val) (Tag_val(dst) = val)
+/* Currently [Tag_val(dst)] is an lvalue, but in the future we may
+   have to break this property by using explicit (relaxed) atomics to
+   avoid undefined behaviors. [Unsafe_store_tag_val(dst, val)] is
+   provided to avoid direct uses of [Tag_val(dst)] on the left of an
+   assignment. The use of [Unsafe] emphasizes that the function
+   may result in unsafe data races in a concurrent setting. */
 
 /* The lowest tag for blocks containing no value. */
 #define No_scan_tag 251
@@ -202,11 +223,9 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 
 /* Pointer to the first field. */
 #define Op_val(x) ((value *) (x))
+#define Op_atomic_val(x) ((atomic_value *) (x))
 /* Fields are numbered from 0. */
-#define Field(x, i) (((value *)(x)) [i])           /* Also an l-value. */
-
-typedef int32_t opcode_t;
-typedef opcode_t * code_t;
+#define Field(x, i) (((volatile value *)(x)) [i]) /* Also an l-value. */
 
 /* NOTE: [Forward_tag] and [Infix_tag] must be just under
    [No_scan_tag], with [Infix_tag] the lower one.
@@ -219,6 +238,7 @@ typedef opcode_t * code_t;
    See stdlib/lazy.ml. */
 #define Forward_tag 250
 #define Forward_val(v) Field(v, 0)
+/* FIXME: not immutable once shortcutting is implemented */
 
 /* If tag == Infix_tag : an infix header inside a closure */
 /* Infix_tag must be odd so that the infix header is scanned as an integer */
@@ -239,6 +259,17 @@ CAMLextern value caml_get_public_method (value obj, value tag);
 /* caml_get_public_method returns 0 if tag not in the table.
    Note however that tags being hashed, same tag does not necessarily mean
    same method name. */
+
+Caml_inline value Val_ptr(void* p)
+{
+  CAMLassert(((value)p & 1) == 0);
+  return (value)p + 1;
+}
+Caml_inline void* Ptr_val(value val)
+{
+  CAMLassert(val & 1);
+  return (void*)(val - 1);
+}
 
 /* Special case of tuples of fields: closures */
 #define Closure_tag 247
@@ -270,9 +301,16 @@ CAMLextern value caml_get_public_method (value obj, value tag);
     + ((uintnat)(delta) << 1) + 1)
 #endif
 
-/* This tag is used (with Forward_tag) to implement lazy values.
+/* This tag is used (with Forcing_tag & Forward_tag) to implement lazy values.
    See major_gc.c and stdlib/lazy.ml. */
 #define Lazy_tag 246
+
+/* Tag used for continuations (see fiber.c) */
+#define Cont_tag 245
+
+/* This tag is used (with Lazy_tag & Forward_tag) to implement lazy values.
+ * See major_gc.c and stdlib/lazy.ml. */
+#define Forcing_tag 244
 
 /* Another special case: variants */
 CAMLextern value caml_hash_variant(char const * tag);
@@ -286,20 +324,18 @@ CAMLextern value caml_hash_variant(char const * tag);
 #define Byte(x, i) (((char *) (x)) [i])            /* Also an l-value. */
 #define Byte_u(x, i) (((unsigned char *) (x)) [i]) /* Also an l-value. */
 
-/* Abstract things.  Their contents is not traced by the GC; therefore they
-   must not contain any [value]. Must have odd number so that headers with
-   this tag cannot be mistaken for pointers (see caml_obj_truncate).
+/* Abstract things.  Their contents is not traced by the GC; therefore
+   they must not contain any [value]. Must have odd number so that
+   headers with this tag cannot be mistaken for pointers. Previously
+   used in caml_obj_truncate for a header of the truncated tail of the
+   object.
 */
 #define Abstract_tag 251
 #define Data_abstract_val(v) ((void*) Op_val(v))
 
 /* Strings. */
 #define String_tag 252
-#ifdef CAML_SAFE_STRING
 #define String_val(x) ((const char *) Bp_val(x))
-#else
-#define String_val(x) ((char *) Bp_val(x))
-#endif
 #define Bytes_val(x) ((unsigned char *) Bp_val(x))
 CAMLextern mlsize_t caml_string_length (value);   /* size in bytes */
 CAMLextern int caml_string_is_c_safe (value);
@@ -372,7 +408,7 @@ CAMLextern int caml_is_double_array (value);   /* 0 is false, 1 is true */
    the GC; therefore, they must not contain any [value].
    See [custom.h] for operations on method suites. */
 #define Custom_tag 255
-#define Data_custom_val(v) ((void *) &Field((v), 1))
+#define Data_custom_val(v) ((void *) (Op_val(v) + 1))
 struct custom_operations;       /* defined in [custom.h] */
 
 /* Int32.t, Int64.t and Nativeint.t are represented as custom blocks. */
@@ -388,8 +424,8 @@ CAMLextern int64_t caml_Int64_val(value v);
 
 /* 3- Atoms are 0-tuples.  They are statically allocated once and for all. */
 
-CAMLextern header_t *caml_atom_table;
-#define Atom(tag) (Val_hp (&(caml_atom_table [(tag)])))
+CAMLextern value caml_atom(tag_t);
+#define Atom(tag) caml_atom(tag)
 
 /* Booleans are integers 0 or 1 */
 
@@ -415,20 +451,19 @@ CAMLextern header_t *caml_atom_table;
 #define Is_none(v) ((v) == Val_none)
 #define Is_some(v) Is_block(v)
 
-/* The table of global identifiers */
-
-extern value caml_global_data;
-
 CAMLextern value caml_set_oo_id(value obj);
 
 /* Header for out-of-heap blocks. */
 
-#define Caml_out_of_heap_header(wosize, tag)                                  \
-      (/*CAMLassert ((wosize) <= Max_wosize),*/                               \
-       ((header_t) (((header_t) (wosize) << 10)                               \
-                    + (3 << 8) /* matches [Caml_black]. See [gc.h] */         \
-                    + (tag_t) (tag)))                                         \
-      )
+#define Caml_out_of_heap_header_with_reserved(wosize, tag, reserved)   \
+      (/*CAMLassert ((wosize) <= Max_wosize),*/                        \
+       ((header_t) (Hd_reserved(reserved))                             \
+                    + ((header_t) (wosize) << HEADER_WOSIZE_SHIFT)     \
+                    + (3 << HEADER_COLOR_SHIFT) /* [NOT_MARKABLE] */   \
+                    + (tag_t) (tag)))
+
+#define Caml_out_of_heap_header(wosize, tag)                           \
+        Caml_out_of_heap_header_with_reserved(wosize, tag, 0)
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,9 @@
 (* TEST
+   flags = '-extension layouts'
    * expect
+*)
+(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
 *)
 
 type r = R of r list [@@unboxed]
@@ -20,7 +24,7 @@ Line 2, characters 12-19:
 Error: This kind of expression is not allowed as right-hand side of `let rec'
 |}];;
 
-type r = A of r [@@unboxed] [@@value]
+type r : value = A of r [@@unboxed]
 let rec y = A y;;
 [%%expect{|
 type r : value = A of r [@@unboxed]
