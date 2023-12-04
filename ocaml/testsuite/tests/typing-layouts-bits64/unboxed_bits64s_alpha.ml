@@ -1,5 +1,7 @@
 (* TEST
    flags = "-extension layouts_alpha"
+   * native
+   * bytecode
 *)
 
 (* This file contains various tests for [int64#].  It's not an expect test
@@ -392,3 +394,17 @@ let test6 () =
   print_int64u "Test 6, -44" result
 
 let _ = test6 ()
+
+(*****************************************)
+(* Test 7: int64# and assert false joins *)
+
+module M = struct
+  open Int64_u
+  let[@inline never] f () = assert false
+  let g () = if Sys.opaque_identity true then of_int64 32L else f ()
+end
+
+let test7 () =
+  print_int64u "Test 7, 32" (M.g ())
+
+let _ = test7 ()

@@ -1,5 +1,7 @@
 (* TEST
    flags = "-extension layouts_alpha"
+   * native
+   * bytecode
 *)
 
 (* This file contains various tests for [nativeint#].  It's not an expect test
@@ -396,3 +398,17 @@ let test6 () =
   print_nativeintu "Test 6, -44" result
 
 let _ = test6 ()
+
+(*********************************************)
+(* Test 7: nativeints and assert false joins *)
+
+module M = struct
+  open Nativeint_u
+  let[@inline never] f () = assert false
+  let g () = if Sys.opaque_identity true then of_nativeint 32n else f ()
+end
+
+let test7 () =
+  print_nativeintu "Test 7, 32" (M.g ())
+
+let _ = test7 ()
