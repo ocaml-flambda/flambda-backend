@@ -364,9 +364,7 @@ let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float
-  | Word -> typ_int
-  | Bits32 -> typ_int32
-  | Bits64 -> typ_int64
+  | Word | Bits32 | Bits64 -> typ_int
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
