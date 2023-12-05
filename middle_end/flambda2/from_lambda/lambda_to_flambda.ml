@@ -139,13 +139,11 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       in
       let body = add_remaining_end_regions acc after_everything in
       fun acc ccenv ->
-        match region with
-        | Try_with _ -> body acc ccenv
-        | Regular region_ident ->
-          CC.close_let acc ccenv
-            [ ( Ident.create_local "unit",
-                Flambda_kind.With_subkind.tagged_immediate ) ]
-            Not_user_visible (End_region region_ident) ~body
+        CC.close_let acc ccenv
+          [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+          Not_user_visible
+          (End_region { is_try_region = false; region })
+          ~body
     in
     let no_end_region after_everything = after_everything in
     match
@@ -156,7 +154,7 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       if Env.same_region region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | Some (((Regular _ | Try_with _) as region), region_stack_now), None ->
+    | Some (region, region_stack_now), None ->
       add_end_region region ~region_stack_now
     | None, Some _ -> assert false
     (* see above *)
@@ -264,7 +262,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Psetfield (_, _, _), [L.Lprim (Pgetglobal _, [], _); _] ->
     Misc.fatal_error
       "[Psetfield (Pgetglobal ...)] is forbidden upon entry to the middle end"
-  | Pfield (index, _), _ when index < 0 ->
+  | Pfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Pfield with negative field index"
   | Pfloatfield (i, _, _), _ when i < 0 ->
     Misc.fatal_error "Pfloatfield with negative field index"
@@ -282,6 +280,14 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
   | Pfloatcomp CFnge, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
+  | Punboxed_float_comp CFnlt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFlt, args, loc)], loc)
+  | Punboxed_float_comp CFngt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFgt, args, loc)], loc)
+  | Punboxed_float_comp CFnle, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFle, args, loc)], loc)
+  | Punboxed_float_comp CFnge, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFge, args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
@@ -469,7 +475,8 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
     then
       CC.close_let acc ccenv
         [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-        Not_user_visible (End_region region)
+        Not_user_visible
+        (End_region { is_try_region = false; region })
         ~body:(fun acc ccenv -> body acc ccenv cont)
     else
       let ({ continuation_closing_region; continuation_after_closing_region }
@@ -601,11 +608,11 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
   | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
   | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
-  | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
-  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-  | Pmulbint _
+  | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -651,6 +658,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Prunstack | Pperform | Presume | Preperform | Pdls_get ->
+    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
+      Printlambda.primitive prim
 
 type non_tail_continuation =
   Acc.t ->
@@ -741,8 +752,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       (Flambda_arity.Component_for_creation.Singleton kind)
   | Lconst const ->
     apply_cps_cont_simple k acc env ccenv [IR.Const const]
-      (* CR mshinwell: improve layout here *)
-      (Singleton Flambda_kind.With_subkind.any_value)
+      (Singleton
+         (Flambda_kind.With_subkind.from_lambda_values_and_unboxed_numbers_only
+            (Lambda.structured_constant_layout const)))
   | Lapply
       { ap_func;
         ap_args;
@@ -803,17 +815,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     in
     let_expr acc ccenv
   | Llet ((Strict | Alias | StrictOpt), layout, id, Lconst const, body) ->
-    let value_kind =
-      match layout with
-      | Pvalue value_kind -> value_kind
-      | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
-      | Punboxed_product _ ->
-        Misc.fatal_errorf "Constant with non-value layout: %a %a"
-          Printlambda.structured_constant const Printlambda.layout layout
-    in
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps acc env ccenv body k k_exn in
-    let kind = Flambda_kind.With_subkind.from_lambda_value_kind value_kind in
+    let kind =
+      Flambda_kind.With_subkind.from_lambda_values_and_unboxed_numbers_only
+        layout
+    in
     CC.close_let acc ccenv
       [id, kind]
       (is_user_visible env id) (Simple (Const const)) ~body
@@ -1102,25 +1109,33 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        unwind the local allocation stack if the exception handler is invoked.
        There is no corresponding [End_region] on the non-exceptional path
        because there might be a local allocation in the "try" block that needs
-       to be returned. In effect, such allocations are treated as if they were
-       in the parent region, although they will be annotated with the region
-       identifier of the "try region". To handle this correctly we annotate the
-       [Begin_region] with its parent region. This use of the parent region will
-       ensure that the parent does not get deleted unless the try region is
-       unused. *)
+       to be returned. However, the inner allocations happen in the outer
+       region, as we need to ensure the outer region is not deleted if we return
+       normally from the "try" block. We annotate the begin and end region
+       primitives to specify they correspond to try-regions, to ensure they are
+       not deleted. *)
     (* Under a try-with block, any exception might introduce a branch to the
        handler. So while for static catches we could simplify the body in the
        same toplevel context, here we need to assume that all of the body could
        be behind a branch. *)
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    CC.close_let acc ccenv
-      [region, Flambda_kind.With_subkind.region]
-      Not_user_visible
-      (Begin_region { try_region_parent = Some (Env.current_region env) })
-      ~body:(fun acc ccenv ->
+    let handler k acc env ccenv =
+      CC.close_let acc ccenv
+        [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+        Not_user_visible
+        (End_region { is_try_region = true; region })
+        ~body:(fun acc ccenv -> cps_tail acc env ccenv handler k k_exn)
+    in
+    let begin_try_region body =
+      CC.close_let acc ccenv
+        [region, Flambda_kind.With_subkind.region]
+        Not_user_visible
+        (Begin_region { is_try_region = true })
+        ~body
+    in
+    begin_try_region (fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
           (fun acc env ccenv k ->
-            let env = Env.entering_try_region env region in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
               ~params:[id, is_user_visible env id, Lambda.layout_block]
@@ -1140,18 +1155,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    let env = Env.leaving_try_region env in
                     apply_cont_with_extra_args acc env ccenv ~dbg k
                       (Some (IR.Pop { exn_handler = handler_continuation }))
                       [IR.Var body_result]))
-              ~handler:(fun acc env ccenv ->
-                CC.close_let acc ccenv
-                  [ ( Ident.create_local "unit",
-                      Flambda_kind.With_subkind.tagged_immediate ) ]
-                  Not_user_visible (End_region region)
-                  ~body:(fun acc ccenv ->
-                    let env = Env.leaving_try_region env in
-                    cps_tail acc env ccenv handler k k_exn))))
+              ~handler:(handler k)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
@@ -1206,7 +1213,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let region = Env.current_region env in
     CC.close_let acc ccenv
       [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
-      Not_user_visible (End_region region)
+      Not_user_visible
+      (End_region { is_try_region = false; region })
       ~body:(fun acc ccenv ->
         let env = Env.leaving_region env in
         cps acc env ccenv body k k_exn)
@@ -1219,7 +1227,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     CC.close_let acc ccenv
       [region, Flambda_kind.With_subkind.region]
       Not_user_visible
-      (Begin_region { try_region_parent = None })
+      (Begin_region { is_try_region = false })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "body_return" layout k acc env ccenv
           (fun acc env ccenv k ->
@@ -1257,7 +1265,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                 CC.close_let acc ccenv
                   [ ( Ident.create_local "unit",
                       Flambda_kind.With_subkind.tagged_immediate ) ]
-                  Not_user_visible (End_region region)
+                  Not_user_visible
+                  (End_region { is_try_region = false; region })
                   ~body:(fun acc ccenv ->
                     (* Both body and handler will continue at
                        [return_continuation] by default.
@@ -1376,11 +1385,20 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
         match binding with
         | L.Lfunction
-            { kind; params; body = fbody; attr; loc; mode; region; return; _ }
-          -> (
+            { kind;
+              params;
+              body = fbody;
+              attr;
+              loc;
+              ret_mode;
+              mode;
+              region;
+              return;
+              _
+            } -> (
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~mode ~region
+              ~return ~attr ~loc ~ret_mode ~mode ~region
           with
           | [(id, L.Lfunction lfun)] -> [id, lfun]
           | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
@@ -1440,8 +1458,8 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     bindings_with_wrappers
 
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
-    ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
-    Function_decl.t =
+    ({ kind; params; return; body; attr; loc; mode; ret_mode; region } :
+      L.lfunction) : Function_decl.t =
   let first_complex_local_param =
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
@@ -1525,7 +1543,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ~params_arity ~removed_params ~return ~return_continuation:body_cont
     ~exn_continuation ~my_region ~body ~attr ~loc ~free_idents_of_body recursive
     ~closure_alloc_mode:mode ~first_complex_local_param
-    ~contains_no_escaping_local_allocs:region
+    ~contains_no_escaping_local_allocs:region ~result_mode:ret_mode
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =

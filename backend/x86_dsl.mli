@@ -37,8 +37,11 @@ val ah: arg
 val cl: arg
 val ax: arg
 val rax: arg
+val rbx: arg
+val rdx: arg
 val r10: arg
 val r11: arg
+val r12: arg
 val r13: arg
 val r14: arg
 val r15: arg
@@ -74,6 +77,10 @@ module D : sig
   val cfi_adjust_cfa_offset: int -> unit
   val cfi_endproc: unit -> unit
   val cfi_startproc: unit -> unit
+  val cfi_remember_state: unit -> unit
+  val cfi_restore_state: unit -> unit
+  val cfi_def_cfa_register: string -> unit
+  val cfi_def_cfa_offset: int -> unit
   val comment: string -> unit
   val data: unit -> unit
   val direct_assignment : string -> constant -> unit
@@ -288,6 +295,10 @@ module I : sig
   val packssdw: arg -> arg -> unit
   val packuswb: arg -> arg -> unit
   val packusdw: arg -> arg -> unit
+  val pmulhw: arg -> arg -> unit
+  val pmulhuw: arg -> arg -> unit
+  val pmullw: arg -> arg -> unit
+  val pmaddwd: arg -> arg -> unit
 
   (* SSE3 instructions *)
 
@@ -317,6 +328,7 @@ module I : sig
   val psignd: arg -> arg -> unit
   val pshufb: arg -> arg -> unit
   val palignr: arg -> arg -> arg -> unit
+  val pmaddubsw: arg -> arg -> unit
 
   (* SSE4.1 instructions *)
 
@@ -361,6 +373,7 @@ module I : sig
   val roundps: rounding -> arg -> arg -> unit
   val mpsadbw: arg -> arg -> arg -> unit
   val phminposuw: arg -> arg -> unit
+  val pmulld: arg -> arg -> unit
 
   (* SSE4.2 instructions *)
 
@@ -370,4 +383,9 @@ module I : sig
   val pcmpistri: arg -> arg -> arg -> unit
   val pcmpistrm: arg -> arg -> arg -> unit
   val crc32: arg -> arg -> unit
+
+  (* CLMUL instructions *)
+
+  val pclmulqdq: arg -> arg -> arg -> unit
+
 end

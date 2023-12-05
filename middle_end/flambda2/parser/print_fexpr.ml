@@ -294,12 +294,6 @@ let alloc_mode_for_allocations_opt ppf (alloc : alloc_mode_for_allocations)
   | Heap -> ()
   | Local { region = r } -> pp_spaced ~space ppf "&%a" region r
 
-let alloc_mode_for_types_opt ppf (alloc : alloc_mode_for_types) ~space =
-  match alloc with
-  | Heap -> ()
-  | Heap_or_local -> pp_spaced ~space ppf "heap_or_local"
-  | Local -> pp_spaced ~space ppf "local"
-
 let init_or_assign ppf ia =
   match ia with
   | Initialization -> Format.pp_print_string ppf "="
@@ -351,7 +345,11 @@ let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
 let nullop ppf (o : nullop) =
-  Format.pp_print_string ppf @@ match o with Begin_region -> "%begin_region"
+  Format.pp_print_string ppf
+  @@
+  match o with
+  | Begin_region -> "%begin_region"
+  | Begin_try_region -> "%begin_try_region"
 
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
@@ -511,12 +509,12 @@ let unop ppf u =
   in
   match (u : unop) with
   | Array_length -> str "%array_length"
-  | Begin_try_region -> str "%begin_try_region"
   | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
   | End_region -> str "%end_region"
+  | End_try_region -> str "%end_try_region"
   | Get_tag -> str "%get_tag"
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
@@ -631,12 +629,12 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 
 let call_kind ~space ppf ck =
   match ck with
-  | Function (Indirect alloc) -> alloc_mode_for_types_opt ppf alloc ~space
+  | Function (Indirect alloc) -> alloc_mode_for_allocations_opt ppf alloc ~space
   | Function (Direct { code_id = c; function_slot = cl; alloc }) ->
     pp_spaced ~space ppf "@[direct(%a%a%a)@]" code_id c
       (pp_option ~space:Before (pp_like "@@%a" function_slot))
       cl
-      (alloc_mode_for_types_opt ~space:Before)
+      (alloc_mode_for_allocations_opt ~space:Before)
       alloc
   | C_call { alloc } ->
     let noalloc_kwd = if alloc then None else Some "noalloc" in
@@ -747,8 +745,7 @@ let rec expr scope ppf = function
         exn_continuation = ek;
         args;
         func;
-        arities;
-        region = r
+        arities
       } ->
     let pp_inlining_state ppf () =
       pp_option ~space:Before
@@ -756,13 +753,13 @@ let rec expr scope ppf = function
         ppf is
     in
     Format.fprintf ppf
-      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ &%a@ @[<hov>-> %a@ %a@]@]@]"
+      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ @[<hov>-> %a@ %a@]@]@]"
       (call_kind ~space:Before) kind
       (inlined_attribute_opt ~space:Before)
       inlined pp_inlining_state () func_name_with_optional_arities
       (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
-      args region r result_continuation ret exn_continuation ek
+      args result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
   | { bindings = first :: rest; body; value_slots = ces } ->
@@ -829,7 +826,8 @@ and code_binding ppf
        params_and_body;
        code_size = cs;
        is_tupled;
-       loopify
+       loopify;
+       result_mode
      } :
       code) =
   Format.fprintf ppf
@@ -847,12 +845,14 @@ and code_binding ppf
     params_and_body
   in
   Format.fprintf ppf
-    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a@]@] =@ %a"
+    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a%s@]@] =@ %a"
     (kinded_parameters ~space:Before)
     params variable closure_var variable region_var variable depth_var
     continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
-    ret_arity (expr Outer) body
+    ret_arity
+    (match result_mode with Heap -> "" | Local -> " local")
+    (expr Outer) body
 
 let flambda_unit ppf ({ body } : flambda_unit) =
   Format.fprintf ppf "@[<v>@[%a@]@ @]" (expr Outer) body

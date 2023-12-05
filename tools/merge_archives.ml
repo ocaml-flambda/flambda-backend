@@ -23,7 +23,7 @@ let merge_cma ~target ~archives =
   Clflags.all_ccopts := [];
   Clflags.dllibs := [];
   List.iter
-    (fun archive -> Load_path.add_dir (Filename.dirname archive))
+    (fun archive -> Load_path.add_dir ~hidden:false (Filename.dirname archive))
     archives;
   let error reporter err =
     Format.eprintf "Error whilst merging .cma files:@ %a\n%!" reporter err;
@@ -83,7 +83,7 @@ let merge_cmxa0 ~archives =
   Hashtbl.iter (fun name (import, i) -> cmis.(i) <- import) cmi_table;
   let cmxs = Array.make !ncmxs Import_info.Impl.dummy in
   Hashtbl.iter (fun name (import, i) -> cmxs.(i) <- import) cmx_table;
-  let genfns = Cmm_helpers.Generic_fns_tbl.make () in
+  let genfns = Generic_fns.Tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
     List.fold_left
       (fun (lib_names, lib_units, lib_ccobjs, lib_ccopts)
@@ -99,7 +99,7 @@ let merge_cmxa0 ~archives =
         in
         if not (Compilation_unit.Set.is_empty already_defined)
         then failwith "Archives contain multiply-defined units";
-        Cmm_helpers.Generic_fns_tbl.add genfns cmxa.lib_generic_fns;
+        Generic_fns.Tbl.add genfns cmxa.lib_generic_fns;
         let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
         let remap oldarr newarr tbl oldb ~get_key =
           let module B = Misc.Bitmap in
@@ -136,7 +136,7 @@ let merge_cmxa0 ~archives =
       lib_ccopts;
       lib_imports_cmi = cmis;
       lib_imports_cmx = cmxs;
-      lib_generic_fns = Cmm_helpers.Generic_fns_tbl.entries genfns
+      lib_generic_fns = Generic_fns.Tbl.entries genfns
     }
   in
   magic, cmxa

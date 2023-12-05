@@ -97,27 +97,29 @@ let string_is_prefix sub str =
 
 let rec lident_of_path = function
   | Path.Pident id -> Longident.Lident (Ident.name id)
-  | Path.Pdot (p, s) -> Longident.Ldot (lident_of_path p, s)
   | Path.Papply (p1, p2) ->
       Longident.Lapply (lident_of_path p1, lident_of_path p2)
+  | Path.Pdot (p, s) | Path.Pextra_ty (p, Pcstr_ty s) ->
+      Longident.Ldot (lident_of_path p, s)
+  | Path.Pextra_ty (p, _) -> lident_of_path p
 
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 
 (** Try a name [$name$0], check if it's free, if not, increment and repeat. *)
 let fresh_name s env =
-  let rec aux i =
-    let name = s ^ Int.to_string i in
-    if Env.bound_value name env then aux (i+1)
-    else name
-  in
-  aux 0
+  let name i = s ^ Int.to_string i in
+  let available i = not (Env.bound_value (name i) env) in
+  let first_i = Misc.find_first_mono available in
+  name first_i
 
 (** Extract the [n] patterns from the case of a letop *)
 let rec extract_letop_patterns n pat =
   if n = 0 then pat, []
   else begin
     match pat.pat_desc with
-    | Tpat_tuple([first; rest]) ->
+    | Tpat_tuple([None, first; None, rest]) ->
+        (* Labels should always be None, from when [Texp_letop] are created in
+           [Typecore.type_expect] *)
         let next, others = extract_letop_patterns (n-1) rest in
         first, next :: others
     | _ ->
@@ -131,13 +133,14 @@ let rec extract_letop_patterns n pat =
 (** Mapping functions. *)
 
 let constant = function
-  | Const_char c -> Pconst_char c
-  | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
-  | Const_int i -> Pconst_integer (Int.to_string i, None)
-  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
-  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
-  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
-  | Const_float f -> Pconst_float (f,None)
+  | Const_char c -> `Parsetree (Pconst_char c)
+  | Const_string (s,loc,d) -> `Parsetree (Pconst_string (s,loc,d))
+  | Const_int i -> `Parsetree (Pconst_integer (Int.to_string i, None))
+  | Const_int32 i -> `Parsetree (Pconst_integer (Int32.to_string i, Some 'l'))
+  | Const_int64 i -> `Parsetree (Pconst_integer (Int64.to_string i, Some 'L'))
+  | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
+  | Const_float f -> `Parsetree (Pconst_float (f,None))
+  | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;
@@ -149,7 +152,7 @@ let attributes sub l = List.map (sub.attribute sub) l
 
 let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var, Option.map add_loc jkind
+  add_loc var, Option.map (fun (_, annot) -> annot) jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -238,7 +241,8 @@ let type_parameter sub (ct, v) = (sub.typ sub ct, v)
 let type_declaration sub decl =
   let loc = sub.location sub decl.typ_loc in
   let attrs = sub.attributes sub decl.typ_attributes in
-  Type.mk ~loc ~attrs
+  Jane_syntax.Layouts.type_declaration_of
+    ~loc ~attrs
     ~params:(List.map (type_parameter sub) decl.typ_params)
     ~cstrs:(
       List.map
@@ -247,7 +251,10 @@ let type_declaration sub decl =
         decl.typ_cstrs)
     ~kind:(sub.type_kind sub decl.typ_kind)
     ~priv:decl.typ_private
-    ?manifest:(Option.map (sub.typ sub) decl.typ_manifest)
+    ~manifest:(Option.map (sub.typ sub) decl.typ_manifest)
+    ~docs:Docstrings.empty_docs
+    ~text:None
+    ~jkind:decl.typ_jkind_annotation
     (map_loc sub decl.typ_name)
 
 let type_kind sub tk = match tk with
@@ -354,9 +361,20 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
-    | Tpat_constant cst -> Ppat_constant (constant cst)
+    | Tpat_constant cst ->
+      begin match constant cst with
+      | `Parsetree cst -> Ppat_constant cst
+      | `Jane_syntax cst ->
+        Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
+      end
     | Tpat_tuple list ->
-        Ppat_tuple (List.map (sub.pat sub) list)
+        if List.for_all (fun (label, _) -> Option.is_none label) list then
+          Ppat_tuple (List.map (fun (_, p) -> sub.pat sub p) list)
+        else
+          Jane_syntax.Labeled_tuples.pat_of ~loc
+            (Ltpat_tuple
+              (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed))
+          |> add_jane_syntax_attributes
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -384,7 +402,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array (am, list) -> begin
+    | Tpat_array (am, _, list) -> begin
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
@@ -426,9 +444,9 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some jkind) ->
+    | Texp_newtype (s, Some (_, jkind)) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, add_loc jkind, sexp))
+          (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
@@ -490,7 +508,12 @@ let expression sub exp =
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
-    | Texp_constant cst -> Pexp_constant (constant cst)
+    | Texp_constant cst ->
+      begin match constant cst with
+      | `Parsetree cst -> Pexp_constant cst
+      | `Jane_syntax cst ->
+        Jane_syntax.Layouts.expr_of ~loc (Lexp_constant cst) |> add_jane_syntax_attributes
+      end
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,
@@ -523,7 +546,12 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        Pexp_tuple (List.map (sub.expr sub) list)
+        if (List.for_all Option.is_none (List.map fst list)) then
+          Pexp_tuple (List.map (fun (_, e) -> (sub.expr sub e)) list)
+        else
+          Jane_syntax.Labeled_tuples.expr_of ~loc
+            (Ltexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list))
+          |> add_jane_syntax_attributes
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -598,7 +626,7 @@ let expression sub exp =
     | Texp_letexception (ext, exp) ->
         Pexp_letexception (sub.extension_constructor sub ext,
                            sub.expr sub exp)
-    | Texp_assert exp -> Pexp_assert (sub.expr sub exp)
+    | Texp_assert (exp, _) -> Pexp_assert (sub.expr sub exp)
     | Texp_lazy exp -> Pexp_lazy (sub.expr sub exp)
     | Texp_object (cl, _) ->
         Pexp_object (sub.class_structure sub cl)
@@ -838,7 +866,10 @@ let module_expr (sub : mapper) mexpr =
               Pmod_functor
                 (functor_parameter sub arg, sub.module_expr sub mexpr)
           | Tmod_apply (mexp1, mexp2, _) ->
-              Pmod_apply (sub.module_expr sub mexp1, sub.module_expr sub mexp2)
+              Pmod_apply (sub.module_expr sub mexp1,
+                          sub.module_expr sub mexp2)
+          | Tmod_apply_unit mexp1 ->
+              Pmod_apply_unit (sub.module_expr sub mexp1)
           | Tmod_constraint (mexpr, _, Tmodtype_explicit mtype, _) ->
               Pmod_constraint (sub.module_expr sub mexpr,
                 sub.module_type sub mtype)
@@ -937,13 +968,20 @@ let core_type sub ct =
   let desc = match ct.ctyp_desc with
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
-    | Ttyp_var (name, Some jkind) ->
+    | Ttyp_var (name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_var { name; jkind = mkloc jkind loc }) |>
+          (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
+    | Ttyp_tuple list ->
+        if List.for_all (fun (lbl, _) -> Option.is_none lbl) list then
+          Ptyp_tuple
+            (List.map (fun (_, typ) -> sub.typ sub typ) list)
+        else
+          Jane_syntax.Labeled_tuples.typ_of ~loc
+            (Lttyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list))
+          |> add_jane_syntax_attributes
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)
@@ -954,10 +992,10 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some jkind) ->
+    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
-                        jkind = mkloc jkind loc }) |>
+                        jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
       Misc.fatal_error "anonymous alias without layout annotation in Untypeast"

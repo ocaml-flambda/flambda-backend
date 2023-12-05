@@ -18,9 +18,6 @@
 #ifndef CAML_INTEXT_H
 #define CAML_INTEXT_H
 
-#ifndef CAML_NAME_SPACE
-#include "compatibility.h"
-#endif
 #include "misc.h"
 #include "mlvalues.h"
 
@@ -31,6 +28,7 @@
 
 #define Intext_magic_number_small 0x8495A6BE
 #define Intext_magic_number_big 0x8495A6BF
+#define Intext_magic_number_compressed 0x8495A6BD
 
 /* Header format for the "small" model: 20 bytes
        0   "small" magic number
@@ -47,7 +45,27 @@
       16   number of shared blocks
       24   size in words when read on a 64-bit platform
    The 3 numbers are 64 bits each, in big endian.
+
+  Header format for the "compressed" model: 10 to 55 bytes
+       0   "compressed" magic number
+       4   low 6 bits: total size of the header
+           high 2 bits: reserved, currently 0
+       5 and following
+           5 variable-length integers, in VLQ format (1 to 10 bytes each)
+           - length of compressed marshaled data, in bytes
+           - length of uncompressed marshaled data, in bytes
+           - number of shared blocks
+           - size in words when read on a 32-bit platform
+           - size in words when read on a 64-bit platform
+
+  VLQ format is one or several bytes like 1xxxxxxx 1yyyyyyy 0zzzzzzz.
+  First bytes have top bit 1, last byte has top bit 0.
+  Each byte carries 7 bits of the number.
+  Bytes come in big-endian order: xxxxxxx are the 7 high-order bits,
+  zzzzzzzz the 7 low-order bits.
 */
+
+#define MAX_INTEXT_HEADER_SIZE 55
 
 /* Codes for the compact format */
 
@@ -77,7 +95,7 @@
 #define CODE_DOUBLE_ARRAY64_LITTLE 0x17
 #define CODE_CODEPOINTER 0x10
 #define CODE_INFIXPOINTER 0x11
-#define CODE_CUSTOM 0x12 /* deprecated */
+#define OLD_CODE_CUSTOM 0x12  // no longer supported
 #define CODE_CUSTOM_LEN 0x18
 #define CODE_CUSTOM_FIXED 0x19
 #define CODE_UNBOXED_INT64 0x1a
@@ -101,10 +119,14 @@
 #define ENTRIES_PER_TRAIL_BLOCK  1025
 #define SIZE_EXTERN_OUTPUT_BLOCK 8100
 
+void caml_free_extern_state (void);
+
 /* The entry points */
 
 void caml_output_val (struct channel * chan, value v, value flags);
   /* Output [v] with flags [flags] on the channel [chan]. */
+
+void caml_free_intern_state (void);
 
 #endif /* CAML_INTERNALS */
 
@@ -138,7 +160,7 @@ CAMLextern value caml_input_value_from_malloc(char * data, intnat ofs);
      to the beginning of the buffer, and [ofs] is the offset of the
      beginning of the externed data in this buffer.  The buffer is
      deallocated with [free] on return, or if an exception is raised. */
-CAMLextern value caml_input_value_from_block(char * data, intnat len);
+CAMLextern value caml_input_value_from_block(const char * data, intnat len);
   /* Read a structured value from a user-provided buffer.  [data] points
      to the beginning of the externed data in this buffer,
      and [len] is the length in bytes of valid data in this buffer.

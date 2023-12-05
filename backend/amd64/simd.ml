@@ -61,6 +61,8 @@ let float_rounding_equal l r =
   | (RoundUp | RoundDown | RoundNearest | RoundTruncate | RoundCurrent), _ ->
     false
 
+type clmul_operation = Clmul_64 of int
+
 type sse_operation =
   | Cmp_f32 of float_condition
   | Add_f32
@@ -114,6 +116,10 @@ type sse2_operation =
   | Avg_unsigned_i8
   | Avg_unsigned_i16
   | SAD_unsigned_i8
+  | Mulhi_i16
+  | Mulhi_unsigned_i16
+  | Mullo_i16
+  | Mul_hadd_i16_to_i32
   | And_bits
   | Andnot_bits
   | Or_bits
@@ -191,6 +197,7 @@ type ssse3_operation =
   | Mulsign_i32
   | Shuffle_8
   | Alignr_i8 of int
+  | Mul_unsigned_hadd_saturating_i8_to_i16
 
 type sse41_operation =
   | Round_scalar_f64 of float_rounding
@@ -235,6 +242,7 @@ type sse41_operation =
   | Round_f32 of float_rounding
   | Multi_sad_unsigned_i8 of int
   | Minpos_unsigned_i16
+  | Mullo_i32
 
 type sse42_operation =
   | Cmpgt_i64
@@ -255,12 +263,16 @@ type sse42_operation =
   | Crc32_64
 
 type operation =
+  | CLMUL of clmul_operation
   | SSE of sse_operation
   | SSE2 of sse2_operation
   | SSE3 of sse3_operation
   | SSSE3 of ssse3_operation
   | SSE41 of sse41_operation
   | SSE42 of sse42_operation
+
+let equal_operation_clmul l r =
+  match l, r with Clmul_64 l, Clmul_64 r -> Int.equal l r
 
 let equal_operation_sse l r =
   match l, r with
@@ -317,6 +329,10 @@ let equal_operation_sse2 l r =
   | Max_i16, Max_i16
   | Max_f64, Max_f64
   | Min_unsigned_i8, Min_unsigned_i8
+  | Mulhi_i16, Mulhi_i16
+  | Mulhi_unsigned_i16, Mulhi_unsigned_i16
+  | Mullo_i16, Mullo_i16
+  | Mul_hadd_i16_to_i32, Mul_hadd_i16_to_i32
   | Min_i16, Min_i16
   | Min_f64, Min_f64
   | Mul_f64, Mul_f64
@@ -395,7 +411,8 @@ let equal_operation_sse2 l r =
       | Interleave_low_16 | Interleave_low_64 | SLLi_i16 _ | SLLi_i32 _
       | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _
       | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ | Cmp_f64 _
-      | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ ),
+      | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ | Mulhi_i16
+      | Mulhi_unsigned_i16 | Mullo_i16 | Mul_hadd_i16_to_i32 ),
       _ ) ->
     false
 
@@ -430,12 +447,15 @@ let equal_operation_ssse3 l r =
   | Mulsign_i8, Mulsign_i8
   | Mulsign_i16, Mulsign_i16
   | Mulsign_i32, Mulsign_i32
+  | ( Mul_unsigned_hadd_saturating_i8_to_i16,
+      Mul_unsigned_hadd_saturating_i8_to_i16 )
   | Shuffle_8, Shuffle_8 ->
     true
   | Alignr_i8 l, Alignr_i8 r when Int.equal l r -> true
   | ( ( Abs_i8 | Abs_i16 | Abs_i32 | Hadd_i16 | Hadd_i32 | Hadd_saturating_i16
       | Hsub_i16 | Hsub_i32 | Hsub_saturating_i16 | Mulsign_i8 | Mulsign_i16
-      | Mulsign_i32 | Shuffle_8 | Alignr_i8 _ ),
+      | Mulsign_i32 | Shuffle_8 | Alignr_i8 _
+      | Mul_unsigned_hadd_saturating_i8_to_i16 ),
       _ ) ->
     false
 
@@ -465,6 +485,7 @@ let equal_operation_sse41 l r =
   | Min_i32, Min_i32
   | Min_unsigned_i16, Min_unsigned_i16
   | Min_unsigned_i32, Min_unsigned_i32
+  | Mullo_i32, Mullo_i32
   | Minpos_unsigned_i16, Minpos_unsigned_i16 ->
     true
   | Blend_16 l, Blend_16 r
@@ -493,7 +514,7 @@ let equal_operation_sse41 l r =
       | I8_zx_i16 | I8_zx_i32 | I8_zx_i64 | I16_zx_i32 | I16_zx_i64 | I32_zx_i64
       | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32 | Min_i8
       | Min_i32 | Min_unsigned_i16 | Min_unsigned_i32 | Minpos_unsigned_i16
-      | Blend_16 _ | Blend_32 _ | Blend_64 _ | Dp_f32 _ | Dp_f64 _
+      | Blend_16 _ | Blend_32 _ | Blend_64 _ | Dp_f32 _ | Dp_f64 _ | Mullo_i32
       | Extract_i8 _ | Extract_i16 _ | Extract_i32 _ | Extract_i64 _
       | Insert_i8 _ | Insert_i16 _ | Insert_i32 _ | Insert_i64 _ | Round_f64 _
       | Round_scalar_f64 _ | Round_f32 _ ),
@@ -527,13 +548,15 @@ let equal_operation_sse42 l r =
 
 let equal_operation l r =
   match l, r with
+  | CLMUL l, CLMUL r -> equal_operation_clmul l r
   | SSE l, SSE r -> equal_operation_sse l r
   | SSE2 l, SSE2 r -> equal_operation_sse2 l r
   | SSE3 l, SSE3 r -> equal_operation_sse3 l r
   | SSSE3 l, SSSE3 r -> equal_operation_ssse3 l r
   | SSE41 l, SSE41 r -> equal_operation_sse41 l r
   | SSE42 l, SSE42 r -> equal_operation_sse42 l r
-  | (SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _), _ -> false
+  | (CLMUL _ | SSE _ | SSE2 _ | SSE3 _ | SSSE3 _ | SSE41 _ | SSE42 _), _ ->
+    false
 
 let print_float_condition ppf = function
   | EQf -> pp_print_string ppf "eq"
@@ -551,6 +574,11 @@ let print_float_rounding ppf = function
   | RoundNearest -> pp_print_string ppf "nearest"
   | RoundTruncate -> pp_print_string ppf "truncate"
   | RoundCurrent -> pp_print_string ppf "current"
+
+let print_operation_clmul printreg op ppf arg =
+  match op with
+  | Clmul_64 i ->
+    fprintf ppf "clmul_64[%d] %a %a" i printreg arg.(0) printreg arg.(1)
 
 let print_operation_sse printreg op ppf arg =
   match op with
@@ -632,6 +660,12 @@ let print_operation_sse2 printreg op ppf arg =
     fprintf ppf "avg_unsigned_i16 %a %a" printreg arg.(0) printreg arg.(1)
   | SAD_unsigned_i8 ->
     fprintf ppf "sad_unsigned_i8 %a %a" printreg arg.(0) printreg arg.(1)
+  | Mulhi_i16 -> fprintf ppf "mulhi_i16 %a %a" printreg arg.(0) printreg arg.(1)
+  | Mulhi_unsigned_i16 ->
+    fprintf ppf "mulhi_unsigned_i16 %a %a" printreg arg.(0) printreg arg.(1)
+  | Mullo_i16 -> fprintf ppf "mullo_i16 %a %a" printreg arg.(0) printreg arg.(1)
+  | Mul_hadd_i16_to_i32 ->
+    fprintf ppf "mul_hadd_i16_to_i32 %a %a" printreg arg.(0) printreg arg.(1)
   | And_bits -> fprintf ppf "and_bits %a %a" printreg arg.(0) printreg arg.(1)
   | Andnot_bits ->
     fprintf ppf "andnot_bits %a %a" printreg arg.(0) printreg arg.(1)
@@ -747,6 +781,9 @@ let print_operation_ssse3 printreg op ppf arg =
   | Shuffle_8 -> fprintf ppf "shuffle_8 %a %a" printreg arg.(0) printreg arg.(1)
   | Alignr_i8 i ->
     fprintf ppf "alignr_i8[%d] %a %a" i printreg arg.(0) printreg arg.(1)
+  | Mul_unsigned_hadd_saturating_i8_to_i16 ->
+    fprintf ppf "mul_unsigned_hadd_saturating_i8_to_i16 %a %a" printreg arg.(0)
+      printreg arg.(1)
 
 let print_operation_sse41 printreg op ppf arg =
   match op with
@@ -816,6 +853,7 @@ let print_operation_sse41 printreg op ppf arg =
       arg.(1)
   | Minpos_unsigned_i16 ->
     fprintf ppf "minpos_unsigned_i16 %a %a" printreg arg.(0) printreg arg.(1)
+  | Mullo_i32 -> fprintf ppf "mullo_i32 %a %a" printreg arg.(0) printreg arg.(1)
 
 let print_operation_sse42 printreg op ppf arg =
   match op with
@@ -852,12 +890,15 @@ let print_operation_sse42 printreg op ppf arg =
 
 let print_operation printreg op ppf arg =
   match op with
+  | CLMUL op -> print_operation_clmul printreg op ppf arg
   | SSE op -> print_operation_sse printreg op ppf arg
   | SSE2 op -> print_operation_sse2 printreg op ppf arg
   | SSE3 op -> print_operation_sse3 printreg op ppf arg
   | SSSE3 op -> print_operation_ssse3 printreg op ppf arg
   | SSE41 op -> print_operation_sse41 printreg op ppf arg
   | SSE42 op -> print_operation_sse42 printreg op ppf arg
+
+let class_of_operation_clmul = function Clmul_64 _ -> Pure
 
 let class_of_operation_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
@@ -873,7 +914,8 @@ let class_of_operation_sse2 = function
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
   | Sub_saturating_unsigned_i16 | Max_unsigned_i8 | Max_i16 | Max_f64
   | Min_unsigned_i8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64 | Avg_unsigned_i8
-  | Avg_unsigned_i16 | SAD_unsigned_i8 | And_bits | Andnot_bits | Or_bits
+  | Avg_unsigned_i16 | SAD_unsigned_i8 | Mulhi_i16 | Mulhi_unsigned_i16
+  | Mullo_i16 | Mul_hadd_i16_to_i32 | And_bits | Andnot_bits | Or_bits
   | Xor_bits | Movemask_8 | Movemask_64 | Shift_left_bytes _
   | Shift_right_bytes _ | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8
   | Cmpgt_i16 | Cmpgt_i32 | Cmp_f64 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
@@ -894,7 +936,8 @@ let class_of_operation_sse3 = function
 let class_of_operation_ssse3 = function
   | Abs_i8 | Abs_i16 | Abs_i32 | Hadd_i16 | Hadd_i32 | Hadd_saturating_i16
   | Hsub_i16 | Hsub_i32 | Hsub_saturating_i16 | Mulsign_i8 | Mulsign_i16
-  | Mulsign_i32 | Shuffle_8 | Alignr_i8 _ ->
+  | Mulsign_i32 | Shuffle_8 | Alignr_i8 _
+  | Mul_unsigned_hadd_saturating_i8_to_i16 ->
     Pure
 
 let class_of_operation_sse41 = function
@@ -906,7 +949,7 @@ let class_of_operation_sse41 = function
   | Insert_i64 _ | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32
   | Min_i8 | Min_i32 | Min_unsigned_i16 | Min_unsigned_i32 | Round_f64 _
   | Round_scalar_f64 _ | Round_f32 _ | Multi_sad_unsigned_i8 _
-  | Minpos_unsigned_i16 ->
+  | Minpos_unsigned_i16 | Mullo_i32 ->
     Pure
 
 let class_of_operation_sse42 = function
@@ -917,6 +960,7 @@ let class_of_operation_sse42 = function
 
 let class_of_operation op =
   match op with
+  | CLMUL op -> class_of_operation_clmul op
   | SSE op -> class_of_operation_sse op
   | SSE2 op -> class_of_operation_sse2 op
   | SSE3 op -> class_of_operation_sse3 op

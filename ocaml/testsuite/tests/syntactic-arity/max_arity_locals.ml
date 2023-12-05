@@ -1,17 +1,12 @@
 (* TEST
 
- flags = "-dlambda -w +unused-value-declaration"
-
-* no-flambda
-** setup-ocamlopt.byte-build-env
-*** ocamlopt.byte
-**** check-ocamlopt.byte-output
+ flags = "-dlambda -dno-unique-ids -w +unused-value-declaration"
 
 * flambda
-compiler_reference = "${test_source_directory}/max_arity_locals.flambda.reference"
-** setup-ocamlopt.byte-build-env
-*** ocamlopt.byte
-**** check-ocamlopt.byte-output
+** stack-allocation
+*** setup-ocamlopt.byte-build-env
+**** ocamlopt.byte
+***** check-ocamlopt.byte-output
 *)
 
 (* This test prints the translation of functions whose arity exceeds

@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes
 open Lambda
 
 (* Get oo primitives identifiers *)
@@ -135,6 +134,7 @@ let transl_store_label_init glob size f arg =
   assert(not (Config.flambda || Config.flambda2));
   assert(!Clflags.native_code);
   method_cache := Lprim(mod_field ~read_semantics:Reads_vary size,
+                        (* XXX KC: conservative *)
                         [Lprim(Pgetglobal glob, [], Loc_unknown)],
                         Loc_unknown);
   let expr = f arg in

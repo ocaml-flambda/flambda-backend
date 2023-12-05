@@ -71,6 +71,7 @@
   (backend bisect_ppx))
  (modules_without_implementation
   backend_intf
+  branch_relaxation_intf
   cmx_format
   cmxs_format
   inlining_decision_intf
@@ -190,6 +191,7 @@
   deadcode
   emit
   emitaux
+  generic_fns
   interf
   interval
   linear

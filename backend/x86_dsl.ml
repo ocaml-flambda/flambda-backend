@@ -48,8 +48,11 @@ let ah  = Reg8H AH
 let cl  = Reg8L RCX
 let ax  = Reg16 RAX
 let rax = Reg64 RAX
+let rbx = Reg64 RBX
+let rdx = Reg64 RDX
 let r10 = Reg64 R10
 let r11 = Reg64 R11
+let r12 = Reg64 R12
 let r13 = Reg64 R13
 let r14 = Reg64 R14
 let r15 = Reg64 R15
@@ -82,6 +85,10 @@ module D = struct
   let cfi_adjust_cfa_offset n = directive (Cfi_adjust_cfa_offset n)
   let cfi_endproc () = directive Cfi_endproc
   let cfi_startproc () = directive Cfi_startproc
+  let cfi_remember_state () = directive Cfi_remember_state
+  let cfi_restore_state () = directive Cfi_restore_state
+  let cfi_def_cfa_register reg = directive (Cfi_def_cfa_register reg)
+  let cfi_def_cfa_offset n = directive (Cfi_def_cfa_offset n)
   let comment s = directive (Comment s)
   let data () = section [ ".data" ] None []
   let direct_assignment var const = directive (Direct_assignment (var, const))
@@ -282,6 +289,10 @@ module I = struct
   let punpcklbw x y = emit (PUNPCKLBW (x, y))
   let punpcklwd x y = emit (PUNPCKLWD (x, y))
   let punpcklqdq x y = emit (PUNPCKLQDQ (x, y))
+  let pmulhw x y = emit (PMULHW (x, y))
+  let pmulhuw x y = emit (PMULHUW (x, y))
+  let pmullw x y = emit (PMULLW (x, y))
+  let pmaddwd x y = emit (PMADDWD (x, y))
 
   let addsubps x y = emit (ADDSUBPS (x, y))
   let addsubpd x y = emit (ADDSUBPD (x, y))
@@ -314,6 +325,7 @@ module I = struct
   let psignd x y = emit (PSIGND (x, y))
   let pshufb x y = emit (PSHUFB (x, y))
   let palignr i x y = emit (PALIGNR (i, x, y))
+  let pmaddubsw x y = emit (PMADDUBSW (x, y))
 
   let pblendw i x y = emit (PBLENDW (i, x, y))
   let blendps i x y = emit (BLENDPS (i, x, y))
@@ -356,6 +368,7 @@ module I = struct
   let roundps i x y = emit (ROUNDPS (i, x, y))
   let mpsadbw i x y = emit (MPSADBW (i, x, y))
   let phminposuw x y = emit (PHMINPOSUW (x, y))
+  let pmulld x y = emit (PMULLD (x, y))
 
   let pcmpgtq x y = emit (PCMPGTQ (x, y))
   let pcmpestri i x y = emit (PCMPESTRI (i, x, y))
@@ -363,4 +376,6 @@ module I = struct
   let pcmpistri i x y = emit (PCMPISTRI (i, x, y))
   let pcmpistrm i x y = emit (PCMPISTRM (i, x, y))
   let crc32 x y = emit (CRC32 (x, y))
+
+  let pclmulqdq i x y = emit (PCLMULQDQ (i, x, y))
 end

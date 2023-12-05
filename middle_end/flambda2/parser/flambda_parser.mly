@@ -204,6 +204,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
+%token PRIM_END_TRY_REGION [@symbol "%end_try_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -233,7 +234,6 @@ let make_boxed_const_int (i, m) : static_data =
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
-%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
@@ -328,16 +328,18 @@ code:
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
+    result_mode = boption(KWD_LOCAL);
     EQUAL; body = expr;
     { let
         recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
         =
         header
       in
+      let result_mode : alloc_mode_for_assignments = if result_mode then Local else Heap in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; loopify; } }
+        code_size; is_tupled; loopify; result_mode; } }
 ;
 
 code_header:
@@ -374,6 +376,7 @@ recursive:
 
 nullop:
   | PRIM_BEGIN_REGION { Begin_region }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
 ;
 
 unary_int_arith_op:
@@ -382,7 +385,6 @@ unary_int_arith_op:
 
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -394,6 +396,7 @@ unop:
     { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_END_REGION { End_region }
+  | PRIM_END_TRY_REGION { End_try_region }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
@@ -500,11 +503,6 @@ init_or_assign:
   | EQUAL { Initialization }
   | LESSMINUS { Assignment Heap }
   | LESSMINUS AMP { Assignment Local }
-
-alloc_mode_for_types_opt:
-  | { Heap }
-  | KWD_HEAP_OR_LOCAL { Heap_or_local }
-  | KWD_LOCAL { Local }
 
 alloc_mode_for_allocations_opt:
   | { Heap }
@@ -791,7 +789,6 @@ apply_expr:
     inlining_state = option(inlining_state);
     func = func_name_with_optional_arities;
     args = simple_args;
-    AMP region = region;
     MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
@@ -803,16 +800,15 @@ apply_expr:
           inlined;
           inlining_state;
           arities;
-          region;
      } }
 ;
 
 call_kind:
-  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | alloc = alloc_mode_for_allocations_opt; { Function (Indirect alloc) }
   | KWD_DIRECT; LPAREN;
       code_id = code_id;
       function_slot = function_slot_opt;
-      alloc = alloc_mode_for_types_opt;
+      alloc = alloc_mode_for_allocations_opt;
     RPAREN
     { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)

@@ -40,10 +40,10 @@ let add_default_argument_wrappers lam =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
         Lfunction {kind; params; body = fbody; attr; loc;
-                   mode; region; return }, body) ->
+                   ret_mode; mode; region; return }, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return ~attr ~loc ~mode ~region
+          ~body:fbody ~return ~attr ~loc ~ret_mode ~mode ~region
       with
       | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -58,9 +58,9 @@ let add_default_argument_wrappers lam =
             (List.map
                (function
                  | (id, Lambda.Lfunction {kind; params; body; attr; loc;
-                                          mode; region; return }) ->
+                                          ret_mode; mode; region; return }) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return ~attr ~loc ~mode ~region
+                     ~return ~attr ~loc ~ret_mode ~mode ~region
                  | _ -> assert false)
                defs)
         in
@@ -96,7 +96,8 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let _, body =
     List.fold_left (fun (pos, body) param ->
         let lam : Flambda.named =
-          Prim (Pfield (pos, Pvalue Pgenval), [tuple_param_var], Debuginfo.none)
+          Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
+                [tuple_param_var], Debuginfo.none)
         in
         pos + 1, Flambda.create_let param lam body)
       (0, call) params
@@ -122,14 +123,13 @@ let rec declare_const t (const : Lambda.structured_constant)
   match const with
   | Const_base (Const_int c) -> (Const (Int c), Names.const_int)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
+  | Const_base (Const_unboxed_float _) ->
+    (* CR alanechang: implement unboxed float constants in flambda *)
+    Misc.fatal_error "Unboxed float constants are not supported in flambda. Consider using flambda2."
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
-      if Config.safe_string then
-        (Flambda.Allocated_const (Immutable_string s),
-         Names.const_immstring)
-      else
-        (Flambda.Allocated_const (String s),
-         Names.const_string)
+      (Flambda.Allocated_const (Immutable_string s),
+       Names.const_immstring)
     in
     register_const t const name
   | Const_base (Const_float c) ->
@@ -454,6 +454,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         | Ostype_cygwin -> lambda_const_bool (String.equal Sys.os_type "Cygwin")
         | Backend_type ->
             Lambda.const_int 0 (* tag 0 is the same as Native *)
+        | Runtime5 -> lambda_const_bool Config.runtime5
         end
       in
       close t env
@@ -741,9 +742,11 @@ let lambda_to_flambda ~backend ~compilation_unit ~size lam
       Flambda.create_let
         sym_v (Symbol block_symbol)
          (Flambda.create_let result_v
-            (Prim (Pfield (0, Pvalue Pgenval), [sym_v], Debuginfo.none))
+            (Prim (Pfield (0, Pvalue Pgenval, Pointer, Mutable), [sym_v],
+              Debuginfo.none))
             (Flambda.create_let value_v
-              (Prim (Pfield (pos, Pvalue Pgenval), [result_v], Debuginfo.none))
+              (Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
+                     [result_v], Debuginfo.none))
               (Var value_v))))
   in
   let module_initializer : Flambda.program_body =

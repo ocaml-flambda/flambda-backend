@@ -38,7 +38,8 @@ module S = struct
     { func_symbol : string;
       alloc : bool;
       ty_res : Cmm.machtype;
-      ty_args : Cmm.exttype list
+      ty_args : Cmm.exttype list;
+      stack_ofs : int
     }
 
   type prim_call_operation =
@@ -68,7 +69,12 @@ module S = struct
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits
     | Stackoffset of int
-    | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
+    | Load of
+        { memory_chunk : Cmm.memory_chunk;
+          addressing_mode : Arch.addressing_mode;
+          mutability : Mach.mutable_flag;
+          is_atomic : bool
+        }
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
     | Intop of Mach.integer_operation
     | Intop_imm of Mach.integer_operation * int
@@ -103,6 +109,7 @@ module S = struct
           is_assignment : bool;
           regs : Reg.t array
         }
+    | Dls_get
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)

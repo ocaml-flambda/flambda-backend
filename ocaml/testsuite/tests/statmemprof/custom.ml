@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+* runtime4
+*)
 
 open Gc.Memprof
 

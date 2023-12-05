@@ -1,8 +1,9 @@
 (* TEST
    flags = "-g"
-   * bytecode
+   * runtime4
+   ** bytecode
      reference = "${test_source_directory}/comballoc.byte.reference"
-   * native
+   ** native
      reference = "${test_source_directory}/comballoc.opt.reference"
 *)
 

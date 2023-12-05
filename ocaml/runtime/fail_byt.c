@@ -29,31 +29,47 @@
 #include "caml/mlvalues.h"
 #include "caml/printexc.h"
 #include "caml/signals.h"
-#include "caml/stacks.h"
+#include "caml/fiber.h"
 
 CAMLexport void caml_raise(value v)
 {
+  Caml_check_caml_state();
   Unlock_exn();
   CAMLassert(!Is_exception_result(v));
 
   v = caml_process_pending_actions_with_root(v);
 
-  Caml_state->exn_bucket = v;
-  if (Caml_state->external_raise == NULL) caml_fatal_uncaught_exception(v);
-  siglongjmp(Caml_state->external_raise->buf, 1);
+  if (Caml_state->external_raise == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
+  *Caml_state->external_raise->exn_bucket = v;
+
+  Caml_state->local_roots = Caml_state->external_raise->local_roots;
+
+  siglongjmp(Caml_state->external_raise->jmp->buf, 1);
 }
 
 CAMLexport void caml_raise_async(value v)
 {
+  Caml_check_caml_state();
   Unlock_exn();
   CAMLassert(!Is_exception_result(v));
 
-  if (Caml_state->external_raise_async == NULL)
-    caml_fatal_uncaught_exception(v);
+  if (Stack_parent(Caml_state->current_stack) != NULL) {
+    caml_fatal_error("Effects not supported in conjunction with async exns");
+  }
 
-  Caml_state->exn_bucket = v;
+  if (Caml_state->external_raise_async == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
+  *Caml_state->external_raise_async->exn_bucket = v;
+
+  Caml_state->local_roots = Caml_state->external_raise_async->local_roots;
+
   Caml_state->raising_async_exn = 1;
-  siglongjmp(Caml_state->external_raise_async->buf, 1);
+  siglongjmp(Caml_state->external_raise_async->jmp->buf, 1);
 }
 
 CAMLexport void caml_raise_constant(value tag)
@@ -108,15 +124,16 @@ CAMLexport void caml_raise_with_string(value tag, char const *msg)
 */
 static void check_global_data(char const *exception_name)
 {
-  if (caml_global_data == 0) {
-    fprintf(stderr, "Fatal error: exception %s\n", exception_name);
+  if (caml_global_data == 0 || !Is_block(caml_global_data)) {
+    fprintf(stderr, "Fatal error: exception %s during initialisation\n",
+            exception_name);
     exit(2);
   }
 }
 
 static void check_global_data_param(char const *exception_name, char const *msg)
 {
-  if (caml_global_data == 0) {
+  if (caml_global_data == 0 || !Is_block(caml_global_data)) {
     fprintf(stderr, "Fatal error: exception %s(\"%s\")\n", exception_name, msg);
     exit(2);
   }
@@ -217,8 +234,15 @@ int caml_is_special_exception(value exn) {
      a more readable textual representation of some exceptions. It is
      better to fall back to the general, less readable representation
      than to abort with a fatal error as above. */
-  if (caml_global_data == 0) return 0;
-  return exn == Field(caml_global_data, MATCH_FAILURE_EXN)
-    || exn == Field(caml_global_data, ASSERT_FAILURE_EXN)
-    || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
+
+  value f;
+
+  if (caml_global_data == 0 || !Is_block(caml_global_data)) {
+    return 0;
+  }
+
+  f = caml_global_data;
+  return exn == Field(f, MATCH_FAILURE_EXN)
+      || exn == Field(f, ASSERT_FAILURE_EXN)
+      || exn == Field(f, UNDEFINED_RECURSIVE_MODULE_EXN);
 }

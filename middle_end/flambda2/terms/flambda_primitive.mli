@@ -230,6 +230,9 @@ type nullary_primitive =
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
+  | Begin_try_region
+      (** Starting delimiter of local allocation region, when used for a "try"
+          body. *)
   | Enter_inlined_apply of { dbg : Debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
@@ -318,17 +321,21 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
-  | Begin_try_region
-      (** Starting delimiter of local allocation region, when used for a "try"
-          body, accepting the parent region as argument. *)
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
+  | End_try_region  (** Corresponding delimiter for [Begin_try_region]. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
-          an immediate value.
+          an immediate value. It should also not be used to read tags above
+          [No_scan_tag].
           Note: The GC color bits in the header are not reliable except for
-          checking if the value is locally allocated *)
+          checking if the value is locally allocated
+          Invariant: never read the tag of a possibly-lazy value from
+          ocamlopt-generated code. Tag reads that are allowed to be lazy tags
+          (by the type system) should always go through caml_obj_tag, which is
+          opaque to the compiler. *)
+  | Atomic_load of Block_access_field_kind.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -376,6 +383,8 @@ type binary_primitive =
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
   | Bigarray_get_alignment of int
+  | Atomic_exchange
+  | Atomic_fetch_and_add
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -383,6 +392,7 @@ type ternary_primitive =
   | Array_set of Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
+  | Atomic_compare_and_set
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

@@ -19,6 +19,13 @@
 open Arch
 open Simd
 
+type error = Bad_immediate of string
+
+exception Error of error
+
+let bad_immediate fmt =
+  Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
+
 (* This will need to be expanded with the addition of three and four argument
    operations in AVX2 and AVX512. *)
 type register_behavior =
@@ -40,10 +47,10 @@ let extract_constant args name ~max =
   | Cmm.Cconst_int (i, _) :: args ->
     if i < 0 || i > max
     then
-      Misc.fatal_errorf "Immediate for %s must be in range [0,%d] (got %d)" name
-        max i;
+      bad_immediate "Immediate for %s must be in range [0,%d] (got %d)" name max
+        i;
     i, args
-  | _ -> Misc.fatal_errorf "Did not get integer immediate for %s" name
+  | _ -> bad_immediate "Did not get integer immediate for %s" name
 
 let float_condition_of_int = function
   | 0 -> EQf
@@ -54,7 +61,7 @@ let float_condition_of_int = function
   | 5 -> NLTf
   | 6 -> NLEf
   | 7 -> ORDf
-  | i -> Misc.fatal_errorf "Invalid float condition immediate: %d" i
+  | i -> bad_immediate "Invalid float condition immediate: %d" i
 
 let float_rounding_of_int = function
   (* Starts at 8, as these rounding modes also imply _MM_FROUND_NO_EXC (0x8) *)
@@ -63,7 +70,17 @@ let float_rounding_of_int = function
   | 0xA -> RoundUp
   | 0xB -> RoundTruncate
   | 0xC -> RoundCurrent
-  | i -> Misc.fatal_errorf "Invalid float rounding immediate: %d" i
+  | i -> bad_immediate "Invalid float rounding immediate: %d" i
+
+let select_operation_clmul op args =
+  if not !Arch.clmul_support
+  then None
+  else
+    match op with
+    | "caml_clmul_int64x2" ->
+      let i, args = extract_constant args ~max:31 op in
+      Some (Clmul_64 i, args)
+    | _ -> None
 
 let select_operation_sse op args =
   match op with
@@ -209,6 +226,10 @@ let select_operation_sse2 op args =
   | "caml_sse2_vec128_interleave_low_16" -> Some (Interleave_low_16, args)
   | "caml_sse2_vec128_interleave_high_64" -> Some (Interleave_high_64, args)
   | "caml_sse2_vec128_interleave_low_64" -> Some (Interleave_low_64, args)
+  | "caml_sse2_int16x8_mul_high" -> Some (Mulhi_i16, args)
+  | "caml_sse2_int16x8_mul_high_unsigned" -> Some (Mulhi_unsigned_i16, args)
+  | "caml_sse2_int16x8_mul_low" -> Some (Mullo_i16, args)
+  | "caml_sse2_int16x8_mul_hadd_int32x4" -> Some (Mul_hadd_i16_to_i32, args)
   | _ -> None
 
 let select_operation_sse3 op args =
@@ -248,6 +269,8 @@ let select_operation_ssse3 op args =
     | "caml_ssse3_vec128_align_right_bytes" ->
       let i, args = extract_constant args ~max:31 op in
       Some (Alignr_i8 i, args)
+    | "caml_ssse3_int8x16_mul_unsigned_hadd_saturating_int16x8" ->
+      Some (Mul_unsigned_hadd_saturating_i8_to_i16, args)
     | _ -> None
 
 let select_operation_sse41 op args =
@@ -331,6 +354,7 @@ let select_operation_sse41 op args =
       let i, args = extract_constant args ~max:7 op in
       Some (Multi_sad_unsigned_i8 i, args)
     | "caml_sse41_int16x8_minpos_unsigned" -> Some (Minpos_unsigned_i16, args)
+    | "caml_sse41_int32x4_mul_low" -> Some (Mullo_i32, args)
     | _ -> None
 
 let select_operation_sse42 op args =
@@ -390,6 +414,7 @@ let select_simd_instr op args =
     match opt with Some x -> Some x | None -> Option.map ctr (try_ op args)
   in
   None
+  |> or_else select_operation_clmul (fun (op, args) -> CLMUL op, args)
   |> or_else select_operation_sse (fun (op, args) -> SSE op, args)
   |> or_else select_operation_sse2 (fun (op, args) -> SSE2 op, args)
   |> or_else select_operation_sse3 (fun (op, args) -> SSE3 op, args)
@@ -400,6 +425,8 @@ let select_simd_instr op args =
 let select_operation op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
+
+let register_behavior_clmul = function Clmul_64 _ -> R_RM_to_fst
 
 let register_behavior_sse = function
   | Cmp_f32 _ | Add_f32 | Sub_f32 | Mul_f32 | Div_f32 | Max_f32 | Min_f32
@@ -422,7 +449,8 @@ let register_behavior_sse2 = function
   | Avg_unsigned_i16 | SAD_unsigned_i8 | Shuffle_64 _ | Interleave_high_8
   | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
   | Interleave_low_16 | Interleave_low_64 | I16_to_i8 | I32_to_i16
-  | I16_to_unsigned_i8 | I32_to_unsigned_i16 ->
+  | I16_to_unsigned_i8 | I32_to_unsigned_i16 | Mulhi_i16 | Mulhi_unsigned_i16
+  | Mullo_i16 | Mul_hadd_i16_to_i32 ->
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
   | Cast_scalar_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_f64 ->
@@ -441,7 +469,7 @@ let register_behavior_sse3 = function
 let register_behavior_ssse3 = function
   | Hadd_i16 | Hadd_i32 | Hadd_saturating_i16 | Hsub_i16 | Hsub_i32
   | Hsub_saturating_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8
-  | Alignr_i8 _ ->
+  | Alignr_i8 _ | Mul_unsigned_hadd_saturating_i8_to_i16 ->
     R_RM_to_fst
   | Abs_i8 | Abs_i16 | Abs_i32 -> RM_to_R
 
@@ -449,7 +477,7 @@ let register_behavior_sse41 = function
   | Blend_16 _ | Blend_32 _ | Blend_64 _ | Cmpeq_i64 | Dp_f32 _ | Dp_f64 _
   | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32 | Min_i8 | Min_i32
   | Min_unsigned_i16 | Min_unsigned_i32 | Insert_i8 _ | Insert_i16 _
-  | Insert_i32 _ | Insert_i64 _ | Multi_sad_unsigned_i8 _ ->
+  | Insert_i32 _ | Insert_i64 _ | Multi_sad_unsigned_i8 _ | Mullo_i32 ->
     R_RM_to_fst
   | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
   | I8_zx_i16 | I8_zx_i32 | I8_zx_i64 | I16_zx_i32 | I16_zx_i64 | I32_zx_i64
@@ -473,6 +501,7 @@ let register_behavior_sse42 = function
     R_RM_to_rcx
 
 let register_behavior = function
+  | CLMUL op -> register_behavior_clmul op
   | SSE op -> register_behavior_sse op
   | SSE2 op -> register_behavior_sse2 op
   | SSE3 op -> register_behavior_sse3 op
@@ -498,3 +527,13 @@ let pseudoregs_for_operation op arg res =
   | R_RM_rax_rdx_to_xmm0 -> [| arg.(0); arg.(1); rax; rdx |], [| xmm0v () |]
   | R_RM_to_rcx -> arg, [| rcx |]
   | R_RM_to_xmm0 -> arg, [| xmm0v () |]
+
+(* Error report *)
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

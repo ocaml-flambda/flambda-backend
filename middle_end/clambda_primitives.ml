@@ -40,7 +40,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * layout
+  | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -49,6 +49,11 @@ type primitive =
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -70,6 +75,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -124,6 +130,11 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque
   (* Probes *)
@@ -135,6 +146,8 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
   | Pget_header of alloc_mode
+  (* Fetch domain-local state *)
+  | Pdls_get
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -215,29 +228,72 @@ let equal (x: primitive) (y: primitive) = x = y
 
 let result_layout (p : primitive) =
   match p with
-  | Punbox_float -> Lambda.Punboxed_float
-  | Punbox_int bi -> Lambda.Punboxed_int bi
-  | Pmake_unboxed_product layouts -> Lambda.Punboxed_product layouts
-  | Punboxed_product_field (field, layouts) -> List.nth layouts field
-  | Pccall {prim_native_repr_res = (_, repr_res); _} ->
-    Lambda.layout_of_native_repr repr_res
-  | Pufloatfield _ -> Lambda.Punboxed_float
-  | Pread_symbol _ | Pmakeblock _ | Pmakeufloatblock _ | Pfield _
-  | Pfield_computed | Psetfield _ | Psetfield_computed _ | Pfloatfield _
-  | Psetfloatfield _ | Psetufloatfield _ | Pduprecord _ | Praise _
-  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
-  | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
-  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
-  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Parrayrefs _ | Parraysets _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
-  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
-  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+  | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
+  | Psetufloatfield _
+  | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
+    -> Lambda.layout_unit
+  | Pmakeblock _ | Pmakearray _ | Pduprecord _
+  | Pmakeufloatblock _
+  | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
+  | Pfield _ | Pfield_computed -> Lambda.layout_field
+  | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
+  | Pmake_unboxed_product layouts -> Lambda.layout_unboxed_product layouts
+  | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
+  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pbox_float _ -> Lambda.layout_boxed_float
+  | Pufloatfield _ | Punbox_float -> Punboxed_float
+  | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_native_repr repr_res
+  | Praise _ -> Lambda.layout_bottom
+  | Psequor | Psequand | Pnot
+  | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _
+  | Pandint | Porint | Pxorint
+  | Plslint | Plsrint | Pasrint
+  | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _ | Punboxed_float_comp _
+  | Pstringlength | Pstringrefu | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytesrefs
+  | Parraylength _ | Pisint | Pisout | Pintofbint _
+  | Pbintcomp _
+  | Pprobe_is_enabled _ | Pbswap16
+    -> Lambda.layout_int
+  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+    Lambda.array_ref_kind_result_layout array_ref_kind
+  | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
+  | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
+  | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
+  | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
+  | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
+  | Pbbswap (bi, _) | Pbox_int (bi, _) ->
+      Lambda.layout_boxedint bi
+  | Punbox_int bi -> Punboxed_int bi
+  | Pbigarrayref (_, _, kind, _) ->
+      begin match kind with
+      | Pbigarray_unknown -> Lambda.layout_any_value
+      | Pbigarray_float32 | Pbigarray_float64 -> Lambda.layout_boxed_float
+      | Pbigarray_sint8 | Pbigarray_uint8
+      | Pbigarray_sint16 | Pbigarray_uint16
+      | Pbigarray_caml_int -> Lambda.layout_int
+      | Pbigarray_int32 -> Lambda.layout_boxedint Pint32
+      | Pbigarray_int64 -> Lambda.layout_boxedint Pint64
+      | Pbigarray_native_int -> Lambda.layout_boxedint Pnativeint
+      | Pbigarray_complex32 | Pbigarray_complex64 ->
+          Lambda.layout_block
+      end
+  | Pint_as_pointer _ ->
+    (* CR ncourant: use an unboxed int64 here when it exists *)
+    Lambda.layout_any_value
+  | Pget_header _ -> Lambda.layout_boxedint Pnativeint
+  | Prunstack | Presume | Pperform | Preperform ->
+    (* CR mshinwell/ncourant: to be thought about later *)
+    Misc.fatal_error "Effects-related primitives are not yet supported"
+  | Patomic_load { immediate_or_pointer = Immediate } -> Lambda.layout_int
+  | Patomic_load { immediate_or_pointer = Pointer } -> Lambda.layout_any_value
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
+  | Pdls_get
+  | Popaque | Pread_symbol _
   | Pstring_load _ | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _
-  | Pbigstring_set _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque
-  | Pprobe_is_enabled _ | Pbox_float _ | Pbox_int _ | Pget_header _
-    -> Lambda.layout_any_value
+  | Pbigstring_set _  -> Lambda.layout_any_value

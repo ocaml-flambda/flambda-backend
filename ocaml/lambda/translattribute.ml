@@ -50,8 +50,16 @@ let is_poll_attribute =
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
+let is_opaque_attribute =
+  [ ["opaque"; "ocaml.opaque"], true ]
+
+
 let find_attribute p attributes =
-  let inline_attribute = Builtin_attributes.filter_attributes p attributes in
+  let inline_attribute =
+    Builtin_attributes.filter_attributes
+      (Builtin_attributes.Attributes_filter.create p)
+      attributes
+  in
   let attr =
     match inline_attribute with
     | [] -> None
@@ -251,11 +259,13 @@ let parse_property_attribute attr property =
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
       parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Check { property; strict = false; loc; } )
+        ~empty:(Check { property; strict = false; opt = false; loc; } )
         [
           ["assume"],
           Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; loc; };
+          ["strict"], Check { property; strict = true; opt = false; loc; };
+          ["opt"], Check { property; strict = false; opt = true; loc; };
+          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
           ["assume"; "strict"],
           Assume { property; strict = true; never_returns_normally = false; loc; };
           ["assume"; "never_returns_normally"],
@@ -291,6 +301,17 @@ let parse_loop_attribute attr =
         ]
         payload
 
+let parse_opaque_attribute attr =
+  match attr with
+  | None -> false
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:false
+        ~empty:true
+        []
+        payload
+
+
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -303,6 +324,11 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
+let get_opaque_attribute l =
+  let attr = find_attribute is_opaque_attribute l in
+  parse_opaque_attribute attr
+
+
 let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
@@ -312,8 +338,8 @@ let get_property_attribute l p =
    | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
    | Some _, Ignore_assert_all _ -> ()
    | Some _, Assume _ -> ()
-   | Some attr, Check _ ->
-     if !Clflags.zero_alloc_check && !Clflags.native_code then
+   | Some attr, Check { opt; _ } ->
+     if Lambda.is_check_enabled ~opt p && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is requested
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
@@ -341,7 +367,7 @@ let check_poll_inline loc attr =
   | Error_poll, (Always_inline | Available_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Inlining_impossible
-          "[@poll error] is incompatible with inlining")
+           "[@poll error] is incompatible with inlining")
   | _ ->
       ()
 
@@ -354,9 +380,28 @@ let check_poll_local loc attr =
   | _ ->
       ()
 
+let check_opaque_inline loc attr =
+  match attr.is_opaque, attr.inline with
+  | true, (Always_inline | Available_inline | Unroll _) ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+           "[@opaque] is incompatible with inlining")
+  | _ ->
+      ()
+
+let check_opaque_local loc attr =
+  match attr.is_opaque, attr.local with
+  | true, Always_local ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+           "[@opaque] is incompatible with local function optimization")
+  | _ ->
+      ()
+
+
 let lfunction_with_attr ~attr
-  { kind; params; return; body; attr=_; loc; mode; region } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region
+  { kind; params; return; body; attr=_; loc; mode; ret_mode; region } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
 
 let add_inline_attribute expr loc attributes =
   match expr with
@@ -519,6 +564,24 @@ let add_poll_attribute expr loc attributes =
     end
   | expr -> expr
 
+let add_opaque_attribute expr loc attributes =
+  match expr with
+  | Lfunction({ attr } as funct) ->
+      if not (get_opaque_attribute attributes) then
+        expr
+      else begin
+        if attr.is_opaque then
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "opaque");
+        let attr = { attr with is_opaque = true } in
+        check_opaque_inline loc attr;
+        check_opaque_local loc attr;
+        let attr = { attr with inline = Never_inline; local = Never_local } in
+        lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
+
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
   let attr = find_attribute is_inlined_attribute e.exp_attributes in
@@ -578,8 +641,11 @@ let add_function_attributes lam loc attr =
   let lam =
     add_tmc_attribute lam loc attr
   in
+  (* last because poll and opaque overrides inline and local *)
   let lam =
-    (* last because poll overrides inline and local *)
     add_poll_attribute lam loc attr
+  in
+  let lam =
+    add_opaque_attribute lam loc attr
   in
   lam

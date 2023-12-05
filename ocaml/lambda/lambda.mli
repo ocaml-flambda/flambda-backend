@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -29,6 +31,7 @@ type compile_time_constant =
   | Ostype_win32
   | Ostype_cygwin
   | Backend_type
+  | Runtime5
 
 type immediate_or_pointer =
   | Immediate
@@ -54,6 +57,8 @@ val alloc_local : locality_mode
 val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
+
+val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
@@ -97,7 +102,7 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pfield of int * field_read_semantics
+  | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -110,6 +115,11 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  (* Context switches *)
+  | Prunstack
+  | Pperform
+  | Presume
+  | Preperform
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -132,6 +142,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -203,6 +214,11 @@ type primitive =
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of alloc_mode
+  (* Atomic operations *)
+  | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange
+  | Patomic_cas
+  | Patomic_fetch_add
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -224,6 +240,8 @@ type primitive =
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
      if the value is locally allocated *)
+  (* Fetching domain-local state *)
+  | Pdls_get
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -401,6 +419,7 @@ type check_attribute =
                   then the property holds (but property violations on
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
+               opt: bool;
                loc: Location.t;
              }
   | Assume of { property: property;
@@ -446,6 +465,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
 }
@@ -501,6 +521,7 @@ and lfunction = private
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
     mode : alloc_mode;     (* alloc mode of the closure itself *)
+    ret_mode: alloc_mode;
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
   }
@@ -621,6 +642,7 @@ val lfunction :
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
   mode:alloc_mode ->
+  ret_mode:alloc_mode ->
   region:bool ->
   lambda
 
@@ -763,6 +785,8 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
+val array_ref_kind_result_layout: array_ref_kind -> layout
+
 val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
@@ -770,3 +794,4 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
+val is_check_enabled : opt:bool -> property -> bool

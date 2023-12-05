@@ -13,7 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-let use_ocamlcfg = ref false            (* -ocamlcfg *)
+let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)

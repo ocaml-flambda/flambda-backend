@@ -30,7 +30,6 @@ let code size(23)
   apply inlined(never)
     map_foo
       (`anon-fn[tests11.ml:15,39--51]`, `anon-fn[tests11.ml:15,52--67]`, 0)
-      &my_region
       -> k * k1
 in
 let code inline(always) size(32)
@@ -48,7 +47,7 @@ let code rec size(55)
         : [ 0 | 0 of val * val ] =
   let next_depth = rec_info (succ my_depth) in
   let bar = %project_value_slot map_foo.bar my_closure in
-  apply seq (0) &my_region -> k2 * k1
+  apply seq (0) -> k2 * k1
     where k2 (`*match*` : [ 0 | 0 of val * val ]) =
       let prim = %is_int `*match*` in
       let Pisint = %Tag_imm prim in
@@ -64,19 +63,13 @@ let code rec size(55)
                 | 1 -> k4)
                where k4 =
                  apply direct(bar_0)
-                   bar
-                     (my_closure ~ depth my_depth -> next_depth)
-                     &my_region
-                     -> k2 * k1
+                   bar (my_closure ~ depth my_depth -> next_depth) -> k2 * k1
                where k3 =
                  apply direct(bar_0)
-                   bar
-                     (my_closure ~ depth my_depth -> next_depth)
-                     &my_region
-                     -> k2 * k1)
+                   bar (my_closure ~ depth my_depth -> next_depth) -> k2 * k1)
               where k2 (switch_result) =
                 ((let Pfield = %block_load (`*match*`, 0) in
-                  apply f (Pfield) &my_region -> k2 * k1)
+                  apply f (Pfield) -> k2 * k1)
                    where k2 (apply_result) =
                      let Pmakeblock = %Block 0 (apply_result, switch_result)
                      in
