@@ -251,8 +251,6 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
 
 CAMLexport void caml_thread_save_runtime_state(void)
 {
-  if (Caml_state->_in_minor_collection)
-    caml_fatal_error("Thread switch from inside minor GC");
 #ifdef NATIVE_CODE
   curr_thread->top_of_stack = Caml_state->_top_of_stack;
   curr_thread->bottom_of_stack = Caml_state->_bottom_of_stack;

@@ -192,8 +192,6 @@ static void caml_thread_scan_roots(
 
 static void save_runtime_state(void)
 {
-  if (Caml_state->in_minor_collection)
-    caml_fatal_error("Thread switch from inside minor GC");
   CAMLassert(This_thread != NULL);
   caml_thread_t this_thread = This_thread;
   this_thread->current_stack = Caml_state->current_stack;
