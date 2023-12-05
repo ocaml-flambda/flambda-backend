@@ -358,7 +358,8 @@ let op_shapes = [
   opUGEINT, Nothing;
   opBULTINT, Uint_Disp;
   opBUGEINT, Uint_Disp;
-  (* BACKPORT
+  (* CR ocaml 5 effects:
+  BACKPORT
   opPERFORM, Nothing;
   opRESUME, Nothing;
   opRESUMETERM, Uint;

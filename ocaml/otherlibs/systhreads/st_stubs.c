@@ -80,6 +80,7 @@ struct caml_thread_struct {
   /* Note: we do not save Caml_state->stack_cache, because it can
      safely be shared between all threads on the same domain. */
   struct caml__roots_block *local_roots; /* saved value of local_roots */
+  struct caml_local_arenas *local_arenas;
   int backtrace_pos;           /* saved value of Caml_state->backtrace_pos */
   backtrace_slot * backtrace_buffer;
     /* saved value of Caml_state->backtrace_buffer */
@@ -88,12 +89,14 @@ struct caml_thread_struct {
   value * gc_regs;           /* saved value of Caml_state->gc_regs */
   value * gc_regs_buckets;   /* saved value of Caml_state->gc_regs_buckets */
   void * exn_handler;        /* saved value of Caml_state->exn_handler */
-
+  char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
   intnat trap_barrier_off; /* saved value of Caml_state->trap_barrier_off */
   struct caml_exception_context* external_raise;
     /* saved value of Caml_state->external_raise */
+  struct caml_exception_context* external_raise_async;
+    /* saved value of Caml_state->external_raise_async */
 #endif
 
 #ifdef POSIX_SIGNALS
@@ -113,6 +116,7 @@ struct caml_thread_table {
   caml_thread_t active_thread;
   st_masterlock thread_lock;
   int tick_thread_running;
+  int tick_thread_enabled;
   st_thread_id tick_thread_id;
 };
 
@@ -141,6 +145,9 @@ static void thread_lock_release(int dom_id)
 
 /* Whether the "tick" thread is already running for this domain */
 #define Tick_thread_running thread_table[Caml_state->id].tick_thread_running
+
+/* Whether the "tick" thread is enabled for this domain */
+#define Tick_thread_enabled thread_table[Caml_state->id].tick_thread_enabled
 
 /* The thread identifier of the "tick" thread for this domain */
 #define Tick_thread_id thread_table[Caml_state->id].tick_thread_id
@@ -173,7 +180,8 @@ static void caml_thread_scan_roots(
       if (th != Active_thread) {
         if (th->current_stack != NULL)
           caml_do_local_roots(action, fflags, fdata,
-                              th->local_roots, th->current_stack, th->gc_regs);
+                              th->local_roots, th->current_stack, th->gc_regs,
+                              th->local_arenas);
       }
       th = th->next;
     } while (th != Active_thread);
@@ -195,7 +203,9 @@ static void save_runtime_state(void)
   this_thread->gc_regs = Caml_state->gc_regs;
   this_thread->gc_regs_buckets = Caml_state->gc_regs_buckets;
   this_thread->exn_handler = Caml_state->exn_handler;
+  this_thread->async_exn_handler = Caml_state->async_exn_handler;
   this_thread->local_roots = Caml_state->local_roots;
+  this_thread->local_arenas = caml_get_local_arenas(Caml_state);
   this_thread->backtrace_pos = Caml_state->backtrace_pos;
   this_thread->backtrace_buffer = Caml_state->backtrace_buffer;
   this_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
@@ -203,6 +213,7 @@ static void save_runtime_state(void)
   this_thread->trap_sp_off = Caml_state->trap_sp_off;
   this_thread->trap_barrier_off = Caml_state->trap_barrier_off;
   this_thread->external_raise = Caml_state->external_raise;
+  this_thread->external_raise_async = Caml_state->external_raise_async;
 #endif
 }
 
@@ -215,7 +226,9 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->gc_regs = th->gc_regs;
   Caml_state->gc_regs_buckets = th->gc_regs_buckets;
   Caml_state->exn_handler = th->exn_handler;
+  Caml_state->async_exn_handler = th->async_exn_handler;
   Caml_state->local_roots = th->local_roots;
+  caml_set_local_arenas(Caml_state, th->local_arenas);
   Caml_state->backtrace_pos = th->backtrace_pos;
   Caml_state->backtrace_buffer = th->backtrace_buffer;
   Caml_state->backtrace_last_exn = th->backtrace_last_exn;
@@ -223,6 +236,7 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->trap_sp_off = th->trap_sp_off;
   Caml_state->trap_barrier_off = th->trap_barrier_off;
   Caml_state->external_raise = th->external_raise;
+  Caml_state->external_raise_async = th->external_raise_async;
 #endif
 }
 
@@ -283,17 +297,20 @@ static caml_thread_t caml_thread_new_info(void)
   }
   th->c_stack = NULL;
   th->local_roots = NULL;
+  th->local_arenas = NULL;
   th->backtrace_pos = 0;
   th->backtrace_buffer = NULL;
   th->backtrace_last_exn = Val_unit;
   th->gc_regs = NULL;
   th->gc_regs_buckets = NULL;
   th->exn_handler = NULL;
+  th->async_exn_handler = NULL;
 
 #ifndef NATIVE_CODE
   th->trap_sp_off = 1;
   th->trap_barrier_off = 2;
   th->external_raise = NULL;
+  th->external_raise_async = NULL;
 #endif
 
   return th;
@@ -314,10 +331,14 @@ void caml_thread_free_info(caml_thread_t th)
         use in this variable nor on the stack)
      exn_handler: stack-allocated
      external_raise: stack-allocated
+     async_exn_handler: stack-allocated
+     external_raise_async: stack-allocated
      init_mask: stack-allocated
   */
   caml_free_stack(th->current_stack);
   caml_free_backtrace_buffer(th->backtrace_buffer);
+
+  // CR sdolan: free local arenas
 
   /* Remark: we could share gc_regs_buckets between threads on a same
      domain, but this might break the invariant that it is always
@@ -490,15 +511,18 @@ CAMLprim value caml_thread_initialize(value unit)
   return Val_unit;
 }
 
+static void stop_tick_thread(void)
+{
+  if (!Tick_thread_running) return;
+  atomic_store_release(&Tick_thread_stop, 1);
+  st_thread_join(Tick_thread_id);
+  atomic_store_release(&Tick_thread_stop, 0);
+  Tick_thread_running = 0;
+}
+
 CAMLprim value caml_thread_cleanup(value unit)
 {
-  if (Tick_thread_running){
-    atomic_store_release(&Tick_thread_stop, 1);
-    st_thread_join(Tick_thread_id);
-    atomic_store_release(&Tick_thread_stop, 0);
-    Tick_thread_running = 0;
-  }
-
+  stop_tick_thread();
   return Val_unit;
 }
 
@@ -577,6 +601,29 @@ static int create_tick_thread(void)
   return err;
 }
 
+static st_retcode start_tick_thread(void)
+{
+  if (Tick_thread_running) return 0;
+  st_retcode err = create_tick_thread();
+  if (err == 0) Tick_thread_running = 1;
+  return err;
+}
+
+CAMLprim value caml_enable_tick_thread(value v_enable)
+{
+  int enable = Long_val(v_enable) ? 1 : 0;
+
+  if (enable) {
+    st_retcode err = start_tick_thread();
+    sync_check_error(err, "caml_enable_tick_thread");
+  } else {
+    stop_tick_thread();
+  }
+
+  Tick_thread_enabled = enable;
+  return Val_unit;
+}
+
 CAMLprim value caml_thread_new(value clos)
 {
   CAMLparam1(clos);
@@ -624,10 +671,9 @@ CAMLprim value caml_thread_new(value clos)
     sync_check_error(err, "Thread.create");
   }
 
-  if (! Tick_thread_running) {
-    err = create_tick_thread();
+  if (Tick_thread_enabled) {
+    err = start_tick_thread();
     sync_check_error(err, "Thread.create");
-    Tick_thread_running = 1;
   }
   CAMLreturn(th->descr);
 }
@@ -670,10 +716,9 @@ CAMLexport int caml_c_thread_register(void)
   /* Allocate the thread descriptor on the heap */
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
-  if (! Tick_thread_running) {
-    st_retcode err = create_tick_thread();
+  if (Tick_thread_enabled) {
+    st_retcode err = start_tick_thread();
     sync_check_error(err, "caml_register_c_thread");
-    Tick_thread_running = 1;
   }
 
   /* Release the master lock */
@@ -743,11 +788,11 @@ CAMLprim value caml_thread_yield(value unit)
      with saving errno.)
   */
 
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
   save_runtime_state();
   st_thread_yield(m);
   restore_runtime_state(This_thread);
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
 
   return Val_unit;
 }

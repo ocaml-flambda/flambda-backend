@@ -49,7 +49,8 @@ let bind_list name args fn =
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
-let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
+let caml_local =
+  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -826,9 +827,8 @@ let get_header ptr dbg =
      data race on headers. This saves performance with ThreadSanitizer
      instrumentation by avoiding to instrument header loads. *)
   Cop
-    ( (* BACKPORT BEGIN mk_load_immut Word_int, *)
-      mk_load_mut Word_int,
-      (* BACKPORT END *)
+    ( mk_load_mut Word_int,
+      (* CR xclerc: consider whether that could be changed to mk_load_immut *)
       [Cop (Cadda, [ptr; Cconst_int (-size_int, dbg)], dbg)],
       dbg )
 
@@ -850,9 +850,9 @@ let get_tag ptr dbg =
     (* If byte loads are efficient *)
     (* Same comment as [get_header] above *)
     Cop
-      ( (* BACKPORT BEGIN mk_load_immut Byte_unsigned, *)
-        mk_load_mut Byte_unsigned,
-        (* BACKPORT END *)
+      ( (if Config.runtime5
+        then mk_load_immut Byte_unsigned
+        else mk_load_mut Byte_unsigned),
         [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
         dbg )
 
@@ -1235,9 +1235,9 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
         Cop
           ( Cextcall
               { func =
-                  (* BACKPORT BEGIN "caml_alloc_shr_check_gc" *)
-                  "caml_alloc"
-                  (* BACKPORT END *);
+                  (if Config.runtime5
+                  then "caml_alloc_shr_check_gc"
+                  else "caml_alloc");
                 ty = typ_val;
                 alloc = true;
                 builtin = false;
@@ -3124,10 +3124,9 @@ let assignment_kind (ptr : Lambda.immediate_or_pointer)
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
-    (* BACKPORT BEGIN | Heap_initialization, Pointer | Root_initialization,
-       Pointer -> Caml_initialize *)
   | Heap_initialization, Pointer -> Caml_initialize
-  | Root_initialization, Pointer -> Simple Initialization (* BACKPORT END *)
+  | Root_initialization, Pointer ->
+    if Config.runtime5 then Caml_initialize else Simple Initialization
   | Assignment _, Immediate -> Simple Assignment
   | Heap_initialization, Immediate | Root_initialization, Immediate ->
     Simple Initialization
@@ -4257,3 +4256,56 @@ let kind_of_layout (layout : Lambda.layout) =
   | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
   | Punboxed_product _ ->
     Any
+
+(* Atomics *)
+
+let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =
+  let memory_chunk =
+    match imm_or_ptr with Immediate -> Word_int | Pointer -> Word_val
+  in
+  Cop (mk_load_atomic memory_chunk, [atomic], dbg)
+
+let atomic_exchange ~dbg atomic new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; new_value],
+      dbg )
+
+let atomic_fetch_and_add ~dbg atomic i =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_fetch_add";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; i],
+      dbg )
+
+let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_cas";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )

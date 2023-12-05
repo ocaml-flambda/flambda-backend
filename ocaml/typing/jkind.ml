@@ -604,6 +604,7 @@ type value_creation_reason =
   | Debug_printer_argument
   | V1_safety_check
   | Captured_in_object
+  | Recmod_fun_arg
   | Unknown of string
 
 type immediate_creation_reason =
@@ -1051,6 +1052,9 @@ end = struct
       fprintf ppf "used as the argument to a debugger printer function"
     | V1_safety_check -> fprintf ppf "to be value for the V1 safety check"
     | Captured_in_object -> fprintf ppf "captured in an object"
+    | Recmod_fun_arg ->
+      fprintf ppf
+        "used as the first argument to a function in a recursive module"
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1405,6 +1409,7 @@ module Debug_printers = struct
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
     | V1_safety_check -> fprintf ppf "V1_safety_check"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
+    | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let void_creation_reason ppf : void_creation_reason -> _ = function

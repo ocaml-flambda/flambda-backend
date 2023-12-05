@@ -9,7 +9,7 @@ include systhreads
 
 let throw_exn msg = (failwith [@inlined never]) msg [@@inline never]
 
-let thread_func delay =
+let[@inline never] thread_func delay =
   Thread.yield ();
   try throw_exn (string_of_int delay) with
   | exn ->
@@ -17,7 +17,7 @@ let thread_func delay =
      Gc.minor ();
      raise exn
 
-let thread_backtrace (cond, mut) =
+let[@inline never] thread_backtrace (cond, mut) =
   Thread.yield ();
   try throw_exn "backtrace" with
   | exn ->

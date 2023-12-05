@@ -1,6 +1,6 @@
 (* TEST
    * bytecode
-     reference = "${test_source_directory}/iarray.heap.reference"
+     reference = "${test_source_directory}/iarray.byte.reference"
    * stack-allocation
    ** native
       reference = "${test_source_directory}/iarray.stack.reference"

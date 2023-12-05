@@ -124,7 +124,9 @@ let compilerlibs_archive archive =
   append Ocaml_variables.libraries [archive] ::
   List.map add_compiler_subdir compilerlibs_subdirs
 
-let debugger = [add_compiler_subdir "debugger"]
+let runtime_suffix = if Config.runtime5 then "" else "4"
+
+let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
 
 let _ =
   register_modifiers "principal" principal;

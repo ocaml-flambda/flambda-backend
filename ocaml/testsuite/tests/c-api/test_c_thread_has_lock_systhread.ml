@@ -1,7 +1,6 @@
 (* TEST
    modules = "test_c_thread_has_lock_cstubs.c"
-   * skip
-   reason = "OCaml 5 only"
+   * runtime5
    ** hassysthreads
    include systhreads
    *** bytecode

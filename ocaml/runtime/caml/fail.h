@@ -73,7 +73,11 @@ struct caml_exception_context {
 
 int caml_is_special_exception(value exn);
 
-CAMLextern value caml_raise_if_exception(value res);
+CAMLextern value caml_raise_async_if_exception(value res, const char* where);
+
+CAMLnoreturn_start
+CAMLextern void caml_raise_async(value res)
+CAMLnoreturn_end;
 
 #endif /* CAML_INTERNALS */
 
@@ -143,6 +147,10 @@ CAMLnoreturn_end;
 
 CAMLnoreturn_start
 CAMLextern void caml_array_bound_error (void)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
+CAMLextern void caml_array_align_error (void)
 CAMLnoreturn_end;
 
 CAMLnoreturn_start

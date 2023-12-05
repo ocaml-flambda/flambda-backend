@@ -29,6 +29,19 @@ typedef pthread_mutex_t * sync_mutex;
 CAMLextern int caml_mutex_lock(sync_mutex mut);
 CAMLextern int caml_mutex_unlock(sync_mutex mut);
 
+/* If we're using glibc, use a custom condition variable implementation to
+   avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
+   
+   For now we only have this on linux because it directly uses the linux futex
+   syscalls. */
+#if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+typedef struct {
+  volatile unsigned counter;
+} custom_condvar;
+#else
+typedef pthread_cond_t custom_condvar;
+#endif
+
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_SYNC_H */

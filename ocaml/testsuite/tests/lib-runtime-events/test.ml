@@ -1,8 +1,9 @@
 (* TEST
+* runtime4
+** skip
+* runtime5
 modules = "stubs.c"
 include runtime_events
-* skip
-reason = "OCaml 5 only"
 *)
 
 external start_runtime_events : unit -> unit = "start_runtime_events"
