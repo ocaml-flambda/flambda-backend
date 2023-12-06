@@ -182,6 +182,11 @@ struct caml_locking_scheme caml_default_locking_scheme =
     default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
 
+CAMLexport struct caml_locking_scheme *caml_get_default_locking_scheme(void)
+{
+  return &caml_default_locking_scheme;
+}
+
 static void acquire_runtime_lock(void)
 {
   struct caml_locking_scheme* s;
