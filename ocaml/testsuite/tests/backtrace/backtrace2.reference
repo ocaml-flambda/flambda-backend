@@ -42,7 +42,7 @@ Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, char
 Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 43-52
 Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 43-52
 Called from Backtrace2.test_Not_found in file "backtrace2.ml", line 38, characters 6-11
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 543, characters 13-28
+Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 542, characters 13-28
 Called from Backtrace2.test_Not_found in file "backtrace2.ml", line 43, characters 9-42
 Re-raised at Backtrace2.test_Not_found in file "backtrace2.ml", line 43, characters 61-70
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23
@@ -66,8 +66,8 @@ Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, character
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
-Called from CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 37, characters 17-27
-Re-raised at CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 42, characters 4-11
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23
 Uncaught exception Not_found
 Raised at Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 18-33
@@ -77,11 +77,11 @@ Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, char
 Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 43-52
 Called from Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 43-52
 Called from Backtrace2.test_Not_found in file "backtrace2.ml", line 38, characters 6-11
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 543, characters 13-28
+Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 542, characters 13-28
 Called from Backtrace2.test_Not_found in file "backtrace2.ml", line 43, characters 9-42
 Re-raised at Backtrace2.test_Not_found in file "backtrace2.ml", line 43, characters 61-70
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 543, characters 13-28
+Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 542, characters 13-28
 Called from Backtrace2.test_lazy.exception_raised_internally in file "backtrace2.ml", line 50, characters 8-41
 Re-raised at Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 18-33
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
@@ -89,12 +89,12 @@ Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, character
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
 Called from Backtrace2.test_lazy.aux in file "backtrace2.ml", line 47, characters 43-52
-Called from CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 37, characters 17-27
-Re-raised at CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 42, characters 4-11
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 543, characters 13-28
+Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 542, characters 13-28
 Called from Backtrace2.test_lazy.exception_raised_internally in file "backtrace2.ml", line 50, characters 8-41
-Re-raised at CamlinternalLazy.force_lazy_block.(fun) in file "camlinternalLazy.ml", line 41, characters 56-63
-Called from CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 37, characters 17-27
-Re-raised at CamlinternalLazy.force_lazy_block in file "camlinternalLazy.ml", line 42, characters 4-11
+Re-raised at CamlinternalLazy.<force>
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23

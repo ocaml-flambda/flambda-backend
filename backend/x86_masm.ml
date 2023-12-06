@@ -368,6 +368,13 @@ let print_instr b = function
   | PALIGNR (n, arg1, arg2) -> i3 b "palignr" n arg1 arg2
   | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
+  | PCLMULQDQ (n, arg1, arg2) -> i3 b "pclmulqdq" n arg1 arg2
+  | PMULHW (arg1, arg2) -> i2 b "pmulhw" arg1 arg2
+  | PMULHUW (arg1, arg2) -> i2 b "pmulhuw" arg1 arg2
+  | PMULLW (arg1, arg2) -> i2 b "pmullw" arg1 arg2
+  | PMADDWD (arg1, arg2) -> i2 b "pmaddwd" arg1 arg2
+  | PMADDUBSW (arg1, arg2) -> i2 b "pmaddubsw" arg1 arg2
+  | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr
@@ -398,6 +405,10 @@ let print_line b = function
   | Cfi_adjust_cfa_offset _
   | Cfi_endproc
   | Cfi_startproc
+  | Cfi_def_cfa_register _
+  | Cfi_def_cfa_offset _
+  | Cfi_remember_state
+  | Cfi_restore_state
   | File _
   | Indirect_symbol _
   | Loc _

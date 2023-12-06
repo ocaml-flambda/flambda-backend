@@ -527,7 +527,7 @@ let nullary_primitive _env res dbg prim =
        `to_cmm_shared.ml` *)
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
-  | Begin_region -> None, res, C.beginregion ~dbg
+  | Begin_region | Begin_try_region -> None, res, C.beginregion ~dbg
   | Enter_inlined_apply _ ->
     Misc.fatal_errorf
       "The primitive [Enter_inlined_apply] should not be translated by \
@@ -636,9 +636,16 @@ let unary_primitive env res dbg f arg =
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
-  | Begin_try_region -> None, res, C.beginregion ~dbg
-  | End_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | End_region | End_try_region ->
+    None, res, C.return_unit dbg (C.endregion ~dbg arg)
   | Get_header -> None, res, C.get_header arg dbg
+  | Atomic_load block_access_kind ->
+    let imm_or_ptr : Lambda.immediate_or_pointer =
+      match block_access_kind with
+      | Any_value -> Pointer
+      | Immediate -> Immediate
+    in
+    None, res, C.atomic_load ~dbg imm_or_ptr arg
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
@@ -661,6 +668,8 @@ let binary_primitive env dbg f x y =
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
+  | Atomic_exchange -> C.atomic_exchange ~dbg x y
+  | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -672,6 +681,8 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
+  | Atomic_compare_and_set ->
+    C.atomic_compare_and_set ~dbg x ~old_value:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

@@ -12,6 +12,30 @@
 ;*                                                                        *
 ;**************************************************************************
 
+(rule
+  (targets dynlink_internal_byte.ml)
+  (deps byte/dynlink.ml)
+  (action (copy %{deps} %{targets})))
+
+(library
+ (name dynlink_internal_byte)
+ (wrapped false)
+ (modes byte native)
+ (modules dynlink_internal_byte)
+ (libraries dynlink_compilerlibs dynlink_internal_common))
+
+(rule
+  (targets dynlink_internal_native.ml)
+  (deps native/dynlink.ml)
+  (action (copy %{deps} %{targets})))
+
+(library
+ (name dynlink_internal_native)
+ (wrapped false)
+ (modes byte native)
+ (modules dynlink_internal_native)
+ (libraries dynlink_compilerlibs dynlink_internal_common))
+
 (library
   (name dynlink_compilerlibs)
   (wrapped true)
@@ -45,6 +69,7 @@
     docstrings
     printast
     syntaxerr
+    jane_asttypes
     jane_syntax_parsing
     jane_syntax
     ast_iterator
@@ -70,6 +95,7 @@
     debuginfo
     lambda
     runtimedef
+    runtimetags
     instruct
     opcodes
     bytesections
@@ -77,8 +103,8 @@
     meta
     symtable
     asttypes
-    jane_asttypes
     parsetree
+    typedtree
     outcometree
     cmo_format
     cmxs_format
@@ -89,7 +115,6 @@
     linkage_name)
   (modules_without_implementation
     asttypes
-    jane_asttypes
     parsetree
     outcometree
     cmo_format
@@ -106,6 +131,7 @@
 ;  (package ocaml))
 
 ;; .ml:
+(copy_files ../../utils/runtimetags.ml)
 (copy_files ../../utils/binutils.ml)
 (copy_files ../../utils/local_store.ml)
 (copy_files ../../utils/config.ml)
@@ -134,6 +160,7 @@
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/printast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
+(copy_files ../../parsing/jane_asttypes.ml)
 (copy_files ../../parsing/jane_syntax_parsing.ml)
 (copy_files ../../parsing/jane_syntax.ml)
 (copy_files ../../parsing/ast_iterator.ml)
@@ -152,6 +179,7 @@
 (copy_files ../../typing/subst.ml)
 (copy_files ../../typing/predef.ml)
 (copy_files ../../typing/datarepr.ml)
+(copy_files ../../typing/typedtree.ml)
 (copy_files ../../file_formats/cmi_format.ml)
 (copy_files ../../typing/persistent_env.ml)
 (copy_files ../../typing/env.ml)
@@ -166,6 +194,7 @@
 (copy_files ../../bytecomp/symtable.ml)
 
 ;; .mli:
+(copy_files ../../utils/runtimetags.mli)
 (copy_files ../../utils/binutils.mli)
 (copy_files ../../utils/local_store.mli)
 (copy_files ../../utils/config.mli)
@@ -194,6 +223,7 @@
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/printast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
+(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/jane_syntax_parsing.mli)
 (copy_files ../../parsing/jane_syntax.mli)
 (copy_files ../../parsing/ast_iterator.mli)
@@ -212,6 +242,7 @@
 (copy_files ../../typing/subst.mli)
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
+(copy_files ../../typing/typedtree.mli)
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)
@@ -228,7 +259,6 @@
 
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
-(copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
@@ -241,13 +271,21 @@
 ; at the moment, apparently Buenzli is working on this).
 ; We use a workaround for the moment.
 
+(library
+  (name dynlink_internal_common)
+  (wrapped false)
+  (modes byte native)
+  (modules dynlink_common dynlink_types dynlink_platform_intf)
+  (libraries dynlink_compilerlibs))
+
 ; Deps within the compiler tree must be on dynlink_internal not dynlink.
 (library
   (name dynlink_internal)
   (wrapped false)
   (modes byte native)
-  (modules dynlink dynlink_common dynlink_types dynlink_platform_intf)
-  (libraries dynlink_compilerlibs))
+  (modules dynlink)
+  (libraries dynlink_compilerlibs dynlink_internal_byte
+    dynlink_internal_native dynlink_internal_common))
 
 ; The non-installed version of dynlink.cmi is needed to build other parts
 ; of the tree.
@@ -266,6 +304,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Runtimetags.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
@@ -295,6 +334,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_asttypes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
@@ -324,9 +364,11 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Runtimedef.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symtable.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Opcodes.cmo
-      .dynlink_internal.objs/byte/dynlink_types.cmo
-      .dynlink_internal.objs/byte/dynlink_platform_intf.cmo
-      .dynlink_internal.objs/byte/dynlink_common.cmo
+      .dynlink_internal_common.objs/byte/dynlink_types.cmo
+      .dynlink_internal_common.objs/byte/dynlink_platform_intf.cmo
+      .dynlink_internal_common.objs/byte/dynlink_common.cmo
+      .dynlink_internal_byte.objs/byte/dynlink_internal_byte.cmo
+      .dynlink_internal_native.objs/byte/dynlink_internal_native.cmo
       .dynlink_internal.objs/byte/dynlink.cmo
     )
 )
@@ -341,6 +383,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Runtimetags.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
@@ -370,6 +413,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_asttypes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
@@ -399,37 +443,42 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Runtimedef.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symtable.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Opcodes.cmx
-      .dynlink_internal.objs/native/dynlink_types.cmx
-      .dynlink_internal.objs/native/dynlink_platform_intf.cmx
-      .dynlink_internal.objs/native/dynlink_common.cmx
+      .dynlink_internal_common.objs/native/dynlink_types.cmx
+      .dynlink_internal_common.objs/native/dynlink_platform_intf.cmx
+      .dynlink_internal_common.objs/native/dynlink_common.cmx
+      .dynlink_internal_byte.objs/native/dynlink_internal_byte.cmx
+      .dynlink_internal_native.objs/native/dynlink_internal_native.cmx
       .dynlink_internal.objs/native/dynlink.cmx
     )
 )
 
-(executable
- (name extract_crc)
- (modes byte)
- (flags (:standard -principal))
- (libraries
-   dynlink_internal
- )
- (modules extract_crc))
-
 (install
   (files
-    (.dynlink_internal.objs/native/dynlink_common.cmx as dynlink/dynlink_common.cmx)
-    (.dynlink_internal.objs/native/dynlink_platform_intf.cmx as dynlink/dynlink_platform_intf.cmx)
-    (.dynlink_internal.objs/native/dynlink_types.cmx as dynlink/dynlink_types.cmx)
+    (.dynlink_internal.objs/byte/dynlink.cmti as dynlink/dynlink.cmti)
+    (.dynlink_internal.objs/byte/dynlink.cmt as dynlink/dynlink.cmt)
+    (.dynlink_internal_common.objs/native/dynlink_common.cmx
+    as
+    dynlink/dynlink_common.cmx)
+    (.dynlink_internal_common.objs/native/dynlink_platform_intf.cmx
+    as
+    dynlink/dynlink_platform_intf.cmx)
+    (.dynlink_internal_common.objs/native/dynlink_types.cmx
+    as
+    dynlink/dynlink_types.cmx)
     (.dynlink_internal.objs/native/dynlink.cmx as dynlink/dynlink.cmx)
+    (.dynlink_internal_byte.objs/native/dynlink_internal_byte.cmx
+    as
+    dynlink/dynlink_internal_byte.cmx)
+    (.dynlink_internal_native.objs/native/dynlink_internal_native.cmx
+    as
+    dynlink/dynlink_internal_native.cmx)
+
     (dynlink.cma as dynlink/dynlink.cma)
     (dynlink.cmxa as dynlink/dynlink.cmxa)
     (dynlink.a as dynlink/dynlink.a)
 ;    (dynlink.cmxs as dynlink/dynlink.cmxs)
     (dynlink.mli as dynlink/dynlink.mli)
     (dynlink.cmi as dynlink/dynlink.cmi)
-    (.dynlink_internal.objs/byte/dynlink.cmt as dynlink/dynlink.cmt)
-    (.dynlink_internal.objs/byte/dynlink.cmti as dynlink/dynlink.cmti)
-    (extract_crc.bc as dynlink/extract_crc)
 
     .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
   )

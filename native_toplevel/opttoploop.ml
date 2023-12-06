@@ -96,18 +96,17 @@ type directive_info = {
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name i = function
-  | [] -> ()
-  | Sig_module (_, _, { md_type = Mty_alias _; _ }, _, _)
-    :: rest ->
-      remember phrase_name i rest
-  | Sig_value  (id, _, _) :: rest
-  | Sig_module (id, _, _, _, _) :: rest
-  | Sig_typext (id, _, _, _) :: rest
-  | Sig_class  (id, _, _, _) :: rest ->
-      remembered := Ident.add id (phrase_name, i) !remembered;
-      remember phrase_name (succ i) rest
-  | _ :: rest -> remember phrase_name i rest
+let rec remember phrase_name signature =
+  let exported = List.filter Includemod.is_runtime_component signature in
+  List.iteri (fun i sg ->
+    match sg with
+    | Sig_value  (id, _, _)
+    | Sig_module (id, _, _, _, _)
+    | Sig_typext (id, _, _, _)
+    | Sig_class  (id, _, _, _) ->
+      remembered := Ident.add id (phrase_name, i) !remembered
+    | _ -> ())
+    exported
 
 let toplevel_value id =
   try Ident.find_same id !remembered
@@ -450,7 +449,7 @@ let execute_phrase print_outcome ppf phr =
             Translmod.transl_implementation compilation_unit (str, coercion)
               ~style:Plain_block
           in
-          remember compilation_unit 0 sg';
+          remember compilation_unit sg';
           compilation_unit, close_phrase res, required_globals, size
         else
           let size, res = Translmod.transl_store_phrases compilation_unit str in
@@ -720,17 +719,22 @@ let set_paths () =
      but keep the directories that user code linked in with ocamlmktop
      may have added to load_path. *)
   let expand = Misc.expand_directory Config.standard_library in
-  let current_load_path = Load_path.get_paths () in
-  let load_path = List.concat [
+  let Load_path.{ visible; hidden } = Load_path.get_paths () in
+  let visible = List.concat [
       [ "" ];
       List.map expand (List.rev !Compenv.first_include_dirs);
       List.map expand (List.rev !Clflags.include_dirs);
       List.map expand (List.rev !Compenv.last_include_dirs);
-      current_load_path;
+      visible;
       [expand "+camlp4"];
     ]
   in
-  Load_path.init load_path
+  let hidden = List.concat [
+      List.map expand (List.rev !Clflags.hidden_include_dirs);
+      hidden
+    ]
+  in
+  Load_path.init ~auto_include:Compmisc.auto_include ~visible ~hidden
 
 let initialize_toplevel_env () =
   toplevel_env := Compmisc.initial_env();

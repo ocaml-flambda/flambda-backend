@@ -51,7 +51,9 @@ let constructor_existentials cd_args cd_res =
     match cd_res with
     | None -> []
     | Some type_ret ->
-        let arg_vars_set = free_vars (newgenty (Ttuple tyl)) in
+        let arg_vars_set =
+          free_vars (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+        in
         let res_vars = free_vars type_ret in
         TypeSet.elements (TypeSet.diff arg_vars_set res_vars)
   in
@@ -62,7 +64,10 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
   match cd_args with
   | Cstr_tuple l -> existentials, l, None
   | Cstr_record lbls ->
-      let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
+      let arg_vars_set =
+        free_vars ~param:true
+          (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
+      in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
       let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
@@ -75,6 +80,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
+          type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
@@ -129,7 +135,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, rep) in
       constructor_args ~current_unit decl.type_private cd_args cd_res
-        (Path.Pdot (ty_path, cstr_name)) record_repr
+        Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
       { cstr_name;
@@ -164,7 +170,8 @@ let extension_descr ~current_unit path_ext ext =
   let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
-      path_ext (Record_inlined (cstr_tag, Variant_extensible))
+      Path.(Pextra_ty (path_ext, Pext_ty))
+      (Record_inlined (cstr_tag, Variant_extensible))
   in
     { cstr_name = Path.last path_ext;
       cstr_res = ty_res;

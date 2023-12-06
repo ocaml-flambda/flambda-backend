@@ -90,8 +90,10 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  "-zero-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
-                                    and do not have indirect calls"
+  let annotations = Clflags.Annotations.(List.map to_string all) in
+  "-zero-alloc-check", Arg.Symbol (annotations, f),
+  " Check that annotated functions do not allocate \
+   and do not have indirect calls. "^Clflags.Annotations.doc
 
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
@@ -586,7 +588,7 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val zero_alloc_check : unit -> unit
+  val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
@@ -837,7 +839,12 @@ module Flambda_backend_options_impl = struct
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
 
-  let zero_alloc_check = set' Clflags.zero_alloc_check
+  let zero_alloc_check s =
+    match Clflags.Annotations.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some a ->
+      Clflags.zero_alloc_check := a
+
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
   let checkmach_details_cutoff n =
     let c : Flambda_backend_flags.checkmach_details_cutoff =
@@ -1096,7 +1103,13 @@ module Extra_params = struct
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
-    | "zero-alloc-check" -> set' Clflags.zero_alloc_check
+    | "zero-alloc-check" ->
+      (match Clflags.Annotations.of_string v with
+       | Some a -> Clflags.zero_alloc_check := a; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "checkmach-details-cutoff" ->
       begin match Compenv.check_int ppf name v with

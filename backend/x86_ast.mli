@@ -347,6 +347,13 @@ type instruction =
   | PALIGNR of arg * arg * arg
   | MPSADBW of arg * arg * arg
   | PHMINPOSUW of arg * arg
+  | PCLMULQDQ of arg * arg * arg
+  | PMULHW of arg * arg
+  | PMULHUW of arg * arg
+  | PMULLW of arg * arg
+  | PMADDWD of arg * arg
+  | PMADDUBSW of arg * arg
+  | PMULLD of arg * arg
 
 (* ELF specific *)
 type reloc_type =
@@ -387,6 +394,10 @@ type asm_line =
   | Cfi_adjust_cfa_offset of int
   | Cfi_endproc
   | Cfi_startproc
+  | Cfi_remember_state
+  | Cfi_restore_state
+  | Cfi_def_cfa_register of string
+  | Cfi_def_cfa_offset of int
   | File of int * string (* (file_num, file_name) *)
   | Indirect_symbol of string
   | Loc of { file_num:int; line:int; col:int; discriminator: int option }

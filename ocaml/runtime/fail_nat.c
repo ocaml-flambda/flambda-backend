@@ -21,8 +21,8 @@
 #include <signal.h>
 #include "caml/alloc.h"
 #include "caml/callback.h"
-#include "caml/domain.h"
 #include "caml/fail.h"
+#include "caml/fiber.h"
 #include "caml/io.h"
 #include "caml/gc.h"
 #include "caml/memory.h"
@@ -58,10 +58,14 @@ CAMLnoreturn_start
   extern void caml_raise_exception (caml_domain_state* state, value bucket)
 CAMLnoreturn_end;
 
-static void unwind_local_roots(char *exception_pointer)
+CAMLnoreturn_start
+  extern void caml_raise_async_exception (caml_domain_state* state, value bucket)
+CAMLnoreturn_end;
+
+static void unwind_local_roots(char *limit_of_current_c_stack_chunk)
 {
   while (Caml_state->local_roots != NULL &&
-         (char *)Caml_state->local_roots < exception_pointer)
+         (char *)Caml_state->local_roots < limit_of_current_c_stack_chunk)
   {
     Caml_state->local_roots = Caml_state->local_roots->next;
   }
@@ -69,6 +73,9 @@ static void unwind_local_roots(char *exception_pointer)
 
 void caml_raise(value v)
 {
+  Caml_check_caml_state();
+  char* limit_of_current_c_stack_chunk;
+
   Unlock_exn();
 
   CAMLassert(!Is_exception_result(v));
@@ -77,38 +84,50 @@ void caml_raise(value v)
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
 
-  if (Caml_state->exception_pointer == NULL) {
+  limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
+
+  if (limit_of_current_c_stack_chunk == NULL) {
     caml_terminate_signals();
     caml_fatal_uncaught_exception(v);
   }
 
-  unwind_local_roots(Caml_state->exception_pointer);
+  unwind_local_roots(limit_of_current_c_stack_chunk);
   caml_raise_exception(Caml_state, v);
 }
-
 
 /* Used by the stack overflow handler -> deactivate ASAN (see
    segv_handler in signals_nat.c). */
 CAMLno_asan void caml_raise_async(value v)
 {
+  Caml_check_caml_state();
+  char* limit_of_current_c_stack_chunk;
+
   Unlock_exn();
+
   CAMLassert(!Is_exception_result(v));
+
+  if (Stack_parent(Caml_state->current_stack) != NULL) {
+    /* CR ocaml 5 effects: implement async exns + effects */
+    caml_fatal_error("Effects not supported in conjunction with async exns");
+  }
 
   /* Do not run callbacks here: we are already raising an async exn,
      so no need to check for another one, and avoiding polling here
      removes the risk of recursion in caml_raise */
 
-  if (Caml_state->async_exception_pointer == NULL)
-    caml_fatal_uncaught_exception(v);
+  limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
 
-  unwind_local_roots(Caml_state->async_exception_pointer);
-  Caml_state->exception_pointer = Caml_state->async_exception_pointer;
+  if (limit_of_current_c_stack_chunk == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
+
+  unwind_local_roots(limit_of_current_c_stack_chunk);
+  Caml_state->exn_handler = Caml_state->async_exn_handler;
   Caml_state->raising_async_exn = 1;
   caml_raise_exception(Caml_state, v);
 }
 
-/* Used by the stack overflow handler -> deactivate ASAN (see
-   segv_handler in signals_nat.c). */
 CAMLno_asan
 void caml_raise_constant(value tag)
 {
@@ -134,8 +153,7 @@ void caml_raise_with_args(value tag, int nargs, value args[])
   value bucket;
   int i;
 
-  CAMLassert(1 + nargs <= Max_young_wosize);
-  bucket = caml_alloc_small (1 + nargs, 0);
+  bucket = caml_alloc (1 + nargs, 0);
   Field(bucket, 0) = tag;
   for (i = 0; i < nargs; i++) Field(bucket, 1 + i) = args[i];
   caml_raise(bucket);
@@ -212,42 +230,60 @@ void caml_raise_sys_blocked_io(void)
 /* We use a pre-allocated exception because we can't
    do a GC before the exception is raised (lack of stack descriptors
    for the ccall to [caml_array_bound_error]).  */
-
-static const value * caml_array_bound_error_exn = NULL;
-static const value * caml_array_align_error_exn = NULL;
+static value array_bound_exn(void)
+{
+  static atomic_uintnat exn_cache = ATOMIC_UINTNAT_INIT(0);
+  const value* exn = (const value*)atomic_load_acquire(&exn_cache);
+  if (!exn) {
+    exn = caml_named_value("Pervasives.array_bound_error");
+    if (!exn) {
+      fprintf(stderr, "Fatal error: exception "
+        "Invalid_argument(\"index out of bounds\")\n");
+      exit(2);
+    }
+    atomic_store_release(&exn_cache, (uintnat)exn);
+  }
+  return *exn;
+}
 
 void caml_array_bound_error(void)
 {
-  if (caml_array_bound_error_exn == NULL) {
-    caml_array_bound_error_exn =
-      caml_named_value("Pervasives.array_bound_error");
-    if (caml_array_bound_error_exn == NULL) {
+  caml_raise(array_bound_exn());
+}
+
+void caml_array_bound_error_asm(void)
+{
+  /* This exception is raised directly from ocamlopt-compiled OCaml,
+     not C, so we jump directly to the OCaml handler (and avoid GC) */
+  caml_raise_exception(Caml_state, array_bound_exn());
+}
+
+static value array_align_exn(void)
+{
+  static atomic_uintnat exn_cache = ATOMIC_UINTNAT_INIT(0);
+  const value* exn = (const value*)atomic_load_acquire(&exn_cache);
+  if (!exn) {
+    exn = caml_named_value("Pervasives.array_align_error");
+    if (!exn) {
       fprintf(stderr, "Fatal error: exception "
-                      "Invalid_argument(\"index out of bounds\")\n");
+        "Invalid_argument(\"address was misaligned\")\n");
       exit(2);
     }
+    atomic_store_release(&exn_cache, (uintnat)exn);
   }
-  /* This exception is raised directly from OCaml, not C,
-     so we should not do the C-specific processing in caml_raise.
-     (In particular, we must not invoke GC, even if signals are pending) */
-  caml_raise_exception(Caml_state, *caml_array_bound_error_exn);
+  return *exn;
 }
 
 void caml_array_align_error(void)
 {
-  if (caml_array_align_error_exn == NULL) {
-    caml_array_align_error_exn =
-      caml_named_value("Pervasives.array_align_error");
-    if (caml_array_align_error_exn == NULL) {
-      fprintf(stderr, "Fatal error: exception "
-                      "Invalid_argument(\"address was misaligned\")\n");
-      exit(2);
-    }
-  }
-  /* This exception is raised directly from OCaml, not C,
-     so we should not do the C-specific processing in caml_raise.
-     (In particular, we must not invoke GC, even if signals are pending) */
-  caml_raise_exception(Caml_state, *caml_array_align_error_exn);
+  caml_raise(array_align_exn());
+}
+
+void caml_array_align_error_asm(void)
+{
+  /* This exception is raised directly from ocamlopt-compiled OCaml,
+     not C, so we jump directly to the OCaml handler (and avoid GC) */
+  caml_raise_exception(Caml_state, array_align_exn());
 }
 
 int caml_is_special_exception(value exn) {

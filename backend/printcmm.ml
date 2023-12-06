@@ -183,8 +183,10 @@ let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
-  | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
-  | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
+  | Cload {memory_chunk; mutability} -> (
+      match mutability with
+      | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
+      | Asttypes.Mutable   -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
   | Calloc Alloc_heap -> "alloc" ^ location d
   | Calloc Alloc_local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
@@ -251,6 +253,7 @@ let operation d = function
   | Cendregion -> "endregion"
   | Ctuple_field (field, _ty) ->
     to_string "tuple_field %i" field
+  | Cdls_get -> "dls_get"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
@@ -394,7 +397,7 @@ let codegen_option = function
   | Use_linscan_regalloc -> "linscan"
   | Ignore_assert_all property ->
     Printf.sprintf "ignore %s" (property_to_string property)
-  | Assume { property; strict; never_returns_normally; loc = _ } ->
+  | Assume { property; strict; never_returns_normally = _; loc = _ } ->
     Printf.sprintf "assume_%s%s%s"
       (property_to_string property)
       (if strict then "_strict" else "")

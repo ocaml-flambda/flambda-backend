@@ -19,6 +19,10 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
+
+(* CR mshinwell: fix properly using -enable-dev PR's changes *)
+[@@@ocaml.warning "-27-32"]
+
 type t =
   { r_offset : Compiler_owee.Owee_buf.u64;
     r_info : Compiler_owee.Owee_buf.u64;

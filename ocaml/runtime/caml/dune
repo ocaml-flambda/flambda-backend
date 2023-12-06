@@ -2,9 +2,9 @@
 ;*                                                                        *
 ;*                                 OCaml                                  *
 ;*                                                                        *
-;*            Thomas Refis and Mark Shinwell, Jane Street Europe          *
+;*                     Thomas Refis, Jane Street Europe                   *
 ;*                                                                        *
-;*   Copyright 2018--2020 Jane Street Group LLC                           *
+;*   Copyright 2018 Jane Street Group LLC                                 *
 ;*                                                                        *
 ;*   All rights reserved.  This file is distributed under the terms of    *
 ;*   the GNU Lesser General Public License version 2.1, with the          *
@@ -22,11 +22,6 @@
             sed -n -e '/^  /s/ \\([A-Z]\\)/ \\&\\&lbl_\\1/gp' -e '/^}/q'"))))
 
 (rule
-  (targets opnames.h)
-  (deps instruct.h)
-  (action (run make -s -C .. COMPUTE_DEPS=false caml/opnames.h)))
-
-(rule
  (targets version.h)
  (mode    fallback)
  (action
@@ -35,31 +30,33 @@
 
 (install
   (files
-    (domain_state.tbl as caml/domain_state.tbl)
     (address_class.h as caml/address_class.h)
+    (addrmap.h as caml/addrmap.h)
     (alloc.h as caml/alloc.h)
-    (backtrace.h as caml/backtrace.h)
+    (atomic_refcount.h as caml/atomic_refcount.h)
     (backtrace_prim.h as caml/backtrace_prim.h)
+    (backtrace.h as caml/backtrace.h)
     (bigarray.h as caml/bigarray.h)
     (callback.h as caml/callback.h)
+    (camlatomic.h as caml/camlatomic.h)
     (codefrag.h as caml/codefrag.h)
-    (compact.h as caml/compact.h)
     (compare.h as caml/compare.h)
-    (compatibility.h as caml/compatibility.h)
     (config.h as caml/config.h)
     (custom.h as caml/custom.h)
     (debugger.h as caml/debugger.h)
-    (domain.h as caml/domain.h)
     (domain_state.h as caml/domain_state.h)
+    (domain_state.tbl as caml/domain_state.tbl)
+    (domain.h as caml/domain.h)
     (dynlink.h as caml/dynlink.h)
-    (eventlog.h as caml/eventlog.h)
     (exec.h as caml/exec.h)
     (fail.h as caml/fail.h)
+    (fiber.h as caml/fiber.h)
     (finalise.h as caml/finalise.h)
     (fix_code.h as caml/fix_code.h)
-    (freelist.h as caml/freelist.h)
-    (gc.h as caml/gc.h)
+    (frame_descriptors.h as caml/frame_descriptors.h)
     (gc_ctrl.h as caml/gc_ctrl.h)
+    (gc_stats.h as caml/gc_stats.h)
+    (gc.h as caml/gc.h)
     (globroots.h as caml/globroots.h)
     (hash.h as caml/hash.h)
     (hooks.h as caml/hooks.h)
@@ -68,7 +65,7 @@
     (interp.h as caml/interp.h)
     (intext.h as caml/intext.h)
     (io.h as caml/io.h)
-    (jumptbl.h as caml/jumptbl.h)
+    (lf_skiplist.h as caml/lf_skiplist.h)
     (m.h as caml/m.h)
     (major_gc.h as caml/major_gc.h)
     (md5.h as caml/md5.h)
@@ -77,24 +74,27 @@
     (minor_gc.h as caml/minor_gc.h)
     (misc.h as caml/misc.h)
     (mlvalues.h as caml/mlvalues.h)
-    (opnames.h as caml/opnames.h)
     (osdeps.h as caml/osdeps.h)
+    (platform.h as caml/platform.h)
     (prims.h as caml/prims.h)
     (printexc.h as caml/printexc.h)
     (reverse.h as caml/reverse.h)
     (roots.h as caml/roots.h)
+    (runtime_events.h as caml/runtime_events.h)
     (s.h as caml/s.h)
+    (shared_heap.h as caml/shared_heap.h)
     (signals.h as caml/signals.h)
+    (sizeclasses.h as caml/sizeclasses.h)
     (skiplist.h as caml/skiplist.h)
-    (signals_machdep.h as caml/signals_machdep.h)
     (stack.h as caml/stack.h)
-    (stacks.h as caml/stacks.h)
-    (startup.h as caml/startup.h)
     (startup_aux.h as caml/startup_aux.h)
+    (startup.h as caml/startup.h)
+    (sync.h as caml/sync.h)
     (sys.h as caml/sys.h)
-    (ui.h as caml/ui.h)
+    (simd.h as caml/simd.h)
     (version.h as caml/version.h)
     (weak.h as caml/weak.h)
+    (winsupport.h as caml/winsupport.h)
   )
   (section lib)
   (package ocaml_runtime_stdlib))

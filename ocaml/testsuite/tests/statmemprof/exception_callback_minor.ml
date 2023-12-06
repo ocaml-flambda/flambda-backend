@@ -1,5 +1,6 @@
 (* TEST
    exit_status = "2"
+   * runtime4
 *)
 
 open Gc.Memprof

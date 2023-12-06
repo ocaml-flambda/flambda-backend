@@ -374,7 +374,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           value_kind_of_value_jkind decl.type_jkind
         | Type_open -> num_nodes_visited, Pgenval
     end
-  | Ttuple fields ->
+  | Ttuple labeled_fields ->
     if cannot_proceed () then
       num_nodes_visited, Pgenval
     else
@@ -382,14 +382,14 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
-          List.fold_left_map (fun num_nodes_visited field ->
+          List.fold_left_map (fun num_nodes_visited (_, field) ->
             let num_nodes_visited = num_nodes_visited + 1 in
             (* CR layouts v5 - this is fine because voids are not allowed in
                tuples.  When they are, we'll need to make sure that elements
                are values before recurring.
             *)
             value_kind env ~loc ~visited ~depth ~num_nodes_visited field)
-            num_nodes_visited fields
+            num_nodes_visited labeled_fields
         in
         num_nodes_visited,
         Pvariant { consts = []; non_consts = [0, fields] })
@@ -564,25 +564,25 @@ let value_kind env loc ty =
 let layout env loc sort ty =
   match Jkind.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue (value_kind env loc ty)
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, Some ty)))
+    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
   | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
 
 let layout_of_sort loc sort =
   match Jkind.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, None)))
+    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
 
 let layout_of_const_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
   | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
   | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"

@@ -1,4 +1,4 @@
-type t_void [@@void]
+type t_void : void
 
 let rec g (_ : t_void) = ()
 

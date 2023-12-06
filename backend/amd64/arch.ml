@@ -18,9 +18,6 @@
 (* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
 let popcnt_support = ref true
 
-(* CRC32 requires SSE 4.2 support *)
-let crc32_support = ref true
-
 (* PREFETCHW instruction is not available on processors
    based on Haswell or earlier microarchitectures. *)
 let prefetchw_support = ref true
@@ -36,6 +33,9 @@ let sse3_support = ref true
 let ssse3_support = ref true
 let sse41_support = ref true
 let sse42_support = ref true
+
+(* Carry-less multiplication (Westmere+) *)
+let clmul_support = ref true
 
 (* Enable SIMD register allocation features. *)
 let simd_regalloc = ref false
@@ -80,6 +80,10 @@ let command_line_options =
       " Enable SSE4.2 intrinsics (default)";
     "-fno-sse42", Arg.Clear sse42_support,
       " Disable SSE4.2 intrinsics";
+    "-fclmul", Arg.Set clmul_support,
+      " Enable CLMUL intrinsics (default)";
+    "-fno-clmul", Arg.Clear clmul_support,
+      " Disable CLMUL intrinsics";
     "-fsimd-regalloc", Arg.Set simd_regalloc,
       " Enable SIMD register allocation (implied by -extension SIMD)";
     "-fno-simd-regalloc", Arg.Clear simd_regalloc,

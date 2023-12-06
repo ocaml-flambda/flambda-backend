@@ -19,7 +19,7 @@ module String = Misc.Stdlib.String
 let ppf = Format.err_formatter
 (* Print the dependencies *)
 
-type file_kind = ML | MLI;;
+type file_kind = ML | MLI
 
 let load_path = ref ([] : (string * string array) list)
 let ml_synonyms = ref [".ml"]
@@ -195,7 +195,6 @@ let print_filename s =
     loop 0 0;
     print_bytes result;
   end
-;;
 
 let print_dependencies target_files deps =
   let pos = ref 0 in
@@ -409,7 +408,8 @@ let process_file_as process_fun def source_file =
   load_path := [];
   let cwd = if !nocwd then [] else [Filename.current_dir_name] in
   List.iter add_to_load_path (
-      (!Compenv.last_include_dirs @
+      (!Clflags.hidden_include_dirs @
+       !Compenv.last_include_dirs @
        !Clflags.include_dirs @
        !Compenv.first_include_dirs @
        cwd
@@ -562,7 +562,6 @@ let parse_map fname =
   end;
   let mm = Depend.(weaken_map (String.Set.singleton modname) mm) in
   module_map := String.Map.add modname mm !module_map
-;;
 
 (* Dependency processing *)
 
@@ -581,13 +580,11 @@ let process_dep_args dep_args = List.iter process_dep_arg dep_args
 
 let print_version () =
   Format.printf "ocamldep, version %s@." Sys.ocaml_version;
-  exit 0;
-;;
+  exit 0
 
 let print_version_num () =
   Format.printf "%s@." Sys.ocaml_version;
-  exit 0;
-;;
+  exit 0
 
 
 let run_main argv =
@@ -600,6 +597,8 @@ let run_main argv =
     Clflags.add_arguments __LOC__ [
       "-absname", Arg.Set Clflags.absname,
         " Show absolute filenames in error messages";
+      "-no-absname", Arg.Clear Clflags.absname,
+        " Do not try to show absolute filenames in error messages (default)";
       "-all", Arg.Set all_dependencies,
         " Generate dependencies on all files";
       "-allow-approx", Arg.Set allow_approximation,
@@ -610,6 +609,8 @@ let run_main argv =
       "-debug-map", Arg.Set debug,
         " Dump the delayed dependency map for each map file";
       "-I", Arg.String (add_to_list Clflags.include_dirs),
+        "<dir>  Add <dir> to the list of include directories";
+      "-H", Arg.String (add_to_list Clflags.hidden_include_dirs),
         "<dir>  Add <dir> to the list of include directories";
       "-nocwd", Arg.Set nocwd,
         " Do not add current working directory to \
@@ -644,6 +645,8 @@ let run_main argv =
         " Generate dependencies for native plugin files (.cmxs targets)";
       "-slash", Arg.Set Clflags.force_slash,
         " (Windows) Use forward slash / instead of backslash \\ in file paths";
+      "-no-slash", Arg.Clear Clflags.force_slash,
+        " (Windows) Preserve any backslash \\ in file paths";
       "-sort", Arg.Set sort_files,
         " Sort files according to their dependencies";
      "-strict", Arg.Set strict,

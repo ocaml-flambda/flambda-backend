@@ -10,11 +10,11 @@ let code rec loopify(never) size(26) newer_version_of(even_1)
     | 0 -> k2
     | 1 -> k3
     where k3 =
-      apply inlined(hint) k (1) &my_region -> k * k1
+      apply inlined(hint) k (1) -> k * k1
     where k2 =
       let Psubint = n - 1 in
       apply direct(odd_2_1)
-        odd ~ depth my_depth -> succ my_depth (Psubint) &my_region -> k * k1
+        odd ~ depth my_depth -> succ my_depth (Psubint) -> k * k1
 and code rec loopify(never) size(26) newer_version_of(odd_2)
       odd_2_1 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
   let k = %project_value_slot odd.k my_closure in
@@ -24,11 +24,11 @@ and code rec loopify(never) size(26) newer_version_of(odd_2)
     | 0 -> k2
     | 1 -> k3
     where k3 =
-      apply inlined(hint) k (0) &my_region -> k * k1
+      apply inlined(hint) k (0) -> k * k1
     where k2 =
       let Psubint = n - 1 in
       apply direct(even_1_1)
-        even ~ depth my_depth -> succ my_depth (Psubint) &my_region -> k * k1
+        even ~ depth my_depth -> succ my_depth (Psubint) -> k * k1
 in
 let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
       parity_is_0_1 (p : imm tagged, n : imm tagged, k)
@@ -48,8 +48,7 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
          | 0 -> k3
          | 1 -> k4
          where k4 =
-           apply inlined(hint) inlining_state(depth(10))
-             k (0) &my_region -> k * k1
+           apply inlined(hint) inlining_state(depth(10)) k (0) -> k * k1
          where k3 =
            let Psubint = n - 1 in
            let prim_1 = %phys_eq (Psubint, 0) in
@@ -57,8 +56,7 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
               | 0 -> k3
               | 1 -> k4
               where k4 =
-                apply inlined(hint) inlining_state(depth(20))
-                  k (1) &my_region -> k * k1
+                apply inlined(hint) inlining_state(depth(20)) k (1) -> k * k1
               where k3 =
                 let Psubint_1 = Psubint - 1 in
                 let prim_2 = %phys_eq (Psubint_1, 0) in
@@ -67,7 +65,7 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
                    | 1 -> k4
                    where k4 =
                      apply inlined(hint) inlining_state(depth(30))
-                       k (0) &my_region -> k * k1
+                       k (0) -> k * k1
                    where k3 =
                      let Psubint_2 = Psubint_1 - 1 in
                      let prim_3 = %phys_eq (Psubint_2, 0) in
@@ -76,22 +74,18 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
                         | 1 -> k4
                         where k4 =
                           apply inlined(hint) inlining_state(depth(40))
-                            k (1) &my_region -> k * k1
+                            k (1) -> k * k1
                         where k3 =
                           let Psubint_3 = Psubint_2 - 1 in
                           apply direct(odd_2_1) inlining_state(depth(40))
-                            odd ~ depth 0 -> unroll 0 4
-                              (Psubint_3)
-                              &my_region
-                              -> k * k1))))
+                            odd ~ depth 0 -> unroll 0 4 (Psubint_3) -> k * k1))))
     where k2 =
       let prim = %phys_eq (n, 0) in
       (switch prim
          | 0 -> k2
          | 1 -> k3
          where k3 =
-           apply inlined(hint) inlining_state(depth(10))
-             k (1) &my_region -> k * k1
+           apply inlined(hint) inlining_state(depth(10)) k (1) -> k * k1
          where k2 =
            let Psubint = n - 1 in
            let prim_1 = %phys_eq (Psubint, 0) in
@@ -99,8 +93,7 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
               | 0 -> k2
               | 1 -> k3
               where k3 =
-                apply inlined(hint) inlining_state(depth(20))
-                  k (0) &my_region -> k * k1
+                apply inlined(hint) inlining_state(depth(20)) k (0) -> k * k1
               where k2 =
                 let Psubint_1 = Psubint - 1 in
                 let prim_2 = %phys_eq (Psubint_1, 0) in
@@ -109,14 +102,11 @@ let code inline(always) loopify(never) size(221) newer_version_of(parity_is_0)
                    | 1 -> k3
                    where k3 =
                      apply inlined(hint) inlining_state(depth(30))
-                       k (1) &my_region -> k * k1
+                       k (1) -> k * k1
                    where k2 =
                      let Psubint_2 = Psubint_1 - 1 in
                      apply direct(odd_2_1) inlining_state(depth(30))
-                       odd ~ depth 0 -> unroll 0 3
-                         (Psubint_2)
-                         &my_region
-                         -> k * k1)))
+                       odd ~ depth 0 -> unroll 0 3 (Psubint_2) -> k * k1)))
 in
 let $camlUnroll4__parity_is_4 = closure parity_is_0_1 @parity_is in
 let code inline(always) loopify(never) size(1) newer_version_of(k_3)
@@ -125,7 +115,7 @@ let code inline(always) loopify(never) size(1) newer_version_of(k_3)
 in
 let $camlUnroll4__k_5 = closure k_3_1 @k in
 apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
-  $camlUnroll4__k_5 (0) &toplevel -> k * error
+  $camlUnroll4__k_5 (0) -> k * error
   where k (one_is_even : imm tagged) =
     ((let code rec loopify(never) size(18) newer_version_of(even_1_1)
             even_1_2 (n : imm tagged)
@@ -140,7 +130,6 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
             apply direct(odd_2_2) inlining_state(depth(1))
               $camlUnroll4__odd_9 ~ depth my_depth -> succ my_depth
                 (Psubint)
-                &my_region
                 -> k1 * k2
       and code rec loopify(never) size(18) newer_version_of(odd_2_1)
             odd_2_2 (n : imm tagged) my_closure my_region my_depth -> k1 * k2 =
@@ -153,7 +142,6 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
             apply direct(even_1_2) inlining_state(depth(1))
               $camlUnroll4__even_8 ~ depth my_depth -> succ my_depth
                 (Psubint)
-                &my_region
                 -> k1 * k2
       and $camlUnroll4__even_8 =
         closure even_1_2 @even
@@ -162,10 +150,7 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
         with { k = $camlUnroll4__k_5 }
       in
       apply direct(odd_2_2) inlining_state(depth(41))
-        $camlUnroll4__odd_9 ~ depth 0 -> unroll 0 4
-          (0)
-          &toplevel
-          -> k * error)
+        $camlUnroll4__odd_9 ~ depth 0 -> unroll 0 4 (0) -> k * error)
        where k (four_is_odd : imm tagged) =
          let $camlUnroll4 =
            Block 0 ($camlUnroll4__parity_is_4,

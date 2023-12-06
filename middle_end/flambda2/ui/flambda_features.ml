@@ -57,8 +57,6 @@ let join_depth () =
   !Flambda_backend_flags.Flambda2.join_depth
   |> with_default ~f:(fun d -> d.join_depth)
 
-let safe_string () = Config.safe_string
-
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =

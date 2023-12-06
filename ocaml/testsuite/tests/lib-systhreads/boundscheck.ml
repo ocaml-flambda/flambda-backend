@@ -1,8 +1,8 @@
 (* TEST
 
 include systhreads
-* hassysthreads
-** not-windows
+* runtime5
+** hassysthreads
 *** bytecode
 *** native
 
