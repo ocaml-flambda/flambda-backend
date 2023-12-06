@@ -134,7 +134,7 @@ struct caml_thread_table {
   st_masterlock default_lock;
   struct caml_locking_scheme default_locking_scheme;
   int tick_thread_running;
-  int tick_thread_enabled;
+  int tick_thread_disabled;
   st_thread_id tick_thread_id;
 };
 
@@ -184,8 +184,8 @@ static void thread_lock_release(int dom_id)
 /* Whether the "tick" thread is already running for this domain */
 #define Tick_thread_running thread_table[Caml_state->id].tick_thread_running
 
-/* Whether the "tick" thread is enabled for this domain */
-#define Tick_thread_enabled thread_table[Caml_state->id].tick_thread_enabled
+/* Whether the "tick" thread is disabled for this domain */
+#define Tick_thread_disabled thread_table[Caml_state->id].tick_thread_disabled
 
 /* The thread identifier of the "tick" thread for this domain */
 #define Tick_thread_id thread_table[Caml_state->id].tick_thread_id
@@ -717,7 +717,7 @@ CAMLprim value caml_enable_tick_thread(value v_enable)
     stop_tick_thread();
   }
 
-  Tick_thread_enabled = enable;
+  Tick_thread_disabled = !enable;
   return Val_unit;
 }
 
@@ -768,7 +768,7 @@ CAMLprim value caml_thread_new(value clos)
     sync_check_error(err, "Thread.create");
   }
 
-  if (Tick_thread_enabled) {
+  if (!Tick_thread_disabled) {
     err = start_tick_thread();
     sync_check_error(err, "Thread.create");
   }
@@ -817,7 +817,7 @@ CAMLexport int caml_c_thread_register(void)
   /* Allocate the thread descriptor on the heap */
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
-  if (Tick_thread_enabled) {
+  if (!Tick_thread_disabled) {
     st_retcode err = start_tick_thread();
     sync_check_error(err, "caml_register_c_thread");
   }
