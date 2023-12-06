@@ -599,7 +599,8 @@ let unary_primitive env res dbg f arg =
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr)
-  | Project_value_slot { project_from; value_slot; kind } -> (
+  | Project_value_slot { project_from; value_slot } -> (
+    let kind = Value_slot.kind value_slot in
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
