@@ -241,9 +241,7 @@ static void caml_thread_scan_roots(
 
 static void save_runtime_state(void)
 {
-  /* CR zqian: we save to [active_thread] instead of [this_thread]. I believe
-  they are equivalent here, but I think use [active_thread] is easier to
-  understand, also follows the systhreads4 behavior. */
+  CAMLassert(Active_thread == This_thread);
   caml_thread_t th = Active_thread;
   CAMLassert(th != NULL);
   th->current_stack = Caml_state->current_stack;
@@ -472,7 +470,7 @@ static void caml_thread_reinitialize(void)
   Active_thread->next = Active_thread;
   Active_thread->prev = Active_thread;
 
-  // Single-domain hack: systhreads doesn't maintain domain lock
+  // CR ocaml 5 domains: systhreads doesn't maintain domain lock
   /* Within the child, the domain_lock needs to be reset and acquired. */
   // caml_reset_domain_lock();
   // caml_acquire_domain_lock();
@@ -755,14 +753,12 @@ CAMLprim value caml_thread_new(value clos)
 /* the thread lock is not held when entering */
 CAMLexport int caml_c_thread_register(void)
 {
-  /* CR zqian: I would personally delay this after the "already registered"
-  check, but this is to follow the original PR.*/
+  /* Already registered? */
+  if (This_thread != NULL) return 0;
+
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
   if (s->thread_start != NULL)
     s->thread_start(s->context, Thread_type_c_registered);
-
-  /* Already registered? */
-  if (This_thread != NULL) return 0;
 
   CAMLassert(Caml_state_opt == NULL);
   caml_init_domain_self(Dom_c_threads);
@@ -824,10 +820,6 @@ CAMLexport int caml_c_thread_unregister(void)
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
   if (s->thread_stop != NULL)
     s->thread_stop(s->context, Thread_type_c_registered);
-  /* CR zqian: This follows the original PR. But some asymetry here: if a thread
-  is already registered, registering again gives callback. If a thread is
-  already unregistered, unregistering again does not give callback. Is that
-  fine? */
   return 1;
 }
 
