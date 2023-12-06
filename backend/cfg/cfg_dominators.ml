@@ -190,7 +190,7 @@ let build_order : Cfg.t -> post_order_stack * order * DFSUtils.components =
 
 (* See Figure 3 in the cited article. The only difference is the comparison,
    which is reversed because of the way we distribute the idenfier when we build
-   `post_order`. *)
+   `post_order`. Both labels are in the same component. *)
 let intersect : doms -> order -> Label.t -> Label.t -> Label.t =
  fun doms post_order b1 b2 ->
   let finger1 = ref b1 in
