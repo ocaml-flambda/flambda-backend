@@ -48,8 +48,8 @@
 
 #include "../../runtime/sync_posix.h"
 
-/* threads.h is *not* included since it contains the _external_ declarations for
-   the caml_c_thread_register and caml_c_thread_unregister functions. */
+#define CAMLextern_libthreads
+#include "threads.h"
 
 /* Max computation time before rescheduling, in milliseconds */
 #define Thread_timeout 50
@@ -59,6 +59,22 @@
 #include "st_win32.h"
 #else
 #include "st_posix.h"
+#endif
+
+/* Atomics */
+#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 8
+  /* GCC 4.8 shipped with a working implementation of atomics, but no
+     stdatomic.h header, so we need to use GCC-specific intrinsics. */
+
+  #define _Atomic /* GCC intrinsics work on normal variables */
+  #define atomic_store(v, x) \
+    __atomic_store_n((v), (x), __ATOMIC_SEQ_CST)
+  #define atomic_load(v) \
+    __atomic_load_n((v), __ATOMIC_SEQ_CST)
+  #define atomic_exchange(v, x) \
+    __atomic_exchange_n((v), (x), __ATOMIC_SEQ_CST)
+#else
+  #include <stdatomic.h>
 #endif
 
 /* The ML value describing a thread (heap-allocated) */
@@ -114,7 +130,9 @@ st_tlskey caml_thread_key;
 /* overall table for threads across domains */
 struct caml_thread_table {
   caml_thread_t active_thread;
-  st_masterlock thread_lock;
+  struct caml_locking_scheme * _Atomic locking_scheme;
+  st_masterlock default_lock;
+  struct caml_locking_scheme default_locking_scheme;
   int tick_thread_running;
   st_thread_id tick_thread_id;
 };
@@ -122,16 +140,36 @@ struct caml_thread_table {
 /* thread_table instance, up to Max_domains */
 static struct caml_thread_table thread_table[Max_domains];
 
-#define Thread_lock(dom_id) &thread_table[dom_id].thread_lock
+#define Locking_scheme(dom_id) (thread_table[dom_id].locking_scheme)
+#define Default_lock(dom_id) (&thread_table[dom_id].default_lock)
+#define Default_locking_scheme(dom_id) (&thread_table[dom_id].default_locking_scheme)
 
 static void thread_lock_acquire(int dom_id)
 {
-  st_masterlock_acquire(Thread_lock(dom_id));
+  struct caml_locking_scheme* s;
+
+  /* The locking scheme may be changed by the thread that currently
+     holds it. This means that it may change while we're waiting to
+     acquire it, so by the time we acquire it it may no longer be the
+     right scheme. */
+
+ retry:
+  s = atomic_load(&Locking_scheme(dom_id));
+  s->lock(s->context);
+  if (atomic_load(&Locking_scheme(dom_id)) != s) {
+    /* This is no longer the right scheme. Unlock and try again */
+    s->unlock(s->context);
+    goto retry;
+  }
 }
 
 static void thread_lock_release(int dom_id)
 {
-  st_masterlock_release(Thread_lock(dom_id));
+  /* There is no tricky case here like in acquire, as only the holder
+     of the lock can change it. (Here, that's us) */
+  struct caml_locking_scheme *s;
+  s = atomic_load(&Locking_scheme(dom_id));
+  s->unlock(s->context);
 }
 
 /* The remaining fields are accessed while holding the domain lock */
@@ -155,6 +193,17 @@ static atomic_uintnat thread_next_id = 0;
 static value caml_threadstatus_new (void);
 static void caml_threadstatus_terminate (value);
 static st_retcode caml_threadstatus_wait (value);
+
+static int default_can_skip_yield(st_masterlock *m)
+{
+  return st_masterlock_waiters(m) == 0;
+}
+
+static void default_reinitialize_after_fork(st_masterlock *m)
+{
+  m->init = 0; /* force initialization */
+  st_masterlock_init(m);
+}
 
 /* Hook for scanning the stacks of the other threads */
 
@@ -192,25 +241,31 @@ static void caml_thread_scan_roots(
 
 static void save_runtime_state(void)
 {
-  CAMLassert(This_thread != NULL);
-  caml_thread_t this_thread = This_thread;
-  this_thread->current_stack = Caml_state->current_stack;
-  this_thread->c_stack = Caml_state->c_stack;
-  this_thread->gc_regs = Caml_state->gc_regs;
-  this_thread->gc_regs_buckets = Caml_state->gc_regs_buckets;
-  this_thread->exn_handler = Caml_state->exn_handler;
-  this_thread->async_exn_handler = Caml_state->async_exn_handler;
-  this_thread->local_roots = Caml_state->local_roots;
-  this_thread->local_arenas = caml_get_local_arenas(Caml_state);
-  this_thread->backtrace_pos = Caml_state->backtrace_pos;
-  this_thread->backtrace_buffer = Caml_state->backtrace_buffer;
-  this_thread->backtrace_last_exn = Caml_state->backtrace_last_exn;
+  CAMLassert(Active_thread == This_thread);
+  caml_thread_t th = Active_thread;
+  CAMLassert(th != NULL);
+  th->current_stack = Caml_state->current_stack;
+  th->c_stack = Caml_state->c_stack;
+  th->gc_regs = Caml_state->gc_regs;
+  th->gc_regs_buckets = Caml_state->gc_regs_buckets;
+  th->exn_handler = Caml_state->exn_handler;
+  th->async_exn_handler = Caml_state->async_exn_handler;
+  th->local_roots = Caml_state->local_roots;
+  th->local_arenas = caml_get_local_arenas(Caml_state);
+  th->backtrace_pos = Caml_state->backtrace_pos;
+  th->backtrace_buffer = Caml_state->backtrace_buffer;
+  th->backtrace_last_exn = Caml_state->backtrace_last_exn;
 #ifndef NATIVE_CODE
-  this_thread->trap_sp_off = Caml_state->trap_sp_off;
-  this_thread->trap_barrier_off = Caml_state->trap_barrier_off;
-  this_thread->external_raise = Caml_state->external_raise;
-  this_thread->external_raise_async = Caml_state->external_raise_async;
+  th->trap_sp_off = Caml_state->trap_sp_off;
+  th->trap_barrier_off = Caml_state->trap_barrier_off;
+  th->external_raise = Caml_state->external_raise;
+  th->external_raise_async = Caml_state->external_raise_async;
 #endif
+}
+
+CAMLexport void caml_thread_save_runtime_state(void)
+{
+  save_runtime_state();
 }
 
 static void restore_runtime_state(caml_thread_t th)
@@ -234,6 +289,29 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->external_raise = th->external_raise;
   Caml_state->external_raise_async = th->external_raise_async;
 #endif
+}
+
+CAMLexport void caml_thread_restore_runtime_state(void)
+{
+  restore_runtime_state(This_thread);
+}
+
+
+CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* new)
+{
+  struct caml_locking_scheme* old;
+  int dom_id = Caml_state->id;
+  save_runtime_state();
+  old = atomic_exchange(&Locking_scheme(dom_id), new);
+  /* We hold 'old', but it is no longer the runtime lock */
+  old->unlock(old->context);
+  thread_lock_acquire(dom_id);
+  restore_runtime_state(This_thread);
+}
+
+CAMLexport struct caml_locking_scheme* caml_get_default_locking_scheme(void)
+{
+  return Default_locking_scheme(Caml_state->id);
 }
 
 CAMLprim value caml_thread_cleanup(value unit);
@@ -392,15 +470,16 @@ static void caml_thread_reinitialize(void)
   Active_thread->next = Active_thread;
   Active_thread->prev = Active_thread;
 
+  // CR ocaml 5 domains: systhreads doesn't maintain domain lock
   /* Within the child, the domain_lock needs to be reset and acquired. */
-  caml_reset_domain_lock();
-  caml_acquire_domain_lock();
-  /* The master lock needs to be initialized again. This process will also be
+  // caml_reset_domain_lock();
+  // caml_acquire_domain_lock();
+
+  /* The lock needs to be initialized again. This process will also be
      the effective owner of the lock. So there is no need to run
-     st_masterlock_acquire (busy = 1) */
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  m->init = 0; /* force initialization */
-  st_masterlock_init(m);
+     s->lock (busy = 1) */
+  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Caml_state->id));
+  s->reinitialize_after_fork(s->context);
 }
 
 CAMLprim value caml_thread_join(value th);
@@ -440,7 +519,19 @@ static void caml_thread_domain_initialize_hook(void)
   /* OS-specific initialization */
   st_initialize();
 
-  st_masterlock_init(Thread_lock(Caml_state->id));
+  st_masterlock *default_lock = Default_lock(Caml_state->id);
+  st_masterlock_init(default_lock);
+  struct caml_locking_scheme *ls = Default_locking_scheme(Caml_state->id);
+  ls->context = default_lock;
+  ls->lock = (void (*)(void*))&st_masterlock_acquire;
+  ls->unlock = (void (*)(void*))&st_masterlock_release;
+  ls->thread_start = NULL;
+  ls->thread_stop = NULL;
+  ls->reinitialize_after_fork = (void (*)(void*))&default_reinitialize_after_fork;
+  ls->can_skip_yield = (int (*)(void*))&default_can_skip_yield;
+  ls->yield = (void (*)(void*))&st_thread_yield;
+
+  Locking_scheme(Caml_state->id) = ls;
 
   new_thread =
     (caml_thread_t) caml_stat_alloc(sizeof(struct caml_thread_struct));
@@ -553,6 +644,9 @@ static void * caml_thread_start(void * v)
   caml_init_domain_self(dom_id);
 
   st_tls_set(caml_thread_key, th);
+  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(dom_id));
+  if (s -> thread_start != NULL)
+    s->thread_start(s->context, Thread_type_caml);
 
   thread_lock_acquire(dom_id);
   restore_runtime_state(th);
@@ -568,6 +662,9 @@ static void * caml_thread_start(void * v)
   caml_modify(&(Start_closure(Active_thread->descr)), Val_unit);
   caml_callback_exn(clos, Val_unit);
   caml_thread_stop();
+  s = atomic_load(&Locking_scheme(dom_id));
+  if (s->thread_stop != NULL)
+    s->thread_stop(s->context, Thread_type_caml);
   caml_free_signal_stack(signal_stack);
   return 0;
 }
@@ -659,6 +756,10 @@ CAMLexport int caml_c_thread_register(void)
   /* Already registered? */
   if (This_thread != NULL) return 0;
 
+  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
+  if (s->thread_start != NULL)
+    s->thread_start(s->context, Thread_type_c_registered);
+
   CAMLassert(Caml_state_opt == NULL);
   caml_init_domain_self(Dom_c_threads);
 
@@ -716,6 +817,9 @@ CAMLexport int caml_c_thread_unregister(void)
   caml_thread_remove_and_free(th);
   /* Release the runtime */
   thread_lock_release(Dom_c_threads);
+  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
+  if (s->thread_stop != NULL)
+    s->thread_stop(s->context, Thread_type_c_registered);
   return 1;
 }
 
@@ -750,8 +854,9 @@ CAMLprim value caml_thread_uncaught_exception(value exn)
 
 CAMLprim value caml_thread_yield(value unit)
 {
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  if (st_masterlock_waiters(m) == 0)
+  struct caml_locking_scheme *s;
+  s = atomic_load(&Locking_scheme(Caml_state->id));
+  if (s->can_skip_yield != NULL && s -> can_skip_yield(s->context))
     return Val_unit;
 
   /* Do all the parts of a blocking section enter/leave except lock
@@ -761,8 +866,16 @@ CAMLprim value caml_thread_yield(value unit)
   */
 
   (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
+
+  // s may have changed in caml_process_pending_signals_exn
+  s = atomic_load(&Locking_scheme(Caml_state->id));
   save_runtime_state();
-  st_thread_yield(m);
+  s->yield(s->context);
+  if (atomic_load(&Locking_scheme(Caml_state->id)) != s) {
+    // The lock we own is no longer the runtime lock
+    s->unlock(s->context);
+    thread_lock_acquire(Caml_state->id);
+  }
   restore_runtime_state(This_thread);
   (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
 
