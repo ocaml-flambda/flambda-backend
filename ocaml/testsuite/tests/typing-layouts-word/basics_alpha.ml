@@ -180,7 +180,7 @@ Line 1, characters 14-24:
 1 | type t5_1 = { x : t_word };;
                   ^^^^^^^^^^
 Error: Type t_word has layout word.
-       Unboxed records may not yet contain types of this layout.
+       Records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts v5: this should work *)
@@ -190,7 +190,7 @@ Line 1, characters 23-33:
 1 | type t5_2 = { y : int; x : t_word };;
                            ^^^^^^^^^^
 Error: Type t_word has layout word.
-       Unboxed records may not yet contain types of this layout.
+       Records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts: this runs afoul of the mixed block restriction, but should work
@@ -201,7 +201,7 @@ Line 1, characters 27-37:
 1 | type t5_2' = { y : string; x : t_word };;
                                ^^^^^^^^^^
 Error: Type t_word has layout word.
-       Unboxed records may not yet contain types of this layout.
+       Records may not yet contain types of this layout.
 |}];;
 
 (* CR layouts 2.5: allow this *)

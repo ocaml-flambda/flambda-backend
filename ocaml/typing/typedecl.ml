@@ -26,7 +26,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | External
+type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -1113,7 +1113,7 @@ let update_decl_jkind env dpath decl =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
       check_representable ~why:(Label_declaration ld_id) ~allow_float:false
-        env ld_loc Record ld_type;
+        env ld_loc Unboxed_record ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
@@ -2910,6 +2910,7 @@ let report_error ppf = function
       match kloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
+      | Unboxed_record -> "Unboxed record element"
       | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
@@ -2924,9 +2925,8 @@ let report_error ppf = function
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"
-      | Record -> "Unboxed records"
-        (* [Record] always means unboxed record here, because illegal boxed records
-           get rejected with the [Mixed_block] error instead. *)
+      | Record -> "Records"
+      | Unboxed_record -> "Unboxed records"
       | External -> assert false
     in
     fprintf ppf
