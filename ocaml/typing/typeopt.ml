@@ -566,11 +566,11 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
   | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
-  | Word when Language_extension.(is_at_least Layouts Alpha) ->
+  | Word when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_int Pnativeint
-  | Bits32 when Language_extension.(is_at_least Layouts Alpha) ->
+  | Bits32 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_int Pint32
-  | Bits64 when Language_extension.(is_at_least Layouts Alpha) ->
+  | Bits64 when Language_extension.(is_at_least Layouts Beta) ->
     Lambda.Punboxed_int Pint64
   | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
     error const
@@ -585,7 +585,7 @@ let layout env loc sort ty =
       | Float64 ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
       | (Word | Bits32 | Bits64 as const) ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Alpha, Some ty))))
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Beta, Some ty))))
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
@@ -597,7 +597,7 @@ let layout_of_sort loc sort =
     | Float64 ->
       raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
     | (Word | Bits32 | Bits64 as const) ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Alpha, None))))
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Beta, None))))
 
 let layout_of_const_sort s =
   layout_of_const_sort_generic

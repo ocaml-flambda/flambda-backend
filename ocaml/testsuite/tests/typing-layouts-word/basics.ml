@@ -21,5 +21,5 @@ Line 1, characters 14-18:
 1 | type t_word : word
                   ^^^^
 Error: Layout word is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]

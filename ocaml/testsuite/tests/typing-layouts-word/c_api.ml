@@ -1,6 +1,13 @@
 (* TEST
    modules = "c_functions.c"
+   * native
    flags = "-extension layouts_alpha"
+   * bytecode
+   flags = "-extension layouts_alpha"
+   * native
+   flags = "-extension layouts_beta"
+   * bytecode
+   flags = "-extension layouts_beta"
 *)
 
 (* This file tests using external C functions with nativeint#. *)
@@ -58,5 +65,3 @@ let _ =
       (of_nativeint 5n) 6n (of_nativeint 7n)
   in
   print_nativeintu "Function of 7 args, 1+2+3+4+5+6+7" f
-
-

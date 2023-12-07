@@ -21,5 +21,5 @@ Line 1, characters 16-22:
 1 | type t_bits32 : bits32
                     ^^^^^^
 Error: Layout bits32 is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]

@@ -1,6 +1,8 @@
 (* TEST
+   * expect
    flags = "-extension layouts_alpha"
    * expect
+   flags = "-extension layouts_beta"
 *)
 
 (* This file contains typing tests for the layout [bits64].

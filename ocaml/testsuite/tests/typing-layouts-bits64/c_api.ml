@@ -1,6 +1,13 @@
 (* TEST
    modules = "c_functions.c"
+   * native
    flags = "-extension layouts_alpha"
+   * bytecode
+   flags = "-extension layouts_alpha"
+   * native
+   flags = "-extension layouts_beta"
+   * bytecode
+   flags = "-extension layouts_beta"
 *)
 
 (* This file tests using external C functions with int64#. *)
@@ -58,5 +65,3 @@ let _ =
       (of_int64 5L) 6L (of_int64 7L)
   in
   print_int64u "Function of 7 args, 1+2+3+4+5+6+7" f
-
-
