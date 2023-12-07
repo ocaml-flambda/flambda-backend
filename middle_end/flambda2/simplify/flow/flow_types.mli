@@ -183,7 +183,8 @@ end
 
 module Mutable_unboxing_result : sig
   type t =
-    { additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
+    { did_unbox_a_mutable_block : bool;
+      additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
       let_rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
 
