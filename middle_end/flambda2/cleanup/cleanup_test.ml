@@ -1090,7 +1090,8 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
-let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
+type uses = Dep_solver.result
+let rec rebuild_expr (uses : uses) (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   let expr =
     match expr with
@@ -1099,9 +1100,9 @@ let rec rebuild_expr (rev_expr : rev_expr) : RE.t =
     | Switch switch -> Flambda.Expr.create_switch switch
     | Apply apply -> Flambda.Expr.create_apply apply
   in
-  rebuild_holed holed_expr (RE.from_expr ~expr ~free_names)
+  rebuild_holed uses holed_expr (RE.from_expr ~expr ~free_names)
 
-and rebuild_function_params_and_body (params_and_body : rev_params_and_body) :
+and rebuild_function_params_and_body (uses : uses) (params_and_body : rev_params_and_body) :
     Flambda.function_params_and_body =
   let { return_continuation;
         exn_continuation;
@@ -1113,7 +1114,7 @@ and rebuild_function_params_and_body (params_and_body : rev_params_and_body) :
       } =
     params_and_body
   in
-  let body = rebuild_expr body in
+  let body = rebuild_expr uses body in
   let params_and_body =
     Flambda.Function_params_and_body.create ~return_continuation
       ~exn_continuation params ~body:body.expr
@@ -1122,10 +1123,11 @@ and rebuild_function_params_and_body (params_and_body : rev_params_and_body) :
   in
   params_and_body
 
-and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
+and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
   | Let let_ ->
+    let[@local] default () =
     let subexpr =
       let defining_expr =
         match let_.defining_expr with
@@ -1139,7 +1141,7 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
                   free_names_of_params_and_body
                 } ->
               let params_and_body =
-                rebuild_function_params_and_body params_and_body
+                rebuild_function_params_and_body uses params_and_body
               in
               let code =
                 Code.create_with_metadata ~params_and_body ~code_metadata
@@ -1162,24 +1164,33 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
       in
       RE.create_let let_.bound_pattern defining_expr ~body:hole
     in
-    rebuild_holed let_.parent subexpr
+    rebuild_holed uses let_.parent subexpr
+      in
+      (    match let_.bound_pattern with
+           | Set_of_closures _ -> default ()
+           | Static _ -> default ()
+           | Singleton v ->
+             let v = Bound_var.var v in
+             if Hashtbl.mem uses (Code_id_or_name.var v) then default () else (             Format.eprintf "VAR = %a@." Variable.print v; rebuild_holed uses let_.parent hole)
+      )
+
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-      let handler = rebuild_expr expr in
+      let handler = rebuild_expr uses expr in
       RE.create_continuation_handler bound_parameters ~handler ~is_exn_handler
         ~is_cold
     in
     let let_cont_expr =
       RE.create_non_recursive_let_cont cont cont_handler ~body:hole
     in
-    rebuild_holed parent let_cont_expr
+    rebuild_holed uses parent let_cont_expr
   | Let_cont_rec { parent; handlers; invariant_params } ->
     let handlers =
       Continuation.Map.map
         (fun handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-          let handler = rebuild_expr expr in
+          let handler = rebuild_expr uses expr in
           RE.create_continuation_handler bound_parameters ~handler
             ~is_exn_handler ~is_cold)
         handlers
@@ -1187,7 +1198,7 @@ and rebuild_holed (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
     in
-    rebuild_holed parent let_cont_expr
+    rebuild_holed uses parent let_cont_expr
 
 let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
   Flambda_unit.create
@@ -1198,12 +1209,12 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)
 
-let do_print = false
+let do_print = true
 
 let run (unit : Flambda_unit.t) =
   (* Format.printf "CLEANUP@."; *)
   let dacc = Dacc.empty () in
-  let holed, _dacc =
+  let holed, dacc =
     Profile.record_call ~accumulate:false "down" (fun () ->
         let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
         let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
@@ -1218,13 +1229,13 @@ let run (unit : Flambda_unit.t) =
           { parent = Up; conts; current_code_id = None }
           dacc (Flambda_unit.body unit))
   in
-  if do_print then Format.printf "DACC %a@." Dacc.pp _dacc;
-  let deps = Dacc.deps _dacc in
-  let () = if do_print then Dot.print_dep (Dacc.code_deps _dacc, deps) in
+  if do_print then Format.printf "DACC %a@." Dacc.pp dacc;
+  let deps = Dacc.deps dacc in
+  let () = if do_print then Dot.print_dep (Dacc.code_deps dacc, deps) in
   if do_print then Format.printf "USED %a@." Deps.pp_used deps;
-  let _solved_dep = Dep_solver.fixpoint deps in
-  if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result _solved_dep;
+  let solved_dep = Dep_solver.fixpoint deps in
+  if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
   let rebuilt_expr =
-    Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr holed)
+    Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr solved_dep holed)
   in
   unit_with_body unit rebuilt_expr.expr
