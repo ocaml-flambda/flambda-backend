@@ -3,6 +3,7 @@
 *)
 
 module Nativeint_u = Stdlib__Nativeint_u
+module Int32_u = Stdlib__Int32_u
 
 (* Print all individual successful tests; used for debugging, as it will cause
    this test to fail *)
@@ -283,6 +284,9 @@ let test_shift ?n name shift shiftu =
                      (Nativeint_u.of_nativeint x)
                      y))
 
+let nativeint_u_of_int32 x = Nativeint_u.of_int32_u (Int32_u.of_int32 x)
+let nativeint_u_to_int32 x = Int32_u.to_int32 (Nativeint_u.to_int32_u x)
+
 let () =
   test_unary     "neg"                 Nativeint.neg                 Nativeint_u.neg;
   test_binary    "add"                 Nativeint.add                 Nativeint_u.add;
@@ -310,6 +314,8 @@ let () =
   test_unary_of  "to_float"            Nativeint.to_float            Nativeint_u.to_float             float_result;
   test_unary_to  "of_int32"            Nativeint.of_int32            Nativeint_u.of_int32             int32_input;
   test_unary_of  "to_int32"            Nativeint.to_int32            Nativeint_u.to_int32             int32_result;
+  test_unary_to  "of_int32_u"          Nativeint.of_int32            nativeint_u_of_int32             int32_input;
+  test_unary_of  "to_int32_u"          Nativeint.to_int32            nativeint_u_to_int32             int32_result;
   test_unary_to  "of_string"           Nativeint.of_string           Nativeint_u.of_string            nativeint_string_input;
   test_unary_of  "to_string"           Nativeint.to_string           Nativeint_u.to_string            string_result;
   test_binary_of "compare"             Nativeint.compare             Nativeint_u.compare              int_result;
