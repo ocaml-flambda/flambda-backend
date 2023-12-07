@@ -158,7 +158,7 @@ let fixpoint (graph : graph) : result =
         ) n
   in
   add_used graph.toplevel_graph.used;
-    while not (Queue.is_empty q) do
+  while not (Queue.is_empty q) do
     let n = Queue.pop q in
     let deps =
       match Hashtbl.find_opt all_deps n with
@@ -183,12 +183,15 @@ let fixpoint (graph : graph) : result =
           | Some prev_dep ->
             (* Format.printf "new case@."; *)
             let u = join_elt dep_elt prev_dep in
-            (* Format.printf "dep_elt  %a@." pp_elt dep_elt; *)
-            (* Format.printf "prev_dep %a@." pp_elt prev_dep; *)
-            (* Format.printf "union    %a@." pp_elt u; *)
+            (* if !count > 2000000 then begin *)
+
+            (*  Format.printf "dep_elt  %a@." pp_elt dep_elt;  *)
+            (*  Format.printf "prev_dep %a@." pp_elt prev_dep; *)
+            (*  Format.printf "union    %a@." pp_elt u *)
+            (*   end; *)
             if not (equal_elt u prev_dep)
             then begin
-              Hashtbl.replace result dep_upon dep_elt;
+              Hashtbl.replace result dep_upon u;
               Queue.push dep_upon q
             end))
       deps

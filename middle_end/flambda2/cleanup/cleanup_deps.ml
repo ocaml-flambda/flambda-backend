@@ -19,9 +19,20 @@ module Dep = struct
     | Return_of_that_function of Name.t
 
   let compare = compare
+  let equal x y = compare x y = 0
+  let hash = Hashtbl.hash
+  let print ppf = function
+    | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
+    | Use n -> Format.fprintf ppf "Use %a" Name.print n
+    | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
+    | Field (f, n) -> Format.fprintf ppf "Field %a %a" pp_field f Name.print n
+    | Block (f, n) -> Format.fprintf ppf "Block %a %a" pp_field f Code_id_or_name.print n
+    | Apply (n, c) -> Format.fprintf ppf "Apply %a %a" Name.print n Code_id.print c
+    | Return_of_that_function n -> Format.fprintf ppf "Return_of_that_function %a" Name.print n
 end
 
-module DepSet = Set.Make (Dep)
+module C = Container_types.Make(Dep)
+module DepSet = C.Set
 
 type fun_graph =
   { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
