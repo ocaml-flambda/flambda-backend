@@ -12,7 +12,6 @@
 
 open Cmm
 open Cmm_helpers
-open Misc
 module CU = Compilation_unit
 
 let considered_as_small_threshold = 20
