@@ -279,6 +279,10 @@ let dump_op ppf = function
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
   | Dls_get -> Format.fprintf ppf "dls_get"
   | Poll -> Format.fprintf ppf "poll"
+  | Alloc { bytes; dbginfo = _; mode = Alloc_heap } ->
+    Format.fprintf ppf "alloc %i" bytes
+  | Alloc { bytes; dbginfo = _; mode = Alloc_local } ->
+    Format.fprintf ppf "alloc_local %i" bytes
 
 let dump_basic ppf (basic : basic) =
   let open Format in
@@ -373,7 +377,6 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
         Mach.Iextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
-      | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after
@@ -422,7 +425,6 @@ let can_raise_terminator (i : terminator) =
   | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
   | Prim { op = External _ | Probe _; label_after = _ } ->
     true
-  | Prim { op = Alloc _; label_after = _ } -> false
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
@@ -486,6 +488,7 @@ let is_pure_operation : operation -> bool = function
   | Name_for_debugger _ -> false
   | Dls_get -> true
   | Poll -> false
+  | Alloc _ -> false
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
@@ -531,7 +534,7 @@ let is_noop_move instr =
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
       | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll )
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

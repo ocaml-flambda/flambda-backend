@@ -188,7 +188,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               returns = true;
               stack_ofs
             }
-        | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }
       in

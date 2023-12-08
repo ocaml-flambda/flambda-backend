@@ -331,6 +331,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Pushtrap _ ->
     destroyed_at_pushtrap
   | Op Poll -> destroyed_at_alloc_or_poll
+  | Op (Alloc _) ->
+    destroyed_at_alloc_or_poll
   | Op( Intoffloat | Floatofint
       | Load {memory_chunk = Single; _ } | Store(Single, _, _)) ->
     [| reg_d7 |]
@@ -344,8 +346,6 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Never -> assert false
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | Prim {op = Alloc _; _} ->
-    [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
   | Tailcall_func _ | Prim {op = Probe _; _}
@@ -365,8 +365,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Never -> assert false
   | Call {op = Indirect | Direct _; _} ->
     true
-  | Prim {op = Alloc _; _} ->
-    false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
   | Tailcall_func _ | Prim {op = Probe _; _}
