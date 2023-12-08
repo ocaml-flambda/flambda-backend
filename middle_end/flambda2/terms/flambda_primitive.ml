@@ -270,6 +270,12 @@ module Block_access_kind = struct
   let element_kind_for_load t =
     match t with Values _ -> K.value | Naked_floats _ -> K.naked_float
 
+  let element_subkind_for_load t =
+    match t with
+    | Values { field_kind = Any_value; _ } -> K.With_subkind.any_value
+    | Values { field_kind = Immediate; _ } -> K.With_subkind.tagged_immediate
+    | Naked_floats _ -> K.With_subkind.naked_float
+
   let element_kind_for_set = element_kind_for_load
 
   let compare t1 t2 =
@@ -739,8 +745,7 @@ type unary_primitive =
       }
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t;
-        kind : Flambda_kind.With_subkind.t
+        value_slot : Value_slot.t
       }
   | Is_boxed_float
   | Is_flat_float_array
@@ -863,21 +868,11 @@ let compare_unary_primitive p1 p2 =
     let c = Function_slot.compare move_from1 move_from2 in
     if c <> 0 then c else Function_slot.compare move_to1 move_to2
   | ( Project_value_slot
-        { project_from = function_slot1;
-          value_slot = value_slot1;
-          kind = kind1
-        },
+        { project_from = function_slot1; value_slot = value_slot1 },
       Project_value_slot
-        { project_from = function_slot2;
-          value_slot = value_slot2;
-          kind = kind2
-        } ) ->
+        { project_from = function_slot2; value_slot = value_slot2 } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
-    if c <> 0
-    then c
-    else
-      let c = Value_slot.compare value_slot1 value_slot2 in
-      if c <> 0 then c else K.With_subkind.compare kind1 kind2
+    if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
   | ( Opaque_identity { middle_end_only = middle_end_only1; kind = kind1 },
       Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
     let c = Bool.compare middle_end_only1 middle_end_only2 in
@@ -940,10 +935,9 @@ let print_unary_primitive ppf p =
   | Project_function_slot { move_from; move_to } ->
     Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
-  | Project_value_slot { project_from; value_slot; kind } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@ %a))@]"
-      Function_slot.print project_from Value_slot.print value_slot
-      K.With_subkind.print kind
+  | Project_value_slot { project_from; value_slot } ->
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
+      project_from Value_slot.print value_slot
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
   | End_region -> Format.pp_print_string ppf "End_region"
@@ -1000,7 +994,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
   | Untag_immediate -> Singleton K.naked_immediate
   | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
-  | Project_value_slot { kind; _ } -> Singleton (K.With_subkind.kind kind)
+  | Project_value_slot { value_slot; _ } ->
+    Singleton (K.With_subkind.kind (Value_slot.kind value_slot))
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | End_region -> Singleton K.value
   | End_try_region -> Singleton K.value
@@ -1121,7 +1116,7 @@ let free_names_unary_primitive p =
       (Name_occurrences.add_function_slot_in_projection Name_occurrences.empty
          move_to Name_mode.normal)
       move_from Name_mode.normal
-  | Project_value_slot { value_slot; project_from; kind = _ } ->
+  | Project_value_slot { value_slot; project_from } ->
     Name_occurrences.add_function_slot_in_projection
       (Name_occurrences.add_value_slot_in_projection Name_occurrences.empty
          value_slot Name_mode.normal)
