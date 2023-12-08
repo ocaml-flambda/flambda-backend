@@ -286,15 +286,6 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Dls_get, Dls_get -> ()
   | Poll, Poll -> ()
-  | _ -> different location "operation"
- [@@ocaml.warning "-4"]
-
-let check_prim_call_operation :
-    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
- fun location expected result ->
-  match expected, result with
-  | External expected, External result ->
-    check_external_call_operation location expected result
   | ( Alloc
         { bytes = expected_bytes;
           dbginfo = _expected_dbginfo;
@@ -307,6 +298,15 @@ let check_prim_call_operation :
          && Lambda.eq_mode expected_mode result_mode ->
     (* CR xclerc for xclerc: also check debug info *)
     ()
+  | _ -> different location "operation"
+ [@@ocaml.warning "-4"]
+
+let check_prim_call_operation :
+    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
+ fun location expected result ->
+  match expected, result with
+  | External expected, External result ->
+    check_external_call_operation location expected result
   | ( Checkbound { immediate = expected_immediate },
       Checkbound { immediate = result_immediate } )
     when Option.equal Int.equal expected_immediate result_immediate ->

@@ -51,7 +51,8 @@ let precondition : Cfg_with_layout.t -> unit =
             id
       | Name_for_debugger _ -> ()
       | Dls_get -> ()
-      | Poll -> ())
+      | Poll -> ()
+      | Alloc _ -> ())
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
