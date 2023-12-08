@@ -474,15 +474,14 @@ val read_signature:
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name. *)
+  alerts:alerts -> signature -> Compilation_unit.t -> Cmi_format.kind
+  -> filepath -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Import_info.t array
-  -> Cmi_format.cmi_infos_lazy
-        (* Arguments: signature, module name, file name,
-           imported units with their CRCs. *)
+  alerts:alerts -> signature -> Compilation_unit.t -> Cmi_format.kind
+  -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
+        (* Arguments: signature, module name, module kind,
+           file name, imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -498,6 +497,10 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
