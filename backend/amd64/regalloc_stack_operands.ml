@@ -240,7 +240,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _  | Const_vec128 _ | Compf _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
-       | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get )
+       | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll )
   | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
@@ -290,7 +290,6 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Tailcall_self _
   | Tailcall_func _
   | Call_no_return _
-  | Poll_and_jump _
   | Prim {op = External _ | Alloc _; _ } | Call {op = Indirect | Direct _; _} ->
     (* no rewrite *)
     May_still_have_spilled_registers

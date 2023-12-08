@@ -285,6 +285,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
               (Array.to_list right_regs) ->
     ()
   | Dls_get, Dls_get -> ()
+  | Poll, Poll -> ()
   | _ -> different location "operation"
  [@@ocaml.warning "-4"]
 
@@ -505,9 +506,6 @@ let check_terminator_instruction :
       Specific_can_raise { op = op2; label_after = lbl2 } )
     when Arch.equal_specific_operation op1 op2 ->
     State.add_to_explore state lbl1 lbl2
-  | Poll_and_jump return_label1, Poll_and_jump return_label2
-    when Label.equal return_label1 return_label2 ->
-    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
@@ -515,8 +513,7 @@ let check_terminator_instruction :
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    | Poll_and_jump _ ->
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

@@ -99,14 +99,6 @@ let block (block : C.basic_block) =
       block.terminator <- { block.terminator with desc = Always l }
   | Switch labels -> simplify_switch block labels
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Poll_and_jump _
-  (* CR xclerc: I wonder whether Merge_straightline_block should be updated to
-     optimize a Poll_and_jump block where block is empty, and has a terminator
-     such as Always block'.
-
-     (Note that the blocks are currently and correctly not merged because
-     Poll_and_jump block can raise. The optimization I suggest would be to
-     rewrite it to Poll_and_jump block'.) *)
   | Call _ | Prim _ | Specific_can_raise _ ->
     ()
 

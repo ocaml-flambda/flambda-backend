@@ -81,7 +81,7 @@ module Transfer :
         ~exn Domain.bot instr
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-    | Poll_and_jump _ | Prim _ | Specific_can_raise _ ->
+    | Prim _ | Specific_can_raise _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr
