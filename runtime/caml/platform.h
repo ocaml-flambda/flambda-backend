@@ -108,7 +108,7 @@ void caml_plat_assert_all_locks_unlocked(void);
 Caml_inline void caml_plat_unlock(caml_plat_mutex*);
 void caml_plat_mutex_free(caml_plat_mutex*);
 typedef struct { custom_condvar cond; caml_plat_mutex* mutex; } caml_plat_cond;
-#define CAML_PLAT_COND_INITIALIZER(m) { PTHREAD_COND_INITIALIZER, m }
+#define CAML_PLAT_COND_INITIALIZER(m) { CUSTOM_COND_INITIALIZER, m }
 void caml_plat_cond_init(caml_plat_cond*, caml_plat_mutex*);
 void caml_plat_wait(caml_plat_cond*);
 /* like caml_plat_wait, but if nanoseconds surpasses the second parameter
