@@ -225,7 +225,7 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
 
 
 static const header_t Hd_high_bit =
-  ((uintnat)-1) << (sizeof(uintnat) * 8 - 1);
+  ((uintnat)-1) << (sizeof(uintnat) * 8 - 1 - HEADER_RESERVED_BITS);
 
 
 /* Returns the arena number of a block,

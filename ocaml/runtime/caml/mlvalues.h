@@ -93,6 +93,8 @@ typedef opcode_t * code_t;
 /* Structure of the header:
 
 For 16-bit and 32-bit architectures:
+
+len     22        2      8
      +--------+-------+-----+
      | wosize | color | tag |
      +--------+-------+-----+
@@ -100,13 +102,16 @@ bits  31    10 9     8 7   0
 
 For 64-bit architectures:
 
-     +----------+--------+-------+-----+
-     | reserved | wosize | color | tag |
-     +----------+--------+-------+-----+
-bits  63    64-R 63-R  10 9     8 7   0
+len        R         1     53-R       2      8
+     +----------+--------+--------+-------+-----+
+     | reserved | lcolor | wosize | color | tag |
+     +----------+--------+--------+-------+-----+
+bits  63    64-R 63-R 63-R 62-R 10 9     8 7   0
 
 where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
---enable-reserved-header-bits=R argument to configure.
+--enable-reserved-header-bits=R argument to configure,
+
+and lcolor is a bit used to mark local allocations during GC scanning.
 
 */
 
