@@ -117,6 +117,12 @@ and lcolor is a bit used to mark local allocations during GC scanning.
 
 #define HEADER_BITS (sizeof(header_t) * CHAR_BIT)
 
+/* lcolor above. We don't use this in the definition of HEADER_WOSIZE_BITS
+   because this bit is only used in GC scanning of locals and then set back
+   to 0 later. However, it does affect Max_wosize.
+*/
+#define HEADER_LOCAL_GC_SCANNING_BITS 1
+
 #define HEADER_TAG_BITS 8
 #define HEADER_TAG_MASK ((1ull << HEADER_TAG_BITS) - 1ull)
 
@@ -174,7 +180,8 @@ and lcolor is a bit used to mark local allocations during GC scanning.
 #define Bp_hp(hp) ((char *) Val_hp (hp))
 
 #define Num_tags (1ull << HEADER_TAG_BITS)
-#define Max_wosize ((1ull << HEADER_WOSIZE_BITS) - 1ull)
+#define Max_wosize \
+  ((1ull << (HEADER_WOSIZE_BITS - HEADER_LOCAL_GC_SCANNING_BITS)) - 1ull)
 
 #define Wosize_val(val) (Wosize_hd (Hd_val (val)))
 #define Wosize_op(op) (Wosize_val (op))
