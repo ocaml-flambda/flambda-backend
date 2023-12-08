@@ -139,7 +139,8 @@ let is_move_basic : Cfg.basic -> bool =
     | End_region -> false
     | Specific _ -> false
     | Name_for_debugger _ -> false
-    | Dls_get -> false)
+    | Dls_get -> false
+    | Poll -> false)
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =

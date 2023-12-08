@@ -157,8 +157,7 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Alloc { bytes; dbginfo; mode }; label_after })
-  | Ipoll { return_label = None } ->
-    With_next_label (fun label_after -> Poll_and_jump label_after)
+  | Ipoll { return_label = None } -> Basic (Op Poll)
   | Ipoll { return_label = Some return_label } ->
     Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
       return_label
@@ -448,9 +447,8 @@ let rec add_blocks :
       else ()
     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
     | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-    | Cfg.Call_no_return _ | Cfg.Poll_and_jump _ | Cfg.Tailcall_self _
-    | Cfg.Tailcall_func _ | Cfg.Call _ | Cfg.Prim _ | Cfg.Specific_can_raise _
-      ->
+    | Cfg.Call_no_return _ | Cfg.Tailcall_self _ | Cfg.Tailcall_func _
+    | Cfg.Call _ | Cfg.Prim _ | Cfg.Specific_can_raise _ ->
       ());
     let can_raise =
       (* Recompute [can_raise]. Only terminator can actually raise. *)
@@ -607,7 +605,7 @@ module Stack_offset_and_exn = struct
          self tailcall"
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Poll_and_jump _
+    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
     | Specific_can_raise _ ->
       stack_offset, traps
 
@@ -638,7 +636,7 @@ module Stack_offset_and_exn = struct
         | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
         | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-          )
+        | Poll )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 
