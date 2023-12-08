@@ -1177,7 +1177,10 @@ let can_group discr pat =
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
-  | Constant (Const_nativeint _), Constant (Const_nativeint _) ->
+  | Constant (Const_nativeint _), Constant (Const_nativeint _)
+  | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
+  | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
+  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
       true
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
@@ -1198,7 +1201,8 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
+          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _
+          | Const_unboxed_int32 _ | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 

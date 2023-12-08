@@ -24,22 +24,27 @@ let is_cons = function
 | {cstr_name = "::"} -> true
 | _ -> false
 
+let fmt_unboxed_const_str s =
+  match String.split_on_char '-' s with
+  | [""; s] -> "-#" ^ s
+  | [s] -> "#" ^ s
+  | _ -> assert false
+
 let pretty_const c = match c with
 | Const_int i -> Printf.sprintf "%d" i
 | Const_char c -> Printf.sprintf "%C" c
 | Const_string (s, _, _) -> Printf.sprintf "%S" s
 | Const_float f -> Printf.sprintf "%s" f
-| Const_unboxed_float f ->
-  let s =
-    match String.split_on_char '-' f with
-    | [""; f] -> "-#" ^ f
-    | [f] -> "#" ^ f
-    | _ -> assert false
-  in
-  Printf.sprintf "%s" s
+| Const_unboxed_float f -> Printf.sprintf "%s" (fmt_unboxed_const_str f)
 | Const_int32 i -> Printf.sprintf "%ldl" i
 | Const_int64 i -> Printf.sprintf "%LdL" i
 | Const_nativeint i -> Printf.sprintf "%ndn" i
+| Const_unboxed_int32 i ->
+  Printf.sprintf "%sl" (fmt_unboxed_const_str (Int32.to_string i))
+| Const_unboxed_int64 i ->
+  Printf.sprintf "%sL" (fmt_unboxed_const_str (Int64.to_string i))
+| Const_unboxed_nativeint i ->
+  Printf.sprintf "%sn" (fmt_unboxed_const_str (Nativeint.to_string i))
 
 let pretty_extra ppf (cstr, _loc, _attrs) pretty_rest rest =
   match cstr with

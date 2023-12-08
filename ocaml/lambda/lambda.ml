@@ -1560,6 +1560,9 @@ let constant_layout: constant -> layout = function
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
+  | Const_unboxed_int32 _ -> Punboxed_int Pint32
+  | Const_unboxed_int64 _ -> Punboxed_int Pint64
+  | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
   | Const_float _ -> Pvalue Pfloatval
   | Const_unboxed_float _ -> Punboxed_float
 

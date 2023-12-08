@@ -19,6 +19,11 @@ open Primitive
 open Types
 open Lambda
 
+let fmt_unboxed_const_str s =
+  match String.split_on_char '-' s with
+  | [""; s] -> "-#" ^ s
+  | [s] -> "#" ^ s
+  | _ -> Misc.fatal_errorf "Invalid unboxed constant: %s" s
 
 let rec struct_const ppf = function
   | Const_base(Const_int n) -> fprintf ppf "%i" n
@@ -26,17 +31,16 @@ let rec struct_const ppf = function
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
-  | Const_base(Const_unboxed_float f) ->
-    let s =
-      match String.split_on_char '-' f with
-      | [""; f] -> "-#" ^ f
-      | [f] -> "#" ^ f
-      | _ -> Misc.fatal_errorf "Invalid Const_unboxed_float constant: %s" f
-    in
-    fprintf ppf "%s" s
+  | Const_base(Const_unboxed_float f) -> fprintf ppf "%s" (fmt_unboxed_const_str f)
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
+  | Const_base(Const_unboxed_int32 i) ->
+      fprintf ppf "%sl" (fmt_unboxed_const_str (Int32.to_string i))
+  | Const_base(Const_unboxed_int64 i) ->
+      fprintf ppf "%sL" (fmt_unboxed_const_str (Int64.to_string i))
+  | Const_base(Const_unboxed_nativeint i) ->
+      fprintf ppf "%sn" (fmt_unboxed_const_str (Nativeint.to_string i))
   | Const_block(tag, []) ->
       fprintf ppf "[%i]" tag
   | Const_block(tag, sc1::scl) ->
