@@ -1,7 +1,7 @@
 (* TEST
    modules = "max_wosize_stub.c"
    * runtime5
-     * native
+   ** native
 *)
 
 (* This test demonstrates that you can't make a block that's
