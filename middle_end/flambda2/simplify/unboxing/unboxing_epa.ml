@@ -282,7 +282,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
   let vars_within_closure =
     Value_slot.Map.mapi
       (fun var ({ epa; decision; kind } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer function_slot var kind in
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in

@@ -394,7 +394,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
     let kind = Flambda_kind.With_subkind.any_value in
     let value_slot = fresh_or_existing_value_slot env value_slot kind in
     let project_from = fresh_or_existing_function_slot env project_from in
-    Project_value_slot { project_from; value_slot; kind }
+    Project_value_slot { project_from; value_slot }
   | Project_function_slot { move_from; move_to } ->
     let move_from = fresh_or_existing_function_slot env move_from in
     let move_to = fresh_or_existing_function_slot env move_to in

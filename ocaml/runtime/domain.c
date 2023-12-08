@@ -943,6 +943,8 @@ struct domain_startup_params {
 
 static void* backup_thread_func(void* v)
 {
+  // single-domain hack
+  caml_fatal_error("backup thread not allowed to run");
   dom_internal* di = (dom_internal*)v;
   uintnat msg;
   struct interruptor* s = &di->interruptor;

@@ -43,8 +43,9 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
            ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
-    dacc ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
+    ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+  let kind = Value_slot.kind value_slot in
   let result =
     (* We try a faster method before falling back to [simplify_projection]. *)
     match
@@ -617,8 +618,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Project_value_slot { project_from; value_slot; kind } ->
-      simplify_project_value_slot project_from value_slot ~min_name_mode kind
+    | Project_value_slot { project_from; value_slot } ->
+      simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->
       simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
