@@ -258,7 +258,7 @@ CAMLprim value caml_gc_major(value v)
   return caml_raise_async_if_exception(gc_major_exn (0), "");
 }
 
-static value gc_full_major_exn(void)
+static value gc_full_major_exn(int force_compaction)
 {
   int i;
   value exn = Val_unit;
@@ -268,7 +268,7 @@ static value gc_full_major_exn(void)
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
     caml_empty_minor_heaps_once();
-    caml_finish_major_cycle(0);
+    caml_finish_major_cycle(force_compaction);
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -281,7 +281,7 @@ CAMLprim value caml_gc_full_major(value v)
 {
   Caml_check_caml_state();
   CAMLassert (v == Val_unit);
-  return caml_raise_async_if_exception(gc_full_major_exn (), "");
+  return caml_raise_async_if_exception(gc_full_major_exn (0), "");
 }
 
 CAMLprim value caml_gc_major_slice (value v)
@@ -299,7 +299,7 @@ CAMLprim value caml_gc_compaction(value v)
   Caml_check_caml_state();
   CAML_EV_BEGIN(EV_EXPLICIT_GC_COMPACT);
   CAMLassert (v == Val_unit);
-  value exn = gc_full_major_exn();
+  value exn = gc_full_major_exn(1);
   CAML_EV_END(EV_EXPLICIT_GC_COMPACT);
   return caml_raise_async_if_exception(exn, "");
 }
@@ -308,7 +308,7 @@ CAMLprim value caml_gc_stat(value v)
 {
   value res;
   CAML_EV_BEGIN(EV_EXPLICIT_GC_STAT);
-  res = gc_full_major_exn();
+  res = gc_full_major_exn(0);
   if (Is_exception_result(res)) goto out;
   res = caml_gc_quick_stat(Val_unit);
  out:
