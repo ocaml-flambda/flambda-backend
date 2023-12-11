@@ -40,7 +40,10 @@ module Int64 = struct
       [@@noalloc] [@@unboxed] [@@builtin]
 
   let () =
-    eq (bit_deposit 3L 4L)     (bit_extract 3L 4L)     0x4L 0x0L;
-    eq (bit_deposit 235L 522L) (bit_extract 235L 522L) 0xAL 0x3L;
+    eq (bit_deposit 3L 4L) (bit_deposit 235L 522L) 0x4L 0xAL
+  ;;
+
+  let () =
+    eq (bit_extract 3L 4L) (bit_extract 235L 522L) 0x0L 0x3L
   ;;
 end
