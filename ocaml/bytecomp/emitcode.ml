@@ -17,7 +17,6 @@
 
 open Config
 open Misc
-open Asttypes
 open Lambda
 open Instruct
 open Opcodes
@@ -422,7 +421,8 @@ let to_file outchan unit_name objfile ~required_globals code =
         (Filename.dirname (Location.absolute_path objfile))
         !debug_dirs;
       let p = pos_out outchan in
-      (* CR mshinwell: Compression not supported in the OCaml 4 runtime
+      (* CR ocaml 5 compressed-marshal mshinwell:
+         Compression not supported in the OCaml 4 runtime
       Marshal.(to_channel outchan !events [Compression]);
       Marshal.(to_channel outchan (String.Set.elements !debug_dirs)
                           [Compression]);

@@ -421,6 +421,9 @@ let buf_sym b sym offset =
       buf_int32L b 0L
 
 let emit_prefix_modrm b opcodes rm reg ~prefix =
+  (* When required for a particular instruction, the REX / REXW flag is added in
+     [emit_mod_rm_reg]. This function otherwise assumes [~rex:0] for Reg32,
+     Reg64, Regf, and addressing modes. *)
   match rm with
   | Reg32 rm ->
       let rm = rd_of_reg64 rm in
@@ -1043,6 +1046,13 @@ let emit_dpps = suffix emit_osize_rf_rfm_3A 0x40
 let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
 let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
 let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
+
+let emit_pmulhw = emit_osize_rf_rfm 0xE5
+let emit_pmulhuw = emit_osize_rf_rfm 0xE4
+let emit_pmullw = emit_osize_rf_rfm 0xD5
+let emit_pmaddwd = emit_osize_rf_rfm 0xF5
+let emit_pmaddubsw = emit_osize_rf_rfm_38 0x04
+let emit_pmulld = emit_osize_rf_rfm_38 0x40
 
 let emit_pclmulqdq = suffix emit_osize_rf_rfm_3A 0x44
 
@@ -2004,6 +2014,12 @@ let assemble_instr b loc = function
   | MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
   | PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
   | PCLMULQDQ (n, src, dst) -> emit_pclmulqdq b (imm n) dst src
+  | PMULHW (src, dst) -> emit_pmulhw b dst src
+  | PMULHUW (src, dst) -> emit_pmulhuw b dst src
+  | PMULLW (src, dst) -> emit_pmullw b dst src
+  | PMADDWD (src, dst) -> emit_pmaddwd b dst src
+  | PMADDUBSW (src, dst) -> emit_pmaddubsw b dst src
+  | PMULLD (src, dst) -> emit_pmulld b dst src
   | PEXT (src1, src0, dst) -> emit_pext b dst src0 src1
   | PDEP (src1, src0, dst) -> emit_pdep b dst src0 src1
 

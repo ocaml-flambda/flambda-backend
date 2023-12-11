@@ -236,6 +236,10 @@ let select_operation_sse2 op args =
   | "caml_sse2_vec128_interleave_low_16" -> Some (Interleave_low_16, args)
   | "caml_sse2_vec128_interleave_high_64" -> Some (Interleave_high_64, args)
   | "caml_sse2_vec128_interleave_low_64" -> Some (Interleave_low_64, args)
+  | "caml_sse2_int16x8_mul_high" -> Some (Mulhi_i16, args)
+  | "caml_sse2_int16x8_mul_high_unsigned" -> Some (Mulhi_unsigned_i16, args)
+  | "caml_sse2_int16x8_mul_low" -> Some (Mullo_i16, args)
+  | "caml_sse2_int16x8_mul_hadd_int32x4" -> Some (Mul_hadd_i16_to_i32, args)
   | _ -> None
 
 let select_operation_sse3 op args =
@@ -275,6 +279,8 @@ let select_operation_ssse3 op args =
     | "caml_ssse3_vec128_align_right_bytes" ->
       let i, args = extract_constant args ~max:31 op in
       Some (Alignr_i8 i, args)
+    | "caml_ssse3_int8x16_mul_unsigned_hadd_saturating_int16x8" ->
+      Some (Mul_unsigned_hadd_saturating_i8_to_i16, args)
     | _ -> None
 
 let select_operation_sse41 op args =
@@ -358,6 +364,7 @@ let select_operation_sse41 op args =
       let i, args = extract_constant args ~max:7 op in
       Some (Multi_sad_unsigned_i8 i, args)
     | "caml_sse41_int16x8_minpos_unsigned" -> Some (Minpos_unsigned_i16, args)
+    | "caml_sse41_int32x4_mul_low" -> Some (Mullo_i32, args)
     | _ -> None
 
 let select_operation_sse42 op args =
@@ -455,7 +462,8 @@ let register_behavior_sse2 = function
   | Avg_unsigned_i16 | SAD_unsigned_i8 | Shuffle_64 _ | Interleave_high_8
   | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
   | Interleave_low_16 | Interleave_low_64 | I16_to_i8 | I32_to_i16
-  | I16_to_unsigned_i8 | I32_to_unsigned_i16 ->
+  | I16_to_unsigned_i8 | I32_to_unsigned_i16 | Mulhi_i16 | Mulhi_unsigned_i16
+  | Mullo_i16 | Mul_hadd_i16_to_i32 ->
     R_RM_to_fst
   | Shuffle_high_16 _ | Shuffle_low_16 _ | I32_to_f64 | I32_to_f32 | F64_to_i32
   | Cast_scalar_f64_i64 | F64_to_f32 | F32_to_i32 | F32_to_f64 | Sqrt_f64 ->
@@ -474,7 +482,7 @@ let register_behavior_sse3 = function
 let register_behavior_ssse3 = function
   | Hadd_i16 | Hadd_i32 | Hadd_saturating_i16 | Hsub_i16 | Hsub_i32
   | Hsub_saturating_i16 | Mulsign_i8 | Mulsign_i16 | Mulsign_i32 | Shuffle_8
-  | Alignr_i8 _ ->
+  | Alignr_i8 _ | Mul_unsigned_hadd_saturating_i8_to_i16 ->
     R_RM_to_fst
   | Abs_i8 | Abs_i16 | Abs_i32 -> RM_to_R
 
@@ -482,7 +490,7 @@ let register_behavior_sse41 = function
   | Blend_16 _ | Blend_32 _ | Blend_64 _ | Cmpeq_i64 | Dp_f32 _ | Dp_f64 _
   | Max_i8 | Max_i32 | Max_unsigned_i16 | Max_unsigned_i32 | Min_i8 | Min_i32
   | Min_unsigned_i16 | Min_unsigned_i32 | Insert_i8 _ | Insert_i16 _
-  | Insert_i32 _ | Insert_i64 _ | Multi_sad_unsigned_i8 _ ->
+  | Insert_i32 _ | Insert_i64 _ | Multi_sad_unsigned_i8 _ | Mullo_i32 ->
     R_RM_to_fst
   | I8_sx_i16 | I8_sx_i32 | I8_sx_i64 | I16_sx_i32 | I16_sx_i64 | I32_sx_i64
   | I8_zx_i16 | I8_zx_i32 | I8_zx_i64 | I16_zx_i32 | I16_zx_i64 | I32_zx_i64

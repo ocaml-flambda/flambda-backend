@@ -133,13 +133,14 @@ let rec extract_letop_patterns n pat =
 (** Mapping functions. *)
 
 let constant = function
-  | Const_char c -> Pconst_char c
-  | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
-  | Const_int i -> Pconst_integer (Int.to_string i, None)
-  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
-  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
-  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
-  | Const_float f -> Pconst_float (f,None)
+  | Const_char c -> `Parsetree (Pconst_char c)
+  | Const_string (s,loc,d) -> `Parsetree (Pconst_string (s,loc,d))
+  | Const_int i -> `Parsetree (Pconst_integer (Int.to_string i, None))
+  | Const_int32 i -> `Parsetree (Pconst_integer (Int32.to_string i, Some 'l'))
+  | Const_int64 i -> `Parsetree (Pconst_integer (Int64.to_string i, Some 'L'))
+  | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
+  | Const_float f -> `Parsetree (Pconst_float (f,None))
+  | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;
@@ -360,7 +361,12 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
-    | Tpat_constant cst -> Ppat_constant (constant cst)
+    | Tpat_constant cst ->
+      begin match constant cst with
+      | `Parsetree cst -> Ppat_constant cst
+      | `Jane_syntax cst ->
+        Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
+      end
     | Tpat_tuple list ->
         if List.for_all (fun (label, _) -> Option.is_none label) list then
           Ppat_tuple (List.map (fun (_, p) -> sub.pat sub p) list)
@@ -502,7 +508,12 @@ let expression sub exp =
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
-    | Texp_constant cst -> Pexp_constant (constant cst)
+    | Texp_constant cst ->
+      begin match constant cst with
+      | `Parsetree cst -> Pexp_constant cst
+      | `Jane_syntax cst ->
+        Jane_syntax.Layouts.expr_of ~loc (Lexp_constant cst) |> add_jane_syntax_attributes
+      end
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,

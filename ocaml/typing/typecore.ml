@@ -205,7 +205,6 @@ type error =
   | Exclave_in_nontail_position
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
-  | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
 
 exception Error of Location.t * Env.t * error
@@ -593,22 +592,17 @@ let optimise_allocations () =
 
 (* Typing of constants *)
 
-let type_constant = function
+let type_constant: Typedtree.constant -> type_expr = function
     Const_int _ -> instance Predef.type_int
   | Const_char _ -> instance Predef.type_char
   | Const_string _ -> instance Predef.type_string
   | Const_float _ -> instance Predef.type_float
+  | Const_unboxed_float _ -> instance Predef.type_unboxed_float
   | Const_int32 _ -> instance Predef.type_int32
   | Const_int64 _ -> instance Predef.type_int64
   | Const_nativeint _ -> instance Predef.type_nativeint
 
-let type_constant_unboxed env loc
-    : Jane_syntax.Layouts.constant -> _ = function
-  | Float _ -> raise (Error (loc, env, Unboxed_float_literals_not_supported))
-    (* CR layouts v2.5: This should be [instance Predef.type_unboxed_float] *)
-  | Integer _ -> raise (Error (loc, env, Unboxed_int_literals_not_supported))
-
-let constant_integer i ~suffix : (Asttypes.constant, error) result =
+let constant_integer i ~suffix : (Typedtree.constant, error) result =
   match suffix with
   | 'l' ->
     begin
@@ -627,7 +621,7 @@ let constant_integer i ~suffix : (Asttypes.constant, error) result =
     end
   | c -> Error (Unknown_literal (i, c))
 
-let constant : Parsetree.constant -> (Asttypes.constant, error) result =
+let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
   | Pconst_integer (i, Some suffix) -> constant_integer i ~suffix
   | Pconst_integer (i,None) ->
@@ -645,22 +639,15 @@ let constant_or_raise env loc cst =
   | Ok c -> c
   | Error err -> raise (Error (loc, env, err))
 
-let unboxed_constant :
-    type a. Jane_syntax.Layouts.constant -> (a, error) result
+let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
   = function
-  | Float (_, None) -> Error Unboxed_float_literals_not_supported
+  | Float (f, None) -> Ok (Const_unboxed_float f)
   | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
   | Integer (_, _) -> Error Unboxed_int_literals_not_supported
 
-(* CR layouts v2.5: this is missing the part where we actually typecheck
-   unboxed literals.
-*)
 let unboxed_constant_or_raise env loc cst =
-  let open struct
-    type nothing = |
-  end in
   match unboxed_constant cst with
-  | Ok (_ : nothing) -> .
+  | Ok c -> c
   | Error err -> raise (Error (loc, env, err))
 
 (* Specific version of type_option, using newty rather than newgenty *)
@@ -1402,6 +1389,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
             annotations on explicitly quantified vars in gadt constructors.
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
+                     ~jkind_annot:None
                      (Jkind.value ~why:Existential_type_variable) in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !env in
@@ -2397,11 +2385,11 @@ and type_pat_aux
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
       | Jpat_layout (Lpat_constant cst) ->
-          let desc = unboxed_constant_or_raise !env loc cst in
+          let cst = unboxed_constant_or_raise !env loc cst in
           rvp @@ solve_expected {
-            pat_desc = desc;
+            pat_desc = Tpat_constant cst;
             pat_loc = loc; pat_extra=[];
-            pat_type = type_constant_unboxed !env loc cst;
+            pat_type = type_constant cst;
             pat_attributes = attrs;
             pat_env = !env }
       | Jpat_tuple (Ltpat_tuple (spl, closed)) ->
@@ -3112,7 +3100,11 @@ let rec check_counter_example_pat
       end
   | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
   | Tpat_constant cst ->
-      let cst = constant_or_raise !env loc (Untypeast.constant cst) in
+      let cst =
+        match Untypeast.constant cst with
+        | `Parsetree cst -> constant_or_raise !env loc cst
+        | `Jane_syntax cst -> unboxed_constant_or_raise !env loc cst
+      in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple tpl ->
       let tpl_ann =
@@ -7656,7 +7648,7 @@ and type_newtype ~loc ~env ~expected_mode ~rue ~attributes
   (* Use [with_local_level] just for scoping *)
   let body, ety = with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc jkind in
+    let decl = new_local_type ~loc jkind ~jkind_annot in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
@@ -8492,11 +8484,12 @@ and type_jkind_expr
       name (Some jkind_annot) sbody
 
 and type_unboxed_constant ~loc ~env ~rue ~attributes cst =
+  let cst = unboxed_constant_or_raise env loc cst in
   rue {
-    exp_desc = unboxed_constant_or_raise env loc cst;
+    exp_desc = Texp_constant cst;
     exp_loc = loc;
     exp_extra = [];
-    exp_type = type_constant_unboxed env loc cst;
+    exp_type = type_constant cst;
     exp_attributes = attributes;
     exp_env = env }
 
@@ -9461,9 +9454,6 @@ let report_error ~loc env = function
   | Unboxed_int_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed int literals aren't supported yet.@]"
-  | Unboxed_float_literals_not_supported ->
-      Location.errorf ~loc
-        "@[Unboxed float literals aren't supported yet.@]"
   | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Function arguments and returns must be representable.@]@ %a"

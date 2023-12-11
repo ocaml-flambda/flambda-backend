@@ -663,7 +663,7 @@ let rec transl env e =
          | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
          | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-         | Poffsetref _ | Pfloatcomp _ | Parraylength _
+         | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _ | Parraylength _
          | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
          | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
          | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
@@ -1021,7 +1021,7 @@ and transl_prim_1 env p arg dbg =
     | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
     | Psetufloatfield (_, _)
-    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Pmakearray (_, _, _)
+    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Punboxed_float_comp _ | Pmakearray (_, _, _)
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
     | Parrayrefs _ | Parraysets _ | Paddbint _ | Psubbint _ | Pmulbint _
@@ -1130,6 +1130,11 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int(Cop(Ccmpf cmp,
                   [transl_unbox_float dbg env arg1;
                    transl_unbox_float dbg env arg2],
+                  dbg)) dbg
+  | Punboxed_float_comp cmp ->
+      tag_int(Cop(Ccmpf cmp,
+                  [transl env arg1;
+                   transl env arg2],
                   dbg)) dbg
 
   (* String operations *)
@@ -1311,7 +1316,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _, _)
+  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _
+  | Pmakearray (_, _, _)
   | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
   | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
   | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _

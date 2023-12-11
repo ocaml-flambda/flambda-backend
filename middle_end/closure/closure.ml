@@ -16,7 +16,6 @@
 (* Introduction of closures, uncurrying, recognition of direct calls *)
 
 open Misc
-open Asttypes
 open Primitive
 open Lambda
 open Switch
@@ -1055,6 +1054,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                  that one could modify our string literal.  *)
             str ~shared:true (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
+        | Const_base(Const_unboxed_float _) ->
+            (* CR alanechang: implement unboxed float constants in closure *)
+            Misc.fatal_error "Unboxed float constants are not supported in closure. Consider using flambda2."
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)

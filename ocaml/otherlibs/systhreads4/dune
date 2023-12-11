@@ -28,27 +28,15 @@
 
 
     (thread.mli as threads/thread.mli)
-    (condition.mli as threads/condition.mli)
     (event.mli as threads/event.mli)
-    (mutex.mli as threads/mutex.mli)
-    (semaphore.mli as threads/semaphore.mli)
 
     (threads.h as caml/threads.h)
 
-    (native/.threadsnat.objs/native/condition.cmx as threads/condition.cmx)
     (native/.threadsnat.objs/native/event.cmx as threads/event.cmx)
-    (native/.threadsnat.objs/native/mutex.cmx as threads/mutex.cmx)
-    (native/.threadsnat.objs/native/semaphore.cmx as threads/semaphore.cmx)
     (native/.threadsnat.objs/native/thread.cmx as threads/thread.cmx)
 
-    (byte/.threads.objs/byte/condition.cmi as threads/condition.cmi)
-    (byte/.threads.objs/byte/condition.cmti as threads/condition.cmti)
     (byte/.threads.objs/byte/event.cmi as threads/event.cmi)
     (byte/.threads.objs/byte/event.cmti as threads/event.cmti)
-    (byte/.threads.objs/byte/mutex.cmi as threads/mutex.cmi)
-    (byte/.threads.objs/byte/mutex.cmti as threads/mutex.cmti)
-    (byte/.threads.objs/byte/semaphore.cmi as threads/semaphore.cmi)
-    (byte/.threads.objs/byte/semaphore.cmti as threads/semaphore.cmti)
     (byte/.threads.objs/byte/thread.cmi as threads/thread.cmi)
     (byte/.threads.objs/byte/thread.cmti as threads/thread.cmti)
   )

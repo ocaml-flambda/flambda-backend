@@ -649,7 +649,7 @@ end;;
 module M11_3f :
   sig
     type ('a : float64) t = 'a
-    val foo : 'b ('a : float64). < usefloat : 'a t -> 'b; .. > -> 'a t -> 'b
+    val foo : ('a : float64) 'b. < usefloat : 'a t -> 'b; .. > -> 'a t -> 'b
   end
 |}];;
 
@@ -1265,7 +1265,7 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
 val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]

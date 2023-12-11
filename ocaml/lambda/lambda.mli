@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -140,6 +142,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -462,6 +465,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
 }

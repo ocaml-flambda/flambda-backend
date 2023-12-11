@@ -20,6 +20,10 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
 
+type kind =
+  | Normal
+  | Parameter
+
 type error =
   | Not_an_interface of filepath
   | Wrong_version_interface of filepath * string
@@ -53,10 +57,15 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
    input_value and output_value usage. *)
 type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
-type header = Compilation_unit.t * Serialized.signature
+type header = {
+    header_name : Compilation_unit.t;
+    header_kind : kind;
+    header_sign : Serialized.signature;
+}
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.t;
+    cmi_kind : kind;
     cmi_sign : 'sg;
     cmi_crcs : crcs;
     cmi_flags : flags;
@@ -108,11 +117,16 @@ let input_cmi_lazy ic =
   in
   let data_len = Bytes.get_int64_ne (read_bytes 8) 0 |> Int64.to_int in
   let data = read_bytes data_len in
-  let (name, sign) = (input_value ic : header) in
+  let {
+      header_name = name;
+      header_kind = kind;
+      header_sign = sign;
+    } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
+      cmi_kind = kind;
       cmi_sign = deserialize data sign;
       cmi_crcs = crcs;
       cmi_flags = flags;
@@ -167,8 +181,14 @@ let output_cmi filename oc cmi =
   output_int64 oc len;
   Out_channel.seek oc val_pos;
   (* BACKPORT BEGIN *)
-  (* mshinwell: upstream uses [Compression] here *)
-  output_value oc ((cmi.cmi_name, sign) : header);
+  (* CR ocaml 5 compressed-marshal mshinwell:
+     upstream uses [Compression] here *)
+  output_value oc
+    {
+      header_name = cmi.cmi_name;
+      header_kind = cmi.cmi_kind;
+      header_sign = sign;
+    };
   (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in

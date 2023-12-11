@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Asttypes
 open Lambda
 
 (* Converts let-rec containing values into an initialization then assignment

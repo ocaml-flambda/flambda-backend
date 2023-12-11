@@ -557,17 +557,10 @@ external sys_exit : int -> 'a = "caml_sys_exit"
 
 (* for at_exit *)
 type 'a atomic_t
-(* BACKPORT BEGIN
 external atomic_make : 'a -> 'a atomic_t = "%makemutable"
 external atomic_get : 'a atomic_t -> 'a = "%atomic_load"
 external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
   = "%atomic_cas"
-*)
-external atomic_make : 'a -> 'a atomic_t = "caml_atomic_make"
-external atomic_get : 'a atomic_t -> 'a = "caml_atomic_load"
-external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
-  = "caml_atomic_cas"
-(* BACKPORT END *)
 
 let exit_function = atomic_make flush_all
 
@@ -612,13 +605,10 @@ module BytesLabels    = BytesLabels
 module Callback       = Callback
 module Char           = Char
 module Complex        = Complex
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Condition      = Condition
-*)
 module Digest         = Digest
 module Domain         = Domain
-(* CR ocaml 5 runtime:
+(* CR ocaml 5 effects:
    BACKPORT
 module Effect         = Effect
 *)
@@ -641,10 +631,7 @@ module ListLabels     = ListLabels
 module Map            = Map
 module Marshal        = Marshal
 module MoreLabels     = MoreLabels
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Mutex          = Mutex
-*)
 module Nativeint      = Nativeint
 module Obj            = Obj
 module Oo             = Oo
@@ -657,10 +644,7 @@ module Queue          = Queue
 module Random         = Random
 module Result         = Result
 module Scanf          = Scanf
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Semaphore      = Semaphore
-*)
 module Seq            = Seq
 module Set            = Set
 module Stack          = Stack

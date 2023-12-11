@@ -295,6 +295,10 @@ module I : sig
   val packssdw: arg -> arg -> unit
   val packuswb: arg -> arg -> unit
   val packusdw: arg -> arg -> unit
+  val pmulhw: arg -> arg -> unit
+  val pmulhuw: arg -> arg -> unit
+  val pmullw: arg -> arg -> unit
+  val pmaddwd: arg -> arg -> unit
 
   (* SSE3 instructions *)
 
@@ -324,6 +328,7 @@ module I : sig
   val psignd: arg -> arg -> unit
   val pshufb: arg -> arg -> unit
   val palignr: arg -> arg -> arg -> unit
+  val pmaddubsw: arg -> arg -> unit
 
   (* SSE4.1 instructions *)
 
@@ -368,6 +373,7 @@ module I : sig
   val roundps: rounding -> arg -> arg -> unit
   val mpsadbw: arg -> arg -> arg -> unit
   val phminposuw: arg -> arg -> unit
+  val pmulld: arg -> arg -> unit
 
   (* SSE4.2 instructions *)
 

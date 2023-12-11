@@ -99,8 +99,15 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs =
+let print_cmi_infos name crcs kind =
+  let open Cmi_format in
   printf "Unit name: %a\n" Compilation_unit.output name;
+  let is_param =
+    match kind with
+    | Normal -> false
+    | Parameter -> true
+  in
+  printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -342,6 +349,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+          cmi.Cmi_format.cmi_kind
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt

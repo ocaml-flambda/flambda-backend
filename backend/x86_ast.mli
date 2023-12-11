@@ -348,6 +348,12 @@ type instruction =
   | MPSADBW of arg * arg * arg
   | PHMINPOSUW of arg * arg
   | PCLMULQDQ of arg * arg * arg
+  | PMULHW of arg * arg
+  | PMULHUW of arg * arg
+  | PMULLW of arg * arg
+  | PMADDWD of arg * arg
+  | PMADDUBSW of arg * arg
+  | PMULLD of arg * arg
   | PEXT of arg * arg * arg
   | PDEP of arg * arg * arg
 

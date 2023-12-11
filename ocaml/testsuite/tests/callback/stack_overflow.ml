@@ -2,7 +2,7 @@
    include unix
    modules = "stack_overflow_.c"
    * skip
-     reason = "OCaml 5 only"
+     reason = "CR ocaml 5 effects: re-enable this test"
    ** libunix
    *** bytecode
    *** native

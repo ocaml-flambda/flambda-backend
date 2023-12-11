@@ -1322,7 +1322,7 @@ let get_new_abstract_name env s =
   let index = Misc.find_first_mono check in
   name index
 
-let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind =
+let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot =
   let manifest, expansion_scope =
     match manifest_and_scope with
       None -> None, Btype.lowest_level
@@ -1333,7 +1333,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind =
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = jkind;
-    type_jkind_annotation = None;
+    type_jkind_annotation = jkind_annot;
     type_private = Public;
     type_manifest = manifest;
     type_variance = [];
@@ -1371,7 +1371,7 @@ let instance_constructor existential_treatment cstr =
                   (* Existential row variable *)
               | _ -> assert false
             in
-            let decl = new_local_type jkind in
+            let decl = new_local_type jkind ~jkind_annot:None in
             let name = existential_name cstr existential in
             let (id, new_env) =
               Env.enter_type (get_new_abstract_name !env name) decl !env
@@ -2613,7 +2613,7 @@ let reify env t =
   let fresh_constr_scope = get_gadt_equations_level () in
   let create_fresh_constr lev name jkind =
     let name = match name with Some s -> "$'"^s | _ -> "$" in
-    let decl = new_local_type jkind in
+    let decl = new_local_type jkind ~jkind_annot:None in
     let (id, new_env) =
       Env.enter_type (get_new_abstract_name !env name) decl !env
         ~scope:fresh_constr_scope in
@@ -2975,7 +2975,8 @@ let jkind_of_abstract_type_declaration env p =
        which guards the case of unify3 that reaches this function.  Would be
        nice to eliminate the duplication, but is seems tricky to do so without
        complicating unify3. *)
-    (Env.find_type p env).type_jkind
+    let typ = Env.find_type p env in
+    typ.type_jkind, typ.type_jkind_annotation
   with
     Not_found -> assert false
 
@@ -3015,10 +3016,13 @@ let add_gadt_equation env source destination =
     (* Recording the actual jkind here is required, not just for efficiency.
        When we check the jkind later, we may not be able to see the local
        equation because of its scope. *)
-    let jkind = jkind_of_abstract_type_declaration !env source in
+    let jkind, jkind_annot =
+      jkind_of_abstract_type_declaration !env source
+    in
     add_jkind_equation ~reason:(Gadt_equation source) env destination jkind;
     let decl =
       new_local_type ~manifest_and_scope:(destination, expansion_scope) jkind
+        ~jkind_annot
     in
     env := Env.add_local_type source decl !env;
     cleanup_abbrev ()

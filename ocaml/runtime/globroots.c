@@ -23,6 +23,8 @@
 #include "caml/globroots.h"
 #include "caml/skiplist.h"
 #include "caml/stack.h"
+#include "caml/callback.h"
+#include "caml/fail.h"
 
 static caml_plat_mutex roots_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
@@ -179,11 +181,29 @@ static link *cons(void *data, link *tl) {
 /* protected by roots_mutex */
 static link * caml_dyn_globals = NULL;
 
+static void caml_register_dyn_global(void *v) {
+  link *link = caml_dyn_globals;
+  while (link) {
+    if (link->data == v) {
+      const value *exn = caml_named_value("Register_dyn_global_duplicate");
+      if (exn == NULL) {
+        fprintf(stderr,
+          "[ocaml] attempt to add duplicate in caml_dyn_globals: %p\n", v);
+        abort();
+      }
+      caml_plat_unlock(&roots_mutex);
+      caml_raise(*exn);
+    }
+    link = link->next;
+  }
+  caml_dyn_globals = cons((void*) v,caml_dyn_globals);
+}
+
 void caml_register_dyn_globals(void **globals, int nglobals) {
   int i;
   caml_plat_lock(&roots_mutex);
   for (i = 0; i < nglobals; i++)
-    caml_dyn_globals = cons(globals[i],caml_dyn_globals);
+    caml_register_dyn_global(globals[i]);
   caml_plat_unlock(&roots_mutex);
 }
 

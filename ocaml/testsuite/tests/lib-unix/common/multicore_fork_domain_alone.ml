@@ -1,7 +1,7 @@
 (* TEST
 include unix
 * skip
-reason = "OCaml 5 only"
+reason = "CR ocaml 5 domains: re-enable this test"
 ** hasunix
 *** not-windows
 **** bytecode

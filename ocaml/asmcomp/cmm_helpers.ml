@@ -38,7 +38,9 @@ let bind_nonvar name arg fn =
   | _ -> let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
-let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
+let caml_local =
+  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+(* cf. runtime/caml/gc.h *)
     (* cf. runtime/caml/gc.h *)
 
 (* Loads *)

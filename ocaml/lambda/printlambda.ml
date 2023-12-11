@@ -26,6 +26,14 @@ let rec struct_const ppf = function
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
+  | Const_base(Const_unboxed_float f) ->
+    let s =
+      match String.split_on_char '-' f with
+      | [""; f] -> "-#" ^ f
+      | [f] -> "#" ^ f
+      | _ -> Misc.fatal_errorf "Invalid Const_unboxed_float constant: %s" f
+    in
+    fprintf ppf "%s" s
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
@@ -399,6 +407,7 @@ let primitive ppf = function
   | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
   | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
   | Pfloatcomp(cmp) -> float_comparison ppf cmp
+  | Punboxed_float_comp(cmp) -> fprintf ppf "%a (unboxed)" float_comparison cmp
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"
@@ -621,6 +630,7 @@ let name_of_primitive = function
   | Pmulfloat _ -> "Pmulfloat"
   | Pdivfloat _ -> "Pdivfloat"
   | Pfloatcomp _ -> "Pfloatcomp"
+  | Punboxed_float_comp _ -> "Punboxed_float_comp"
   | Pstringlength -> "Pstringlength"
   | Pstringrefu -> "Pstringrefu"
   | Pstringrefs -> "Pstringrefs"

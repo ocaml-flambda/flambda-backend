@@ -43,8 +43,9 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
            ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
-    dacc ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
+    ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+  let kind = Value_slot.kind value_slot in
   let result =
     (* We try a faster method before falling back to [simplify_projection]. *)
     match
@@ -604,14 +605,21 @@ let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_atomic_load
+    (_block_access_field_kind : P.Block_access_field_kind.t) ~original_prim dacc
+    ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Project_value_slot { project_from; value_slot; kind } ->
-      simplify_project_value_slot project_from value_slot ~min_name_mode kind
+    | Project_value_slot { project_from; value_slot } ->
+      simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->
       simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
@@ -655,5 +663,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | End_try_region -> simplify_end_try_region
     | Obj_dup -> simplify_obj_dup dbg
     | Get_header -> simplify_get_header ~original_prim
+    | Atomic_load block_access_field_kind ->
+      simplify_atomic_load block_access_field_kind ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

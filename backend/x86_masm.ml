@@ -369,6 +369,12 @@ let print_instr b = function
   | MPSADBW (n, arg1, arg2) -> i3 b "mpsadbw" n arg1 arg2
   | PHMINPOSUW (arg1, arg2) -> i2 b "phminposuw" arg1 arg2
   | PCLMULQDQ (n, arg1, arg2) -> i3 b "pclmulqdq" n arg1 arg2
+  | PMULHW (arg1, arg2) -> i2 b "pmulhw" arg1 arg2
+  | PMULHUW (arg1, arg2) -> i2 b "pmulhuw" arg1 arg2
+  | PMULLW (arg1, arg2) -> i2 b "pmullw" arg1 arg2
+  | PMADDWD (arg1, arg2) -> i2 b "pmaddwd" arg1 arg2
+  | PMADDUBSW (arg1, arg2) -> i2 b "pmaddubsw" arg1 arg2
+  | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
   | PEXT (arg1, arg2, arg3) -> i3 b "pext" arg1 arg2 arg3
   | PDEP (arg1, arg2, arg3) -> i3 b "pdep" arg1 arg2 arg3
 

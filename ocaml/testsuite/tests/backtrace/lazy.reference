@@ -1,17 +1,20 @@
 Uncaught exception Not_found
 Raised at Lazy.l1 in file "lazy.ml", line 3, characters 28-45
-Called from CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 126, characters 19-29
-Re-raised at CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 131, characters 6-13
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
+Called from CamlinternalLazy.<force>
 Called from Lazy.test1 in file "lazy.ml", line 6, characters 11-24
 Called from Lazy.run in file "lazy.ml", line 15, characters 4-11
 Uncaught exception Not_found
 Raised at Lazy.l1 in file "lazy.ml", line 3, characters 28-45
-Called from CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 126, characters 19-29
-Re-raised at CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 131, characters 6-13
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
+Called from CamlinternalLazy.<force>
 Called from Lazy.test1 in file "lazy.ml", line 6, characters 11-24
 Called from Lazy.run in file "lazy.ml", line 15, characters 4-11
 Re-raised at Lazy.l2 in file "lazy.ml", line 8, characters 28-45
-Called from CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 126, characters 19-29
-Re-raised at CamlinternalLazy.Lazy4.force_lazy_block in file "camlinternalLazy.ml", line 131, characters 6-13
+Called from CamlinternalLazy.<force>
+Re-raised at CamlinternalLazy.<force>
+Called from CamlinternalLazy.<force>
 Called from Lazy.test2 in file "lazy.ml", line 11, characters 6-15
 Called from Lazy.run in file "lazy.ml", line 15, characters 4-11

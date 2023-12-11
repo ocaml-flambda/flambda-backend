@@ -15,7 +15,6 @@
 
 (* Translation of primitives *)
 
-open Asttypes
 open Primitive
 open Types
 open Typedtree
@@ -1040,7 +1039,8 @@ let lambda_primitive_needs_event_after = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
+  | Pfloatcomp _ | Punboxed_float_comp _
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _

@@ -286,7 +286,6 @@ type error =
   | Exclave_in_nontail_position
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
-  | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
 
 exception Error of Location.t * Env.t * error
@@ -316,7 +315,7 @@ val type_package:
   (Env.t -> Parsetree.module_expr -> Path.t -> (Longident.t * type_expr) list ->
   Typedtree.module_expr * (Longident.t * type_expr) list) ref
 
-val constant: Parsetree.constant -> (Asttypes.constant, error) result
+val constant: Parsetree.constant -> (Typedtree.constant, error) result
 
 val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
 val check_recursive_class_bindings :

@@ -108,7 +108,7 @@ extern void caml_print_timestamp(FILE* channel, int formatted);
 
 /* Memory management platform-specific operations */
 
-void *caml_plat_mem_map(uintnat, uintnat, int);
+void *caml_plat_mem_map(uintnat, int);
 void *caml_plat_mem_commit(void *, uintnat);
 void caml_plat_mem_decommit(void *, uintnat);
 void caml_plat_mem_unmap(void *, uintnat);

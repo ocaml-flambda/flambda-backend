@@ -17,7 +17,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR ocaml 5 runtime: domains not supported on 4.x
+(* CR ocaml 5 domains: domains not supported on 4.x
 
 [@@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
