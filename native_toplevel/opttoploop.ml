@@ -319,6 +319,7 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
+      coercion_field = None;
       compilation_unit;
       required_globals;
     }

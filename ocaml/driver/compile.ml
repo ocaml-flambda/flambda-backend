@@ -41,7 +41,7 @@ let to_bytecode i Typedtree.{structure; coercion; secondary_iface; _} =
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> Profile.(record ~accumulate:true generate)
-    (fun { Lambda.code = lambda; required_globals } ->
+    (fun { Lambda.code = lambda; required_globals; coercion_field } ->
        lambda
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
@@ -49,10 +49,10 @@ let to_bytecode i Typedtree.{structure; coercion; secondary_iface; _} =
        |> Bytegen.compile_implementation
             (i.module_name |> Compilation_unit.name_as_string)
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
-       |> fun bytecode -> bytecode, required_globals
+       |> fun bytecode -> bytecode, required_globals, coercion_field
     )
 
-let emit_bytecode i (bytecode, required_globals) =
+let emit_bytecode i (bytecode, required_globals, coercion_field) =
   let cmofile = cmo i in
   let oc = open_out_bin cmofile in
   Misc.try_finally
@@ -61,7 +61,8 @@ let emit_bytecode i (bytecode, required_globals) =
     (fun () ->
        bytecode
        |> Profile.(record ~accumulate:true generate)
-         (Emitcode.to_file oc i.module_name cmofile ~required_globals);
+         (Emitcode.to_file oc i.module_name cmofile ~required_globals
+            ~coercion_field);
     )
 
 let implementation ~start_from ~source_file ~output_prefix

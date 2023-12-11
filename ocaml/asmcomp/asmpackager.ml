@@ -120,10 +120,15 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         ~style:transl_style
     in
     let code = Simplif.simplify_lambda code in
+    let coercion_field =
+      (* Packs not supported as argument modules *)
+      None
+    in
     let program =
       { Lambda.
         code;
         main_module_block_size;
+        coercion_field;
         compilation_unit;
         required_globals;
       }
@@ -197,6 +202,7 @@ let build_package_cmx members cmxfile =
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_unit];
+      ui_arg_descr = None;
       ui_imports_cmi =
           (Import_info.create modname
             ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::

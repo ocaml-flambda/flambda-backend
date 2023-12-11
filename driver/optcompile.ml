@@ -51,7 +51,8 @@ let compile i typed ~transl_style ~unix ~pipeline =
              ~prefixname:i.output_prefix
              ~ppf_dump:i.ppf_dump
              program);
-           Compilenv.save_unit_info (cmx i))
+           Compilenv.save_unit_info (cmx i)
+             ~coercion_field:program.Lambda.coercion_field)
 
 type flambda2 =
   ppf_dump:Format.formatter ->

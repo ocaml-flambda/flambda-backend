@@ -568,6 +568,9 @@ and lambda_event_kind =
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
+    coercion_field : int option;        (* Unnamed field with the coercion from
+                                           the whole block to its type as an
+                                           argument module *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -787,3 +790,13 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val is_check_enabled : opt:bool -> property -> bool
+
+(* Info for a compilation unit that implements a parameter (i.e., is an argument
+   for that parameter) *)
+
+type arg_descr =
+  { arg_param: Compilation_unit.Name.t; (* The parameter implemented *)
+    arg_coercion_field: int; }          (* The index of an unnamed field
+                                           containing a function that coerces
+                                           the full module block to the parameter
+                                           module type *)
