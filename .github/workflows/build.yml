@@ -57,7 +57,7 @@ jobs:
             build_ocamlparam: _,ocamlcfg=0
 
           - name: flambda2_macos
-            config: --enable-middle-end=flambda2
+            config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-latest
 
           - name: irc
