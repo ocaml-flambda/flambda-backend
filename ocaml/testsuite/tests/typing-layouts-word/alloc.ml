@@ -1,6 +1,7 @@
 (* TEST
+   * flambda2
    flags = "-extension layouts_alpha"
-   * native
+   ** native
 *)
 
 (* A test comparing allocations when using unboxed [nativeint#]es to allocations
