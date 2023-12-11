@@ -624,8 +624,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       dacc )
   | Apply apply -> begin
     let default_dacc dacc =
-      (* TODO dep *)
-      Dacc.todo' dacc
+      (* TODO regions? *)
+      let dacc = List.fold_left (fun dacc arg -> Dacc.used ~denv arg dacc) dacc (Apply_expr.args apply) in
+      let dacc = Dacc.used ~denv (Apply_expr.callee apply) dacc in
+      let dacc = List.fold_left (fun dacc (arg, _) -> Dacc.used ~denv arg dacc) dacc (Exn_continuation.extra_args (Apply_expr.exn_continuation apply)) in
+      dacc
     in
     let dacc =
       match Apply_expr.call_kind apply with
@@ -662,7 +665,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             apply_exn = exn_arg ;
           } in
           let dacc = Dacc.add_apply apply_dep dacc in
-
+          (* TODO regions? *)
           (* TODO record function use *)
           let dacc = Dacc.used_code_id ~denv code_id dacc in
           dacc
@@ -1091,14 +1094,33 @@ and traverse_cont_handler :
       k handler dacc)
 
 type uses = Dep_solver.result
+
+let poison () =
+  (* TODO by kind *)
+  Simple.const_int (Targetint_31_63.of_int 1234567)
+
+let rewrite_simple (uses : uses) simple =
+  Simple.pattern_match simple
+    ~name:(fun name ~coercion:_ ->
+        if Hashtbl.mem uses (Code_id_or_name.name name) then simple else poison ()
+      )
+    ~const:(fun _ -> simple)
+
 let rec rebuild_expr (uses : uses) (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   let expr =
     match expr with
     | Raw expr -> expr
-    | Apply_cont ac -> Flambda.Expr.create_apply_cont ac
+    | Apply_cont ac ->
+      let ac = Apply_cont_expr.with_continuation_and_args ac
+                    (Apply_cont_expr.continuation ac)
+                    ~args:(List.map (rewrite_simple uses) (Apply_cont_expr.args ac)) in
+      Flambda.Expr.create_apply_cont ac
     | Switch switch -> Flambda.Expr.create_switch switch
-    | Apply apply -> Flambda.Expr.create_apply apply
+    | Apply apply ->
+      (* TODO rewrite other simples *)
+      let apply = Apply_expr.with_args apply (List.map (rewrite_simple uses) (Apply_expr.args apply)) ~args_arity:(Apply_expr.args_arity apply) in
+      Flambda.Expr.create_apply apply
   in
   rebuild_holed uses holed_expr (RE.from_expr ~expr ~free_names)
 
@@ -1168,7 +1190,15 @@ and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t
       in
       (    match let_.bound_pattern with
            | Set_of_closures _ -> default ()
-           | Static _ -> default ()
+           | Static l ->
+             if List.for_all (fun (p : Bound_static.Pattern.t) ->
+                 match p with
+                 | Code code_id -> not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
+                 | Block_like _ | Set_of_closures _ -> false
+               ) (Bound_static.to_list l) then
+               rebuild_holed uses let_.parent hole
+             else
+               default ()
            | Singleton v ->
              let v = Bound_var.var v in
              if Hashtbl.mem uses (Code_id_or_name.var v) then default () else (             Format.eprintf "VAR = %a@." Variable.print v; rebuild_holed uses let_.parent hole)
