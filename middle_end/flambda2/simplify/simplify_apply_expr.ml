@@ -879,8 +879,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
   let env_at_use = denv in
   let dacc, use_id =
     match Apply.continuation apply with
-    | Never_returns ->
-      dacc, None
+    | Never_returns -> dacc, None
     | Return continuation ->
       let dacc, use_id =
         DA.record_continuation_use dacc continuation
@@ -912,8 +911,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
   in
   let dacc =
-    record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id
-      dacc apply
+    record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id dacc apply
   in
   down_to_up dacc
     ~rebuild:
