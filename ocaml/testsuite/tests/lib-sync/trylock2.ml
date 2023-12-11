@@ -1,6 +1,5 @@
 (* TEST
- * skip
-   reason = "OCaml 5 only"
+   * runtime5
 *)
 
 (* Test Mutex.try_lock *)

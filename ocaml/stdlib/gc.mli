@@ -100,7 +100,7 @@ type stat =
         value will always be [0].
 
         @since 3.12 *)
-    (* CR ocaml 5 runtime: Update the above comment to what it is upstream:
+    (* CR ocaml 5 all-runtime5: Update the above comment to what it is upstream:
 
        This metrics is currently not available in OCaml 5: the field value is
        always [0].

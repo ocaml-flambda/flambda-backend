@@ -119,6 +119,7 @@ let pduprecord = "Pduprecord"
 let pfield = "Pfield"
 let pfield_computed = "Pfield_computed"
 let pfloatcomp = "Pfloatcomp"
+let punboxed_float_comp = "Punboxed_float_comp"
 let pfloatfield = "Pfloatfield"
 let pufloatfield = "Pufloatfield"
 let pfloatofint = "Pfloatofint"
@@ -242,6 +243,7 @@ let pduprecord_arg = "Pduprecord_arg"
 let pfield_arg = "Pfield_arg"
 let pfield_computed_arg = "Pfield_computed_arg"
 let pfloatcomp_arg = "Pfloatcomp_arg"
+let punboxed_float_comp_arg = "Punboxed_float_comp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pufloatfield_arg = "Pufloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
@@ -419,6 +421,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pmulfloat _ -> pmulfloat
   | Pdivfloat _ -> pdivfloat
   | Pfloatcomp _ -> pfloatcomp
+  | Punboxed_float_comp _ -> punboxed_float_comp
   | Pstringlength -> pstringlength
   | Pstringrefu -> pstringrefu
   | Pstringrefs -> pstringrefs
@@ -553,6 +556,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pmulfloat _ -> pmulfloat_arg
   | Pdivfloat _ -> pdivfloat_arg
   | Pfloatcomp _ -> pfloatcomp_arg
+  | Punboxed_float_comp _ -> punboxed_float_comp_arg
   | Pstringlength -> pstringlength_arg
   | Pstringrefu -> pstringrefu_arg
   | Pstringrefs -> pstringrefs_arg

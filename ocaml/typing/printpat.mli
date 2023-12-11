@@ -16,7 +16,7 @@
 
 
 val pretty_const
-    : Asttypes.constant -> string
+    : Typedtree.constant -> string
 val top_pretty
     : Format.formatter -> 'k Typedtree.general_pattern -> unit
 val pretty_pat

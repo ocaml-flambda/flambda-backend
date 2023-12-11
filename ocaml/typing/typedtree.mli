@@ -23,6 +23,20 @@
 
 open Asttypes
 
+(* We define a new constant type that can represent unboxed values.
+   This is currently used only in [Typedtree], but the long term goal
+   is to share this definition with [Lambda] and completely replace the
+   usage of [Asttypes.constant] *)
+type constant =
+    Const_int of int
+  | Const_char of char
+  | Const_string of string * Location.t * string option
+  | Const_float of string
+  | Const_unboxed_float of string
+  | Const_int32 of int32
+  | Const_int64 of int64
+  | Const_nativeint of nativeint
+
 module Uid = Shape.Uid
 
 (* Value expressions for the core language *)

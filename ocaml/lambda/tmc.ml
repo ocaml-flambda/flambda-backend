@@ -890,7 +890,7 @@ let rec choice ctx t =
     | Pintoffloat | Pfloatofint _
     | Pnegfloat _ | Pabsfloat _
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-    | Pfloatcomp _
+    | Pfloatcomp _ | Punboxed_float_comp _
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _

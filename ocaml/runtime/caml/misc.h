@@ -306,6 +306,10 @@ CAMLextern void caml_fatal_error (char *, ...)
 #endif
 CAMLnoreturn_end;
 
+CAMLnoreturn_start
+CAMLextern void caml_fatal_out_of_memory (void)
+CAMLnoreturn_end;
+
 /* Detection of available C built-in functions, the Clang way. */
 
 #ifdef __has_builtin
@@ -531,9 +535,11 @@ int caml_runtime_warnings_active(void);
 #define Debug_free_shrink    Debug_tag (0x03)
 #define Debug_free_truncate  Debug_tag (0x04) /* obsolete */
 #define Debug_free_unused    Debug_tag (0x05)
+#define Debug_free_local     Debug_tag (0x06)
 #define Debug_uninit_minor   Debug_tag (0x10)
 #define Debug_uninit_major   Debug_tag (0x11)
 #define Debug_uninit_align   Debug_tag (0x15)
+#define Debug_uninit_local   Debug_tag (0x16)
 #define Debug_filler_align   Debug_tag (0x85)
 #define Debug_pool_magic     Debug_tag (0x99)
 

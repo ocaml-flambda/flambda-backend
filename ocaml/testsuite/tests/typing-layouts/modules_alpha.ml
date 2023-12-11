@@ -488,3 +488,25 @@ Line 1, characters 28-33:
 Error: This type signature for x is not a value type.
        x has layout any, which is not a sublayout of value.
 |}]
+
+(****************************************************************)
+(* Test 9: Non-values temporarily banned in recmod safety check *)
+module type S = sig
+  val f : ('a : float64). 'a -> 'a
+end
+
+module rec M : S = M
+
+[%%expect{|
+module type S = sig val f : ('a : float64). 'a -> 'a end
+Line 5, characters 19-20:
+5 | module rec M : S = M
+                       ^
+Error: Cannot safely evaluate the definition of the following cycle
+       of recursively-defined modules: M -> M.
+       There are no safe modules in this cycle (see manual section 12.2).
+Line 2, characters 2-34:
+2 |   val f : ('a : float64). 'a -> 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Module M defines a function whose first argument is not a value, f .
+|}]

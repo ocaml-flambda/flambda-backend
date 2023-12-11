@@ -25,6 +25,7 @@
 # that they are consistent with the interface digests in the archives.
 
 UTILS = \
+  utils/runtimetags.cmo \
   utils/config.cmo \
   utils/build_path_prefix_map.cmo \
   utils/misc.cmo \

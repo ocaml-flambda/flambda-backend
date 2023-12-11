@@ -289,6 +289,10 @@ module I = struct
   let punpcklbw x y = emit (PUNPCKLBW (x, y))
   let punpcklwd x y = emit (PUNPCKLWD (x, y))
   let punpcklqdq x y = emit (PUNPCKLQDQ (x, y))
+  let pmulhw x y = emit (PMULHW (x, y))
+  let pmulhuw x y = emit (PMULHUW (x, y))
+  let pmullw x y = emit (PMULLW (x, y))
+  let pmaddwd x y = emit (PMADDWD (x, y))
 
   let addsubps x y = emit (ADDSUBPS (x, y))
   let addsubpd x y = emit (ADDSUBPD (x, y))
@@ -321,6 +325,7 @@ module I = struct
   let psignd x y = emit (PSIGND (x, y))
   let pshufb x y = emit (PSHUFB (x, y))
   let palignr i x y = emit (PALIGNR (i, x, y))
+  let pmaddubsw x y = emit (PMADDUBSW (x, y))
 
   let pblendw i x y = emit (PBLENDW (i, x, y))
   let blendps i x y = emit (BLENDPS (i, x, y))
@@ -363,6 +368,7 @@ module I = struct
   let roundps i x y = emit (ROUNDPS (i, x, y))
   let mpsadbw i x y = emit (MPSADBW (i, x, y))
   let phminposuw x y = emit (PHMINPOSUW (x, y))
+  let pmulld x y = emit (PMULLD (x, y))
 
   let pcmpgtq x y = emit (PCMPGTQ (x, y))
   let pcmpestri i x y = emit (PCMPESTRI (i, x, y))

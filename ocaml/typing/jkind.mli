@@ -228,6 +228,7 @@ type value_creation_reason =
   | Debug_printer_argument
   | V1_safety_check
   | Captured_in_object
+  | Recmod_fun_arg
   | Unknown of string (* CR layouts: get rid of these *)
 
 type immediate_creation_reason =

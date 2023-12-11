@@ -879,6 +879,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ( Float_comp (Yielding_bool (convert_float_comparison comp)),
              unbox_float arg1,
              unbox_float arg2 )) ]
+  | Punboxed_float_comp comp, [[arg1]; [arg2]] ->
+    [ tag_int
+        (Binary
+           ( Float_comp (Yielding_bool (convert_float_comparison comp)),
+             arg1,
+             arg2 )) ]
   | Punbox_float, [[arg]] -> [Unary (Unbox_number Naked_float, arg)]
   | Pbox_float mode, [[arg]] ->
     [ Unary
@@ -1410,6 +1416,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
   | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
+  | Patomic_load { immediate_or_pointer }, [[atomic]] ->
+    [ Unary
+        ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
+          atomic ) ]
+  | Patomic_exchange, [[atomic]; [new_value]] ->
+    [Binary (Atomic_exchange, atomic, new_value)]
+  | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
+    [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
+  | Patomic_fetch_add, [[atomic]; [i]] ->
+    [Binary (Atomic_fetch_and_add, atomic, i)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1432,7 +1448,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _ ),
+      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
+      | Patomic_load _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1441,12 +1458,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | ( ( Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
       | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _ | Pintcomp _
       | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _
-      | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-      | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
-      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-      | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
+      | Punboxed_float_comp _ | Pstringrefu | Pbytesrefu | Pstringrefs
+      | Pbytesrefs | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _
+      | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
+      | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
       | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Pbigstring_load_128 _
@@ -1454,7 +1471,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
       | Parrayrefs
           (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _)
-      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ ),
+      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ | Patomic_exchange
+      | Patomic_fetch_add ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -1471,7 +1489,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set)
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
       | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ ),
+      | Pbigstring_set_128 _ | Patomic_cas ),
       ( []
       | [_]
       | [_; _]
@@ -1493,9 +1511,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim
-  | ( ( Prunstack | Pperform | Presume | Preperform | Patomic_exchange
-      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ),
-      _ ) ->
+  | (Prunstack | Pperform | Presume | Preperform | Pdls_get), _ ->
     Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
       Printlambda.primitive prim
 

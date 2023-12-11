@@ -333,16 +333,156 @@ CAMLexport void caml_set_fields (value obj, value v)
   }
 }
 
+CAMLexport int caml_is_stack (value v)
+{
+  int i;
+  struct caml_local_arenas* loc = Caml_state->local_arenas;
+  if (!Is_block(v)) return 0;
+  if (Color_hd(Hd_val(v)) != NOT_MARKABLE) return 0;
+  if (loc == NULL) return 0;
+
+  /* Search local arenas, starting from the largest (last) */
+  for (i = 0; i < loc->count; i++) {
+    struct caml_local_arena arena = loc->arenas[i];
+    if (arena.base <= (char*)v && (char*)v < arena.base + arena.length)
+      return 1;
+  }
+
+  return 0;
+}
+
+/* This version of [caml_modify] may additionally be used to mutate
+   locally-allocated objects. (This version is used by mutations
+   generated from OCaml code when the value being modified may be
+   locally allocated) */
+CAMLexport void caml_modify_local (value obj, intnat i, value val)
+{
+  if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
+    /* This function should not be used on external values */
+    CAMLassert(caml_is_stack(obj));
+    Field(obj, i) = val;
+  } else {
+    caml_modify(&Field(obj, i), val);
+  }
+}
+
+CAMLexport caml_local_arenas* caml_get_local_arenas(caml_domain_state* dom)
+{
+  caml_local_arenas* s = dom->local_arenas;
+  if (s != NULL)
+    s->saved_sp = dom->local_sp;
+  return s;
+}
+
+CAMLexport void caml_set_local_arenas(caml_domain_state* dom, caml_local_arenas* s)
+{
+  dom->local_arenas = s;
+  if (s != NULL) {
+    struct caml_local_arena a = s->arenas[s->count - 1];
+    dom->local_sp = s->saved_sp;
+    dom->local_top = (void*)(a.base + a.length);
+    dom->local_limit = - a.length;
+  } else {
+    dom->local_sp = 0;
+    dom->local_top = NULL;
+    dom->local_limit = 0;
+  }
+}
+
+void caml_local_realloc(void)
+{
+  caml_local_arenas* s = caml_get_local_arenas(Caml_state);
+  intnat i;
+  char* arena;
+  caml_stat_block block;
+  if (s == NULL) {
+    s = caml_stat_alloc(sizeof(*s));
+    s->count = 0;
+    s->next_length = 0;
+    s->saved_sp = Caml_state->local_sp;
+  }
+  if (s->count == Max_local_arenas)
+    caml_fatal_error("Local allocation stack overflow - exceeded Max_local_arenas");
+
+  do {
+    if (s->next_length == 0) {
+      s->next_length = Init_local_arena_bsize;
+    } else {
+      /* overflow check */
+      CAML_STATIC_ASSERT(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0);
+      s->next_length *= 4;
+    }
+    /* may need to loop, if a very large allocation was requested */
+  } while (s->saved_sp + s->next_length < 0);
+
+  arena = caml_stat_alloc_aligned_noexc(s->next_length, 0, &block);
+  if (arena == NULL)
+    caml_fatal_error("Local allocation stack overflow - out of memory");
+#ifdef DEBUG
+  for (i = 0; i < s->next_length; i += sizeof(value)) {
+    *((header_t*)(arena + i)) = Debug_uninit_local;
+  }
+#endif
+  for (i = s->saved_sp; i < 0; i += sizeof(value)) {
+    *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
+  }
+  caml_gc_message(0x08,
+                  "Growing local stack to %"ARCH_INTNAT_PRINTF_FORMAT"d kB\n",
+                  s->next_length / 1024);
+  s->count++;
+  s->arenas[s->count-1].length = s->next_length;
+  s->arenas[s->count-1].base = arena;
+  s->arenas[s->count-1].alloc_block = block;
+  caml_set_local_arenas(Caml_state, s);
+  CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
+}
+
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+{
+#if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
+  intnat sp = Caml_state->local_sp;
+  header_t* hp;
+  sp -= Bhsize_wosize(wosize);
+  Caml_state->local_sp = sp;
+  if (sp < Caml_state->local_limit)
+    caml_local_realloc();
+  hp = (header_t*)((char*)Caml_state->local_top + sp);
+  *hp = Make_header(wosize, tag, NOT_MARKABLE);
+  return Val_hp(hp);
+#else
+  if (wosize <= Max_young_wosize) {
+    return caml_alloc_small(wosize, tag);
+  } else {
+    /* The return value is initialised directly using Field.
+       This is invalid if it may create major -> minor pointers.
+       So, perform a minor GC to prevent this. (See caml_make_vect) */
+    caml_minor_collection();
+    return caml_alloc_shr(wosize, tag);
+  }
+#endif
+}
+
+CAMLprim value caml_local_stack_offset(value blk)
+{
+#ifdef NATIVE_CODE
+  intnat sp = Caml_state->local_sp;
+  return Val_long(-sp);
+#else
+  return Val_long(0);
+#endif
+}
+
+
 Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
                             int noexc)
 {
   Caml_check_caml_state();
   caml_domain_state *dom_st = Caml_state;
   value *v = caml_shared_try_alloc(dom_st->shared_heap,
-                                   wosize, tag, reserved, 0);
+                                   wosize, tag, reserved);
   if (v == NULL) {
     if (!noexc)
-      caml_raise_out_of_memory();
+      caml_fatal_out_of_memory();
     else
       return (value)NULL;
   }
@@ -473,7 +613,7 @@ CAMLexport void caml_stat_create_pool(void)
   if (pool == NULL) {
     pool = malloc(SIZEOF_POOL_BLOCK);
     if (pool == NULL)
-      caml_fatal_error("Fatal error: out of memory.\n");
+      caml_fatal_out_of_memory ();
 #ifdef DEBUG
     pool->magic = Debug_pool_magic;
 #endif
@@ -549,7 +689,7 @@ CAMLexport void* caml_stat_alloc_aligned(asize_t sz, int modulo,
   void *result = caml_stat_alloc_aligned_noexc(sz, modulo, b);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -559,7 +699,7 @@ CAMLexport caml_stat_block caml_stat_alloc(asize_t sz)
   void *result = caml_stat_alloc_noexc(sz);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -608,7 +748,7 @@ CAMLexport caml_stat_block caml_stat_resize(caml_stat_block b, asize_t sz)
 {
   void *result = caml_stat_resize_noexc(b, sz);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -640,7 +780,7 @@ CAMLexport caml_stat_string caml_stat_strdup(const char *s)
 {
   caml_stat_string result = caml_stat_strdup_noexc(s);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -651,7 +791,7 @@ CAMLexport wchar_t * caml_stat_wcsdup(const wchar_t *s)
   int slen = wcslen(s);
   wchar_t* result = caml_stat_alloc((slen + 1)*sizeof(wchar_t));
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   memcpy(result, s, (slen + 1)*sizeof(wchar_t));
   return result;
 }

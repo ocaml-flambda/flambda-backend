@@ -340,6 +340,7 @@ let unary_prim_size prim =
   | End_region | End_try_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
   | Get_header -> 2
+  | Atomic_load _ -> 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
@@ -360,6 +361,7 @@ let binary_prim_size prim =
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
+  | Atomic_exchange | Atomic_fetch_and_add -> nonalloc_extcall_size
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
@@ -369,7 +371,8 @@ let ternary_prim_size prim =
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
-(* ~ 1 block_load + 1 block_set *)
+  (* ~ 1 block_load + 1 block_set *)
+  | Atomic_compare_and_set -> nonalloc_extcall_size
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with

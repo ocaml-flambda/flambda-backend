@@ -26,10 +26,4 @@ exception Undefined
 
 val force_lazy_block : 'a lazy_t -> 'a
 
-(* CR ocaml 5 runtime: delete these runtime4 functions *)
-(* BACKPORT BEGIN *)
-val force : 'a lazy_t -> 'a
-val force_val : 'a lazy_t -> 'a
-(* BACKPORT END *)
-
 val force_gen : only_val:bool -> 'a lazy_t -> 'a

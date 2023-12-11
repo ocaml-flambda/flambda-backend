@@ -56,6 +56,8 @@ module type Code_metadata_accessors_result_type = sig
 
   val is_a_functor : 'a t -> bool
 
+  val is_opaque : 'a t -> bool
+
   val recursive : 'a t -> Recursive.t
 
   val cost_metrics : 'a t -> Cost_metrics.t
@@ -99,6 +101,7 @@ type 'a create_type =
   check:Check_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
+  is_opaque:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
   inlining_arguments:Inlining_arguments.t ->

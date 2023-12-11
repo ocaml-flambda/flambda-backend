@@ -38,7 +38,7 @@ static frame_descr * next_frame_descr(frame_descr * d) {
   CAMLassert(Retaddr_frame(d) >= 4096);
   if (!frame_return_to_C(d)) {
     /* Skip to end of live_ofs */
-    p = (unsigned char*)&d->live_ofs[d->num_live];
+    p = frame_end_of_live_ofs(d);
     /* Skip alloc_lengths if present */
     if (frame_has_allocs(d)) {
       num_allocs = *p;

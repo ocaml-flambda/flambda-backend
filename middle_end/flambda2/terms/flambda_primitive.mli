@@ -131,6 +131,8 @@ module Block_access_kind : sig
   val compare : t -> t -> int
 
   val element_kind_for_load : t -> Flambda_kind.t
+
+  val element_subkind_for_load : t -> Flambda_kind.With_subkind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
@@ -312,8 +314,7 @@ type unary_primitive =
           closures. *)
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t;
-        kind : Flambda_kind.With_subkind.t
+        value_slot : Value_slot.t
       }
       (** Project a value slot from a set of closures -- in other words, read an
           entry from the closure environment (the captured variables). *)
@@ -327,9 +328,15 @@ type unary_primitive =
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
-          an immediate value.
+          an immediate value. It should also not be used to read tags above
+          [No_scan_tag].
           Note: The GC color bits in the header are not reliable except for
-          checking if the value is locally allocated *)
+          checking if the value is locally allocated
+          Invariant: never read the tag of a possibly-lazy value from
+          ocamlopt-generated code. Tag reads that are allowed to be lazy tags
+          (by the type system) should always go through caml_obj_tag, which is
+          opaque to the compiler. *)
+  | Atomic_load of Block_access_field_kind.t
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -377,6 +384,8 @@ type binary_primitive =
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
   | Bigarray_get_alignment of int
+  | Atomic_exchange
+  | Atomic_fetch_and_add
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -384,6 +393,7 @@ type ternary_primitive =
   | Array_set of Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
+  | Atomic_compare_and_set
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

@@ -73,6 +73,13 @@ CAMLprim value caml_obj_make_forward(value blk, value fwd)
   return Val_unit;
 }
 
+CAMLprim value caml_get_header(value blk)
+{
+  // undefined behaviour if blk is not a block
+  intnat r = Hd_val(blk);
+  return caml_copy_nativeint(r);
+}
+
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {
@@ -256,6 +263,11 @@ CAMLprim value caml_lazy_update_to_forcing (value v)
   } else {
     return Val_int(1);
   }
+}
+
+CAMLprim value caml_obj_is_stack (value v)
+{
+  return Val_int(caml_is_stack(v));
 }
 
 /* For mlvalues.h and camlinternalOO.ml

@@ -18,7 +18,6 @@
 (* To assign numbers to globals and primitives *)
 
 open Misc
-open Asttypes
 open Lambda
 open Cmo_format
 
@@ -149,7 +148,8 @@ let rec transl_const = function
     Const_base(Const_int i) -> Obj.repr i
   | Const_base(Const_char c) -> Obj.repr c
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float f) -> Obj.repr (float_of_string f)
+  | Const_base(Const_float f)
+  | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
   | Const_base(Const_int32 i) -> Obj.repr i
   | Const_base(Const_int64 i) -> Obj.repr i
   | Const_base(Const_nativeint i) -> Obj.repr i

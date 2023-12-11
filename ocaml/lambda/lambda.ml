@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+type constant = Typedtree.constant
+
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
 type compile_time_constant =
@@ -181,6 +183,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -566,6 +569,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
 }
@@ -755,6 +759,7 @@ let default_function_attribute = {
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
+  is_opaque = false;
   stub = false;
   tmc_candidate = false;
 }
@@ -1471,7 +1476,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pnegfloat m | Pabsfloat m
   | Paddfloat m | Psubfloat m
   | Pmulfloat m | Pdivfloat m -> Some m
-  | Pfloatcomp _ -> None
+  | Pfloatcomp _ | Punboxed_float_comp _ -> None
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
@@ -1532,13 +1537,14 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_fetch_add
   | Pdls_get -> None
 
-let constant_layout = function
+let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
   | Const_string _ -> Pvalue Pgenval
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
   | Const_float _ -> Pvalue Pfloatval
+  | Const_unboxed_float _ -> Punboxed_float
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1593,7 +1599,7 @@ let primitive_result_layout (p : primitive) =
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Pintoffloat | Pfloatcomp _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _ | Punboxed_float_comp _
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _

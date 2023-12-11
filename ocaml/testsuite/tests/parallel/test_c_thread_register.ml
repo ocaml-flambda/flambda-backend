@@ -1,7 +1,7 @@
 (* TEST
    modules = "test_c_thread_register_cstubs.c"
    * skip
-   reason = "OCaml 5 only"
+   reason = "CR ocaml 5 domains: re-enable this test"
    ** hassysthreads
    include systhreads
    *** bytecode

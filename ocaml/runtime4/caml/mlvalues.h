@@ -135,6 +135,7 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Profinfo_hd(hd) NO_PROFINFO
 #endif /* WITH_PROFINFO */
 
+
 #define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
 #define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */
 #define Hd_bp(bp) (Hd_val (bp))                        /* Also an l-value. */
@@ -193,6 +194,14 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #define Tag_hp(hp) (((unsigned char *) (hp)) [0])
                                                  /* Also an l-value. */
 #endif
+
+#define Unsafe_store_tag_val(dst, val) (Tag_val(dst) = val)
+/* Currently [Tag_val(dst)] is an lvalue, but in the future we may
+   have to break this property by using explicit (relaxed) atomics to
+   avoid undefined behaviors. [Unsafe_store_tag_val(dst, val)] is
+   provided to avoid direct uses of [Tag_val(dst)] on the left of an
+   assignment. The use of [Unsafe] emphasizes that the function
+   may result in unsafe data races in a concurrent setting. */
 
 /* The lowest tag for blocks containing no value. */
 #define No_scan_tag 251
@@ -270,9 +279,13 @@ CAMLextern value caml_get_public_method (value obj, value tag);
     + ((uintnat)(delta) << 1) + 1)
 #endif
 
-/* This tag is used (with Forward_tag) to implement lazy values.
+/* This tag is used (with Forcing_tag & Forward_tag) to implement lazy values.
    See major_gc.c and stdlib/lazy.ml. */
 #define Lazy_tag 246
+
+/* This tag is used (with Lazy_tag & Forward_tag) to implement lazy values.
+ * See major_gc.c and stdlib/lazy.ml. */
+#define Forcing_tag 244
 
 /* Another special case: variants */
 CAMLextern value caml_hash_variant(char const * tag);
