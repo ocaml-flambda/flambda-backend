@@ -421,6 +421,9 @@ let buf_sym b sym offset =
       buf_int32L b 0L
 
 let emit_prefix_modrm b opcodes rm reg ~prefix =
+  (* When required for a particular instruction, the REX / REXW flag is added in
+     [emit_mod_rm_reg]. This function otherwise assumes [~rex:0] for Reg32,
+     Reg64, Regf, and addressing modes. *)
   match rm with
   | Reg32 rm ->
       let rm = rd_of_reg64 rm in
