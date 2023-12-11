@@ -98,3 +98,12 @@ end
 
 let () = Collatz_unboxed.go ()
 let () = Collatz_boxed.go ()
+
+let[@inline never] literal_test x y =
+  let open Int32_u in
+  let[@inline never] f x y = (#1l + x) * (y - #4l) in
+  match x with
+  | #2l ->  (f x y) / (#3l % #10l)
+  | _ -> #0l
+
+let _ = measure_alloc "literals (should be -1): %ld" (fun () -> literal_test #2l #3l)

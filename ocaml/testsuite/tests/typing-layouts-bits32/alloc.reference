@@ -1,2 +1,3 @@
 Unboxed: Collatz took 111 steps to reach 1; did not allocate
 Boxed: Collatz took 111 steps to reach 1; allocated
+literals (should be -1): -1; did not allocate
