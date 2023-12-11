@@ -854,19 +854,21 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
          Unused_because_function_unknown)
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
+    match use_id with
+    | Some use_id ->
+      EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
+    | None ->
+      let uacc =
+        UA.add_free_names uacc (Apply.free_names apply)
+        |> UA.notify_added ~code_size:(Code_size.apply apply)
+      in
+      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
   in
   after_rebuild expr uacc
 
 let simplify_function_call_where_callee's_type_unavailable dacc apply
     (call : Call_kind.Function_call.t) ~apply_alloc_mode ~down_to_up =
   fail_if_probe apply;
-  let cont =
-    match Apply.continuation apply with
-    | Never_returns ->
-      Misc.fatal_error "cannot simplify an application that never returns"
-    | Return continuation -> continuation
-  in
   let denv = DA.denv dacc in
   if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
   then
@@ -875,6 +877,19 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       ~tracker:(DE.inlining_history_tracker denv)
       ~apply ();
   let env_at_use = denv in
+  let dacc, use_id =
+    match Apply.continuation apply with
+    | Never_returns ->
+      dacc, None
+    | Return continuation ->
+      let dacc, use_id =
+        DA.record_continuation_use dacc continuation
+          (Non_inlinable { escaping = true })
+          ~env_at_use
+          ~arg_types:(T.unknown_types_from_arity (Apply.return_arity apply))
+      in
+      dacc, Some use_id
+  in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc
       (Exn_continuation.exn_handler (Apply.exn_continuation apply))
@@ -883,12 +898,6 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       ~arg_types:
         (T.unknown_types_from_arity
            (Exn_continuation.arity (Apply.exn_continuation apply)))
-  in
-  let dacc, use_id =
-    DA.record_continuation_use dacc cont
-      (Non_inlinable { escaping = true })
-      ~env_at_use
-      ~arg_types:(T.unknown_types_from_arity (Apply.return_arity apply))
   in
   let call_kind =
     match call with
@@ -903,7 +912,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
   in
   let dacc =
-    record_free_names_of_apply_as_used ~use_id:(Some use_id) ~exn_cont_use_id
+    record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id
       dacc apply
   in
   down_to_up dacc
