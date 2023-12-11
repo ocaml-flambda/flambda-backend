@@ -1055,6 +1055,21 @@ let build_other ext env =
             (function Constant(Const_nativeint i) -> i | _ -> assert false)
             (function i -> Tpat_constant(Const_nativeint i))
             0n Nativeint.succ d env
+      | Constant Const_unboxed_int32 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int32 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int32 i))
+            0l Int32.succ d env
+      | Constant Const_unboxed_int64 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int64 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int64 i))
+            0L Int64.succ d env
+      | Constant Const_unboxed_nativeint _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_nativeint i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_nativeint i))
+            0n Nativeint.succ d env
       | Constant Const_string _ ->
           build_other_constant
             (function Constant(Const_string (s, _, _)) -> String.length s
