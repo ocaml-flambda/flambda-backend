@@ -2911,17 +2911,20 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint32, Cne))
           (Pbintcomp (Pint32, Clt))
-          arg const_lambda_list transl_const
+          (Lprim (Pbox_int (Pint32, Lambda.alloc_local), [arg], loc))
+          const_lambda_list transl_const
     | Const_unboxed_int64 _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pint64, Cne))
           (Pbintcomp (Pint64, Clt))
-          arg const_lambda_list transl_const
+          (Lprim (Pbox_int (Pint64, Lambda.alloc_local), [arg], loc))
+          const_lambda_list transl_const
     | Const_unboxed_nativeint _ ->
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
-          arg const_lambda_list transl_const
+          (Lprim (Pbox_int (Pnativeint, Lambda.alloc_local), [arg], loc))
+          const_lambda_list transl_const
   in
   (lambda1, Jumps.union local_jumps total)
 
