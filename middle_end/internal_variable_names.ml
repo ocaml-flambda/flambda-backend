@@ -150,7 +150,7 @@ let pmakearray = "Pmakearray"
 let pmakeblock = "Pmakeblock"
 let pmakefloatblock = "Pmakefloatblock"
 let pmakeufloatblock = "Pmakeufloatblock"
-let pmakeabstractblock = "Pmakemixedblock"
+let pmakemixedblock = "Pmakemixedblock"
 let pmodbint = "Pmodbint"
 let pmodint = "Pmodint"
 let pmulbint = "Pmulbint"
@@ -277,7 +277,7 @@ let pmakearray_arg = "Pmakearray_arg"
 let pmakeblock_arg = "Pmakeblock_arg"
 let pmakefloatblock_arg = "Pmakefloatblock_arg"
 let pmakeufloatblock_arg = "Pmakeufloatblock_arg"
-let pmakeabstractblock_arg = "Pmakemixedblock_arg"
+let pmakemixedblock_arg = "Pmakemixedblock_arg"
 let pmodbint_arg = "Pmodbint_arg"
 let pmodint_arg = "Pmodint_arg"
 let pmulbint_arg = "Pmulbint_arg"
@@ -391,7 +391,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
   | Pmakeufloatblock _ -> pmakeufloatblock
-  | Pmakemixedblock _ -> pmakeabstractblock
+  | Pmakemixedblock _ -> pmakemixedblock
   | Pfield _ -> pfield
   | Pfield_computed _ -> pfield_computed
   | Psetfield _ -> psetfield
@@ -529,7 +529,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pmakeufloatblock _ -> pmakeufloatblock_arg
-  | Pmakemixedblock _ -> pmakeabstractblock_arg
+  | Pmakemixedblock _ -> pmakemixedblock_arg
   | Pfield _ -> pfield_arg
   | Pfield_computed _ -> pfield_computed_arg
   | Psetfield _ -> psetfield_arg

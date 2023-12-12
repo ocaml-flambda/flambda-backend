@@ -883,7 +883,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       accu = block;
       Next;
     }
-    Instruct(MAKEABSTRACTBLOCK): {
+    Instruct(MAKEMIXEDBLOCK): {
         mlsize_t size = *pc++;
         mlsize_t i;
         value block;

@@ -863,7 +863,7 @@ let rec comp_expr stack_info env exp sz cont =
          in need of unboxing dynamically. *)
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
-        (Kmakeabstractblock(List.length args) :: cont)
+        (Kmakemixedblock(List.length args) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
