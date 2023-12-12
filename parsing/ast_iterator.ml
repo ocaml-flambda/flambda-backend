@@ -178,12 +178,19 @@ module T = struct
     | Ptyp_extension x -> sub.extension sub x
 
   let iter_type_declaration sub
-      {ptype_name; ptype_params; ptype_cstrs;
+     ({ptype_name; ptype_params; ptype_cstrs;
        ptype_kind;
        ptype_private = _;
        ptype_manifest;
        ptype_attributes;
-       ptype_loc} =
+       ptype_loc} as ty_decl) =
+    let ptype_attributes =
+      match Jane_syntax.Layouts.of_type_declaration ty_decl with
+      | Some (jkind, attrs) ->
+          iter_loc_txt sub sub.jkind_annotation jkind;
+          attrs
+      | None -> ptype_attributes
+    in
     iter_loc sub ptype_name;
     List.iter (iter_fst (sub.typ sub)) ptype_params;
     List.iter
