@@ -45,7 +45,7 @@ let compile i ~backend ~middle_end ~transl_style
     (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
-    (fun program ->
+    (fun (program : Lambda.program) ->
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
@@ -57,8 +57,8 @@ let compile i ~backend ~middle_end ~transl_style
             ~middle_end
             ~ppf_dump:i.ppf_dump
             lambda;
-       Compilenv.save_unit_info (cmx i)
-         ~coercion_field:program.Lambda.coercion_field))
+          Compilenv.save_unit_info (cmx i)
+            ~arg_block_field:program.arg_block_field))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

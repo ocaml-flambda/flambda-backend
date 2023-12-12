@@ -157,7 +157,7 @@ let print_general_infos print_name name crc defines arg_descr iter_cmi
   let () =
     match (arg_descr : Lambda.arg_descr option) with
     | None -> ()
-    | Some {arg_param; arg_coercion_field = _} ->
+    | Some {arg_param; arg_block_field = _} ->
       printf "Parameter implemented: %a\n" Compilation_unit.Name.output arg_param
   in
   printf "Interfaces imported:\n";

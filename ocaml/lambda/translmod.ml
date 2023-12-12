@@ -933,55 +933,35 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
-let transl_coercion_as_function cc =
-  let param_id = Ident.create_local "*full-module*" in
-  let param : Lambda.lparam =
-    { name = param_id;
-      layout = layout_module;
-      attributes = No_attributes;
-      mode = Lambda.alloc_heap; }
+let add_arg_block_to_module_block primary_block_lam size restr =
+  let primary_block_id = Ident.create_local "*primary-block*" in
+  let arg_block_id = Ident.create_local "*arg-block*" in
+  let arg_block_lam =
+    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
   in
-  let body = apply_coercion Loc_unknown Strict cc (Lvar param_id) in
-  let attr =
-    { default_function_attribute with
-      inline = Always_inline;
-      is_a_functor = true; }
-  in
-  lfunction ~attr ~body
-    ~kind:(Curried {nlocal=0})
-    ~params:[param]
-    ~return:layout_module
-    ~loc:Loc_unknown
-    ~mode:Lambda.alloc_heap
-    ~region:true
-
-let add_arg_coercion_to_module_block primary_lam size restr =
-  let primary_id = Ident.create_local "*primary-block*" in
-  let coercion_id = Ident.create_local "*arg-coercion*" in
-  let coercion_lam = transl_coercion_as_function restr in
-  let get_field i = Lprim (mod_field i, [Lvar primary_id], Loc_unknown) in
-  let all_fields = List.init size get_field @ [Lvar coercion_id] in
-  let coercion_field = size in
+  let get_field i = Lprim (mod_field i, [Lvar primary_block_id], Loc_unknown) in
+  let all_fields = List.init size get_field @ [Lvar arg_block_id] in
+  let arg_block_field = size in
   let new_size = size + 1 in
-  Llet(Strict, layout_module, primary_id, primary_lam,
-       Llet(Strict, layout_module, coercion_id, coercion_lam,
+  Llet(Strict, layout_module, primary_block_id, primary_block_lam,
+       Llet(Strict, layout_module, arg_block_id, arg_block_lam,
             Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                   all_fields,
                   Loc_unknown))),
   new_size,
-  Some coercion_field
+  Some arg_block_field
 
 let transl_implementation_module ~scopes module_id (str, cc, cc2) =
   let path = global_path module_id in
   let lam, size =
     transl_struct ~scopes Loc_unknown [] cc path str
   in
-  let lam, size, arg_coercion_field =
+  let lam, size, arg_block_field =
     match cc2 with
     | None -> lam, size, None
-    | Some cc2 -> add_arg_coercion_to_module_block lam size cc2
+    | Some cc2 -> add_arg_block_to_module_block lam size cc2
   in
-  lam, size, arg_coercion_field
+  lam, size, arg_block_field
 
 (* Convert an flambda-style implementation (module block only) to a
    non-flambda-style one (set global as side effect) *)
@@ -1006,15 +986,15 @@ let transl_implementation_plain_block compilation_unit impl =
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let body, (size, coercion_field) =
+  let body, (size, arg_block_field) =
     Translobj.transl_label_init (fun () ->
-      let body, size, coercion_field =
+      let body, size, arg_block_field =
         transl_implementation_module ~scopes compilation_unit impl in
-      Translcore.declare_probe_handlers body, (size, coercion_field))
+      Translcore.declare_probe_handlers body, (size, arg_block_field))
   in
   { compilation_unit;
     main_module_block_size = size;
-    coercion_field;
+    arg_block_field;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
@@ -1573,22 +1553,36 @@ let build_ident_map restr idlist more_ids =
   in
   natural_map pos map prims aliases more_ids
 
-let store_arg_coercion_with_module_block
+let store_arg_block_with_module_block
     module_name set_primary_fields restr size =
-  let coercion_id = Ident.create_local "*arg-coercion*" in
-  let coercion_lam = transl_coercion_as_function restr in
-  let coercion_field = size in
-  let new_size = size + 1 in
   let glob = Lprim(Pgetglobal module_name, [], Loc_unknown) in
-  let set_coercion =
-    Lprim(mod_setfield coercion_field, [glob; Lvar coercion_id], Loc_unknown)
+  let primary_block_id = Ident.create_local "*primary-block*" in
+  let primary_block_lam =
+    (* We could just access the global, but if [restr] is the trivial coercion,
+       that would end up storing the global in itself as a circular reference,
+       which we might be able to get working but doesn't seem worth the
+       hassle. Instead, we access each field of the global and repackage it as a
+       new block (which will be optimised away if not needed). *)
+    let get_field i = Lprim (mod_field i, [glob], Loc_unknown) in
+    let fields = List.init size get_field in
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap), fields, Loc_unknown)
+  in
+  let arg_block_id = Ident.create_local "*arg-block*" in
+  let arg_block_lam =
+    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
+  in
+  let arg_field = size in
+  let new_size = size + 1 in
+  let set_arg_block =
+    Lprim(mod_setfield arg_field, [glob; Lvar arg_block_id], Loc_unknown)
   in
   let lam =
     Lsequence(set_primary_fields,
-              Llet(Strict, layout_module, coercion_id, coercion_lam,
-                   set_coercion))
+              Llet(Strict, layout_module, primary_block_id, primary_block_lam,
+                   Llet(Strict, layout_module, arg_block_id, arg_block_lam,
+                        set_arg_block)))
   in
-  new_size, lam, Some coercion_field
+  new_size, lam, Some arg_field
 
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
@@ -1620,14 +1614,14 @@ let transl_store_gen
   match restr2 with
   | None -> size, expr, None
   | Some restr2 ->
-      store_arg_coercion_with_module_block module_name expr restr2 size
+      store_arg_block_with_module_block module_name expr restr2 size
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  let size, lam, _arg_field =
+  let size, lam, _arg_block_field =
     transl_store_gen ~scopes module_name (str,Tcoerce_none,None) true
   in
   size, lam
@@ -1636,12 +1630,12 @@ let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code, arg_field =
+  let i, code, arg_block_field =
     transl_store_gen ~scopes compilation_unit impl false
   in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
-    coercion_field = arg_field;
+    arg_block_field;
     code;
     (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)

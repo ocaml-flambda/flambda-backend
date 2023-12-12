@@ -293,17 +293,16 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename ~coercion_field =
+let save_unit_info filename ~arg_block_field =
   current_unit.ui_imports_cmi <- Array.of_list (Env.imports());
   current_unit.ui_arg_descr <-
-    begin match !Clflags.as_argument_for, coercion_field with
-    | Some arg_param, Some arg_coercion_field ->
+    begin match !Clflags.as_argument_for, arg_block_field with
+    | Some arg_param, Some arg_block_field ->
       let arg_param = Compilation_unit.Name.of_string arg_param in
-      Some { arg_param; arg_coercion_field }
-    | None, None ->
-      None
-    | Some _, None -> Misc.fatal_error "No coercion index"
-    | None, Some _ -> Misc.fatal_error "Unexpected coercion index"
+      Some { arg_param; arg_block_field }
+    | None, None -> None
+    | Some _, None -> Misc.fatal_error "No argument block"
+    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
   end;
   write_unit_info current_unit filename
 

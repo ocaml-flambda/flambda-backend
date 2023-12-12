@@ -128,7 +128,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         ~style:transl_style
     in
     let code = Simplif.simplify_lambda code in
-    let coercion_field =
+    let arg_block_field =
       (* Packs not supported as argument modules *)
       None
     in
@@ -136,7 +136,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
       { Lambda.
         code;
         main_module_block_size;
-        coercion_field;
+        arg_block_field;
         compilation_unit;
         required_globals;
       }

@@ -568,9 +568,8 @@ and lambda_event_kind =
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    coercion_field : int option;        (* Unnamed field with the coercion from
-                                           the whole block to its type as an
-                                           argument module *)
+    arg_block_field : int option;       (* Unnamed field with argument block
+                                           (see [arg_descr]) *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -796,7 +795,7 @@ val is_check_enabled : opt:bool -> property -> bool
 
 type arg_descr =
   { arg_param: Compilation_unit.Name.t; (* The parameter implemented *)
-    arg_coercion_field: int; }          (* The index of an unnamed field
-                                           containing a function that coerces
-                                           the full module block to the parameter
-                                           module type *)
+    arg_block_field: int; }             (* The index of an unnamed field
+                                           containing the block to use as the
+                                           argument value (may be a supertype of
+                                           the whole compilation unit's type) *)
