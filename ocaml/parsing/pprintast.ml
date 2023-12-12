@@ -1742,10 +1742,18 @@ and type_def_list ctxt f (rf, exported, l) =
       else if exported then " ="
       else " :="
     in
-    pp f "@[<2>%s %a%a%s%s%a@]%a" kwd
+    let layout_annot, x =
+      match Jane_syntax.Layouts.of_type_declaration x with
+      | None -> "", x
+      | Some (jkind, remaining_attributes) ->
+          Printf.sprintf " : %s"
+            (Jane_asttypes.jkind_to_string jkind.txt),
+          { x with ptype_attributes = remaining_attributes }
+    in
+    pp f "@[<2>%s %a%a%s%s%s%a@]%a" kwd
       nonrec_flag rf
       (type_params ctxt) x.ptype_params
-      x.ptype_name.txt eq
+      x.ptype_name.txt layout_annot eq
       (type_declaration ctxt) x
       (item_attributes ctxt) x.ptype_attributes
   in

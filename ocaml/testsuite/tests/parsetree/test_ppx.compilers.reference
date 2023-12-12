@@ -1,0 +1,9 @@
+File "source_jane_street.ml", line 27, characters 2-18:
+27 |   type t : float64
+       ^^^^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "jane.erasable.layouts.annot" attribute cannot appear in this context
+
+File "source_jane_street.ml", line 27, characters 2-18:
+27 |   type t : float64
+       ^^^^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "jane.erasable.layouts" attribute cannot appear in this context
