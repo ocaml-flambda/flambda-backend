@@ -160,7 +160,6 @@ and rev_expr =
 
 module Deps = Cleanup_deps
 
-
 type code_dep =
   { params : Variable.t list;
     my_closure : Variable.t;
@@ -169,12 +168,12 @@ type code_dep =
   }
 
 type apply_dep =
-  { apply_in_func : Code_id.t option ;
-    apply_code_id : Code_id.t ;
-    apply_params : Simple.t list ;
-    apply_closure : Simple.t ;
-    apply_return : Variable.t list option ;
-    apply_exn : Variable.t ;
+  { apply_in_func : Code_id.t option;
+    apply_code_id : Code_id.t;
+    apply_params : Simple.t list;
+    apply_closure : Simple.t;
+    apply_return : Variable.t list option;
+    apply_exn : Variable.t
   }
 
 module Dot = struct
@@ -241,15 +240,17 @@ module Dot = struct
     let nodes ~all_cdep ~ctx ppf t =
       Hashtbl.iter
         (fun name _ ->
-           if Code_id_or_name.Set.mem name all_cdep then () else
-          let root =
-            Code_id_or_name.pattern_match'
-              ~code_id:(fun _ -> false)
-              ~name:(fun name ->
-                Hashtbl.mem t.Deps.used (Code_id_or_name.name name))
-              name
-          in
-          node ~ctx ~root ppf name)
+          if Code_id_or_name.Set.mem name all_cdep
+          then ()
+          else
+            let root =
+              Code_id_or_name.pattern_match'
+                ~code_id:(fun _ -> false)
+                ~name:(fun name ->
+                  Hashtbl.mem t.Deps.used (Code_id_or_name.name name))
+                name
+            in
+            node ~ctx ~root ppf name)
         (all_names t)
 
     let edge ~ctx ppf src (dst : Deps.Dep.t) =
@@ -281,38 +282,55 @@ module Dot = struct
     let code_deps ~ctx ~code_id ppf code_dep =
       node ~ctx ~root:false ppf (Code_id_or_name.code_id code_id);
       node ~ctx ~root:false ppf (Code_id_or_name.var code_dep.my_closure);
-      List.iter (fun v -> node ~ctx ~root:false ppf (Code_id_or_name.var v)) (code_dep.exn :: code_dep.return @ code_dep.params)
+      List.iter
+        (fun v -> node ~ctx ~root:false ppf (Code_id_or_name.var v))
+        ((code_dep.exn :: code_dep.return) @ code_dep.params)
 
     let print_fundep ~all_cdep ~code_dep ~ctx (code_id : Code_id.t) ppf t =
       Format.fprintf ppf
-        "subgraph cluster_%d_%d { label=\"%a\"@\n subgraph cluster_%d_%d_intf { label=\"interface\"@\n %a } @\n%a@\n@\n}@\n"
-        ctx (code_id :> int) Code_id.print code_id ctx (code_id :> int)
-        (code_deps ~ctx ~code_id) code_dep
-        (nodes ~all_cdep ~ctx) t
+        "subgraph cluster_%d_%d { label=\"%a\"@\n\
+        \ subgraph cluster_%d_%d_intf { label=\"interface\"@\n\
+        \ %a } @\n\
+         %a@\n\
+         @\n\
+         }@\n"
+        ctx
+        (code_id :> int)
+        Code_id.print code_id ctx
+        (code_id :> int)
+        (code_deps ~ctx ~code_id) code_dep (nodes ~all_cdep ~ctx) t
 
     let print_fundeps ~all_cdep ~code_dep ~ctx ppf fundeps =
-      Hashtbl.iter (fun code_id fungraph ->
-          print_fundep ~all_cdep ~code_dep:(Code_id.Map.find code_id code_dep) ~ctx code_id ppf fungraph
-        ) fundeps
+      Hashtbl.iter
+        (fun code_id fungraph ->
+          print_fundep ~all_cdep
+            ~code_dep:(Code_id.Map.find code_id code_dep)
+            ~ctx code_id ppf fungraph)
+        fundeps
 
     let all_edges ~ctx ppf (t : Deps.graph) =
       edges ~ctx ppf t.toplevel_graph;
       Hashtbl.iter (fun _ fungraph -> edges ~ctx ppf fungraph) t.function_graphs
 
-    let print ~ctx ~print_name ppf ((code_dep, t) : code_dep Code_id.Map.t * Deps.graph) =
-      let all_cdep = Code_id.Map.fold (fun code_id dep s ->
-          List.fold_left (fun s x -> Code_id_or_name.Set.add x s) s
-            (Code_id_or_name.code_id code_id ::
-             List.map Code_id_or_name.var (dep.my_closure :: dep.exn :: dep.return @ dep.params))
-        ) code_dep Code_id_or_name.Set.empty
+    let print ~ctx ~print_name ppf
+        ((code_dep, t) : code_dep Code_id.Map.t * Deps.graph) =
+      let all_cdep =
+        Code_id.Map.fold
+          (fun code_id dep s ->
+            List.fold_left
+              (fun s x -> Code_id_or_name.Set.add x s)
+              s
+              (Code_id_or_name.code_id code_id
+              :: List.map Code_id_or_name.var
+                   ((dep.my_closure :: dep.exn :: dep.return) @ dep.params)))
+          code_dep Code_id_or_name.Set.empty
       in
       Flambda_colours.without_colours ~f:(fun () ->
           Format.fprintf ppf
-            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx print_name
-            (nodes ~all_cdep ~ctx) t.toplevel_graph
-            (print_fundeps ~all_cdep ~code_dep ~ctx) t.function_graphs
-            (all_edges ~ctx) t
-        )
+            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx
+            print_name (nodes ~all_cdep ~ctx) t.toplevel_graph
+            (print_fundeps ~all_cdep ~code_dep ~ctx)
+            t.function_graphs (all_edges ~ctx) t)
   end
 
   let print_dep dep =
@@ -320,8 +338,7 @@ module Dot = struct
     print_graph ~print_name ~lazy_ppf:dep_graph_ppf ~graph:dep ~print:P.print
 end
 
-type cont_kind =
-  | Normal of Variable.t list
+type cont_kind = Normal of Variable.t list
 
 type denv =
   { parent : rev_expr_holed;
@@ -335,7 +352,9 @@ module Dacc : sig
   val empty : unit -> t
 
   val kind : Name.t -> Flambda_kind.t -> t -> t
+
   val bound_parameter_kind : Bound_parameter.t -> t -> t
+
   val alias_kind : Name.t -> Simple.t -> t -> t
 
   val kinds : t -> Flambda_kind.t Name.Map.t
@@ -395,7 +414,7 @@ end = struct
       code : code_dep Code_id.Map.t;
       apply_deps : apply_dep list;
       deps : Deps.graph;
-      kinds : Flambda_kind.t Name.Map.t;
+      kinds : Flambda_kind.t Name.Map.t
     }
 
   let pp ppf t =
@@ -410,40 +429,39 @@ end = struct
       let_rec_cont = 0;
       func = 0;
       code = Code_id.Map.empty;
-      apply_deps = [] ;
+      apply_deps = [];
       deps =
         { toplevel_graph = Deps.create ();
           function_graphs = Hashtbl.create 100
         };
-      kinds = Name.Map.empty;
+      kinds = Name.Map.empty
     }
 
   let kinds t = t.kinds
 
-  let kind name k t =
-    { t with kinds = Name.Map.add name k t.kinds }
+  let kind name k t = { t with kinds = Name.Map.add name k t.kinds }
+
   let bound_parameter_kind (bp : Bound_parameter.t) t =
     let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind bp) in
     let name = Name.var (Bound_parameter.var bp) in
     { t with kinds = Name.Map.add name kind t.kinds }
+
   let alias_kind name simple t =
     let kind =
       Simple.pattern_match simple
         ~name:(fun name ~coercion:_ ->
-            match Name.Map.find_opt name t.kinds with
-            | Some k -> k
-            | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
-          )
+          match Name.Map.find_opt name t.kinds with
+          | Some k -> k
+          | None -> Misc.fatal_errorf "Unbound name %a" Name.print name)
         ~const:(fun const ->
-            match Int_ids.Const.descr const with
-            | Naked_immediate _ -> Flambda_kind.naked_immediate
-            | Tagged_immediate _ -> Flambda_kind.value
-            | Naked_float _ -> Flambda_kind.naked_float
-            | Naked_int32 _ -> Flambda_kind.naked_int32
-            | Naked_int64 _ -> Flambda_kind.naked_int64
-            | Naked_nativeint _ -> Flambda_kind.naked_nativeint
-            | Naked_vec128 _ -> Flambda_kind.naked_vec128
-          )
+          match Int_ids.Const.descr const with
+          | Naked_immediate _ -> Flambda_kind.naked_immediate
+          | Tagged_immediate _ -> Flambda_kind.value
+          | Naked_float _ -> Flambda_kind.naked_float
+          | Naked_int32 _ -> Flambda_kind.naked_int32
+          | Naked_int64 _ -> Flambda_kind.naked_int64
+          | Naked_nativeint _ -> Flambda_kind.naked_nativeint
+          | Naked_vec128 _ -> Flambda_kind.naked_vec128)
     in
     { t with kinds = Name.Map.add name kind t.kinds }
 
@@ -526,28 +544,37 @@ end = struct
     Deps.add_use (cur_deps ~denv t) (Code_id_or_name.code_id code_id);
     t
 
-  let add_apply apply t =
-    { t with apply_deps = apply :: t.apply_deps }
+  let add_apply apply t = { t with apply_deps = apply :: t.apply_deps }
 
   let deps t =
-    List.iter (fun { apply_in_func; apply_code_id ; apply_params ; apply_closure ; apply_return ; apply_exn }  -> (
-          let deps = cur_deps_from_code_id apply_in_func t in
-          let code_dep = find_code t apply_code_id in
-          List.iter2 (fun param arg ->
-              Simple.pattern_match arg
-                ~name:(fun name ~coercion:_ ->
-                    Deps.add_cont_dep deps param name)
-                ~const:(fun _ -> ());
-            ) code_dep.params apply_params;
-          Simple.pattern_match apply_closure
-            ~name:(fun name ~coercion:_ ->
-                Deps.add_cont_dep deps code_dep.my_closure name)
-            ~const:(fun _ -> ());
-          (match apply_return with None -> () | Some apply_return -> List.iter2 (fun arg param ->
-              Deps.add_cont_dep deps param (Name.var arg)
-            ) code_dep.return apply_return);
-          Deps.add_cont_dep deps apply_exn (Name.var code_dep.exn)
-        )) t.apply_deps;
+    List.iter
+      (fun { apply_in_func;
+             apply_code_id;
+             apply_params;
+             apply_closure;
+             apply_return;
+             apply_exn
+           } ->
+        let deps = cur_deps_from_code_id apply_in_func t in
+        let code_dep = find_code t apply_code_id in
+        List.iter2
+          (fun param arg ->
+            Simple.pattern_match arg
+              ~name:(fun name ~coercion:_ -> Deps.add_cont_dep deps param name)
+              ~const:(fun _ -> ()))
+          code_dep.params apply_params;
+        Simple.pattern_match apply_closure
+          ~name:(fun name ~coercion:_ ->
+            Deps.add_cont_dep deps code_dep.my_closure name)
+          ~const:(fun _ -> ());
+        (match apply_return with
+        | None -> ()
+        | Some apply_return ->
+          List.iter2
+            (fun arg param -> Deps.add_cont_dep deps param (Name.var arg))
+            code_dep.return apply_return);
+        Deps.add_cont_dep deps apply_exn (Name.var code_dep.exn))
+      t.apply_deps;
     t.deps
 
   let todo _ = empty ()
@@ -563,10 +590,10 @@ let apply_cont_deps denv dacc apply_cont =
   let cont = Apply_cont_expr.continuation apply_cont in
   let args = Apply_cont_expr.args apply_cont in
   let params = Continuation.Map.find cont denv.conts in
-  let Normal params = params in
-    List.fold_left2
-      (fun dacc param dep -> Dacc.cont_dep ~denv param dep dacc)
-      dacc params args
+  let (Normal params) = params in
+  List.fold_left2
+    (fun dacc param dep -> Dacc.cont_dep ~denv param dep dacc)
+    dacc params args
 
 let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
@@ -582,10 +609,10 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
     (* TODO finer grain to only leak the full results when the function
        escapes *)
     let deps =
-      Deps.Dep.Return_of_that_function (Name.var exn) ::
-      List.map
-        (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
-        return
+      Deps.Dep.Return_of_that_function (Name.var exn)
+      :: List.map
+           (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+           return
     in
     List.fold_left
       (fun dacc dep ->
@@ -594,7 +621,8 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
   in
   Dacc.add_code code_id code_dep dacc
 
-let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures dacc =
+let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
+    dacc =
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
@@ -662,9 +690,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   | Apply apply -> begin
     let default_dacc dacc =
       (* TODO regions? *)
-      let dacc = List.fold_left (fun dacc arg -> Dacc.used ~denv arg dacc) dacc (Apply_expr.args apply) in
+      let dacc =
+        List.fold_left
+          (fun dacc arg -> Dacc.used ~denv arg dacc)
+          dacc (Apply_expr.args apply)
+      in
       let dacc = Dacc.used ~denv (Apply_expr.callee apply) dacc in
-      let dacc = List.fold_left (fun dacc (arg, _) -> Dacc.used ~denv arg dacc) dacc (Exn_continuation.extra_args (Apply_expr.exn_continuation apply)) in
+      let dacc =
+        List.fold_left
+          (fun dacc (arg, _) -> Dacc.used ~denv arg dacc)
+          dacc
+          (Exn_continuation.extra_args (Apply_expr.exn_continuation apply))
+      in
       dacc
     in
     let dacc =
@@ -674,33 +711,41 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
            Probably not *)
         if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
         then
-
           let return_args =
             match Apply_expr.continuation apply with
             | Never_returns -> None
             | Return cont -> (
-                match Continuation.Map.find cont denv.conts with
-                | Normal params -> Some params)
+              match Continuation.Map.find cont denv.conts with
+              | Normal params -> Some params)
           in
           let dacc, exn_arg =
             let exn = Apply_expr.exn_continuation apply in
             let extra_args = Exn_continuation.extra_args exn in
-            let Normal exn_params = Continuation.Map.find (Exn_continuation.exn_handler exn) denv.conts in
+            let (Normal exn_params) =
+              Continuation.Map.find
+                (Exn_continuation.exn_handler exn)
+                denv.conts
+            in
             match exn_params with
             | [] -> assert false
             | exn_param :: extra_params ->
-              let dacc = List.fold_left2 (fun dacc param (arg, _kind) -> Dacc.cont_dep ~denv param arg dacc) dacc extra_params extra_args in
+              let dacc =
+                List.fold_left2
+                  (fun dacc param (arg, _kind) ->
+                    Dacc.cont_dep ~denv param arg dacc)
+                  dacc extra_params extra_args
+              in
               dacc, exn_param
           in
-
-          let apply_dep = {
-            apply_in_func = denv.current_code_id ;
-            apply_code_id = code_id ;
-            apply_params = (Apply_expr.args apply) ;
-            apply_closure = (Apply_expr.callee apply) ;
-            apply_return = return_args ;
-            apply_exn = exn_arg ;
-          } in
+          let apply_dep =
+            { apply_in_func = denv.current_code_id;
+              apply_code_id = code_id;
+              apply_params = Apply_expr.args apply;
+              apply_closure = Apply_expr.callee apply;
+              apply_return = return_args;
+              apply_exn = exn_arg
+            }
+          in
           let dacc = Dacc.add_apply apply_dep dacc in
           (* TODO regions? *)
           (* TODO record function use *)
@@ -735,9 +780,10 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               current_code_id = denv.current_code_id
             } dacc cont_handler (fun handler dacc ->
               let dacc =
-                List.fold_left (fun dacc bp ->
-                  Dacc.bound_parameter_kind bp dacc)
-                  dacc (Bound_parameters.to_list handler.bound_parameters)
+                List.fold_left
+                  (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
+                  dacc
+                  (Bound_parameters.to_list handler.bound_parameters)
               in
               let conts =
                 Continuation.Map.add cont
@@ -776,15 +822,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let dacc =
             (* Record kinds of bound parameters *)
             let dacc =
-              List.fold_left (fun dacc bp ->
-                  Dacc.bound_parameter_kind bp dacc)
-                dacc (Bound_parameters.to_list invariant_params)
+              List.fold_left
+                (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
+                dacc
+                (Bound_parameters.to_list invariant_params)
             in
             let dacc =
-              Continuation.Map.fold (fun _ (_, bp, _) dacc ->
-                  List.fold_left (fun dacc bp ->
-                      Dacc.bound_parameter_kind bp dacc)
-                    dacc (Bound_parameters.to_list bp))
+              Continuation.Map.fold
+                (fun _ (_, bp, _) dacc ->
+                  List.fold_left
+                    (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
+                    dacc
+                    (Bound_parameters.to_list bp))
                 handlers dacc
             in
             dacc
@@ -886,8 +935,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                (Function_slot.Lmap.keys funs)
                bound_vars
         in
-        record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-          dacc
+        record_set_of_closures_deps ~denv names_and_function_slots
+          set_of_closures dacc
       | Static_consts group ->
         (* TODO kind *)
         let bound_static =
@@ -905,8 +954,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             let names_and_function_slots =
               Function_slot.Lmap.map Name.symbol closure_symbols
             in
-            record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-              dacc)
+            record_set_of_closures_deps ~denv names_and_function_slots
+              set_of_closures dacc)
           ~block_like:(fun dacc symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
@@ -936,9 +985,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         let dacc =
           let kind = Flambda_primitive.result_kind' prim in
           let name =
-            Name.var @@
-            Bound_var.var @@
-            Bound_pattern.must_be_singleton bound_pattern
+            Name.var @@ Bound_var.var
+            @@ Bound_pattern.must_be_singleton bound_pattern
           in
           Dacc.kind name kind dacc
         in
@@ -1036,10 +1084,10 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             | Arbitrary_effects, _, _ ->
               let bound_to = Bound_pattern.free_names bound_pattern in
               Name_occurrences.fold_names bound_to
-                ~f:(fun dacc bound_to -> Dacc.used ~denv (Simple.name bound_to) dacc)
+                ~f:(fun dacc bound_to ->
+                  Dacc.used ~denv (Simple.name bound_to) dacc)
                 ~init:dacc
-            | _ ->
-              dacc
+            | _ -> dacc
           in
           default dacc
       end
@@ -1047,11 +1095,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         (* TODO kind *)
         let dacc =
           let name =
-            Name.var @@
-            Bound_var.var @@
-            Bound_pattern.must_be_singleton bound_pattern
+            Name.var @@ Bound_var.var
+            @@ Bound_pattern.must_be_singleton bound_pattern
           in
-          Dacc.alias_kind name s dacc in
+          Dacc.alias_kind name s dacc
+        in
         Simple.pattern_match s
           ~name:(fun name ~coercion:_ -> default_bp dacc (Deps.Dep.Alias name))
           ~const:(fun _ -> default dacc)
@@ -1185,59 +1233,68 @@ type uses = Dep_solver.result
 
 let poison (kind : Flambda_kind.t) =
   match kind with
-  | Value ->
-    Simple.const_int (Targetint_31_63.of_int 123456789)
+  | Value -> Simple.const_int (Targetint_31_63.of_int 123456789)
   | Naked_number Naked_float ->
-    (Simple.const (Int_ids.Const.naked_float
-         (Numeric_types.Float_by_bit_pattern.create 123456789.)))
-  | Naked_number
-      (Naked_immediate) ->
-    Simple.const (Int_ids.Const.naked_immediate (Targetint_31_63.of_int 123456789))
-  | Naked_number (Naked_int32) ->
-    (Simple.const (Int_ids.Const.naked_int32 123456789l))
-  | Naked_number (Naked_int64) ->
-    (Simple.const (Int_ids.Const.naked_int64 123456789L))
-  | Naked_number
-      (Naked_nativeint) ->
-    Simple.const (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int 123456789))
+    Simple.const
+      (Int_ids.Const.naked_float
+         (Numeric_types.Float_by_bit_pattern.create 123456789.))
+  | Naked_number Naked_immediate ->
+    Simple.const
+      (Int_ids.Const.naked_immediate (Targetint_31_63.of_int 123456789))
+  | Naked_number Naked_int32 ->
+    Simple.const (Int_ids.Const.naked_int32 123456789l)
+  | Naked_number Naked_int64 ->
+    Simple.const (Int_ids.Const.naked_int64 123456789L)
+  | Naked_number Naked_nativeint ->
+    Simple.const
+      (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int 123456789))
   | Naked_number Naked_vec128 ->
-    Simple.const (Int_ids.Const.naked_vec128 (Vector_types.Vec128.Bit_pattern.zero))
+    Simple.const
+      (Int_ids.Const.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
   | Region | Rec_info ->
-    Misc.fatal_errorf "No dummy value available for kind %a"
-      Flambda_kind.print kind
-
+    Misc.fatal_errorf "No dummy value available for kind %a" Flambda_kind.print
+      kind
 
 let rewrite_simple kinds (uses : uses) simple =
   Simple.pattern_match simple
     ~name:(fun name ~coercion:_ ->
-        let kind =
+      let kind =
         match Name.Map.find_opt name kinds with
-          | Some k -> k
-          | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
-        in
-        if Hashtbl.mem uses (Code_id_or_name.name name) then simple else poison kind
-      )
+        | Some k -> k
+        | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
+      in
+      if Hashtbl.mem uses (Code_id_or_name.name name)
+      then simple
+      else poison kind)
     ~const:(fun _ -> simple)
 
-let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (rev_expr : rev_expr) : RE.t =
+let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
+    (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   let expr =
     match expr with
     | Raw expr -> expr
     | Apply_cont ac ->
-      let ac = Apply_cont_expr.with_continuation_and_args ac
-                    (Apply_cont_expr.continuation ac)
-                    ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac)) in
+      let ac =
+        Apply_cont_expr.with_continuation_and_args ac
+          (Apply_cont_expr.continuation ac)
+          ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac))
+      in
       Flambda.Expr.create_apply_cont ac
     | Switch switch -> Flambda.Expr.create_switch switch
     | Apply apply ->
       (* TODO rewrite other simples *)
-      let apply = Apply_expr.with_args apply (List.map (rewrite_simple kinds uses) (Apply_expr.args apply)) ~args_arity:(Apply_expr.args_arity apply) in
+      let apply =
+        Apply_expr.with_args apply
+          (List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
+          ~args_arity:(Apply_expr.args_arity apply)
+      in
       Flambda.Expr.create_apply apply
   in
   rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
 
-and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (params_and_body : rev_params_and_body) :
+and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
+    (uses : uses) (params_and_body : rev_params_and_body) :
     Flambda.function_params_and_body =
   let { return_continuation;
         exn_continuation;
@@ -1258,65 +1315,69 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t) (uses :
   in
   params_and_body
 
-and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
+and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
+    (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
-  | Let let_ ->
+  | Let let_ -> (
     let[@local] default () =
-    let subexpr =
-      let defining_expr =
-        match let_.defining_expr with
-        | Named defining_expr -> defining_expr
-        | Static_consts group ->
-          let static_const_or_code = function
-            | Deleted_code -> Flambda.Static_const_or_code.deleted_code
-            | Code
-                { params_and_body;
-                  code_metadata;
-                  free_names_of_params_and_body
-                } ->
-              let params_and_body =
-                rebuild_function_params_and_body kinds uses params_and_body
-              in
-              let code =
-                Code.create_with_metadata ~params_and_body ~code_metadata
-                  ~free_names_of_params_and_body
-              in
-              Flambda.Static_const_or_code.create_code code
-            | Static_const static_const ->
-              Flambda.Static_const_or_code.create_static_const static_const
-          in
-          let group =
-            Flambda.Static_const_group.create
-              (List.map static_const_or_code group)
-          in
-          Flambda.Named.create_static_consts group
-        | Set_of_closures { value_slots; alloc_mode; function_decls } ->
-          let set_of_closures =
-            Set_of_closures.create ~value_slots alloc_mode function_decls
-          in
-          Flambda.Named.create_set_of_closures set_of_closures
+      let subexpr =
+        let defining_expr =
+          match let_.defining_expr with
+          | Named defining_expr -> defining_expr
+          | Static_consts group ->
+            let static_const_or_code = function
+              | Deleted_code -> Flambda.Static_const_or_code.deleted_code
+              | Code
+                  { params_and_body;
+                    code_metadata;
+                    free_names_of_params_and_body
+                  } ->
+                let params_and_body =
+                  rebuild_function_params_and_body kinds uses params_and_body
+                in
+                let code =
+                  Code.create_with_metadata ~params_and_body ~code_metadata
+                    ~free_names_of_params_and_body
+                in
+                Flambda.Static_const_or_code.create_code code
+              | Static_const static_const ->
+                Flambda.Static_const_or_code.create_static_const static_const
+            in
+            let group =
+              Flambda.Static_const_group.create
+                (List.map static_const_or_code group)
+            in
+            Flambda.Named.create_static_consts group
+          | Set_of_closures { value_slots; alloc_mode; function_decls } ->
+            let set_of_closures =
+              Set_of_closures.create ~value_slots alloc_mode function_decls
+            in
+            Flambda.Named.create_set_of_closures set_of_closures
+        in
+        RE.create_let let_.bound_pattern defining_expr ~body:hole
       in
-      RE.create_let let_.bound_pattern defining_expr ~body:hole
+      rebuild_holed kinds uses let_.parent subexpr
     in
-    rebuild_holed kinds uses let_.parent subexpr
-      in
-      (    match let_.bound_pattern with
-           | Set_of_closures _ -> default ()
-           | Static l ->
-             if List.for_all (fun (p : Bound_static.Pattern.t) ->
-                 match p with
-                 | Code code_id -> not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
-                 | Block_like _ | Set_of_closures _ -> false
-               ) (Bound_static.to_list l) then
-               rebuild_holed kinds uses let_.parent hole
-             else
-               default ()
-           | Singleton v ->
-             let v = Bound_var.var v in
-             if Hashtbl.mem uses (Code_id_or_name.var v) then default () else (             Format.eprintf "VAR = %a@." Variable.print v; rebuild_holed kinds uses let_.parent hole)
-      )
-
+    match let_.bound_pattern with
+    | Set_of_closures _ -> default ()
+    | Static l ->
+      if List.for_all
+           (fun (p : Bound_static.Pattern.t) ->
+             match p with
+             | Code code_id ->
+               not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
+             | Block_like _ | Set_of_closures _ -> false)
+           (Bound_static.to_list l)
+      then rebuild_holed kinds uses let_.parent hole
+      else default ()
+    | Singleton v ->
+      let v = Bound_var.var v in
+      if Hashtbl.mem uses (Code_id_or_name.var v)
+      then default ()
+      else (
+        Format.eprintf "VAR = %a@." Variable.print v;
+        rebuild_holed kinds uses let_.parent hole))
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
@@ -1365,7 +1426,8 @@ let run (unit : Flambda_unit.t) =
         let dacc = Dacc.root dummy_toplevel_exn dacc in
         let conts =
           Continuation.Map.of_list
-            [ Flambda_unit.return_continuation unit, Normal [dummy_toplevel_return];
+            [ ( Flambda_unit.return_continuation unit,
+                Normal [dummy_toplevel_return] );
               Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
         in
         traverse
@@ -1380,6 +1442,7 @@ let run (unit : Flambda_unit.t) =
   let solved_dep = Dep_solver.fixpoint deps in
   if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
   let rebuilt_expr =
-    Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr kinds solved_dep holed)
+    Profile.record_call ~accumulate:true "up" (fun () ->
+        rebuild_expr kinds solved_dep holed)
   in
   unit_with_body unit rebuilt_expr.expr
