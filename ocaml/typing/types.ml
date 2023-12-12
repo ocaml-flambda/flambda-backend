@@ -659,28 +659,14 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-type 'a mixed_record_count =
-  | Values_and_floats : (int * int) mixed_record_count
-
-let count_mixed_record_elements
-    (type a)
-    { value_prefix_len; flat_suffix } ~(which : a mixed_record_count) : a =
-  let init : a =
-    match which with
-    | Values_and_floats -> (value_prefix_len, 0)
-  in
-  let f : a -> flat_element -> a =
-    match which with
-    | Values_and_floats -> (
-        fun (values, floats) elem ->
-          match elem with
-          | Imm -> (values+1, floats)
-          | Float | Float64 -> (values, floats+1))
-  in
-  Array.fold_left f init flat_suffix
-
-let count_mixed_record_values_and_floats x =
-  count_mixed_record_elements x ~which:Values_and_floats
+let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
+  Array.fold_left
+    (fun (values, floats) elem ->
+      match elem with
+      | Imm -> (values+1, floats)
+      | Float | Float64 -> (values, floats+1))
+    (value_prefix_len, 0)
+    flat_suffix
 
 (**** Definitions for backtracking ****)
 

@@ -561,8 +561,6 @@ and record_representation =
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
-  (* CR mixed blocks: This comment shouldn't be true if we use this repr for
-     all-immediate records. *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each
