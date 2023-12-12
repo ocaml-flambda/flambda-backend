@@ -224,10 +224,6 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
 }
 
 
-static const header_t Hd_high_bit =
-  ((uintnat)-1) << (sizeof(uintnat) * 8 - 1);
-
-
 /* Returns the arena number of a block,
    or -1 if it is not in any local arena */
 static int get_local_ix(caml_local_arenas* loc, value v)
@@ -246,9 +242,12 @@ static int get_local_ix(caml_local_arenas* loc, value v)
 
 /* If it visits an unmarked local block,
       returns the index of the containing arena
-   Otherwise returns -1. */
+   Otherwise returns -1.
+   Temporarily marks local blocks with colors.GARBAGE
+    (which is not otherwise the color of reachable blocks) */
 static int visit(scanning_action f, void* fdata,
                  struct caml_local_arenas* locals,
+                 struct global_heap_state colors,
                  value* p)
 {
   value v = *p, vblock = v;
@@ -270,15 +269,11 @@ static int visit(scanning_action f, void* fdata,
     hd = Hd_val(vblock);
   }
 
-  if (Color_hd(hd) != NOT_MARKABLE) {
-    /* Major heap */
-    f(fdata, v, p);
+  if (Color_hd(hd) == colors.GARBAGE) {
+    /* Local, marked */
     return -1;
-  } else {
-    /* Local or external */
-    if (hd & Hd_high_bit)
-      /* Local, marked */
-      return -1;
+  } else if (Color_hd(hd) == NOT_MARKABLE) {
+    /* Local (unmarked) or external */
 
     if (locals == NULL)
       /* external */
@@ -288,10 +283,14 @@ static int visit(scanning_action f, void* fdata,
 
     if (ix != -1) {
       /* Mark this unmarked local */
-      *Hp_val(vblock) = hd | Hd_high_bit;
+      *Hp_val(vblock) = With_status_hd(hd, colors.GARBAGE);
     }
 
     return ix;
+  } else {
+    /* Major heap */
+    f(fdata, v, p);
+    return -1;
   }
 }
 
@@ -301,6 +300,8 @@ static void scan_local_allocations(scanning_action f, void* fdata,
   int arena_ix;
   intnat sp;
   struct caml_local_arena arena;
+  /* does not change during scanning */
+  struct global_heap_state colors = caml_global_heap_state;
 
   if (loc == NULL) return;
   CAMLassert(loc->count > 0);
@@ -333,8 +334,9 @@ static void scan_local_allocations(scanning_action f, void* fdata,
 #endif
       continue;
     }
-    CAMLassert(Color_hd(hd) == NOT_MARKABLE);
-    if (!(hd & Hd_high_bit)) {
+    CAMLassert(Color_hd(hd) == NOT_MARKABLE ||
+               Color_hd(hd) == colors.GARBAGE);
+    if (Color_hd(hd) == NOT_MARKABLE) {
       /* Local allocation, not marked */
 #ifdef DEBUG
       for (i = 0; i < Wosize_hd(hd); i++)
@@ -344,7 +346,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
       continue;
     }
     /* reset mark */
-    hd &= ~Hd_high_bit;
+    hd = With_status_hd(hd, NOT_MARKABLE);
     *hp = hd;
     CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
     CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
@@ -357,7 +359,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
       i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
     for (; i < Wosize_hd(hd); i++) {
       value *p = Op_val(Val_hp(hp)) + i;
-      int marked_ix = visit(f, fdata, loc, p);
+      int marked_ix = visit(f, fdata, loc, colors, p);
       if (marked_ix != -1) {
         struct caml_local_arena a = loc->arenas[marked_ix];
         intnat newsp = (char*)*p - (a.base + a.length);
@@ -388,6 +390,8 @@ Caml_inline void scan_stack_frames(
   frame_descr * d;
   value *root;
   caml_frame_descrs fds = caml_get_frame_descrs();
+  /* does not change during marking */
+  struct global_heap_state colors = caml_global_heap_state;
 
   sp = (char*)stack->sp;
   regs = gc_regs;
@@ -415,7 +419,7 @@ next_chunk:
           } else {
             root = (value *)(sp + ofs);
           }
-          visit (f, fdata, locals, root);
+          visit (f, fdata, locals, colors, root);
         }
       } else {
         uint16_t *p;
@@ -427,7 +431,7 @@ next_chunk:
           } else {
             root = (value *)(sp + ofs);
           }
-          visit (f, fdata, locals, root);
+          visit (f, fdata, locals, colors, root);
         }
       }
       /* Move to next frame */
@@ -582,7 +586,7 @@ CAMLexport void caml_do_local_roots (
         sp = &(lr->tables[i][j]);
         if (*sp != 0) {
 #ifdef NATIVE_CODE
-          visit (f, fdata, locals, sp);
+          visit (f, fdata, locals, caml_global_heap_state, sp);
 #else
           f (fdata, *sp, sp);
 #endif

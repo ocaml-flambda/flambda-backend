@@ -290,6 +290,14 @@ let rec mul_int c1 c2 dbg =
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
 
+(* identify cmm operations whose result is guaranteed to be small integers (e.g.
+   in the range [min_int / 4; max_int / 4]) *)
+let guaranteed_to_be_small_int = function
+  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+    (* integer/float comparisons return either [1] or [0]. *)
+    true
+  | _ -> false
+
 let ignore_low_bit_int = function
   | Cop
       ( Caddi,
@@ -315,7 +323,14 @@ let lsr_int c1 c2 dbg =
 let asr_int c1 c2 dbg =
   match c2 with
   | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> Cop (Casr, [ignore_low_bit_int c1; c2], dbg)
+  | Cconst_int (n, _) when n > 0 -> (
+    match ignore_low_bit_int c1 with
+    (* some operations always return small enough integers that it is safe and
+       correct to optimise [asr (lsl x 1) 1] into [x]. *)
+    | Cop (Clsl, [c; Cconst_int (1, _)], _)
+      when n = 1 && guaranteed_to_be_small_int c ->
+      c
+    | c1' -> Cop (Casr, [c1'; c2], dbg))
   | _ -> Cop (Casr, [c1; c2], dbg)
 
 let tag_int i dbg =
