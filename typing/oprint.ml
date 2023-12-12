@@ -420,10 +420,6 @@ let mode_agree expected real =
   uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
   linearity_agree expected.oam_linearity real.oam_linearity
 
-let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
-  | Olay_var v     -> fprintf ppf "%s" v
-
 let is_local mode =
   match mode.oam_locality with
   | Olm_local -> true
