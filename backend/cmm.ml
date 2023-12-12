@@ -645,3 +645,5 @@ let equal_integer_comparison left right =
     false
 
 let all_properties = [Zero_alloc]
+
+let caml_flambda2_invalid = "caml_flambda2_invalid"

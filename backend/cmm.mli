@@ -397,3 +397,5 @@ val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val all_properties : property list
+
+val caml_flambda2_invalid : string
