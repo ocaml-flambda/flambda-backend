@@ -1,7 +1,6 @@
 (* TEST
    * expect
 *)
-(* CR layouts v2.9: all error messages below here are unreviewed *)
 
 module type S = sig type t [@@immediate] end;;
 module F (M : S) : S = M;;
@@ -149,6 +148,9 @@ Error: The layout of type string is value, because
        But the layout of type string must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-31.
 |}];;
+(* CR layouts v2.9: The "of the definition of t ..." part is not great and it
+   should only refer to definitions that type check. Fixing it will involve
+   building a second [final_env] in [transl_type_decl] which is costly.  *)
 
 (* Cannot directly declare a non-immediate type as immediate (variant) *)
 module B = struct
@@ -177,6 +179,8 @@ Error: The layout of type t is value, because
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
 |}];;
+(* CR layouts v2.9: Investigate why the "/2" is here and check if it's only limited
+   to expect tests. *)
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
 module C = struct
@@ -219,7 +223,6 @@ Error: Signature mismatch:
 
 (* Same as above but with explicit signature *)
 module M_invalid : S = struct type t = string end;;
-module FM_invalid = F (struct type t = string end);;
 [%%expect{|
 Line 1, characters 23-49:
 1 | module M_invalid : S = struct type t = string end;;
@@ -234,6 +237,23 @@ Error: Signature mismatch:
          it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 1, characters 20-40.
+|}];;
+
+module FM_invalid = F (struct type t = string end);;
+[%%expect{|
+Line 1, characters 20-50:
+1 | module FM_invalid = F (struct type t = string end);;
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Modules do not match: sig type t = string end is not included in
+       S
+     Type declarations do not match:
+       type t = string
+     is not included in
+       type t : immediate
+     The layout of the first is value, because
+       it is the primitive value type string.
+     But the layout of the first must be a sublayout of immediate, because
+       of the definition of t at line 1, characters 20-40.
 |}];;
 
 (* Can't use a non-immediate type even if mutually recursive *)
