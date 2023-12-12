@@ -4503,7 +4503,8 @@ file_formats/cmi_format.cmi : \
 file_formats/cmo_format.cmi : \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/compilation_unit.cmi
+    utils/compilation_unit.cmi \
+    lambda/lambda.cmi
 file_formats/cms_format.cmo : \
     typing/shape.cmi \
     parsing/parsetree.cmi \

@@ -83,7 +83,7 @@ let default_ui_export_info =
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
-    ui_implements_param = None;
+    ui_arg_descr = None;
     ui_imports_cmi = [| |];
     ui_imports_cmx = [| |];
     ui_runtime_params = [];
@@ -100,7 +100,7 @@ let reset compilation_unit =
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
-  current_unit.ui_implements_param <- None;
+  current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [| |];
   current_unit.ui_imports_cmx <- [| |];
   current_unit.ui_runtime_params <- [];
@@ -295,11 +295,17 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename =
+let save_unit_info filename ~arg_block_field =
   current_unit.ui_imports_cmi <- Array.of_list (Env.imports());
-  current_unit.ui_implements_param <-
-    !Clflags.as_argument_for
-    |> Option.map Compilation_unit.Name.of_string;
+  current_unit.ui_arg_descr <-
+    begin match !Clflags.as_argument_for, arg_block_field with
+    | Some arg_param, Some arg_block_field ->
+      let arg_param = Compilation_unit.Name.of_string arg_param in
+      Some { arg_param; arg_block_field }
+    | None, None -> None
+    | Some _, None -> Misc.fatal_error "No argument block"
+    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
+  end;
   current_unit.ui_runtime_params <-
     Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename
