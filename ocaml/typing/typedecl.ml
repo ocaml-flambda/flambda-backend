@@ -82,7 +82,8 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
   | Float64_in_block of type_expr * jkind_sort_loc
-  | Mixed_block
+  (* CR mixed block: error message? *)
+  | Illegal_mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1103,13 +1104,29 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
 *)
 let update_decl_jkind env dpath decl =
   let open struct
-    (* For tracking what types appear in record blocks. *)
+    (* For tracking what types appear in record blocks. A field [x]
+       will be [true] iff there is at least one field whose upper
+       bound is exactly [x]. (For example, [values] may be [false] even
+       if [imms] is [true].)
+    *)
+    (* CR nroberts: imm64? *)
     type element_reprs =
-      {  mutable values : bool; (* value here means non-immediate, non-float
-                                   value *)
+      {  mutable values : bool; (* also includes [imm64] *)
          mutable imms : bool;
          mutable floats: bool;
          mutable float64s : bool }
+
+    type element_repr =
+      | Flat_element of flat_element
+      | Value_element
+      | Element_without_runtime_component
+
+    let element_repr_to_flat = function
+      | Flat_element flat -> Some flat
+      (* CR layouts v7: Eventually void components will have no runtime width.
+      *)
+      | Element_without_runtime_component -> Some Imm
+      | Value_element -> None
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1123,96 +1140,78 @@ let update_decl_jkind env dpath decl =
     | _, Record_boxed jkinds ->
       let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
       let jkind = Jkind.for_boxed_record ~all_void in
-
+      let classify (lbl : Types.label_declaration) jkind =
+        if is_float env lbl.ld_type then Flat_element Float
+        else match Jkind.get_default_value jkind with
+          | Value | Immediate64 -> Value_element
+          | Immediate -> Flat_element Imm
+          | Float64 -> Flat_element Float64
+          | Void -> Element_without_runtime_component
+          | Any ->
+              Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
+      in
+      let classifications =
+        List.mapi (fun i lbl -> classify lbl jkinds.(i)) lbls
+      in
       let element_reprs =
         { values = false; imms = false; floats = false; float64s = false }
       in
-      (* Check for [Record_float], [Record_ufloat], and [Record_mixed], and
-         compute the [mixed_record_shape] for the latter case. *)
-      let rec scan_jkinds_and_compute_flat_suffix
-          i
-          lbls
-          ~running_abstract_count
-          ~seen_non_value_with_runtime_component =
-        match lbls with
-        | [] ->
-            if seen_non_value_with_runtime_component then
-              Some (Array.init running_abstract_count (fun _ -> Imm), false)
-            else
-              None
-        | lbl :: lbls ->
-            let flat_element, is_non_value_with_runtime_component =
-              if is_float env lbl.Types.ld_type then begin
-                element_reprs.floats <- true;
-                Some Float, false
-              end else match Jkind.get_default_value jkinds.(i) with
-                | Value | Immediate64 ->
-                    element_reprs.values <- true;
-                    None, false
-                | Immediate ->
-                    element_reprs.imms <- true;
-                    Some Imm, false
-                | Float64 -> begin
-                    element_reprs.float64s <- true;
-                    Some Float64, true
-                  end
-                | Void -> Some Imm, false (* has no runtime component *)
-                | Any ->
-                    Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
-            in
-            (* CR mixed blocks: different kind of error. *)
-            if seen_non_value_with_runtime_component
-            && Option.is_none flat_element
-            then raise (Error (loc, Mixed_block));
-            match
-              scan_jkinds_and_compute_flat_suffix (i + 1) lbls
-                ~seen_non_value_with_runtime_component:
-                  (seen_non_value_with_runtime_component ||
-                    is_non_value_with_runtime_component)
-                ~running_abstract_count:
-                  (if Option.is_some flat_element then
-                     running_abstract_count + 1
-                   else 0)
-            with
-            | None -> None
-            | Some (arr, done_) as some ->
-                if done_ then some
-                else match flat_element with
-                  | None -> Some (arr, true)
-                  | Some elem ->
-                      arr.(running_abstract_count) <- elem;
-                      some
-      in
-      let flat_suffix =
-        scan_jkinds_and_compute_flat_suffix 0 lbls
-          ~running_abstract_count:0
-          ~seen_non_value_with_runtime_component:false
-      in
+      List.iter
+        (function
+           | Flat_element Float -> element_reprs.floats <- true
+           | Flat_element Imm -> element_reprs.imms <- true
+           | Flat_element Float64 -> element_reprs.float64s <- true
+           | Value_element -> element_reprs.values <- true
+           | Element_without_runtime_component -> ())
+        classifications;
       let rep =
-        match element_reprs with
+        match[@warning "+9"] element_reprs with
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  }
         | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->
-            (* CR mixed blocks: do this from some central place... *)
-            if Config.reserved_header_bits < 8 then
-              failwith "Need at least 8 reserved header bits to play this game.";
-            if Config.naked_pointers then
-              failwith "You won't get any useful information from testing this with naked pointers enabled.";
-            begin match flat_suffix with
-            | Some (flat_suffix, done_) ->
-                let value_prefix_len =
-                  Array.length jkinds - Array.length flat_suffix
-                in
-                if not done_ && value_prefix_len <> 0 then
-                  fatal_error
-                    "Expected [done_] flag to be [true] if there is a scanned \
-                     prefix.";
-                Record_mixed { value_prefix_len; flat_suffix }
-            | None ->
-                Misc.fatal_error
-                  "Typedecl.update_record_kind: expected abstract suffix for \
-                   mixed block"
-            end
+          (* CR mixed blocks: do this from some central place... *)
+          if Config.reserved_header_bits < 8 then
+            failwith "Need at least 8 reserved header bits to play this game.";
+          (* CR mixed blocks: The naked pointer check can be deleted. *)
+          if Config.naked_pointers then
+            failwith "You won't get any useful information from testing this \
+                      with naked pointers enabled.";
+          let rec find_flat_suffix classifications =
+            match classifications with
+            | [] -> Misc.fatal_error "Expected at least one Float64"
+            | c :: classifications ->
+                match c with
+                | Flat_element Float64 ->
+                    let suffix =
+                      List.map (fun repr ->
+                          match element_repr_to_flat repr with
+                          | Some flat -> flat
+                          | None -> raise (Error (loc, Illegal_mixed_block)))
+                        classifications
+                    in
+                    `Continue (Float64 :: suffix)
+                | Flat_element (Imm | Float)
+                | Value_element
+                | Element_without_runtime_component as repr -> begin
+                    match find_flat_suffix classifications with
+                    | `Stop _ as stop -> stop
+                    | `Continue suffix -> begin
+                        match element_repr_to_flat repr with
+                        | None -> `Stop suffix
+                        | Some flat -> `Continue (flat :: suffix)
+                      end
+                  end
+          in
+          let flat_suffix =
+            let (`Continue flat_suffix | `Stop flat_suffix) =
+              find_flat_suffix classifications
+            in
+            Array.of_list flat_suffix
+          in
+          let value_prefix_len =
+            Array.length jkinds - Array.length flat_suffix
+          in
+          Record_mixed { value_prefix_len; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = false }
         | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
           rep
@@ -3003,15 +3002,15 @@ let report_error ppf = function
       | Cstr_tuple -> "Variants"
       | Record -> "Unboxed records"
         (* [Record] always means unboxed record here, because illegal boxed records
-           get rejected with the [Mixed_block] error instead. *)
+           get rejected with the [Illegal_mixed_block] error instead. *)
       | External -> assert false
     in
     fprintf ppf
       "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ struct_desc
-  | Mixed_block  ->
+  | Illegal_mixed_block  ->
     fprintf ppf
-      "@[Records may not contain both unboxed floats and boxed values.@]"
+      "@[Records may not contain a boxed value following an unboxed value.@]"
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
