@@ -1031,13 +1031,13 @@ let make_float_alloc ~mode dbg tag args =
 let make_abstract_alloc ~mode dbg shape args =
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
-    match (shape.(idx) : Lambda.abstract_element) with
+    match (shape.(idx) : Lambda.flat_element) with
     | Imm -> int_array_set arr ofs newval dbg
     | Float | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
     Array.fold_left
-      (fun sz (shape : Lambda.abstract_element) ->
+      (fun sz (shape : Lambda.flat_element) ->
         match shape with
         | Imm -> sz + 1
         | Float | Float64 -> sz + (size_float / size_addr))

@@ -617,7 +617,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (tag, mutability, alloc)
-  | Make_block (Naked_floats, _, _) | Make_array _ | Make_abstract_block _ ->
+  | Make_block (Naked_floats, _, _) | Make_array _ | Make_mixed_block _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)

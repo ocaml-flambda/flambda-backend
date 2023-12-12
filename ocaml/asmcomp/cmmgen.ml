@@ -180,10 +180,10 @@ let rec expr_size env = function
       RHS_block (mode, List.length args)
   | Uprim(Pmakeufloatblock (_, mode), args, _) ->
       RHS_floatblock (mode, List.length args)
-  | Uprim(Pmakeabstractblock(_, shape, blockmode), _args, _) ->
+  | Uprim(Pmakemixedblock(_, shape, blockmode), _args, _) ->
       let (imms, floats) =
         Array.fold_left (fun (imms, floats) shape ->
-          match (shape : Lambda.abstract_element) with
+          match (shape : Lambda.flat_element) with
           | Imm -> (imms+1, floats)
           | Float | Float64 -> (imms, floats+1))
           (0, 0) shape
@@ -570,14 +570,14 @@ let rec transl env e =
       begin match (simplif_primitive prim, args) with
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
-      | ((Pmakeblock _ | Pmakeufloatblock _ | Pmakeabstractblock _), []) ->
+      | ((Pmakeblock _ | Pmakeufloatblock _ | Pmakemixedblock _), []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
           make_alloc ~mode dbg tag (List.map (transl env) args)
       | (Pmakeufloatblock(_mut, mode), args) ->
           make_float_alloc ~mode dbg Obj.double_array_tag
             (List.map (transl env) args)
-      | (Pmakeabstractblock(_mut, abs, mode), args) ->
+      | (Pmakemixedblock(_mut, abs, mode), args) ->
           transl_make_abstract_block dbg env abs mode args
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
@@ -885,8 +885,8 @@ and transl_make_array dbg env kind mode args =
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
 
-and transl_make_abstract_block dbg env (abs : abstract_block_shape)  mode args =
-  (* XXX layouts: double check that `Float` args will be boxed for all middle
+and transl_make_abstract_block dbg env (abs : mixed_record_shape)  mode args =
+  (* CR mixed blocks: double check that `Float` args will be boxed for all middle
      ends that use this file. *)
   make_abstract_alloc ~mode dbg abs
     (List.mapi (fun i arg ->
@@ -955,7 +955,7 @@ and transl_prim_1 env p arg dbg =
   | Pufloatfield n ->
       get_field env Mutable Punboxed_float (transl env arg) n dbg
   | Pabstractfield (n, shape, mode) ->
-      (* XXX layouts: a backend person to confirm these are fine to use here. *)
+      (* CR mixed blocks: a backend person to confirm these are fine to use here. *)
       let ptr = transl env arg in
       begin match shape with
       | Imm -> get_field env Mutable Lambda.layout_int ptr n dbg
@@ -1051,7 +1051,7 @@ and transl_prim_1 env p arg dbg =
     | Pstringrefu | Pstringrefs | Pbytesrefu | Pbytessetu
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
-    | Pmakeufloatblock (_, _) | Pmakeabstractblock (_, _, _)
+    | Pmakeufloatblock (_, _) | Pmakemixedblock (_, _, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
     | Psetufloatfield (_, _) | Psetabstractfield (_, _, _)
     | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Punboxed_float_comp _ | Pmakearray (_, _, _)
@@ -1084,7 +1084,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
       setfloatfield n init ptr float_val dbg
   | Psetabstractfield (n, shape, init) ->
       let ptr = transl env arg1 in
-      (* XXX layouts: a backend person to confirm these are fine to use here. *)
+      (* CR mixed blocks: a backend person to confirm these are fine to use here. *)
       begin match shape with
       | Imm -> setfield n Immediate init ptr (transl env arg2) dbg
       | Float -> setfloatfield n init ptr (transl_unbox_float dbg env arg2) dbg
@@ -1259,7 +1259,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
-  | Pmakeabstractblock (_, _, _) | Pabstractfield (_, _, _)
+  | Pmakemixedblock (_, _, _) | Pabstractfield (_, _, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
   | Pmakearray (_, _, _) | Pduparray (_, _) | Parraylength _ | Parraysetu _
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _, _)
@@ -1356,7 +1356,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
-  | Pmakeabstractblock (_, _, _)
+  | Pmakemixedblock (_, _, _)
   | Pabstractfield (_, _, _) | Psetabstractfield (_, _, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _

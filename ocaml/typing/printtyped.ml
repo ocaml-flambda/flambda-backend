@@ -194,9 +194,9 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
   | Record_ufloat -> line i ppf "Record_ufloat\n"
-  | Record_abstract { value_prefix_len; abstract_suffix } ->
-    line i ppf "Record_abstract (value_prefix_len %d)\n" value_prefix_len;
-    array (i+1) abstract_block_element ppf abstract_suffix
+  | Record_mixed { value_prefix_len; flat_suffix } ->
+    line i ppf "Record_mixed (value_prefix_len %d)\n" value_prefix_len;
+    array (i+1) abstract_block_element ppf flat_suffix
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;

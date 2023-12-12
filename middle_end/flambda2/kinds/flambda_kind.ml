@@ -512,7 +512,7 @@ module With_subkind = struct
 
   let float_block ~num_fields = create value (Float_block { num_fields })
 
-  (* XXX layouts: maybe we should be adding new kinds? *)
+  (* CR mixed blocks: maybe we should be adding new kinds? *)
   let abstract_block = create value Anything
 
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =

@@ -30,7 +30,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
-  | Pmakeabstractblock (_, _, m)
+  | Pmakemixedblock (_, _, m)
   | Pmakearray (_, Mutable, m) -> Only_generative_effects, coeffects_of m
   | Pmakearray (_, (Immutable | Immutable_unique), m) ->
      No_effects, coeffects_of m
@@ -203,7 +203,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   match prim with
   | Pmakeblock (_, _, _, m)
   | Pmakeufloatblock (_, m)
-  | Pmakeabstractblock (_, _, m)
+  | Pmakemixedblock (_, _, m)
   | Pmakearray (_, _, m) -> is_local_alloc m
   | Pduparray (_, _)
   | Pduprecord (_,_) -> false

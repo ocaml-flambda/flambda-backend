@@ -381,7 +381,7 @@ val make_float_alloc :
 val make_abstract_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
-  Lambda.abstract_block_shape ->
+  Lambda.mixed_record_shape ->
   expression list ->
   expression
 

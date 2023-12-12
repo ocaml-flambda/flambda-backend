@@ -825,7 +825,7 @@ let[@inline always] simplify_immutable_block_load0
     T.meet_equals_single_tagged_immediate typing_env index_ty, access_kind
   with
   | _, Abstract _ -> SPR.create_unknown dacc ~result_var result_kind ~original_term
-     (* XXX layouts: An flambda2 person will see how to do better here for
+     (* CR mixed blocks: An flambda2 person will see how to do better here for
         abstract blocks.  Simply extending the existing code would require
         extending [Block_kind] with [Abstract], but various parts of the code
         seem to assume blocks have uniform element kinds. *)

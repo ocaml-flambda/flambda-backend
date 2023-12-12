@@ -503,7 +503,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       | [] | _ :: _ :: _ -> assert false
     end
   | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
-  | Record_boxed _ | Record_float | Record_ufloat | Record_abstract _ -> begin
+  | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
       let (_, is_mutable, num_nodes_visited), fields =
         List.fold_left_map
           (fun (idx, is_mutable, num_nodes_visited)
@@ -526,11 +526,11 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
               match rep with
               | Record_float | Record_ufloat ->
                 num_nodes_visited, Pfloatval
-              | Record_abstract { value_prefix_len; abstract_suffix } ->
+              | Record_mixed { value_prefix_len; flat_suffix } ->
                 if idx < value_prefix_len then
                   value_kind env ~loc ~visited ~depth ~num_nodes_visited
                     label.ld_type
-                else begin match abstract_suffix.(idx - value_prefix_len) with
+                else begin match flat_suffix.(idx - value_prefix_len) with
                   | Imm -> num_nodes_visited, Pintval
                   | Float | Float64 -> num_nodes_visited, Pfloatval
                 end
@@ -550,7 +550,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [runtime_tag, fields]
           | Record_float | Record_ufloat ->
             [ Obj.double_array_tag, fields ]
-          | Record_abstract _ ->
+          | Record_mixed _ ->
             [ Obj.abstract_tag, fields ]
           | Record_boxed _ ->
             [0, fields]

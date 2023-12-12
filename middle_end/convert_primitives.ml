@@ -30,8 +30,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakearray (Pfloatarray, mutability, mode)
   | Pmakeufloatblock (mutability, mode) ->
       Pmakeufloatblock (mutability, mode)
-  | Pmakeabstractblock (mutability, abs, mode) ->
-      Pmakeabstractblock (mutability, abs, mode)
+  | Pmakemixedblock (mutability, abs, mode) ->
+      Pmakemixedblock (mutability, abs, mode)
   | Pfield (field, imm_or_ptr, sem) ->
     let sem : Lambda.mutable_flag =
       match sem with

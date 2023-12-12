@@ -145,17 +145,17 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakeabstractblock of mutable_flag * abstract_block_shape * alloc_mode
+  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pabstractfield of int * abstract_element * field_read_semantics * alloc_mode
+  | Pabstractfield of int * flat_element * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetabstractfield of int * abstract_element * initialization_or_assignment
+  | Psetabstractfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -305,10 +305,10 @@ and layout =
 and block_shape =
   value_kind list option
 
-and abstract_element = Types.abstract_element = Imm | Float | Float64
-and abstract_block_shape = Types.abstract_block_shape =
+and flat_element = Types.flat_element = Imm | Float | Float64
+and mixed_block_shape = Types.mixed_record_shape =
   { value_prefix_len : int;
-    abstract_suffix : abstract_element array;
+    flat_suffix : flat_element array;
   }
 
 and array_kind =
@@ -1107,6 +1107,12 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
+let transl_mixed_record_shape : Types.mixed_record_shape -> mixed_block_shape =
+  fun x -> x
+
+let count_mixed_block_values_and_floats =
+  Types.count_mixed_record_values_and_floats
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -1457,7 +1463,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
-  | Pmakeabstractblock (_, _, m) -> Some m
+  | Pmakemixedblock (_, _, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
@@ -1594,7 +1600,7 @@ let primitive_result_layout (p : primitive) =
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _ | Pmakeabstractblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)

@@ -105,11 +105,11 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
       fprintf ppf "%s" name
-  | Pmakeabstractblock(mut, shape, mode) ->
+  | Pmakemixedblock(mut, shape, mode) ->
       let mode = mode_to_string mode in
       let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
-      fprintf ppf "%s %a" name Printlambda.abstract_block_shape shape
+      fprintf ppf "%s %a" name Printlambda.mixed_block_shape shape
   | Pfield (n, layout, ptr, mut) ->
       let instr =
         match ptr, mut with
@@ -158,7 +158,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       | Alloc_local -> "local"
     in
     fprintf ppf "abstractfield%s %i %a"
-      mode n Printlambda.abstract_element shape
+      mode n Printlambda.flat_element shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -186,7 +186,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i %a"
-        init n Printlambda.abstract_element shape
+        init n Printlambda.flat_element shape
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
   | Prunstack -> fprintf ppf "runstack"

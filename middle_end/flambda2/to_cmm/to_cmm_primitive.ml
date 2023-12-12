@@ -101,7 +101,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
   | Abstract { field_kind; _ } -> begin
-      (* XXX layouts: a backend person should confirm I can just use these and
+      (* CR mixed blocks: a backend person should confirm I can just use these and
          not add new cmm code *)
       match field_kind with
       | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
@@ -120,7 +120,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
     | Abstract { field_kind; _ } -> begin
-        (* XXX layouts: a backend person should confirm I can just use these and
+        (* CR mixed blocks: a backend person should confirm I can just use these and
            not add new cmm code *)
         match field_kind with
         | Imm ->
@@ -142,10 +142,10 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
-let make_abstract_block ~dbg shape alloc_mode args =
+let make_mixed_block ~dbg shape alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  C.make_abstract_alloc ~mode dbg shape args
+  C.make_mixed_alloc ~mode dbg shape args
 
 let array_length ~dbg arr =
   (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
@@ -711,8 +711,8 @@ let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
-  | Make_abstract_block (shape, _mut, alloc_mode) ->
-    make_abstract_block ~dbg shape alloc_mode args
+  | Make_mixed_block (shape, _mut, alloc_mode) ->
+    make_mixed_block ~dbg shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
@@ -779,7 +779,7 @@ let consider_inlining_effectful_expressions p =
      that the Cmm translation for such primitive both respects right-to-left
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
-  | Variadic ((Make_block _ | Make_array _ | Make_abstract_block _), _) ->
+  | Variadic ((Make_block _ | Make_array _ | Make_mixed_block _), _) ->
     Some true
   | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
 
@@ -832,7 +832,7 @@ let prim_simple env res dbg p =
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
   | Variadic
-      (((Make_block _ | Make_array _ | Make_abstract_block _) as variadic),
+      (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic),
        l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
@@ -869,7 +869,7 @@ let prim_complex env res dbg p =
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
     | Variadic
-        (((Make_block _ | Make_array _ | Make_abstract_block _) as variadic),
+        (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic),
          l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =

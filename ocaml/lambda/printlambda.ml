@@ -228,7 +228,7 @@ let record_rep ppf r = match r with
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
   | Record_ufloat -> fprintf ppf "ufloat"
-  | Record_abstract _ -> fprintf ppf "abstract"
+  | Record_mixed _ -> fprintf ppf "abstract"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -242,27 +242,27 @@ let block_shape ppf shape = match shape with
         t;
       Format.fprintf ppf ")"
 
-let abstract_element ppf : abstract_element -> unit = function
+let flat_element ppf : flat_element -> unit = function
   | Imm -> pp_print_string ppf "int"
   | Float -> pp_print_string ppf "float"
   | Float64 -> pp_print_string ppf "float64"
 
-let abstract_block_shape ppf { value_prefix_len; abstract_suffix } =
+let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
   begin match value_prefix_len with
     | 0 -> ()
     | n -> Format.fprintf ppf " (prefix=%d)" n
   end;
-  match Array.length abstract_suffix with
+  match Array.length flat_suffix with
   | 0 -> ()
   | 1 ->
-      Format.fprintf ppf " (%a)" abstract_element (abstract_suffix.(0))
+      Format.fprintf ppf " (%a)" flat_element (flat_suffix.(0))
   | _ -> begin
     Array.iteri (fun i elt ->
       if i = 0 then
-        Format.fprintf ppf " (%a" abstract_element elt
+        Format.fprintf ppf " (%a" flat_element elt
       else
-        Format.fprintf ppf ",%a" abstract_element elt)
-      abstract_suffix;
+        Format.fprintf ppf ",%a" flat_element elt)
+      flat_suffix;
     Format.fprintf ppf ")"
   end
 
@@ -325,15 +325,15 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode mode)
-  | Pmakeabstractblock (Immutable, abs, mode) ->
+  | Pmakemixedblock (Immutable, abs, mode) ->
       fprintf ppf "make%sabstractblock Immutable %a"
-        (alloc_mode mode) abstract_block_shape abs
-  | Pmakeabstractblock (Immutable_unique, abs, mode) ->
+        (alloc_mode mode) mixed_block_shape abs
+  | Pmakemixedblock (Immutable_unique, abs, mode) ->
      fprintf ppf "make%sabstractblock Immutable_unique %a"
-        (alloc_mode mode) abstract_block_shape abs
-  | Pmakeabstractblock (Mutable, abs, mode) ->
+        (alloc_mode mode) mixed_block_shape abs
+  | Pmakemixedblock (Mutable, abs, mode) ->
      fprintf ppf "make%sabstractblock Mutable %a"
-        (alloc_mode mode) abstract_block_shape abs
+        (alloc_mode mode) mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -380,7 +380,7 @@ let primitive ppf = function
         field_read_semantics sem n
   | Pabstractfield (n, shape, sem, mode) ->
       fprintf ppf "abstractfield%a%s %i %a"
-        field_read_semantics sem (alloc_mode mode) n abstract_element shape
+        field_read_semantics sem (alloc_mode mode) n flat_element shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -408,7 +408,7 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setabstractfield%s %i %a"
-        init n abstract_element shape
+        init n flat_element shape
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"
@@ -634,7 +634,7 @@ let name_of_primitive = function
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pmakeufloatblock _ -> "Pmakeufloatblock"
-  | Pmakeabstractblock _ -> "Pmakeabstractblock"
+  | Pmakemixedblock _ -> "Pmakemixedblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"

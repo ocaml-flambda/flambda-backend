@@ -744,7 +744,7 @@ let transl_declaration env sdecl (id, uid) =
           let rep, jkind =
             (* Note this is innaccurate, using `Record_boxed` in cases where the
                correct representaiton is [Record_float], [Record_ufloat], or
-               [Record_abstract].  Those cases are fixed up after we can get
+               [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
               Record_unboxed, any
@@ -1127,9 +1127,9 @@ let update_decl_jkind env dpath decl =
       let element_reprs =
         { values = false; imms = false; floats = false; float64s = false }
       in
-      (* Check for [Record_float], [Record_ufloat], and [Record_abstract], and
-         compute the [abstract_block_shape] for the latter case. *)
-      let rec scan_jkinds_and_compute_abstract_suffix
+      (* Check for [Record_float], [Record_ufloat], and [Record_mixed], and
+         compute the [mixed_record_shape] for the latter case. *)
+      let rec scan_jkinds_and_compute_flat_suffix
           i
           lbls
           ~running_abstract_count
@@ -1141,7 +1141,7 @@ let update_decl_jkind env dpath decl =
             else
               None
         | lbl :: lbls ->
-            let abstract_element, is_non_value_with_runtime_component =
+            let flat_element, is_non_value_with_runtime_component =
               if is_float env lbl.Types.ld_type then begin
                 element_reprs.floats <- true;
                 Some Float, false
@@ -1160,31 +1160,31 @@ let update_decl_jkind env dpath decl =
                 | Any ->
                     Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
             in
-            (* CR nroberts: different kind of error. *)
+            (* CR mixed blocks: different kind of error. *)
             if seen_non_value_with_runtime_component
-            && Option.is_none abstract_element
+            && Option.is_none flat_element
             then raise (Error (loc, Mixed_block));
             match
-              scan_jkinds_and_compute_abstract_suffix (i + 1) lbls
+              scan_jkinds_and_compute_flat_suffix (i + 1) lbls
                 ~seen_non_value_with_runtime_component:
                   (seen_non_value_with_runtime_component ||
                     is_non_value_with_runtime_component)
                 ~running_abstract_count:
-                  (if Option.is_some abstract_element then
+                  (if Option.is_some flat_element then
                      running_abstract_count + 1
                    else 0)
             with
             | None -> None
             | Some (arr, done_) as some ->
                 if done_ then some
-                else match abstract_element with
+                else match flat_element with
                   | None -> Some (arr, true)
                   | Some elem ->
                       arr.(running_abstract_count) <- elem;
                       some
       in
-      let abstract_suffix =
-        scan_jkinds_and_compute_abstract_suffix 0 lbls
+      let flat_suffix =
+        scan_jkinds_and_compute_flat_suffix 0 lbls
           ~running_abstract_count:0
           ~seen_non_value_with_runtime_component:false
       in
@@ -1193,21 +1193,21 @@ let update_decl_jkind env dpath decl =
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  }
         | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->
-            (* CR nroberts: do this from some central place... *)
+            (* CR mixed blocks: do this from some central place... *)
             if Config.reserved_header_bits < 8 then
               failwith "Need at least 8 reserved header bits to play this game.";
             if Config.naked_pointers then
               failwith "You won't get any useful information from testing this with naked pointers enabled.";
-            begin match abstract_suffix with
-            | Some (abstract_suffix, done_) ->
+            begin match flat_suffix with
+            | Some (flat_suffix, done_) ->
                 let value_prefix_len =
-                  Array.length jkinds - Array.length abstract_suffix
+                  Array.length jkinds - Array.length flat_suffix
                 in
                 if not done_ && value_prefix_len <> 0 then
                   fatal_error
                     "Expected [done_] flag to be [true] if there is a scanned \
                      prefix.";
-                Record_abstract { value_prefix_len; abstract_suffix }
+                Record_mixed { value_prefix_len; flat_suffix }
             | None ->
                 Misc.fatal_error
                   "Typedecl.update_record_kind: expected abstract suffix for \
@@ -1225,7 +1225,7 @@ let update_decl_jkind env dpath decl =
       in
       lbls, rep, jkind
     | _, ( Record_inlined _ | Record_float | Record_ufloat
-         | Record_abstract _)
+         | Record_mixed _)
     | ([] | (_ :: _)), Record_unboxed ->
       (* These are never created by [transl_declaration]. *)
       Misc.fatal_error

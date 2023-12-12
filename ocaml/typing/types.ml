@@ -261,11 +261,11 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
-and abstract_element = Imm | Float | Float64
-and abstract_block_shape =
-    { value_prefix_len : int;
-      abstract_suffix : abstract_element array;
-    }
+and flat_element = Imm | Float | Float64
+and mixed_record_shape =
+  { value_prefix_len : int;
+    flat_suffix : flat_element array;
+  }
 
 and record_representation =
   | Record_unboxed
@@ -273,7 +273,7 @@ and record_representation =
   | Record_boxed of Jkind.t array
   | Record_float
   | Record_ufloat
-  | Record_abstract of abstract_block_shape
+  | Record_mixed of mixed_record_shape
 
 and variant_representation =
   | Variant_unboxed
@@ -560,8 +560,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
-let equal_abstract_element abs1 abs2 =
-  match abs1, abs2 with
+let equal_flat_element e1 e2 =
+  match e1, e2 with
   | Imm, Imm -> true
   | Float, Float -> true
   | Float64, Float64 -> true
@@ -578,12 +578,12 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
-  | Record_abstract { value_prefix_len = l1; abstract_suffix = abs1 },
-    Record_abstract { value_prefix_len = l2; abstract_suffix = abs2 }
-    [@warning "+9"] (* get alerted when we add another field *) ->
-      l1 = l2 && Misc.Stdlib.Array.equal equal_abstract_element abs1 abs2
+  | Record_mixed { value_prefix_len = l1; flat_suffix = s1 },
+    Record_mixed { value_prefix_len = l2; flat_suffix = s2 }
+    [@warning "+9"] (* get alerted if we add another field *) ->
+      l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
-    | Record_ufloat | Record_abstract _), _ ->
+    | Record_ufloat | Record_mixed _), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -605,7 +605,7 @@ let find_unboxed_type decl =
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
-                    | Record_abstract _))
+                    | Record_mixed _))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->
@@ -658,6 +658,29 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+
+type 'a mixed_record_count =
+  | Values_and_floats : (int * int) mixed_record_count
+
+let count_mixed_record_elements
+    (type a)
+    { value_prefix_len; flat_suffix } ~(which : a mixed_record_count) : a =
+  let init : a =
+    match which with
+    | Values_and_floats -> (value_prefix_len, 0)
+  in
+  let f : a -> flat_element -> a =
+    match which with
+    | Values_and_floats -> (
+        fun (values, floats) elem ->
+          match elem with
+          | Imm -> (values+1, floats)
+          | Float | Float64 -> (values, floats+1))
+  in
+  Array.fold_left f init flat_suffix
+
+let count_mixed_record_values_and_floats x =
+  count_mixed_record_elements x ~which:Values_and_floats
 
 (**** Definitions for backtracking ****)
 

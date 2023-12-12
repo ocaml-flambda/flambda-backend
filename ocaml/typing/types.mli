@@ -535,11 +535,15 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
-(* CR nroberts: rename these *)
-and abstract_element = Imm | Float | Float64
-and abstract_block_shape =
+(* A mixed record contains a prefix of values followed by a non-empty suffix of
+   "flat" elements. Intuitively, a flat element is one that need not be scanned
+   by the garbage collector.
+*)
+and flat_element = Imm | Float | Float64
+and mixed_record_shape =
   { value_prefix_len : int;
-    abstract_suffix : abstract_element array;
+    (* We use an array just so we can index into the middle. *)
+    flat_suffix : flat_element array;
   }
 
 and record_representation =
@@ -553,11 +557,12 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
-  (* CR nroberts: rename this. *)
-  | Record_abstract of abstract_block_shape
-  (* CR nroberts: This comment shouldn't be true if we use this repr for
+  | Record_mixed of mixed_record_shape
+  (* The record contains a mix of values and unboxed elements. The block
+     is tagged such that polymorphic operations will not work.
+  *)
+  (* CR mixed blocks: This comment shouldn't be true if we use this repr for
      all-immediate records. *)
-  (* The block is tagged such that polymorphic operations will not work. *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each
@@ -836,6 +841,8 @@ val lbl_pos_void : int
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+
+val count_mixed_record_values_and_floats : mixed_record_shape -> int * int
 
 (**** Utilities for backtracking ****)
 

@@ -81,12 +81,12 @@ let block_header ?(scannable_prefix = Scan_all) tag sz =
   match scannable_prefix with
   | Scan_all -> hdr
   | Scan_prefix scannable_prefix ->
-    (* CR nroberts: check sz isn't too big *)
-    (* CR nroberts: 55 should be constant somewhere *)
-    (* CR nroberts: 8 should be constant somewhere. Different configuration
+    (* CR mixed blocks: check sz isn't too big *)
+    (* CR mixed blocks: 55 should be constant somewhere *)
+    (* CR mixed blocks: 8 should be constant somewhere. Different configuration
        mechanism? *)
-    (* CR nroberts: how to check for bytecode vs. not? *)
-    (* CR nroberts: need to check with mark about GC bit *)
+    (* CR mixed blocks: how to check for bytecode vs. not? *)
+    (* CR mixed blocks: need to check with mark about GC bit *)
     assert (Config.reserved_header_bits >= 8);
     let x =
       Nativeint.add
@@ -1258,7 +1258,7 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
   then
     let hdr =
       match mode with
-      (* CR nroberts: test for locals? *)
+      (* CR mixed blocks: test for locals? *)
       | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
       | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
     in
@@ -1328,34 +1328,30 @@ let make_float_alloc ~mode dbg tag args =
     (List.length args * size_float / size_addr)
     args
 
-(* CR nroberts: I just do not understand this. Why are floats / float64s
-   different lengths depending on platform? If they are, then that threatens our
-   ability to output this code anyway, so we should raise instead of pretending
-   as though we can handle it... *)
-
-let make_abstract_alloc ~mode dbg
-    ({ value_prefix_len; abstract_suffix } : Lambda.abstract_block_shape) args =
+let make_mixed_alloc ~mode dbg shape args =
+  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
     if idx < value_prefix_len
     then addr_array_init arr ofs newval dbg
     else
-      match
-        (abstract_suffix.(idx - value_prefix_len) : Lambda.abstract_element)
-      with
+      match (flat_suffix.(idx - value_prefix_len) : Lambda.flat_element) with
       | Imm -> int_array_set arr ofs newval dbg
       | Float | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
-    Array.fold_left
-      (fun sz (shape : Lambda.abstract_element) ->
-        match shape with
-        | Imm -> sz + 1
-        | Float | Float64 -> sz + (size_float / size_addr))
-      value_prefix_len abstract_suffix
+    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
+    (* CR mixed blocks: Will this assertion ever trigger? If so, we should
+       detect it earlier. *)
+    if size_float <> size_addr
+    then
+      Misc.fatal_error
+        "Unable to compile mixed blocks on a platform where a float is not the \
+         same width as a value.";
+    values + floats
   in
-  (* CR nroberts: need to do additional things in the header of course... *)
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+    (* CR mixed blocks: inline record args to variants? *)
     set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)

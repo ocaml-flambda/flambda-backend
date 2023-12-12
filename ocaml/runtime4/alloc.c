@@ -220,13 +220,13 @@ CAMLprim value caml_alloc_dummy_float (value size)
   return caml_alloc (wosize, 0);
 }
 
-/* [imm_size] is a [value] representing number of immediate fields.
+/* [value_size] is a [value] representing number of value fields.
    [float_size] is a [value] representing number of float fields.
 
    We distinguish these because they aren't the same width on 32-bit platforms.
-   Does this matter within Jane Street?
  */
-CAMLprim value caml_alloc_dummy_abstract (value imm_size, value float_size)
+// CR nroberts: Does this matter at Jane Street?
+CAMLprim value caml_alloc_dummy_mixed (value value_size, value float_size)
 {
   mlsize_t wosize = Long_val(float_size) * Double_wosize;
   wosize += Long_val(imm_size);

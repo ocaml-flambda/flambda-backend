@@ -53,8 +53,8 @@ module Array_kind : sig
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
 
-module Abstract_block_kind : sig
-  type t = Lambda.abstract_block_shape
+module Mixed_block_kind : sig
+  type t = Lambda.mixed_block_shape
 
   val print : Format.formatter -> t -> unit
 
@@ -131,7 +131,7 @@ module Block_access_field_kind : sig
 end
 
 module Abstract_block_access_field_kind : sig
-  type t = Lambda.abstract_element = Imm | Float | Float64
+  type t = Lambda.flat_element = Imm | Float | Float64
 
   val print : Format.formatter -> t -> unit
 
@@ -422,8 +422,8 @@ type ternary_primitive =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
-  | Make_abstract_block of
-      Lambda.abstract_block_shape * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_mixed_block of
+      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

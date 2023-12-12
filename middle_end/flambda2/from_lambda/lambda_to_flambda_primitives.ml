@@ -756,9 +756,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
-  | Pmakeabstractblock
+  | Pmakemixedblock
       ( mutability,
-        ({ value_prefix_len; abstract_suffix } as shape),
+        ({ value_prefix_len; flat_suffix } as shape),
         mode
       ),
     _ ->
@@ -766,14 +766,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let args = List.mapi (fun i arg ->
       if i < value_prefix_len then
         arg
-      else match abstract_suffix.(i - value_prefix_len) with
+      else match flat_suffix.(i - value_prefix_len) with
         | Float -> unbox_float arg
         | Float64 | Imm -> arg)
       args
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
-    [Variadic (Make_abstract_block (shape, mutability, mode), args)]
+    [Variadic (Make_mixed_block (shape, mutability, mode), args)]
   | Pmakearray (array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -816,7 +816,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
-      | Record_abstract _ -> Abstract
+      | Record_mixed _ -> Abstract
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;

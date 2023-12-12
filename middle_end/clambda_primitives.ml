@@ -40,7 +40,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakeabstractblock of mutable_flag * abstract_block_shape * alloc_mode
+  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -49,8 +49,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pabstractfield of int * abstract_element * alloc_mode
-  | Psetabstractfield of int * abstract_element * initialization_or_assignment
+  | Pabstractfield of int * flat_element * alloc_mode
+  | Psetabstractfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -196,11 +196,11 @@ and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and abstract_element = Lambda.abstract_element =
+and flat_element = Lambda.flat_element =
     Imm | Float | Float64
-and abstract_block_shape = Lambda.abstract_block_shape =
+and mixed_block_shape = Lambda.mixed_block_shape =
     { value_prefix_len : int;
-      abstract_suffix : abstract_element array;
+      flat_suffix : flat_element array;
     }
 
 and vec128_type = Lambda.vec128_type =
@@ -243,7 +243,7 @@ let result_layout (p : primitive) =
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
     -> Lambda.layout_unit
   | Pmakeblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _ | Pmakeabstractblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed -> Lambda.layout_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)

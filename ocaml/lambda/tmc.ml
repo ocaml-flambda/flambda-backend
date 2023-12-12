@@ -916,7 +916,7 @@ let rec choice ctx t =
     (* we don't handle all-float records or abstract blocks *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
-    | Pmakeabstractblock _
+    | Pmakemixedblock _
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _

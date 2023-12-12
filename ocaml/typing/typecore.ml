@@ -1993,7 +1993,7 @@ module Label = NameChoice (struct
   let in_env lbl =
     match lbl.lbl_repres with
     | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed
-    | Record_abstract _ -> true
+    | Record_mixed _ -> true
     | Record_inlined _ -> false
 end)
 
@@ -5527,11 +5527,11 @@ and type_expect_
       let alloc_mode = match label.lbl_repres with
         (* projecting out of packed-float-record needs allocation *)
         | Record_float -> Some (register_allocation expected_mode)
-        | Record_abstract { value_prefix_len; abstract_suffix } ->
+        | Record_mixed { value_prefix_len; flat_suffix } ->
           if label.lbl_num < value_prefix_len then
             None
           else begin
-            match abstract_suffix.(label.lbl_num - value_prefix_len) with
+            match flat_suffix.(label.lbl_num - value_prefix_len) with
             | Imm | Float64 -> None
             | Float -> Some (register_allocation expected_mode)
           end
@@ -6802,7 +6802,7 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
     | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
       expected_mode
     | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
-    | Record_boxed _ | Record_float | Record_ufloat | Record_abstract _ ->
+    | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ ->
       mode_subcomponent expected_mode
   in
   let arg_mode = mode_box_modality label.lbl_global rmode in

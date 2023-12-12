@@ -681,10 +681,10 @@ module Record_diffing = struct
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
 
-     | Record_abstract _, Record_abstract _ -> None
-     | Record_abstract _, _ ->
+     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed _, _ ->
         Some (Record_mismatch (Abstract_representation First))
-     | _, Record_abstract _ ->
+     | _, Record_mixed _ ->
         Some (Record_mismatch (Abstract_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None

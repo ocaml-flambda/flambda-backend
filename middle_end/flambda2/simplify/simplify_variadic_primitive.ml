@@ -146,19 +146,19 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     in
     SPR.create named ~try_reify:true dacc
 
-(* XXX layouts: Don't really know what I'm doing here.  In particular for [ty]
+(* CR mixed blocks: Don't really know what I'm doing here.  In particular for [ty]
    I've picked [T.any_block] because exisiting more specific types for blocks
    all want the fields to have the same kind.  I don't eve know of [any_block]
    is correct - perhaps it's meant to be normal blocks below no scan tag.
 *)
-let simplify_make_abstract_block ~original_prim ~kind
+let simplify_make_mixed_block ~original_prim ~kind
       ~(mutable_or_immutable : Mutability.t) _alloc_mode
       dacc ~original_term _dbg ~args_with_tys ~result_var =
   let args, _arg_tys = List.split args_with_tys in
-  if P.Abstract_block_kind.length kind <> List.length args
+  if P.Mixed_block_kind.length kind <> List.length args
   then
     Misc.fatal_errorf
-      "Shape in [Make_abstract_block] of different length from argument list:@ %a"
+      "Shape in [Make_mixed_block] of different length from argument list:@ %a"
       Named.print original_term;
   let (_, result) =
     let typing_env = DA.typing_env dacc in
@@ -167,7 +167,7 @@ let simplify_make_abstract_block ~original_prim ~kind
         (idx+1,
          let open Or_bottom.Let_syntax in
          let<* env_extension = env_extension in
-         let arg_kind = P.Abstract_block_kind.element_kind idx kind in
+         let arg_kind = P.Mixed_block_kind.element_kind idx kind in
           Simple.pattern_match' arg
             ~var:(fun _ ~coercion:_ : _ Or_bottom.t ->
               let<* _ty, env_extension' =
@@ -221,8 +221,8 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
         alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_array array_kind ~mutable_or_immutable alloc_mode
-    | Make_abstract_block (kind, mutable_or_immutable, alloc_mode) ->
-      simplify_make_abstract_block ~original_prim ~kind ~mutable_or_immutable
+    | Make_mixed_block (kind, mutable_or_immutable, alloc_mode) ->
+      simplify_make_mixed_block ~original_prim ~kind ~mutable_or_immutable
         alloc_mode
   in
   simplifier dacc ~original_term dbg ~args_with_tys ~result_var

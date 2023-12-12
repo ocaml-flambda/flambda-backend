@@ -118,7 +118,7 @@ let preserve_tailcall_for_prim = function
   | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakeabstractblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pabstractfield _ | Psetabstractfield _
@@ -176,7 +176,7 @@ type rhs_kind =
   | RHS_block of int
   | RHS_infix of { blocksize : int; offset : int }
   | RHS_floatblock of int
-  | RHS_abstractblock of { imms : int; floats : int }
+  | RHS_mixedblock of { values : int; floats : int }
   | RHS_nonrec
   | RHS_function of int * int
 
@@ -200,16 +200,9 @@ let rec size_of_lambda env = function
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float | Record_ufloat -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
-      | Record_abstract { value_prefix_len; abstract_suffix } ->
-        let (imms, floats) =
-          Array.fold_left (fun (imms, floats) shape ->
-            match shape with
-            | Imm -> (imms+1, floats)
-            | Float | Float64 -> (imms, floats+1))
-            (value_prefix_len, 0) abstract_suffix
-        in
-        (* CR nroberts: rename [imms] to [values]. *)
-        RHS_abstractblock { imms; floats }
+      | Record_mixed mixed ->
+        let values, floats = count_mixed_record_values_and_floats mixed in
+        RHS_mixedblock { values; floats }
       end
   | Llet(_str, _k, id, arg, body) ->
       size_of_lambda (Ident.add id (size_of_lambda env arg) env) body
@@ -237,18 +230,11 @@ let rec size_of_lambda env = function
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
-  | Lprim
-      (Pmakeabstractblock
-         (_, { value_prefix_len; abstract_suffix }, _), _, _) ->
-      let (imms, floats) =
-         Array.fold_left (fun (imms, floats) shape ->
-           match shape with
-           | Imm -> (imms+1, floats)
-           | Float | Float64 -> (imms, floats+1))
-           (value_prefix_len, 0) abstract_suffix
-       in
-       (* CR nroberts: rename to [values] *)
-       RHS_abstractblock { imms; floats }
+  | Lprim (Pmakemixedblock (_, mixed_block_shape, _), _, _) ->
+      let values, floats =
+        count_mixed_block_values_and_floats mixed_block_shape
+      in
+      RHS_mixedblock { values; floats }
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
@@ -622,7 +608,7 @@ let comp_primitive stack_info p sz args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pmakeufloatblock _
-  | Pmakeabstractblock _
+  | Pmakemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
@@ -760,11 +746,11 @@ let rec comp_expr stack_info env exp sz cont =
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_abstractblock {imms; floats}) :: rem ->
+          | (id, _exp, RHS_mixedblock { values; floats }) :: rem ->
               Kconst(Const_base(Const_int floats)) ::
               Kpush ::
-              Kconst(Const_base(Const_int imms)) ::
-              Kccall("caml_alloc_dummy_abstract", 2) :: Kpush ::
+              Kconst(Const_base(Const_int values)) ::
+              Kccall("caml_alloc_dummy_mixed", 2) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_block blocksize) :: rem ->
               Kconst(Const_base(Const_int blocksize)) ::
@@ -788,7 +774,7 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_nonrec new_env sz i = function
           | [] -> comp_rec new_env sz ndecl decl_size
           | (_id, _exp, (RHS_block _ | RHS_infix _ |
-                         RHS_floatblock _ | RHS_abstractblock _ |
+                         RHS_floatblock _ | RHS_mixedblock _ |
                          RHS_function _))
             :: rem ->
               comp_nonrec new_env sz (i-1) rem
@@ -798,7 +784,7 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_rec new_env sz i = function
           | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
           | (_id, exp, (RHS_block _ | RHS_infix _ |
-                        RHS_floatblock _ | RHS_abstractblock _ |
+                        RHS_floatblock _ | RHS_mixedblock _ |
                         RHS_function _))
             :: rem ->
               comp_expr stack_info new_env exp sz
@@ -872,7 +858,7 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakeabstractblock _, args, loc) ->
+  | Lprim(Pmakemixedblock _, args, loc) ->
       (* The implementation of [Kmakeabsblock] figures out which args are floats
          in need of unboxing dynamically. *)
       let cont = add_pseudo_event loc !compunit_name cont in

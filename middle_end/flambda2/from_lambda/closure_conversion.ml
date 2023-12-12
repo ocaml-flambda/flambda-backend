@@ -742,7 +742,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
   | ( Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _
-    | Pmakeabstractblock _ ), []
+    | Pmakemixedblock _ ), []
     ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
@@ -761,7 +761,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
-      | Pmakeabstractblock _ ->
+      | Pmakemixedblock _ ->
         Misc.fatal_error "Unexpected empty abstract block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
