@@ -368,13 +368,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
       end
     | Tpat_tuple list ->
-        if List.for_all (fun (label, _) -> Option.is_none label) list then
-          Ppat_tuple (List.map (fun (_, p) -> sub.pat sub p) list)
-        else
-          Jane_syntax.Labeled_tuples.pat_of ~loc
-            (Ltpat_tuple
-              (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.pat_of ~loc
+          (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
+        |> add_jane_syntax_attributes
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -546,12 +542,9 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        if (List.for_all Option.is_none (List.map fst list)) then
-          Pexp_tuple (List.map (fun (_, e) -> (sub.expr sub e)) list)
-        else
-          Jane_syntax.Labeled_tuples.expr_of ~loc
-            (Ltexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.expr_of ~loc
+          (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
+        |> add_jane_syntax_attributes
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -975,13 +968,9 @@ let core_type sub ct =
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->
-        if List.for_all (fun (lbl, _) -> Option.is_none lbl) list then
-          Ptyp_tuple
-            (List.map (fun (_, typ) -> sub.typ sub typ) list)
-        else
-          Jane_syntax.Labeled_tuples.typ_of ~loc
-            (Lttyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.typ_of ~loc
+          (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
+        |> add_jane_syntax_attributes
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)

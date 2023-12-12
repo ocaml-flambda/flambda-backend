@@ -69,8 +69,8 @@ let iterator =
   let jtyp _self loc (jtyp : Jane_syntax.Core_type.t) =
     match jtyp with
     | Jtyp_layout (Ltyp_var _ | Ltyp_poly _ | Ltyp_alias _) -> ()
-    | Jtyp_tuple (Lttyp_tuple ([] | [_])) -> invalid_tuple loc
-    | Jtyp_tuple (Lttyp_tuple l) ->
+    | Jtyp_tuple ([] | [_]) -> invalid_tuple loc
+    | Jtyp_tuple l ->
       if labeled_tuple_without_label l then unlabeled_labeled_tuple_typ loc
   in
   let typ self ty =
@@ -91,12 +91,12 @@ let iterator =
     | Jpat_layout (Lpat_constant _) -> ()
     | Jpat_tuple lt -> begin
         match lt with
-        | Ltpat_tuple ([], Open) -> empty_open_labeled_tuple_pat loc
-        | Ltpat_tuple (([] | [_]), Closed) ->
+        | ([], Open) -> empty_open_labeled_tuple_pat loc
+        | (([] | [_]), Closed) ->
           short_closed_labeled_tuple_pat loc
-        | Ltpat_tuple (l, Closed) ->
+        | (l, Closed) ->
           if labeled_tuple_without_label l then unlabeled_labeled_tuple_pat loc
-        | Ltpat_tuple (_ :: _, Open) -> ()
+        | (_ :: _, Open) -> ()
       end
   in
   let pat self pat =
@@ -143,8 +143,8 @@ let iterator =
         empty_comprehension loc
     | Jexp_tuple lt -> begin
         match lt with
-        | Ltexp_tuple ([] | [_]) -> invalid_tuple loc
-        | Ltexp_tuple l ->
+        | [] | [_] -> invalid_tuple loc
+        | l ->
           if labeled_tuple_without_label l then unlabeled_labeled_tuple_exp loc
       end
     | Jexp_comprehension _

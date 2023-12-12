@@ -501,7 +501,7 @@ let transl_type_param_jst env loc attrs path :
      in
      transl_type_param_var env loc attrs name jkind (Some jkind_annot)
   | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _)
-  | Jtyp_tuple (Lttyp_tuple _) ->
+  | Jtyp_tuple _ ->
     Misc.fatal_error "non-type-variable in transl_type_param_jst"
 
 let transl_type_param env path styp =
@@ -956,7 +956,7 @@ and transl_type_aux_jst env ~policy ~row_context mode attrs loc
     match jtyp with
     | Jtyp_layout typ ->
       transl_type_aux_jst_layout env ~policy ~row_context mode loc typ
-    | Jtyp_tuple (Lttyp_tuple x) ->
+    | Jtyp_tuple x ->
       transl_type_aux_tuple env ~policy ~row_context x
   in
   { ctyp_desc; ctyp_type; ctyp_env = env; ctyp_loc = loc;
@@ -1323,7 +1323,7 @@ let transl_type_scheme_jst env styp attrs loc : Jane_syntax.Core_type.t -> _ =
   | Jtyp_layout (Ltyp_poly { bound_vars; inner_type }) ->
     transl_type_scheme_poly env attrs loc (Right bound_vars) inner_type
   | Jtyp_layout (Ltyp_var _ | Ltyp_alias _)
-  | Jtyp_tuple (Lttyp_tuple _) ->
+  | Jtyp_tuple (_ : _ list) ->
     transl_type_scheme_mono env styp
 
 let transl_type_scheme env styp =
