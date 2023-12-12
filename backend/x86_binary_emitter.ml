@@ -420,36 +420,41 @@ let buf_sym b sym offset =
       record_reloc b (Buffer.length b.buf) (Relocation.Kind.DIR32 (lbl, offset));
       buf_int32L b 0L
 
-let emit_mod_rm_reg b rex opcodes rm reg =
+let emit_prefix_modrm b opcodes rm reg ~prefix =
+  (* When required for a particular instruction, the REX / REXW flag is added in
+     [emit_mod_rm_reg]. This function otherwise assumes [~rex:0] for Reg32,
+     Reg64, Regf, and addressing modes. *)
   match rm with
   | Reg32 rm ->
       let rm = rd_of_reg64 rm in
-      emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
+      prefix b ~rex:0 ~rexr:(rexr_reg reg) ~rexb:(rexb_rm rm) ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   | Reg64 rm ->
       let rm = rd_of_reg64 rm in
-      emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
+      prefix b ~rex:0 ~rexr:(rexr_reg reg) ~rexb:(rexb_rm rm) ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   | (Reg8L _ | Reg8H _) as reg8 ->
       let rm = rd_of_reg8 reg8 in
-      emit_rex b (rex lor rex_of_reg8 reg8 lor rexr_reg reg lor rexb_rm rm);
+      prefix b ~rex:(rex_of_reg8 reg8) ~rexr:(rexr_reg reg)
+               ~rexb:(rexb_rm rm) ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   | Reg16 reg16 ->
       let rm = rd_of_reg64 reg16 in
-      emit_rex b (rex lor rex_of_reg16 reg16 lor rexr_reg reg lor rexb_rm rm);
+      prefix b ~rex:(rex_of_reg16 reg16) ~rexr:(rexr_reg reg)
+               ~rexb:(rexb_rm rm) ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   | Regf regf ->
       let rm = rd_of_regf regf in
-      emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
+      prefix b ~rex:0 ~rexr:(rexr_reg reg) ~rexb:(rexb_rm rm) ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   (* 64 bits memory access *)
   | Mem64_RIP (_, symbol, offset) ->
-      emit_rex b (rex lor rexr_reg reg);
+      prefix b ~rex:0 ~rexr:(rexr_reg reg) ~rexb:0 ~rexx:0;
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b00 0b101 reg);
       record_reloc b (Buffer.length b.buf)
@@ -472,6 +477,7 @@ let emit_mod_rm_reg b rex opcodes rm reg =
         match offset with
         | OImm8 _ -> assert false
         | OImm32 (sym, offset) ->
+            (* No prefix; 32-bit mode. *)
             buf_opcodes b opcodes;
             buf_int8 b (mod_rm_reg 0b00 0b101 reg);
             buf_sym b sym offset)
@@ -480,30 +486,31 @@ let emit_mod_rm_reg b rex opcodes rm reg =
         | None -> (
             match (idx_reg, scale, offset) with
             | (RSP | R12), 1, OImm8 0L ->
-                emit_rex b (rex lor rexr_reg reg lor rexb_base idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_base idx) ~rexx:0;
                 buf_opcodes b opcodes;
-
                 buf_int8 b (mod_rm_reg 0b00 idx reg);
                 buf_int8 b (sib 1 0b100 idx)
             | (RSP | R12), 1, OImm8 offset8 ->
-                emit_rex b (rex lor rexr_reg reg lor rexb_base idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_base idx) ~rexx:0;
                 buf_opcodes b opcodes;
-
                 buf_int8 b (mod_rm_reg 0b01 0b100 reg);
                 buf_int8 b (sib 1 0b100 idx);
                 buf_int8L b offset8
             | (RSP | R12), 1, OImm32 (sym, offset) ->
                 (* to 0x??(%rsp) *)
-                emit_rex b (rex lor rexr_reg reg lor rexb_base idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_base idx) ~rexx:0;
                 buf_opcodes b opcodes;
-
                 buf_int8 b (mod_rm_reg 0b10 0b100 reg);
                 buf_int8 b (sib 1 0b100 idx);
                 buf_sym b sym offset
             | (RBP | R13), 1, OImm8 _ -> (
                 (* to 0x??(%rbp) *)
                 (* TODO check if offset8 = 0 is enough *)
-                emit_rex b (rex lor rexr_reg reg lor rexb_base idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_base idx) ~rexx:0;
                 buf_opcodes b opcodes;
                 buf_int8 b (mod_rm_reg 0b01 idx reg);
                 match offset with
@@ -511,21 +518,25 @@ let emit_mod_rm_reg b rex opcodes rm reg =
                 | _ -> assert false)
             | _, 1, OImm8 0L ->
                 (* to 0x00(%r??) except %rsp and %rbp *)
-                emit_rex b (rex lor rexr_reg reg lor rexb_rm idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_rm idx) ~rexx:0;
                 buf_opcodes b opcodes;
                 buf_int8 b (mod_rm_reg 0b00 idx reg)
             | _, 1, OImm8 offset8 ->
-                emit_rex b (rex lor rexr_reg reg lor rexb_rm idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_rm idx) ~rexx:0;
                 buf_opcodes b opcodes;
                 buf_int8 b (mod_rm_reg 0b01 idx reg);
                 buf_int8L b offset8
             | _, 1, OImm32 (sym, offset) ->
-                emit_rex b (rex lor rexr_reg reg lor rexb_rm idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:(rexb_rm idx) ~rexx:0;
                 buf_opcodes b opcodes;
                 buf_int8 b (mod_rm_reg 0b10 idx reg);
                 buf_sym b sym offset
             | _, _, _ -> (
-                emit_rex b (rex lor rexr_reg reg lor rexx_index idx);
+                prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                         ~rexb:0 ~rexx:(rexx_index idx);
                 buf_opcodes b opcodes;
                 buf_int8 b (mod_rm_reg 0b00 0b100 reg);
                 buf_int8 b (sib scale idx 0b101);
@@ -535,8 +546,8 @@ let emit_mod_rm_reg b rex opcodes rm reg =
         | Some base_reg -> (
             assert (scale = 1 || scale = 2 || scale = 4 || scale = 8);
             let base = rd_of_reg64 base_reg in
-            emit_rex b
-              (rex lor rexr_reg reg lor rexx_index idx lor rexb_base base);
+            prefix b ~rex:0 ~rexr:(rexr_reg reg)
+                     ~rexb:(rexb_base base) ~rexx:(rexx_index idx);
             buf_opcodes b opcodes;
             match (base_reg, offset) with
             | (RBP | R13), OImm8 0L ->
@@ -556,6 +567,10 @@ let emit_mod_rm_reg b rex opcodes rm reg =
                 buf_int8 b (sib scale idx base);
                 buf_sym b sym offset))
   | Imm _ | Sym _ -> assert false
+
+let emit_mod_rm_reg b rex_always opcodes rm reg =
+  emit_prefix_modrm b opcodes rm reg ~prefix:(fun b ~rex ~rexr ~rexb ~rexx ->
+    emit_rex b (rex_always lor rex lor rexr lor rexb lor rexx))
 
 let emit_movlpd b dst src =
   match (dst, src) with
