@@ -334,6 +334,12 @@ module Dacc : sig
 
   val empty : unit -> t
 
+  val kind : Name.t -> Flambda_kind.t -> t -> t
+  val bound_parameter_kind : Bound_parameter.t -> t -> t
+  val alias_kind : Name.t -> Simple.t -> t -> t
+
+  val kinds : t -> Flambda_kind.t Name.Map.t
+
   val let_ : t -> t
 
   val let_cont : t -> t
@@ -388,7 +394,8 @@ end = struct
       func : int;
       code : code_dep Code_id.Map.t;
       apply_deps : apply_dep list;
-      deps : Deps.graph
+      deps : Deps.graph;
+      kinds : Flambda_kind.t Name.Map.t;
     }
 
   let pp ppf t =
@@ -407,8 +414,38 @@ end = struct
       deps =
         { toplevel_graph = Deps.create ();
           function_graphs = Hashtbl.create 100
-        }
+        };
+      kinds = Name.Map.empty;
     }
+
+  let kinds t = t.kinds
+
+  let kind name k t =
+    { t with kinds = Name.Map.add name k t.kinds }
+  let bound_parameter_kind (bp : Bound_parameter.t) t =
+    let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind bp) in
+    let name = Name.var (Bound_parameter.var bp) in
+    { t with kinds = Name.Map.add name kind t.kinds }
+  let alias_kind name simple t =
+    let kind =
+      Simple.pattern_match simple
+        ~name:(fun name ~coercion:_ ->
+            match Name.Map.find_opt name t.kinds with
+            | Some k -> k
+            | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
+          )
+        ~const:(fun const ->
+            match Int_ids.Const.descr const with
+            | Naked_immediate _ -> Flambda_kind.naked_immediate
+            | Tagged_immediate _ -> Flambda_kind.value
+            | Naked_float _ -> Flambda_kind.naked_float
+            | Naked_int32 _ -> Flambda_kind.naked_int32
+            | Naked_int64 _ -> Flambda_kind.naked_int64
+            | Naked_nativeint _ -> Flambda_kind.naked_nativeint
+            | Naked_vec128 _ -> Flambda_kind.naked_vec128
+          )
+    in
+    { t with kinds = Name.Map.add name kind t.kinds }
 
   let add_code code_id dep t =
     { t with code = Code_id.Map.add code_id dep t.code }
@@ -697,6 +734,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               conts = denv.conts;
               current_code_id = denv.current_code_id
             } dacc cont_handler (fun handler dacc ->
+              let dacc =
+                List.fold_left (fun dacc bp ->
+                  Dacc.bound_parameter_kind bp dacc)
+                  dacc (Bound_parameters.to_list handler.bound_parameters)
+              in
               let conts =
                 Continuation.Map.add cont
                   (Normal (Bound_parameters.vars handler.bound_parameters))
@@ -730,6 +772,22 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                   (Normal (invariant_params_vars @ Bound_parameters.vars bp))
                   conts)
               handlers denv.conts
+          in
+          let dacc =
+            (* Record kinds of bound parameters *)
+            let dacc =
+              List.fold_left (fun dacc bp ->
+                  Dacc.bound_parameter_kind bp dacc)
+                dacc (Bound_parameters.to_list invariant_params)
+            in
+            let dacc =
+              Continuation.Map.fold (fun _ (_, bp, _) dacc ->
+                  List.fold_left (fun dacc bp ->
+                      Dacc.bound_parameter_kind bp dacc)
+                    dacc (Bound_parameters.to_list bp))
+                handlers dacc
+            in
+            dacc
           in
           let dacc, handlers =
             Continuation.Map.fold
@@ -810,6 +868,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     let dacc : Dacc.t =
       match defining_expr with
       | Set_of_closures set_of_closures ->
+        (* TODO kind *)
         let names_and_function_slots =
           let bound_vars =
             match bound_pattern with
@@ -830,6 +889,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           dacc
       | Static_consts group ->
+        (* TODO kind *)
         let bound_static =
           match bound_pattern with
           | Static b -> b
@@ -873,6 +933,15 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             | Set_of_closures _ -> assert false
             | _ -> dacc)
       | Prim (prim, _dbg) -> begin
+        let dacc =
+          let kind = Flambda_primitive.result_kind' prim in
+          let name =
+            Name.var @@
+            Bound_var.var @@
+            Bound_pattern.must_be_singleton bound_pattern
+          in
+          Dacc.kind name kind dacc
+        in
         match[@ocaml.warning "-4"] prim with
         | Variadic (Make_block (_, _mutability, _), fields) ->
           let acc = ref [] in
@@ -961,15 +1030,34 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             (* TODO: record dependency on the primitive for side effects *)
             records dacc value_dep
         end
-        | _ ->
-          (* TODO: if side effects record use *)
+        | prim ->
+          let dacc =
+            match Flambda_primitive.effects_and_coeffects prim with
+            | Arbitrary_effects, _, _ ->
+              let bound_to = Bound_pattern.free_names bound_pattern in
+              Name_occurrences.fold_names bound_to
+                ~f:(fun dacc bound_to -> Dacc.used ~denv (Simple.name bound_to) dacc)
+                ~init:dacc
+            | _ ->
+              dacc
+          in
           default dacc
       end
       | Simple s ->
+        (* TODO kind *)
+        let dacc =
+          let name =
+            Name.var @@
+            Bound_var.var @@
+            Bound_pattern.must_be_singleton bound_pattern
+          in
+          Dacc.alias_kind name s dacc in
         Simple.pattern_match s
           ~name:(fun name ~coercion:_ -> default_bp dacc (Deps.Dep.Alias name))
           ~const:(fun _ -> default dacc)
-      | Rec_info _ -> default dacc
+      | Rec_info _ ->
+        (* TODO kind *)
+        default dacc
     in
     let (named, dacc) : rev_named * dacc =
       match defining_expr with
@@ -1095,18 +1183,43 @@ and traverse_cont_handler :
 
 type uses = Dep_solver.result
 
-let poison () =
-  (* TODO by kind *)
-  Simple.const_int (Targetint_31_63.of_int 1234567)
+let poison (kind : Flambda_kind.t) =
+  match kind with
+  | Value ->
+    Simple.const_int (Targetint_31_63.of_int 123456789)
+  | Naked_number Naked_float ->
+    (Simple.const (Int_ids.Const.naked_float
+         (Numeric_types.Float_by_bit_pattern.create 123456789.)))
+  | Naked_number
+      (Naked_immediate) ->
+    Simple.const (Int_ids.Const.naked_immediate (Targetint_31_63.of_int 123456789))
+  | Naked_number (Naked_int32) ->
+    (Simple.const (Int_ids.Const.naked_int32 123456789l))
+  | Naked_number (Naked_int64) ->
+    (Simple.const (Int_ids.Const.naked_int64 123456789L))
+  | Naked_number
+      (Naked_nativeint) ->
+    Simple.const (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int 123456789))
+  | Naked_number Naked_vec128 ->
+    Simple.const (Int_ids.Const.naked_vec128 (Vector_types.Vec128.Bit_pattern.zero))
+  | Region | Rec_info ->
+    Misc.fatal_errorf "No dummy value available for kind %a"
+      Flambda_kind.print kind
 
-let rewrite_simple (uses : uses) simple =
+
+let rewrite_simple kinds (uses : uses) simple =
   Simple.pattern_match simple
     ~name:(fun name ~coercion:_ ->
-        if Hashtbl.mem uses (Code_id_or_name.name name) then simple else poison ()
+        let kind =
+        match Name.Map.find_opt name kinds with
+          | Some k -> k
+          | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
+        in
+        if Hashtbl.mem uses (Code_id_or_name.name name) then simple else poison kind
       )
     ~const:(fun _ -> simple)
 
-let rec rebuild_expr (uses : uses) (rev_expr : rev_expr) : RE.t =
+let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
   let expr =
     match expr with
@@ -1114,17 +1227,17 @@ let rec rebuild_expr (uses : uses) (rev_expr : rev_expr) : RE.t =
     | Apply_cont ac ->
       let ac = Apply_cont_expr.with_continuation_and_args ac
                     (Apply_cont_expr.continuation ac)
-                    ~args:(List.map (rewrite_simple uses) (Apply_cont_expr.args ac)) in
+                    ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac)) in
       Flambda.Expr.create_apply_cont ac
     | Switch switch -> Flambda.Expr.create_switch switch
     | Apply apply ->
       (* TODO rewrite other simples *)
-      let apply = Apply_expr.with_args apply (List.map (rewrite_simple uses) (Apply_expr.args apply)) ~args_arity:(Apply_expr.args_arity apply) in
+      let apply = Apply_expr.with_args apply (List.map (rewrite_simple kinds uses) (Apply_expr.args apply)) ~args_arity:(Apply_expr.args_arity apply) in
       Flambda.Expr.create_apply apply
   in
-  rebuild_holed uses holed_expr (RE.from_expr ~expr ~free_names)
+  rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
 
-and rebuild_function_params_and_body (uses : uses) (params_and_body : rev_params_and_body) :
+and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (params_and_body : rev_params_and_body) :
     Flambda.function_params_and_body =
   let { return_continuation;
         exn_continuation;
@@ -1136,7 +1249,7 @@ and rebuild_function_params_and_body (uses : uses) (params_and_body : rev_params
       } =
     params_and_body
   in
-  let body = rebuild_expr uses body in
+  let body = rebuild_expr kinds uses body in
   let params_and_body =
     Flambda.Function_params_and_body.create ~return_continuation
       ~exn_continuation params ~body:body.expr
@@ -1145,7 +1258,7 @@ and rebuild_function_params_and_body (uses : uses) (params_and_body : rev_params
   in
   params_and_body
 
-and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
+and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
   match rev_expr with
   | Up -> hole
   | Let let_ ->
@@ -1163,7 +1276,7 @@ and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t
                   free_names_of_params_and_body
                 } ->
               let params_and_body =
-                rebuild_function_params_and_body uses params_and_body
+                rebuild_function_params_and_body kinds uses params_and_body
               in
               let code =
                 Code.create_with_metadata ~params_and_body ~code_metadata
@@ -1186,7 +1299,7 @@ and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t
       in
       RE.create_let let_.bound_pattern defining_expr ~body:hole
     in
-    rebuild_holed uses let_.parent subexpr
+    rebuild_holed kinds uses let_.parent subexpr
       in
       (    match let_.bound_pattern with
            | Set_of_closures _ -> default ()
@@ -1196,31 +1309,31 @@ and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t
                  | Code code_id -> not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
                  | Block_like _ | Set_of_closures _ -> false
                ) (Bound_static.to_list l) then
-               rebuild_holed uses let_.parent hole
+               rebuild_holed kinds uses let_.parent hole
              else
                default ()
            | Singleton v ->
              let v = Bound_var.var v in
-             if Hashtbl.mem uses (Code_id_or_name.var v) then default () else (             Format.eprintf "VAR = %a@." Variable.print v; rebuild_holed uses let_.parent hole)
+             if Hashtbl.mem uses (Code_id_or_name.var v) then default () else (             Format.eprintf "VAR = %a@." Variable.print v; rebuild_holed kinds uses let_.parent hole)
       )
 
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-      let handler = rebuild_expr uses expr in
+      let handler = rebuild_expr kinds uses expr in
       RE.create_continuation_handler bound_parameters ~handler ~is_exn_handler
         ~is_cold
     in
     let let_cont_expr =
       RE.create_non_recursive_let_cont cont cont_handler ~body:hole
     in
-    rebuild_holed uses parent let_cont_expr
+    rebuild_holed kinds uses parent let_cont_expr
   | Let_cont_rec { parent; handlers; invariant_params } ->
     let handlers =
       Continuation.Map.map
         (fun handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-          let handler = rebuild_expr uses expr in
+          let handler = rebuild_expr kinds uses expr in
           RE.create_continuation_handler bound_parameters ~handler
             ~is_exn_handler ~is_cold)
         handlers
@@ -1228,7 +1341,7 @@ and rebuild_holed (uses : uses) (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
     in
-    rebuild_holed uses parent let_cont_expr
+    rebuild_holed kinds uses parent let_cont_expr
 
 let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
   Flambda_unit.create
@@ -1261,11 +1374,12 @@ let run (unit : Flambda_unit.t) =
   in
   if do_print then Format.printf "DACC %a@." Dacc.pp dacc;
   let deps = Dacc.deps dacc in
+  let kinds = Dacc.kinds dacc in
   let () = if do_print then Dot.print_dep (Dacc.code_deps dacc, deps) in
   if do_print then Format.printf "USED %a@." Deps.pp_used deps;
   let solved_dep = Dep_solver.fixpoint deps in
   if do_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
   let rebuilt_expr =
-    Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr solved_dep holed)
+    Profile.record_call ~accumulate:true "up" (fun () -> rebuild_expr kinds solved_dep holed)
   in
   unit_with_body unit rebuilt_expr.expr
