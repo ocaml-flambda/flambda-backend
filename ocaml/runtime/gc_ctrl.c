@@ -268,7 +268,7 @@ static value gc_full_major_exn(int force_compaction)
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
     caml_empty_minor_heaps_once();
-    caml_finish_major_cycle(force_compaction);
+    caml_finish_major_cycle(force_compaction && i == 2);
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
