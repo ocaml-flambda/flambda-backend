@@ -38,7 +38,7 @@ Line 2, characters 17-22:
 Error: Function return types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be a sublayout of '_representable_layout_1, because
+       But the layout of t_any must be representable, because
          it's used as a function result.
 |}];;
 
@@ -52,7 +52,7 @@ Line 2, characters 10-15:
 Error: Function argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be a sublayout of '_representable_layout_2, because
+       But the layout of t_any must be representable, because
          it's used as a function argument.
 |}];;
 
@@ -66,10 +66,10 @@ Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_3) is not compatible with type t
+       Type ('a : '_representable_layout_1) is not compatible with type t
        The layout of t is any, because
          of the definition of t at line 2, characters 2-14.
-       But the layout of t must be a sublayout of '_representable_layout_3, because
+       But the layout of t must be representable, because
          it instantiates an unannotated type parameter of s.
 |}]
 
@@ -83,10 +83,10 @@ Line 4, characters 35-41:
 4 |   type 'a s = int -> 'a constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_4) is not compatible with type t
+       Type ('a : '_representable_layout_2) is not compatible with type t
        The layout of t is any, because
          of the definition of t at line 2, characters 2-14.
-       But the layout of t must be a sublayout of '_representable_layout_4, because
+       But the layout of t must be representable, because
          it instantiates an unannotated type parameter of s.
 |}]
 
@@ -96,10 +96,10 @@ Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_3)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be a sublayout of '_representable_layout_5, because
+       But the layout of t_any must be representable, because
          it's used as a function result.
 |}];;
 
@@ -110,10 +110,10 @@ Line 1, characters 7-18:
            ^^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_4)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be a sublayout of '_representable_layout_6, because
+       But the layout of t_any must be representable, because
          it's used as a function argument.
 |}];;
 

@@ -312,7 +312,7 @@ Error: This pattern matches values of type a
          ('a : '_representable_layout_1)
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
-       But the layout of a must be a sublayout of '_representable_layout_1, because
+       But the layout of a must be representable, because
          it's used as a function argument.
 |}]
 

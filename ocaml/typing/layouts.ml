@@ -855,9 +855,7 @@ module Layout = struct
 
     let format_flattened_history ~intro ppf t =
       let lay = get_internal t.layout in
-      fprintf ppf "@[<v 2>%t %a"
-        intro
-        format_desc lay;
+      fprintf ppf "@[<v 2>%t" intro;
       begin match t.history with
       | Creation reason ->
         fprintf ppf ", because@ %a" format_creation_reason reason;
@@ -958,13 +956,14 @@ module Layout = struct
           dprintf "does not overlap with %a" format l2, None
       in
       if display_histories then begin
-        let connective = match t.violation with
-          | Not_a_sublayout _ -> "be a sublayout of"
-          | No_intersection _ -> "overlap with"
+        let connective = match t.violation, get l2 with
+          | Not_a_sublayout _, Const _ -> dprintf "be a sublayout of %a" format l2
+          | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
+          | _, Var _ -> dprintf "be representable"
         in
         fprintf ppf "@[<v>%a@;%a@]"
-          (format_history ~intro:(dprintf "The layout of %a is" pp_former former)) l1
-          (format_history ~intro:(dprintf "But the layout of %a must %s" pp_former former connective)) l2;
+          (format_history ~intro:(dprintf "The layout of %a is %a" pp_former former format l1)) l1
+          (format_history ~intro:(dprintf "But the layout of %a must %t" pp_former former connective)) l2;
       end else begin
         fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]"
           preamble

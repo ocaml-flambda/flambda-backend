@@ -51,7 +51,7 @@ Line 1, characters 15-31:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_1, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -63,7 +63,7 @@ Line 1, characters 15-45:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_2, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -75,7 +75,7 @@ Line 1, characters 15-41:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_3, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -88,7 +88,7 @@ Line 2, characters 0-29:
 Error:
        The layout of 'b t1_constraint' is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of 'b t1_constraint' must be a sublayout of '_representable_layout_4, because
+       But the layout of 'b t1_constraint' must be representable, because
          it instantiates an unannotated type parameter of t1_constraint.
 |}]
 (* CR layouts errors: this error is blamed on the wrong piece *)
@@ -149,7 +149,7 @@ Line 1, characters 17-26:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_5, because
+       But the layout of t_any must be representable, because
          it is the type of record field x.
 |}];;
 
@@ -161,7 +161,7 @@ Line 1, characters 34-43:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_6, because
+       But the layout of t_any must be representable, because
          it is the type of record field y.
 |}];;
 
@@ -173,7 +173,7 @@ Line 1, characters 18-28:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_7, because
+       But the layout of t_any must be representable, because
          it is the type of record field x.
 |}];;
 
@@ -185,7 +185,7 @@ Line 1, characters 23-32:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_8, because
+       But the layout of t_any must be representable, because
          it is the type of record field x.
 |}];;
 
@@ -197,7 +197,7 @@ Line 1, characters 40-49:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_9, because
+       But the layout of t_any must be representable, because
          it is the type of record field y.
 |}];;
 
@@ -209,7 +209,7 @@ Line 1, characters 23-33:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_10, because
+       But the layout of t_any must be representable, because
          it is the type of record field x.
 |}];;
 
@@ -243,7 +243,7 @@ Line 1, characters 11-24:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_11, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -255,7 +255,7 @@ Line 1, characters 11-38:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_12, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -267,7 +267,7 @@ Line 1, characters 11-34:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_13, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}];;
 
@@ -301,7 +301,7 @@ Line 1, characters 39-48:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_14, because
+       But the layout of t_any must be representable, because
          it is the type of record field y.
 |}];;
 

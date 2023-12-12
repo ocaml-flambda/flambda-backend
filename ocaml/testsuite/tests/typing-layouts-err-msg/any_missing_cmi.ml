@@ -22,7 +22,7 @@ Line 1, characters 30-44:
 Error: Function arguments and returns must be representable.
        The layout of Any_missing_cmi_lib2.t is any, because
          the .cmi file for Any_missing_cmi_lib2.t is missing.
-       But the layout of Any_missing_cmi_lib2.t must be a sublayout of '_representable_layout_1, because
+       But the layout of Any_missing_cmi_lib2.t must be representable, because
          it's used as a function argument.
        No .cmi file found containing Any_missing_cmi_lib2.t.
        Hint: Adding "any_missing_cmi_lib2" to your dependencies might help.

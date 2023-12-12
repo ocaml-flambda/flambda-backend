@@ -22,7 +22,7 @@ Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_1)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_1, because
+       But the layout of t_any must be representable, because
          a value of this type is matched against a pattern.
 |}]
 
@@ -36,7 +36,7 @@ Line 1, characters 9-19:
 Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_2, because
+       But the layout of t_any must be representable, because
          it's used as the type of a constructor field.
 |}]
 
@@ -50,7 +50,7 @@ Line 1, characters 10-18:
 Error: Record element types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_3, because
+       But the layout of t_any must be representable, because
          it is the type of record field a.
 |}]
 
@@ -63,10 +63,10 @@ Line 2, characters 9-14:
 2 | and t2 = t_any t
              ^^^^^
 Error: This type t_any should be an instance of type
-         ('a : '_representable_layout_4)
+         ('a : '_representable_layout_2)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_4, because
+       But the layout of t_any must be representable, because
          it instantiates an unannotated type parameter of t.
 |}]
 
@@ -85,10 +85,10 @@ Line 1, characters 4-12:
         ^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_3)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_5, because
+       But the layout of t_any must be representable, because
          it's the type of a variable bound by a `let`.
 |}]
 
@@ -101,10 +101,10 @@ Line 1, characters 6-16:
           ^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_4)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_6, because
+       But the layout of t_any must be representable, because
          it's used as a function argument.
 |}]
 
@@ -116,10 +116,10 @@ Line 1, characters 18-30:
 1 | let f (): t_any = assert false
                       ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_5)
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_7, because
+       But the layout of t_any must be representable, because
          it's used as a function result.
 |}]
 
@@ -138,7 +138,7 @@ Line 1, characters 14-19:
 Error: Function argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_8, because
+       But the layout of t_any must be representable, because
          it's used as a function argument.
 |}]
 (* Shadowed by Function_argument *)
@@ -152,7 +152,7 @@ Line 1, characters 26-31:
 Error: Function return types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
-       But the layout of t_any must be a sublayout of '_representable_layout_9, because
+       But the layout of t_any must be representable, because
          it's used as a function result.
 |}]
 (* Shadowed by Function_result *)
