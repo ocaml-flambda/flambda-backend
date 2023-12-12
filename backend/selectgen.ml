@@ -1077,7 +1077,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               let keep_for_checking =
                 not returns &&
                 !current_function_is_check_enabled &&
-                String.equal func "caml_flambda2_invalid"
+                String.equal func Cmm.caml_flambda2_invalid
               in
               let returns, ty =
                 if keep_for_checking then true, typ_int
