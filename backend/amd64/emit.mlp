@@ -956,6 +956,9 @@ let emit_simd_instr op i =
   | R_RM_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0))
+  | R_RM_to_R ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (Reg.is_reg i.res.(0))
   | R_RM_xmm0_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0));
@@ -982,6 +985,8 @@ let emit_simd_instr op i =
   );
   match (op : Simd.operation) with
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
+  | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
+  | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)

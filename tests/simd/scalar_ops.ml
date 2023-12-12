@@ -9,6 +9,10 @@ let eq lv hv l h =
   if h <> hv then Printf.printf "%016Lx <> %016Lx\n" hv h
 ;;
 
+let eq' x y =
+  if x <> y then Printf.printf "%016Lx <> %016Lx\n" x y
+;;
+
 module Int64x2 = struct
 
   type t = int64x2
@@ -27,5 +31,22 @@ module Int64x2 = struct
     eq (int64x2_low_int64 c1) (int64x2_high_int64 c1) 20L 0L;
     eq (int64x2_low_int64 c2) (int64x2_high_int64 c2) 20L 0L;
     eq (int64x2_low_int64 c3) (int64x2_high_int64 c3) 48L 0L
+  ;;
+end
+
+module Int64 = struct
+
+  type t = int64
+
+  external bit_deposit : t -> t -> t = "caml_vec128_unreachable" "caml_bmi2_int64_deposit_bits"
+      [@@noalloc] [@@unboxed] [@@builtin]
+  external bit_extract : t -> t -> t = "caml_vec128_unreachable" "caml_bmi2_int64_extract_bits"
+      [@@noalloc] [@@unboxed] [@@builtin]
+
+  let () =
+    eq' (bit_deposit 3L 4L) 0x4L;
+    eq' (bit_deposit 235L 522L) 0xAL;
+    eq' (bit_extract 3L 4L) 0x0L;
+    eq' (bit_extract 235L 522L) 0x3L
   ;;
 end
