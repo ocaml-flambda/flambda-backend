@@ -1025,53 +1025,62 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           | Some (field, block) ->
             default_bp dacc (Deps.Dep.Field (Block field, block))
         end
-        | Ternary
-            (Block_set (_access_kind, _init_or_assign), block, field, value) ->
-          begin
-          match known_field_of_block field block with
-          | None ->
-            (* When the field is unknown, the value (and the field) escapes, but
-               only if the block is live *)
-            let block =
-              Simple.pattern_match block
-                ~name:(fun name ~coercion:_ -> name)
-                ~const:(fun _ -> assert false)
-            in
-            let field_dep =
-              Simple.pattern_match field
-                ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Use name])
-                ~const:(fun _ -> [])
-              (* TODO improve ! *)
-            in
-            let value_dep =
-              Simple.pattern_match value
-                ~name:(fun name ~coercion:_ ->
-                  [block, Deps.Dep.Contains (Code_id_or_name.name name)])
-                ~const:(fun _ -> [])
-            in
-            let effect_dep =
-              (* A bit too hackish ? *)
-              (* If the block is used: effects on it have to happen, otherwise
-                 we can drop it *)
-              let bound_to = Bound_pattern.free_names bound_pattern in
-              Name_occurrences.fold_names bound_to
-                ~f:(fun acc bound_to -> (block, Deps.Dep.Use bound_to) :: acc)
-                ~init:[]
-            in
-            let dep = field_dep @ value_dep @ effect_dep in
-            records dacc dep
-          | Some (field, block) ->
-            let value_dep =
-              Simple.pattern_match value
-                ~name:(fun name ~coercion:_ ->
-                  [ ( block,
-                      Deps.Dep.Block (Block field, Code_id_or_name.name name) )
-                  ])
-                ~const:(fun _ -> [])
-            in
-            (* TODO: record dependency on the primitive for side effects *)
-            records dacc value_dep
-        end
+(*        | Ternary
+ *           (Block_set (_access_kind, _init_or_assign), block, field, value) ->
+ *         begin
+ *         match known_field_of_block field block with
+ *         | None ->
+ *           (* When the field is unknown, the value (and the field) escapes, but
+ *              only if the block is live *)
+ *           let block =
+ *             Simple.pattern_match block
+ *               ~name:(fun name ~coercion:_ -> name)
+ *               ~const:(fun _ -> assert false)
+ *           in
+ *           let field_dep =
+ *             Simple.pattern_match field
+ *               ~name:(fun name ~coercion:_ -> [block, Deps.Dep.Use name])
+ *               ~const:(fun _ -> [])
+ *             (* TODO improve ! *)
+ *           in
+ *           let value_dep =
+ *             Simple.pattern_match value
+ *               ~name:(fun name ~coercion:_ ->
+ *                 [block, Deps.Dep.Contains (Code_id_or_name.name name)])
+ *               ~const:(fun _ -> [])
+ *           in
+ *           let effect_dep =
+ *             (* A bit too hackish ? *)
+ *             (* If the block is used: effects on it have to happen, otherwise
+ *                we can drop it *)
+ *             let bound_to = Bound_pattern.free_names bound_pattern in
+ *             Name_occurrences.fold_names bound_to
+ *               ~f:(fun acc bound_to -> (block, Deps.Dep.Use bound_to) :: acc)
+ *               ~init:[]
+ *           in
+ *           let dep = field_dep @ value_dep @ effect_dep in
+ *           records dacc dep
+ *         | Some (field, block) ->
+ *           let value_dep =
+ *             Simple.pattern_match value
+ *               ~name:(fun name ~coercion:_ ->
+ *                 [ ( block,
+ *                     Deps.Dep.Block (Block field, Code_id_or_name.name name) )
+ *                 ])
+ *               ~const:(fun _ -> [])
+ *           in
+ *           let effect_dep =
+ *             (* A bit too hackish ? *)
+ *             (* If the block is used: effects on it have to happen, otherwise
+ *                we can drop it *)
+ *             let bound_to = Bound_pattern.free_names bound_pattern in
+ *             Name_occurrences.fold_names bound_to
+ *               ~f:(fun acc bound_to -> (block, Deps.Dep.Block (Block field, Code_id_or_name.name bound_to)) :: acc)
+ *               ~init:[]
+ *           in
+ *           (* TODO: record dependency on the primitive for side effects *)
+ *           records dacc (value_dep @ effect_dep)
+ *         end *)
         | prim ->
           let dacc =
             match Flambda_primitive.effects_and_coeffects prim with
