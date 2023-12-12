@@ -25,6 +25,8 @@ let f (type a : immediate) (type b : immediate)
 
 module type S_for_layouts = sig
   type t : float64
+
+  type variant = A : ('a : immediate). 'a -> variant
 end;;
 
 type ('a : immediate) for_layouts = 'a;;
