@@ -41,10 +41,10 @@ let add_default_argument_wrappers lam =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
         Lfunction {kind; params; body = fbody; attr; loc;
-                   mode; region; return }, body) ->
+                   ret_mode; mode; region; return }, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return ~attr ~loc ~mode ~region
+          ~body:fbody ~return ~attr ~loc ~ret_mode ~mode ~region
       with
       | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -59,9 +59,9 @@ let add_default_argument_wrappers lam =
             (List.map
                (function
                  | (id, Lambda.Lfunction {kind; params; body; attr; loc;
-                                          mode; region; return }) ->
+                                          ret_mode; mode; region; return }) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return ~attr ~loc ~mode ~region
+                     ~return ~attr ~loc ~ret_mode ~mode ~region
                  | _ -> assert false)
                defs)
         in
@@ -124,6 +124,9 @@ let rec declare_const t (const : Lambda.structured_constant)
   match const with
   | Const_base (Const_int c) -> (Const (Int c), Names.const_int)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
+  | Const_base (Const_unboxed_float _) ->
+    (* CR alanechang: implement unboxed float constants in flambda *)
+    Misc.fatal_error "Unboxed float constants are not supported in flambda. Consider using flambda2."
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       (Flambda.Allocated_const (Immutable_string s),

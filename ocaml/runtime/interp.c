@@ -265,14 +265,18 @@ value caml_interprete(code_t prog, asize_t prog_size)
   value env;
   intnat extra_args;
   struct caml_exception_context * initial_external_raise;
+  struct caml_exception_context * initial_external_raise_async;
   int initial_stack_words;
   intnat initial_trap_sp_off;
   volatile value raise_exn_bucket = Val_unit;
-  struct longjmp_buffer raise_buf;
+  volatile value raise_async_exn_bucket = Val_unit;
+  struct longjmp_buffer raise_buf, raise_async_buf;
   value resume_fn, resume_arg;
   caml_domain_state* domain_state = Caml_state;
   struct caml_exception_context exception_ctx =
     { &raise_buf, domain_state->local_roots, &raise_exn_bucket};
+  struct caml_exception_context exception_ctx_async =
+    { &raise_async_buf, domain_state->local_roots, &raise_async_exn_bucket};
 #ifndef THREADED_CODE
   opcode_t curr_instr;
 #endif
@@ -300,7 +304,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
     raise_unhandled_effect_closure = caml_alloc_small (2, Closure_tag);
     Code_val(raise_unhandled_effect_closure) =
       (code_t)raise_unhandled_effect_code;
-    Closinfo_val(raise_unhandled_effect_closure) = Make_closinfo(0, 2);
+    Closinfo_val(raise_unhandled_effect_closure) = Make_closinfo(0, 2, 1);
     raise_unhandled_effect = raise_unhandled_effect_closure;
     caml_register_generational_global_root(&raise_unhandled_effect);
     caml_global_data = Val_unit;
@@ -316,6 +320,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
   initial_stack_words =
     Stack_high(domain_state->current_stack) - domain_state->current_stack->sp;
   initial_external_raise = domain_state->external_raise;
+  initial_external_raise_async = domain_state->external_raise_async;
 
   if (sigsetjmp(raise_buf.buf, 0)) {
     /* no non-volatile local variables read here */
@@ -332,6 +337,41 @@ value caml_interprete(code_t prog, asize_t prog_size)
     goto raise_notrace;
   }
   domain_state->external_raise = &exception_ctx;
+
+  if (sigsetjmp(raise_async_buf.buf, 0)) {
+    /* no non-volatile local variables read here */
+    sp = domain_state->current_stack->sp;
+    accu = raise_async_exn_bucket;
+
+    check_trap_barrier_for_exception (domain_state);
+    if (domain_state->backtrace_active) {
+         /* pc has already been pushed on the stack when calling the C
+         function that raised the exception. No need to push it again
+         here. */
+      caml_stash_backtrace(accu, sp, 0);
+    }
+
+    /* Skip any exception handlers installed by this invocation of
+       [caml_interprete].  This will cause the [raise_notrace] code below to
+       return asynchronous exceptions to the caller, typically in
+       [caml_callbackN_exn0].  When that function reraises such an exception
+       then [trap_sp_off] will correctly be pointing at the most recent prior
+       trap. */
+    domain_state->trap_sp_off = 1;
+
+    /* Effects not supported yet in conjunction with async exns
+       (see caml_raise_async) */
+    if (Stack_parent(domain_state->current_stack) != NULL)
+      caml_fatal_error("Effects not supported in conjunction with async exns");
+
+    domain_state->external_raise = initial_external_raise;
+    domain_state->external_raise_async = initial_external_raise_async;
+    domain_state->trap_sp_off = initial_trap_sp_off;
+    domain_state->current_stack->sp =
+      Stack_high(domain_state->current_stack) - initial_stack_words ;
+    return Make_exception_result(accu);
+  }
+  domain_state->external_raise_async = &exception_ctx_async;
 
   domain_state->trap_sp_off = 1;
 
@@ -624,7 +664,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         Field(accu, 2) = env;
         for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
         Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
-        Closinfo_val(accu) = Make_closinfo(0, 2);
+        Closinfo_val(accu) = Make_closinfo(0, 2, 1);
         sp += num_args;
         goto do_return;
       }
@@ -648,7 +688,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       /* The code pointer is not in the heap, so no need to go through
          caml_initialize. */
       Code_val(accu) = pc + *pc;
-      Closinfo_val(accu) = Make_closinfo(0, 2);
+      Closinfo_val(accu) = Make_closinfo(0, 2, 1);
       pc++;
       sp += nvars;
       Next;
@@ -680,13 +720,14 @@ value caml_interprete(code_t prog, asize_t prog_size)
       *--sp = accu;
       p = &Field(accu, 0);
       *p++ = (value) (pc + pc[0]);
-      *p++ = Make_closinfo(0, envofs);
+      *p++ = Make_closinfo(0, envofs, nfuncs < 2);
       for (i = 1; i < nfuncs; i++) {
         *p++ = Make_header(i * 3, Infix_tag, 0); /* color irrelevant */
         *--sp = (value) p;
         *p++ = (value) (pc + pc[i]);
         envofs -= 3;
-        *p++ = Make_closinfo(0, envofs);
+        CAMLassert(i <= nfuncs - 1);
+        *p++ = Make_closinfo(0, envofs, i == nfuncs - 1);
       }
       pc += nfuncs;
       Next;
@@ -972,6 +1013,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       if (domain_state->trap_sp_off > 0) {
         if (Stack_parent(domain_state->current_stack) == NULL) {
           domain_state->external_raise = initial_external_raise;
+          domain_state->external_raise_async = initial_external_raise_async;
           domain_state->trap_sp_off = initial_trap_sp_off;
           domain_state->current_stack->sp =
             Stack_high(domain_state->current_stack) - initial_stack_words ;
@@ -1256,6 +1298,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(STOP):
       domain_state->external_raise = initial_external_raise;
+      domain_state->external_raise_async = initial_external_raise_async;
       domain_state->trap_sp_off = initial_trap_sp_off;
       domain_state->current_stack->sp = sp;
       return accu;

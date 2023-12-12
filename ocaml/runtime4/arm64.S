@@ -316,6 +316,8 @@ FUNCTION(caml_start_program)
 /* Address of OCaml code to call is in TMP2 */
 /* Arguments to the OCaml code are in x0...x7 */
 
+/* CR mshinwell: asynchronous exceptions are not yet implemented here */
+
 L(jump_to_caml):
     /* Set up stack frame and save callee-save registers */
         CFI_OFFSET(29, -160)

@@ -1107,6 +1107,11 @@ int caml_num_rows_fd(int fd)
   return -1;
 }
 
+void caml_print_timestamp(FILE* channel, int formatted)
+{
+  /* unimplemented */
+}
+
 /* UCRT clock function returns wall-clock time */
 CAMLexport clock_t caml_win32_clock(void)
 {
@@ -1151,13 +1156,8 @@ int64_t caml_time_counter(void)
   return (int64_t)(now.QuadPart * clock_period);
 }
 
-void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
+void *caml_plat_mem_map(uintnat size, int reserve_only)
 {
-  /* VirtualAlloc returns an address aligned to caml_plat_mmap_alignment, so
-     trimming will not be required. VirtualAlloc returns 0 on error. */
-  if (alignment > caml_plat_mmap_alignment)
-    caml_fatal_error("Cannot align memory to %" ARCH_INTNAT_PRINTF_FORMAT "x"
-                     " on this platform", alignment);
   return
     VirtualAlloc(NULL, size,
                  MEM_RESERVE | (reserve_only ? 0 : MEM_COMMIT),

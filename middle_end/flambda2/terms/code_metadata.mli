@@ -44,6 +44,8 @@ module type Code_metadata_accessors_result_type = sig
 
   val result_types : 'a t -> Result_types.t Or_unknown_or_bottom.t
 
+  val result_mode : 'a t -> Lambda.alloc_mode
+
   val stub : 'a t -> bool
 
   val inline : 'a t -> Inline_attribute.t
@@ -53,6 +55,8 @@ module type Code_metadata_accessors_result_type = sig
   val poll_attribute : 'a t -> Poll_attribute.t
 
   val is_a_functor : 'a t -> bool
+
+  val is_opaque : 'a t -> bool
 
   val recursive : 'a t -> Recursive.t
 
@@ -90,12 +94,14 @@ type 'a create_type =
   first_complex_local_param:int ->
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
+  result_mode:Lambda.alloc_mode ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
   check:Check_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
+  is_opaque:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
   inlining_arguments:Inlining_arguments.t ->

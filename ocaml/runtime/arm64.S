@@ -137,11 +137,15 @@
 #if defined(FUNCTION_SECTIONS)
         TEXT_SECTION(caml_hot.code_begin)
         .globl  G(caml_hot.code_begin)
+        .globl  G(caml_hot__code_begin)
 G(caml_hot.code_begin):
+G(caml_hot__code_begin):
 
         TEXT_SECTION(caml_hot.code_end)
         .globl  G(caml_hot.code_end)
+        .globl  G(caml_hot__code_end)
 G(caml_hot.code_end):
+G(caml_hot__code_end):
 #endif
 
 #if defined(SYS_macosx)
@@ -923,14 +927,14 @@ G(caml_system__code_end):
 /* GC roots for callback */
 
 OBJECT(caml_system.frametable)
-        .quad   2               /* two descriptors */
-        .quad   L(caml_retaddr) /* return address into callback */
-        .short  -1              /* negative frame size => use callback link */
-        .short  0               /* no roots */
+        .quad   2                   /* two descriptors */
+        .4byte  L(caml_retaddr) - . /* return address into callback */
+        .short  -1                  /* negative frame size => use callback link */
+        .short  0                   /* no roots */
         .align  3
-        .quad   L(frame_runstack) /* return address into fiber handler */
-        .short  -1              /* negative frame size => use callback link */
-        .short  0               /* no roots here */
+        .4byte  L(frame_runstack) - . /* return address into fiber handler */
+        .short  -1                    /* negative frame size => use callback link */
+        .short  0                     /* no roots here */
         .align 3
         END_OBJECT(caml_system.frametable)
 

@@ -38,7 +38,9 @@ let bind_nonvar name arg fn =
   | _ -> let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
-let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
+let caml_local =
+  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+(* cf. runtime/caml/gc.h *)
     (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -707,12 +709,9 @@ let get_header ptr dbg =
      loads can be marked as [Immutable], since the runtime should ensure that
      there is no data race on headers. This saves performance with
      ThreadSanitizer instrumentation by avoiding to instrument header loads. *)
-  Cop(
-(* BACKPORT BEGIN
-    mk_load_immut Word_int,
-*)
-    mk_load_mut Word_int,
-(* BACKPORT END *)
+  Cop((if Config.runtime5
+       then mk_load_immut Word_int
+       else mk_load_mut Word_int),
     [Cop(Cadda, [ptr; Cconst_int(-size_int, dbg)], dbg)], dbg)
 
 let get_header_masked ptr dbg =
@@ -730,12 +729,9 @@ let get_tag ptr dbg =
     Cop(Cand, [get_header ptr dbg; Cconst_int (255, dbg)], dbg)
   else                                  (* If byte loads are efficient *)
     (* Same comment as [get_header] above *)
-    Cop(
-(* BACKPORT BEGIN
-      mk_load_immut Byte_unsigned,
-*)
-      mk_load_mut Byte_unsigned,
-(* BACKPORT END *)
+    Cop((if Config.runtime5
+         then mk_load_immut Byte_unsigned
+         else mk_load_mut Byte_unsigned),
       [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
 
 let get_size ptr dbg =
@@ -1012,11 +1008,9 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
                           fill_fields (idx + 2) el) in
     Clet(VP.create id,
-(* BACKPORT BEGIN
-         Cop(Cextcall("caml_alloc_shr_check_gc", typ_val, [], true),
-*)
-         Cop(Cextcall("caml_alloc", typ_val, [], true),
-(* BACKPORT END *)
+         Cop(Cextcall((if Config.runtime5
+                       then "caml_alloc_shr_check_gc"
+                       else "caml_alloc"), typ_val, [], true),
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
          fill_fields 1 args)
   end
@@ -2554,13 +2548,9 @@ let assignment_kind
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
-(* BACKPORT BEGIN
-  | Heap_initialization, Pointer
-  | Root_initialization, Pointer -> Caml_initialize
-*)
   | Heap_initialization, Pointer -> Caml_initialize
-  | Root_initialization, Pointer -> Simple Initialization
-(* BACKPORT END *)
+  | Root_initialization, Pointer ->
+    if Config.runtime5 then Caml_initialize else Simple Initialization
   | (Assignment _), Immediate -> Simple Assignment
   | Heap_initialization, Immediate
   | Root_initialization, Immediate -> Simple Initialization

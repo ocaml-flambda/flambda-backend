@@ -918,10 +918,10 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
       ~const:(fun const ->
         match Reg_width_const.descr const with
         | Tagged_immediate index ->
+          let kind = P.Block_access_kind.element_subkind_for_load access_kind in
           Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
-            ~projection_bound_to:result_var
-            ~kind:Flambda_kind.With_subkind.tagged_immediate
+            ~projection_bound_to:result_var ~kind
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
         | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
@@ -985,6 +985,18 @@ let simplify_bigarray_get_alignment _align ~original_prim dacc ~original_term
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_atomic_exchange ~original_prim dacc ~original_term _dbg ~arg1:_
+    ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
+let simplify_atomic_fetch_and_add ~original_prim dacc ~original_term _dbg
+    ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -1029,6 +1041,8 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
         ~original_prim
     | Bigarray_get_alignment align ->
       simplify_bigarray_get_alignment align ~original_prim
+    | Atomic_exchange -> simplify_atomic_exchange ~original_prim
+    | Atomic_fetch_and_add -> simplify_atomic_fetch_and_add ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
 
@@ -1037,7 +1051,8 @@ let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
   | Block_load _ | Array_load _ | Int_arith _ | Int_shift _
   | Int_comp (_, Yielding_int_like_compare_functions _)
   | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
-  | Bigarray_load _ | Bigarray_get_alignment _ ->
+  | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange
+  | Atomic_fetch_and_add ->
     None
   | Int_comp (kind, Yielding_bool op) -> (
     match kind with

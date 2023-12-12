@@ -226,6 +226,9 @@ let ocaml_script_as_argument =
 let plugins =
   Variables.make ( "plugins", "plugins for ocamldoc" )
 
+let runtime_dir =
+  Variables.make ( "runtime_dir", "leafname of the runtime directory" )
+
 let shared_library_cflags =
   Variables.make ("shared_library_cflags",
     "Flags used to compile C files for inclusion in shared libraries")
@@ -296,6 +299,7 @@ let _ = List.iter register_variable
     ocaml_script_as_argument;
     os_type;
     plugins;
+    runtime_dir;
     shared_library_cflags;
     sharedobjext;
     use_runtime;

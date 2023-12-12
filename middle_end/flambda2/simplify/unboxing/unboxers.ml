@@ -158,16 +158,15 @@ module Field = struct
 end
 
 module Closure_field = struct
-  let unboxing_prim function_slot ~closure value_slot kind =
+  let unboxing_prim function_slot ~closure value_slot =
     P.Unary
-      ( Project_value_slot { project_from = function_slot; value_slot; kind },
-        closure )
+      (Project_value_slot { project_from = function_slot; value_slot }, closure)
 
-  let unboxer function_slot value_slot kind =
+  let unboxer function_slot value_slot =
     { var_name = "closure_field_at_use";
       invalid_const = Const.const_zero;
       unboxing_prim =
-        (fun closure -> unboxing_prim function_slot ~closure value_slot kind);
+        (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =
         (fun tenv ~min_name_mode t ->
           T.meet_project_value_slot_simple tenv ~min_name_mode t value_slot)

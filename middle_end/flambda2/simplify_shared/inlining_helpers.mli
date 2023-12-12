@@ -16,7 +16,7 @@
 
 val make_inlined_body :
   callee:Simple.t option ->
-  region_inlined_into:Variable.t ->
+  region_inlined_into:Alloc_mode.For_allocations.t ->
   params:'param list ->
   args:Simple.List.t ->
   my_closure:'param ->

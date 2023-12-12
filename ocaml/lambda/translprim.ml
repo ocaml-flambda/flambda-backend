@@ -15,7 +15,6 @@
 
 (* Translation of primitives *)
 
-open Asttypes
 open Primitive
 open Types
 open Typedtree
@@ -1002,6 +1001,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        ~loc
        ~body
        ~mode:alloc_heap
+       ~ret_mode:(to_locality p.prim_native_repr_res)
        ~region
 
 let lambda_primitive_needs_event_after = function
@@ -1039,7 +1039,8 @@ let lambda_primitive_needs_event_after = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
+  | Pfloatcomp _ | Punboxed_float_comp _
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _

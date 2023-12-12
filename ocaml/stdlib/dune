@@ -108,6 +108,8 @@
   char.mli
   complex.ml
   complex.mli
+  condition.ml
+  condition.mli
   digest.ml
   digest.mli
   domain.ml
@@ -156,6 +158,8 @@
   marshal.mli
   moreLabels.ml
   moreLabels.mli
+  mutex.ml
+  mutex.mli
   nativeint.ml
   nativeint.mli
   obj.ml
@@ -180,6 +184,8 @@
   result.mli
   scanf.ml
   scanf.mli
+  semaphore.ml
+  semaphore.mli
   seq.ml
   seq.mli
   set.ml
@@ -244,6 +250,9 @@
   .stdlib.objs/byte/stdlib__Complex.cmi
   .stdlib.objs/byte/stdlib__Complex.cmt
   .stdlib.objs/byte/stdlib__Complex.cmti
+  .stdlib.objs/byte/stdlib__Condition.cmi
+  .stdlib.objs/byte/stdlib__Condition.cmt
+  .stdlib.objs/byte/stdlib__Condition.cmti
   .stdlib.objs/byte/stdlib__Digest.cmi
   .stdlib.objs/byte/stdlib__Digest.cmt
   .stdlib.objs/byte/stdlib__Digest.cmti
@@ -316,6 +325,9 @@
   .stdlib.objs/byte/stdlib__MoreLabels.cmi
   .stdlib.objs/byte/stdlib__MoreLabels.cmt
   .stdlib.objs/byte/stdlib__MoreLabels.cmti
+  .stdlib.objs/byte/stdlib__Mutex.cmi
+  .stdlib.objs/byte/stdlib__Mutex.cmt
+  .stdlib.objs/byte/stdlib__Mutex.cmti
   .stdlib.objs/byte/stdlib__Nativeint.cmi
   .stdlib.objs/byte/stdlib__Nativeint.cmt
   .stdlib.objs/byte/stdlib__Nativeint.cmti
@@ -352,6 +364,9 @@
   .stdlib.objs/byte/stdlib__Scanf.cmi
   .stdlib.objs/byte/stdlib__Scanf.cmt
   .stdlib.objs/byte/stdlib__Scanf.cmti
+  .stdlib.objs/byte/stdlib__Semaphore.cmi
+  .stdlib.objs/byte/stdlib__Semaphore.cmt
+  .stdlib.objs/byte/stdlib__Semaphore.cmti
   .stdlib.objs/byte/stdlib__Seq.cmi
   .stdlib.objs/byte/stdlib__Seq.cmt
   .stdlib.objs/byte/stdlib__Seq.cmti
@@ -437,6 +452,9 @@
   .stdlib.objs/native/stdlib__Result.cmx
   .stdlib.objs/native/stdlib__Map.cmx
   .stdlib.objs/native/stdlib__Char.cmx
+  .stdlib.objs/native/stdlib__Condition.cmx
+  .stdlib.objs/native/stdlib__Mutex.cmx
+  .stdlib.objs/native/stdlib__Semaphore.cmx
   .stdlib.objs/native/stdlib__Printexc.cmx
   .stdlib.objs/native/stdlib__Lazy.cmx
   .stdlib.objs/native/stdlib__Parsing.cmx

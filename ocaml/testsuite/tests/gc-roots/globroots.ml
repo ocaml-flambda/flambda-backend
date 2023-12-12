@@ -26,27 +26,14 @@ module Generational : GLOBREF = struct
   external remove: t -> unit = "gb_generational_remove"
 end
 
-(* BACKPORT BEGIN *)
-module Domain = struct
-  module DLS = struct
-    let get t = Lazy.force t
-  end
-end
-(* BACKPORT END *)
-
 module Test(G: GLOBREF) () = struct
 
   let size = 1024
 
   let random_state =
-    (* BACKPORT BEGIN
     Domain.DLS.new_key
       ~split_from_parent:Random.State.split
       Random.State.make_self_init
-    *)
-    lazy (Random.State.make_self_init ())
-    (* BACKPORT END *)
-
 
   let vals = Array.init size Int.to_string
 

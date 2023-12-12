@@ -962,7 +962,7 @@ end = struct
 
   let assert_unboxed_literals ~loc =
     Language_extension.(
-      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Beta)
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
   let unboxed ~loc x =
     assert_unboxed_literals ~loc:(make_loc loc);

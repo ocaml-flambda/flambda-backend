@@ -32,6 +32,7 @@
 #include "caml/major_gc.h"
 #include "caml/memory.h"
 #include "caml/startup_aux.h"
+#include "caml/shared_heap.h"
 #ifdef NATIVE_CODE
 #include "caml/stack.h"
 #include "caml/frame_descriptors.h"
@@ -222,16 +223,169 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
   *sp = p + sizeof(value);
 }
 
+
+static const header_t Hd_high_bit =
+  ((uintnat)-1) << (sizeof(uintnat) * 8 - 1);
+
+
+/* Returns the arena number of a block,
+   or -1 if it is not in any local arena */
+static int get_local_ix(caml_local_arenas* loc, value v)
+{
+  int i;
+  CAMLassert(Is_block(v));
+  /* Search local arenas, starting from the largest (last) */
+  for (i = 0; i < loc->count; i++) {
+    struct caml_local_arena arena = loc->arenas[i];
+    if (arena.base <= (char*)v && (char*)v < arena.base + arena.length)
+      return i;
+  }
+  return -1;
+}
+
+
+/* If it visits an unmarked local block,
+      returns the index of the containing arena
+   Otherwise returns -1. */
+static int visit(scanning_action f, void* fdata,
+                 struct caml_local_arenas* locals,
+                 value* p)
+{
+  value v = *p, vblock = v;
+  header_t hd;
+  int ix;
+  if (!Is_block(v))
+    return -1;
+
+  if (Is_young(v)) {
+    f(fdata, v, p);
+    return -1;
+  }
+
+  /* major or local or external */
+
+  hd = Hd_val(vblock);
+  if (Tag_hd(hd) == Infix_tag) {
+    vblock -= Infix_offset_val(v);
+    hd = Hd_val(vblock);
+  }
+
+  if (Color_hd(hd) != NOT_MARKABLE) {
+    /* Major heap */
+    f(fdata, v, p);
+    return -1;
+  } else {
+    /* Local or external */
+    if (hd & Hd_high_bit)
+      /* Local, marked */
+      return -1;
+
+    if (locals == NULL)
+      /* external */
+      return -1;
+
+    ix = get_local_ix(locals, vblock);
+
+    if (ix != -1) {
+      /* Mark this unmarked local */
+      *Hp_val(vblock) = hd | Hd_high_bit;
+    }
+
+    return ix;
+  }
+}
+
+static void scan_local_allocations(scanning_action f, void* fdata,
+                                   caml_local_arenas* loc)
+{
+  int arena_ix;
+  intnat sp;
+  struct caml_local_arena arena;
+
+  if (loc == NULL) return;
+  CAMLassert(loc->count > 0);
+  sp = loc->saved_sp;
+  arena_ix = loc->count - 1;
+  arena = loc->arenas[arena_ix];
+#ifdef DEBUG
+  { header_t* hp;
+    for (hp = (header_t*)arena.base;
+         hp < (header_t*)(arena.base + arena.length + sp);
+         hp++) {
+      *hp = Debug_free_local;
+    }
+  }
+#endif
+
+  while (sp < 0) {
+    header_t* hp = (header_t*)(arena.base + arena.length + sp), hd = *hp;
+    intnat i;
+
+    if (hd == Local_uninit_hd) {
+      CAMLassert(arena_ix > 0);
+      arena = loc->arenas[--arena_ix];
+#ifdef DEBUG
+      for (hp = (header_t*)arena.base;
+           hp < (header_t*)(arena.base + arena.length + sp);
+           hp++) {
+        *hp = Debug_free_local;
+      }
+#endif
+      continue;
+    }
+    CAMLassert(Color_hd(hd) == NOT_MARKABLE);
+    if (!(hd & Hd_high_bit)) {
+      /* Local allocation, not marked */
+#ifdef DEBUG
+      for (i = 0; i < Wosize_hd(hd); i++)
+        Field(Val_hp(hp), i) = Debug_free_local;
+#endif
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    /* reset mark */
+    hd &= ~Hd_high_bit;
+    *hp = hd;
+    CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
+    CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
+    if (Tag_hd(hd) >= No_scan_tag) {
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    i = 0;
+    if (Tag_hd(hd) == Closure_tag)
+      i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+    for (; i < Wosize_hd(hd); i++) {
+      value *p = Op_val(Val_hp(hp)) + i;
+      int marked_ix = visit(f, fdata, loc, p);
+      if (marked_ix != -1) {
+        struct caml_local_arena a = loc->arenas[marked_ix];
+        intnat newsp = (char*)*p - (a.base + a.length);
+        if (sp <= newsp) {
+          /* forwards pointer, common case */
+          CAMLassert(marked_ix <= arena_ix);
+        } else {
+          /* If backwards pointers are ever supported (e.g. local recursive
+             values), then this should reset sp and iterate to a fixpoint */
+          CAMLassert(marked_ix >= arena_ix);
+          caml_fatal_error("backwards local pointer");
+        }
+      }
+    }
+    sp += Bhsize_hd(hd);
+  }
+}
+
+
 Caml_inline void scan_stack_frames(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   char * sp;
   uintnat retaddr;
   value * regs;
   frame_descr * d;
-  int n, ofs;
-  unsigned short * p;
   value *root;
   caml_frame_descrs fds = caml_get_frame_descrs();
 
@@ -250,14 +404,31 @@ next_chunk:
     CAMLassert(d);
     if (!frame_return_to_C(d)) {
       /* Scan the roots in this frame */
-      for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-        ofs = *p;
-        if (ofs & 1) {
-          root = regs + (ofs >> 1);
-        } else {
-          root = (value *)(sp + ofs);
+      if (frame_is_long(d)) {
+        frame_descr_long *dl = frame_as_long(d);
+        uint32_t *p;
+        uint32_t n;
+        for (p = dl->live_ofs, n = dl->num_live; n > 0; n--, p++) {
+          uint32_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          visit (f, fdata, locals, root);
         }
-        f (fdata, *root, root);
+      } else {
+        uint16_t *p;
+        uint16_t n;
+        for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
+          uint16_t ofs = *p;
+          if (ofs & 1) {
+            root = regs + (ofs >> 1);
+          } else {
+            root = (value *)(sp + ofs);
+          }
+          visit (f, fdata, locals, root);
+        }
       }
       /* Move to next frame */
       sp += frame_size(d);
@@ -276,10 +447,11 @@ next_chunk:
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs)
+  struct stack_info* stack, value* gc_regs,
+  struct caml_local_arenas* locals)
 {
   while (stack != NULL) {
-    scan_stack_frames(f, fflags, fdata, stack, gc_regs);
+    scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
     f(fdata, Stack_handle_value(stack), &Stack_handle_value(stack));
     f(fdata, Stack_handle_exception(stack), &Stack_handle_exception(stack));
@@ -296,7 +468,8 @@ void caml_maybe_expand_stack (void)
     (value*)stk->sp - Stack_base(stk);
   uintnat stack_needed =
     Stack_threshold / sizeof(value)
-    + 8 /* for words pushed by caml_start_program */;
+    + 10 /* for words pushed by caml_start_program */;
+  /* XXX does this "8" need updating?  Provisionally changed to 10 */
 
   if (stack_available < stack_needed)
     if (!caml_try_realloc_stack (stack_needed))
@@ -362,7 +535,8 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs)
+  struct stack_info* stack, value* v_gc_regs,
+  struct caml_local_arenas* unused)
 {
   value *low, *high, *sp;
 
@@ -391,6 +565,40 @@ void caml_scan_stack(
 
 #endif /* end BYTE_CODE */
 
+CAMLexport void caml_do_local_roots (
+  scanning_action f, scanning_action_flags fflags, void* fdata,
+  struct caml__roots_block *local_roots,
+  struct stack_info *current_stack,
+  value * v_gc_regs,
+  struct caml_local_arenas* locals)
+{
+  struct caml__roots_block *lr;
+  int i, j;
+  value* sp;
+
+  for (lr = local_roots; lr != NULL; lr = lr->next) {
+    for (i = 0; i < lr->ntables; i++){
+      for (j = 0; j < lr->nitems; j++){
+        sp = &(lr->tables[i][j]);
+        if (*sp != 0) {
+#ifdef NATIVE_CODE
+          visit (f, fdata, locals, sp);
+#else
+          f (fdata, *sp, sp);
+#endif
+        }
+      }
+    }
+  }
+  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs, locals);
+#ifdef NATIVE_CODE
+  scan_local_allocations(f, fdata, locals);
+#else
+  CAMLassert(locals == NULL);
+#endif
+}
+
+
 /*
   Stack management.
 
@@ -400,19 +608,28 @@ void caml_scan_stack(
 #ifdef NATIVE_CODE
 /* Update absolute exception pointers for new stack*/
 void caml_rewrite_exception_stack(struct stack_info *old_stack,
-                                  value** exn_ptr, struct stack_info *new_stack)
+                                  value** exn_ptr, value** async_exn_ptr,
+                                  struct stack_info *new_stack)
 {
   fiber_debug_log("Old [%p, %p]", Stack_base(old_stack), Stack_high(old_stack));
   fiber_debug_log("New [%p, %p]", Stack_base(new_stack), Stack_high(new_stack));
   if(exn_ptr) {
+    CAMLassert(async_exn_ptr != NULL);
+
     fiber_debug_log ("*exn_ptr=%p", *exn_ptr);
+    fiber_debug_log ("*async_exn_ptr=%p", *async_exn_ptr);
 
     while (Stack_base(old_stack) < *exn_ptr &&
            *exn_ptr <= Stack_high(old_stack)) {
+      int must_update_async_exn_ptr = *exn_ptr == *async_exn_ptr;
 #ifdef DEBUG
       value* old_val = *exn_ptr;
 #endif
       *exn_ptr = Stack_high(new_stack) - (Stack_high(old_stack) - *exn_ptr);
+
+      if (must_update_async_exn_ptr) *async_exn_ptr = *exn_ptr;
+      fiber_debug_log ("must_update_async_exn_ptr=%d",
+        must_update_async_exn_ptr);
 
       fiber_debug_log ("Rewriting %p to %p", old_val, *exn_ptr);
 
@@ -424,6 +641,7 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
     fiber_debug_log ("finished with *exn_ptr=%p", *exn_ptr);
   } else {
     fiber_debug_log ("exn_ptr is null");
+    CAMLassert(async_exn_ptr == NULL);
   }
 }
 
@@ -521,8 +739,13 @@ int caml_try_realloc_stack(asize_t required_space)
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
 #ifdef NATIVE_CODE
+  /* There's no need to do another pass rewriting from
+     Caml_state->async_exn_handler because every asynchronous exception trap
+     frame is also a normal exception trap frame.  However
+     Caml_state->async_exn_handler itself must be updated. */
   caml_rewrite_exception_stack(old_stack, (value**)&Caml_state->exn_handler,
-                              new_stack);
+                               (value**) &Caml_state->async_exn_handler,
+                               new_stack);
 #ifdef WITH_FRAME_POINTERS
   rewrite_frame_pointers(old_stack, new_stack);
 #endif
@@ -538,6 +761,20 @@ int caml_try_realloc_stack(asize_t required_space)
         link->stack = new_stack;
         link->sp = (void*)((char*)Stack_high(new_stack) -
                            ((char*)Stack_high(old_stack) - (char*)link->sp));
+      }
+      if (link->async_exn_handler >= (char*) Stack_base(old_stack)
+          && link->async_exn_handler < (char*) Stack_high(old_stack)) {
+        /* The asynchronous exception trap frame pointed to by the current
+           c_stack_link lies on the OCaml stack being reallocated.  Repoint the
+           trap frame to the new stack. */
+        fiber_debug_log("Rewriting link->async_exn_handler %p...",
+          link->async_exn_handler);
+        link->async_exn_handler +=
+          (char*) Stack_high(new_stack) - (char*) Stack_high(old_stack);
+        fiber_debug_log("...to %p", link->async_exn_handler);
+      } else {
+        fiber_debug_log("Not touching link->async_exn_handler %p",
+          link->async_exn_handler);
       }
     }
   }

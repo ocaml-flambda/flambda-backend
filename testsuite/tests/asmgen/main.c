@@ -24,6 +24,10 @@ void caml_call_gc(void)
 {
 
 }
+void caml_call_realloc_stack(void)
+{
+
+};
 #endif
 
 void caml_ml_array_bound_error(void)

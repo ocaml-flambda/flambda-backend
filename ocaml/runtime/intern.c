@@ -401,8 +401,7 @@ static value intern_alloc_obj(struct caml_intern_state* s, caml_domain_state* d,
     s->intern_dest += 1 + wosize;
   } else {
     p = caml_shared_try_alloc(d->shared_heap, wosize, tag,
-                              0, /* no reserved bits */
-                              0 /* not pinned */);
+                              0 /* no reserved bits */);
     d->allocated_words += Whsize_wosize(wosize);
     if (p == NULL) {
       intern_cleanup (s);
@@ -522,6 +521,15 @@ static void intern_rec(struct caml_intern_state* s,
 #else
         intern_cleanup(s);
         caml_failwith("input_value: integer too large");
+        break;
+#endif
+      case CODE_UNBOXED_INT64:
+#ifdef ARCH_SIXTYFOUR
+        v = (intnat) (read64u(s));
+        break;
+#else
+        intern_cleanup();
+        caml_failwith("input_value: CODE_UNBOXED_INT64 not supported on 32 bit");
         break;
 #endif
       case CODE_SHARED8:

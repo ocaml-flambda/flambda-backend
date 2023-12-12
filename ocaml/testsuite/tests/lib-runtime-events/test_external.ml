@@ -1,8 +1,9 @@
 (* TEST
-   reason = "OCaml 5 only"
+* runtime4
+** skip
+* runtime5
    include runtime_events
    include unix
-   * skip
    ** libunix
    *** bytecode
    *** native *)
