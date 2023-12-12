@@ -1305,9 +1305,21 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     | Apply apply ->
       (* TODO rewrite other simples *)
       let apply =
-        Apply_expr.with_args apply
-          (List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
+        Apply_expr.create
+          ~callee:(rewrite_simple kinds uses (Apply_expr.callee apply))
+          ~continuation:(Apply_expr.continuation apply)
+          (Apply_expr.exn_continuation apply)
+          ~args:(List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
           ~args_arity:(Apply_expr.args_arity apply)
+          ~return_arity:(Apply_expr.return_arity apply)
+          ~call_kind:(Apply_expr.call_kind apply)
+          (Apply_expr.dbg apply)
+          ~inlined:(Apply_expr.inlined apply)
+          ~inlining_state:(Apply_expr.inlining_state apply)
+          ~probe:(Apply_expr.probe apply)
+          ~position:(Apply_expr.position apply)
+          ~relative_history:(Apply_expr.relative_history apply)
+          ~region:(Apply_expr.region apply)
       in
       Flambda.Expr.create_apply apply
   in
