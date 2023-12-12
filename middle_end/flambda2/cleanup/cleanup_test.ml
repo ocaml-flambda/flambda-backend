@@ -779,12 +779,6 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               conts = denv.conts;
               current_code_id = denv.current_code_id
             } dacc cont_handler (fun handler dacc ->
-              let dacc =
-                List.fold_left
-                  (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
-                  dacc
-                  (Bound_parameters.to_list handler.bound_parameters)
-              in
               let conts =
                 Continuation.Map.add cont
                   (Normal (Bound_parameters.vars handler.bound_parameters))
@@ -1187,6 +1181,16 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
       in
       let denv = { parent = Up; conts; current_code_id = Some code_id } in
       let dacc =
+        List.fold_left
+          (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
+          dacc
+          (Bound_parameters.to_list params)
+      in
+      let dacc = Dacc.kind (Name.var my_closure) Flambda_kind.value dacc in
+      let dacc = Dacc.kind (Name.var my_region) Flambda_kind.region dacc in
+      let dacc = Dacc.kind (Name.var my_depth) Flambda_kind.rec_info dacc in
+
+      let dacc =
         List.fold_left2
           (fun dacc param arg -> Dacc.func_param_dep ~denv param arg dacc)
           dacc
@@ -1225,6 +1229,12 @@ and traverse_cont_handler :
   let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
   Flambda.Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
+      let dacc =
+        List.fold_left
+          (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
+          dacc
+          (Bound_parameters.to_list bound_parameters)
+      in
       let expr, dacc = traverse denv dacc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
@@ -1258,14 +1268,15 @@ let poison (kind : Flambda_kind.t) =
 let rewrite_simple kinds (uses : uses) simple =
   Simple.pattern_match simple
     ~name:(fun name ~coercion:_ ->
-      let kind =
-        match Name.Map.find_opt name kinds with
-        | Some k -> k
-        | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
-      in
-      if Hashtbl.mem uses (Code_id_or_name.name name)
-      then simple
-      else poison kind)
+        if Hashtbl.mem uses (Code_id_or_name.name name)
+        then simple
+        else
+          let kind =
+            match Name.Map.find_opt name kinds with
+            | Some k -> k
+            | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
+          in
+          poison kind)
     ~const:(fun _ -> simple)
 
 let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
@@ -1359,6 +1370,10 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
       in
       rebuild_holed kinds uses let_.parent subexpr
     in
+    let[@local] erase () =
+      Format.eprintf "Removing %a@." Bound_pattern.print let_.bound_pattern;
+      rebuild_holed kinds uses let_.parent hole
+    in
     match let_.bound_pattern with
     | Set_of_closures _ -> default ()
     | Static l ->
@@ -1369,15 +1384,13 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
              | Block_like _ | Set_of_closures _ -> false)
            (Bound_static.to_list l)
-      then rebuild_holed kinds uses let_.parent hole
+      then erase ()
       else default ()
     | Singleton v ->
       let v = Bound_var.var v in
       if Hashtbl.mem uses (Code_id_or_name.var v)
       then default ()
-      else (
-        Format.eprintf "VAR = %a@." Variable.print v;
-        rebuild_holed kinds uses let_.parent hole))
+      else erase ())
   | Let_cont { cont; parent; handler } ->
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
