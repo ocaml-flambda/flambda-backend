@@ -214,7 +214,7 @@ OCAMLYACC ?= $(ROOTDIR)/yacc/ocamlyacc$(EXE)
 
 OCAMLYACCFLAGS ?= --strict -v
 
-%.ml %.mli: %.mly
+%.ml %.mli: %.mly $(OCAMLYACC)
 	$(V_OCAMLYACC)$(OCAMLYACC) $(OCAMLYACCFLAGS) $<
 
 SAK = $(ROOTDIR)/$(RUNTIME_DIR)/sak$(EXE)
