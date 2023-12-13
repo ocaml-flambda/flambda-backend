@@ -581,10 +581,10 @@
 
 (rule
  (enabled_if (= %{context_name} "main"))
- (targets test_assume_fail.output.corrected)
- (deps (:ml test_assume_fail.ml) filter.sh)
+ (targets test_assume_on_call.output.corrected)
+ (deps (:ml test_assume_on_call.ml) filter.sh)
  (action
-   (with-outputs-to test_assume_fail.output.corrected
+   (with-outputs-to test_assume_on_call.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
@@ -597,3 +597,4 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_assume_fail.output test_assume_fail.output.corrected)
  (action (diff test_assume_fail.output test_assume_fail.output.corrected)))
+
