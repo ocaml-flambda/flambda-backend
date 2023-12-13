@@ -176,7 +176,7 @@ Caml_inline void check_trap_barrier_for_effect
    [element] is the value to store, which may be either an immediate or a pointer
    to a float
  */
-Caml_inline void store_abs_flat_field(value block, mlsize_t idx, uintptr_t element) {
+Caml_inline void store_mixed_flat_field(value block, mlsize_t idx, uintptr_t element) {
   if (Is_block((int)element)) {
     double d = (Double_val(element));
     Store_double_flat_field(block, idx, d);
@@ -884,19 +884,39 @@ value caml_interprete(code_t prog, asize_t prog_size)
       Next;
     }
     Instruct(MAKEMIXEDBLOCK): {
-        mlsize_t size = *pc++;
+        mlsize_t value_prefix_len = *pc++;
+        mlsize_t flat_suffix_len = *pc++;
         mlsize_t i;
         value block;
+        mlsize_t size = value_prefix_len + flat_suffix_len;
+        mlsize_t reserved = value_prefix_len + 1;
+        // CR mixed blocks: Double_wosize looks wrong here?
         if (size <= Max_young_wosize / Double_wosize) {
-          Alloc_small(block, size * Double_wosize, Abstract_tag, Enter_gc);
+          // CR mixed blocks: wrong tag! (0)
+          Alloc_small_with_reserved(block, size * Double_wosize, 0, Enter_gc,
+                                    reserved);
         } else {
-          block = caml_alloc_shr(size * Double_wosize, Abstract_tag);
+          // CR mixed blocks: wrong tag! (0)
+          block = caml_alloc_shr_reserved(size * Double_wosize, 0, reserved);
         }
-        store_abs_flat_field(block, 0, accu);
-        for (i = 1; i < size; i++){
-          store_abs_flat_field(block, i, *sp);
+
+        if (value_prefix_len == 0) {
+          store_mixed_flat_field(block, 0, accu);
+        } else {
+          Field(block, 0) = accu;
+        }
+
+        for (i = 1; i < value_prefix_len; i++){
+          Field(block, i) = *sp;
           ++ sp;
         }
+
+        for (i = value_prefix_len; i < size; i++) {
+          store_mixed_flat_field(block, i, *sp);
+          ++ sp;
+        }
+
+
         accu = block;
         Next;
     }

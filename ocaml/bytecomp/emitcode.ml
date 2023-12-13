@@ -263,8 +263,12 @@ let emit_instr = function
       if n < 4 then out(opSETFIELD0 + n) else (out opSETFIELD; out_int n)
   | Kmakefloatblock(n) ->
       if n = 0 then out opATOM0 else (out opMAKEFLOATBLOCK; out_int n)
-  | Kmakemixedblock(n) ->
-      if n = 0 then out opATOM0 else (out opMAKEMIXEDBLOCK; out_int n)
+  | Kmakemixedblock (value_prefix_len, flat_suffix_len) ->
+      if value_prefix_len = 0 && flat_suffix_len = 0
+      then Misc.fatal_error "empty mixed block"
+      else (out opMAKEMIXEDBLOCK;
+            out_int value_prefix_len;
+            out_int flat_suffix_len)
   | Kgetfloatfield n -> out opGETFLOATFIELD; out_int n
   | Ksetfloatfield n -> out opSETFLOATFIELD; out_int n
   | Kvectlength -> out opVECTLENGTH

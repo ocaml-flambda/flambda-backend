@@ -858,12 +858,14 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakemixedblock _, args, loc) ->
-      (* The implementation of [Kmakeabsblock] figures out which args are floats
-         in need of unboxing dynamically. *)
+  | Lprim(Pmakemixedblock (_, shape, _), args, loc) ->
+      let value_prefix_len = shape.value_prefix_len in
+      let flat_suffix_len = Array.length shape.flat_suffix in
+      (* The implementation of [Kmakeabsblock] figures out which args of
+         the flat suffix are floats in need of unboxing dynamically. *)
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
-        (Kmakemixedblock(List.length args) :: cont)
+        (Kmakemixedblock (value_prefix_len, flat_suffix_len) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

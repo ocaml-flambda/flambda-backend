@@ -48,8 +48,8 @@ let instruction ppf = function
       fprintf ppf "\tmakeblock %i, %i" n m
   | Kmakefloatblock(n) ->
       fprintf ppf "\tmakefloatblock %i" n
-  | Kmakemixedblock(n) ->
-      fprintf ppf "\tmakemixedblock %i" n
+  | Kmakemixedblock(n, m) ->
+      fprintf ppf "\tmakemixedblock %i, %i" n m
   | Kgetfield n -> fprintf ppf "\tgetfield %i" n
   | Ksetfield n -> fprintf ppf "\tsetfield %i" n
   | Kgetfloatfield n -> fprintf ppf "\tgetfloatfield %i" n

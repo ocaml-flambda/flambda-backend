@@ -76,7 +76,7 @@ void caml_disasm_instr(code_t pc)
   case APPTERM1: case APPTERM2: case APPTERM3: case RETURN:
   case GRAB: case PUSHGETGLOBAL: case GETGLOBAL: case SETGLOBAL:
   case PUSHATOM: case ATOM: case MAKEBLOCK1: case MAKEBLOCK2:
-  case MAKEBLOCK3: case MAKEFLOATBLOCK: case MAKEMIXEDBLOCK:
+  case MAKEBLOCK3: case MAKEFLOATBLOCK:
   case GETFIELD: case SETFIELD: case GETFLOATFIELD: case SETFLOATFIELD:
   case BRANCH: case BRANCHIF: case BRANCHIFNOT: case PUSHTRAP:
   case CONSTINT: case PUSHCONSTINT: case OFFSETINT: case OFFSETREF:
@@ -86,6 +86,7 @@ void caml_disasm_instr(code_t pc)
     /* Instructions with two operands */
   case APPTERM: case CLOSURE: case CLOSUREREC: case PUSHGETGLOBALFIELD:
   case GETGLOBALFIELD: case MAKEBLOCK:
+  case MAKEMIXEDBLOCK:
   case BEQ: case BNEQ: case BLTINT: case BLEINT: case BGTINT: case BGEINT:
   case BULTINT: case BUGEINT:
     snprintf(buf, sizeof(buf), "%s %d, %d\n", opbuf, pc[0], pc[1]); break;
