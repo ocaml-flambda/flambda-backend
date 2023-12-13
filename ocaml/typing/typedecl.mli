@@ -15,7 +15,6 @@
 
 (* Typing of type definitions and primitive definitions *)
 
-open Layouts
 open Types
 open Format
 
@@ -48,13 +47,20 @@ val transl_with_constraint:
     Typedtree.type_declaration
 
 val abstract_type_decl:
-    injective:bool -> layout -> layout list -> type_declaration
+  injective:bool ->
+  jkind:Jkind.t ->
+  (* [jkind_annotation] is what the user wrote, and is just used when printing
+     the type produced by this function. *)
+  jkind_annotation:Jkind.annotation option ->
+  params:Jkind.t list ->
+  type_declaration
+
 val approx_type_decl:
     Parsetree.type_declaration list -> (Ident.t * type_declaration) list
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
 
-(* Returns an updated decl that may include improved layout estimates, but it's
+(* Returns an updated decl that may include improved jkind estimates, but it's
    sound to throw it away. *)
 val check_coherence:
     Env.t -> Location.t -> Path.t -> type_declaration -> type_declaration
@@ -64,16 +70,21 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 
 type native_repr_kind = Unboxed | Untagged
 
-(* Records reason for a layout representability requirement in errors. *)
-type layout_sort_loc = Cstr_tuple | Record | External
+(* Records reason for a jkind representability requirement in errors. *)
+type jkind_sort_loc = Cstr_tuple | Record | External
+
+type reaching_type_path = reaching_type_step list
+and reaching_type_step =
+  | Expands_to of type_expr * type_expr
+  | Contains of type_expr * type_expr
 
 type error =
     Repeated_parameter
   | Duplicate_constructor of string
   | Too_many_constructors
   | Duplicate_label of string
-  | Recursive_abbrev of string
-  | Cycle_in_def of string * type_expr
+  | Recursive_abbrev of string * Env.t * reaching_type_path
+  | Cycle_in_def of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -82,7 +93,7 @@ type error =
       definition: Path.t;
       used_as: type_expr;
       defined_as: type_expr;
-      expansions: (type_expr * type_expr) list;
+      reaching_path: reaching_type_path;
     }
   | Null_arity_external
   | Missing_native_external
@@ -101,16 +112,17 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_mismatch_of_type of type_expr * Layout.Violation.t
-  | Layout_mismatch_of_path of Path.t * Layout.Violation.t
-  | Layout_sort of
-      { lloc : layout_sort_loc
+  | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
+  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
+  | Jkind_sort of
+      { kloc : jkind_sort_loc
       ; typ : type_expr
-      ; err : Layout.Violation.t
+      ; err : Jkind.Violation.t
       }
-  | Layout_empty_record
-  | Non_value_in_sig of Layout.Violation.t * string
-  | Float64_in_block of type_expr * layout_sort_loc
+  | Jkind_empty_record
+  | Non_value_in_sig of Jkind.Violation.t * string
+  | Float64_in_block of type_expr * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -118,7 +130,6 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Layout_not_enabled of Layout.const
 
 exception Error of Location.t * error
 

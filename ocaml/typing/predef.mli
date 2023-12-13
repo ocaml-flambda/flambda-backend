@@ -91,7 +91,7 @@ val ident_some : Ident.t
 val build_initial_env:
   (Ident.t -> type_declaration -> 'a -> 'a) ->
   (Ident.t -> extension_constructor -> 'a -> 'a) ->
-  'a -> 'a * 'a
+  'a -> 'a
 
 (* Add simd types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the simd extension is on. *)

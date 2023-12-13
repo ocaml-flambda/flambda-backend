@@ -545,6 +545,7 @@ type string_accessor_width =
   | Sixteen
   | Thirty_two
   | Sixty_four
+  | One_twenty_eight of { aligned : bool }
 
 let print_string_accessor_width ppf w =
   let fprintf = Format.fprintf in
@@ -553,6 +554,8 @@ let print_string_accessor_width ppf w =
   | Sixteen -> fprintf ppf "16"
   | Thirty_two -> fprintf ppf "32"
   | Sixty_four -> fprintf ppf "64"
+  | One_twenty_eight { aligned = false } -> fprintf ppf "128u"
+  | One_twenty_eight { aligned = true } -> fprintf ppf "128a"
 
 let byte_width_of_string_accessor_width width =
   match width with
@@ -560,12 +563,14 @@ let byte_width_of_string_accessor_width width =
   | Sixteen -> 2
   | Thirty_two -> 4
   | Sixty_four -> 8
+  | One_twenty_eight _ -> 16
 
 let kind_of_string_accessor_width width =
   match width with
   | Eight | Sixteen -> K.value
   | Thirty_two -> K.naked_int32
   | Sixty_four -> K.naked_int64
+  | One_twenty_eight _ -> K.naked_vec128
 
 type num_dimensions = int
 
@@ -863,6 +868,8 @@ let compare_unary_primitive p1 p2 =
       Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
     let c = Bool.compare middle_end_only1 middle_end_only2 in
     if c <> 0 then c else K.compare kind1 kind2
+  | Int_as_pointer alloc_mode1, Int_as_pointer alloc_mode2 ->
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
@@ -889,7 +896,8 @@ let print_unary_primitive ppf p =
     if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
-  | Int_as_pointer _ -> fprintf ppf "Int_as_pointer"
+  | Int_as_pointer alloc_mode ->
+    fprintf ppf "Int_as_pointer[%a]" Alloc_mode.For_allocations.print alloc_mode
   | Opaque_identity { middle_end_only; kind } ->
     fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
       middle_end_only K.print kind
@@ -1069,12 +1077,12 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
+  | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
-  | Box_number _ | Tag_immediate -> Constructive
+  | Box_number _ | Tag_immediate | Int_as_pointer _ -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | Begin_try_region | End_region -> Neither
@@ -1082,7 +1090,7 @@ let unary_classify_for_printing p =
 
 let free_names_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Project_function_slot { move_from; move_to } ->
     Name_occurrences.add_function_slot_in_projection
@@ -1095,8 +1103,8 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Obj_dup | Get_header ->
@@ -1109,9 +1117,14 @@ let apply_renaming_unary_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
+  | Int_as_pointer alloc_mode ->
+    let alloc_mode' =
+      Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+    in
+    if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
@@ -1119,11 +1132,11 @@ let apply_renaming_unary_primitive p renaming =
 
 let ids_for_export_unary_primitive p =
   match p with
-  | Box_number (_kind, alloc_mode) ->
+  | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header ->
@@ -1324,6 +1337,7 @@ let result_kind_of_binary_primitive p : result_kind =
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
   | String_or_bigstring_load (_, Sixty_four) -> Singleton K.naked_int64
+  | String_or_bigstring_load (_, One_twenty_eight _) -> Singleton K.naked_vec128
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
   | Int_arith (kind, _) | Int_shift (kind, _) ->
     Singleton (K.Standard_int.to_kind kind)
@@ -1459,12 +1473,16 @@ let args_kind_of_ternary_primitive p =
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int32
   | Bytes_or_bigstring_set (Bytes, Sixty_four) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int64
+  | Bytes_or_bigstring_set (Bytes, One_twenty_eight _) ->
+    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_vec128
   | Bytes_or_bigstring_set (Bigstring, (Eight | Sixteen)) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bigstring, Thirty_two) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int32
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
+  | Bytes_or_bigstring_set (Bigstring, One_twenty_eight _) ->
+    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_vec128
   | Bigarray_set (_, kind, _) ->
     bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
 

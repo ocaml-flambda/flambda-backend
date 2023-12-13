@@ -176,6 +176,7 @@ let string_or_bigstring_load kind width =
     | Sixty_four -> if arch32 then nonalloc_extcall_size else 2
     (* add, load (allow_unaligned_access) *)
     (* 37 (not allow_unaligned_access) *)
+    | One_twenty_eight _ -> 2 (* add, load (alignment handled explicitly) *)
   in
   start_address_load + elt_load
 

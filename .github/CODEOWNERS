@@ -1,80 +1,11 @@
 # Later lines in the file take precedence.
 
-.github/                @mshinwell @xclerc
 .github/CODEOWNERS      @mshinwell @lpw25
-.gitignore              @mshinwell @xclerc
-
-.vscode                 @mshinwell
-
-autoconf-aux            @mshinwell @xclerc
-configure.ac            @mshinwell @xclerc
 
 flambda_backend.opam    @mshinwell @lthls
 
-HACKING.md      @mshinwell @goldfirere
-README.md       @mshinwell @goldfirere
-
 build_ocaml_compiler.sexp       @poechsel
-
-backend/                        @gretay-js @xclerc
-backend/debug/                  @mshinwell @poechsel
 
 chamelon/                       @Ekdohibs
 
-driver/                         @mshinwell @xclerc
-
 external/memtrace/              @stedolan
-
-file_formats/                   @mshinwell @xclerc
-
-middle_end/                     @mshinwell @lthls
-
-middle_end/flambda2/                    @mshinwell @lthls
-middle_end/flambda2/algorithms          @gbury @chambart
-middle_end/flambda2/bound_identifiers   @mshinwell @lthls
-middle_end/flambda2/cmx                 @lthls @mshinwell
-middle_end/flambda2/from_lambda         @lthls @mshinwell
-middle_end/flambda2/identifiers         @mshinwell @lthls
-middle_end/flambda2/kinds               @mshinwell @lthls
-middle_end/flambda2/lattices            @mshinwell @lthls
-middle_end/flambda2/nominal             @mshinwell @lthls
-middle_end/flambda2/numbers             @mshinwell @gbury
-middle_end/flambda2/simplify            @mshinwell @gbury
-middle_end/flambda2/simplify/env        @mshinwell @gbury
-middle_end/flambda2/simplify/inlining   @poechsel @lukemaurer
-middle_end/flambda2/simplify/lifting    @mshinwell @chambart
-middle_end/flambda2/simplify/unboxing   @chambart @gbury
-middle_end/flambda2/term_basics         @mshinwell @lthls
-middle_end/flambda2/terms               @mshinwell @lthls
-middle_end/flambda2/to_cmm              @gbury @lthls
-middle_end/flambda2/types               @lthls @chambart
-middle_end/flambda2/ui                  @mshinwell @poechsel
-
-middle_end/flambda2/compare             @lukemaurer
-middle_end/flambda2/parser              @lukemaurer
-middle_end/flambda2/tests               @lukemaurer
-
-middle_end/flambda2/scripts             @mshinwell @lthls
-
-middle_end/flambda2/docs/backend_exceptions.md  @lthls
-middle_end/flambda2/docs/to_cmm.md              @gbury
-middle_end/flambda2/docs/types.md               @lthls
-
-native_toplevel/                @mshinwell @xclerc
-
-ocaml/asmcomp/                  @gretay-js @xclerc
-ocaml/runtime/                  @stedolan
-ocaml/typing/                   @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan
-ocaml/testsuite/tests/          @lpw25 @antalsz @ccasin @goldfirere @riaqn @ncik-roberts @stedolan @mshinwell @poechsel @gretay-js @xclerc @lukemaurer
-
-scripts/                        @mshinwell @xclerc
-
-testsuite/tools                 @gretay-js
-testsuite/flambda2-test-list    @xclerc
-
-tools/merge_archives.ml         @mshinwell @xclerc
-tools/merge_dot_a_files.sh      @mshinwell @xclerc
-tools/objinfo.ml                @mshinwell @xclerc
-
-testsuite/tests/unboxed-primitive-args  @TheNumbat
-tests/simd                              @TheNumbat

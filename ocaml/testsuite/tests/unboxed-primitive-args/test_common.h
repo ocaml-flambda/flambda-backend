@@ -16,6 +16,8 @@
 #ifndef __TEST_COMMON_H
 #define __TEST_COMMON_H
 
+#include <immintrin.h>
+
 /* Where the OCaml side stores the arguments and result for a test
    case. The C function will read the result it is supposed to return
    from this buffer.
@@ -31,14 +33,20 @@ extern char *ocaml_buffer;
    equal. */
 extern char *c_buffer;
 
-#define get_intnat(n) *(intnat*)(ocaml_buffer+((n)*8))
-#define get_int32(n) *(int32_t*)(ocaml_buffer+((n)*8))
-#define get_int64(n) *(int64_t*)(ocaml_buffer+((n)*8))
-#define get_double(n) *(double*)(ocaml_buffer+((n)*8))
+#define STRIDE 16
 
-#define set_intnat(n, x) *(intnat*)(c_buffer+((n)*8)) = (x)
-#define set_int32(n, x) *(int32_t*)(c_buffer+((n)*8)) = (x)
-#define set_int64(n, x) *(int64_t*)(c_buffer+((n)*8)) = (x)
-#define set_double(n, x) *(double*)(c_buffer+((n)*8)) = (x)
+#define get_intnat(n) *(intnat*)(ocaml_buffer+((n)*STRIDE))
+#define get_int32(n) *(int32_t*)(ocaml_buffer+((n)*STRIDE))
+#define get_int64(n) *(int64_t*)(ocaml_buffer+((n)*STRIDE))
+#define get_double(n) *(double*)(ocaml_buffer+((n)*STRIDE))
+#define get_int128(n) _mm_loadu_si128((__m128i*)(ocaml_buffer+((n)*STRIDE)))
+#define get_float128(n) _mm_loadu_pd((double*)(ocaml_buffer+((n)*STRIDE)))
+
+#define set_intnat(n, x) *(intnat*)(c_buffer+((n)*STRIDE)) = (x)
+#define set_int32(n, x) *(int32_t*)(c_buffer+((n)*STRIDE)) = (x)
+#define set_int64(n, x) *(int64_t*)(c_buffer+((n)*STRIDE)) = (x)
+#define set_double(n, x) *(double*)(c_buffer+((n)*STRIDE)) = (x)
+#define set_int128(n, x) _mm_storeu_si128((__m128i*)(c_buffer+((n)*STRIDE)), (x))
+#define set_float128(n, x) _mm_storeu_pd((double*)(c_buffer+((n)*STRIDE)), (x))
 
 #endif /* __TEST_COMMON_H */

@@ -20,6 +20,17 @@ let err = Syntaxerr.ill_formed_ast
 
 let empty_record loc = err loc "Records cannot be empty."
 let invalid_tuple loc = err loc "Tuples must have at least 2 components."
+let unlabeled_labeled_tuple_typ loc =
+  err loc "Labeled tuple types must have at least one labeled component."
+let unlabeled_labeled_tuple_exp loc =
+  err loc "Labeled tuples must have at least one labeled component."
+let unlabeled_labeled_tuple_pat loc =
+  err loc
+    "Closed labeled tuple patterns must have at least one labeled component."
+let empty_open_labeled_tuple_pat loc =
+  err loc "Open labeled tuple patterns must have at least one component."
+let short_closed_labeled_tuple_pat loc =
+  err loc "Closed labeled tuple patterns must have at least 2 components."
 let no_args loc = err loc "Function application with no argument."
 let empty_let loc = err loc "Let with no bindings."
 let empty_type loc = err loc "Type declarations cannot be empty."
@@ -43,6 +54,9 @@ let simple_longident id =
   in
   if not (is_simple id.txt) then complex_id id.loc
 
+let labeled_tuple_without_label lt =
+  List.for_all (fun (lbl,_) -> Option.is_none lbl) lt
+
 let iterator =
   let super = Ast_iterator.default_iterator in
   let type_declaration self td =
@@ -52,14 +66,38 @@ let iterator =
     | Ptype_record [] -> empty_record loc
     | _ -> ()
   in
+  let jtyp _self loc (jtyp : Jane_syntax.Core_type.t) =
+    match jtyp with
+    | Jtyp_layout (Ltyp_var _ | Ltyp_poly _ | Ltyp_alias _) -> ()
+    | Jtyp_tuple (Lttyp_tuple ([] | [_])) -> invalid_tuple loc
+    | Jtyp_tuple (Lttyp_tuple l) ->
+      if labeled_tuple_without_label l then unlabeled_labeled_tuple_typ loc
+  in
   let typ self ty =
     super.typ self ty;
     let loc = ty.ptyp_loc in
+    match Jane_syntax.Core_type.of_ast ty with
+    | Some (jtyp_, _attrs) -> jtyp self ty.ptyp_loc jtyp_
+    | None ->
     match ty.ptyp_desc with
     | Ptyp_tuple ([] | [_]) -> invalid_tuple loc
     | Ptyp_package (_, cstrs) ->
       List.iter (fun (id, _) -> simple_longident id) cstrs
     | _ -> ()
+  in
+  let jpat _self loc (jpat : Jane_syntax.Pattern.t) =
+    match jpat with
+    | Jpat_immutable_array (Iapat_immutable_array _)-> ()
+    | Jpat_layout (Lpat_constant _) -> ()
+    | Jpat_tuple lt -> begin
+        match lt with
+        | Ltpat_tuple ([], Open) -> empty_open_labeled_tuple_pat loc
+        | Ltpat_tuple (([] | [_]), Closed) ->
+          short_closed_labeled_tuple_pat loc
+        | Ltpat_tuple (l, Closed) ->
+          if labeled_tuple_without_label l then unlabeled_labeled_tuple_pat loc
+        | Ltpat_tuple (_ :: _, Open) -> ()
+      end
   in
   let pat self pat =
     begin match pat.ppat_desc with
@@ -70,6 +108,9 @@ let iterator =
         super.pat self pat
     end;
     let loc = pat.ppat_loc in
+    match Jane_syntax.Pattern.of_ast pat with
+    | Some (jpat_, _attrs) -> jpat self pat.ppat_loc jpat_
+    | None ->
     match pat.ppat_desc with
     | Ppat_tuple ([] | [_]) -> invalid_tuple loc
     | Ppat_record ([], _) -> empty_record loc
@@ -100,6 +141,12 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
+    | Jexp_tuple lt -> begin
+        match lt with
+        | Ltexp_tuple ([] | [_]) -> invalid_tuple loc
+        | Ltexp_tuple l ->
+          if labeled_tuple_without_label l then unlabeled_labeled_tuple_exp loc
+      end
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _

@@ -32,7 +32,7 @@ $(patsubst %.cmo,%.cmx,$(patsubst %.cma,%.cmxa,$1))
 endef
 
 CAMLC = $(BOOT_OCAMLC) -g -nostdlib -I $(ROOTDIR)/boot \
-        -use-prims $(ROOTDIR)/runtime/primitives -I $(ROOTDIR)
+        -use-prims $(ROOTDIR)/$(RUNTIME_DIR)/primitives -I $(ROOTDIR)
 CAMLOPT = $(OCAMLRUN) $(ROOTDIR)/ocamlopt$(EXE) \
   -g -nostdlib -I $(ROOTDIR)/stdlib
 INCLUDES = $(addprefix -I $(ROOTDIR)/,utils parsing typing bytecomp \
@@ -88,7 +88,7 @@ OCAMLPROF=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
   printast.cmo syntaxerr.cmo ast_helper.cmo \
   global.cmo \
   language_extension_kernel.cmo language_extension.cmo \
-  jane_syntax_parsing.cmo jane_syntax.cmo \
+  jane_asttypes.cmo jane_syntax_parsing.cmo jane_syntax.cmo \
    ast_iterator.cmo builtin_attributes.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \

@@ -18,9 +18,13 @@
 /* Registration of global memory roots */
 
 #include "caml/mlvalues.h"
+#include "caml/memory.h"
 #include "caml/roots.h"
 #include "caml/globroots.h"
 #include "caml/skiplist.h"
+#include "caml/stack.h"
+
+static caml_plat_mutex roots_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
 /* The three global root lists.
    Each is represented by a skip list with the key being the address
@@ -40,30 +44,22 @@ struct skiplist caml_global_roots_old = SKIPLIST_STATIC_INITIALIZER;
      in [caml_global_roots_old] or in [caml_global_roots_young];
    - Otherwise (the root contains a pointer outside of the heap or an integer),
      then neither [caml_global_roots_young] nor [caml_global_roots_old] contain
-     it.
-*/
+     it. */
 
 /* Insertion and deletion */
 
 Caml_inline void caml_insert_global_root(struct skiplist * list, value * r)
 {
+  caml_plat_lock(&roots_mutex);
   caml_skiplist_insert(list, (uintnat) r, 0);
+  caml_plat_unlock(&roots_mutex);
 }
 
 Caml_inline void caml_delete_global_root(struct skiplist * list, value * r)
 {
+  caml_plat_lock(&roots_mutex);
   caml_skiplist_remove(list, (uintnat) r);
-}
-
-/* Iterate a GC scanning action over a global root list */
-
-static void caml_iterate_global_roots(scanning_action f,
-                                      struct skiplist * rootlist)
-{
-  FOREACH_SKIPLIST_ELEMENT(e, rootlist, {
-      value * r = (value *) (e->key);
-      f(*r, r);
-    })
+  caml_plat_unlock(&roots_mutex);
 }
 
 /* Register a global C root of the mutable kind */
@@ -91,9 +87,6 @@ static enum gc_root_class classify_gc_root(value v)
 {
   if(!Is_block(v)) return UNTRACKED;
   if(Is_young(v)) return YOUNG;
-#ifndef NO_NAKED_POINTERS
-  if(!Is_in_heap(v)) return UNTRACKED;
-#endif
   return OLD;
 }
 
@@ -101,6 +94,7 @@ static enum gc_root_class classify_gc_root(value v)
 
 CAMLexport void caml_register_generational_global_root(value *r)
 {
+  Caml_check_caml_state();
   CAMLassert (((intnat) r & 3) == 0);  /* compact.c demands this (for now) */
 
   switch(classify_gc_root(*r)) {
@@ -162,26 +156,106 @@ CAMLexport void caml_modify_generational_global_root(value *r, value newval)
   *r = newval;
 }
 
-/* Scan all global roots */
+#ifdef NATIVE_CODE
 
-void caml_scan_global_roots(scanning_action f)
+/* Linked-list of natdynlink'd globals */
+
+typedef struct link {
+  void *data;
+  struct link *next;
+} link;
+
+static link *cons(void *data, link *tl) {
+  link *lnk = caml_stat_alloc(sizeof(link));
+  lnk->data = data;
+  lnk->next = tl;
+  return lnk;
+}
+
+#define iter_list(list,lnk) \
+  for (lnk = list; lnk != NULL; lnk = lnk->next)
+
+
+/* protected by roots_mutex */
+static link * caml_dyn_globals = NULL;
+
+void caml_register_dyn_globals(void **globals, int nglobals) {
+  int i;
+  caml_plat_lock(&roots_mutex);
+  for (i = 0; i < nglobals; i++)
+    caml_dyn_globals = cons(globals[i],caml_dyn_globals);
+  caml_plat_unlock(&roots_mutex);
+}
+
+static void scan_native_globals(scanning_action f, void* fdata)
 {
-  caml_iterate_global_roots(f, &caml_global_roots);
-  caml_iterate_global_roots(f, &caml_global_roots_young);
-  caml_iterate_global_roots(f, &caml_global_roots_old);
+  int i, j;
+  static link* dyn_globals;
+  value* glob;
+  link* lnk;
+
+  caml_plat_lock(&roots_mutex);
+  dyn_globals = caml_dyn_globals;
+  caml_plat_unlock(&roots_mutex);
+
+  /* The global roots */
+  for (i = 0; caml_globals[i] != 0; i++) {
+    for(glob = caml_globals[i]; *glob != 0; glob++) {
+      for (j = 0; j < Wosize_val(*glob); j++){
+        f(fdata, Field(*glob, j), &Field(*glob, j));
+      }
+    }
+  }
+
+  /* Dynamic (natdynlink) global roots */
+  iter_list(dyn_globals, lnk) {
+    for(glob = (value *) lnk->data; *glob != 0; glob++) {
+      for (j = 0; j < Wosize_val(*glob); j++){
+        f(fdata, Field(*glob, j), &Field(*glob, j));
+      }
+    }
+  }
+}
+
+#endif
+
+/* Iterate a GC scanning action over a global root list */
+Caml_inline void caml_iterate_global_roots(scanning_action f,
+                                      struct skiplist * rootlist, void* fdata)
+{
+  FOREACH_SKIPLIST_ELEMENT(e, rootlist, {
+      value * r = (value *) (e->key);
+      f(fdata, *r, r);
+    })
+}
+
+/* Scan all global roots */
+void caml_scan_global_roots(scanning_action f, void* fdata) {
+  caml_plat_lock(&roots_mutex);
+  caml_iterate_global_roots(f, &caml_global_roots, fdata);
+  caml_iterate_global_roots(f, &caml_global_roots_young, fdata);
+  caml_iterate_global_roots(f, &caml_global_roots_old, fdata);
+  caml_plat_unlock(&roots_mutex);
+
+  #ifdef NATIVE_CODE
+  scan_native_globals(f, fdata);
+  #endif
 }
 
 /* Scan global roots for a minor collection */
-
-void caml_scan_global_young_roots(scanning_action f)
+void caml_scan_global_young_roots(scanning_action f, void* fdata)
 {
+  caml_plat_lock(&roots_mutex);
 
-  caml_iterate_global_roots(f, &caml_global_roots);
-  caml_iterate_global_roots(f, &caml_global_roots_young);
+  caml_iterate_global_roots(f, &caml_global_roots, fdata);
+  caml_iterate_global_roots(f, &caml_global_roots_young, fdata);
+
   /* Move young roots to old roots */
   FOREACH_SKIPLIST_ELEMENT(e, &caml_global_roots_young, {
       value * r = (value *) (e->key);
-      caml_insert_global_root(&caml_global_roots_old, r);
+      caml_skiplist_insert(&caml_global_roots_old, (uintnat) r, 0);
     });
   caml_skiplist_empty(&caml_global_roots_young);
+
+  caml_plat_unlock(&roots_mutex);
 }

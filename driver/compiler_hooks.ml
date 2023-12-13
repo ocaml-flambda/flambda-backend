@@ -10,9 +10,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Misc
-open Compile_common
-
 type _ pass =
   | Parse_tree_intf : Parsetree.signature pass
   | Parse_tree_impl : Parsetree.structure pass

@@ -32,10 +32,23 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound
+  | Icheckalign of { bytes_pow2 : int }
 
 type float_comparison = Cmm.float_comparison
 
 type mutable_flag = Immutable | Mutable
+
+let of_ast_mutable_flag
+  : Asttypes.mutable_flag -> mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
+
+let to_ast_mutable_flag
+  : mutable_flag -> Asttypes.mutable_flag
+  = function
+    | Immutable -> Immutable
+    | Mutable -> Mutable
 
 type test =
     Itruetest
@@ -60,9 +73,13 @@ type operation =
   | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
-                  alloc : bool; returns : bool; }
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
+  | Iload of { memory_chunk : Cmm.memory_chunk;
+               addressing_mode : Arch.addressing_mode;
+               mutability : Asttypes.mutable_flag;
+               is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode : Lambda.alloc_mode }
@@ -86,6 +103,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Idls_get
 
 type instruction =
   { desc: instruction_desc;
@@ -142,13 +160,6 @@ let end_instr () =
     available_across = None;
   }
 
-let instr_cons d a r n =
-  { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty;
-    available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
-    available_across = None;
-  }
-
 let instr_cons_debug d a r dbg n =
   { desc = d; next = n; arg = a; res = r; dbg = dbg; live = Reg.Set.empty;
     available_before = Reg_availability_set.Ok Reg_with_debug_info.Set.empty;
@@ -189,13 +200,15 @@ let rec instr_iter f i =
             | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion | Ipoll _) ->
+            | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
         instr_iter f i.next
 
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  | Idls_get
+  | Iintop(Icheckbound | Icheckalign _)
+  | Iintop_imm((Icheckbound | Icheckalign _), _) | Iopaque
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
   | Ivalueofint | Iintofvalue | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
@@ -211,14 +224,14 @@ let operation_is_pure = function
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Iload (_, _, _) -> true
+  | Iload _ -> true
   | Iname_for_debugger _ -> false
 
 
 let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
-  | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
+  | Iintop (Icheckbound | Icheckalign _) | Iintop_imm ((Icheckbound | Icheckalign _), _)
   | Iprobe _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
@@ -231,10 +244,10 @@ let operation_can_raise op =
   | Icsel _ | Iscalarcast _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
-  | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
+  | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get
     -> false
 
 let free_conts_for_handlers fundecl =
@@ -330,38 +343,60 @@ let equal_integer_operation left right =
   | Ipopcnt, Ipopcnt -> true
   | Icomp left, Icomp right -> equal_integer_comparison left right
   | Icheckbound, Icheckbound -> true
+  | Icheckalign { bytes_pow2 = left }, Icheckalign { bytes_pow2 = right } ->
+    Int.equal left right
   | Iadd, (Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Isub, (Iadd | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Imul, (Iadd | Isub | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Imulh _, (Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+           | Icheckalign _)
   | Idiv, (Iadd | Isub | Imul | Imulh _ | Imod | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Imod, (Iadd | Isub | Imul | Imulh _ | Idiv | Iand | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Iand, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Ior | Ixor | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Ior, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ixor | Ilsl
-         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+         | Icheckalign _)
   | Ixor, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ilsl
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Ilsl, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Ilsr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsl | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Iasr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Ilsr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+          | Ilsl | Ilsr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+          | Icheckalign _)
   | Iclz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-            | Ilsl | Ilsr | Iasr | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
+            | Ilsl | Ilsr | Iasr | Ictz _ | Ipopcnt | Icomp _ | Icheckbound
+            | Icheckalign _)
   | Ictz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-            | Ilsl | Ilsr | Iasr | Iclz _ | Ipopcnt | Icomp _ | Icheckbound)
+            | Ilsl | Ilsr | Iasr | Iclz _ | Ipopcnt | Icomp _ | Icheckbound
+            | Icheckalign _)
   | Ipopcnt, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Icomp _ | Icheckbound)
+             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Icomp _ | Icheckbound
+             | Icheckalign _)
   | Icomp _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icheckbound)
+             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icheckbound
+             | Icheckalign _)
   | Icheckbound, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior
-                 | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _) ->
+                 | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _
+                 | Icheckalign _)
+  | Icheckalign _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior
+                 | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _
+                 | Icheckbound) ->
     false

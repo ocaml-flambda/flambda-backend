@@ -70,6 +70,13 @@ let rec map_end f l1 l2 =
     [] -> l2
   | hd::tl -> f hd :: map_end f tl l2
 
+let rev_map_end f l1 l2 =
+  let rec rmap_f accu = function
+    | [] -> accu
+    | hd::tl -> rmap_f (f hd :: accu) tl
+  in
+  rmap_f l2 l1
+
 let rec map_left_right f = function
     [] -> []
   | hd::tl -> let res = f hd in res :: map_left_right f tl
@@ -398,6 +405,8 @@ let find_in_path_uncap path name =
 
 let remove_file filename =
   try
+    (* merge5: Partial revert of upstream PR 11412, to allow building
+       with OCaml 4.14 (which does not have is_regular_file *)
     if Sys.file_exists filename
     then Sys.remove filename
   with Sys_error _msg ->
@@ -517,7 +526,44 @@ module Int_literal_converter = struct
   let nativeint s = cvt_int_aux s Nativeint.neg Nativeint.of_string
 end
 
+(* [find_first_mono p] assumes that there exists a natural number
+   N such that [p] is false on [0; N[ and true on [N; max_int], and
+   returns this N. (See misc.mli for the detailed specification.) *)
+let find_first_mono =
+  let rec find p ~low ~jump ~high =
+    (* Invariants:
+       [low, jump, high] are non-negative with [low < high],
+       [p low = false],
+       [p high = true]. *)
+    if low + 1 = high then high
+    (* ensure that [low + jump] is in ]low; high[ *)
+    else if jump < 1 then find p ~low ~jump:1 ~high
+    else if jump >= high - low then find p ~low ~jump:((high - low) / 2) ~high
+    else if p (low + jump) then
+      (* We jumped too high: continue with a smaller jump and lower limit *)
+      find p ~low:low ~jump:(jump / 2) ~high:(low + jump)
+    else
+      (* we jumped too low:
+         continue from [low + jump] with a larger jump *)
+      let next_jump = max jump (2 * jump) (* avoid overflows *) in
+      find p ~low:(low + jump) ~jump:next_jump ~high
+  in
+  fun p ->
+    if p 0 then 0
+    else find p ~low:0 ~jump:1 ~high:max_int
+
 (* String operations *)
+
+let split_null_terminated s =
+  let[@tail_mod_cons] rec discard_last_sep = function
+    | [] | [""] -> []
+    | x :: xs -> x :: discard_last_sep xs
+  in
+  discard_last_sep (String.split_on_char '\000' s)
+
+let concat_null_terminated = function
+  | [] -> ""
+  | l -> String.concat "\000" (l @ [""])
 
 let chop_extensions file =
   let dirname = Filename.dirname file and basename = Filename.basename file in
@@ -710,7 +756,7 @@ let did_you_mean ppf get_choices =
   | [] -> ()
   | choices ->
      let rest, last = split_last choices in
-     Format.fprintf ppf "@\nHint: Did you mean %s%s%s?@?"
+     Format.fprintf ppf "@\n@{<hint>Hint@}: Did you mean %s%s%s?@?"
        (String.concat ", " rest)
        (if rest = [] then "" else " or ")
        last
@@ -739,7 +785,6 @@ module Color = struct
     | Magenta
     | Cyan
     | White
-  ;;
 
   type style =
     | FG of color (* foreground *)
@@ -777,12 +822,14 @@ module Color = struct
     error: style list;
     warning: style list;
     loc: style list;
+    hint:style list;
   }
 
   let default_styles = {
     warning = [Bold; FG Magenta];
     error = [Bold; FG Red];
     loc = [Bold];
+    hint = [Bold; FG Blue];
   }
 
   let cur_styles = ref default_styles
@@ -795,6 +842,7 @@ module Color = struct
     | Format.String_tag "error" -> (!cur_styles).error
     | Format.String_tag "warning" -> (!cur_styles).warning
     | Format.String_tag "loc" -> (!cur_styles).loc
+    | Format.String_tag "hint" -> (!cur_styles).hint
     | Style s -> s
     | _ -> raise Not_found
 
@@ -987,6 +1035,12 @@ let debug_prefix_map_flags () =
 let print_if ppf flag printer arg =
   if !flag then Format.fprintf ppf "%a@." printer arg;
   arg
+
+let print_see_manual ppf manual_section =
+  let open Format in
+  fprintf ppf "(see manual section %a)"
+    (pp_print_list ~pp_sep:(fun f () -> pp_print_char f '.') pp_print_int)
+    manual_section
 
 let output_of_print print =
   let output out_channel t =
