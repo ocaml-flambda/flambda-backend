@@ -443,26 +443,20 @@ let expecting (loc : Lexing.position * Lexing.position) nonterm =
 let removed_string_set loc =
   raise(Syntaxerr.Error(Syntaxerr.Removed_string_set(make_loc loc)))
 
-let ppat_lttuple loc elts closed =
+let ppat_ltuple loc elts closed =
   Jane_syntax.Labeled_tuples.pat_of
     ~loc:(make_loc loc)
-    (Ltpat_tuple (elts, closed))
+    (elts, closed)
 
-let ptyp_lttuple loc tl =
+let ptyp_ltuple loc tl =
   Jane_syntax.Labeled_tuples.typ_of
     ~loc:(make_loc loc)
-    (Lttyp_tuple tl)
+    tl
 
-let mktyp_tuple loc ltys =
-  if List.for_all (fun (lbl, _) -> Option.is_none lbl) ltys then
-    mktyp ~loc (Ptyp_tuple (List.map snd ltys))
-  else
-    ptyp_lttuple loc ltys
-
-let pexp_lttuple loc args =
+let pexp_ltuple loc args =
   Jane_syntax.Labeled_tuples.expr_of
     ~loc:(make_loc loc)
-    (Ltexp_tuple args)
+    args
 
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
@@ -2873,11 +2867,7 @@ fun_expr:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
   | labeled_tuple %prec below_COMMA
-      { if List.for_all (fun (l,_) -> Option.is_none l) $1 then
-          mkexp ~loc:$sloc (Pexp_tuple (List.map snd $1))
-        else
-          pexp_lttuple $sloc $1
-      }
+      { pexp_ltuple $sloc $1 }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
   | name_tag simple_expr %prec below_HASH
@@ -3530,12 +3520,7 @@ pattern_no_exn:
   ) { $1 }
   | reversed_labeled_tuple_pattern(self)
       { let closed, pats = $1 in
-        if    closed = Closed
-           && List.for_all (fun (l,_) -> Option.is_none l) pats
-        then
-          mkpat ~loc:$sloc (Ppat_tuple(List.rev_map snd pats))
-        else
-          ppat_lttuple $sloc (List.rev pats) closed
+        ppat_ltuple $sloc (List.rev pats) closed
       }
 ;
 
@@ -4307,7 +4292,7 @@ strict_function_or_labeled_tuple_type:
          {
            let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
+           let domain = ptyp_ltuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
            Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
     )
@@ -4321,7 +4306,7 @@ strict_function_or_labeled_tuple_type:
       codomain = tuple_type
          { let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = mktyp_tuple $loc(tuple) ((None, ty) :: ltys) in
+           let domain = ptyp_ltuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
            Ptyp_arrow(label,
             mktyp_with_modes arg_unique_local domain ,
@@ -4331,7 +4316,7 @@ strict_function_or_labeled_tuple_type:
     { $1 }
   | label = LIDENT COLON proper_tuple_type %prec MINUSGREATER
     { let ty, ltys = $3 in
-      ptyp_lttuple $sloc ((Some label, ty) :: ltys)
+      ptyp_ltuple $sloc ((Some label, ty) :: ltys)
     }
 ;
 
@@ -4388,7 +4373,7 @@ tuple_type:
       { ty }
   | proper_tuple_type %prec below_FUNCTOR
     { let ty, ltys = $1 in
-      mktyp_tuple $sloc ((None, ty) :: ltys)
+      ptyp_ltuple $sloc ((None, ty) :: ltys)
     }
 ;
 

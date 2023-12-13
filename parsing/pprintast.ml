@@ -462,8 +462,8 @@ and tyvar_option f = function
   | Some name -> tyvar f name
 
 and core_type1_labeled_tuple ctxt _attrs f
-      : Jane_syntax.Labeled_tuples.core_type -> _ = function
-  | Lttyp_tuple tl ->
+      : Jane_syntax.Labeled_tuples.core_type -> _ =
+  fun tl ->
       pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
 
 and labeled_core_type1 ctxt f (label, ty) =
@@ -606,7 +606,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         | Jpat_layout (Lpat_constant _) -> false
-        | Jpat_tuple (Ltpat_tuple _) -> true
+        | Jpat_tuple (_, _) -> true
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -625,7 +625,7 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
     | Jpat_immutable_array (Iapat_immutable_array l) ->
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_layout (Lpat_constant c) -> unboxed_constant ctxt f c
-    | Jpat_tuple (Ltpat_tuple (l, closed)) ->
+    | Jpat_tuple (l, closed) ->
         let closed_flag ppf = function
         | Closed -> ()
         | Open -> pp ppf ",@;.."
@@ -2120,9 +2120,7 @@ and n_ary_function_expr
             ctxt f params constraint_ body ~delimiter:"->")
 
 and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
-  match x with
-  | Ltexp_tuple l ->
-    pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l
+  pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") x
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in
