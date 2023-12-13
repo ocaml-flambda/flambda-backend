@@ -432,7 +432,7 @@ end = struct
 
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
-    | Any -> Jkind.any ~why:Dummy_jkind
+    | Any -> Jkind.any ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
 
 

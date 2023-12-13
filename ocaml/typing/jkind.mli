@@ -256,6 +256,8 @@ type any_creation_reason =
        unified to correct levels *)
   | Type_expression_call
   | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
 
 type float64_creation_reason = Primitive of Ident.t
 
