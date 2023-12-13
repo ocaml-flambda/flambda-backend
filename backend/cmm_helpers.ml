@@ -2338,6 +2338,17 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
+let split_arity_for_apply arity args =
+  (* Decides whether a caml_applyN needs to be split. If N <= max_arity, then
+     keep caml_apply as is; otherwise, split at caml_apply[max_arity] *)
+  let max_arity = Lambda.max_arity () in
+  if List.compare_length_with arity max_arity <= 0
+  then (arity, args), None
+  else
+    let a1, a2 = Misc.Stdlib.List.split_at max_arity arity in
+    let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
+    (a1, args1), Some (a2, args2)
+
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
@@ -2382,7 +2393,24 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 Any )))
   else really_call_caml_apply clos args
 
-let generic_apply mut clos args args_type result (pos, mode) dbg =
+(* CR mshinwell: These will be filled in by later pull requests. *)
+let placeholder_dbg () = Debuginfo.none
+
+let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
+  Cifthenelse
+    ( Cop (Ccmpi Ceq, [old_region; Cop (Cbeginregion, [], dbg ())], dbg ()),
+      dbg (),
+      body_tail,
+      dbg (),
+      (let res = V.create_local "result" in
+       Clet
+         ( VP.create res,
+           body_nontail,
+           Csequence (Cop (Cendregion, [old_region], dbg ()), Cvar res) )),
+      dbg (),
+      Any )
+
+let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
@@ -2390,7 +2418,49 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
           ( Capply (Extended_machtype.to_machtype result, pos),
             [get_field_codepointer mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ -> call_caml_apply result args_type mut clos args pos mode dbg
+  | _ -> call_caml_apply result arity mut clos args pos mode dbg
+
+let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
+    mode dbg =
+  match split_arity_for_apply arity args with
+  | (arity, args), None -> (
+    match old_region with
+    | None -> apply_or_call_caml_apply result arity mut clos args pos mode dbg
+    | Some old_region ->
+      maybe_reset_current_region ~dbg:placeholder_dbg
+        ~body_tail:
+          (apply_or_call_caml_apply result arity mut clos args pos mode dbg)
+        ~body_nontail:
+          (apply_or_call_caml_apply result arity mut clos args Rc_normal
+             Lambda.alloc_local dbg)
+        old_region)
+  | (arity, args), Some (arity', args') -> (
+    let body old_region =
+      bind "result"
+        (call_caml_apply [| Val |] arity mut clos args Rc_normal
+           Lambda.alloc_local dbg) (fun clos ->
+          might_split_call_caml_apply ?old_region result arity' mut clos args'
+            pos mode dbg)
+    in
+    (* When splitting [caml_applyM] into [caml_applyN] and [caml_applyK] it is
+       possible for [caml_applyN] to allocate on the local stack. If we are not
+       careful the region might be closed once [caml_applyN] returns, which
+       could produce a segfault or make subsequent loads read bad data.
+
+       To avoid doing that, when splitting a [caml_apply], we check before
+       calling the last [caml_apply] if we allocated on the local stack; and if
+       so, we close the region ourselves afterwards, as is already done inside
+       [caml_apply]. *)
+    match old_region, mode with
+    | None, Lambda.Alloc_heap when Config.stack_allocation ->
+      let dbg = placeholder_dbg in
+      bind "region"
+        (Cop (Cbeginregion, [], dbg ()))
+        (fun region -> body (Some region))
+    | _ -> body old_region)
+
+let generic_apply mut clos args args_type result (pos, mode) dbg =
+  might_split_call_caml_apply result args_type mut clos args pos mode dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
@@ -2539,9 +2609,6 @@ let region e =
   (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
   if has_local_allocs e then Cregion e else remove_region_tail e
 
-(* CR mshinwell: These will be filled in by later pull requests. *)
-let placeholder_dbg () = Debuginfo.none
-
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
 
 (* Generate an application function:
@@ -2587,20 +2654,8 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
         (* To preserve tail-call behaviour, we do a runtime check whether
            anything has been allocated in [region]. If not, then we can do a
            direct tail call without waiting to end the region afterwards. *)
-        Cifthenelse
-          ( Cop
-              (Ccmpi Ceq, [Cvar region; Cop (Cbeginregion, [], dbg ())], dbg ()),
-            dbg (),
-            app,
-            dbg (),
-            (let res = V.create_local "result" in
-             Clet
-               ( VP.create res,
-                 app,
-                 Csequence (Cop (Cendregion, [Cvar region], dbg ()), Cvar res)
-               )),
-            dbg (),
-            Any ))
+        maybe_reset_current_region ~dbg ~body_tail:app ~body_nontail:app
+          (Cvar region))
     | arg :: args ->
       let newclos = V.create_local "clos" in
       Clet
@@ -4117,19 +4172,8 @@ let direct_call ~dbg ty pos f_code_sym args =
   Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
 let indirect_call ~dbg ty pos alloc_mode f args_type args =
-  match args_type with
-  | [_] ->
-    (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
-    let v = Backend_var.create_local "*closure*" in
-    let v' = Backend_var.With_provenance.create v in
-    letin v' ~defining_expr:f
-      ~body:
-        (Cop
-           ( Capply (Extended_machtype.to_machtype ty, pos),
-             (load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v) :: args)
-             @ [Cvar v],
-             dbg ))
-  | _ -> call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
+  might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
+    alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
