@@ -1,0 +1,5 @@
+File "test_misplaced_attr.ml", line 1, characters 5-15:
+Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
+
+File "test_misplaced_attr.ml", line 5, characters 5-15:
+Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
