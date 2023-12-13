@@ -62,9 +62,6 @@ let print_line name =
 let print_global_as_name_line global =
   printf "\t%a\n" Global.Name.output (Global.to_name global)
 
-let print_name_line cu =
-  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
-
 let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 
