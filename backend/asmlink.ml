@@ -393,7 +393,10 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   compile_phrase (Cmm_helpers.code_segment_table code_comp_units);
   let all_comp_units = startup_comp_unit :: system_comp_unit :: name_list in
   let all_comp_units =
-    Generic_fns.imported_units cached_gen @ all_comp_units
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      Generic_fns.imported_units cached_gen @ all_comp_units
+    else
+      all_comp_units
   in
   compile_phrase (Cmm_helpers.frame_table all_comp_units);
   if !Clflags.output_complete_object then
