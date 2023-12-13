@@ -199,7 +199,7 @@ module For_tagged_immediates : Int_number_kind = struct
 
     (* Note this doesn't say 31 and 63! See the comments on the shift operations
        e.g. [lsl] in stdlib.mli. *)
-    let integer_bit_width = if Target_system.is_32_bit then 32 else 64
+    let integer_bit_width = if Target_system.is_32_bit () then 32 else 64
 
     let shift_left t shift =
       with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
@@ -264,7 +264,7 @@ module For_naked_immediates : Int_number_kind = struct
       then None
       else Some (mod_ t1 t2)
 
-    let integer_bit_width = if Target_system.is_32_bit then 31 else 63
+    let integer_bit_width = if Target_system.is_32_bit () then 31 else 63
 
     let shift_left t shift =
       with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
@@ -514,7 +514,7 @@ module For_nativeints : Boxable_int_number_kind = struct
 
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
-    let integer_bit_width = if Target_system.is_32_bit then 32 else 64
+    let integer_bit_width = if Target_system.is_32_bit () then 32 else 64
 
     let shift_left t shift =
       with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width

@@ -292,8 +292,14 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode mode)
-  | Pfield (n, sem) ->
-      fprintf ppf "field%a %i" field_read_semantics sem n
+  | Pfield (n, ptr, sem) ->
+      let instr =
+        match ptr, sem with
+        | Immediate, _ -> "field_int"
+        | Pointer, Reads_vary -> "field_mut"
+        | Pointer, Reads_agree -> "field_imm"
+      in
+      fprintf ppf "%s %i" instr n
   | Pfield_computed sem ->
       fprintf ppf "field_computed%a" field_read_semantics sem
   | Psetfield(n, ptr, init) ->
@@ -349,6 +355,10 @@ let primitive ppf = function
       in
       fprintf ppf "setufloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Prunstack -> fprintf ppf "runstack"
+  | Pperform -> fprintf ppf "perform"
+  | Presume -> fprintf ppf "resume"
+  | Preperform -> fprintf ppf "reperform"
   | Pmake_unboxed_product layouts ->
       fprintf ppf "make_unboxed_product [%a]"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
@@ -422,7 +432,8 @@ let primitive ppf = function
        | Ostype_unix -> "ostype_unix"
        | Ostype_win32 -> "ostype_win32"
        | Ostype_cygwin -> "ostype_cygwin"
-       | Backend_type -> "backend_type" in
+       | Backend_type -> "backend_type"
+       | Runtime5 -> "runtime5" in
      fprintf ppf "sys.constant_%s" const_name
   | Pisint { variant_only } ->
       fprintf ppf (if variant_only then "isint" else "obj_is_int")
@@ -434,14 +445,14 @@ let primitive ppf = function
   | Paddbint (bi,m) -> print_boxed_integer "add" ppf bi m
   | Psubbint (bi,m) -> print_boxed_integer "sub" ppf bi m
   | Pmulbint (bi,m) -> print_boxed_integer "mul" ppf bi m
-  | Pdivbint { size = bi; is_safe = Safe; mode } ->
-      print_boxed_integer "div" ppf bi mode
-  | Pdivbint { size = bi; is_safe = Unsafe; mode } ->
-      print_boxed_integer "div_unsafe" ppf bi mode
-  | Pmodbint { size = bi; is_safe = Safe; mode } ->
-      print_boxed_integer "mod" ppf bi mode
-  | Pmodbint { size = bi; is_safe = Unsafe; mode } ->
-      print_boxed_integer "mod_unsafe" ppf bi mode
+  | Pdivbint { size; is_safe = Safe; mode } ->
+      print_boxed_integer "div" ppf size mode
+  | Pdivbint { size; is_safe = Unsafe; mode } ->
+      print_boxed_integer "div_unsafe" ppf size mode
+  | Pmodbint { size; is_safe = Safe; mode } ->
+      print_boxed_integer "mod" ppf size mode
+  | Pmodbint { size; is_safe = Unsafe; mode } ->
+      print_boxed_integer "mod_unsafe" ppf size mode
   | Pandbint (bi,m) -> print_boxed_integer "and" ppf bi m
   | Porbint (bi,m) -> print_boxed_integer "or" ppf bi m
   | Pxorbint (bi,m) -> print_boxed_integer "xor" ppf bi m
@@ -468,6 +479,10 @@ let primitive ppf = function
   | Pstring_load_64(unsafe, m) ->
      if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "string.get64%s" (alloc_kind m)
+  | Pstring_load_128 {unsafe = true; mode} ->
+     fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pstring_load_128 {unsafe = false; mode} ->
+     fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
   | Pbytes_load_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_get16"
      else fprintf ppf "bytes.get16"
@@ -477,6 +492,10 @@ let primitive ppf = function
   | Pbytes_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bytes.get64%s" (alloc_kind m)
+  | Pbytes_load_128 {unsafe = true; mode} ->
+     fprintf ppf "bytes.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_128 {unsafe = false; mode} ->
+     fprintf ppf "bytes.unaligned_get128%s" (alloc_kind mode)
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -486,6 +505,10 @@ let primitive ppf = function
   | Pbytes_set_64(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set64"
      else fprintf ppf "bytes.set64"
+  | Pbytes_set_128 {unsafe = true} ->
+     fprintf ppf "bytes.unsafe_unaligned_set128"
+  | Pbytes_set_128 {unsafe = false} ->
+     fprintf ppf "bytes.unaligned_set128"
   | Pbigstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
@@ -495,6 +518,14 @@ let primitive ppf = function
   | Pbigstring_load_64(unsafe,m) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
+  | Pbigstring_load_128 {unsafe = true; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = false; mode} ->
+     fprintf ppf "bigarray.array1.unaligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = true; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_128 {unsafe = false; aligned = true; mode} ->
+     fprintf ppf "bigarray.array1.aligned_get128%s" (alloc_kind mode)
   | Pbigstring_set_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
@@ -504,10 +535,26 @@ let primitive ppf = function
   | Pbigstring_set_64(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
+  | Pbigstring_set_128 {unsafe = true; aligned = false} ->
+     fprintf ppf "bigarray.array1.unsafe_unaligned_set128"
+  | Pbigstring_set_128 {unsafe = true; aligned = true} ->
+     fprintf ppf "bigarray.array1.unsafe_aligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = false} ->
+     fprintf ppf "bigarray.array1.unaligned_set128"
+  | Pbigstring_set_128 {unsafe = false; aligned = true} ->
+     fprintf ppf "bigarray.array1.aligned_set128"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> fprintf ppf "atomic_load_imm"
+        | Pointer -> fprintf ppf "atomic_load_ptr")
+  | Patomic_exchange -> fprintf ppf "atomic_exchange"
+  | Patomic_cas -> fprintf ppf "atomic_cas"
+  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque _ -> fprintf ppf "opaque"
+  | Pdls_get -> fprintf ppf "dls_get"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic _ -> fprintf ppf "obj_magic"
@@ -614,22 +661,39 @@ let name_of_primitive = function
   | Pstring_load_16 _ -> "Pstring_load_16"
   | Pstring_load_32 _ -> "Pstring_load_32"
   | Pstring_load_64 _ -> "Pstring_load_64"
+  | Pstring_load_128 _ -> "Pstring_load_128"
   | Pbytes_load_16 _ -> "Pbytes_load_16"
   | Pbytes_load_32 _ -> "Pbytes_load_32"
   | Pbytes_load_64 _ -> "Pbytes_load_64"
+  | Pbytes_load_128 _ -> "Pbytes_load_128"
   | Pbytes_set_16 _ -> "Pbytes_set_16"
   | Pbytes_set_32 _ -> "Pbytes_set_32"
   | Pbytes_set_64 _ -> "Pbytes_set_64"
+  | Pbytes_set_128 _ -> "Pbytes_set_128"
   | Pbigstring_load_16 _ -> "Pbigstring_load_16"
   | Pbigstring_load_32 _ -> "Pbigstring_load_32"
   | Pbigstring_load_64 _ -> "Pbigstring_load_64"
+  | Pbigstring_load_128 _ -> "Pbigstring_load_128"
   | Pbigstring_set_16 _ -> "Pbigstring_set_16"
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
+  | Pbigstring_set_128 _ -> "Pbigstring_set_128"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer _ -> "Pint_as_pointer"
+  | Patomic_load {immediate_or_pointer} ->
+      (match immediate_or_pointer with
+        | Immediate -> "atomic_load_imm"
+        | Pointer -> "atomic_load_ptr")
+  | Patomic_exchange -> "Patomic_exchange"
+  | Patomic_cas -> "Patomic_cas"
+  | Patomic_fetch_add -> "Patomic_fetch_add"
   | Popaque _ -> "Popaque"
+  | Prunstack -> "Prunstack"
+  | Presume -> "Presume"
+  | Pperform -> "Pperform"
+  | Preperform -> "Preperform"
+  | Pdls_get -> "Pdls_get"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic _ -> "Pobj_magic"
@@ -654,9 +718,9 @@ let check_attribute ppf check =
       (check_property p)
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
-  | Check {property=p; strict; loc = _} ->
-    fprintf ppf "assert_%s%s@ "
-      (check_property p)
+  | Check {property=p; strict; loc = _; opt} ->
+    fprintf ppf "assert_%s%s%s@ "
+      (check_property p) (if opt then "_opt" else "")
       (if strict then "_strict" else "")
 
 let function_attribute ppf t =
@@ -868,7 +932,7 @@ let rec lam ppf = function
   | Lwhile {wh_cond; wh_body} ->
       fprintf ppf "@[<2>(while@ %a@ %a)@]"
         lam wh_cond lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+  | Lfor {for_id; for_loc = _; for_from; for_to; for_dir; for_body} ->
       fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")

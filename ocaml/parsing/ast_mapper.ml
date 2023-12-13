@@ -51,9 +51,9 @@ type mapper = {
                          -> extension_constructor;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
+  jkind_annotation:
+    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
-  layout_annotation:
-    mapper -> Jane_asttypes.const_layout -> Jane_asttypes.const_layout;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
   module_declaration: mapper -> module_declaration -> module_declaration;
@@ -123,6 +123,8 @@ end
 module T = struct
   (* Type expressions for the core language *)
 
+  module LT = Jane_syntax.Labeled_tuples
+
   let row_field sub {
       prf_desc;
       prf_loc;
@@ -149,33 +151,38 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-  let var_layout sub (name, layout_opt) =
+  let var_jkind sub (name, jkind_opt) =
     let name = map_loc sub name in
-    let layout_opt =
-      map_opt (map_loc_txt sub sub.layout_annotation) layout_opt
+    let jkind_opt =
+      map_opt (map_loc_txt sub sub.jkind_annotation) jkind_opt
     in
-    (name, layout_opt)
+    (name, jkind_opt)
 
-  let map_bound_vars sub bound_vars = List.map (var_layout sub) bound_vars
+  let map_bound_vars sub bound_vars = List.map (var_jkind sub) bound_vars
 
   let map_jst_layouts sub :
         Jane_syntax.Layouts.core_type -> Jane_syntax.Layouts.core_type =
     function
-    | Ltyp_var { name; layout } ->
-      let layout = map_loc_txt sub sub.layout_annotation layout in
-      Ltyp_var { name; layout }
+    | Ltyp_var { name; jkind } ->
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+      Ltyp_var { name; jkind }
     | Ltyp_poly { bound_vars; inner_type } ->
       let bound_vars = map_bound_vars sub bound_vars in
       let inner_type = sub.typ sub inner_type in
       Ltyp_poly { bound_vars; inner_type }
-    | Ltyp_alias { aliased_type; name; layout } ->
+    | Ltyp_alias { aliased_type; name; jkind } ->
       let aliased_type = sub.typ sub aliased_type in
-      let layout = map_loc_txt sub sub.layout_annotation layout in
-      Ltyp_alias { aliased_type; name; layout }
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+      Ltyp_alias { aliased_type; name; jkind }
+
+  let map_jst_labeled_tuple sub : LT.core_type -> LT.core_type = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Lttyp_tuple tl -> Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
     | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
+    | Jtyp_tuple x -> Jtyp_tuple (map_jst_labeled_tuple sub x)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                  as typ) =
@@ -477,6 +484,8 @@ module M = struct
           (sub.module_expr sub body)
     | Pmod_apply (m1, m2) ->
         apply ~loc ~attrs (sub.module_expr sub m1) (sub.module_expr sub m2)
+    | Pmod_apply_unit m1 ->
+        apply_unit ~loc ~attrs (sub.module_expr sub m1)
     | Pmod_constraint (m, mty) ->
         constraint_ ~loc ~attrs (sub.module_expr sub m)
                     (sub.module_type sub mty)
@@ -536,6 +545,7 @@ module E = struct
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
+  module LT = Jane_syntax.Labeled_tuples
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -576,11 +586,11 @@ module E = struct
 
   let map_layout_exp sub : L.expression -> L.expression = function
     | Lexp_constant x -> Lexp_constant (map_unboxed_constant_exp sub x)
-    | Lexp_newtype (str, layout, inner_expr) ->
+    | Lexp_newtype (str, jkind, inner_expr) ->
       let str = map_loc sub str in
-      let layout = map_loc_txt sub sub.layout_annotation layout in
+      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
       let inner_expr = sub.expr sub inner_expr in
-      Lexp_newtype (str, layout, inner_expr)
+      Lexp_newtype (str, jkind, inner_expr)
 
   let map_function_param sub : N_ary.function_param -> N_ary.function_param =
     fun { pparam_loc = loc; pparam_desc = desc } ->
@@ -589,10 +599,10 @@ module E = struct
         match desc with
         | Pparam_val (label, def, pat) ->
             Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
-        | Pparam_newtype (newtype, layout) ->
+        | Pparam_newtype (newtype, jkind) ->
             Pparam_newtype
               ( map_loc sub newtype
-              , map_opt (map_loc_txt sub sub.layout_annotation) layout
+              , map_opt (map_loc_txt sub sub.jkind_annotation) jkind
               )
       in
       { pparam_loc = loc; pparam_desc = desc }
@@ -625,12 +635,17 @@ module E = struct
       let body = map_function_body sub body in
       params, constraint_, body
 
+  let map_ltexp sub : LT.expression -> LT.expression = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Ltexp_tuple el -> Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
+
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
     | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
+    | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -736,6 +751,7 @@ module P = struct
 
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
+  module LT = Jane_syntax.Labeled_tuples
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
@@ -747,10 +763,16 @@ module P = struct
     *)
     | Float _ | Integer _ as x -> x
 
+  let map_ltpat sub : LT.pattern -> LT.pattern = function
+    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
+    | Ltpat_tuple (pl, closed) ->
+      Ltpat_tuple (List.map (map_snd (sub.pat sub)) pl, closed)
+
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
     | Jpat_layout (Lpat_constant x) ->
         Jpat_layout (Lpat_constant (map_unboxed_constant_pat sub x))
+    | Jpat_tuple ltpat -> Jpat_tuple (map_ltpat sub ltpat)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -974,10 +996,23 @@ let default_mapper =
 
 
     value_binding =
-      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc} ->
+      (fun this {pvb_pat; pvb_expr; pvb_constraint; pvb_attributes; pvb_loc} ->
+         let map_ct (ct:Parsetree.value_constraint) = match ct with
+           | Pvc_constraint {locally_abstract_univars=vars; typ} ->
+               Pvc_constraint
+                 { locally_abstract_univars = List.map (map_loc this) vars;
+                   typ = this.typ this typ
+                 }
+           | Pvc_coercion { ground; coercion } ->
+               Pvc_coercion {
+                 ground = Option.map (this.typ this) ground;
+                 coercion = this.typ this coercion
+               }
+         in
          Vb.mk
            (this.pat this pvb_pat)
            (this.expr this pvb_expr)
+           ?value_constraint:(Option.map map_ct pvb_constraint)
            ~loc:(this.location this pvb_loc)
            ~attrs:(this.attributes this pvb_attributes)
       );
@@ -995,11 +1030,11 @@ let default_mapper =
           let vars = List.map (map_loc this) pcd_vars in
           let attrs = this.attributes this pcd_attributes in
           Type.constructor name ~vars ~args ?res ~loc ~attrs
-        | Some (vars_layouts, attributes) ->
-          let vars_layouts = List.map (T.var_layout this) vars_layouts in
+        | Some (vars_jkinds, attributes) ->
+          let vars_jkinds = List.map (T.var_jkind this) vars_jkinds in
           let attrs = this.attributes this attributes in
           Jane_syntax.Layouts.constructor_declaration_of
-            name ~vars_layouts ~args ~res ~loc ~attrs
+            name ~vars_jkinds ~args ~res ~loc ~attrs
             ~info:Docstrings.empty_info
       );
 
@@ -1044,7 +1079,7 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
-    layout_annotation = (fun _this l -> l);
+    jkind_annotation = (fun _this l -> l);
 
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
@@ -1130,11 +1165,16 @@ module PpxContext = struct
     }
 
   let make ~tool_name () =
+    let Load_path.{ visible; hidden } = Load_path.get_paths () in
     let fields =
       [
         lid "tool_name",    make_string tool_name;
-        lid "include_dirs", make_list make_string !Clflags.include_dirs;
-        lid "load_path",    make_list make_string (Load_path.get_paths ());
+        lid "include_dirs", make_list make_string (!Clflags.include_dirs);
+        lid "hidden_include_dirs",
+          make_list make_string (!Clflags.hidden_include_dirs);
+        lid "load_path",
+          make_pair (make_list make_string) (make_list make_string)
+            (visible, hidden);
         lid "open_modules", make_list make_string !Clflags.open_modules;
         lid "for_package",  make_option make_string !Clflags.for_package;
         lid "debug",        make_bool !Clflags.debug;
@@ -1144,7 +1184,7 @@ module PpxContext = struct
         lid "principal", make_bool !Clflags.principal;
         lid "transparent_modules", make_bool !Clflags.transparent_modules;
         lid "unboxed_types", make_bool !Clflags.unboxed_types;
-        lid "unsafe_string", make_bool !Clflags.unsafe_string;
+        lid "unsafe_string", make_bool false; (* kept for compatibility *)
         get_cookies ()
       ]
     in
@@ -1203,8 +1243,22 @@ module PpxContext = struct
           tool_name_ref := get_string payload
       | "include_dirs" ->
           Clflags.include_dirs := get_list get_string payload
+      | "hidden_include_dirs" ->
+          Clflags.hidden_include_dirs := get_list get_string payload
       | "load_path" ->
-          Load_path.init (get_list get_string payload)
+          (* Duplicates Compmisc.auto_include, since we can't reference Compmisc
+             from this module. *)
+          let auto_include find_in_dir fn =
+            if !Clflags.no_auto_include_otherlibs || !Clflags.no_std_include then
+              raise Not_found
+            else
+              let alert = Location.auto_include_alert in
+              Load_path.auto_include_otherlibs alert find_in_dir fn
+          in
+          let visible, hidden =
+            get_pair (get_list get_string) (get_list get_string) payload
+          in
+          Load_path.init ~auto_include ~visible ~hidden
       | "open_modules" ->
           Clflags.open_modules := get_list get_string payload
       | "for_package" ->
@@ -1224,8 +1278,6 @@ module PpxContext = struct
           Clflags.transparent_modules := get_bool payload
       | "unboxed_types" ->
           Clflags.unboxed_types := get_bool payload
-      | "unsafe_string" ->
-          Clflags.unsafe_string := get_bool payload
       | "cookies" ->
           let l = get_list (get_pair get_string (fun x -> x)) payload in
           cookies :=

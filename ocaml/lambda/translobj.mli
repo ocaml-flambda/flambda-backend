@@ -23,8 +23,7 @@ val meth: lambda -> string -> lambda * lambda list
 val reset_labels: unit -> unit
 val transl_label_init: (unit -> lambda * 'a) -> lambda * 'a
 val transl_store_label_init:
-    get_global:(scoped_location -> lambda) -> int -> ('a -> lambda) -> 'a ->
-    int * lambda
+    Compilation_unit.t -> int -> ('a -> lambda) -> 'a -> int * lambda
 
 val method_ids: Ident.Set.t ref (* reset when starting a new wrapper *)
 

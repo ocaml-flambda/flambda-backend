@@ -34,7 +34,7 @@ let _ = Hashtbl.add directive_table "quit" (Directive_none dir_quit)
 
 let dir_directory s =
   let d = expand_directory Config.standard_library s in
-  let dir = Load_path.Dir.create d in
+  let dir = Load_path.Dir.create ~hidden:false d in
   Load_path.append_dir dir;
   toplevel_env :=
     Stdlib.String.Set.fold
@@ -62,7 +62,7 @@ let _ =
 let _ = Hashtbl.add directive_table "show_dirs"
   (Directive_none
      (fun () ->
-        List.iter print_endline (Load_path.get_paths ())
+        List.iter print_endline (Load_path.get_path_list ())
      ))
 
 (* To change the current directory *)
@@ -137,14 +137,12 @@ let match_printer_type ppf desc typename =
         fprintf ppf "Cannot find type Topdirs.%s.@." typename;
         raise Exit
   in
-  Ctype.begin_def();
-  let ty_arg = Ctype.newvar (Layouts.Layout.value ~why:Debug_printer_argument) in
-  Ctype.unify !toplevel_env
-    (Ctype.newconstr printer_type [ty_arg])
-    (Ctype.instance desc.val_type);
-  Ctype.end_def();
-  Ctype.generalize ty_arg;
-  ty_arg
+  Ctype.with_local_level ~post:Ctype.generalize (fun () ->
+    let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
+    Ctype.unify !toplevel_env
+      (Ctype.newconstr printer_type [ty_arg])
+      (Ctype.instance desc.val_type);
+    ty_arg)
 
 let find_printer_type ppf lid =
   match Env.find_value_by_name lid !toplevel_env with

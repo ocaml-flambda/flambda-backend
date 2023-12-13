@@ -1,7 +1,12 @@
 (* TEST
-   flags = "-strict-sequence"
+   flags = "-extension layouts -strict-sequence"
    * expect
 *)
+(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
+*)
+
+
 external a : (int [@untagged]) -> unit = "a" "a_nat"
 external b : (int32 [@unboxed]) -> unit = "b" "b_nat"
 external c : (int64 [@unboxed]) -> unit = "c" "c_nat"
@@ -74,19 +79,23 @@ Line 3, characters 2-61:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert deprecated: [@@unboxed] + [@@noalloc] should be used
 instead of "float"
+
 Line 4, characters 2-53:
 4 |   external b : float -> float = "b" "noalloc" "b_nat"
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert deprecated: [@@noalloc] should be used instead of "noalloc"
+
 Line 5, characters 2-51:
 5 |   external c : float -> float = "c" "c_nat" "float"
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert deprecated: [@@unboxed] + [@@noalloc] should be used
 instead of "float"
+
 Line 6, characters 2-45:
 6 |   external d : float -> float = "d" "noalloc"
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert deprecated: [@@noalloc] should be used instead of "noalloc"
+
 module Old_style_warning :
   sig
     external a : float -> float = "a" "a_nat" [@@unboxed] [@@noalloc]
@@ -742,7 +751,7 @@ Error: The native code version of the primitive is mandatory
 |}]
 
 (* PR#7424 *)
-type 'a b = B of 'a b b [@@unboxed] [@@value];;
+type 'a b : value = B of 'a b b [@@unboxed];;
 [%%expect{|
 type 'a b : value = B of 'a b b [@@unboxed]
 |}]
@@ -764,6 +773,7 @@ versions of the compiler, breaking the primitive implementation.
 You should explicitly annotate the declaration of i
 with [@@boxed] or [@@unboxed], so that its external interface
 remains stable in the future.
+
 external id : i -> i = "%identity"
 |}];;
 
@@ -784,6 +794,7 @@ versions of the compiler, breaking the primitive implementation.
 You should explicitly annotate the declaration of i
 with [@@boxed] or [@@unboxed], so that its external interface
 remains stable in the future.
+
 Line 3, characters 0-34:
 3 | external id : i -> j = "%identity";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -795,6 +806,7 @@ versions of the compiler, breaking the primitive implementation.
 You should explicitly annotate the declaration of j
 with [@@boxed] or [@@unboxed], so that its external interface
 remains stable in the future.
+
 external id : i -> j = "%identity"
 |}];;
 

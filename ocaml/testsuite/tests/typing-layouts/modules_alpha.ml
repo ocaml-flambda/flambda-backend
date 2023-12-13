@@ -10,7 +10,7 @@ type t_imm64 : immediate64
 type t_void  : void;;
 
 (*********************************************************)
-(* Test 1: Simple with type constraints respect layouts. *)
+(* Test 1: Simple with type constraints respect jkinds. *)
 module type S1 = sig
   type ('a : void) t
   type s
@@ -66,7 +66,7 @@ module M1_2' : S1_2'
 
 (* CR layouts - annoyingly, the immediate annotation on 'a is required.  We
    can probably relax this so you don't have to label the parameter explcitly
-   and the layout is determined from the signature.  But we anticipate it'll
+   and the jkind is determined from the signature.  But we anticipate it'll
    require non-trivial refactoring of eqtype, so we've put it off for now. *)
 module M1_2'': S1_2' = struct
   type 'a t = 'a list
@@ -131,7 +131,7 @@ Error: This expression has type string but an expression was expected of type
 |}]
 
 (******************************************************************)
-(* Test 3: Recursive modules, with and without layout annotations *)
+(* Test 3: Recursive modules, with and without jkind annotations *)
 module rec Foo3 : sig
   val create : Bar3.t -> unit
 end = struct
@@ -222,7 +222,7 @@ Error: This type ('a : void) should be an instance of type ('b : value)
 
 (* One downside of the current approach - this could be allowed, but isn't.  You
    need to annotate types declared in recursive modules if they need to have
-   layouts other than value, even if it's obvious from the manifest *)
+   jkinds other than value, even if it's obvious from the manifest *)
 type t3 : void
 
 module rec Foo3 : sig
@@ -269,7 +269,7 @@ and Bar3 : sig type ('a : void) t type s = Foo3.t t end
 |}];;
 
 (*************************************************************************)
-(* Test 4: Nondep typedecl layout approximation in the Nondep_cannot_erase
+(* Test 4: Nondep typedecl jkind approximation in the Nondep_cannot_erase
    case. *)
 module F4(X : sig type t end) = struct
   type s = Foo of X.t

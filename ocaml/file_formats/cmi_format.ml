@@ -19,7 +19,6 @@ type pers_flags =
   | Rectypes
   | Alerts of alerts
   | Opaque
-  | Unsafe_string
 
 type kind =
   | Normal of {
@@ -50,7 +49,7 @@ exception Error of error
   (again, shallowly) representation can be found. When deserializing, we read
   the entire data block into memory as one blob and then deserialize from it as
   needed when values are forced.
-  
+
   Note that we are deliberately using int for offsets here because int64 is more
   expensive. On 32 bits architectures, this imposes a constraint on the size of
   .cmi files. *)
@@ -188,6 +187,8 @@ let output_cmi filename oc cmi =
   let len = Int64.sub val_pos data_pos in
   output_int64 oc len;
   Out_channel.seek oc val_pos;
+  (* BACKPORT BEGIN *)
+  (* mshinwell: upstream uses [Compression] here *)
   output_value oc
     {
       header_name = cmi.cmi_name;
@@ -195,6 +196,7 @@ let output_cmi filename oc cmi =
       header_sign = sign;
       header_params = cmi.cmi_params;
     };
+  (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in
   let unit =
@@ -213,15 +215,6 @@ let output_cmi filename oc cmi =
 
 let input_cmi ic = input_cmi_lazy ic |> force_cmi_infos
 let read_cmi filename = read_cmi_lazy filename |> force_cmi_infos
-
-type module_block_layout =
-  | Single_block
-  | Full_module_and_argument_form
-
-let module_block_layout cmi =
-  match cmi.cmi_kind with
-  | Parameter | Normal { cmi_arg_for = None; _ } -> Single_block
-  | Normal { cmi_arg_for = Some _; _ } -> Full_module_and_argument_form
 
 (* Error report *)
 

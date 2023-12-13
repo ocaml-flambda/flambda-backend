@@ -17,7 +17,6 @@
 
 open Asttypes
 open Path
-open Layouts
 open Types
 open Typedtree
 
@@ -174,6 +173,20 @@ type privacy_mismatch =
 
 type locality_mismatch = { order : position }
 
+type type_kind =
+  | Kind_abstract
+  | Kind_record
+  | Kind_variant
+  | Kind_open
+
+let of_kind = function
+  | Type_abstract _ -> Kind_abstract
+  | Type_record (_, _) -> Kind_record
+  | Type_variant (_, _) -> Kind_variant
+  | Type_open -> Kind_open
+
+type kind_mismatch = type_kind * type_kind
+
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
@@ -222,7 +235,7 @@ type variant_change =
 type type_mismatch =
   | Arity
   | Privacy of privacy_mismatch
-  | Kind
+  | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
   | Private_variant of type_expr * type_expr * private_variant_mismatch
@@ -232,7 +245,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.t
+  | Jkind of Jkind.Violation.t
 
 let report_locality_mismatch first second ppf err =
   let {order} = err in
@@ -455,6 +468,19 @@ let report_private_object_mismatch env ppf err =
   | Missing s -> pr "The implementation is missing the method %s" s
   | Types err -> report_type_inequality env ppf err
 
+let report_kind_mismatch first second ppf (kind1, kind2) =
+  let pr fmt = Format.fprintf ppf fmt in
+  let kind_to_string = function
+  | Kind_abstract -> "abstract"
+  | Kind_record -> "a record"
+  | Kind_variant -> "a variant"
+  | Kind_open -> "an extensible variant" in
+  pr "%s is %s, but %s is %s."
+    (String.capitalize_ascii first)
+    (kind_to_string kind1)
+    second
+    (kind_to_string kind2)
+
 let report_type_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
   pr "@ ";
@@ -463,8 +489,8 @@ let report_type_mismatch first second decl env ppf err =
       pr "They have different arities."
   | Privacy err ->
       report_privacy_mismatch ppf err
-  | Kind ->
-      pr "Their kinds differ."
+  | Kind err ->
+      report_kind_mismatch first second ppf err
   | Constraint err ->
       (* This error can come from implicit parameter disagreement or from
          explicit `constraint`s.  Both affect the parameters, hence this choice
@@ -494,8 +520,8 @@ let report_type_mismatch first second decl env ppf err =
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
          "is extensible"
-  | Layout v ->
-      Layout.Violation.report_with_name ~name:first ppf v
+  | Jkind v ->
+      Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
@@ -1009,14 +1035,14 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) ->
-       (* Note that [decl2.type_layout] is an upper bound.
+       (* Note that [decl2.type_jkind] is an upper bound.
           If it isn't tight, [decl2] must
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
-          layout, but [check_decl_layout] will expand its manifest.  *)
-        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
+          jkind, but [check_decl_jkind] will expand its manifest.  *)
+        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
          | Ok _ -> None
-         | Error v -> Some (Layout v))
+         | Error v -> Some (Jkind v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =
@@ -1053,7 +1079,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           labels1 labels2
           rep1 rep2
     | (Type_open, Type_open) -> None
-    | (_, _) -> Some Kind
+    | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
   in
   if err <> None then err else
   let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
@@ -1071,8 +1097,8 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         (if abstr then (imp co1 co2 && imp cn1 cn2)
          else if opn || constrained ty then (co1 = co2 && cn1 = cn2)
          else true) &&
-        let (p1,n1,i1,j1) = get_lower v1 and (p2,n2,i2,j2) = get_lower v2 in
-        imp abstr (imp p2 p1 && imp n2 n1 && imp i2 i1 && imp j2 j1))
+        let (p1,n1,j1) = get_lower v1 and (p2,n2,j2) = get_lower v2 in
+        imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
       decl2.type_params (List.combine decl1.type_variance decl2.type_variance)
   then None else Some Variance
 

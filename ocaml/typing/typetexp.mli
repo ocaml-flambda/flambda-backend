@@ -15,7 +15,6 @@
 
 (* Typechecking of type expressions for the core language *)
 
-open Layouts
 open Types
 open Mode
 
@@ -31,12 +30,12 @@ module TyVarEnv : sig
 
   type poly_univars
   val make_poly_univars : string Location.loc list -> poly_univars
-    (** A variant of [make_poly_univars_layouts] that gets variables
-        without layout annotations *)
+    (** A variant of [make_poly_univars_jkinds] that gets variables
+        without jkind annotations *)
 
-  val make_poly_univars_layouts :
-    context:(string -> Layout.annotation_context) ->
-    (string Location.loc * Jane_asttypes.layout_annotation option) list ->
+  val make_poly_univars_jkinds :
+    context:(string -> Jkind.annotation_context) ->
+    (string Location.loc * Jane_asttypes.jkind_annotation option) list ->
     poly_univars
     (** remember that a list of strings connotes univars; this must
         always be paired with a [check_poly_univars]. *)
@@ -51,6 +50,9 @@ module TyVarEnv : sig
      Env.t -> Location.t -> poly_univars -> type_expr list
     (** Same as [check_poly_univars], but instantiates the resulting
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
+
+  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
+    (** A suitable arg to the corresponding [Ttyp_poly] type. *)
 end
 
 val valid_tyvar_name : string -> bool
@@ -74,7 +76,7 @@ val transl_type_param:
 (* the Path.t above is of the type/class whose param we are processing;
    the level defaults to the current level *)
 
-val get_type_param_layout: Path.t -> Parsetree.core_type -> layout
+val get_type_param_jkind: Path.t -> Parsetree.core_type -> jkind
 val get_type_param_name: Parsetree.core_type -> string option
 
 val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
@@ -88,7 +90,7 @@ type sort_loc =
     Fun_arg | Fun_ret
 
 type cannot_quantify_reason
-type layout_info
+type jkind_info
 type error =
   | Unbound_type_variable of string * string list
   | No_type_wildcards
@@ -106,8 +108,8 @@ type error =
   | Variant_tags of string * string
   | Invalid_variable_name of string
   | Cannot_quantify of string * cannot_quantify_reason
-  | Bad_univar_layout of
-      { name : string; layout_info : layout_info; inferred_layout : layout }
+  | Bad_univar_jkind of
+      { name : string; jkind_info : jkind_info; inferred_jkind : jkind }
   | Multiple_constraints_on_type of Longident.t
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
@@ -115,10 +117,11 @@ type error =
   | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
+      {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
   | Non_sort of
-      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
-  | Bad_layout_annot of type_expr * Layout.Violation.t
+      {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
+  | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Did_you_mean_unboxed of Longident.t
 
 exception Error of Location.t * Env.t * error
 
@@ -129,7 +132,3 @@ val transl_modtype_longident:  (* from Typemod *)
     (Location.t -> Env.t -> Longident.t -> Path.t) ref
 val transl_modtype: (* from Typemod *)
     (Env.t -> Parsetree.module_type -> Typedtree.module_type) ref
-val create_package_mty:
-    Location.t -> Env.t -> Parsetree.package_type ->
-    (Longident.t Asttypes.loc * Parsetree.core_type) list *
-      Parsetree.module_type

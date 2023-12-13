@@ -96,7 +96,8 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let _, body =
     List.fold_left (fun (pos, body) param ->
         let lam : Flambda.named =
-          Prim (Pfield (pos, Pvalue Pgenval), [tuple_param_var], Debuginfo.none)
+          Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
+                [tuple_param_var], Debuginfo.none)
         in
         pos + 1, Flambda.create_let param lam body)
       (0, call) params
@@ -124,12 +125,8 @@ let rec declare_const t (const : Lambda.structured_constant)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
-      if Config.safe_string then
-        (Flambda.Allocated_const (Immutable_string s),
-         Names.const_immstring)
-      else
-        (Flambda.Allocated_const (String s),
-         Names.const_string)
+      (Flambda.Allocated_const (Immutable_string s),
+       Names.const_immstring)
     in
     register_const t const name
   | Const_base (Const_float c) ->
@@ -454,6 +451,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         | Ostype_cygwin -> lambda_const_bool (String.equal Sys.os_type "Cygwin")
         | Backend_type ->
             Lambda.const_int 0 (* tag 0 is the same as Native *)
+        | Runtime5 -> lambda_const_bool Config.runtime5
         end
       in
       close t env
@@ -741,9 +739,11 @@ let lambda_to_flambda ~backend ~compilation_unit ~size lam
       Flambda.create_let
         sym_v (Symbol block_symbol)
          (Flambda.create_let result_v
-            (Prim (Pfield (0, Pvalue Pgenval), [sym_v], Debuginfo.none))
+            (Prim (Pfield (0, Pvalue Pgenval, Pointer, Mutable), [sym_v],
+              Debuginfo.none))
             (Flambda.create_let value_v
-              (Prim (Pfield (pos, Pvalue Pgenval), [result_v], Debuginfo.none))
+              (Prim (Pfield (pos, Pvalue Pgenval, Pointer, Mutable),
+                     [result_v], Debuginfo.none))
               (Var value_v))))
   in
   let module_initializer : Flambda.program_body =
