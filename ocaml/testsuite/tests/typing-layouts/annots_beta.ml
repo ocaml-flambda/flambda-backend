@@ -515,7 +515,7 @@ Error: This definition has type 'b -> 'b which is less general than
        The layout of 'a is value, because
          of the annotation on the universal variable 'a.
        But the layout of 'a must be a sublayout of immediate, because
-         of the annotation on the universal variable 'a.
+         of the definition of f_imm at line 1, characters 4-9.
 |}]
 
 type (_ : value) g =

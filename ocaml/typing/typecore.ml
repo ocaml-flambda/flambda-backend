@@ -7655,6 +7655,12 @@ and type_let
          lower_contravariant env pat.pat_type)
     pat_list exp_list;
   iter_pattern_variables_type generalize pvs;
+  (* update pattern variable layout reasons *)
+  List.iter
+    (fun pv ->
+      let reason = Layout.Generalized (Some pv.pv_id, pv.pv_loc) in
+      Ctype.update_generalized_ty_layout_reason pv.pv_type reason)
+    pvs;
   List.iter2
     (fun (_,_,expected_ty) (exp, vars) ->
        match vars with
@@ -7674,7 +7680,7 @@ and type_let
              lower_contravariant env exp.exp_type;
            generalize_and_check_univars env "definition" exp expected_ty vars)
     pat_list exp_list;
-  let update_layout (_, p, _) (exp, _) =
+  let update_exp_layout (_, p, _) (exp, _) =
     let pat_name =
       match p.pat_desc with
         Tpat_var (id, _, _) -> Some id
@@ -7683,7 +7689,7 @@ and type_let
     let reason = Layout.Generalized (pat_name, exp.exp_loc) in
     Ctype.update_generalized_ty_layout_reason exp.exp_type reason
   in
-  List.iter2 update_layout pat_list exp_list;
+  List.iter2 update_exp_layout pat_list exp_list;
   let l = List.combine pat_list exp_list in
   let l = List.combine sorts l in
   let l =
