@@ -1169,12 +1169,11 @@ module Labeled_tuples = struct
   module Of_ast = Of_ast (Ext)
   include Ext
 
-  type nonrec core_type = Lttyp_tuple of (string option * core_type) list
+  type nonrec core_type = (string option * core_type) list
 
-  type nonrec expression = Ltexp_tuple of (string option * expression) list
+  type nonrec expression = (string option * expression) list
 
-  type nonrec pattern =
-    | Ltpat_tuple of (string option * pattern) list * closed_flag
+  type nonrec pattern = (string option * pattern) list * closed_flag
 
   let string_of_label = function None -> "" | Some lbl -> lbl
 
@@ -1218,8 +1217,19 @@ module Labeled_tuples = struct
     | PStr [] -> names, attrs
     | _ -> Desugaring_error.raise loc (Has_payload payload)
 
-  let typ_of ~loc = function
-    | Lttyp_tuple tl ->
+  type 'a label_check_result =
+    | No_labels of 'a list
+    | At_least_one_label of (string option * 'a) list
+
+  let check_for_any_label xs =
+    if List.for_all (fun (lbl, _x) -> Option.is_none lbl) xs
+    then No_labels (List.map snd xs)
+    else At_least_one_label xs
+
+  let typ_of ~loc tl =
+    match check_for_any_label tl with
+    | No_labels tl -> Ast_helper.Typ.tuple ~loc tl
+    | At_least_one_label tl ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Core_type.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) tl in
@@ -1238,11 +1248,13 @@ module Labeled_tuples = struct
       let labeled_components =
         List.map2 (fun s t -> label_of_string s, t) labels components
       in
-      Lttyp_tuple labeled_components, ptyp_attributes
+      labeled_components, ptyp_attributes
     | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
 
-  let expr_of ~loc = function
-    | Ltexp_tuple el ->
+  let expr_of ~loc el =
+    match check_for_any_label el with
+    | No_labels el -> Ast_helper.Exp.tuple ~loc el
+    | At_least_one_label el ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) el in
@@ -1261,17 +1273,25 @@ module Labeled_tuples = struct
       let labeled_components =
         List.map2 (fun s e -> label_of_string s, e) labels components
       in
-      Ltexp_tuple labeled_components, pexp_attributes
+      labeled_components, pexp_attributes
     | _ -> Desugaring_error.raise expr.pexp_loc Malformed
 
-  let pat_of ~loc = function
-    | Ltpat_tuple (pl, closed) ->
+  let pat_of =
+    let make_jane_syntax ~loc pl closed =
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Pattern.make_entire_jane_syntax ~loc feature (fun () ->
           let names = List.map (fun (label, _) -> string_of_label label) pl in
           Pattern.make_jane_syntax feature
             (string_of_closed_flag closed :: names)
           @@ Ast_helper.Pat.tuple (List.map snd pl))
+    in
+    fun ~loc (pl, closed) ->
+      match closed with
+      | Open -> make_jane_syntax ~loc pl closed
+      | Closed -> (
+        match check_for_any_label pl with
+        | No_labels pl -> Ast_helper.Pat.tuple ~loc pl
+        | At_least_one_label pl -> make_jane_syntax ~loc pl closed)
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat =
@@ -1286,7 +1306,7 @@ module Labeled_tuples = struct
       let labeled_components =
         List.map2 (fun s e -> label_of_string s, e) labels components
       in
-      Ltpat_tuple (labeled_components, closed), ppat_attributes
+      (labeled_components, closed), ppat_attributes
     | _ -> Desugaring_error.raise pat.ppat_loc Malformed
 end
 

@@ -354,6 +354,8 @@ type instruction =
   | PMADDWD of arg * arg
   | PMADDUBSW of arg * arg
   | PMULLD of arg * arg
+  | PEXT of arg * arg * arg
+  | PDEP of arg * arg * arg
 
 (* ELF specific *)
 type reloc_type =

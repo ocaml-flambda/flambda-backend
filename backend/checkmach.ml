@@ -338,6 +338,9 @@ module Annotation : sig
   val is_assume : t -> bool
 
   val is_strict : t -> bool
+
+  val is_check_enabled :
+    Cmm.codegen_option list -> string -> Debuginfo.t -> bool
 end = struct
   (**
    ***************************************************************************
@@ -408,6 +411,14 @@ end = struct
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
+
+  let is_check_enabled codegen_options fun_name dbg =
+    let is_enabled p =
+      match find codegen_options p fun_name dbg with
+      | None -> false
+      | Some { assume; _ } -> not assume
+    in
+    List.exists is_enabled Cmm.all_properties
 end
 
 module Report : sig
@@ -1264,3 +1275,6 @@ let iter_witnesses f =
         (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
 let () = Location.register_error_of_exn Report.print
+
+let is_check_enabled codegen_options fun_name dbg =
+  Annotation.is_check_enabled codegen_options fun_name dbg

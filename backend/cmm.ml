@@ -643,3 +643,7 @@ let equal_integer_comparison left right =
   | Cle, (Ceq | Cne | Clt | Cgt | Cge)
   | Cge, (Ceq | Cne | Clt | Cgt | Cle) ->
     false
+
+let all_properties = [Zero_alloc]
+
+let caml_flambda2_invalid = "caml_flambda2_invalid"

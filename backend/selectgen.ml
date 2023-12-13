@@ -411,6 +411,7 @@ let join_array env rs ~bound_name =
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
+let current_function_is_check_enabled = ref false
 
 module Effect = struct
   type t =
@@ -1070,13 +1071,22 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               Some (rd, unclosed_regions)
-          | Iextcall ({ ty_args; returns; _} as r) ->
+          | Iextcall ({ func; ty_args; returns; _} as r) ->
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env ty_args new_args in
+              let keep_for_checking =
+                not returns &&
+                !current_function_is_check_enabled &&
+                String.equal func Cmm.caml_flambda2_invalid
+              in
+              let returns, ty =
+                if keep_for_checking then true, typ_int
+                else returns, ty
+              in
               let rd = self#regs_for ty in
               let loc_res =
                 self#insert_op_debug env
-                  (Iextcall {r with stack_ofs = stack_ofs}) dbg
+                  (Iextcall {r with stack_ofs = stack_ofs; returns }) dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               add_naming_op_for_bound_name loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
@@ -1877,6 +1887,8 @@ method private emit_tail_sequence ?at_start env exp =
 
 method emit_fundecl ~future_funcnames f =
   current_function_name := f.Cmm.fun_name.sym_name;
+  current_function_is_check_enabled :=
+    Checkmach.is_check_enabled f.Cmm.fun_codegen_options f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
   let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
   let rargs =
     List.mapi
@@ -1942,6 +1954,3 @@ method emit_fundecl ~future_funcnames f =
   }
 
 end
-
-let reset () =
-  current_function_name := ""
