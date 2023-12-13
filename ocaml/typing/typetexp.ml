@@ -27,6 +27,8 @@ open Ctype
 
 exception Already_bound
 
+type jkind_initialization_option = Sort | Any
+
 type value_loc =
     Tuple | Poly_variant | Package_constraint | Object_field
 
@@ -120,13 +122,22 @@ module TyVarEnv : sig
   (* see mli file *)
 
   type policy
-  val fixed_policy : policy (* no wildcards allowed *)
-  val extensible_policy : policy (* common case *)
+  val fixed_with_sort_initialization_policy : policy
+    (* no wildcards allowed (new unannotated type var requires a representable jkind) *)
+  val extensible_with_sort_initialization_policy : policy
+    (* common case (new unannotated type var requires a representable jkind) *)
+  val fixed_with_any_initialization_policy : policy
+    (* no wildcards allowed (new unannotated type var can have jkind any) *)
+  val extensible_with_any_initialization_policy : policy
+    (* common case (new unannotated type var can have jkind any) *)
   val univars_policy : policy (* fresh variables are univars (in methods) *)
   val new_any_var : Location.t -> Env.t -> Jkind.t -> policy -> type_expr
-    (* create a new variable to represent a _; fails for fixed_policy *)
+    (* create a new variable to represent a _; fails for fixed_*_policy *)
   val new_var : ?name:string -> Jkind.t -> policy -> type_expr
     (* create a new variable according to the given policy *)
+
+  val new_jkind : is_named:bool -> policy -> Jkind.t
+    (* create a new jkind depending on the current policy *)
 
   val add_pre_univar : type_expr -> policy -> unit
     (* remember that a variable might become a univar if it isn't unified;
@@ -154,8 +165,8 @@ module TyVarEnv : sig
       corresponding global type variables if they exist. Otherwise, in function
       of the policy, fresh used variables are either
         - added to the global type variable scope if they are not longer
-        variables under the {!fixed_policy}
-        - added to the global type variable scope under the {!extensible_policy}
+        variables under the {!fixed_*_policy}
+        - added to the global type variable scope under the {!extensible_*_policy}
         - expected to be collected later by a call to `collect_univar` under the
         {!universal_policy}
    *)
@@ -370,11 +381,37 @@ end = struct
 
   type flavor = Unification | Universal
   type extensibility = Extensible | Fixed
-  type policy = { flavor : flavor; extensibility : extensibility }
+  type policy = {
+    flavor : flavor;
+    extensibility : extensibility;
+    jkind_initialization: jkind_initialization_option;
+  }
 
-  let fixed_policy = { flavor = Unification; extensibility = Fixed }
-  let extensible_policy = { flavor = Unification; extensibility = Extensible }
-  let univars_policy = { flavor = Universal; extensibility = Extensible }
+  let fixed_with_sort_initialization_policy = {
+    flavor = Unification;
+    extensibility = Fixed;
+    jkind_initialization = Sort;
+  }
+  let extensible_with_sort_initialization_policy = {
+    flavor = Unification;
+    extensibility = Extensible;
+    jkind_initialization = Sort;
+  }
+  let fixed_with_any_initialization_policy = {
+    flavor = Unification;
+    extensibility = Fixed;
+    jkind_initialization = Any;
+  }
+  let extensible_with_any_initialization_policy = {
+    flavor = Unification;
+    extensibility = Extensible;
+    jkind_initialization = Any;
+  }
+  let univars_policy = {
+    flavor = Universal;
+    extensibility = Extensible;
+    jkind_initialization = Sort;
+  }
 
   let add_pre_univar tv = function
     | { flavor = Universal } ->
@@ -392,6 +429,12 @@ end = struct
     let tv = Ctype.newvar ?name jkind in
     add_pre_univar tv policy;
     tv
+
+  let new_jkind ~is_named { jkind_initialization } =
+    match jkind_initialization with
+    | Any -> Jkind.any ~why:Dummy_jkind
+    | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
+
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
@@ -619,7 +662,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   match styp.ptyp_desc with
     Ptyp_any ->
      let ty =
-       TyVarEnv.new_any_var loc env (Jkind.of_new_sort ~why:Wildcard) policy
+       TyVarEnv.new_any_var loc env (TyVarEnv.new_jkind ~is_named:false policy) policy
      in
      ctyp (Ttyp_var (None, None)) ty
   | Ptyp_var name ->
@@ -983,7 +1026,7 @@ and transl_type_var env ~policy ~row_context loc name jkind_annot_opt =
       ty, jkind_annot
     with Not_found ->
       let jkind, jkind_annot = match jkind_annot_opt with
-        | None -> Jkind.of_new_sort ~why:Unification_var, None
+        | None -> TyVarEnv.new_jkind ~is_named:true policy, None
         | Some jkind_annot ->
             let jkind, jkind_annot = of_annot jkind_annot in
             jkind, Some jkind_annot
@@ -1225,9 +1268,15 @@ let make_fixed_univars ty =
   make_fixed_univars ty;
   Btype.unmark_type ty
 
-let transl_simple_type env ?univars ~closed mode styp =
+let transl_simple_type env ~new_var_jkind ?univars ~closed mode styp =
   TyVarEnv.reset_locals ?univars ();
-  let policy = TyVarEnv.(if closed then fixed_policy else extensible_policy) in
+  let policy =
+    match closed, new_var_jkind with
+    | true, Any -> TyVarEnv.fixed_with_any_initialization_policy
+    | true, Sort -> TyVarEnv.fixed_with_sort_initialization_policy
+    | false, Any -> TyVarEnv.extensible_with_any_initialization_policy
+    | false, Sort -> TyVarEnv.extensible_with_sort_initialization_policy
+  in
   let typ = transl_type env policy mode styp in
   TyVarEnv.globalize_used_variables policy env ();
   make_fixed_univars typ.ctyp_type;
@@ -1252,7 +1301,7 @@ let transl_simple_type_delayed env mode styp =
   TyVarEnv.reset_locals ();
   let typ, force =
     with_local_level begin fun () ->
-      let policy = TyVarEnv.extensible_policy in
+      let policy = TyVarEnv.extensible_with_any_initialization_policy in
       let typ = transl_type env policy mode styp in
       make_fixed_univars typ.ctyp_type;
       (* This brings the used variables to the global level, but doesn't link
@@ -1270,7 +1319,7 @@ let transl_type_scheme_mono env styp =
   let typ =
     with_local_level begin fun () ->
       TyVarEnv.reset ();
-      transl_simple_type env ~closed:false Alloc.Const.legacy styp
+      transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy styp
     end
     ~post:generalize_ctyp
   in
@@ -1288,7 +1337,7 @@ let transl_type_scheme_poly env attrs loc vars inner_type =
       let univars = transl_bound_vars vars in
       let typed_vars = TyVarEnv.ttyp_poly_arg univars in
       let typ =
-        transl_simple_type env ~univars ~closed:true Alloc.Const.legacy
+        transl_simple_type ~new_var_jkind:Sort env ~univars ~closed:true Alloc.Const.legacy
           inner_type
       in
       (typed_vars, univars, typ)

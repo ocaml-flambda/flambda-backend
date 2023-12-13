@@ -289,7 +289,7 @@ Error:
 |}]
 (* CR layouts v2.9: improve error, which requires layout histories *)
 
-type ('a : any) t4 = ('a : any)
+type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
 type ('a : any) t4 = 'a
@@ -1100,7 +1100,7 @@ val f : ('a : float64). unit -> 'a t22f t22f = <fun>
 
 (* CR layouts v5: bring void version here from layouts_alpha *)
 
-type (_ : any, _ : any) eq = Refl :  ('a : any). ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 
 module Mf : sig
   type t_float64 : float64
@@ -1207,7 +1207,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1219,7 +1219,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 

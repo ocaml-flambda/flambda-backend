@@ -4006,7 +4006,7 @@ let rec approx_type env sty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
            unlike in the monomorphic case *)
-          Typetexp.transl_simple_type env ~closed:false arg_mode arg_sty
+          Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_mode arg_sty
         in
         let ret = approx_type env sty in
         let marg = Alloc.of_const arg_mode in
@@ -4061,7 +4061,7 @@ let type_pattern_approx env spat ty_expected =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
       let ty_pat =
-        Typetexp.transl_simple_type env ~closed:false arg_type_mode sty
+        Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in
       begin try unify env ty_pat.ctyp_type ty_expected with Unify trace ->
         raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
@@ -5678,7 +5678,7 @@ and type_expect_
           let type_mode =
             mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
           in
-          Typetexp.transl_simple_type env ~closed:false type_mode sty
+          Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
         end
         ~post:(fun cty -> generalize_structure cty.ctyp_type)
       in
@@ -6013,7 +6013,7 @@ and type_expect_
             | Some sty ->
                 let sty = Ast_helper.Typ.force_poly sty in
                 let cty =
-                  Typetexp.transl_simple_type env ~closed:false
+                  Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false
                     Alloc.Const.legacy sty
                 in
                 cty.ctyp_type, Some cty

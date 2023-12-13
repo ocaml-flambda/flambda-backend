@@ -18,6 +18,8 @@
 open Types
 open Mode
 
+type jkind_initialization_option = Sort | Any
+
 module TyVarEnv : sig
   (* this is just the subset of [TyVarEnv] that is needed outside
      of [Typetexp]. See the ml file for more. *)
@@ -58,7 +60,8 @@ end
 val valid_tyvar_name : string -> bool
 
 val transl_simple_type:
-        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
+        Env.t -> new_var_jkind:jkind_initialization_option
+        -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type

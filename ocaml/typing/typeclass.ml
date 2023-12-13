@@ -261,9 +261,9 @@ let unify_delayed_method_type loc env label ty expected_ty=
       raise(Error(loc, env, Field_type_mismatch ("method", label, trace)))
 
 let type_constraint val_env sty sty' loc =
-  let cty  = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+  let cty  = transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty in
   let ty = cty.ctyp_type in
-  let cty' = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty' in
+  let cty' = transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty' in
   let ty' = cty'.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify err ->
@@ -308,7 +308,7 @@ let rec class_type_field env sign self_scope ctf =
   | Pctf_val ({txt=lab}, mut, virt, sty) ->
       mkctf_with_attrs
         (fun () ->
-          let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
@@ -343,7 +343,7 @@ let rec class_type_field env sign self_scope ctf =
                  ) :: !delayed_meth_specs;
                Tctf_method (lab, priv, virt, returned_cty)
            | _ ->
-               let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+               let cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
                let ty = cty.ctyp_type in
                add_method loc env lab priv virt ty sign;
                Tctf_method (lab, priv, virt, cty))
@@ -367,7 +367,7 @@ and class_signature virt env pcsig self_scope loc =
   (* Introduce a dummy method preventing self type from being closed. *)
   Ctype.add_dummy_method env ~scope:self_scope sign;
 
-  let self_cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+  let self_cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
   let self_type = self_cty.ctyp_type in
   begin try
     Ctype.unify env self_type sign.csig_self
@@ -417,7 +417,7 @@ and class_type_aux env virt self_scope scty =
                                                    List.length styl)));
       let ctys = List.map2
         (fun sty ty ->
-          let cty' = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty' = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
           let ty' = cty'.ctyp_type in
           begin
            try Ctype.unify env ty' ty with Ctype.Unify err ->
@@ -437,7 +437,7 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+      let cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -670,7 +670,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
         (fun () ->
            let cty =
              Ctype.with_local_level_if_principal
-               (fun () -> Typetexp.transl_simple_type val_env
+               (fun () -> Typetexp.transl_simple_type ~new_var_jkind:Sort val_env
                             ~closed:false Alloc.Const.legacy styp)
                ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
            in
@@ -760,7 +760,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
       with_attrs
         (fun () ->
            let sty = Ast_helper.Typ.force_poly sty in
-           let cty = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+           let cty = transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty in
            let ty = cty.ctyp_type in
            add_method loc val_env label.txt priv Virtual ty sign;
            let field =
@@ -800,7 +800,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
-                   Typetexp.transl_simple_type val_env ~closed:false Alloc.Const.legacy sty
+                   Typetexp.transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty
                  in
                  cty'.ctyp_type
            in
@@ -1118,7 +1118,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
-          (fun sty -> transl_simple_type val_env ~closed:false Alloc.Const.legacy sty)
+          (fun sty -> transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty)
           styl
       in
       let (params, clty) =
