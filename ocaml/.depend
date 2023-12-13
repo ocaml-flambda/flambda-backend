@@ -495,6 +495,7 @@ parsing/jane_syntax.cmo : \
     utils/language_extension.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/jane_asttypes.cmi \
+    utils/global.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/jane_syntax.cmi
@@ -508,6 +509,7 @@ parsing/jane_syntax.cmx : \
     utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/jane_asttypes.cmx \
+    utils/global.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/jane_syntax.cmi
@@ -516,6 +518,7 @@ parsing/jane_syntax.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/jane_asttypes.cmi \
+    utils/global.cmi \
     parsing/docstrings.cmi \
     parsing/asttypes.cmi
 parsing/jane_syntax_parsing.cmo : \
@@ -7714,6 +7717,7 @@ tools/objinfo.cmo : \
     lambda/lambda.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
+    utils/global.cmi \
     middle_end/flambda/export_info.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmxs_format.cmi \
@@ -7734,6 +7738,7 @@ tools/objinfo.cmx : \
     lambda/lambda.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
+    utils/global.cmx \
     middle_end/flambda/export_info.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmxs_format.cmi \
