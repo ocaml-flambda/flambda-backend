@@ -179,15 +179,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
    * in *)
   let apply = if erase_callee then Apply.erase_callee apply else apply in
   let uacc, expr =
-    match use_id with
-    | None ->
-      let uacc =
-        UA.add_free_names uacc (Apply.free_names apply)
-        |> UA.notify_added ~code_size:(Code_size.apply apply)
-      in
-      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
-    | Some use_id ->
-      EB.rewrite_fixed_arity_apply uacc ~use_id result_arity apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id result_arity apply
   in
   after_rebuild expr uacc
 
@@ -854,15 +846,7 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
          Unused_because_function_unknown)
   in
   let uacc, expr =
-    match use_id with
-    | Some use_id ->
-      EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
-    | None ->
-      let uacc =
-        UA.add_free_names uacc (Apply.free_names apply)
-        |> UA.notify_added ~code_size:(Code_size.apply apply)
-      in
-      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1056,7 +1040,8 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
       apply
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id:(Some use_id)
+      (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1115,15 +1100,7 @@ let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
       apply
   in
   let uacc, expr =
-    match use_id with
-    | Some use_id ->
-      EB.rewrite_fixed_arity_apply uacc ~use_id return_arity apply
-    | None ->
-      let uacc =
-        UA.add_free_names uacc (Apply.free_names apply)
-        |> UA.notify_added ~code_size:(Code_size.apply apply)
-      in
-      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id return_arity apply
   in
   after_rebuild expr uacc
 
