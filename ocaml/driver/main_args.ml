@@ -633,7 +633,7 @@ let mk_match_context_rows f =
 
 let mk_as_parameter f =
   "-as-parameter", Arg.Unit f,
-  "<module name> Compiles the interface as a parameter for an open module."
+  " Compiles the interface as a parameter for an open module."
 ;;
 
 let mk_use_prims f =
