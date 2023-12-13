@@ -8,7 +8,7 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module TEE = Flambda2_types.Typing_env_extension
 
-let test_recursive_meet () =
+let _test_recursive_meet () =
   let env =
     TE.create
       ~resolver:(fun _ -> None)
@@ -55,7 +55,7 @@ let test_recursive_meet () =
     Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
   | Bottom -> Format.eprintf "Bottom@."
 
-let test_bottom_detection () =
+let _test_bottom_detection () =
   let env =
     TE.create
       ~resolver:(fun _ -> None)
@@ -86,7 +86,7 @@ let test_bottom_detection () =
     Format.eprintf "Result type: %a@.Extension:@ %a@." T.print ty TEE.print ext
   | Bottom -> Format.eprintf "Bottom@."
 
-let test_bottom_recursive () =
+let _test_bottom_recursive () =
   let env =
     TE.create
       ~resolver:(fun _ -> None)
