@@ -270,7 +270,7 @@ let parse_property_attribute attr property =
           Assume { property; strict = true; never_returns_normally = false; loc; };
           ["assume"; "never_returns_normally"],
           Assume { property; strict = false; never_returns_normally = true; loc; };
-          ["assume"; "strict"; "never_returns_normally"],
+          ["assume"; "never_returns_normally"; "strict";],
           Assume { property; strict = true; never_returns_normally = true; loc; };
           ["ignore"], Ignore_assert_all property
         ]
