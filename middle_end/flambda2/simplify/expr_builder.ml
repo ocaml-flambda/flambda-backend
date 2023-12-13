@@ -834,7 +834,7 @@ let rewrite_fixed_arity_apply uacc ~use_id arity apply =
   | _, Never_returns -> make_apply apply
   | None, Return _ ->
     Misc.fatal_errorf
-      "Expr_builder.rewrite_fixed_arity_apply: got no use_id but the apply \
+      "Expr_builder.rewrite_fixed_arity_apply: got no use_id for the return continuation but the apply \
        could return:@ %a@."
       Apply.print apply
   | Some use_id, Return cont ->
