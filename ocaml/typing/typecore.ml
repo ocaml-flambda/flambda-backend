@@ -2231,7 +2231,7 @@ and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
   | Jpat_layout (Lpat_constant _) -> true
-  | Jpat_tuple (Ltpat_tuple (labeled_ps, _)) ->
+  | Jpat_tuple (labeled_ps, _) ->
      List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
 
 let check_scope_escape loc env level ty =
@@ -2392,7 +2392,7 @@ and type_pat_aux
             pat_type = type_constant cst;
             pat_attributes = attrs;
             pat_env = !env }
-      | Jpat_tuple (Ltpat_tuple (spl, closed)) ->
+      | Jpat_tuple (spl, closed) ->
           type_tuple_pat spl closed
     end
   | None ->
@@ -2523,7 +2523,7 @@ and type_pat_aux
           None -> []
         | Some sarg' ->
         match Jane_syntax.Pattern.of_ast sarg' with
-        | Some (Jpat_tuple (Ltpat_tuple _), attrs) when
+        | Some (Jpat_tuple (_, _), attrs) when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
           -> raise (Error(loc, !env, Constructor_labeled_arg))
         | Some ((Jpat_immutable_array _, _)
@@ -2893,7 +2893,7 @@ let rec pat_tuple_arity spat =
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
   | Jpat_layout (Lpat_constant _) -> Not_local_tuple
-  | Jpat_tuple (Ltpat_tuple (args, _)) -> Local_tuple (List.length args)
+  | Jpat_tuple (args, _) -> Local_tuple (List.length args)
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -4041,7 +4041,7 @@ and approx_type_jst env _attrs : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout (Ltyp_var _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
   | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
-  | Jtyp_tuple (Lttyp_tuple args) ->
+  | Jtyp_tuple args ->
       newty
         (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
 
@@ -4193,7 +4193,7 @@ and type_approx_aux_jane_syntax
   | Jexp_layout (Lexp_newtype _) -> ()
   | Jexp_n_ary_function (params, c, body) ->
       type_approx_function ~loc env params c body ty_expected
-  | Jexp_tuple (Ltexp_tuple l) ->
+  | Jexp_tuple l ->
       type_tuple_approx env loc ty_expected l
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
@@ -4472,7 +4472,7 @@ let contains_variant_either ty =
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
   | Jpat_layout (Lpat_constant _) -> ()
-  | Jpat_tuple (Ltpat_tuple (lst, _)) ->  List.iter (fun (_,p) -> f p) lst
+  | Jpat_tuple (lst, _) ->  List.iter (fun (_,p) -> f p) lst
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4535,7 +4535,7 @@ let may_contain_gadts p =
 let turn_let_into_match p =
   exists_ppat (fun p ->
     match Jane_syntax.Pattern.of_ast p with
-    | Some (Jpat_tuple (Ltpat_tuple _), _) -> true
+    | Some (Jpat_tuple (_, _), _) -> true
     | Some ((Jpat_layout _ | Jpat_immutable_array _), _) -> false
     | None -> match p.ppat_desc with
     | Ppat_construct _ -> true
@@ -7281,7 +7281,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     | None -> []
     | Some se -> begin
         match Jane_syntax.Expression.of_ast se with
-        | Some (Jexp_tuple (Ltexp_tuple _), _) when
+        | Some (Jexp_tuple (_ : _ list), _) when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs ->
           raise(Error(loc, env, Constructor_labeled_arg))
         | Some (( Jexp_tuple _
@@ -8122,7 +8122,7 @@ and type_expect_jane_syntax
       type_n_ary_function
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
           ~loc_stack
-  | Jexp_tuple (Ltexp_tuple x) ->
+  | Jexp_tuple x ->
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 

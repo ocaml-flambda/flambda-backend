@@ -146,7 +146,7 @@ and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
     add_jkind bv jkind
 
 and add_type_jst_labeled_tuple bv : Jane_syntax.Labeled_tuples.core_type -> _ =
-  function Lttyp_tuple tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
+  fun tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -242,7 +242,7 @@ and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
   | Jpat_layout (Lpat_constant _) -> add_constant
-  | Jpat_tuple (Ltpat_tuple (labeled_pl, _)) ->
+  | Jpat_tuple (labeled_pl, _) ->
       List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
 
 let add_pattern bv pat =
@@ -410,7 +410,7 @@ and add_function_constraint bv
       add_type bv ty2
 
 and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
-  function Ltexp_tuple el -> List.iter (add_expr bv) (List.map snd el)
+  function el -> List.iter (add_expr bv) (List.map snd el)
 
 and add_cases bv cases =
   List.iter (add_case bv) cases
