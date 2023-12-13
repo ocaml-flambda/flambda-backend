@@ -207,6 +207,11 @@ static intnat do_compare_val(struct compare_stack* stk,
           if (t1 != t2)
               return (intnat)t1 - (intnat)t2;
       }
+      // CR nroberts: macros for this?
+      if (Reserved_val(v1) > 0 || Reserved_val(v2) > 0) {
+        compare_free_stack(stk);
+        caml_invalid_argument("mixed block value");
+      }
       switch(t1) {
       case Forward_tag: {
           v1 = Forward_val (v1);

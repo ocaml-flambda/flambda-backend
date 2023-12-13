@@ -205,6 +205,10 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
       h = caml_hash_mix_intnat(h, v);
       num--;
     } else {
+      if (Reserved_val(v) > 0) {
+        /* Block contents unknown.  Do nothing. */
+        break;
+      }
       switch (Tag_val(v)) {
       case String_tag:
         h = caml_hash_mix_string(h, v);
