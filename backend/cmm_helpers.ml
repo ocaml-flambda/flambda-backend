@@ -1082,8 +1082,6 @@ module Extended_machtype = struct
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
-  let typ_int64 = [| Extended_machtype_component.Any_int |]
-
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_vec128 = [| Extended_machtype_component.Vec128 |]
@@ -3201,12 +3199,6 @@ let emit_gc_roots_table ~symbols cont =
   :: cont
 
 (* Helper functions and values used by Flambda 2. *)
-
-let typ_int64 =
-  match Arch.size_int with
-  | 4 -> [| Cmm.Int; Cmm.Int |]
-  | 8 -> [| Cmm.Int |]
-  | _ -> Misc.fatal_errorf "Unsupported Arch.size_int = %d" Arch.size_int
 
 let void = Ctuple []
 
