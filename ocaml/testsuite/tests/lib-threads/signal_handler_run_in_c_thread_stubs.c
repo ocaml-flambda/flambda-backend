@@ -15,7 +15,7 @@ static void* in_thread(void* unused)
 value test_signal_handler_run_in_c_thread(value unit)
 {
   pthread_t thread;
-  pthread_create(&thread, NULL, &in_thread, thread);
+  pthread_create(&thread, NULL, &in_thread, NULL);
   pthread_cond_wait(&cond, &mutex);
   pthread_kill(thread, SIGUSR1);
   return Val_unit;
