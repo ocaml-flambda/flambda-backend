@@ -629,6 +629,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   let dacc =
     Function_slot.Lmap.fold
       (fun function_slot name acc ->
+        let acc = Dacc.kind name Flambda_kind.value acc in
         let code_id = Function_slot.Map.find function_slot funs in
         let code_id = Code_id_or_name.code_id code_id in
         Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
@@ -1283,10 +1284,56 @@ let rewrite_simple kinds (uses : uses) simple =
           let kind =
             match Name.Map.find_opt name kinds with
             | Some k -> k
-            | None -> Misc.fatal_errorf "Unbound name %a" Name.print name
+            | None -> if Name.is_symbol name then Flambda_kind.value else Misc.fatal_errorf "Unbound name %a" Name.print name
           in
           poison kind)
     ~const:(fun _ -> simple)
+
+let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) =
+  match field with
+  | Tagged_immediate _ -> field
+  | Symbol sym -> if Hashtbl.mem uses (Code_id_or_name.symbol sym) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int 123456789)
+  | Dynamically_computed (v, _) ->
+    if Hashtbl.mem uses (Code_id_or_name.var v) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int 123456789)
+
+let rewrite_static_const kinds uses (sc : Static_const.t) =
+  match sc with
+  | Static_const.Set_of_closures _ -> sc (* TODO *)
+  | Static_const.Block (tag, mut, fields) ->
+    let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
+    Static_const.block tag mut fields
+  | Static_const.Boxed_float _ -> sc (* TODO *)
+  | Static_const.Boxed_int32 _ -> sc (* TODO *)
+  | Static_const.Boxed_int64 _ -> sc (* TODO *)
+  | Static_const.Boxed_nativeint _ -> sc (* TODO *)
+  | Static_const.Boxed_vec128 _ -> sc (* TODO *)
+  | Static_const.Immutable_float_block _ -> sc (* TODO *)
+  | Static_const.Immutable_float_array _ -> sc (* TODO *)
+  | Static_const.Immutable_value_array _ -> sc (* TODO *)
+  | Static_const.Empty_array -> sc
+  | Static_const.Mutable_string _ -> sc
+  | Static_const.Immutable_string _ -> sc
+
+
+
+let rewrite_static_const_or_code kinds uses (sc : Flambda.static_const_or_code) =
+  match sc with
+  | Code _ -> sc
+  | Deleted_code -> sc
+  | Static_const sc -> Flambda.Static_const_or_code.create_static_const (rewrite_static_const kinds uses sc)
+
+let rewrite_static_const_group kinds uses (group : Flambda.static_const_group) =
+  Flambda.Static_const_group.map ~f:(rewrite_static_const_or_code kinds uses) group
+
+let rewrite_named kinds uses (named : Flambda.named) =
+  match named with
+  | Simple simple -> Flambda.Named.create_simple (rewrite_simple kinds uses simple)
+  | Prim (prim, dbg) ->
+    let prim = Flambda_primitive.map_args (rewrite_simple kinds uses) prim in
+    Flambda.Named.create_prim prim dbg
+  | Set_of_closures s -> Flambda.Named.create_set_of_closures s (* TODO *)
+  | Static_consts sc -> Flambda.Named.create_static_consts (rewrite_static_const_group kinds uses sc)
+  | Rec_info r -> Flambda.Named.create_rec_info r
 
 let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     (rev_expr : rev_expr) : RE.t =
@@ -1304,6 +1351,15 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     | Switch switch -> Flambda.Expr.create_switch switch
     | Apply apply ->
       (* TODO rewrite other simples *)
+      let call_kind =
+        match Apply_expr.call_kind apply with
+        | (Function _ as ck) ->
+          ck (* todo alloc_mode? *)
+        | Method { kind; obj; alloc_mode } ->
+          (* todo alloc_mode? *)
+          Call_kind.method_call kind ~obj:(rewrite_simple kinds uses obj) alloc_mode
+        | (C_call _ as ck) -> ck
+      in
       let apply =
         Apply_expr.create
           ~callee:(rewrite_simple kinds uses (Apply_expr.callee apply))
@@ -1312,7 +1368,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~args:(List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
           ~args_arity:(Apply_expr.args_arity apply)
           ~return_arity:(Apply_expr.return_arity apply)
-          ~call_kind:(Apply_expr.call_kind apply)
+          ~call_kind
           (Apply_expr.dbg apply)
           ~inlined:(Apply_expr.inlined apply)
           ~inlining_state:(Apply_expr.inlining_state apply)
@@ -1352,12 +1408,25 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
   match rev_expr with
   | Up -> hole
   | Let let_ -> (
-    let[@local] default () =
+      let[@local] erase () =
+        Format.eprintf "Removing %a@." Bound_pattern.print let_.bound_pattern;
+        rebuild_holed kinds uses let_.parent hole
+      in
+      let[@local] default () =
       let subexpr =
-        let defining_expr =
+        let bp, defining_expr =
           match let_.defining_expr with
-          | Named defining_expr -> defining_expr
+          | Named defining_expr -> let_.bound_pattern, defining_expr
           | Static_consts group ->
+            let bound_static = match let_.bound_pattern with Static l -> l | Set_of_closures _ | Singleton _ -> assert false in
+            let bound_and_group = List.filter (fun ((p, _) : Bound_static.Pattern.t * _) ->
+                match p with
+                | Code code_id -> Hashtbl.mem uses (Code_id_or_name.code_id code_id)
+                | Block_like sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)
+                | Set_of_closures m -> Function_slot.Lmap.exists (fun _ sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)) m
+              ) (List.combine (Bound_static.to_list bound_static) group)
+            in
+            let bound_static, group = List.split bound_and_group in
             let static_const_or_code = function
               | Deleted_code -> Flambda.Static_const_or_code.deleted_code
               | Code
@@ -1380,33 +1449,40 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
               Flambda.Static_const_group.create
                 (List.map static_const_or_code group)
             in
-            Flambda.Named.create_static_consts group
+            Bound_pattern.static (Bound_static.create bound_static), Flambda.Named.create_static_consts group
           | Set_of_closures { value_slots; alloc_mode; function_decls } ->
+            let bound = match let_.bound_pattern with
+              Set_of_closures s -> s | Static _ | Singleton _ -> assert false
+            in
+            let slot_is_used slot =
+              List.exists (fun bv ->
+                  match Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv)) with
+                  | None | Some Bottom -> false
+                  | Some Top -> true
+                  | Some (Fields (_, m)) -> Dep_solver.Field.Map.mem slot m
+                ) bound
+            in
+            let value_slots = Value_slot.Map.filter (fun slot _ -> slot_is_used (Value_slot slot)) value_slots in
+            (* let dummy_code_id = Code_id.create ~name:"dummy_code_id" Compilation_unit.dummy in
+            let function_decls =
+              Function_declarations.create
+                (Function_slot.Lmap.mapi (fun slot code_id -> if slot_is_used (Function_slot slot) then code_id else dummy_code_id)
+                (Function_declarations.funs_in_order function_decls))
+               in *)
+            (* TODO remove unused function slots as well *)
             let set_of_closures =
               Set_of_closures.create ~value_slots alloc_mode function_decls
             in
-            Flambda.Named.create_set_of_closures set_of_closures
+            let_.bound_pattern, Flambda.Named.create_set_of_closures set_of_closures
         in
-        RE.create_let let_.bound_pattern defining_expr ~body:hole
+        let defining_expr = rewrite_named kinds uses defining_expr in
+        RE.create_let bp defining_expr ~body:hole
       in
       rebuild_holed kinds uses let_.parent subexpr
     in
-    let[@local] erase () =
-      Format.eprintf "Removing %a@." Bound_pattern.print let_.bound_pattern;
-      rebuild_holed kinds uses let_.parent hole
-    in
     match let_.bound_pattern with
     | Set_of_closures _ -> default ()
-    | Static l ->
-      if List.for_all
-           (fun (p : Bound_static.Pattern.t) ->
-             match p with
-             | Code code_id ->
-               not (Hashtbl.mem uses (Code_id_or_name.code_id code_id))
-             | Block_like _ | Set_of_closures _ -> false)
-           (Bound_static.to_list l)
-      then erase ()
-      else default ()
+    | Static _ -> default ()
     | Singleton v ->
       let v = Bound_var.var v in
       if Hashtbl.mem uses (Code_id_or_name.var v)
@@ -1447,7 +1523,7 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)
 
-let do_print = true
+let do_print = false
 
 let run (unit : Flambda_unit.t) =
   (* Format.printf "CLEANUP@."; *)
