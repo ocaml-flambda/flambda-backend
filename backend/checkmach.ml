@@ -316,8 +316,7 @@ end = struct
 
   let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
 
-  let relaxed w =
-    { nor = V.Safe; exn = V.Top w; div = V.Top w }
+  let relaxed w = { nor = V.Safe; exn = V.Top w; div = V.Top w }
 
   let print ~witnesses ppf { nor; exn; div } =
     let pp = V.print ~witnesses in
@@ -1086,8 +1085,7 @@ end = struct
           (* Assume that the operation does not diverge. *)
           let div = V.Bot in
           { Value.nor; exn; div }
-        else
-          S.transform_specific w s
+        else S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
     | Idls_get -> Misc.fatal_error "Idls_get not supported"
