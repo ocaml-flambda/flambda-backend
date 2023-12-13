@@ -17,7 +17,6 @@
 
 open Misc
 open Parsetree
-open Layouts
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
@@ -26,7 +25,7 @@ type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
 type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
-  | Same_as_ocaml_repr of Layouts.Sort.const
+  | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
@@ -101,8 +100,8 @@ let simple_on_values ~name ~arity ~alloc =
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
    prim_native_repr_args =
-     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr Sort.Value);
-   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr Sort.Value) }
+     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value);
+   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
@@ -332,7 +331,7 @@ let equal_boxed_vector_size bi1 bi2 =
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Sort.equal_const s1 s2
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
     (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
   | Unboxed_float, Unboxed_float -> true
@@ -370,7 +369,7 @@ let native_name_is_external p =
 
 let sort_of_native_repr = function
   | Same_as_ocaml_repr s -> s
-  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Sort.Value
+  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Jkind.Sort.Value
 
 let report_error ppf err =
   match err with

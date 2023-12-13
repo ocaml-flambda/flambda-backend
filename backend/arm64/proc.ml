@@ -288,13 +288,9 @@ let stack_ptr_dwarf_register_number = 31
 
 let domainstate_ptr_dwarf_register_number = 28
 
-(* Volatile registers: none *)
-
-let regs_are_volatile _rs = false
-
 (* Registers destroyed by operations *)
 
-let destroyed_at_c_call =
+let destroyed_at_c_noalloc_call =
   (* x19-x28, d8-d15 preserved *)
   Array.append
   (Array.of_list (List.map (phys_reg Int)
@@ -306,14 +302,16 @@ let destroyed_at_c_call =
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
-  | Iop(Icall_ind | Icall_imm _) | Iop(Iextcall { alloc = true; }) ->
+  | Iop(Icall_ind | Icall_imm _) ->
       all_phys_regs
-  | Iop(Iextcall { alloc = false; }) ->
-      destroyed_at_c_call
+  | Iop(Iextcall {alloc; stack_ofs; }) ->
+    assert (stack_ofs >= 0);
+    if alloc || stack_ofs > 0 then all_phys_regs
+    else destroyed_at_c_noalloc_call
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
   | Iop( Iintoffloat | Ifloatofint
-       | Iload(Single, _, _) | Istore(Single, _, _)) ->
+       | Iload{memory_chunk=Single; _} | Istore(Single, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
@@ -335,7 +333,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
     assert false
   | Op( Intoffloat | Floatofint
-       | Load(Single, _, _) | Store(Single, _, _)) ->
+      | Load {memory_chunk = Single; _ } | Store(Single, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
@@ -351,12 +349,12 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _}
   | Specific_can_raise _ ->
     [||]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs else destroyed_at_c_call
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
+    if alloc || stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
@@ -373,7 +371,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Tailcall_func _ | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _}
   | Specific_can_raise _ ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
@@ -395,7 +393,7 @@ let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
   | Iintoffloat | Ifloatofint
-  | Iload(Single, _, _) | Istore(Single, _, _) -> [| 23; 31 |]
+  | Iload{memory_chunk=Single; _} | Istore(Single, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
@@ -417,6 +415,7 @@ let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
 type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
+[@@ocaml.warning "-37"]
 
 let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
       ~fun_num_stack_slots:_ =
@@ -436,6 +435,7 @@ let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
   | Cvectorcast _ | Cscalarcast _
+  | Ccheckalign _
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
@@ -450,6 +450,7 @@ let operation_supported = function
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion | Ctuple_field _
+  | Cdls_get
     -> true
 
 let trap_size_in_bytes = 16

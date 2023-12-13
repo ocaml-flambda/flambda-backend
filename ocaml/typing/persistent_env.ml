@@ -42,7 +42,6 @@ type error =
   | Illegal_renaming of CU.Name.t * CU.Name.t * filepath
   | Inconsistent_import of CU.Name.t * filepath * filepath
   | Need_recursive_types of CU.Name.t
-  | Depend_on_unsafe_string_unit of CU.Name.t
   | Inconsistent_package_declaration_between_imports of
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
@@ -85,13 +84,18 @@ let error err = raise (Error err)
 module Persistent_signature = struct
   type t =
     { filename : string;
-      cmi : Cmi_format.cmi_infos_lazy }
+      cmi : Cmi_format.cmi_infos_lazy;
+      visibility : Load_path.visibility }
 
-  let load = ref (fun ~unit_name ->
-      let unit_name = CU.Name.to_string unit_name in
-      match Load_path.find_uncap (unit_name ^ ".cmi") with
-      | filename -> Some { filename; cmi = read_cmi_lazy filename }
-      | exception Not_found -> None)
+  let load = ref (fun ~allow_hidden ~unit_name ->
+    let unit_name = CU.Name.to_string unit_name in
+    match Load_path.find_uncap_with_visibility (unit_name ^ ".cmi") with
+    | filename, visibility when allow_hidden ->
+      Some { filename; cmi = read_cmi_lazy filename; visibility}
+    | filename, Visible ->
+      Some { filename; cmi = read_cmi_lazy filename; visibility = Visible}
+    | _, Hidden
+    | exception Not_found -> None)
 end
 
 type can_load_cmis =
@@ -110,8 +114,8 @@ type import = {
   imp_arg_for : Global.Name.t option;
   imp_impl : Impl.t;
   imp_raw_sign : Signature_with_global_bindings.t;
-  imp_module_block_layout : Cmi_format.module_block_layout;
   imp_filename : string;
+  imp_visibility: Load_path.visibility;
   imp_crcs : Import_info.Intf.t array;
   imp_flags : Cmi_format.pers_flags list;
 }
@@ -318,21 +322,19 @@ let save_import penv crc modname impl flags filename =
     (function
         | Rectypes -> ()
         | Alerts _ -> ()
-        | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
-  Consistbl.set crc_units modname impl crc filename;
+  Consistbl.check crc_units modname impl crc filename;
   add_import penv modname
 
 let acknowledge_import penv ~check modname pers_sig =
-  let { Persistent_signature.filename; cmi } = pers_sig in
+  let { Persistent_signature.filename; cmi; visibility } = pers_sig in
   let found_name = cmi.cmi_name in
   let kind = cmi.cmi_kind in
   let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let sign = Signature_with_global_bindings.read_from_cmi cmi in
-  let module_block_layout = Cmi_format.module_block_layout cmi in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -340,9 +342,6 @@ let acknowledge_import penv ~check modname pers_sig =
         | Rectypes ->
             if not !Clflags.recursive_types then
               error (Need_recursive_types(modname))
-        | Unsafe_string ->
-            if Config.safe_string then
-              error (Depend_on_unsafe_string_unit(modname));
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
@@ -389,8 +388,8 @@ let acknowledge_import penv ~check modname pers_sig =
                  imp_arg_for = arg_for;
                  imp_impl = impl;
                  imp_raw_sign = sign;
-                 imp_module_block_layout = module_block_layout;
                  imp_filename = filename;
+                 imp_visibility = visibility;
                  imp_crcs = crcs;
                  imp_flags = flags;
                } in
@@ -401,24 +400,25 @@ let acknowledge_import penv ~check modname pers_sig =
 let read_import penv ~check modname filename =
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
-  let pers_sig = { Persistent_signature.filename; cmi } in
+  let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
   acknowledge_import penv ~check modname pers_sig
 
-let find_import penv ~check modname =
+let find_import ~allow_hidden penv ~check modname =
   let {imports; _} = penv in
   if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find imports modname with
-  | Found imp -> imp
+  | Found imp when allow_hidden || imp.imp_visibility = Load_path.Visible -> imp
+  | Found _ -> raise Not_found
   | Missing -> raise Not_found
   | exception Not_found ->
       match can_load_cmis penv with
       | Cannot_load_cmis _ -> raise Not_found
       | Can_load_cmis ->
           let psig =
-            match !Persistent_signature.load ~unit_name:modname with
+            match !Persistent_signature.load ~allow_hidden ~unit_name:modname with
             | Some psig -> psig
             | None ->
-                Hashtbl.add imports modname Missing;
+                if allow_hidden then Hashtbl.add imports modname Missing;
                 raise Not_found
           in
           add_import penv modname;
@@ -486,7 +486,7 @@ let rec global_of_global_name penv ~check ~param name =
   | exception Not_found ->
       if param then
         register_parameter_import penv (CU.Name.of_head_of_global_name name);
-      let pn = find_pers_name penv check name in
+      let pn = find_pers_name ~allow_hidden:true penv check name in
       pn.pn_global
 
 and compute_global penv modname ~params check =
@@ -528,7 +528,7 @@ and compute_global penv modname ~params check =
            (* Parameter with no argument: fine so long as it's a parameter *)
            register_parameter_import penv
              (CU.Name.of_head_of_global_name param);
-           let pn = find_pers_name penv check param in
+           let pn = find_pers_name ~allow_hidden:true penv check param in
            (* Either [register_parameter_import] or [find_pers_name] should
               have thrown if this were false *)
            assert pn.pn_import.imp_is_param)
@@ -545,7 +545,7 @@ and compute_global penv modname ~params check =
       ~both:
         (fun (_param_name, expected_type_global) (_arg_name, arg_value_global) ->
             let arg_value = arg_value_global |> Global.to_name in
-            let pn = find_pers_name penv check arg_value in
+            let pn = find_pers_name ~allow_hidden:true penv check arg_value in
             let actual_type =
               match pn.pn_arg_for with
               | None ->
@@ -614,13 +614,13 @@ and acknowledge_pers_name penv check global_name import =
   remember_global penv global ~mentioned_by:global_name;
   pn
 
-and find_pers_name penv check name =
+and find_pers_name ~allow_hidden penv check name =
   let {persistent_names; _} = penv in
   match Hashtbl.find persistent_names name with
   | pn -> pn
   | exception Not_found ->
       let unit_name = CU.Name.of_head_of_global_name name in
-      let import = find_import penv ~check unit_name in
+      let import = find_import ~allow_hidden penv ~check unit_name in
       acknowledge_pers_name penv check name import
 
 let read_pers_name penv check name filename =
@@ -709,20 +709,12 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   let global = pers_name.pn_global in
   let sign = pers_name.pn_sign in
   let impl = import.imp_impl in
-  let module_block_layout = import.imp_module_block_layout in
   let flags = import.imp_flags in
   let binding = make_binding penv global impl in
   let address : Address.t =
     match binding with
     | Local id -> Alocal id
-    | Static unit ->
-        begin
-          match module_block_layout with
-          | Single_block -> Aunit unit
-          | Full_module_and_argument_form ->
-              (* We're accessing the full module *)
-              Adot (Aunit unit, 0)
-        end
+    | Static unit -> Aunit unit
   in
   let uid =
     (* The uid neeeds to include the either the pack prefix, if it's packed, or
@@ -761,12 +753,12 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
        : _ pers_struct_info);
   pers_name.pn_sign
 
-let find_pers_struct penv val_of_pers_sig check name =
+let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
   | (ps, pm) -> (ps, pm)
   | exception Not_found ->
-      let pers_name = find_pers_name penv check name in
+      let pers_name = find_pers_name ~allow_hidden penv check name in
       acknowledge_pers_struct penv name pers_name val_of_pers_sig
 
 let describe_prefix ppf prefix =
@@ -776,10 +768,10 @@ let describe_prefix ppf prefix =
     Format.fprintf ppf "package %a" CU.Prefix.print prefix
 
 (* Emits a warning if there is no valid cmi for name *)
-let check_pers_struct penv f ~loc name =
+let check_pers_struct ~allow_hidden penv f ~loc name =
   let name_as_string = CU.Name.to_string (CU.Name.of_head_of_global_name name) in
   try
-    ignore (find_pers_struct penv f false name)
+    ignore (find_pers_struct ~allow_hidden penv f false name)
   with
   | Not_found ->
       let warn = Warnings.No_cmi_file(name_as_string, None) in
@@ -802,9 +794,6 @@ let check_pers_struct penv f ~loc name =
         | Need_recursive_types name ->
             Format.asprintf
               "%a uses recursive types"
-              CU.Name.print name
-        | Depend_on_unsafe_string_unit name ->
-            Format.asprintf "%a uses -unsafe-string"
               CU.Name.print name
         | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
@@ -829,10 +818,10 @@ let check_pers_struct penv f ~loc name =
 let read penv f modname filename ~add_binding =
   read_pers_struct penv f true modname filename ~add_binding
 
-let find penv f name =
-  snd (find_pers_struct penv f true name)
+let find ~allow_hidden penv f name =
+  snd (find_pers_struct ~allow_hidden penv f true name)
 
-let check penv f ~loc name =
+let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
   if not (Hashtbl.mem persistent_structures name) then begin
     (* PR#6843: record the weak dependency ([add_import]) regardless of
@@ -841,7 +830,7 @@ let check penv f ~loc name =
     add_import penv (name |> CU.Name.of_head_of_global_name);
     if (Warnings.is_active (Warnings.No_cmi_file("", None))) then
       !add_delayed_check_forward
-        (fun () -> check_pers_struct penv f ~loc name)
+        (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
   end
 
 (* CR mshinwell: delete this having moved to 4.14 build compilers *)
@@ -865,7 +854,7 @@ let crc_of_unit penv name =
   match Consistbl.find penv.crc_units name with
   | Some (_impl, crc) -> crc
   | None ->
-    let import = find_import penv ~check:true name in
+    let import = find_import ~allow_hidden:true penv ~check:true name in
     match Array.find_opt (Import_info.Intf.has_name ~name) import.imp_crcs with
     | None -> assert false
     | Some import_info ->
@@ -920,7 +909,6 @@ let make_cmi penv modname kind sign alerts =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
-      (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       [Alerts alerts];
     ]
   in
@@ -948,7 +936,7 @@ let make_cmi penv modname kind sign alerts =
   }
 
 let save_cmi penv psig =
-  let { Persistent_signature.filename; cmi } = psig in
+  let { Persistent_signature.filename; cmi; _ } = psig in
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
@@ -989,12 +977,6 @@ let report_error ppf =
         "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
         CU.Name.print import
         "The compilation flag -rectypes is required"
-  | Depend_on_unsafe_string_unit(import) ->
-      fprintf ppf
-        "@[<hov>Invalid import of %a, compiled with -unsafe-string.@ %s@]"
-        CU.Name.print import
-        "This compiler has been configured in strict \
-                           safe-string mode (-force-safe-string)"
   | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
       fprintf ppf
         "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"

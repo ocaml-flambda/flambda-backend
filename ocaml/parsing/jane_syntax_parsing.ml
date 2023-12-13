@@ -770,6 +770,21 @@ module Constructor_declaration0 = Make_with_attribute (struct
   let with_attributes pcd pcd_attributes = { pcd with pcd_attributes }
 end)
 
+(** Type declarations; embedded with attributes. *)
+module Type_declaration0 = Make_with_attribute (struct
+  type ast = Parsetree.type_declaration
+
+  let plural = "type declarations"
+
+  let location ptype = ptype.ptype_loc
+
+  let with_location ptype loc = { ptype with ptype_loc = loc }
+
+  let attributes ptype = ptype.ptype_attributes
+
+  let with_attributes ptype ptype_attributes = { ptype with ptype_attributes }
+end)
+
 (******************************************************************************)
 (* Main exports *)
 
@@ -857,3 +872,4 @@ module Core_type = Make_ast (Core_type0)
 module Constructor_argument = Make_ast (Constructor_argument0)
 module Extension_constructor = Make_ast (Extension_constructor0)
 module Constructor_declaration = Make_ast (Constructor_declaration0)
+module Type_declaration = Make_ast (Type_declaration0)

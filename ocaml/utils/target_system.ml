@@ -20,7 +20,7 @@ let architecture () : architecture =
   | "riscv" -> Riscv
   | arch -> Misc.fatal_errorf "Unknown architecture `%s'" arch
 
-let is_64_bit =
+let is_64_bit () =
   match architecture () with
   | X86_64
   | AArch64
@@ -30,7 +30,7 @@ let is_64_bit =
   | IA32
   | ARM -> false
 
-let is_32_bit = not is_64_bit
+let is_32_bit () = not (is_64_bit ())
 
 type derived_system =
   | Linux

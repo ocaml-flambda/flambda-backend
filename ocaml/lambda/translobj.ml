@@ -131,12 +131,12 @@ let transl_label_init_flambda f =
   in
   transl_label_init_general (fun () -> expr, size)
 
-let transl_store_label_init ~get_global size f arg =
+let transl_store_label_init glob size f arg =
   assert(not (Config.flambda || Config.flambda2));
   assert(!Clflags.native_code);
-  let glob = get_global (Loc_unknown : scoped_location) in
   method_cache := Lprim(mod_field ~read_semantics:Reads_vary size,
-                        [glob],
+                        (* XXX KC: conservative *)
+                        [Lprim(Pgetglobal glob, [], Loc_unknown)],
                         Loc_unknown);
   let expr = f arg in
   let (size, expr) =
@@ -144,7 +144,7 @@ let transl_store_label_init ~get_global size f arg =
     (size+1,
      Lsequence(
      Lprim(mod_setfield size,
-           [glob;
+           [Lprim(Pgetglobal glob, [], Loc_unknown);
             Lprim (Pccall prim_makearray,
                    [int !method_count; int 0],
                    Loc_unknown)],

@@ -89,9 +89,9 @@ type mapper = {
       thus the thing being included might be a functor and not a plain module
       type *)
 
+  jkind_annotation:
+    mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
-  layout_annotation:
-    mapper -> Jane_asttypes.const_layout -> Jane_asttypes.const_layout;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
   module_declaration: mapper -> module_declaration -> module_declaration;
@@ -150,8 +150,8 @@ val tool_name: unit -> string
     ["ocaml"], ...  Some global variables that reflect command-line
     options are automatically synchronized between the calling tool
     and the ppx preprocessor: {!Clflags.include_dirs},
-    {!Load_path}, {!Clflags.open_modules}, {!Clflags.for_package},
-    {!Clflags.debug}. *)
+    {!Clflags.hidden_include_dirs}, {!Load_path}, {!Clflags.open_modules},
+    {!Clflags.for_package}, {!Clflags.debug}. *)
 
 
 val apply: source:string -> target:string -> mapper -> unit

@@ -47,29 +47,37 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
-    =
+let manufacture_symbol acc proposed_name =
+  let acc, linkage_name =
+    if Flambda_features.Expert.shorten_symbol_names ()
+    then Acc.manufacture_symbol_short_name acc
+    else acc, Linkage_name.of_string proposed_name
+  in
   let symbol =
-    Symbol.create
-      (Compilation_unit.get_current_exn ())
-      (Linkage_name.of_string (Function_slot.to_string function_slot))
+    Symbol.create (Compilation_unit.get_current_exn ()) linkage_name
+  in
+  acc, symbol
+
+let declare_symbol_for_function_slot env acc ident function_slot :
+    Env.t * Acc.t * Symbol.t =
+  let acc, symbol =
+    manufacture_symbol acc (Function_slot.to_string function_slot)
   in
   let env =
     Env.add_simple_to_substitute env ident (Simple.symbol symbol)
       K.With_subkind.any_value
   in
-  env, symbol
+  env, acc, symbol
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
   | exception Not_found ->
     (* Create a variable to ensure uniqueness of the symbol. *)
     let var = Variable.create name in
-    let symbol =
-      Symbol.create
-        (Compilation_unit.get_current_exn ())
+    let acc, symbol =
+      manufacture_symbol acc
         (* CR mshinwell: this Variable.rename looks to be redundant *)
-        (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
+        (Variable.unique_name (Variable.rename var))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
     let acc =
@@ -94,12 +102,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_char c) ->
     acc, Tagged_immediate (Targetint_31_63.of_char c), "char"
   | Const_base (Const_string (s, _, _)) ->
-    let const, name =
-      if Flambda_features.safe_string ()
-      then SC.immutable_string s, "immstring"
-      else SC.mutable_string ~initial_value:s, "string"
-    in
-    register_const acc const name
+    register_const acc (SC.immutable_string s) "immstring"
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
@@ -540,9 +543,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
-        Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~args_arity:param_arity ~return_arity
-          ~call_kind dbg ~inlined:Default_inlined
+        Apply.create ~callee:(Some callee)
+          ~continuation:(Return return_continuation) exn_continuation ~args
+          ~args_arity:param_arity ~return_arity ~call_kind dbg
+          ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
           ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
@@ -755,14 +759,17 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
       | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
       | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
-      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
-      | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
-      | Pobj_dup | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _
-      | Pbox_int _ | Pmake_unboxed_product _ | Punboxed_product_field _
-      | Pget_header _ ->
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _
+      | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
+      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+      | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
+      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
+      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -953,10 +960,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             (* This is a inconstant statically-allocated value, so cannot go
                through [register_const0]. The definition must be placed right
                away. *)
-            let symbol =
-              Symbol.create
-                (Compilation_unit.get_current_exn ())
-                (Linkage_name.of_string (Variable.unique_name var))
+            let acc, symbol =
+              manufacture_symbol acc (Variable.unique_name var)
             in
             let static_const = Static_const.block tag Immutable static_fields in
             let static_consts =
@@ -995,11 +1000,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                && Env.at_toplevel env
                && Flambda_features.classic_mode () ->
           (* Special case to lift toplevel exception declarations *)
-          let symbol =
-            Symbol.create
-              (Compilation_unit.get_current_exn ())
-              (Linkage_name.of_string (Variable.unique_name var))
-          in
+          let acc, symbol = manufacture_symbol acc (Variable.unique_name var) in
           let transform_arg arg =
             Simple.pattern_match' arg
               ~var:(fun var ~coercion:_ ->
@@ -1141,34 +1142,34 @@ let close_exact_or_unknown_apply acc env
     | Some region -> region
   in
   let mode = Alloc_mode.For_types.from_lambda mode in
-  let acc, call_kind =
+  let acc, call_kind, can_erase_callee =
     match kind with
     | Function -> (
-      ( acc,
-        match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let is_tupled =
-            let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.is_tupled meta
+      match (callee_approx : Env.value_approximation option) with
+      | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
+        let meta = Code_or_metadata.code_metadata code_or_meta in
+        if Code_metadata.is_tupled meta
+        then
+          (* CR keryan : We could do better here since we know the arity, but we
+             would have to untuple the arguments and we lack information for
+             now *)
+          acc, Call_kind.indirect_function_call_unknown_arity mode, false
+        else
+          let can_erase_callee =
+            Flambda_features.classic_mode ()
+            && not (Code_metadata.is_my_closure_used meta)
           in
-          if is_tupled
-          then
-            (* CR keryan : We could do better here since we know the arity, but
-               we would have to untuple the arguments and we lack information
-               for now *)
-            Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id mode
-        | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some
-            ( Value_unknown | Value_symbol _ | Value_int _
-            | Block_approximation _ ) ->
-          assert false
-        (* See [close_apply] *) ))
+          acc, Call_kind.direct_function_call code_id mode, can_erase_callee
+      | None -> acc, Call_kind.indirect_function_call_unknown_arity mode, false
+      | Some
+          (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
+        ->
+        assert false (* See [close_apply] *))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
       ( acc,
-        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode
-      )
+        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode,
+        false )
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
@@ -1183,8 +1184,10 @@ let close_exact_or_unknown_apply acc env
     | Rc_nontail -> Apply.Position.Nontail
   in
   let apply =
-    Apply.create ~callee ~continuation:(Return continuation)
-      apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
+    Apply.create
+      ~callee:(if can_erase_callee then None else Some callee)
+      ~continuation:(Return continuation) apply_exn_continuation ~args
+      ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
@@ -1236,19 +1239,20 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   in
   let acc, arms =
     List.fold_left_map
-      (fun acc (case, cont, trap_action, args) ->
+      (fun acc (case, cont, dbg, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
         let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
-            ~dbg:condition_dbg
+            ~dbg
         in
         acc, (Targetint_31_63.of_int case, action))
       acc sw.consts
   in
   match arms, sw.failaction with
-  | [(case, action)], Some (default_action, default_trap_action, default_args)
+  | ( [(case, action)],
+      Some (default_action, dbg, default_trap_action, default_args) )
     when sw.numconsts >= 3 ->
     (* Avoid enormous switches, where every arm goes to the same place except
        one, that arise from single-arm [Lambda] switches with a default case.
@@ -1267,8 +1271,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
-      Apply_cont_with_acc.create acc ?trap_action default_action ~args
-        ~dbg:condition_dbg
+      Apply_cont_with_acc.create acc ?trap_action default_action ~args ~dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
@@ -1289,7 +1292,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, arms =
       match sw.failaction with
       | None -> acc, Targetint_31_63.Map.of_list arms
-      | Some (default, trap_action, args) ->
+      | Some (default, dbg, trap_action, args) ->
         Numeric_types.Int.Set.fold
           (fun case (acc, cases) ->
             let case = Targetint_31_63.of_int case in
@@ -1299,8 +1302,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
               let default acc =
-                Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:condition_dbg
+                Apply_cont_with_acc.create acc ?trap_action default ~args ~dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
           (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
@@ -1793,8 +1795,8 @@ let close_functions acc external_env ~current_region function_declarations =
     then
       Ident.Map.fold
         (fun ident function_slot (acc, env, symbol_map) ->
-          let env, symbol =
-            declare_symbol_for_function_slot env ident function_slot
+          let env, acc, symbol =
+            declare_symbol_for_function_slot env acc ident function_slot
           in
           let approx =
             match Function_slot.Map.find function_slot approx_map with
@@ -2186,9 +2188,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
     let over_application =
-      Apply.create ~callee:(Simple.var returned_func) ~continuation
-        apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
-        ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
+      Apply.create
+        ~callee:(Some (Simple.var returned_func))
+        ~continuation apply_exn_continuation ~args:remaining
+        ~args_arity:remaining_arity ~return_arity:apply.return_arity ~call_kind
+        apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
         ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)

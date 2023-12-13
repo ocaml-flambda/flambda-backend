@@ -70,8 +70,11 @@ module IR = struct
 
   type switch =
     { numconsts : int;
-      consts : (int * Continuation.t * trap_action option * simple list) list;
-      failaction : (Continuation.t * trap_action option * simple list) option
+      consts :
+        (int * Continuation.t * Debuginfo.t * trap_action option * simple list)
+        list;
+      failaction :
+        (Continuation.t * Debuginfo.t * trap_action option * simple list) option
     }
 
   let fprintf = Format.fprintf
@@ -344,8 +347,15 @@ module Acc = struct
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t;
-      closure_infos : closure_info list
+      closure_infos : closure_info list;
+      symbol_short_name_counter : int
     }
+
+  let manufacture_symbol_short_name t =
+    let counter = t.symbol_short_name_counter in
+    let t = { t with symbol_short_name_counter = counter + 1 } in
+    let name = Linkage_name.of_string ("s" ^ string_of_int counter) in
+    t, name
 
   let cost_metrics t = t.cost_metrics
 
@@ -433,7 +443,8 @@ module Acc = struct
       seen_a_function = false;
       slot_offsets;
       regions_closed_early = Ident.Set.empty;
-      closure_infos = []
+      closure_infos = [];
+      symbol_short_name_counter = 0
     }
 
   let declared_symbols t = t.declared_symbols
@@ -882,8 +893,16 @@ module Expr_with_acc = struct
         | C_call _ -> false)
     in
     let acc =
-      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc
-        (Apply.callee apply)
+      match Apply.callee apply with
+      | None ->
+        (* Since [is_my_closure_used] is initialized to [true] by default for
+           recursive functions, this can't affect the result of the loopify
+           attribute, because the recursive calls will keep the callee. Besides,
+           if we are in this case, we are compiling in classic mode, and loopify
+           won't run anyway. *)
+        acc
+      | Some callee ->
+        Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc callee
     in
     let acc =
       Acc.add_free_names_and_check_my_closure_use

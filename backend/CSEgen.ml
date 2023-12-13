@@ -202,12 +202,13 @@ let kill_addr_regs n =
 
 (* Prepend a set of moves before [i] to assign [srcs] to [dsts].  *)
 
-let insert_single_move i src dst = instr_cons (Iop Imove) [|src|] [|dst|] i
+let insert_single_move i src dst =
+  instr_cons_debug (Iop Imove) [|src|] [|dst|] i.dbg i
 
 let insert_move srcs dsts i =
   match Array.length srcs with
   | 0 -> i
-  | 1 -> instr_cons (Iop Imove) srcs dsts i
+  | 1 -> instr_cons_debug (Iop Imove) srcs dsts i.dbg i
   | _ -> (* Parallel move: first copy srcs into tmps one by one,
             then copy tmps into dsts one by one *)
          let tmps = Reg.createv_like srcs in
@@ -237,12 +238,13 @@ method class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
-  | Iload(_,_,mut) -> Op_load mut
+  | Iload { mutability = Mutable } -> Op_load Mutable
+  | Iload { mutability = Immutable } -> Op_load Immutable
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
-  | Iintop(Icheckbound) -> Op_checkbound
+  | Iintop(Icheckbound|Icheckalign _) -> Op_checkbound
   | Iintop _ -> Op_pure
-  | Iintop_imm(Icheckbound, _) -> Op_checkbound
+  | Iintop_imm((Icheckbound|Icheckalign _), _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
   | Iintop_atomic _ -> Op_store true
   | Icompf _
@@ -253,6 +255,7 @@ method class_of_operation op =
   | Iname_for_debugger _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
+  | Idls_get -> Op_load Mutable
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 
@@ -321,8 +324,7 @@ method private cse n i k =
               (* This operation was computed earlier. *)
               (* Are there registers that hold the results computed earlier? *)
               begin match find_regs_containing n1 vres with
-              | Some res when (not (self#is_cheap_operation op))
-                           && (not (Proc.regs_are_volatile res)) ->
+              | Some res when (not (self#is_cheap_operation op)) ->
                   (* We can replace res <- op args with r <- move res,
                      provided res are stable (non-volatile) registers.
                      If the operation is very cheap to compute, e.g.

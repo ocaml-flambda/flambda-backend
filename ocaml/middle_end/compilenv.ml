@@ -30,6 +30,8 @@ type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
   | Illegal_renaming of CU.t * CU.t * string
+  | Mismatching_for_pack of
+      string * CU.Prefix.t * CU.Name.t * CU.Prefix.t option
 
 exception Error of error
 
@@ -83,7 +85,7 @@ let default_ui_export_info =
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
-    ui_implements_param = None;
+    ui_arg_descr = None;
     ui_imports_cmi = [| |];
     ui_imports_cmx = [| |];
     ui_runtime_params = [];
@@ -91,7 +93,8 @@ let current_unit =
     ui_apply_fun = [];
     ui_send_fun = [];
     ui_force_link = false;
-    ui_export_info = default_ui_export_info }
+    ui_export_info = default_ui_export_info;
+    ui_for_pack = None }
 
 let reset compilation_unit =
   Infos_table.clear global_infos_table;
@@ -99,7 +102,7 @@ let reset compilation_unit =
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
-  current_unit.ui_implements_param <- None;
+  current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [| |];
   current_unit.ui_imports_cmx <- [| |];
   current_unit.ui_runtime_params <- [];
@@ -174,6 +177,22 @@ let get_unit_info comp_unit =
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
+            (* Linking to a compilation unit expected to go into a
+               pack is possible only from
+               inside the same pack, but it is perfectly ok to link to
+               an unit outside of the pack. *)
+            let[@inline] for_pack_prefix unit =
+              let prefix = CU.for_pack_prefix unit in
+              if CU.Prefix.is_empty prefix then None else Some prefix
+            in
+            (match for_pack_prefix ui.ui_unit,
+                   for_pack_prefix current_unit.ui_unit
+             with
+             | None, _ -> ()
+             | Some p1, Some p2 when CU.Prefix.equal p1 p2 -> ()
+             | Some p1, p2 ->
+               raise (Error (Mismatching_for_pack
+                        (filename, p1, CU.name current_unit.ui_unit, p2))));
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
@@ -286,13 +305,19 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename =
+let save_unit_info filename ~arg_block_field =
   current_unit.ui_imports_cmi <- Array.of_list (Env.imports());
-  current_unit.ui_implements_param <-
-    (* Currently, parameters don't have parameters, so we assume the argument
-       list is empty *)
-    !Clflags.as_argument_for
-    |> Option.map (fun head -> Global.Name.create head []);
+  current_unit.ui_arg_descr <-
+    begin match !Clflags.as_argument_for, arg_block_field with
+    | Some arg_param, Some arg_block_field ->
+      (* Currently, parameters don't have parameters, so we assume the argument
+          list is empty *)
+      let arg_param = Global.Name.create arg_param [] in
+      Some { arg_param; arg_block_field }
+    | None, None -> None
+    | Some _, None -> Misc.fatal_error "No argument block"
+    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
+  end;
   current_unit.ui_runtime_params <-
     Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename
@@ -376,6 +401,16 @@ let report_error ppf = function
         Location.print_filename filename
         CU.print name
         CU.print modname
+  | Mismatching_for_pack(filename, pack_1, current_unit, None) ->
+      fprintf ppf "%a@ was built with -for-pack %a, but the \
+                   @ current unit %a is not"
+        Location.print_filename filename CU.Prefix.print pack_1
+          CU.Name.print current_unit
+  | Mismatching_for_pack(filename, pack_1, current_unit, Some pack_2) ->
+      fprintf ppf "%a@ was built with -for-pack %a, but the \
+                   @ current unit %a is built with -for-pack %a"
+        Location.print_filename filename CU.Prefix.print pack_1
+          CU.Name.print current_unit CU.Prefix.print pack_2
 
 let () =
   Location.register_error_of_exn
