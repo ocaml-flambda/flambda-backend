@@ -110,6 +110,44 @@ module type S1 =
   end
 |}]
 
+module S1 = struct
+  type t : any
+
+  type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
+
+  type q = t s
+
+  let f () = A {a = (fun x y -> x)}
+end;;
+[%%expect{|
+module S1 :
+  sig
+    type t : any
+    type ('a : any) s = A : { a : 'a -> 'b -> 'a; } -> 'a s
+    type q = t s
+    val f : unit -> 'a s
+  end
+|}]
+
+module S1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+
+  type q = t s
+
+  let f () = A (fun x y -> x)
+end
+[%%expect{|
+module S1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+    type q = t s
+    val f : unit -> 'a s
+  end
+|}]
+
 module type S1 = sig
   type t : any
 
