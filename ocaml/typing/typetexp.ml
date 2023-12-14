@@ -130,17 +130,14 @@ module TyVarEnv : sig
   (* see mli file *)
 
   type policy
-  val fixed_with_sort_initialization_policy : policy
-    (* no wildcards allowed (new unannotated type var requires a representable jkind) *)
-  val extensible_with_sort_initialization_policy : policy
-    (* common case (new unannotated type var requires a representable jkind) *)
-  val fixed_with_any_initialization_policy : policy
-    (* no wildcards allowed (new unannotated type var can have jkind any) *)
-  val extensible_with_any_initialization_policy : policy
-    (* common case (new unannotated type var can have jkind any) *)
-  val univars_policy : policy (* fresh variables are univars (in methods) *)
+  val make_fixed_policy : jkind_initialization_choice -> policy
+    (* no wildcards allowed *)
+  val make_extensible_policy : jkind_initialization_choice -> policy
+    (* common case *)
+  val univars_policy : policy
+    (* fresh variables are univars (in methods), with representable jkinds *)
   val new_any_var : Location.t -> Env.t -> Jkind.t -> policy -> type_expr
-    (* create a new variable to represent a _; fails for fixed_*_policy *)
+    (* create a new variable to represent a _; fails for fixed policy *)
   val new_var : ?name:string -> Jkind.t -> policy -> type_expr
     (* create a new variable according to the given policy *)
 
@@ -173,8 +170,8 @@ module TyVarEnv : sig
       corresponding global type variables if they exist. Otherwise, in function
       of the policy, fresh used variables are either
         - added to the global type variable scope if they are not longer
-        variables under the {!fixed_*_policy}
-        - added to the global type variable scope under the {!extensible_*_policy}
+        variables under the fixed policy
+        - added to the global type variable scope under the extensible policy
         - expected to be collected later by a call to `collect_univar` under the
         {!universal_policy}
    *)
@@ -395,26 +392,18 @@ end = struct
     jkind_initialization: jkind_initialization_choice;
   }
 
-  let fixed_with_sort_initialization_policy = {
+  let make_fixed_policy jkind_initialization = {
     flavor = Unification;
     extensibility = Fixed;
-    jkind_initialization = Sort;
+    jkind_initialization;
   }
-  let extensible_with_sort_initialization_policy = {
+
+  let make_extensible_policy jkind_initialization = {
     flavor = Unification;
     extensibility = Extensible;
-    jkind_initialization = Sort;
+    jkind_initialization;
   }
-  let fixed_with_any_initialization_policy = {
-    flavor = Unification;
-    extensibility = Fixed;
-    jkind_initialization = Any;
-  }
-  let extensible_with_any_initialization_policy = {
-    flavor = Unification;
-    extensibility = Extensible;
-    jkind_initialization = Any;
-  }
+
   let univars_policy = {
     flavor = Universal;
     extensibility = Extensible;
@@ -1273,11 +1262,9 @@ let make_fixed_univars ty =
 let transl_simple_type env ~new_var_jkind ?univars ~closed mode styp =
   TyVarEnv.reset_locals ?univars ();
   let policy =
-    match closed, new_var_jkind with
-    | true, Any -> TyVarEnv.fixed_with_any_initialization_policy
-    | true, Sort -> TyVarEnv.fixed_with_sort_initialization_policy
-    | false, Any -> TyVarEnv.extensible_with_any_initialization_policy
-    | false, Sort -> TyVarEnv.extensible_with_sort_initialization_policy
+    if closed
+    then TyVarEnv.make_fixed_policy new_var_jkind
+    else TyVarEnv.make_extensible_policy new_var_jkind
   in
   let typ = transl_type env policy mode styp in
   TyVarEnv.globalize_used_variables policy env ();
@@ -1303,7 +1290,7 @@ let transl_simple_type_delayed env mode styp =
   TyVarEnv.reset_locals ();
   let typ, force =
     with_local_level begin fun () ->
-      let policy = TyVarEnv.extensible_with_any_initialization_policy in
+      let policy = TyVarEnv.make_extensible_policy Any in
       let typ = transl_type env policy mode styp in
       make_fixed_univars typ.ctyp_type;
       (* This brings the used variables to the global level, but doesn't link
