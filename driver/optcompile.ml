@@ -40,6 +40,7 @@ let compile i ~backend ~middle_end ~transl_style
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->
+       Builtin_attributes.warn_unused ();
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
