@@ -654,3 +654,79 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_misplaced_attr.output test_misplaced_attr.output.corrected)
  (action (diff test_misplaced_attr.output test_misplaced_attr.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attr_check.output.corrected)
+ (deps (:ml test_attr_check.ml) filter.sh)
+ (action
+   (with-outputs-to test_attr_check.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attr_check.output test_attr_check.output.corrected)
+ (action (diff test_attr_check.output test_attr_check.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attr_check_all.output.corrected)
+ (deps (:ml test_attr_check_all.ml) filter.sh)
+ (action
+   (with-outputs-to test_attr_check_all.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attr_check_all.output test_attr_check_all.output.corrected)
+ (action (diff test_attr_check_all.output test_attr_check_all.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attr_check_opt.output.corrected)
+ (deps (:ml test_attr_check_opt.ml) filter.sh)
+ (action
+   (with-outputs-to test_attr_check_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attr_check_opt.output test_attr_check_opt.output.corrected)
+ (action (diff test_attr_check_opt.output test_attr_check_opt.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attr_check_none.output.corrected)
+ (deps (:ml test_attr_check_none.ml) filter.sh)
+ (action
+   (with-outputs-to test_attr_check_none.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attr_check_none.output test_attr_check_none.output.corrected)
+ (action (diff test_attr_check_none.output test_attr_check_none.output.corrected)))

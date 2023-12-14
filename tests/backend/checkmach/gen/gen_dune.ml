@@ -128,5 +128,8 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_assume_on_call";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_misplaced_attr";
-
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_all";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_attr_check_none";
   ()
