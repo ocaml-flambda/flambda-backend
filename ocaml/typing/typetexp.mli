@@ -69,8 +69,9 @@ val transl_simple_type_delayed
   :  Env.t -> Alloc.Const.t
   -> Parsetree.core_type
   -> Typedtree.core_type * type_expr * (unit -> unit)
-        (* Translate a type, but leave type variables unbound. Returns
-           the type, an instance of the corresponding type_expr, and a
+        (* Translate a type using [Any] as the [jkind_initialization_choice],
+           but leave type variables unbound.
+           Returns the type, an instance of the corresponding type_expr, and a
            function that binds the type variable. *)
 val transl_type_scheme:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
