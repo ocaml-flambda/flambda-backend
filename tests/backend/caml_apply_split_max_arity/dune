@@ -6,7 +6,9 @@
 
 (rule
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (<> %{system} "macosx")
+   (= %{context_name} "main")))
  (target t.output)
  (deps t.exe)
  (action
@@ -21,7 +23,9 @@
  (alias runtest)
  (enabled_if
   (and
-   (= %{context_name} "main")
-   (<> %{ocaml-config:flambda} true)))
+   (<> %{system} "macosx")
+   (and
+    (= %{context_name} "main")
+    (<> %{ocaml-config:flambda} true))))
  (action
   (diff t.expected t.output)))
