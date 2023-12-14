@@ -1358,14 +1358,16 @@ let report_error env ppf = function
       fprintf ppf ".@]";
   | Bad_univar_layout { name; layout_info; inferred_layout } ->
       fprintf ppf
-        "@[<hov>The universal type variable %a was %s to have@ \
-         layout %a, but was inferred to have %t.@]"
+        "@[<hov>The universal type variable %a was %s to have layout %a.@;%a@]"
         Printast.tyvar name
         (if layout_info.defaulted then "defaulted" else "declared")
         Layout.format layout_info.original_layout
-        (fun ppf -> match Layout.get inferred_layout with
-           | Const c -> fprintf ppf "layout %s" (Layout.string_of_const c)
-           | Var _ -> fprintf ppf "a representable layout")
+        (Layout.format_history ~intro:(
+          dprintf "But it was inferred to have %t"
+            (fun ppf -> match Layout.get inferred_layout with
+            | Const c -> fprintf ppf "layout %s" (Layout.string_of_const c)
+            | Var _ -> fprintf ppf "a representable layout")))
+        inferred_layout
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a" longident s
   | Method_mismatch (l, ty, ty') ->
