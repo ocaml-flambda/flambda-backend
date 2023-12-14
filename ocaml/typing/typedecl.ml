@@ -2355,7 +2355,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let constraints =
     List.map (fun (ty, ty', loc) ->
       let cty =
-        transl_simple_type ~new_var_jkind:Sort env ~closed:false Mode.Alloc.Const.legacy ty
+        transl_simple_type ~new_var_jkind:Any env ~closed:false Mode.Alloc.Const.legacy ty
       in
       let cty' =
         transl_simple_type ~new_var_jkind:Sort env ~closed:false Mode.Alloc.Const.legacy ty'
@@ -2372,7 +2372,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       None -> None, None
     | Some sty ->
       let cty =
-        transl_simple_type ~new_var_jkind:Sort env ~closed:no_row Mode.Alloc.Const.legacy sty
+        transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty
       in
       Some cty, Some cty.ctyp_type
   in
