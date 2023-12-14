@@ -54,9 +54,9 @@ let is_opaque_attribute =
   [ ["opaque"; "ocaml.opaque"], true ]
 
 
-let find_attribute p attributes =
+let find_attribute ?mark_used p attributes =
   let inline_attribute =
-    Builtin_attributes.filter_attributes
+    Builtin_attributes.filter_attributes ?mark:mark_used
       (Builtin_attributes.Attributes_filter.create p)
       attributes
   in
@@ -461,9 +461,9 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let assume_zero_alloc attributes =
+let assume_zero_alloc ?mark_used attributes =
   let p = Zero_alloc in
-  let attr = find_attribute (is_property_attribute p) attributes in
+  let attr = find_attribute ?mark_used (is_property_attribute p) attributes in
   match parse_property_attribute attr p with
   | Default_check -> false
   | Ignore_assert_all _ -> false
@@ -478,7 +478,7 @@ let get_assume_zero_alloc ~with_warnings attributes =
      that affect [Scoped_location] settings before translation
      of expressions in that scope.
      Warnings will be produced by [add_check_attribute]. *)
-    Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
+    Warnings.without_warnings (fun () -> assume_zero_alloc ~mark_used:false attributes)
 
 let add_check_attribute expr loc attributes =
   let to_string = function
