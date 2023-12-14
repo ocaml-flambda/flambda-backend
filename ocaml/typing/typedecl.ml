@@ -627,7 +627,7 @@ let transl_declaration env sdecl (id, uid) =
   let cstrs = List.map
     (fun (sty, sty', loc) ->
       transl_simple_type ~new_var_jkind:Any env ~closed:false Mode.Alloc.Const.legacy sty,
-      transl_simple_type ~new_var_jkind:Any env ~closed:false Mode.Alloc.Const.legacy sty', loc)
+      transl_simple_type ~new_var_jkind:Sort env ~closed:false Mode.Alloc.Const.legacy sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in

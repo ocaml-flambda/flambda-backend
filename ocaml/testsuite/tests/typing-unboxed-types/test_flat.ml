@@ -1,7 +1,6 @@
 (* TEST
    * flat-float-array
    ** expect
-   flags = "-extension layouts"
 *)
 
 (* should fail *)
@@ -61,10 +60,10 @@ Error: This type cannot be unboxed because
 
 (* Another test for GPR#1133: abstract types *)
 module M : sig
-  type 'a r constraint 'a = unit -> ('b : value)
+  type 'a r constraint 'a = unit -> 'b
   val inj : 'b -> (unit -> 'b) r
 end = struct
-  type 'a r = 'b constraint 'a = unit -> ('b : value)
+  type 'a r = 'b constraint 'a = unit -> 'b
   let inj x = x
 end;;
 [%%expect{|
@@ -180,10 +179,10 @@ Error: This type cannot be unboxed because
 
 (* Another test for GPR#1133: abstract types *)
 module M : sig
-  type 'a r constraint 'a = unit -> ('b : value)
+  type 'a r constraint 'a = unit -> 'b
   val inj : 'b -> (unit -> 'b) r
 end = struct
-  type 'a r = 'b constraint 'a = unit -> ('b : value)
+  type 'a r = 'b constraint 'a = unit -> 'b
   let inj x = x
 end;;
 [%%expect{|
