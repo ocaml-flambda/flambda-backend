@@ -281,10 +281,10 @@ let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 Line 1, characters 31-40:
 1 | module type S6_1 = sig val x : t_float64 end
                                    ^^^^^^^^^
-Error: This type signature for x is not a value type.
-       The layout of x is float64, because
+Error: This type for x is not a value type.
+       The layout of type t_float64 is float64, because
          of the definition of t_float64 at line 1, characters 0-26.
-       But the layout of x must be a sublayout of value, because
+       But the layout of type t_float64 must be a sublayout of value, because
          it's stored in a module structure.
 |}];;
 
@@ -293,10 +293,10 @@ module type S6_2 = sig val x : 'a t_float64_id end
 Line 1, characters 31-46:
 1 | module type S6_2 = sig val x : 'a t_float64_id end
                                    ^^^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
-       The layout of x is float64, because
+Error: This type for x is not a value type.
+       The layout of type 'a t_float64_id is float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
-       But the layout of x must overlap with value, because
+       But the layout of type 'a t_float64_id must overlap with value, because
          it's stored in a module structure.
 |}];;
 
@@ -305,10 +305,10 @@ module type S6_3 = sig val x : float# end
 Line 1, characters 31-37:
 1 | module type S6_3 = sig val x : float# end
                                    ^^^^^^
-Error: This type signature for x is not a value type.
-       The layout of x is float64, because
+Error: This type for x is not a value type.
+       The layout of type float# is float64, because
          it is the primitive float64 type float#.
-       But the layout of x must be a sublayout of value, because
+       But the layout of type float# must be a sublayout of value, because
          it's stored in a module structure.
 |}];;
 

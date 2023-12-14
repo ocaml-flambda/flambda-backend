@@ -71,7 +71,7 @@ type error =
       ; err : Layout.Violation.t
       }
   | Layout_empty_record
-  | Non_value_in_sig of Layout.Violation.t * string
+  | Non_value_in_sig of Layout.Violation.t * string * type_expr
   | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -2025,7 +2025,7 @@ let transl_value_decl env loc valdecl =
                 (Layout.value ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
-    raise(Error(cty.ctyp_loc, Non_value_in_sig(err, valdecl.pval_name.txt)))
+    raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
   end;
   let ty = cty.ctyp_type in
   let v =
@@ -2564,9 +2564,10 @@ let report_error ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Layout_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
-  | Non_value_in_sig (err, val_name) ->
-    fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
-      val_name (Layout.Violation.report_with_name ~name:val_name) err
+  | Non_value_in_sig (err, val_name, ty) ->
+    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
+    fprintf ppf "@[This type for %s is not a value type.@ %a@]"
+      val_name (Layout.Violation.report_with_offender ~offender) err
   | Float64_in_block typ ->
     fprintf ppf
       "@[Type %a has layout float64.@ Types of this layout are not yet \

@@ -191,10 +191,10 @@ end;;
 Line 1, characters 27-33:
 1 | module F2 (X : sig val x : t_void end) = struct
                                ^^^^^^
-Error: This type signature for x is not a value type.
-       The layout of x is void, because
+Error: This type for x is not a value type.
+       The layout of type t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
-       But the layout of x must be a sublayout of value, because
+       But the layout of type t_void must be a sublayout of value, because
          it's stored in a module structure.
 |}];;
 (* CR layouts v5: the test above should be made to work *)
@@ -1787,10 +1787,10 @@ external foo33 : t_any = "foo33";;
 Line 1, characters 17-22:
 1 | external foo33 : t_any = "foo33";;
                      ^^^^^
-Error: This type signature for foo33 is not a value type.
-       The layout of foo33 is any, because
+Error: This type for foo33 is not a value type.
+       The layout of type t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
-       But the layout of foo33 must be a sublayout of value, because
+       But the layout of type t_any must be a sublayout of value, because
          it's stored in a module structure.
 |}]
 

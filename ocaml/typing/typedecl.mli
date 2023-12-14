@@ -109,7 +109,7 @@ type error =
       ; err : Layout.Violation.t
       }
   | Layout_empty_record
-  | Non_value_in_sig of Layout.Violation.t * string
+  | Non_value_in_sig of Layout.Violation.t * string * type_expr
   | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
