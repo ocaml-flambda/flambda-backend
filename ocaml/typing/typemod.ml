@@ -3668,8 +3668,8 @@ let report_error ~loc _env = function
         (Path.name p)
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
-        "@[Top-level module bindings must have layout value, but@ \
-         %s has layout@ %a.@]" id Sort.format sort
+        "@[Types of top-level module bindings must have layout value, but@ \
+         the type of %s has layout@ %a.@]" id Sort.format sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

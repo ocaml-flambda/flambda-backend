@@ -330,8 +330,8 @@ let x : t_void = assert false;;
 Line 1, characters 4-5:
 1 | let x : t_void = assert false;;
         ^
-Error: Top-level module bindings must have layout value, but x has layout
-       void.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x has layout void.
 |}];;
 
 module M3_1 = struct
@@ -341,8 +341,8 @@ end;;
 Line 2, characters 6-7:
 2 |   let x : t_void = assert false;;
           ^
-Error: Top-level module bindings must have layout value, but x has layout
-       void.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x has layout void.
 |}];;
 
 module M3_2 = struct

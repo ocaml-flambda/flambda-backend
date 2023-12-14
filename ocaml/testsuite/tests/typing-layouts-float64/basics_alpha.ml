@@ -54,8 +54,8 @@ let x3_1 : t_float64 = assert false;;
 Line 1, characters 4-8:
 1 | let x3_1 : t_float64 = assert false;;
         ^^^^
-Error: Top-level module bindings must have layout value, but x3_1 has layout
-       float64.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x3_1 has layout float64.
 |}];;
 
 let x3_2 : 'a t_float64_id = assert false;;
@@ -63,8 +63,8 @@ let x3_2 : 'a t_float64_id = assert false;;
 Line 1, characters 4-8:
 1 | let x3_2 : 'a t_float64_id = assert false;;
         ^^^^
-Error: Top-level module bindings must have layout value, but x3_2 has layout
-       float64.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x3_2 has layout float64.
 |}];;
 
 let x3_3 : float# = assert false;;
@@ -72,8 +72,8 @@ let x3_3 : float# = assert false;;
 Line 1, characters 4-8:
 1 | let x3_3 : float# = assert false;;
         ^^^^
-Error: Top-level module bindings must have layout value, but x3_3 has layout
-       float64.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x3_3 has layout float64.
 |}];;
 
 module M3_4 = struct
@@ -83,8 +83,8 @@ end
 Line 2, characters 6-7:
 2 |   let x : t_float64 = assert false
           ^
-Error: Top-level module bindings must have layout value, but x has layout
-       float64.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x has layout float64.
 |}];;
 
 module M3_5 = struct
@@ -96,8 +96,8 @@ end
 Line 4, characters 6-7:
 4 |   let y = f (assert false)
           ^
-Error: Top-level module bindings must have layout value, but y has layout
-       float64.
+Error: Types of top-level module bindings must have layout value, but
+       the type of y has layout float64.
 |}];;
 
 (*************************************)
