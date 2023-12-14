@@ -376,7 +376,7 @@ Error: This pattern matches values of type t_float64
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
 |}];;
 
 (* Structure_element *)

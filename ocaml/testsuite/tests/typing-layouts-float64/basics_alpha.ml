@@ -622,7 +622,7 @@ Line 2, characters 13-15:
                  ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
 |}];;
@@ -672,7 +672,7 @@ Line 2, characters 10-12:
               ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
 |}];;

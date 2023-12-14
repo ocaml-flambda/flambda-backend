@@ -958,7 +958,7 @@ Line 6, characters 24-26:
                             ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
        But the layout of 'a must overlap with void, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -977,7 +977,7 @@ Line 6, characters 29-31:
                                  ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
        But the layout of 'a must overlap with void, because
          of the definition of t at line 2, characters 2-30.
 |}];;
@@ -997,7 +997,7 @@ Line 5, characters 4-6:
         ^^
 Error: This type ('a : void) should be an instance of type ('a0 : value)
        The layout of 'a is value, because
-         it's a term-level argument to a class constructor.
+         it's a type argument to a class constructor.
        But the layout of 'a must overlap with void, because
          of the definition of t at line 2, characters 2-30.
 |}];;

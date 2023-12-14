@@ -792,7 +792,7 @@ module Layout = struct
       | Lazy_expression ->
         fprintf ppf "it's a lazy expression"
       | Class_argument ->
-        fprintf ppf "it's a term-level argument to a class constructor"
+        fprintf ppf "it's a type argument to a class constructor"
       | Structure_element ->
          fprintf ppf "it's stored in a module structure"
       | Debug_printer_argument ->
