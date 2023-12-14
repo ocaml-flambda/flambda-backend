@@ -127,4 +127,6 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_assume_fail";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_assume_on_call";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_misplaced_attr";
+
   ()

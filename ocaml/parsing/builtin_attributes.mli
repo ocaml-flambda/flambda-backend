@@ -159,6 +159,7 @@ end
     count as misplaced if the compiler could use it in some configuration.
 *)
 val filter_attributes :
+  ?mark:bool ->
   Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
