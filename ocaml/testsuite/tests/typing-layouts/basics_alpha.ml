@@ -503,7 +503,7 @@ end
 Line 2, characters 40-46:
 2 |   type foo1 = [ `Foo1 of int | `Baz1 of t_void | `Bar1 of string ];;
                                             ^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
@@ -565,7 +565,7 @@ end;;
 Line 2, characters 17-23:
 2 |   val x : [`A of t_void]
                      ^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because

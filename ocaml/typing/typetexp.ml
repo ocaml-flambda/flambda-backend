@@ -1393,7 +1393,7 @@ let report_error env ppf = function
     let s =
       match vloc with
       | Tuple -> "Tuple element"
-      | Poly_variant -> "Polymorpic variant constructor argument"
+      | Poly_variant -> "Polymorphic variant constructor argument"
       | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in

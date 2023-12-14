@@ -359,7 +359,7 @@ type f7_4 = [ `A of t_float64 ];;
 Line 1, characters 20-29:
 1 | type f7_4 = [ `A of t_float64 ];;
                         ^^^^^^^^^
-Error: Polymorpic variant constructor argument types must have layout value.
+Error: Polymorphic variant constructor argument types must have layout value.
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 1, characters 0-26.
        But the layout of t_float64 must be a sublayout of value, because
