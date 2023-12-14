@@ -5,3 +5,5 @@ let[@zero_alloc assume] foo =
 let[@zero_alloc] bar =
   let x = 42 in
   fun z -> z + x
+
+[@@@zero_alloc default]
