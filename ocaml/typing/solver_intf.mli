@@ -9,19 +9,24 @@ type right_only = disallowed * allowed
 type both = allowed * allowed
 
 module type Allow_disallow = sig
-  type ('a, 'b, 'd) t
+  type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
 
   (** Disallows on the right.  *)
-  val disallow_right : ('a, 'b, 'l * 'r) t -> ('a, 'b, 'l * disallowed) t
+  val disallow_right :
+    ('a, 'b, 'l * 'r) sided -> ('a, 'b, 'l * disallowed) sided
 
   (** Disallows a the left.  *)
-  val disallow_left : ('a, 'b, 'l * 'r) t -> ('a, 'b, disallowed * 'r) t
+  val disallow_left : ('a, 'b, 'l * 'r) sided -> ('a, 'b, disallowed * 'r) sided
 
   (** Generalizes a right-hand-side [allowed] to be any allowance.  *)
-  val allow_right : ('a, 'b, 'l * allowed) t -> ('a, 'b, 'l * 'r) t
+  val allow_right : ('a, 'b, 'l * allowed) sided -> ('a, 'b, 'l * 'r) sided
 
   (** Generalizes a left-hand-side [allowed] to be any allowance.  *)
-  val allow_left : ('a, 'b, allowed * 'r) t -> ('a, 'b, 'l * 'r) t
+  val allow_left : ('a, 'b, allowed * 'r) sided -> ('a, 'b, 'l * 'r) sided
+end
+
+module type Allow_disallow_arg = sig
+  type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
 end
 
 (** A collection of lattices, indexed by [obj] *)
@@ -103,7 +108,7 @@ module type Lattices_mono = sig
   val right_adjoint :
     'b obj -> ('a, 'b, allowed * 'r) morph -> ('b, 'a, right_only) morph
 
-  include Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) morph
+  include Allow_disallow with type ('a, 'b, 'd) sided = ('a, 'b, 'd) morph
 
   (** Apply morphism on constant *)
   val apply : 'b obj -> ('a, 'b, 'd) morph -> 'a -> 'b
@@ -114,6 +119,115 @@ module type Lattices_mono = sig
   val print_morph : 'b obj -> Format.formatter -> ('a, 'b, 'd) morph -> unit
 end
 
+(** Arrange the permissions appropriately for a positive lattice, by
+    doing nothing. *)
+type 'a pos = 'b * 'c constraint 'a = 'b * 'c
+
+(** Arrange the permissions appropriately for a negative lattice, by
+    swapping left and right. *)
+type 'a neg = 'c * 'b constraint 'a = 'b * 'c
+
+module type Solver_polarized = sig
+  (* These first few types will be replaced with types from
+     the Lattices_mono *)
+
+  (** The morphism type from the [Lattices_mono] we're working with *)
+  type ('a, 'b, 'd) morph
+
+  (** The object type from the [Lattices_mono] we're working with *)
+  type 'a obj
+
+  type 'a error
+
+  (** For a negative lattice, we reverse the direction of adjoints. We thus use
+      [neg] for [polarized] for negative lattices, which reverses ['l * 'r] to
+      ['r * 'l]. (Use [pos] for positive lattices.) *)
+  type 'd polarized constraint 'd = 'l * 'r
+
+  (** A mode with carrier type ['a] and left/right status ['d] derived from the
+     morphism it contains. See comments for [morph] for the format of ['d] *)
+  type ('a, 'd) mode constraint 'd = 'l * 'r
+
+  (** The mode type for the opposite polarity. *)
+  type ('a, 'd) mode_op constraint 'd = 'l * 'r
+
+  include Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) mode
+
+  (** Returns the mode representing the given constant. *)
+  val of_const : 'a obj -> 'a -> ('a, 'l * 'r) mode
+
+  (** The minimum mode in the lattice *)
+  val min : 'a obj -> ('a, 'l * 'r) mode
+
+  (** The maximum mode in the lattice *)
+  val max : 'a obj -> ('a, 'l * 'r) mode
+
+  (** Pushes the mode variable to the lowest constant possible. *)
+  val zap_to_floor : 'a obj -> ('a, allowed * 'r) mode -> 'a
+
+  (** Pushes the mode variable to the highest constant possible. *)
+  val zap_to_ceil : 'a obj -> ('a, 'l * allowed) mode -> 'a
+
+  (** Create a new mode variable of the full range. *)
+  val newvar : 'a obj -> ('a, 'l * 'r) mode
+
+  (** Try to constrain the first mode below the second mode. *)
+  val submode :
+    'a obj ->
+    ('a, allowed * 'r) mode ->
+    ('a, 'l * allowed) mode ->
+    (unit, 'a error) result
+
+  (** Creates a new mode variable above the given mode and returns [true]. In
+        the speical case where the given mode is top, returns the constant top
+        and [false]. *)
+  val newvar_above :
+    'a obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
+
+  (** Creates a new mode variable below the given mode and returns [true]. In
+        the speical case where the given mode is bottom, returns the constant
+        bottom and [false]. *)
+  val newvar_below :
+    'a obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
+
+  (** Returns the join of the list of modes. *)
+  val join : 'a obj -> ('a, allowed * 'r) mode list -> ('a, left_only) mode
+
+  (** Return the meet of the list of modes. *)
+  val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
+
+  (** Checks if a mode has been constrained sufficiently to a constant.
+        Expensive. *)
+  val check_const : 'a obj -> ('a, 'l * 'r) mode -> 'a option
+
+  (** Print a mode. Calls [check_const] for cleaner printing and thus
+    expensive.  *)
+  val print :
+    ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+
+  (** Print a mode without calling [check_const]. *)
+  val print_raw :
+    ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+
+  (** Apply a monotone morphism whose source and target modes are of the
+      polarity of this enclosing module. That is, [Positive.apply_monotone]
+      takes a positive mode to a positive mode. *)
+  val via_monotone :
+    'b obj ->
+    ('a, 'b, ('l * 'r) polarized) morph ->
+    ('a, 'l * 'r) mode ->
+    ('b, 'l * 'r) mode
+
+  (** Apply an antitone morphism whose target mode is the mode defined in
+      this module and whose source mode is the dual mode. That is,
+      [Positive.apply_antitone] takes a negative mode to a positive one. *)
+  val via_antitone :
+    'b obj ->
+    ('a, 'b, ('l * 'r) polarized) morph ->
+    ('a, 'r * 'l) mode_op ->
+    ('b, 'l * 'r) mode
+end
+
 module type S = sig
   type 'a error =
     { left : 'a;
@@ -121,11 +235,11 @@ module type S = sig
     }
 
   module Magic_allow_disallow (X : Allow_disallow) :
-    Allow_disallow with type ('a, 'b, 'd) t := ('a, 'b, 'd) X.t
+    Allow_disallow with type ('a, 'b, 'd) sided = ('a, 'b, 'd) X.sided
 
   (** Solver that supports polarized lattices; needed because some morphisms
       are antitone  *)
-  module Solver_polarized (C : Lattices_mono) : sig
+  module Solvers_polarized (C : Lattices_mono) : sig
     (* Backtracking facilities used by [types.ml] *)
 
     type changes
@@ -134,125 +248,49 @@ module type S = sig
 
     val append_changes : (changes ref -> unit) ref
 
-    type positive = private Positive
-
-    type negative = private Negative
-
-    type 'a pos = 'b * 'c constraint 'a = 'b * 'c
-
-    type 'a neg = 'c * 'b constraint 'a = 'b * 'c
-
     (* Construct a new category based on the original category [C]. Objects are
        two copies of the objects in [C] of opposite polarity. The positive copy
        is identical to the original lattice. The negative copy has its lattice
        structure reversed. Morphism are four copies of the morphisms in [C], from
        two copies of objects to two copies of objects. *)
 
-    (** [('a * 'p) obj] identifies an object in the new category, where ['a] is
-        the carrier type and ['p] indicates polarity. *)
-    type 'a obj =
-      | Positive : 'a C.obj -> ('a * positive) obj
-          (** The original lattice of obj *)
-      | Negative : 'a C.obj -> ('a * negative) obj
-          (** the dual lattice of obj *)
+    module type Solver_polarized =
+      Solver_polarized
+        with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
+         and type 'a obj := 'a C.obj
+         and type 'a error := 'a error
 
-    (** [('a, 'd, 'b, 'e) morph] identifies a morphism in the new category.
-    where ['a] and ['b] are source and destination carrier types, and ['d] and
-    ['e] are source and destination adjoint status *)
-    type ('a, 'd, 'b, 'e) morph =
-      | Pos_Pos :
-          ('a, 'b, 'd) C.morph
-          -> ('a * positive, 'd pos, 'b * positive, 'd pos) morph
-          (** The monotone morphism from a positive lattice to a positive lattice  *)
-      | Pos_Neg :
-          ('a, 'b, 'd) C.morph
-          -> ('a * positive, 'd pos, 'b * negative, 'd neg) morph
-          (** The antitone morphism from a positive lattice to a negative lattice  *)
-      | Neg_Pos :
-          ('a, 'b, 'd) C.morph
-          -> ('a * negative, 'd neg, 'b * positive, 'd pos) morph
-          (** The antitone morphism from a negative lattice to a positive lattice  *)
-      | Neg_Neg :
-          ('a, 'b, 'd) C.morph
-          -> ('a * negative, 'd neg, 'b * negative, 'd neg) morph
-          (** The monotone morphism from a negative lattice to a negative lattice *)
+    module rec Positive :
+      (Solver_polarized
+        with type 'd polarized = 'd pos
+         and type ('a, 'd) mode_op = ('a, 'd) Negative.mode)
 
-    (* [id] and [compose] not used; just for fun *)
-    val id : 'a obj -> ('a, 'l * 'r, 'a, 'l * 'r) morph
+    and Negative :
+      (Solver_polarized
+        with type 'd polarized = 'd neg
+         and type ('a, 'd) mode_op = ('a, 'd) Positive.mode)
 
-    val compose :
-      'c obj ->
-      ('b, 'bl * 'br, 'c, 'cl * 'cr) morph ->
-      ('a, 'al * 'ar, 'b, 'bl * 'br) morph ->
-      ('a, 'al * 'ar, 'c, 'cl * 'cr) morph
+    (* The following definitions show how this solver works over a category by
+       defining objects and morphisms. These definitions are not used in
+       practice. They are put into a module to make it easy to spot if we end up
+       using these in the future. *)
+    module Category : sig
+      type 'a obj = 'a C.obj
 
-    (* A mode with carrier type ['a] and left/right status ['d] derived from the
-       morphism it contains. See comments for [morph] for the format of ['d] *)
-    type ('a, 'd) mode
+      type ('a, 'b, 'd) morph = ('a, 'b, 'd) C.morph
 
-    include Allow_disallow with type ('a, _, 'd) t := ('a, 'd) mode
+      type ('a, 'd) mode =
+        | Positive of ('a, 'd pos) Positive.mode
+        | Negative of ('a, 'd neg) Negative.mode
 
-    (** Returns the result of applying the morphism to the mode. *)
-    val apply :
-      'b obj ->
-      ('a, 'd0 * 'd1, 'b, 'e0 * 'e1) morph ->
-      ('a, 'd0 * 'd1) mode ->
-      ('b, 'e0 * 'e1) mode
+      val apply_into_positive :
+        'b obj -> ('a, 'b, 'd) morph -> ('a, 'd) mode -> ('b, 'd) Positive.mode
 
-    (** Returns the mode representing the given constant. *)
-    val of_const : ('a * 'p) obj -> 'a -> ('a * 'p, 'l * 'r) mode
-
-    (** The minimum mode in the lattice *)
-    val min : 'a obj -> ('a, 'l * 'r) mode
-
-    (** The maximum mode in the lattice *)
-    val max : 'a obj -> ('a, 'l * 'r) mode
-
-    (** Pushes the mode variable to the lowest constant possible. *)
-    val zap_to_floor : ('a * 'p) obj -> ('a * 'p, allowed * 'r) mode -> 'a
-
-    (** Pushes the mode variable to the highest constant possible. *)
-    val zap_to_ceil : ('a * 'p) obj -> ('a * 'p, 'l * allowed) mode -> 'a
-
-    (** Create a new mode variable of the full range. *)
-    val newvar : 'a obj -> ('a, 'l * 'r) mode
-
-    (** Try to constrain the first mode below the second mode. *)
-    val submode :
-      ('a * 'p) obj ->
-      ('a * 'p, allowed * 'r) mode ->
-      ('a * 'p, 'l * allowed) mode ->
-      (unit, 'a error) result
-
-    (** Creates a new mode variable above the given mode and returns [true]. In
-        the speical case where the given mode is top, returns the constant top
-        and [false]. *)
-    val newvar_above :
-      'a obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
-
-    (** Creates a new mode variable below the given mode and returns [true]. In
-        the speical case where the given mode is bottom, returns the constant
-        bottom and [false]. *)
-    val newvar_below :
-      'a obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
-
-    (** Returns the join of the list of modes. *)
-    val join : 'a obj -> ('a, allowed * 'r) mode list -> ('a, left_only) mode
-
-    (** Return the meet of the list of modes. *)
-    val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
-
-    (** Checks if a mode has been constrained sufficiently to a constant.
-        Expensive. *)
-    val check_const : ('a * 'p) obj -> ('a * 'p, 'l * 'r) mode -> 'a option
-
-    (** Print a mode. Calls [check_const] for cleaner printing and thus
-    expensive.  *)
-    val print :
-      ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
-
-    (** Print a mode without calling [check_const]. *)
-    val print_raw :
-      ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+      val apply_into_negative :
+        'b obj ->
+        ('a, 'b, 'l * 'r) morph ->
+        ('a, 'l * 'r) mode ->
+        ('b, 'r * 'l) Negative.mode
+    end
   end
 end

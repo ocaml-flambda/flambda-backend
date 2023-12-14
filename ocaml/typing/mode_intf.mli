@@ -29,7 +29,7 @@ module type Common = sig
 
   type equate_error = equate_step * error
 
-  type 'd t
+  type 'd t constraint 'd = 'l * 'r
 
   (** Left-only mode *)
   type l = (allowed * disallowed) t
@@ -40,7 +40,7 @@ module type Common = sig
   (** Left-right mode *)
   type lr = (allowed * allowed) t
 
-  include Allow_disallow with type (_, _, 'd) t := 'd t
+  include Allow_disallow with type (_, _, 'd) sided = 'd t
 
   val min : lr
 

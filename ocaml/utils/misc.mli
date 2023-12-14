@@ -869,6 +869,10 @@ module type T3 = sig
   type ('a, 'b, 'c) t
 end
 
+module type T4 = sig
+  type ('a, 'b, 'c, 'd) t
+end
+
 (** {1 Miscellaneous type aliases} *)
 
 type filepath = string
