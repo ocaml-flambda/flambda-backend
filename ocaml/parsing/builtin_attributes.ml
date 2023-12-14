@@ -38,6 +38,10 @@ let mark_property_checked txt loc =
 let register_property attr =
     Attribute_table.replace unchecked_properties attr ()
 let warn_unchecked_property () =
+    (* When using -i, attributes will not have been translated, so we can't
+     warn about missing ones. *)
+  if !Clflags.print_types then ()
+  else
   let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
   let keys = List.sort attr_order keys in
   List.iter (fun sloc ->
@@ -50,7 +54,6 @@ let warn_unused () =
   if !Clflags.print_types then ()
   else
   begin
-    warn_unchecked_property ();
     let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
     let keys = List.sort attr_order keys in
     List.iter (fun sloc ->
