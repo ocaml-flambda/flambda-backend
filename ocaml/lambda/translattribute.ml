@@ -136,6 +136,8 @@ let get_ids_from_exp exp =
   |> Result.map List.rev
 
 
+(* [parse_ids_payload] requires that each element in [cases]
+   the first component (string list) is alphabetically sorted. *)
 let parse_ids_payload txt loc ~default ~empty cases payload =
   let[@local] warn () =
     let ( %> ) f g x = g (f x) in
