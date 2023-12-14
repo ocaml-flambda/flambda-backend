@@ -40,7 +40,7 @@ let run_expect_test ~get_module_info ~extension ~filename
   check_invariants before_fl;
   let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
   (* CR gbury/lmaurer: add a proper traversal to compute the actual
-        code_slot_offsets here (as well as free_names) *)
+     code_slot_offsets here (as well as free_names) *)
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
       ~code_slot_offsets:Code_id.Map.empty
