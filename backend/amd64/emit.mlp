@@ -1481,9 +1481,9 @@ let emit_instr fallthrough i =
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
       I.dec (res i 0)
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
@@ -1571,7 +1571,9 @@ let emit_instr fallthrough i =
          previous experience with similar things, but maybe the change
          should be left for later.
          mshinwell: The current situation is fine for now. *)
-      if arg_is_non_zero then begin
+      if !Arch.bmi_support then begin
+        I.lzcnt (arg i 0) (res i 0)
+      end else  if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
         I.bsr (arg i 0) (res i 0);
         (* We need (63 - result_of_bsr), which can be done with xor. *)
@@ -1589,7 +1591,9 @@ let emit_instr fallthrough i =
       end
   | Lop(Iintop(Ictz { arg_is_non_zero; })) ->
     (* CR-someday gyorsh: can we do it at selection? *)
-    if arg_is_non_zero then begin
+    if !Arch.bmi_support then begin
+      I.tzcnt (arg i 0) (res i 0)
+    end else if arg_is_non_zero then begin
       (* No need to handle that bsf is undefined on 0 input. *)
       I.bsf (arg i 0) (res i 0)
     end else begin

@@ -380,6 +380,8 @@ let print_instr b = function
   | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
   | PEXT (arg1, arg2, arg3) -> i3 b "pext" arg1 arg2 arg3
   | PDEP (arg1, arg2, arg3) -> i3 b "pdep" arg1 arg2 arg3
+  | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
+  | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs

@@ -37,6 +37,9 @@ let sse42_support = ref true
 (* Carry-less multiplication (Westmere+) *)
 let clmul_support = ref true
 
+(* Bit manipulation (Haswell+) *)
+let bmi_support = ref true
+
 (* Bit manipulation 2 (Haswell+) *)
 let bmi2_support = ref true
 
@@ -87,6 +90,10 @@ let command_line_options =
       " Enable CLMUL intrinsics (default)";
     "-fno-clmul", Arg.Clear clmul_support,
       " Disable CLMUL intrinsics";
+    "-fbmi", Arg.Set bmi_support,
+      " Enable BMI intrinsics (default)";
+    "-fno-bmi", Arg.Clear bmi_support,
+      " Disable BMI intrinsics";
     "-fbmi2", Arg.Set bmi2_support,
       " Enable BMI2 intrinsics (default)";
     "-fno-bmi2", Arg.Clear bmi2_support,
