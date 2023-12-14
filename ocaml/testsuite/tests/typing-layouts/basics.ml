@@ -49,19 +49,65 @@ module type S1 = sig val f : t_any -> int end
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = ('a : any) -> int constraint ('a : any) = t
+  type ('a : any) s = 'a -> int constraint 'a = t
+
+  type q = t s
 end;;
 [%%expect{|
-module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
+module type S1 =
+  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
 |}]
 
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = int -> ('a : any) constraint ('a : any) = t
+  type ('a : any) s = int -> 'a constraint 'a = t
+
+  type q = t s
 end;;
 [%%expect{|
-module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
+module type S1 =
+  sig type t : any type 'a s = int -> 'a constraint 'a = t type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = { a: 'a -> 'a }
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type ('a : any) s = { a : 'a -> 'a; } type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A of ('a -> 'a)
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type ('a : any) s = A of ('a -> 'a) type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A of { a: 'a -> 'a }
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig
+    type t : any
+    type ('a : any) s = A of { a : 'a -> 'a; }
+    type q = t s
+  end
 |}]
 
 module type S1 = sig
