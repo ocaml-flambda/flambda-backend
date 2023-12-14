@@ -346,7 +346,7 @@ let transl_global_flags loc attrs =
   | true -> Types.Global
   | false -> Types.Unrestricted
 
-let transl_labels env univars closed lbls =
+let transl_labels ~new_var_jkind env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
   List.iter
@@ -360,7 +360,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy arg in
+         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -391,9 +391,9 @@ let transl_labels env univars closed lbls =
       lbls in
   lbls, lbls'
 
-let transl_types_gf env univars closed tyl =
+let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy arg in
+    let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -401,13 +401,13 @@ let transl_types_gf env univars closed tyl =
   let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
   tyl_gfl, tyl_gfl'
 
-let transl_constructor_arguments env univars closed = function
+let transl_constructor_arguments ~new_var_jkind env univars closed = function
   | Pcstr_tuple l ->
-      let flds, flds' = transl_types_gf env univars closed l in
+      let flds, flds' = transl_types_gf ~new_var_jkind env univars closed l in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
   | Pcstr_record l ->
-      let lbls, lbls' = transl_labels env univars closed l in
+      let lbls, lbls' = transl_labels ~new_var_jkind env univars closed l in
       Types.Cstr_record lbls',
       Cstr_record lbls
 
@@ -439,7 +439,7 @@ let make_constructor
   match sret_type with
   | None ->
       let args, targs =
-        transl_constructor_arguments env None true sargs
+        transl_constructor_arguments ~new_var_jkind:Any env None true sargs
       in
         tvars, targs, None, args, None
   | Some sret_type ->
@@ -465,7 +465,7 @@ let make_constructor
           in
           let univars = if closed then Some univar_list else None in
           let args, targs =
-            transl_constructor_arguments env univars closed sargs
+            transl_constructor_arguments ~new_var_jkind:Sort env univars closed sargs
           in
           let tret_type =
             transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy
@@ -740,7 +740,7 @@ let transl_declaration env sdecl (id, uid) =
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
-          let lbls, lbls' = transl_labels env None true lbls in
+          let lbls, lbls' = transl_labels ~new_var_jkind:Any env None true lbls in
           let rep, jkind =
             if unbox then
               Record_unboxed, any
