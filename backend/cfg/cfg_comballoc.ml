@@ -5,7 +5,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type cell = Cfg.basic Cfg.instruction DLL.cell
 
-(* Description of an allocation: has the field of a [Cfg.Alloc _] value, and a
+(* Description of an allocation: has the fields of a [Cfg.Alloc _] value, and a
    cell so that the instruction can be modified. *)
 type allocation =
   { bytes : int;
@@ -21,7 +21,7 @@ type compatible_allocations =
     next_cell : cell option
   }
 
-(* [max_instr_id cfg] returns the maximum instruction id in [cfg]. *)
+(* [max_instr_id cfg] returns the maximum instruction identifier in [cfg]. *)
 let max_instr_id : Cfg.t -> int =
  fun cfg ->
   (* CR-someday xclerc for xclerc: factor out with similar function in
@@ -132,7 +132,7 @@ let find_compatible_allocations :
 
     - the "first" allocation is made bigger to account for all allocations;
     - the other allocations are replaced with a reference to the result of the
-      "first" allocation, with a different offset. *)
+      previous allocation, with a different offset. *)
 let rec combine : max_instr_id:int ref -> cell option -> unit =
  fun ~max_instr_id cell ->
   let first_allocation = find_next_allocation cell in
@@ -150,7 +150,7 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
       let first_allocation_instr = DLL.value cell in
       let first_allocation_res0 = first_allocation_instr.res.(0) in
       (* First, replace the "other" allocations with a reference to the result
-         of the "first" allocation and compute the total size. *)
+         of the previous allocation and compute the total size. *)
       let total_size_of_other_allocations, dbginfo_of_other_allocations, _ =
         List.fold_left other_allocations ~init:(0, [], first_allocation_res0)
           ~f:(fun (size, dbginfos, prev_res0) other_allocation ->
