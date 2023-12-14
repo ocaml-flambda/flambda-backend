@@ -468,12 +468,15 @@ let assume_zero_alloc attributes =
   | Assume { property = Zero_alloc; _ } -> true
   | Check { property = Zero_alloc; _ } -> false
 
-let assume_zero_alloc attributes =
-  (* This function is used for "look-ahead" to find attributes
+let get_assume_zero_alloc ~with_warnings attributes =
+  if with_warnings then
+    assume_zero_alloc attributes
+  else
+    (* This function is used for "look-ahead" to find attributes
      that affect [Scoped_location] settings before translation
      of expressions in that scope.
      Warnings will be produced by [add_check_attribute]. *)
-  Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
+    Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
 
 let add_check_attribute expr loc attributes =
   let to_string = function
