@@ -1716,3 +1716,51 @@ let is_check_enabled ~opt property =
     | Check_all -> true
     | Check_default -> not opt
     | Check_opt_only -> opt
+
+
+let may_allocate_in_region lam =
+  (* loop_region raises, if the lambda might allocate in parent region *)
+  let rec loop_region lam =
+    shallow_iter ~tail:(function
+      | Lexclave body -> loop body
+      | lam -> loop_region lam
+    ) ~non_tail:(fun lam -> loop_region lam) lam
+  and loop = function
+    | Lvar _ | Lmutvar _ | Lconst _ -> ()
+
+    | Lfunction {mode=Alloc_heap} -> ()
+    | Lfunction {mode=Alloc_local} -> raise Exit
+
+    | Lapply {ap_mode=Alloc_local}
+    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
+
+    | Lprim (prim, args, _) ->
+       begin match primitive_may_allocate prim with
+       | Some Alloc_local -> raise Exit
+       | None | Some Alloc_heap ->
+          List.iter loop args
+       end
+    | Lregion (body, _layout) ->
+       (* [body] might allocate in the parent region because of exclave, and thus
+          [Lregion body] might allocate in the current region *)
+      loop_region body
+    | Lexclave _body ->
+      (* [_body] might do local allocations, but not in the current region;
+        rather, it's in the parent region *)
+      ()
+    | Lwhile {wh_cond; wh_body} -> loop wh_cond; loop wh_body
+    | Lfor {for_from; for_to; for_body} -> loop for_from; loop for_to; loop for_body
+    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
+      | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
+      | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
+      | Levent _ | Lifused _) as lam ->
+       iter_head_constructor loop lam
+  in
+  if not Config.stack_allocation then false
+  else begin
+    match loop lam with
+    | () -> false
+    | exception Exit -> true
+  end
+
+
