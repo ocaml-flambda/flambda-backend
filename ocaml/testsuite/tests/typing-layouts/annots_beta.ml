@@ -60,7 +60,6 @@ Error: This alias is bound to type int list
        But the layout of int list must be a sublayout of immediate, because
          of the annotation on the type variable 'a.
 |}]
-(* CR layouts: error message could be phrased better *)
 
 (****************************************)
 (* Test 2: Annotation on type parameter *)
@@ -283,10 +282,6 @@ Error: The layout of type 'a is value, because
        But the layout of type 'a must be a sublayout of immediate, because
          of the definition of t_imm at line 1, characters 0-27.
 |}]
-(* CR layouts v1.5: the location on that message is wrong. But it's hard
-   to improve, because it comes from re-checking typedtree, where we don't
-   have locations any more. I conjecture the same location problem exists
-   when constraints aren't satisfied. *)
 
 (********************)
 (* Test 5: newtypes *)
