@@ -1573,7 +1573,7 @@ let emit_instr fallthrough i =
          mshinwell: The current situation is fine for now. *)
       if !Arch.bmi_support then begin
         I.lzcnt (arg i 0) (res i 0)
-      end else  if arg_is_non_zero then begin
+      end else if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
         I.bsr (arg i 0) (res i 0);
         (* We need (63 - result_of_bsr), which can be done with xor. *)
