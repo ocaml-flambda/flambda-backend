@@ -59,6 +59,28 @@ end
 
 val valid_tyvar_name : string -> bool
 
+(* Note about [new_var_jkind]
+
+   This is exposed as an option because the same initialization doesn't work in all
+   typing contexts.
+
+   If it's always [Sort], then it becomes difficult to get a type variable with jkind
+   any in type annotations on expressions and patterns due to the lack of explicit
+   binding sites.
+
+   If it's always [Any], then we risk breaking backwards compatibility with examples
+   such as:
+
+   [external to_bytes : 'a -> extern_flags list -> bytes = "caml_output_value_to_bytes"]
+
+   The general rule for selecting between [Sort] and [Any] is to use [Sort] in places
+   that allows users to explictly binding type variables to certain jkinds and [Any]
+   otherwise.
+
+   There are some exceptions made around type manifests and type constraints to not
+   constrain the type parameters to representable jkinds unnecessarily while maintaining
+   the most amount of backwards compatibility. It is for this reason, the left hand side
+   of a constraint is typed using [Any] while the right hand side uses [Sort]. *)
 val transl_simple_type:
         Env.t -> new_var_jkind:jkind_initialization_choice
         -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
