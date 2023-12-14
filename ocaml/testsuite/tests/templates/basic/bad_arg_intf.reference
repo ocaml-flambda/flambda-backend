@@ -7,6 +7,6 @@ Error: The implementation bad_arg_intf.mli
          val append : t -> t -> t
        The type t -> t -> [ `Banana ] is not compatible with the type
          t -> t -> t
-       Type [ `Banana ] is not compatible with type t 
+       Type [ `Banana ] is not compatible with type t
        File "monoid.mli", line 4, characters 0-24: Expected declaration
        File "bad_arg_intf.mli", line 4, characters 0-34: Actual declaration

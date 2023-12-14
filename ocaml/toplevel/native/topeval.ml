@@ -58,7 +58,7 @@ let close_phrase lam =
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
-      Lprim (Pfield (pos, Reads_agree),
+      Lprim (Pfield (pos, Pointer, Reads_agree),
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
@@ -102,6 +102,7 @@ let load_lambda ppf ~compilation_unit ~required_globals phrase_name lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
+      arg_block_field = None;
       compilation_unit;
       required_globals;
     }
@@ -207,7 +208,8 @@ let execute_phrase print_outcome ppf phr =
         if Config.flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
+            Translmod.transl_implementation phrase_comp_unit
+              (str, Tcoerce_none, None)
               ~style:Plain_block
           in
           remember compilation_unit 0 sg';
@@ -259,7 +261,12 @@ let execute_phrase print_outcome ppf phr =
               in
               Ophr_exception (exn, outv)
         in
-        !print_out_phrase ppf out_phr;
+        begin match out_phr with
+        | Ophr_signature [] -> ()
+        | _ ->
+            Location.separate_new_message ppf;
+            !print_out_phrase ppf out_phr;
+        end;
         begin match out_phr with
         | Ophr_eval (_, _) | Ophr_signature _ -> true
         | Ophr_exception _ -> false

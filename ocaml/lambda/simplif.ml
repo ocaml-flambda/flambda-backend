@@ -42,7 +42,7 @@ let rec eliminate_ref id = function
   | Lletrec(idel, e2) ->
       Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
               eliminate_ref id e2)
-  | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
+  | Lprim(Pfield (0, _, _), [Lvar v], _) when Ident.same v id ->
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
       Lassign(id, eliminate_ref id e)
@@ -883,6 +883,8 @@ let simplify_local_functions lam =
      is in tail position. *)
   let current_scope = ref lam in
   let current_region_scope = ref None in
+  (* PR11383: We will only apply the transformation if we don't have to move
+     code across function boundaries *)
   let current_function_scope = ref lam in
   let check_static lf =
     if lf.attr.local = Always_local then
@@ -908,7 +910,9 @@ let simplify_local_functions lam =
   let rec tail = function
     | Llet (_str, _kind, id, Lfunction lf, cont) when enabled lf.attr ->
         let r =
-          {func = lf; function_scope = !current_function_scope; scope = None}
+          { func = lf;
+            function_scope = !current_function_scope;
+            scope = None }
         in
         Hashtbl.add slots id r;
         tail cont;

@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 AC_INIT([The Flambda backend for OCaml],
-        4.14.0+dev0-2022-12-19,
+        5.1.1+jst,
         [mshinwell@janestreet.com],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
@@ -36,6 +36,12 @@ AC_ARG_ENABLE([middle-end],
     [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
   [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
+AC_ARG_ENABLE([runtime5],
+  [AS_HELP_STRING([--enable-runtime5],
+    [Use the OCaml 5 runtime])],
+  [runtime5_arg=--enable-runtime5],
+  [runtime5_arg=])
+
 AC_ARG_ENABLE([coverage],
   [AS_HELP_STRING([--enable-coverage],
     [Run compiler tests instrumented to output coverage data using bisect_ppx
@@ -62,7 +68,7 @@ AC_SUBST([legacy_layout])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest],
+  [$middle_end_arg,$runtime5_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
   [],
   [],
   [])

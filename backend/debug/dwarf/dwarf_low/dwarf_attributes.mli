@@ -243,6 +243,7 @@ module Attribute : sig
       | Prefix_name : Class.string t
       | Linker_dirs : Class.string t
       | Cmt_file_digest : Class.string t
+      | Offset_record_from_pointer : Class.constant t
   end
 
   type 'dwarf_classes t =

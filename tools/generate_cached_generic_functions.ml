@@ -39,10 +39,8 @@ let make_cached_generic_functions unix ~ppf_dump genfns =
   Emit.begin_assembly unix;
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Profile.record_call "genfns" (fun () ->
-  List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks []
-      (Cmm_helpers.generic_functions false genfns)));
-  Emit.end_assembly ()
+    List.iter compile_phrase (Generic_fns.compile ~shared:true genfns));
+ Emit.end_assembly ()
 
 let cached_generic_functions unix ~ppf_dump output_name genfns =
   Profile.record_call output_name (fun () ->
@@ -66,7 +64,7 @@ let main filename =
   Clflags.use_linscan := true;
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename ^ ext_lib in
-  let genfns_partitions = Cmm_helpers.Generic_fns_tbl.Precomputed.gen () in
+  let genfns_partitions = Generic_fns.Cache.all () in
   let objects = ref [] in
   Fun.protect
     ~finally:(fun () -> List.iter remove_file !objects)

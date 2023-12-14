@@ -49,7 +49,8 @@ let precondition : Cfg_with_layout.t -> unit =
             "architecture specific instruction %d that can raise but isn't a \
              terminator"
             id
-      | Name_for_debugger _ -> ())
+      | Name_for_debugger _ -> ()
+      | Dls_get -> ())
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =

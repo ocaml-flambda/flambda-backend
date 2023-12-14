@@ -66,11 +66,27 @@ utils/compilation_unit.cmi : \
     utils/identifiable.cmi \
     typing/ident.cmi \
     utils/global.cmi
+utils/config.common.cmo :
+utils/config.common.cmx :
+utils/config.fixed.cmo :
+utils/config.fixed.cmx :
+utils/config.generated.cmo :
+utils/config.generated.cmx :
 utils/config.cmo : \
     utils/config.cmi
 utils/config.cmx : \
     utils/config.cmi
 utils/config.cmi :
+utils/config_boot.cmo : \
+    utils/config_boot.cmi
+utils/config_boot.cmx : \
+    utils/config_boot.cmi
+utils/config_boot.cmi :
+utils/config_main.cmo : \
+    utils/config_main.cmi
+utils/config_main.cmx : \
+    utils/config_main.cmi
+utils/config_main.cmi :
 utils/consistbl.cmo : \
     utils/misc.cmi \
     utils/consistbl.cmi
@@ -228,6 +244,7 @@ utils/symbol.cmo : \
     utils/linkage_name.cmi \
     utils/identifiable.cmi \
     typing/ident.cmi \
+    utils/config.cmi \
     utils/compilation_unit.cmi \
     utils/symbol.cmi
 utils/symbol.cmx : \
@@ -235,6 +252,7 @@ utils/symbol.cmx : \
     utils/linkage_name.cmx \
     utils/identifiable.cmx \
     typing/ident.cmx \
+    utils/config.cmx \
     utils/compilation_unit.cmx \
     utils/symbol.cmi
 utils/symbol.cmi : \
@@ -327,7 +345,7 @@ parsing/ast_iterator.cmx : \
     parsing/parsetree.cmi \
     parsing/location.cmx \
     parsing/jane_syntax.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     parsing/ast_iterator.cmi
 parsing/ast_iterator.cmi : \
     parsing/parsetree.cmi \
@@ -355,7 +373,7 @@ parsing/ast_mapper.cmx : \
     parsing/location.cmx \
     utils/load_path.cmx \
     parsing/jane_syntax.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     parsing/docstrings.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
@@ -392,7 +410,6 @@ parsing/builtin_attributes.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/language_extension.cmi \
-    parsing/jane_asttypes.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
@@ -406,7 +423,6 @@ parsing/builtin_attributes.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/language_extension.cmx \
-    parsing/jane_asttypes.cmi \
     utils/config.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
@@ -416,8 +432,7 @@ parsing/builtin_attributes.cmx : \
 parsing/builtin_attributes.cmi : \
     parsing/parsetree.cmi \
     utils/misc.cmi \
-    parsing/location.cmi \
-    parsing/jane_asttypes.cmi
+    parsing/location.cmi
 parsing/camlinternalMenhirLib.cmo : \
     parsing/camlinternalMenhirLib.cmi
 parsing/camlinternalMenhirLib.cmx : \
@@ -440,7 +455,7 @@ parsing/depend.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     parsing/jane_syntax.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
@@ -462,8 +477,14 @@ parsing/docstrings.cmx : \
 parsing/docstrings.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi
+parsing/jane_asttypes.cmo : \
+    parsing/location.cmi \
+    parsing/jane_asttypes.cmi
+parsing/jane_asttypes.cmx : \
+    parsing/location.cmx \
+    parsing/jane_asttypes.cmi
 parsing/jane_asttypes.cmi : \
-    parsing/asttypes.cmi
+    parsing/location.cmi
 parsing/jane_syntax.cmo : \
     parsing/printast.cmi \
     parsing/parsetree.cmi \
@@ -487,7 +508,7 @@ parsing/jane_syntax.cmx : \
     utils/language_extension_kernel.cmx \
     utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     utils/global.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
@@ -599,7 +620,7 @@ parsing/parser.cmx : \
     utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/jane_syntax.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     parsing/docstrings.cmx \
     utils/clflags.cmx \
     parsing/camlinternalMenhirLib.cmx \
@@ -696,7 +717,7 @@ typing/btype.cmx : \
 typing/btype.cmi : \
     typing/types.cmi \
     typing/path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/asttypes.cmi
 typing/cmt2annot.cmo : \
     typing/typedtree.cmi \
@@ -711,7 +732,8 @@ typing/cmt2annot.cmo : \
     typing/env.cmi \
     file_formats/cmt_format.cmi \
     parsing/asttypes.cmi \
-    typing/annot.cmi
+    typing/annot.cmi \
+    typing/cmt2annot.cmi
 typing/cmt2annot.cmx : \
     typing/typedtree.cmx \
     typing/tast_iterator.cmx \
@@ -725,7 +747,10 @@ typing/cmt2annot.cmx : \
     typing/env.cmx \
     file_formats/cmt_format.cmx \
     parsing/asttypes.cmi \
-    typing/annot.cmi
+    typing/annot.cmi \
+    typing/cmt2annot.cmi
+typing/cmt2annot.cmi : \
+    file_formats/cmt_format.cmi
 typing/ctype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -737,7 +762,7 @@ typing/ctype.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/local_store.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -756,7 +781,7 @@ typing/ctype.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/local_store.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
     typing/env.cmx \
@@ -771,7 +796,7 @@ typing/ctype.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -781,7 +806,7 @@ typing/datarepr.cmo : \
     typing/types.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -790,7 +815,7 @@ typing/datarepr.cmx : \
     typing/types.cmx \
     typing/path.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -816,8 +841,8 @@ typing/env.cmo : \
     utils/local_store.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     utils/global.cmi \
     typing/datarepr.cmi \
@@ -845,8 +870,8 @@ typing/env.cmx : \
     utils/local_store.cmx \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
-    typing/layouts.cmx \
     utils/language_extension.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     utils/global.cmx \
     typing/datarepr.cmx \
@@ -870,7 +895,7 @@ typing/env.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
     utils/global.cmi \
@@ -903,19 +928,19 @@ typing/envaux.cmi : \
 typing/errortrace.cmo : \
     typing/types.cmi \
     typing/path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/asttypes.cmi \
     typing/errortrace.cmi
 typing/errortrace.cmx : \
     typing/types.cmx \
     typing/path.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/asttypes.cmi \
     typing/errortrace.cmi
 typing/errortrace.cmi : \
     typing/types.cmi \
     typing/path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/asttypes.cmi
 typing/ident.cmo : \
     utils/misc.cmi \
@@ -962,7 +987,7 @@ typing/includecore.cmo : \
     typing/path.cmi \
     typing/mode.cmi \
     utils/misc.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -980,7 +1005,7 @@ typing/includecore.cmx : \
     typing/path.cmx \
     typing/mode.cmx \
     utils/misc.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
     typing/env.cmx \
@@ -995,7 +1020,7 @@ typing/includecore.cmi : \
     typing/typedtree.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -1092,25 +1117,29 @@ typing/includemod_errorprinter.cmx : \
     typing/includemod_errorprinter.cmi
 typing/includemod_errorprinter.cmi : \
     typing/includemod.cmi
-typing/layouts.cmo : \
+typing/jkind.cmo : \
     typing/path.cmi \
+    parsing/parsetree.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/language_extension.cmi \
+    parsing/jane_syntax.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     parsing/builtin_attributes.cmi \
-    typing/layouts.cmi
-typing/layouts.cmx : \
+    typing/jkind.cmi
+typing/jkind.cmx : \
     typing/path.cmx \
+    parsing/parsetree.cmi \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/language_extension.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_syntax.cmx \
+    parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     parsing/builtin_attributes.cmx \
-    typing/layouts.cmi
-typing/layouts.cmi : \
+    typing/jkind.cmi
+typing/jkind.cmi : \
     typing/path.cmi \
     parsing/parsetree.cmi \
     parsing/location.cmi \
@@ -1158,25 +1187,24 @@ typing/mtype.cmi : \
 typing/oprint.cmo : \
     parsing/printast.cmi \
     typing/outcometree.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmx : \
     parsing/printast.cmx \
     typing/outcometree.cmi \
-    typing/layouts.cmx \
     utils/language_extension.cmx \
+    typing/jkind.cmx \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmi : \
     typing/outcometree.cmi
 typing/outcometree.cmi : \
-    parsing/jane_asttypes.cmi \
+    typing/jkind.cmi \
     parsing/asttypes.cmi
 typing/parmatch.cmo : \
     utils/warnings.cmi \
-    typing/untypeast.cmi \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/tast_iterator.cmi \
@@ -1185,24 +1213,19 @@ typing/parmatch.cmo : \
     typing/predef.cmi \
     typing/patterns.cmi \
     typing/path.cmi \
-    parsing/parsetree.cmi \
     typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
-    parsing/jane_syntax.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
-    utils/config.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
-    parsing/ast_helper.cmi \
     typing/parmatch.cmi
 typing/parmatch.cmx : \
     utils/warnings.cmx \
-    typing/untypeast.cmx \
     typing/types.cmx \
     typing/typedtree.cmx \
     typing/tast_iterator.cmx \
@@ -1211,34 +1234,27 @@ typing/parmatch.cmx : \
     typing/predef.cmx \
     typing/patterns.cmx \
     typing/path.cmx \
-    parsing/parsetree.cmi \
     typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
-    parsing/jane_syntax.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
-    utils/config.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
-    parsing/ast_helper.cmx \
     typing/parmatch.cmi
 typing/parmatch.cmi : \
     typing/types.cmi \
     typing/typedtree.cmi \
-    parsing/parsetree.cmi \
     parsing/location.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi
 typing/path.cmo : \
-    utils/misc.cmi \
     typing/ident.cmi \
     typing/path.cmi
 typing/path.cmx : \
-    utils/misc.cmx \
     typing/ident.cmx \
     typing/path.cmi
 typing/path.cmi : \
@@ -1249,6 +1265,7 @@ typing/patterns.cmo : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
@@ -1260,6 +1277,7 @@ typing/patterns.cmx : \
     typing/mode.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
@@ -1270,6 +1288,7 @@ typing/patterns.cmi : \
     typing/typedtree.cmi \
     typing/mode.cmi \
     parsing/longident.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi
 typing/persistent_env.cmo : \
@@ -1286,7 +1305,6 @@ typing/persistent_env.cmo : \
     typing/ident.cmi \
     utils/global.cmi \
     utils/consistbl.cmi \
-    utils/config.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
     utils/clflags.cmi \
@@ -1306,7 +1324,6 @@ typing/persistent_env.cmx : \
     typing/ident.cmx \
     utils/global.cmx \
     utils/consistbl.cmx \
-    utils/config.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmx \
     utils/clflags.cmx \
@@ -1317,6 +1334,7 @@ typing/persistent_env.cmi : \
     typing/shape.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
+    utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
@@ -1330,7 +1348,8 @@ typing/predef.cmo : \
     typing/path.cmi \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
+    parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -1341,7 +1360,8 @@ typing/predef.cmx : \
     typing/path.cmx \
     parsing/parsetree.cmi \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
+    parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -1356,7 +1376,7 @@ typing/primitive.cmo : \
     typing/outcometree.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/attr_helper.cmi \
     typing/primitive.cmi
 typing/primitive.cmx : \
@@ -1364,14 +1384,14 @@ typing/primitive.cmx : \
     typing/outcometree.cmi \
     utils/misc.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/attr_helper.cmx \
     typing/primitive.cmi
 typing/primitive.cmi : \
     parsing/parsetree.cmi \
     typing/outcometree.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi
+    typing/jkind.cmi
 typing/printpat.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -1391,6 +1411,7 @@ typing/printtyp.cmo : \
     utils/warnings.cmi \
     typing/types.cmi \
     typing/signature_group.cmi \
+    typing/shape.cmi \
     typing/primitive.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -1401,14 +1422,13 @@ typing/printtyp.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/compilation_unit.cmi \
     utils/clflags.cmi \
-    parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
     typing/printtyp.cmi
@@ -1416,6 +1436,7 @@ typing/printtyp.cmx : \
     utils/warnings.cmx \
     typing/types.cmx \
     typing/signature_group.cmx \
+    typing/shape.cmx \
     typing/primitive.cmx \
     typing/predef.cmx \
     typing/path.cmx \
@@ -1426,19 +1447,19 @@ typing/printtyp.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/compilation_unit.cmx \
     utils/clflags.cmx \
-    parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
     typing/printtyp.cmi
 typing/printtyp.cmi : \
     typing/types.cmi \
+    typing/shape.cmi \
     typing/path.cmi \
     typing/outcometree.cmi \
     parsing/longident.cmi \
@@ -1456,7 +1477,7 @@ typing/printtyped.cmo : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     typing/ident.cmi \
     utils/clflags.cmi \
@@ -1471,7 +1492,7 @@ typing/printtyped.cmx : \
     typing/mode.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
     typing/ident.cmx \
     utils/clflags.cmx \
@@ -1580,7 +1601,7 @@ typing/subst.cmo : \
     parsing/location.cmi \
     utils/local_store.cmi \
     utils/lazy_backtrack.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     utils/clflags.cmi \
     typing/btype.cmi \
@@ -1594,7 +1615,7 @@ typing/subst.cmx : \
     parsing/location.cmx \
     utils/local_store.cmx \
     utils/lazy_backtrack.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     utils/clflags.cmx \
     typing/btype.cmx \
@@ -1607,36 +1628,50 @@ typing/subst.cmi : \
     typing/ident.cmi
 typing/tast_iterator.cmo : \
     typing/typedtree.cmi \
-    parsing/jane_asttypes.cmi \
+    parsing/parsetree.cmi \
+    parsing/location.cmi \
+    typing/jkind.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
+    parsing/ast_iterator.cmi \
     typing/tast_iterator.cmi
 typing/tast_iterator.cmx : \
     typing/typedtree.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/parsetree.cmi \
+    parsing/location.cmx \
+    typing/jkind.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
+    parsing/ast_iterator.cmx \
     typing/tast_iterator.cmi
 typing/tast_iterator.cmi : \
     typing/typedtree.cmi \
-    parsing/jane_asttypes.cmi \
+    parsing/location.cmi \
+    typing/jkind.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi
 typing/tast_mapper.cmo : \
     typing/typedtree.cmi \
-    parsing/jane_asttypes.cmi \
+    parsing/parsetree.cmi \
+    parsing/location.cmi \
+    typing/jkind.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
+    parsing/ast_mapper.cmi \
     typing/tast_mapper.cmi
 typing/tast_mapper.cmx : \
     typing/typedtree.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/parsetree.cmi \
+    parsing/location.cmx \
+    typing/jkind.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
+    parsing/ast_mapper.cmx \
     typing/tast_mapper.cmi
 typing/tast_mapper.cmi : \
     typing/typedtree.cmi \
-    parsing/jane_asttypes.cmi \
+    parsing/location.cmi \
+    typing/jkind.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi
 typing/typeclass.cmo : \
@@ -1657,7 +1692,7 @@ typing/typeclass.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     typing/includeclass.cmi \
     typing/ident.cmi \
@@ -1689,7 +1724,7 @@ typing/typeclass.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
     typing/includeclass.cmx \
     typing/ident.cmx \
@@ -1709,7 +1744,7 @@ typing/typeclass.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -1717,6 +1752,7 @@ typing/typeclass.cmi : \
     parsing/asttypes.cmi
 typing/typecore.cmo : \
     utils/warnings.cmi \
+    typing/untypeast.cmi \
     typing/uniqueness_analysis.cmi \
     typing/typetexp.cmi \
     typing/types.cmi \
@@ -1729,6 +1765,7 @@ typing/typecore.cmo : \
     typing/printpat.cmi \
     typing/primitive.cmi \
     typing/predef.cmi \
+    parsing/pprintast.cmi \
     typing/persistent_env.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
@@ -1739,8 +1776,8 @@ typing/typecore.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/local_store.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
@@ -1755,6 +1792,7 @@ typing/typecore.cmo : \
     typing/typecore.cmi
 typing/typecore.cmx : \
     utils/warnings.cmx \
+    typing/untypeast.cmx \
     typing/uniqueness_analysis.cmx \
     typing/typetexp.cmx \
     typing/types.cmx \
@@ -1767,6 +1805,7 @@ typing/typecore.cmx : \
     typing/printpat.cmx \
     typing/primitive.cmx \
     typing/predef.cmx \
+    parsing/pprintast.cmx \
     typing/persistent_env.cmx \
     typing/path.cmx \
     parsing/parsetree.cmi \
@@ -1777,8 +1816,8 @@ typing/typecore.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/local_store.cmx \
-    typing/layouts.cmx \
     utils/language_extension.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
@@ -1800,8 +1839,8 @@ typing/typecore.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -1825,7 +1864,7 @@ typing/typedecl.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     typing/includecore.cmi \
     typing/ident.cmi \
@@ -1860,7 +1899,7 @@ typing/typedecl.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
     typing/includecore.cmx \
     typing/ident.cmx \
@@ -1885,7 +1924,7 @@ typing/typedecl.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/includecore.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
@@ -1911,7 +1950,7 @@ typing/typedecl_separability.cmo : \
     typing/types.cmi \
     typing/typedecl_properties.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
@@ -1921,7 +1960,7 @@ typing/typedecl_separability.cmx : \
     typing/types.cmx \
     typing/typedecl_properties.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
@@ -1976,7 +2015,7 @@ typing/typedtree.cmo : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -1992,8 +2031,8 @@ typing/typedtree.cmx : \
     typing/mode.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
-    parsing/jane_asttypes.cmi \
+    typing/jkind.cmx \
+    parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
@@ -2008,7 +2047,7 @@ typing/typedtree.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -2034,7 +2073,7 @@ typing/typemod.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     typing/includemod_errorprinter.cmi \
     typing/includemod.cmi \
@@ -2047,7 +2086,7 @@ typing/typemod.cmo : \
     utils/config.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmt_format.cmi \
-    typing/cmt2annot.cmo \
+    typing/cmt2annot.cmi \
     file_formats/cms_format.cmi \
     file_formats/cmi_format.cmi \
     utils/clflags.cmi \
@@ -2077,7 +2116,7 @@ typing/typemod.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
     typing/includemod_errorprinter.cmx \
     typing/includemod.cmx \
@@ -2109,7 +2148,7 @@ typing/typemod.cmi : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
     utils/global.cmi \
@@ -2125,9 +2164,9 @@ typing/typeopt.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
@@ -2144,9 +2183,9 @@ typing/typeopt.cmx : \
     utils/numbers.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     utils/language_extension.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
@@ -2159,8 +2198,8 @@ typing/typeopt.cmi : \
     typing/typedtree.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/env.cmi
 typing/types.cmo : \
     typing/shape.cmi \
@@ -2172,7 +2211,7 @@ typing/types.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/local_store.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     utils/config.cmi \
     parsing/asttypes.cmi \
@@ -2187,7 +2226,7 @@ typing/types.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/local_store.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     utils/config.cmx \
     parsing/asttypes.cmi \
@@ -2200,7 +2239,7 @@ typing/types.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi
 typing/typetexp.cmo : \
@@ -2216,14 +2255,13 @@ typing/typetexp.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     parsing/jane_syntax.cmi \
     parsing/jane_asttypes.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
-    utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -2242,14 +2280,13 @@ typing/typetexp.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     utils/language_extension.cmx \
+    typing/jkind.cmx \
     parsing/jane_syntax.cmx \
-    parsing/jane_asttypes.cmi \
+    parsing/jane_asttypes.cmx \
     typing/errortrace.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
-    utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
@@ -2263,12 +2300,11 @@ typing/typetexp.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     utils/language_extension.cmi \
+    typing/jkind.cmi \
     parsing/jane_asttypes.cmi \
     typing/errortrace.cmi \
-    typing/env.cmi \
-    parsing/asttypes.cmi
+    typing/env.cmi
 typing/uniqueness_analysis.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -2410,7 +2446,6 @@ bytecomp/bytelibrarian.cmx : \
     bytecomp/bytelibrarian.cmi
 bytecomp/bytelibrarian.cmi :
 bytecomp/bytelink.cmo : \
-    utils/warnings.cmi \
     bytecomp/symtable.cmi \
     bytecomp/opcodes.cmi \
     utils/misc.cmi \
@@ -2430,7 +2465,6 @@ bytecomp/bytelink.cmo : \
     bytecomp/bytesections.cmi \
     bytecomp/bytelink.cmi
 bytecomp/bytelink.cmx : \
-    utils/warnings.cmx \
     bytecomp/symtable.cmx \
     bytecomp/opcodes.cmx \
     utils/misc.cmx \
@@ -2529,6 +2563,7 @@ bytecomp/dll.cmx : \
 bytecomp/dll.cmi :
 bytecomp/emitcode.cmo : \
     lambda/translmod.cmi \
+    bytecomp/symtable.cmi \
     typing/primitive.cmi \
     bytecomp/opcodes.cmi \
     utils/misc.cmi \
@@ -2547,6 +2582,7 @@ bytecomp/emitcode.cmo : \
     bytecomp/emitcode.cmi
 bytecomp/emitcode.cmx : \
     lambda/translmod.cmx \
+    bytecomp/symtable.cmx \
     typing/primitive.cmx \
     bytecomp/opcodes.cmx \
     utils/misc.cmx \
@@ -2664,11 +2700,15 @@ bytecomp/symtable.cmi : \
 asmcomp/CSE.cmo : \
     asmcomp/mach.cmi \
     asmcomp/CSEgen.cmi \
-    asmcomp/arch.cmo
+    asmcomp/arch.cmi \
+    asmcomp/CSE.cmi
 asmcomp/CSE.cmx : \
     asmcomp/mach.cmx \
     asmcomp/CSEgen.cmx \
-    asmcomp/arch.cmx
+    asmcomp/arch.cmx \
+    asmcomp/CSE.cmi
+asmcomp/CSE.cmi : \
+    asmcomp/mach.cmi
 asmcomp/CSEgen.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -2702,11 +2742,20 @@ asmcomp/afl_instrument.cmi : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi
 asmcomp/arch.cmo : \
+    asmcomp/x86_ast.cmi \
+    lambda/lambda.cmi \
     utils/config.cmi \
-    utils/clflags.cmi
+    utils/clflags.cmi \
+    asmcomp/arch.cmi
 asmcomp/arch.cmx : \
+    asmcomp/x86_ast.cmi \
+    lambda/lambda.cmx \
     utils/config.cmx \
-    utils/clflags.cmx
+    utils/clflags.cmx \
+    asmcomp/arch.cmi
+asmcomp/arch.cmi : \
+    asmcomp/x86_ast.cmi \
+    lambda/lambda.cmi
 asmcomp/asmgen.cmo : \
     lambda/translmod.cmi \
     asmcomp/split.cmi \
@@ -2747,7 +2796,7 @@ asmcomp/asmgen.cmo : \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     middle_end/clambda.cmi \
-    asmcomp/CSE.cmo \
+    asmcomp/CSE.cmi \
     middle_end/backend_intf.cmi \
     asmcomp/asmgen.cmi
 asmcomp/asmgen.cmx : \
@@ -2933,28 +2982,23 @@ asmcomp/branch_relaxation.cmo : \
     asmcomp/mach.cmi \
     asmcomp/linear.cmi \
     asmcomp/cmm.cmi \
-    asmcomp/branch_relaxation_intf.cmo \
+    asmcomp/branch_relaxation_intf.cmi \
     asmcomp/branch_relaxation.cmi
 asmcomp/branch_relaxation.cmx : \
     utils/misc.cmx \
     asmcomp/mach.cmx \
     asmcomp/linear.cmx \
     asmcomp/cmm.cmx \
-    asmcomp/branch_relaxation_intf.cmx \
+    asmcomp/branch_relaxation_intf.cmi \
     asmcomp/branch_relaxation.cmi
 asmcomp/branch_relaxation.cmi : \
     asmcomp/linear.cmi \
-    asmcomp/branch_relaxation_intf.cmo
-asmcomp/branch_relaxation_intf.cmo : \
+    asmcomp/branch_relaxation_intf.cmi
+asmcomp/branch_relaxation_intf.cmi : \
     asmcomp/linear.cmi \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
-    asmcomp/arch.cmo
-asmcomp/branch_relaxation_intf.cmx : \
-    asmcomp/linear.cmx \
-    lambda/debuginfo.cmx \
-    asmcomp/cmm.cmx \
-    asmcomp/arch.cmx
+    asmcomp/arch.cmi
 asmcomp/cmm.cmo : \
     utils/targetint.cmi \
     utils/misc.cmi \
@@ -2963,7 +3007,6 @@ asmcomp/cmm.cmo : \
     file_formats/cmx_format.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
     asmcomp/cmm.cmi
 asmcomp/cmm.cmx : \
     utils/targetint.cmx \
@@ -2973,7 +3016,6 @@ asmcomp/cmm.cmx : \
     file_formats/cmx_format.cmi \
     middle_end/backend_var.cmx \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmx \
     asmcomp/cmm.cmi
 asmcomp/cmm.cmi : \
     utils/targetint.cmi \
@@ -3005,7 +3047,7 @@ asmcomp/cmm_helpers.cmo : \
     middle_end/clambda.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/cmm_helpers.cmi
 asmcomp/cmm_helpers.cmx : \
     utils/targetint.cmx \
@@ -3060,8 +3102,8 @@ asmcomp/cmmgen.cmo : \
     middle_end/printclambda_primitives.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
     middle_end/compilenv.cmi \
@@ -3073,7 +3115,6 @@ asmcomp/cmmgen.cmo : \
     middle_end/clambda.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
     asmcomp/afl_instrument.cmi \
     asmcomp/cmmgen.cmi
 asmcomp/cmmgen.cmx : \
@@ -3081,8 +3122,8 @@ asmcomp/cmmgen.cmx : \
     middle_end/printclambda_primitives.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     lambda/debuginfo.cmx \
     utils/config.cmx \
     middle_end/compilenv.cmx \
@@ -3094,7 +3135,6 @@ asmcomp/cmmgen.cmx : \
     middle_end/clambda.cmx \
     middle_end/backend_var.cmx \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmx \
     asmcomp/afl_instrument.cmx \
     asmcomp/cmmgen.cmi
 asmcomp/cmmgen.cmi : \
@@ -3133,7 +3173,7 @@ asmcomp/comballoc.cmo : \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/comballoc.cmi
 asmcomp/comballoc.cmx : \
     asmcomp/reg.cmx \
@@ -3157,14 +3197,12 @@ asmcomp/dataflow.cmi : \
     asmcomp/mach.cmi
 asmcomp/deadcode.cmo : \
     asmcomp/reg.cmi \
-    asmcomp/proc.cmi \
     utils/numbers.cmi \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
     asmcomp/deadcode.cmi
 asmcomp/deadcode.cmx : \
     asmcomp/reg.cmx \
-    asmcomp/proc.cmx \
     utils/numbers.cmx \
     asmcomp/mach.cmx \
     asmcomp/cmm.cmx \
@@ -3194,7 +3232,7 @@ asmcomp/emit.cmo : \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     asmcomp/branch_relaxation.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/emit.cmi
 asmcomp/emit.cmx : \
     asmcomp/x86_proc.cmx \
@@ -3226,15 +3264,17 @@ asmcomp/emit.cmi : \
     asmcomp/cmm.cmi
 asmcomp/emitaux.cmo : \
     utils/misc.cmi \
+    asmcomp/linear.cmi \
     asmcomp/emitenv.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/emitaux.cmi
 asmcomp/emitaux.cmx : \
     utils/misc.cmx \
+    asmcomp/linear.cmx \
     asmcomp/emitenv.cmi \
     lambda/debuginfo.cmx \
     utils/config.cmx \
@@ -3326,7 +3366,8 @@ asmcomp/linscan.cmx : \
     asmcomp/proc.cmx \
     asmcomp/interval.cmx \
     asmcomp/linscan.cmi
-asmcomp/linscan.cmi :
+asmcomp/linscan.cmi : \
+    asmcomp/interval.cmi
 asmcomp/liveness.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -3351,7 +3392,7 @@ asmcomp/mach.cmo : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/mach.cmi
 asmcomp/mach.cmx : \
     asmcomp/reg.cmx \
@@ -3367,7 +3408,7 @@ asmcomp/mach.cmi : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo
+    asmcomp/arch.cmi
 asmcomp/polling.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -3438,7 +3479,7 @@ asmcomp/printmach.cmo : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/printmach.cmi
 asmcomp/printmach.cmx : \
     asmcomp/reg.cmx \
@@ -3454,7 +3495,8 @@ asmcomp/printmach.cmx : \
     asmcomp/printmach.cmi
 asmcomp/printmach.cmi : \
     asmcomp/reg.cmi \
-    asmcomp/mach.cmi
+    asmcomp/mach.cmi \
+    asmcomp/interval.cmi
 asmcomp/proc.cmo : \
     asmcomp/x86_proc.cmi \
     asmcomp/reg.cmi \
@@ -3462,7 +3504,7 @@ asmcomp/proc.cmo : \
     asmcomp/mach.cmi \
     utils/config.cmi \
     asmcomp/cmm.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/proc.cmi
 asmcomp/proc.cmx : \
     asmcomp/x86_proc.cmx \
@@ -3480,7 +3522,7 @@ asmcomp/proc.cmi : \
 asmcomp/reg.cmo : \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/reg.cmi
 asmcomp/reg.cmx : \
     asmcomp/cmm.cmx \
@@ -3496,7 +3538,7 @@ asmcomp/reload.cmo : \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/reload.cmi
 asmcomp/reload.cmx : \
     asmcomp/reloadgen.cmx \
@@ -3529,7 +3571,7 @@ asmcomp/schedgen.cmo : \
     asmcomp/linear.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/schedgen.cmi
 asmcomp/schedgen.cmx : \
     asmcomp/reg.cmx \
@@ -3563,9 +3605,10 @@ asmcomp/selectgen.cmo : \
     lambda/debuginfo.cmi \
     utils/config.cmi \
     asmcomp/cmm.cmi \
+    utils/clflags.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/selectgen.cmi
 asmcomp/selectgen.cmx : \
     asmcomp/reg.cmx \
@@ -3578,6 +3621,7 @@ asmcomp/selectgen.cmx : \
     lambda/debuginfo.cmx \
     utils/config.cmx \
     asmcomp/cmm.cmx \
+    utils/clflags.cmx \
     middle_end/backend_var.cmx \
     parsing/asttypes.cmi \
     asmcomp/arch.cmx \
@@ -3590,18 +3634,22 @@ asmcomp/selectgen.cmi : \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo
+    asmcomp/arch.cmi
 asmcomp/selection.cmo : \
     asmcomp/selectgen.cmi \
+    asmcomp/reg.cmi \
     asmcomp/proc.cmi \
+    utils/misc.cmi \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/selection.cmi
 asmcomp/selection.cmx : \
     asmcomp/selectgen.cmx \
+    asmcomp/reg.cmx \
     asmcomp/proc.cmx \
+    utils/misc.cmx \
     asmcomp/mach.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
@@ -3647,7 +3695,7 @@ asmcomp/strmatch.cmo : \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     asmcomp/strmatch.cmi
 asmcomp/strmatch.cmx : \
     lambda/lambda.cmx \
@@ -3757,11 +3805,13 @@ middle_end/clambda.cmi : \
 middle_end/clambda_primitives.cmo : \
     typing/types.cmi \
     typing/primitive.cmi \
+    utils/misc.cmi \
     lambda/lambda.cmi \
     middle_end/clambda_primitives.cmi
 middle_end/clambda_primitives.cmx : \
     typing/types.cmx \
     typing/primitive.cmx \
+    utils/misc.cmx \
     lambda/lambda.cmx \
     middle_end/clambda_primitives.cmi
 middle_end/clambda_primitives.cmi : \
@@ -3822,16 +3872,16 @@ middle_end/convert_primitives.cmo : \
     lambda/printlambda.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     middle_end/clambda_primitives.cmi \
     middle_end/convert_primitives.cmi
 middle_end/convert_primitives.cmx : \
     lambda/printlambda.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     middle_end/clambda_primitives.cmx \
     middle_end/convert_primitives.cmi
 middle_end/convert_primitives.cmi : \
@@ -3957,6 +4007,7 @@ lambda/lambda.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    utils/global.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
@@ -3972,6 +4023,7 @@ lambda/lambda.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
+    utils/global.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
     utils/config.cmx \
@@ -3986,6 +4038,7 @@ lambda/lambda.cmi : \
     typing/path.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    utils/global.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/compilation_unit.cmi \
@@ -4005,8 +4058,8 @@ lambda/matching.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4028,8 +4081,8 @@ lambda/matching.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -4040,8 +4093,8 @@ lambda/matching.cmx : \
 lambda/matching.cmi : \
     typing/typedtree.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     lambda/debuginfo.cmi
 lambda/printlambda.cmo : \
@@ -4129,8 +4182,8 @@ lambda/transl_array_comprehension.cmo : \
     typing/predef.cmi \
     utils/misc.cmi \
     lambda/matching.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4143,8 +4196,8 @@ lambda/transl_array_comprehension.cmx : \
     typing/predef.cmx \
     utils/misc.cmx \
     lambda/matching.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -4152,8 +4205,8 @@ lambda/transl_array_comprehension.cmx : \
     lambda/transl_array_comprehension.cmi
 lambda/transl_array_comprehension.cmi : \
     typing/typedtree.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     lambda/debuginfo.cmi
 lambda/transl_comprehension_utils.cmo : \
     typing/primitive.cmi \
@@ -4174,8 +4227,8 @@ lambda/transl_list_comprehension.cmo : \
     typing/typedtree.cmi \
     lambda/transl_comprehension_utils.cmi \
     lambda/matching.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi \
     lambda/transl_list_comprehension.cmi
@@ -4184,15 +4237,15 @@ lambda/transl_list_comprehension.cmx : \
     typing/typedtree.cmx \
     lambda/transl_comprehension_utils.cmx \
     lambda/matching.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     parsing/asttypes.cmi \
     lambda/transl_list_comprehension.cmi
 lambda/transl_list_comprehension.cmi : \
     typing/typedtree.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     lambda/debuginfo.cmi
 lambda/translattribute.cmo : \
     utils/warnings.cmi \
@@ -4234,8 +4287,8 @@ lambda/translclass.cmo : \
     typing/path.cmi \
     lambda/matching.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4252,8 +4305,8 @@ lambda/translclass.cmx : \
     typing/path.cmx \
     lambda/matching.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -4293,8 +4346,8 @@ lambda/translcore.cmo : \
     lambda/matching.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4329,8 +4382,8 @@ lambda/translcore.cmx : \
     lambda/matching.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -4345,8 +4398,8 @@ lambda/translcore.cmi : \
     typing/typedtree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4368,8 +4421,8 @@ lambda/translmod.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -4397,8 +4450,8 @@ lambda/translmod.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/includemod.cmx \
     typing/ident.cmx \
     typing/env.cmx \
@@ -4414,8 +4467,8 @@ lambda/translmod.cmi : \
     typing/typedtree.cmi \
     typing/primitive.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     utils/global.cmi \
     utils/compilation_unit.cmi
@@ -4457,7 +4510,8 @@ lambda/translobj.cmx : \
 lambda/translobj.cmi : \
     lambda/lambda.cmi \
     typing/ident.cmi \
-    typing/env.cmi
+    typing/env.cmi \
+    utils/compilation_unit.cmi
 lambda/translprim.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
@@ -4470,8 +4524,8 @@ lambda/translprim.cmo : \
     utils/misc.cmi \
     lambda/matching.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -4492,8 +4546,8 @@ lambda/translprim.cmx : \
     utils/misc.cmx \
     lambda/matching.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -4610,6 +4664,7 @@ file_formats/cmt_format.cmi : \
     typing/typedtree.cmi \
     typing/shape.cmi \
     parsing/location.cmi \
+    utils/load_path.cmi \
     utils/import_info.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi \
@@ -5025,32 +5080,6 @@ middle_end/flambda/export_info.cmi : \
     middle_end/flambda/base_types/export_id.cmi \
     utils/compilation_unit.cmi \
     middle_end/flambda/base_types/closure_id.cmi
-middle_end/flambda/export_info_for_pack.cmo : \
-    middle_end/variable.cmi \
-    middle_end/flambda/base_types/var_within_closure.cmi \
-    utils/symbol.cmi \
-    middle_end/flambda/simple_value_approx.cmi \
-    middle_end/flambda/base_types/set_of_closures_origin.cmi \
-    middle_end/flambda/base_types/set_of_closures_id.cmi \
-    middle_end/flambda/flambda_iterators.cmi \
-    middle_end/flambda/flambda.cmi \
-    middle_end/flambda/export_info.cmi \
-    middle_end/flambda/base_types/export_id.cmi \
-    utils/compilation_unit.cmi \
-    middle_end/flambda/base_types/closure_id.cmi
-middle_end/flambda/export_info_for_pack.cmx : \
-    middle_end/variable.cmx \
-    middle_end/flambda/base_types/var_within_closure.cmx \
-    utils/symbol.cmx \
-    middle_end/flambda/simple_value_approx.cmx \
-    middle_end/flambda/base_types/set_of_closures_origin.cmx \
-    middle_end/flambda/base_types/set_of_closures_id.cmx \
-    middle_end/flambda/flambda_iterators.cmx \
-    middle_end/flambda/flambda.cmx \
-    middle_end/flambda/export_info.cmx \
-    middle_end/flambda/base_types/export_id.cmx \
-    utils/compilation_unit.cmx \
-    middle_end/flambda/base_types/closure_id.cmx
 middle_end/flambda/extract_projections.cmo : \
     middle_end/variable.cmi \
     middle_end/flambda/base_types/var_within_closure.cmi \
@@ -6200,6 +6229,7 @@ middle_end/flambda/simple_value_approx.cmo : \
     utils/compilation_unit.cmi \
     middle_end/flambda/base_types/closure_origin.cmi \
     middle_end/flambda/base_types/closure_id.cmi \
+    utils/clflags.cmi \
     middle_end/flambda/allocated_const.cmi \
     middle_end/flambda/simple_value_approx.cmi
 middle_end/flambda/simple_value_approx.cmx : \
@@ -6225,6 +6255,7 @@ middle_end/flambda/simple_value_approx.cmx : \
     utils/compilation_unit.cmx \
     middle_end/flambda/base_types/closure_origin.cmx \
     middle_end/flambda/base_types/closure_id.cmx \
+    utils/clflags.cmx \
     middle_end/flambda/allocated_const.cmx \
     middle_end/flambda/simple_value_approx.cmi
 middle_end/flambda/simple_value_approx.cmi : \
@@ -6756,6 +6787,7 @@ driver/compmisc.cmx : \
     utils/clflags.cmx \
     driver/compmisc.cmi
 driver/compmisc.cmi : \
+    utils/load_path.cmi \
     typing/env.cmi \
     utils/clflags.cmi
 driver/errors.cmo : \
@@ -6766,9 +6798,12 @@ driver/errors.cmx : \
     driver/errors.cmi
 driver/errors.cmi :
 driver/main.cmo : \
-    driver/maindriver.cmi
+    driver/maindriver.cmi \
+    driver/main.cmi
 driver/main.cmx : \
-    driver/maindriver.cmx
+    driver/maindriver.cmx \
+    driver/main.cmi
+driver/main.cmi :
 driver/main_args.cmo : \
     utils/warnings.cmi \
     utils/profile.cmi \
@@ -6897,9 +6932,12 @@ driver/opterrors.cmx : \
     driver/opterrors.cmi
 driver/opterrors.cmi :
 driver/optmain.cmo : \
-    driver/optmaindriver.cmi
+    driver/optmaindriver.cmi \
+    driver/optmain.cmi
 driver/optmain.cmx : \
-    driver/optmaindriver.cmx
+    driver/optmaindriver.cmx \
+    driver/optmain.cmi
+driver/optmain.cmi :
 driver/optmaindriver.cmo : \
     utils/warnings.cmi \
     utils/profile.cmi \
@@ -6917,7 +6955,7 @@ driver/optmaindriver.cmo : \
     asmcomp/asmpackager.cmi \
     asmcomp/asmlink.cmi \
     asmcomp/asmlibrarian.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     driver/optmaindriver.cmi
 driver/optmaindriver.cmx : \
     utils/warnings.cmx \
@@ -6974,7 +7012,8 @@ toplevel/expunge.cmo : \
     utils/import_info.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi \
-    bytecomp/bytesections.cmi
+    bytecomp/bytesections.cmi \
+    toplevel/expunge.cmi
 toplevel/expunge.cmx : \
     bytecomp/symtable.cmx \
     lambda/runtimedef.cmx \
@@ -6982,7 +7021,9 @@ toplevel/expunge.cmx : \
     utils/import_info.cmx \
     typing/ident.cmx \
     utils/compilation_unit.cmx \
-    bytecomp/bytesections.cmx
+    bytecomp/bytesections.cmx \
+    toplevel/expunge.cmi
+toplevel/expunge.cmi :
 toplevel/genprintval.cmo : \
     typing/types.cmi \
     parsing/syntaxerr.cmi \
@@ -6996,7 +7037,7 @@ toplevel/genprintval.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/lexer.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     typing/datarepr.cmi \
@@ -7017,7 +7058,7 @@ toplevel/genprintval.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     parsing/lexer.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     typing/datarepr.cmx \
@@ -7032,6 +7073,7 @@ toplevel/genprintval.cmi : \
     typing/env.cmi
 toplevel/topcommon.cmo : \
     typing/typedtree.cmi \
+    bytecomp/symtable.cmi \
     parsing/printast.cmi \
     typing/predef.cmi \
     parsing/pprintast.cmi \
@@ -7060,6 +7102,7 @@ toplevel/topcommon.cmo : \
     toplevel/topcommon.cmi
 toplevel/topcommon.cmx : \
     typing/typedtree.cmx \
+    bytecomp/symtable.cmx \
     parsing/printast.cmx \
     typing/predef.cmx \
     parsing/pprintast.cmx \
@@ -7095,7 +7138,8 @@ toplevel/topcommon.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
+    utils/load_path.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     toplevel/genprintval.cmi \
     typing/env.cmi \
@@ -7103,18 +7147,18 @@ toplevel/topcommon.cmi : \
 toplevel/topdirs.cmo : \
     utils/warnings.cmi \
     typing/types.cmi \
+    toplevel/topprinters.cmi \
     toplevel/toploop.cmi \
     toplevel/topeval.cmi \
     typing/printtyp.cmi \
     typing/predef.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
-    typing/mode.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
-    typing/layouts.cmi \
+    typing/jkind.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     bytecomp/dll.cmi \
@@ -7129,18 +7173,18 @@ toplevel/topdirs.cmo : \
 toplevel/topdirs.cmx : \
     utils/warnings.cmx \
     typing/types.cmx \
+    toplevel/topprinters.cmx \
     toplevel/toploop.cmx \
     toplevel/topeval.cmi \
     typing/printtyp.cmx \
     typing/predef.cmx \
     typing/path.cmx \
     parsing/parsetree.cmi \
-    typing/mode.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
-    typing/layouts.cmx \
+    typing/jkind.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     bytecomp/dll.cmx \
@@ -7197,12 +7241,36 @@ toplevel/toploop.cmi : \
     typing/outcometree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/load_path.cmi \
     typing/env.cmi
 toplevel/topmain.cmi :
+toplevel/topprinters.cmo : \
+    typing/types.cmi \
+    typing/predef.cmi \
+    typing/path.cmi \
+    typing/mode.cmi \
+    typing/ident.cmi \
+    typing/ctype.cmi \
+    parsing/asttypes.cmi \
+    toplevel/topprinters.cmi
+toplevel/topprinters.cmx : \
+    typing/types.cmx \
+    typing/predef.cmx \
+    typing/path.cmx \
+    typing/mode.cmx \
+    typing/ident.cmx \
+    typing/ctype.cmx \
+    parsing/asttypes.cmi \
+    toplevel/topprinters.cmi
+toplevel/topprinters.cmi : \
+    typing/types.cmi
 toplevel/topstart.cmo : \
-    toplevel/topmain.cmi
+    toplevel/topmain.cmi \
+    toplevel/topstart.cmi
 toplevel/topstart.cmx : \
-    toplevel/topmain.cmi
+    toplevel/topmain.cmi \
+    toplevel/topstart.cmi
+toplevel/topstart.cmi :
 toplevel/trace.cmi : \
     typing/types.cmi \
     typing/path.cmi \
@@ -7292,7 +7360,6 @@ toplevel/byte/topmain.cmo : \
     toplevel/topcommon.cmi \
     typing/printtyp.cmi \
     typing/path.cmi \
-    utils/misc.cmi \
     driver/main_args.cmi \
     parsing/location.cmi \
     typing/env.cmi \
@@ -7310,7 +7377,6 @@ toplevel/byte/topmain.cmx : \
     toplevel/topcommon.cmx \
     typing/printtyp.cmx \
     typing/path.cmx \
-    utils/misc.cmx \
     driver/main_args.cmx \
     parsing/location.cmx \
     typing/env.cmx \
@@ -7435,7 +7501,7 @@ toplevel/native/tophooks.cmo : \
     middle_end/backend_intf.cmi \
     asmcomp/asmlink.cmi \
     asmcomp/asmgen.cmi \
-    asmcomp/arch.cmo \
+    asmcomp/arch.cmi \
     toplevel/native/tophooks.cmi
 toplevel/native/tophooks.cmx : \
     toplevel/topcommon.cmx \
@@ -7459,7 +7525,6 @@ toplevel/native/topmain.cmo : \
     toplevel/toploop.cmi \
     toplevel/native/topeval.cmi \
     toplevel/topcommon.cmi \
-    utils/misc.cmi \
     driver/main_args.cmi \
     parsing/location.cmi \
     driver/compmisc.cmi \
@@ -7470,7 +7535,6 @@ toplevel/native/topmain.cmx : \
     toplevel/toploop.cmx \
     toplevel/native/topeval.cmx \
     toplevel/topcommon.cmx \
-    utils/misc.cmx \
     driver/main_args.cmx \
     parsing/location.cmx \
     driver/compmisc.cmx \
@@ -7489,3 +7553,416 @@ toplevel/native/trace.cmi : \
     typing/path.cmi \
     parsing/longident.cmi \
     typing/env.cmi
+lex/common.cmo : \
+    lex/syntax.cmi \
+    lex/lexgen.cmi \
+    lex/common.cmi
+lex/common.cmx : \
+    lex/syntax.cmx \
+    lex/lexgen.cmx \
+    lex/common.cmi
+lex/common.cmi : \
+    lex/syntax.cmi \
+    lex/lexgen.cmi
+lex/compact.cmo : \
+    lex/table.cmi \
+    lex/lexgen.cmi \
+    lex/compact.cmi
+lex/compact.cmx : \
+    lex/table.cmx \
+    lex/lexgen.cmx \
+    lex/compact.cmi
+lex/compact.cmi : \
+    lex/lexgen.cmi
+lex/cset.cmo : \
+    lex/cset.cmi
+lex/cset.cmx : \
+    lex/cset.cmi
+lex/cset.cmi :
+lex/lexer.cmo : \
+    lex/syntax.cmi \
+    lex/parser.cmi \
+    lex/lexer.cmi
+lex/lexer.cmx : \
+    lex/syntax.cmx \
+    lex/parser.cmx \
+    lex/lexer.cmi
+lex/lexer.cmi : \
+    lex/parser.cmi
+lex/lexgen.cmo : \
+    lex/table.cmi \
+    lex/syntax.cmi \
+    lex/cset.cmi \
+    lex/lexgen.cmi
+lex/lexgen.cmx : \
+    lex/table.cmx \
+    lex/syntax.cmx \
+    lex/cset.cmx \
+    lex/lexgen.cmi
+lex/lexgen.cmi : \
+    lex/syntax.cmi
+lex/main.cmo : \
+    lex/syntax.cmi \
+    lex/parser.cmi \
+    lex/outputbis.cmi \
+    lex/output.cmi \
+    lex/lexgen.cmi \
+    lex/lexer.cmi \
+    lex/cset.cmi \
+    lex/compact.cmi \
+    lex/common.cmi \
+    lex/main.cmi
+lex/main.cmx : \
+    lex/syntax.cmx \
+    lex/parser.cmx \
+    lex/outputbis.cmx \
+    lex/output.cmx \
+    lex/lexgen.cmx \
+    lex/lexer.cmx \
+    lex/cset.cmx \
+    lex/compact.cmx \
+    lex/common.cmx \
+    lex/main.cmi
+lex/main.cmi :
+lex/output.cmo : \
+    lex/lexgen.cmi \
+    lex/compact.cmi \
+    lex/common.cmi \
+    lex/output.cmi
+lex/output.cmx : \
+    lex/lexgen.cmx \
+    lex/compact.cmx \
+    lex/common.cmx \
+    lex/output.cmi
+lex/output.cmi : \
+    lex/syntax.cmi \
+    lex/lexgen.cmi \
+    lex/compact.cmi \
+    lex/common.cmi
+lex/outputbis.cmo : \
+    lex/lexgen.cmi \
+    lex/common.cmi \
+    lex/outputbis.cmi
+lex/outputbis.cmx : \
+    lex/lexgen.cmx \
+    lex/common.cmx \
+    lex/outputbis.cmi
+lex/outputbis.cmi : \
+    lex/syntax.cmi \
+    lex/lexgen.cmi \
+    lex/common.cmi
+lex/parser.cmo : \
+    lex/syntax.cmi \
+    lex/cset.cmi \
+    lex/parser.cmi
+lex/parser.cmx : \
+    lex/syntax.cmx \
+    lex/cset.cmx \
+    lex/parser.cmi
+lex/parser.cmi : \
+    lex/syntax.cmi
+lex/syntax.cmo : \
+    lex/cset.cmi \
+    lex/syntax.cmi
+lex/syntax.cmx : \
+    lex/cset.cmx \
+    lex/syntax.cmi
+lex/syntax.cmi : \
+    lex/cset.cmi
+lex/table.cmo : \
+    lex/table.cmi
+lex/table.cmx : \
+    lex/table.cmi
+lex/table.cmi :
+tools/cmpbyt.cmo : \
+    bytecomp/bytesections.cmi \
+    tools/cmpbyt.cmi
+tools/cmpbyt.cmx : \
+    bytecomp/bytesections.cmx \
+    tools/cmpbyt.cmi
+tools/cmpbyt.cmi :
+tools/cvt_emit.cmo : \
+    tools/cvt_emit.cmi
+tools/cvt_emit.cmx : \
+    tools/cvt_emit.cmi
+tools/cvt_emit.cmi :
+tools/debug_printers.cmo : \
+    typing/printtyp.cmi \
+    typing/path.cmi \
+    typing/jkind.cmi \
+    typing/ident.cmi \
+    typing/ctype.cmi
+tools/debug_printers.cmx : \
+    typing/printtyp.cmx \
+    typing/path.cmx \
+    typing/jkind.cmx \
+    typing/ident.cmx \
+    typing/ctype.cmx
+tools/dumpobj.cmo : \
+    bytecomp/symtable.cmi \
+    tools/opnames.cmi \
+    bytecomp/opcodes.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    bytecomp/instruct.cmi \
+    typing/ident.cmi \
+    utils/config.cmi \
+    file_formats/cmo_format.cmi \
+    bytecomp/bytesections.cmi \
+    tools/dumpobj.cmi
+tools/dumpobj.cmx : \
+    bytecomp/symtable.cmx \
+    tools/opnames.cmx \
+    bytecomp/opcodes.cmx \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    bytecomp/instruct.cmx \
+    typing/ident.cmx \
+    utils/config.cmx \
+    file_formats/cmo_format.cmi \
+    bytecomp/bytesections.cmx \
+    tools/dumpobj.cmi
+tools/dumpobj.cmi :
+tools/eqparsetree.cmo : \
+    parsing/parsetree.cmi \
+    parsing/longident.cmi \
+    parsing/location.cmi \
+    parsing/asttypes.cmi
+tools/eqparsetree.cmx : \
+    parsing/parsetree.cmi \
+    parsing/longident.cmx \
+    parsing/location.cmx \
+    parsing/asttypes.cmi
+tools/gen_sizeclasses.cmo :
+tools/gen_sizeclasses.cmx :
+tools/lintapidiff.cmo : \
+    typing/printtyp.cmi \
+    driver/pparse.cmi \
+    typing/path.cmi \
+    parsing/parsetree.cmi \
+    parsing/parse.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    parsing/jane_syntax.cmi \
+    typing/ident.cmi \
+    tools/lintapidiff.cmi
+tools/lintapidiff.cmx : \
+    typing/printtyp.cmx \
+    driver/pparse.cmx \
+    typing/path.cmx \
+    parsing/parsetree.cmi \
+    parsing/parse.cmx \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    parsing/jane_syntax.cmx \
+    typing/ident.cmx \
+    tools/lintapidiff.cmi
+tools/lintapidiff.cmi :
+tools/make_opcodes.cmo : \
+    tools/make_opcodes.cmi
+tools/make_opcodes.cmx : \
+    tools/make_opcodes.cmi
+tools/make_opcodes.cmi :
+tools/objinfo.cmo : \
+    bytecomp/symtable.cmi \
+    utils/symbol.cmi \
+    typing/shape.cmi \
+    middle_end/printclambda.cmi \
+    utils/misc.cmi \
+    lambda/lambda.cmi \
+    utils/import_info.cmi \
+    typing/ident.cmi \
+    utils/global.cmi \
+    middle_end/flambda/export_info.cmi \
+    utils/compilation_unit.cmi \
+    file_formats/cmxs_format.cmi \
+    file_formats/cmx_format.cmi \
+    file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
+    file_formats/cmo_format.cmi \
+    file_formats/cmi_format.cmi \
+    bytecomp/bytesections.cmi \
+    utils/binutils.cmi \
+    tools/objinfo.cmi
+tools/objinfo.cmx : \
+    bytecomp/symtable.cmx \
+    utils/symbol.cmx \
+    typing/shape.cmx \
+    middle_end/printclambda.cmx \
+    utils/misc.cmx \
+    lambda/lambda.cmx \
+    utils/import_info.cmx \
+    typing/ident.cmx \
+    utils/global.cmx \
+    middle_end/flambda/export_info.cmx \
+    utils/compilation_unit.cmx \
+    file_formats/cmxs_format.cmi \
+    file_formats/cmx_format.cmi \
+    file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
+    file_formats/cmo_format.cmi \
+    file_formats/cmi_format.cmx \
+    bytecomp/bytesections.cmx \
+    utils/binutils.cmx \
+    tools/objinfo.cmi
+tools/objinfo.cmi :
+tools/ocamlcmt.cmo : \
+    typing/untypeast.cmi \
+    typing/stypes.cmi \
+    parsing/pprintast.cmi \
+    parsing/location.cmi \
+    utils/load_path.cmi \
+    utils/import_info.cmi \
+    typing/envaux.cmi \
+    driver/compmisc.cmi \
+    utils/compilation_unit.cmi \
+    file_formats/cmt_format.cmi \
+    typing/cmt2annot.cmi \
+    utils/clflags.cmi \
+    typing/annot.cmi \
+    tools/ocamlcmt.cmi
+tools/ocamlcmt.cmx : \
+    typing/untypeast.cmx \
+    typing/stypes.cmx \
+    parsing/pprintast.cmx \
+    parsing/location.cmx \
+    utils/load_path.cmx \
+    utils/import_info.cmx \
+    typing/envaux.cmx \
+    driver/compmisc.cmx \
+    utils/compilation_unit.cmx \
+    file_formats/cmt_format.cmx \
+    typing/cmt2annot.cmx \
+    utils/clflags.cmx \
+    typing/annot.cmi \
+    tools/ocamlcmt.cmi
+tools/ocamlcmt.cmi :
+tools/ocamlcp.cmo : \
+    tools/ocamlcp_common.cmi \
+    driver/main_args.cmi \
+    tools/ocamlcp.cmi
+tools/ocamlcp.cmx : \
+    tools/ocamlcp_common.cmx \
+    driver/main_args.cmx \
+    tools/ocamlcp.cmi
+tools/ocamlcp.cmi :
+tools/ocamlcp_common.cmo : \
+    driver/main_args.cmi \
+    driver/compenv.cmi \
+    tools/ocamlcp_common.cmi
+tools/ocamlcp_common.cmx : \
+    driver/main_args.cmx \
+    driver/compenv.cmx \
+    tools/ocamlcp_common.cmi
+tools/ocamlcp_common.cmi : \
+    driver/main_args.cmi
+tools/ocamldep.cmo : \
+    driver/makedepend.cmi \
+    tools/ocamldep.cmi
+tools/ocamldep.cmx : \
+    driver/makedepend.cmx \
+    tools/ocamldep.cmi
+tools/ocamldep.cmi :
+tools/ocamlmklib.cmo : \
+    utils/misc.cmi \
+    utils/config.cmi \
+    tools/ocamlmklib.cmi
+tools/ocamlmklib.cmx : \
+    utils/misc.cmx \
+    utils/config.cmx \
+    tools/ocamlmklib.cmi
+tools/ocamlmklib.cmi :
+tools/ocamlmktop.cmo : \
+    utils/config.cmi \
+    utils/ccomp.cmi \
+    tools/ocamlmktop.cmi
+tools/ocamlmktop.cmx : \
+    utils/config.cmx \
+    utils/ccomp.cmx \
+    tools/ocamlmktop.cmi
+tools/ocamlmktop.cmi :
+tools/ocamloptp.cmo : \
+    tools/ocamlcp_common.cmi \
+    driver/main_args.cmi \
+    tools/ocamloptp.cmi
+tools/ocamloptp.cmx : \
+    tools/ocamlcp_common.cmx \
+    driver/main_args.cmx \
+    tools/ocamloptp.cmi
+tools/ocamloptp.cmi :
+tools/ocamlprof.cmo : \
+    utils/warnings.cmi \
+    parsing/parsetree.cmi \
+    parsing/parse.cmi \
+    parsing/location.cmi \
+    parsing/jane_syntax.cmi \
+    tools/ocamlprof.cmi
+tools/ocamlprof.cmx : \
+    utils/warnings.cmx \
+    parsing/parsetree.cmi \
+    parsing/parse.cmx \
+    parsing/location.cmx \
+    parsing/jane_syntax.cmx \
+    tools/ocamlprof.cmi
+tools/ocamlprof.cmi :
+tools/ocamltex.cmo : \
+    toplevel/toploop.cmi \
+    parsing/syntaxerr.cmi \
+    parsing/parsetree.cmi \
+    parsing/parse.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    utils/load_path.cmi \
+    parsing/lexer.cmi \
+    driver/compmisc.cmi \
+    driver/compenv.cmi \
+    utils/clflags.cmi \
+    parsing/ast_iterator.cmi \
+    parsing/ast_helper.cmi \
+    tools/ocamltex.cmi
+tools/ocamltex.cmx : \
+    toplevel/toploop.cmx \
+    parsing/syntaxerr.cmx \
+    parsing/parsetree.cmi \
+    parsing/parse.cmx \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    utils/load_path.cmx \
+    parsing/lexer.cmx \
+    driver/compmisc.cmx \
+    driver/compenv.cmx \
+    utils/clflags.cmx \
+    parsing/ast_iterator.cmx \
+    parsing/ast_helper.cmx \
+    tools/ocamltex.cmi
+tools/ocamltex.cmi :
+tools/opnames.cmo : \
+    tools/opnames.cmi
+tools/opnames.cmx : \
+    tools/opnames.cmi
+tools/opnames.cmi :
+tools/primreq.cmo : \
+    utils/misc.cmi \
+    utils/config.cmi \
+    file_formats/cmo_format.cmi \
+    tools/primreq.cmi
+tools/primreq.cmx : \
+    utils/misc.cmx \
+    utils/config.cmx \
+    file_formats/cmo_format.cmi \
+    tools/primreq.cmi
+tools/primreq.cmi :
+tools/profiling.cmo : \
+    tools/profiling.cmi
+tools/profiling.cmx : \
+    tools/profiling.cmi
+tools/profiling.cmi :
+tools/stripdebug.cmo : \
+    utils/misc.cmi \
+    bytecomp/bytesections.cmi \
+    tools/stripdebug.cmi
+tools/stripdebug.cmx : \
+    utils/misc.cmx \
+    bytecomp/bytesections.cmx \
+    tools/stripdebug.cmi
+tools/stripdebug.cmi :

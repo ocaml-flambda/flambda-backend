@@ -88,6 +88,10 @@ val create_ranges :
 val create_type :
   proto_die:Proto_die.t -> Dwarf_attribute_values.Attribute_value.t
 
+val create_discr :
+  proto_die_reference:Asm_targets.Asm_label.t ->
+  Dwarf_attribute_values.Attribute_value.t
+
 val create_type_from_reference :
   proto_die_reference:Proto_die.reference ->
   Dwarf_attribute_values.Attribute_value.t
@@ -103,8 +107,14 @@ val create_byte_size_exn :
 
 val create_bit_size : Int64.t -> Dwarf_attribute_values.Attribute_value.t
 
-val create_data_member_location :
+val create_data_member_location_offset :
   byte_offset:Int64.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_data_member_location_description :
+  Single_location_description.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_data_bit_offset :
+  bit_offset:Numbers.Int8.t -> Dwarf_attribute_values.Attribute_value.t
 
 val create_linkage_name :
   linkage_name:string -> Dwarf_attribute_values.Attribute_value.t
@@ -130,10 +140,19 @@ val create_single_call_data_location_description :
 val create_single_call_data_value_location_description :
   Single_location_description.t -> Dwarf_attribute_values.Attribute_value.t
 
+val create_const_value :
+  value:Int64.t -> Dwarf_attribute_values.Attribute_value.t
+
 val create_const_value_from_symbol :
   symbol:Asm_symbol.t -> Dwarf_attribute_values.Attribute_value.t
 
+val create_discr_value :
+  value:Int64.t -> Dwarf_attribute_values.Attribute_value.t
+
 val create_addr_base : Asm_label.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_address_class :
+  value:Numbers.Int8.t -> Dwarf_attribute_values.Attribute_value.t
 
 val create_loclists_base :
   Asm_label.t -> Dwarf_attribute_values.Attribute_value.t
@@ -154,6 +173,14 @@ val create_language :
 
 val create_declaration : unit -> Dwarf_attribute_values.Attribute_value.t
 
+val create_byte_stride :
+  bytes:Numbers.Int8.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_count :
+  Single_location_description.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_count_const : Int64.t -> Dwarf_attribute_values.Attribute_value.t
+
 (** OCaml-specific DWARF attributes. *)
 
 val create_ocaml_compiler_version :
@@ -172,3 +199,6 @@ val create_ocaml_linker_dirs :
 
 val create_ocaml_cmt_file_digest :
   Digest.t -> Dwarf_attribute_values.Attribute_value.t
+
+val create_ocaml_offset_record_from_pointer :
+  value:Int64.t -> Dwarf_attribute_values.Attribute_value.t

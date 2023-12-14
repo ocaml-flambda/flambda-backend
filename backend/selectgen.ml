@@ -111,7 +111,7 @@ let env_find_mut id env =
   end;
   regs, provenance
 
-let env_find_with_provenance id env =
+let _env_find_with_provenance id env =
   V.Map.find id env.vars
 
 let env_find_static_exception id env =
@@ -198,15 +198,16 @@ let select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag = function
 let oper_result_type = function
   | Capply(ty, _) -> ty
   | Cextcall { ty; ty_args = _; alloc = _; func = _; } -> ty
-  | Cload (c, _) ->
-      begin match c with
+  | Cload {memory_chunk} ->
+      begin match memory_chunk with
       | Word_val -> typ_val
       | Single | Double -> typ_float
-      | Onetwentyeight -> typ_vec128
+      | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
   | Calloc _ -> typ_val
   | Cstore (_c, _) -> typ_void
+  | Cdls_get -> typ_val
   | Cprefetch _ -> typ_void
   | Catomic _ -> typ_int
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi |
@@ -228,6 +229,7 @@ let oper_result_type = function
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Ccheckalign _ -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
@@ -526,7 +528,7 @@ method is_simple_expr = function
         List.for_all self#is_simple_expr args
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
-      | Craise _ | Ccheckbound | Catomic _
+      | Craise _ | Ccheckbound | Ccheckalign _ | Catomic _
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
@@ -539,7 +541,7 @@ method is_simple_expr = function
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
-      | Ccmpf _ -> List.for_all self#is_simple_expr args
+      | Ccmpf _ | Cdls_get -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ | Cregion _ | Ctail _ -> false
@@ -582,9 +584,10 @@ method effects_of exp =
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Cprefetch _ -> EC.arbitrary
       | Catomic _ -> EC.arbitrary
-      | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
-      | Cload (_, Asttypes.Immutable) -> EC.none
-      | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
+      | Craise _ | Ccheckbound | Ccheckalign _ -> EC.effect_only Effect.Raise
+      | Cload {mutability = Asttypes.Immutable} -> EC.none
+      | Cload {mutability = Asttypes.Mutable} | Cdls_get ->
+        EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Ctuple_field _
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
@@ -633,7 +636,8 @@ method mark_call =
 
 method mark_tailcall = ()
 
-method mark_c_tailcall = ()
+method mark_c_tailcall =
+  if !Clflags.debug then contains_calls := true
 
 method mark_instr = function
   | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) ->
@@ -642,8 +646,10 @@ method mark_instr = function
       self#mark_tailcall
   | Iop (Ialloc _) | Iop (Ipoll _) ->
       self#mark_call (* caml_alloc*, caml_garbage_collection (incl. polls) *)
-  | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _)) ->
-      self#mark_c_tailcall (* caml_ml_array_bound_error *)
+  | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _))
+  | Iop (Iintop(Icheckalign _) | Iintop_imm(Icheckalign _, _)) ->
+      (* caml_ml_array_bound_error, caml_ml_array_align_error *)
+      self#mark_c_tailcall
   | Iraise raise_kind ->
     begin match raise_kind with
       | Lambda.Raise_notrace -> ()
@@ -670,10 +676,10 @@ method select_operation op args _dbg =
      Misc.fatal_errorf "Selection.select_operation: builtin not recognized %s"
        func ();
   | (Cextcall { func; alloc; ty; ty_args; returns; builtin = false }, _) ->
-    Iextcall { func; alloc; ty_res = ty; ty_args; returns }, args
-  | (Cload (chunk, mut), [arg]) ->
-      let (addr, eloc) = self#select_addressing chunk arg in
-      (Iload(chunk, addr, select_mutable_flag mut), [eloc])
+    Iextcall { func; alloc; ty_res = ty; ty_args; returns; stack_ofs = -1 }, args
+  | (Cload {memory_chunk; mutability; is_atomic}, [arg]) ->
+    let (addressing_mode, eloc) = self#select_addressing memory_chunk arg in
+    (Iload {memory_chunk; addressing_mode; mutability; is_atomic}, [eloc])
   | (Cstore (chunk, init), [arg1; arg2]) ->
       let (addr, eloc) = self#select_addressing chunk arg1 in
       let is_assign =
@@ -688,6 +694,7 @@ method select_operation op args _dbg =
         (Istore(chunk, addr, is_assign), [arg2; eloc])
         (* Inversion addr/datum in Istore *)
       end
+  | (Cdls_get, _) -> Idls_get, args
   | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args
   | (Caddi, _) -> self#select_arith_comm Iadd args
   | (Csubi, _) -> self#select_arith Isub args
@@ -734,6 +741,8 @@ method select_operation op args _dbg =
     (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
+  | (Ccheckalign {bytes_pow2}, _) ->
+    self#select_arith (Icheckalign { bytes_pow2 }) args
   | (Cprobe { name; handler_code_sym; enabled_at_init; }, _) ->
     Iprobe { name; handler_code_sym; enabled_at_init; }, args
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
@@ -805,7 +814,8 @@ method insert_debug _env desc dbg arg res =
   instr_seq <- instr_cons_debug desc arg res dbg instr_seq
 
 method insert _env desc arg res =
-  instr_seq <- instr_cons desc arg res instr_seq
+  (* CR mshinwell: fix debuginfo *)
+  instr_seq <- instr_cons_debug desc arg res Debuginfo.none instr_seq
 
 method extract_onto o =
   let rec extract res i =
@@ -982,7 +992,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
          let rs = self#emit_tuple env simple_args in
          ret (self#insert_op_debug env Iopaque dbg rs rs)
       end
-  | Cop(Ctuple_field(field, fields_layout), [arg], dbg) ->
+  | Cop(Ctuple_field(field, fields_layout), [arg], _dbg) ->
       begin match self#emit_expr env arg ~bound_name:None with
         None -> None
       | Some loc_exp ->
@@ -1060,12 +1070,13 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               Some (rd, unclosed_regions)
-          | Iextcall { ty_args; returns; _} ->
+          | Iextcall ({ ty_args; returns; _} as r) ->
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env ty_args new_args in
               let rd = self#regs_for ty in
               let loc_res =
-                self#insert_op_debug env new_op dbg
+                self#insert_op_debug env
+                  (Iextcall {r with stack_ofs = stack_ofs}) dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               add_naming_op_for_bound_name loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
@@ -1107,7 +1118,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         None -> None
       | Some _ -> self#emit_expr_aux env e2 ~bound_name
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env earg ~bound_name:None with
         None -> None
@@ -1119,11 +1130,11 @@ method emit_expr_aux (env:environment) exp ~bound_name :
             self#emit_sequence env eelse ~bound_name
           in
           let r = join env rif sif relse selse ~bound_name in
-          self#insert env (Iifthenelse(cond, sif#extract, selse#extract))
-                      rarg [||];
+          self#insert_debug env (Iifthenelse(cond, sif#extract, selse#extract))
+            dbg rarg [||];
           r
       end
-  | Cswitch(esel, index, ecases, _dbg, _kind) ->
+  | Cswitch(esel, index, ecases, dbg, _kind) ->
       begin match self#emit_expr env esel ~bound_name:None with
         None -> None
       | Some rsel ->
@@ -1133,9 +1144,9 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               ecases
           in
           let r = join_array env rscases ~bound_name in
-          self#insert env (Iswitch(index,
-                                   Array.map (fun (_, s) -> s#extract) rscases))
-                      rsel [||];
+          self#insert_debug env
+            (Iswitch(index, Array.map (fun (_, s) -> s#extract) rscases))
+            dbg rsel [||];
           r
       end
   | Ccatch(_, [], e1, _) ->
@@ -1270,7 +1281,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
               end
           end
       end
-  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
+  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It must not be ended in the non-exception case
          as local allocations may be returned from the body of the "try". *)
@@ -1280,7 +1291,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
-          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+          fun handler_instruction ->
+            instr_cons_debug (Iop Iendregion) reg [| |] dbg handler_instruction
         end
         else
           fun handler_instruction -> handler_instruction
@@ -1311,7 +1323,8 @@ method emit_expr_aux (env:environment) exp ~bound_name :
         self#insert env
           (Itrywith(s1#extract, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                     instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                       dbg
                        (end_region s2#extract))))
           [||] [||];
         r
@@ -1325,7 +1338,7 @@ method emit_expr_aux (env:environment) exp ~bound_name :
           with_handler (env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable; }; _ } ->
           let unreachable =
-            Cmm.(Cop ((Cload (Word_int, Mutable)),
+            Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
                       [Cconst_int (0, Debuginfo.none)],
                       Debuginfo.none))
           in
@@ -1558,7 +1571,10 @@ method emit_stores env data regs_addr =
                 let r = regs.(i) in
                 let kind = match r.typ with
                   | Float -> Double
-                  | Vec128 -> Onetwentyeight
+                  | Vec128 ->
+                    (* 128-bit memory operations are default unaligned. Aligned (big)array
+                       operations are handled separately via cmm. *)
+                    Onetwentyeight_unaligned
                   | Val | Addr | Int ->  Word_val
                 in
                 self#insert env
@@ -1670,17 +1686,17 @@ method emit_tail (env:environment) exp =
         None -> ()
       | Some _ -> self#emit_tail env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env earg ~bound_name:None with
         None -> ()
       | Some rarg ->
-          self#insert env
+          self#insert_debug env
                       (Iifthenelse(cond, self#emit_tail_sequence env eif,
                                          self#emit_tail_sequence env eelse))
-                      rarg [||]
+                      dbg rarg [||]
       end
-  | Cswitch(esel, index, ecases, _dbg, _kind) ->
+  | Cswitch(esel, index, ecases, dbg, _kind) ->
       begin match self#emit_expr env esel ~bound_name:None with
         None -> ()
       | Some rsel ->
@@ -1688,7 +1704,7 @@ method emit_tail (env:environment) exp =
             Array.map (fun (case, _dbg) -> self#emit_tail_sequence env case)
               ecases
           in
-          self#insert env (Iswitch (index, cases)) rsel [||]
+          self#insert_debug env (Iswitch (index, cases)) dbg rsel [||]
       end
   | Ccatch(_, [], e1, _) ->
       self#emit_tail env e1
@@ -1765,14 +1781,15 @@ method emit_tail (env:environment) exp =
       (* The final trap stack doesn't matter, as it's not reachable. *)
       self#insert env (Icatch(rec_flag, env.trap_stack, new_handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
+  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
       let end_region =
         if Config.stack_allocation then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
-          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+          fun handler_instruction ->
+            instr_cons_debug (Iop Iendregion) reg [| |] dbg handler_instruction
         end
         else
           fun handler_instruction -> handler_instruction
@@ -1803,7 +1820,7 @@ method emit_tail (env:environment) exp =
         self#insert env
           (Itrywith(s1, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                     instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv dbg
                        (end_region s2))))
           [||] [||]
       in
@@ -1816,7 +1833,7 @@ method emit_tail (env:environment) exp =
           with_handler (env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable; }; _ } ->
           let unreachable =
-            Cmm.(Cop ((Cload (Word_int, Mutable)),
+            Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
                       [Cconst_int (0, Debuginfo.none)],
                       Debuginfo.none))
           in

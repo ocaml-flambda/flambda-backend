@@ -57,7 +57,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of Types.type_expr * Layouts.Layout.Violation.t
+| Non_value_jkind of Types.type_expr * Jkind.sort
 | Instantiating_packed of Compilation_unit.t
 
 exception Error of Location.t * error

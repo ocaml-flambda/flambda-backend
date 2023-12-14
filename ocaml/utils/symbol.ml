@@ -46,10 +46,11 @@ include Identifiable.Make (struct
 end)
 
 let caml_symbol_prefix = "caml"
-let pack_separator = "__"
+let separator = if Config.runtime5 then "." else "__"
+let pack_separator = separator
 let instance_separator = "___"
 let instance_separator_depth_char = '_'
-let member_separator = "__"
+let member_separator = separator
 
 let linkage_name t = t.linkage_name
 

@@ -90,8 +90,6 @@ val min_repr_int : int
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-val natint_const_untagged : Debuginfo.t -> nativeint -> expression
-
 val cint_const : int -> data_item
 
 val targetint_const : int -> Targetint.t
@@ -230,6 +228,12 @@ val remove_unit : expression -> expression
 
 (** Blocks *)
 
+(** Non-atomic load of a mutable field *)
+val mk_load_mut : memory_chunk -> operation
+
+(** Atomic load. All atomic fields are mutable. *)
+val mk_load_atomic : memory_chunk -> operation
+
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
     field of the block pointed to by [ptr] *)
 val field_address : expression -> int -> Debuginfo.t -> expression
@@ -272,9 +276,8 @@ val set_field :
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression
 
-(** Same as [get_header], but also set all profiling bits of the header are to 0
-    (if profiling is enabled) *)
-val get_header_without_profinfo : expression -> Debuginfo.t -> expression
+(** Same as [get_header], but also clear all reserved bits of the result *)
+val get_header_masked : expression -> Debuginfo.t -> expression
 
 (** Load a block's tag *)
 val get_tag : expression -> Debuginfo.t -> expression
@@ -298,8 +301,8 @@ val is_addr_array_ptr : expression -> Debuginfo.t -> expression
 
     Shifts by one bit fewer than necessary, keeping one of the GC colour bits,
     to save an operation when returning the length as a caml integer or when
-    comparing it to a caml integer. Assumes the header does not have any
-    profiling info (as returned by get_header_without_profinfo) *)
+    comparing it to a caml integer.
+    Assumes that the reserved bits are clear (see get_header_masked) *)
 val addr_array_length_shifted : expression -> Debuginfo.t -> expression
 
 val float_array_length_shifted : expression -> Debuginfo.t -> expression
@@ -364,8 +367,6 @@ val float_array_set :
 val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
-
-val bigstring_data : expression -> Debuginfo.t -> expression
 
 val bigstring_get_alignment :
   expression -> expression -> int -> Debuginfo.t -> expression
@@ -472,16 +473,19 @@ val make_float_alloc :
 (** Generate a [Ccheckbound] term *)
 val make_checkbound : Debuginfo.t -> expression list -> expression
 
-(** [check_bound safety access_size dbg length a2 k] prefixes expression [k]
-    with a check that reading [access_size] bits starting at position [a2] in a
-    string/bytes value of length [length] is within bounds, unless [safety] is
-    [Unsafe]. *)
-val check_bound :
+(** [check_bound_and_alignment
+        ~skip_if_unsafe access_size dbg ~address ~length ~offset k]
+    Prefixes expression [k] with a check that accessing [access_size] bits at
+    [data + offset] is valid, unless [skip_if_unsafe] is [Unsafe].
+    An access is valid if it is within the bound specified by [length], and
+    the resulting address is sufficiently aligned. *)
+val check_bound_and_alignment :
   Lambda.is_safe ->
   Clambda_primitives.memory_access_size ->
   Debuginfo.t ->
-  expression ->
-  expression ->
+  address:expression ->
+  length:expression ->
+  offset:expression ->
   expression ->
   expression
 
@@ -606,6 +610,16 @@ val unaligned_set_32 :
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_128 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
+val aligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+
+val aligned_set_128 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 (** Raw memory accesses *)
@@ -878,25 +892,6 @@ val send :
 val region : expression -> expression
 
 (** Generic Cmm fragments *)
-
-(** Generate generic functions *)
-module Generic_fns_tbl : sig
-  type t
-
-  val make : unit -> t
-
-  val add : t -> Cmx_format.generic_fns -> unit
-
-  val of_fns : Cmx_format.generic_fns -> t
-
-  val entries : t -> Cmx_format.generic_fns
-
-  module Precomputed : sig
-    val gen : unit -> (string, t) Hashtbl.t
-  end
-end
-
-val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
 
 val placeholder_dbg : unit -> Debuginfo.t
 
@@ -1305,3 +1300,13 @@ val machtype_of_layout : Lambda.layout -> machtype
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
+
+(* Generated functions *)
+val curry_function :
+  Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
+
+val send_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+
+val apply_function :
+  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase

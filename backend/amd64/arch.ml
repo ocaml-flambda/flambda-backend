@@ -18,9 +18,6 @@
 (* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
 let popcnt_support = ref true
 
-(* CRC32 requires SSE 4.2 support *)
-let crc32_support = ref true
-
 (* PREFETCHW instruction is not available on processors
    based on Haswell or earlier microarchitectures. *)
 let prefetchw_support = ref true
@@ -36,6 +33,9 @@ let sse3_support = ref true
 let ssse3_support = ref true
 let sse41_support = ref true
 let sse42_support = ref true
+
+(* Carry-less multiplication (Westmere+) *)
+let clmul_support = ref true
 
 (* Enable SIMD register allocation features. *)
 let simd_regalloc = ref false
@@ -80,6 +80,10 @@ let command_line_options =
       " Enable SSE4.2 intrinsics (default)";
     "-fno-sse42", Arg.Clear sse42_support,
       " Disable SSE4.2 intrinsics";
+    "-fclmul", Arg.Set clmul_support,
+      " Enable CLMUL intrinsics (default)";
+    "-fno-clmul", Arg.Clear clmul_support,
+      " Disable CLMUL intrinsics";
     "-fsimd-regalloc", Arg.Set simd_regalloc,
       " Enable SIMD register allocation (implied by -extension SIMD)";
     "-fno-simd-regalloc", Arg.Clear simd_regalloc,
@@ -109,8 +113,6 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
-type rounding_mode = Half_to_even | Down | Up | Towards_zero | Current
-
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
@@ -118,15 +120,8 @@ type specific_operation =
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
-  | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
-  | Ifloat_iround                      (* Rounds a [float] to an [int64]
-                                          using the current rounding mode *)
-  | Ifloat_round of rounding_mode      (* Round [float] to an integer [float]
-                                          using the specified mode *)
-  | Ifloat_min                         (* Return min of two floats *)
-  | Ifloat_max                         (* Return max of two floats *)
+  | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
   | Izextend32                         (* 32 to 64 bit conversion with zero
@@ -137,7 +132,7 @@ type specific_operation =
   | Isfence                            (* store fence *)
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
-  | Isimd of Simd.operation            (* vectorized operations *)
+  | Isimd of Simd.operation            (* SIMD instruction set operations *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -190,13 +185,6 @@ let string_of_prefetch_temporal_locality_hint = function
   | Moderate -> "moderate"
   | High -> "high"
 
-let string_of_rounding_mode = function
-  | Half_to_even -> "half_to_even"
-  | Down -> "down"
-  | Up -> "up"
-  | Towards_zero -> "truncate"
-  | Current -> "current"
-
 let int_of_bswap_bitwidth = function
   | Sixteen -> 16
   | Thirtytwo -> 32
@@ -230,14 +218,6 @@ let print_specific_operation printreg op ppf arg =
          (if is_assign then "(assign)" else "(init)")
   | Ioffset_loc(n, addr) ->
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
-  | Isqrtf ->
-      fprintf ppf "sqrtf %a" printreg arg.(0)
-  | Ifloat_iround -> fprintf ppf "float_iround %a" printreg arg.(0)
-  | Ifloat_round mode ->
-     fprintf ppf "float_round %s %a" (string_of_rounding_mode mode)
-       printreg arg.(0)
-  | Ifloat_min -> fprintf ppf "float_min %a %a" printreg arg.(0) printreg arg.(1)
-  | Ifloat_max -> fprintf ppf "float_max %a %a" printreg arg.(0) printreg arg.(1)
   | Ifloatsqrtf addr ->
      fprintf ppf "sqrtf float64[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
@@ -284,9 +264,8 @@ let win64 =
 (* Specific operations that are pure *)
 
 let operation_is_pure = function
-  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32 -> true
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _ | Ifloatsqrtf _ -> true
-  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -296,18 +275,16 @@ let operation_is_pure = function
 (* Specific operations that can raise *)
 
 let operation_can_raise = function
-  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _ | Ifloatsqrtf _
-  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
 let operation_allocates = function
-  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _ | Ifloatsqrtf _
-  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -363,15 +340,6 @@ let equal_float_operation left right =
   | Ifloatdiv, Ifloatdiv -> true
   | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
-let equal_rounding_mode left right =
-  match left, right with
-  | Half_to_even, Half_to_even -> true
-  | Down, Down -> true
-  | Up, Up -> true
-  | Towards_zero, Towards_zero -> true
-  | Current, Current -> true
-  | (Half_to_even | Down | Up | Towards_zero | Current), _ -> false
-
 let equal_specific_operation left right =
   match left, right with
   | Ilea x, Ilea y -> equal_addressing_mode x y
@@ -383,8 +351,6 @@ let equal_specific_operation left right =
     equal_float_operation x y && equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
-  | Isqrtf, Isqrtf ->
-    true
   | Ifloatsqrtf left, Ifloatsqrtf right ->
     equal_addressing_mode left right
   | Isextend32, Isextend32 ->
@@ -401,10 +367,6 @@ let equal_specific_operation left right =
     true
   | Imfence, Imfence ->
     true
-  | Ifloat_iround, Ifloat_iround -> true
-  | Ifloat_round x, Ifloat_round y -> equal_rounding_mode x y
-  | Ifloat_min, Ifloat_min -> true
-  | Ifloat_max, Ifloat_max -> true
   | Ipause, Ipause -> true
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
@@ -413,8 +375,7 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
-  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-    | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-    | Ilfence | Isfence | Imfence | Ifloat_iround | Ifloat_round _ |
-    Ifloat_min | Ifloat_max | Ipause | Isimd _ | Iprefetch _), _ ->
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ |
+     Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
+     Ipause | Isimd _ | Iprefetch _), _ ->
     false

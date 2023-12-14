@@ -247,7 +247,7 @@ let find_poll_alloc_or_calls instr =
             Ifloatofint | Iintoffloat | Inegf | Iabsf | Iaddf | Isubf |
             Imulf | Idivf | Iopaque | Ispecific _ | Ibeginregion | Iendregion |
             Icsel _ | Icompf _ | Iname_for_debugger _ | Iprobe _ | Iscalarcast _ |
-            Iprobe_is_enabled _ | Ivalueofint | Iintofvalue | Ivectorcast _)-> None
+            Iprobe_is_enabled _ | Ivalueofint | Iintofvalue | Ivectorcast _ | Idls_get)-> None
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _ |
         Itrywith _ | Iraise _ -> None
     in

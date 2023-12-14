@@ -30,12 +30,12 @@ val instance:
 val to_bytecode :
   Compile_common.info ->
   Typedtree.implementation ->
-  Instruct.instruction list * Compilation_unit.Set.t
+  Instruct.instruction list * Compilation_unit.Set.t * int option
 (** [to_bytecode info typed] takes a typechecked implementation
     and returns its bytecode.
 *)
 
 val emit_bytecode :
-  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t ->
+  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t * int option ->
     unit
 (** [emit_bytecode bytecode] output the bytecode executable. *)

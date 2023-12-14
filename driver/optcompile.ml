@@ -38,12 +38,12 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline =
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
-   (fun program ->
+   (fun (program : Lambda.program) ->
       let code = Simplif.simplify_lambda program.Lambda.code in
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
-      |> (fun program ->
+      |> (fun (program : Lambda.program) ->
            Asmgen.compile_implementation
              unix
              ~pipeline
@@ -51,7 +51,8 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline =
              ~prefixname:i.output_prefix
              ~ppf_dump:i.ppf_dump
              program);
-           Compilenv.save_unit_info (cmx i))
+           Compilenv.save_unit_info (cmx i)
+             ~arg_block_field:program.arg_block_field)
 
 let compile_from_typed i typed ~transl_style ~unix ~pipeline =
   typed

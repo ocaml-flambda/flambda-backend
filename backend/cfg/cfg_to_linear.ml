@@ -158,11 +158,17 @@ let linearize_terminator cfg_with_layout (func : string) start
             (Itailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
-    | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
+    | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single
         (L.Lop
            (Iextcall
-              { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
+              { func = func_symbol;
+                alloc;
+                ty_args;
+                ty_res;
+                returns = false;
+                stack_ofs
+              }))
     | Call { op; label_after } ->
       let op : Mach.operation =
         match op with
@@ -173,11 +179,21 @@ let linearize_terminator cfg_with_layout (func : string) start
     | Prim { op; label_after } ->
       let op : Mach.operation =
         match op with
-        | External { func_symbol; alloc; ty_args; ty_res } ->
+        | External { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
           Iextcall
-            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
+            { func = func_symbol;
+              alloc;
+              ty_args;
+              ty_res;
+              returns = true;
+              stack_ofs
+            }
         | Checkbound { immediate = None } -> Iintop Icheckbound
         | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
+        | Checkalign { bytes_pow2; immediate = None } ->
+          Iintop (Icheckalign { bytes_pow2 })
+        | Checkalign { bytes_pow2; immediate = Some i } ->
+          Iintop_imm (Icheckalign { bytes_pow2 }, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }
@@ -419,6 +435,7 @@ let run cfg_with_layout =
     else None
   in
   { Linear.fun_name = cfg.fun_name;
+    fun_args = Reg.set_of_array cfg.fun_args;
     fun_body = !next.insn;
     fun_tailrec_entry_point_label = !tailrec_label;
     fun_fast = cfg.fun_fast;

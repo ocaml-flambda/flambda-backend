@@ -193,9 +193,9 @@ let rec regalloc ~ppf_dump round fd =
   let num_stack_slots =
     if should_use_linscan fd then begin
       (* Linear Scan *)
-      Interval.build_intervals fd;
-      if !dump_interval then Printmach.intervals ppf_dump ();
-      Linscan.allocate_registers()
+      let intervals = Interval.build_intervals fd in
+      if !dump_interval then Printmach.intervals ppf_dump intervals;
+      Linscan.allocate_registers intervals
     end else begin
       (* Graph Coloring *)
       Interf.build_graph fd;
@@ -410,8 +410,8 @@ let compile_genfuns ~ppf_dump f =
        | (Cfunction {fun_name = name}) as ph when f name.sym_name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
-    (Cmm_helpers.generic_functions true
-       (Cmm_helpers.Generic_fns_tbl.of_fns
+    (Generic_fns.compile ~shared:true
+       (Generic_fns.Tbl.of_fns
           (Compilenv.current_unit_infos ()).ui_generic_fns))
 
 let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap
@@ -420,6 +420,11 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
   X86_proc.create_asm_file := create_asm;
+  let remove_asm_file () =
+    (* if [should_emit ()] is [false] then no assembly is generated,
+       so the (empty) temporary file should be deleted. *)
+    if not create_asm || not keep_asm then remove_file asm_filename
+  in
   Misc.try_finally
     ~exceptionally:(fun () -> remove_file obj_filename)
     (fun () ->
@@ -433,8 +438,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
-         ~exceptionally:(fun () ->
-             if create_asm && not keep_asm then remove_file asm_filename);
+         ~exceptionally:remove_asm_file;
        if should_emit () then begin
          if may_reduce_heap then
            Emitaux.reduce_heap_size ~reset:(fun () ->
@@ -452,7 +456,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
          if assemble_result <> 0
          then raise(Error(Assembler_error asm_filename));
        end;
-       if create_asm && not keep_asm then remove_file asm_filename
+       remove_asm_file ()
     )
 
 let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =

@@ -45,7 +45,7 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_implements_param: Global.Name.t option;
+    mutable ui_arg_descr: Lambda.arg_descr option;
                                           (* If this is an argument unit, the
                                              parameter it implements *)
     mutable ui_imports_cmi: Import_info.t array;
@@ -64,7 +64,8 @@ type unit_infos =
     mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
     mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
     mutable ui_export_info: export_info;
-    mutable ui_force_link: bool }         (* Always linked *)
+    mutable ui_force_link: bool;          (* Always linked *)
+    mutable ui_for_pack: string option }  (* Part of a pack *)
 
 (* Each .a library has a matching .cmxa file that provides the following
    infos on the library: *)
