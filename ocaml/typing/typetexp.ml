@@ -27,7 +27,15 @@ open Ctype
 
 exception Already_bound
 
-type jkind_initialization_option = Sort | Any
+(* A way to specify what jkind should be used for new type variables:
+
+   [Sort] means to initialize variables with representable jkinds (sort
+   varibales internally) and the jkinds will get defaulted to value if
+   it remains unconstrained.
+
+   [Any] means to initialize the variables with jkind any. No defaulting
+   will occur in this case. *)
+type jkind_initialization_choice = Sort | Any
 
 type value_loc =
     Tuple | Poly_variant | Package_constraint | Object_field
@@ -384,7 +392,7 @@ end = struct
   type policy = {
     flavor : flavor;
     extensibility : extensibility;
-    jkind_initialization: jkind_initialization_option;
+    jkind_initialization: jkind_initialization_choice;
   }
 
   let fixed_with_sort_initialization_policy = {

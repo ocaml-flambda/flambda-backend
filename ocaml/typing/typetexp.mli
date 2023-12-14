@@ -18,7 +18,7 @@
 open Types
 open Mode
 
-type jkind_initialization_option = Sort | Any
+type jkind_initialization_choice = Sort | Any
 
 module TyVarEnv : sig
   (* this is just the subset of [TyVarEnv] that is needed outside
@@ -60,7 +60,7 @@ end
 val valid_tyvar_name : string -> bool
 
 val transl_simple_type:
-        Env.t -> new_var_jkind:jkind_initialization_option
+        Env.t -> new_var_jkind:jkind_initialization_choice
         -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
