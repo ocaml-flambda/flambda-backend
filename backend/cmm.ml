@@ -173,6 +173,7 @@ type trap_action =
 
 type trywith_kind =
   | Delayed of trywith_shared_label
+[@@unboxed]
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 

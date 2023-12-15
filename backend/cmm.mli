@@ -159,6 +159,7 @@ type trywith_kind =
       through an explicit Push-annotated Cexit will this handler become active.
       This allows for sharing a single handler in several places, or having
       multiple entry and exit points to a single trywith block. *)
+[@@unboxed]
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 

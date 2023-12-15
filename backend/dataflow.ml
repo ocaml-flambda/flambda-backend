@@ -41,10 +41,9 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
-  let exn_from_trap_stack generic_exn (trap_stack : Mach.trap_stack) =
+  let exn_from_trap_stack (trap_stack : Mach.trap_stack) =
     match trap_stack with
     | Uncaught -> exnescape
-    | Generic_trap _ -> generic_exn
     | Specific_trap (lbl, _) -> get_lbl lbl
   in
 
@@ -75,7 +74,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
         | Cmm.Nonrecursive ->
             List.iter
               (fun (n, trap_stack, h, _) ->
-                 let exnh = exn_from_trap_stack exn trap_stack in
+                 let exnh = exn_from_trap_stack trap_stack in
                  set_lbl n (before bx exnh h))
             handlers
         | Cmm.Recursive ->
@@ -88,19 +87,19 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
                may be implicitly represented and absent from [lbls]. *)
             let update changed (n, trap_stack, h, _) =
               let b0 = get_lbl n in
-              let exnh = exn_from_trap_stack exn trap_stack in
+              let exnh = exn_from_trap_stack trap_stack in
               let b1 = before bx exnh h in
               if D.lessequal b1 b0 then changed else (set_lbl n b1; true) in
             while List.fold_left update false handlers do () done
         end;
-        let exnb = exn_from_trap_stack exn trap_stack in
+        let exnb = exn_from_trap_stack trap_stack in
         let b = before bx exnb body in
         transfer i ~next:b ~exn
     | Iexit (n, _trap_actions) ->
         transfer i ~next:(get_lbl n) ~exn
     | Itrywith(body, Delayed nfail, (trap_stack, handler)) ->
         let bx = before end_ exn i.next in
-        let exnh = exn_from_trap_stack exn trap_stack in
+        let exnh = exn_from_trap_stack trap_stack in
         let bh = exnhandler (before bx exnh handler) in
         set_lbl nfail bh;
         let bb = before bx exn body in

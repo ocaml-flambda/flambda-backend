@@ -18,8 +18,6 @@
 type trap_stack =
   | Uncaught
   (** Exceptions escape the current function *)
-  | Generic_trap of trap_stack
-  (** Current handler is a regular Trywith *)
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
   (** Current handler is a delayed/shared Trywith *)
 

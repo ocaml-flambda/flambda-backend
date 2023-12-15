@@ -89,13 +89,12 @@ let rec combine_traps trap_stack = function
   | Pop _ :: l ->
       begin match trap_stack with
       | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
-      | Generic_trap ts | Specific_trap (_, ts) -> combine_traps ts l
+      | Specific_trap (_, ts) -> combine_traps ts l
       end
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
     | Uncaught -> Format.fprintf ppf "T"
-    | Generic_trap ts -> Format.fprintf ppf "_::%a" print_traps ts
     | Specific_trap (lbl, ts) -> Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
@@ -119,8 +118,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
 let set_traps_for_raise env =
   let ts = env.trap_stack in
   match ts with
-  | Uncaught
-  | Generic_trap _ -> ()
+  | Uncaught -> ()
   | Specific_trap (lbl, _) ->
     begin match env_find_static_exception lbl env with
     | s -> set_traps lbl s.traps_ref ts [Pop (Pop_specific lbl)]
@@ -130,12 +128,11 @@ let set_traps_for_raise env =
 let trap_stack_is_empty env =
   match env.trap_stack with
   | Uncaught -> true
-  | Generic_trap _ | Specific_trap _ -> false
+  | Specific_trap _ -> false
 
 let pop_all_traps env =
   let rec pop_all acc = function
     | Uncaught -> acc
-    | Generic_trap t -> pop_all (Cmm.Pop Pop_generic :: acc) t
     | Specific_trap (lbl, t) -> pop_all (Cmm.Pop (Pop_specific lbl) :: acc) t
   in
   pop_all [] env.trap_stack
