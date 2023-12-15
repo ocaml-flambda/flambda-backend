@@ -30,7 +30,8 @@
 #include "caml/fiber.h"
 #include "caml/domain.h"
 
-CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
+                                           reserved_t reserved)
 {
   value result;
   mlsize_t i;
@@ -42,19 +43,24 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
       result = Atom (tag);
     }else{
       Caml_check_caml_state();
-      Alloc_small (result, wosize, tag, Alloc_small_enter_GC);
+      Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
+                                 reserved);
       if (tag < No_scan_tag){
         for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
       }
     }
   } else {
-    result = caml_alloc_shr (wosize, tag);
+    result = caml_alloc_shr_reserved (wosize, tag, reserved);
     if (tag < No_scan_tag) {
       for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
     }
     result = caml_check_urgent_gc (result);
   }
   return result;
+}
+
+CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
+  return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
 /* This is used by the native compiler for large block allocations.

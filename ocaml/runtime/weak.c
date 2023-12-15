@@ -283,7 +283,7 @@ CAMLprim value caml_weak_get (value ar, value n)
 
 static void ephe_copy_and_darken(value from, value to)
 {
-  mlsize_t i = 0; /* size of non-scannable prefix */
+  mlsize_t scan_from, scan_to;
 
   CAMLassert(Is_block(from));
   CAMLassert(Is_block(to));
@@ -292,23 +292,37 @@ static void ephe_copy_and_darken(value from, value to)
   CAMLassert(Wosize_val(from) == Wosize_val(to));
 
   if (Tag_val(from) > No_scan_tag) {
-    i = Wosize_val(to);
+    scan_from = Wosize_val(from);
+    scan_to = scan_from;
+  }
+  else if (Is_mixed_block_reserved(Reserved_val(from))) {
+    scan_from = 0;
+    scan_to = Mixed_block_scannable_wosize_reserved(Reserved_val(from));
   }
   else if (Tag_val(from) == Closure_tag) {
-    i = Start_env_closinfo(Closinfo_val(from));
+    scan_from = Start_env_closinfo(Closinfo_val(from));
+    scan_to = Wosize_val(from);
+  }
+  else {
+    scan_from = 0;
+    scan_to = Wosize_val(from);
   }
 
   /* Copy non-scannable prefix */
-  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(i));
+  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(scan_from));
 
   /* Copy and darken scannable fields */
   caml_domain_state* domain_state = Caml_state;
-  while (i < Wosize_val(to)) {
+  for (mlsize_t i = scan_from; i < scan_to; i++) {
     value field = Field(from, i);
     caml_darken (domain_state, field, 0);
     Store_field(to, i, field);
-    ++ i;
   }
+
+  /* Copy non-scannable suffix */
+  memcpy (Bp_val(to)   + scan_to,
+          Bp_val(from) + scan_to,
+          Bsize_wsize(Wosize_val(from) - scan_to));
 }
 
 static value ephe_get_field_copy (value e, mlsize_t offset)
@@ -355,7 +369,8 @@ static value ephe_get_field_copy (value e, mlsize_t offset)
     /* This allocation could provoke a GC, which could change the
        * header or size of val (e.g. in a finalizer). So we go around
        * the loop to read val again. */
-    copy = caml_alloc (Wosize_val(val), Tag_val(val));
+    copy = caml_alloc_with_reserved (Wosize_val(val), Tag_val(val),
+                                     Reserved_val(val));
     val = Val_unit;
   }
 
