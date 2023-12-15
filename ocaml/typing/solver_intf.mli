@@ -229,6 +229,9 @@ module type Solver_polarized = sig
 end
 
 module type S = sig
+  (** Error returned by failed [submode a b]. [left] will be the lowest mode [a]
+   can be, and [right] will be the highest mode [b] can be. And [left <= right]
+   will be false, which is why the submode failed. *)
   type 'a error =
     { left : 'a;
       right : 'a

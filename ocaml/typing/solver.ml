@@ -21,15 +21,15 @@ module Magic_allow_disallow (X : Allow_disallow) :
     Obj.magic
 end
 
-(** Error returned by failed [submode a b]. [left] will be the lowest mode [a]
-   can be, and [right] will be the highest mode [b] can be. And [left <= right]
-   will be false, which is why the submode failed. *)
 type 'a error =
   { left : 'a;
     right : 'a
   }
 
-let rec find_error f = function
+(** Map the function to the list, and returns the first [Error] found;
+    Returns [Ok ()] if no error. *)
+let rec find_error (f : 'x -> ('a, 'b) Result.t) : 'x list -> ('a, 'b) Result.t
+    = function
   | [] -> Ok ()
   | x :: rest -> (
     match f x with Ok () -> find_error f rest | Error _ as e -> e)
@@ -38,10 +38,23 @@ module VarSet = Set.Make (Int)
 
 module Solver_mono (C : Lattices_mono) = struct
   type 'a var =
-    { mutable upper : 'a;
+    { mutable vlower : 'a lmorphvar list
+      (** A list of variables directly under the current variable.
+        Each is a pair [f] [v], and we have [f v <= u] where [u] is the current
+        variable.
+        TODO: consider using hashset for quicker deduplication *)
+      mutable upper : 'a;
+      (** The precise upper bound of the variable *)
       mutable lower : 'a;
-      (* TODO: consider using hashset for quicker deduplication *)
-      mutable vlower : 'a lmorphvar list
+      (** The *conservative* lower bound of the variable.
+       Why conservative: if a user calls [submode c u] where [c] is
+        some constant and [u] some variable, we can modify [u.lower] of course.
+       Idealy we should also modify all [v.lower] where [v] is variable above [u].
+       However, we only have [vlower] not [vupper]. Therefore, the [lower] of
+       higher variables are not updated immediately, hence conservative. Those
+       [lower] of higher variables can be made precise later on demand, see
+       [zap_to_floor_try], which is why we decide we don't need [vupper].
+       *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
@@ -63,7 +76,7 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let undo_changes l = List.iter undo_change l
 
-  (* To be filled in *)
+  (* To be filled in by [types.ml] *)
   let append_changes : (changes ref -> unit) ref = ref (fun _ -> assert false)
 
   type ('a, 'd) mode =
@@ -315,7 +328,16 @@ module Solver_mono (C : Lattices_mono) = struct
       (* cannot assert [Option.is_none] because [mlower] is imprecise. *)
       Result.map_error (C.apply obj f) (submode_vc ?log src v a')
 
-  (** Calculate the precise lower bound *)
+  (** Zap the variable to its lower bound. Returns the [log] of the zapping, in
+      case the caller are only interested in the lower bound and wants to
+      reverse the zapping.
+
+      As mentioned in [var], [v.lower] is not precise; to get the precise lower
+      bound of [v], we call [submode v v.lower]. This would call [submode u
+      v.lower] for every [u] below [v], which might fail because for some [u],
+      [u.lower] is more up-to-date than [v.lower]. In that case, we call
+      [submode v u.lower]. We repeat this process until no failure, and we will
+      get the precise lower bound. *)
   let zap_to_floor_try (type a) (obj : a C.obj) (v : a var) =
     let rec loop lower =
       let log = ref [] in
