@@ -2170,13 +2170,13 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
                the Float case) *)
             match flat_suffix.(pos - value_prefix_len) with
             | Imm ->
-              Lprim (Pabstractfield (lbl.lbl_pos, Imm, sem, alloc_heap),
+              Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem, alloc_heap),
                      [ arg ], loc)
             | Float ->
-              Lprim (Pabstractfield (lbl.lbl_pos, Float, sem, alloc_heap),
+              Lprim (Pmixedfield (lbl.lbl_pos, Float, sem, alloc_heap),
                      [ arg ], loc)
             | Float64 ->
-              Lprim (Pabstractfield (lbl.lbl_pos, Float64, sem, alloc_heap),
+              Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem, alloc_heap),
                      [ arg ], loc)
           end,
           lbl_sort, lbl_layout

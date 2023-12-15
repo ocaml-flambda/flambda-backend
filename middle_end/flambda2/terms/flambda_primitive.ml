@@ -97,7 +97,7 @@ end
 module Mixed_block_kind = struct
   type t = Lambda.mixed_block_shape
 
-  let print_abstract_block_element ppf (e : Lambda.flat_element) =
+  let print_Mixed_block_element ppf (e : Lambda.flat_element) =
     match e with
     | Imm -> Format.fprintf ppf "Imm"
     | Float -> Format.fprintf ppf "Float"
@@ -107,7 +107,7 @@ module Mixed_block_kind = struct
     Format.fprintf ppf "[|@ ";
     Format.fprintf ppf "Value (x%d);@ " value_prefix_len;
     Array.iter (fun elem ->
-      Format.fprintf ppf "%a;@ " print_abstract_block_element elem)
+      Format.fprintf ppf "%a;@ " print_Mixed_block_element elem)
       flat_suffix;
     Format.fprintf ppf "|]"
 
@@ -219,7 +219,7 @@ module Duplicate_block_kind = struct
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
-    | Abstract
+    | Mixed
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -237,9 +237,9 @@ module Duplicate_block_kind = struct
           @[<hov 1>(length@ %a)@]\
           )@]"
         Targetint_31_63.print length
-    | Abstract ->
+    | Mixed ->
       Format.fprintf ppf
-        "@[<hov 1>(Block_of_naked_floats)@]"
+        "@[<hov 1>(Mixed)@]"
 
   let compare t1 t2 =
     match t1, t2 with
@@ -249,9 +249,9 @@ module Duplicate_block_kind = struct
       if c <> 0 then c else Targetint_31_63.compare length1 length2
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Targetint_31_63.compare length1 length2
-    | Abstract, Abstract -> 0
-    | Naked_floats _, Abstract -> -1
-    | Abstract, Naked_floats _ -> 1
+    | Mixed, Mixed -> 0
+    | Naked_floats _, Mixed -> -1
+    | Mixed, Naked_floats _ -> 1
     | Values _, _ -> -1
     | _, Values _ -> 1
 end
@@ -297,7 +297,7 @@ module Block_access_field_kind = struct
   let compare = Stdlib.compare
 end
 
-module Abstract_block_access_field_kind = struct
+module Mixed_block_access_field_kind = struct
   type t = Lambda.flat_element = Imm | Float | Float64
 
   let print = Printlambda.flat_element
@@ -313,8 +313,8 @@ module Block_access_kind = struct
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
-    | Abstract of { size : Targetint_31_63.t Or_unknown.t;
-                    field_kind : Abstract_block_access_field_kind.t }
+    | Mixed of { size : Targetint_31_63.t Or_unknown.t;
+                 field_kind : Mixed_block_access_field_kind.t }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -334,20 +334,20 @@ module Block_access_kind = struct
           @[<hov 1>(size@ %a)@]\
           )@]"
         (Or_unknown.print Targetint_31_63.print) size
-    | Abstract { size; field_kind } ->
+    | Mixed { size; field_kind } ->
       Format.fprintf ppf
-        "@[<hov 1>(Abstract@ \
+        "@[<hov 1>(Mixed@ \
           @[<hov 1>(size@ %a)@]@ \
           @[<hov 1>(field_kind@ %a)@]\
           )@]"
         (Or_unknown.print Targetint_31_63.print) size
-        Abstract_block_access_field_kind.print field_kind
+        Mixed_block_access_field_kind.print field_kind
 
   let element_kind_for_load t =
     match t with
     | Values _ -> K.value
     | Naked_floats _ -> K.naked_float
-    | Abstract { field_kind; _ } -> begin
+    | Mixed { field_kind; _ } -> begin
         match field_kind with
         | Imm -> K.value
         | Float | Float64 -> K.naked_float
@@ -364,7 +364,7 @@ module Block_access_kind = struct
     | Values { field_kind = Any_value; _ } -> K.With_subkind.any_value
     | Values { field_kind = Immediate; _ } -> K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
-    | Abstract { field_kind; _ } -> begin
+    | Mixed { field_kind; _ } -> begin
         match field_kind with
         | Imm -> K.With_subkind.any_value
         | Float -> K.With_subkind.boxed_float
@@ -387,14 +387,14 @@ module Block_access_kind = struct
         else Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
       Or_unknown.compare Targetint_31_63.compare size1 size2
-    | Abstract { size = size1; field_kind = field_kind1 },
-      Abstract { size = size2; field_kind = field_kind2 } ->
+    | Mixed { size = size1; field_kind = field_kind1 },
+      Mixed { size = size2; field_kind = field_kind2 } ->
       let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
       if c <> 0
       then c
-      else Abstract_block_access_field_kind.compare field_kind1 field_kind2
-    | Naked_floats _, Abstract _ -> -1
-    | Abstract _, Naked_floats _-> 1
+      else Mixed_block_access_field_kind.compare field_kind1 field_kind2
+    | Naked_floats _, Mixed _ -> -1
+    | Mixed _, Naked_floats _-> 1
     | Values _, _ -> -1
     | _, Values _ -> 1
 end

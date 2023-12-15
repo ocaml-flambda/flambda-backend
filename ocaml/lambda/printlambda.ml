@@ -378,8 +378,8 @@ let primitive ppf = function
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
-  | Pabstractfield (n, shape, sem, mode) ->
-      fprintf ppf "abstractfield%a%s %i %a"
+  | Pmixedfield (n, shape, sem, mode) ->
+      fprintf ppf "mixedfield%a%s %i %a"
         field_read_semantics sem (alloc_mode mode) n flat_element shape
   | Psetfloatfield (n, init) ->
       let init =
@@ -399,7 +399,7 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
-  | Psetabstractfield (n, shape, init) ->
+  | Psetmixedfield (n, shape, init) ->
       let init =
         match init with
         | Heap_initialization -> "(heap-init)"
@@ -407,7 +407,7 @@ let primitive ppf = function
         | Assignment Modify_heap -> ""
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
-      fprintf ppf "setabstractfield%s %i %a"
+      fprintf ppf "setmixedfield%s %i %a"
         init n flat_element shape
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
@@ -643,8 +643,8 @@ let name_of_primitive = function
   | Psetfloatfield _ -> "Psetfloatfield"
   | Pufloatfield _ -> "Pufloatfield"
   | Psetufloatfield _ -> "Psetufloatfield"
-  | Pabstractfield _ -> "Pabstractfield"
-  | Psetabstractfield _ -> "Psetabstractfield"
+  | Pmixedfield _ -> "Pmixedfield"
+  | Psetmixedfield _ -> "Psetmixedfield"
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"

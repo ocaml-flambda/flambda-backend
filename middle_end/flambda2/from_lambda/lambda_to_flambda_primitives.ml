@@ -816,7 +816,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
-      | Record_mixed _ -> Abstract
+      | Record_mixed _ -> Mixed
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;
@@ -1140,13 +1140,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
-  | Pabstractfield (field, shape, sem, mode), [[arg]] ->
+  | Pmixedfield (field, shape, sem, mode), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
-    check_non_negative_imm imm "Pabstractfield";
+    check_non_negative_imm imm "Pmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
-      Abstract { field_kind = shape; size = Unknown }
+      Mixed { field_kind = shape; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
@@ -1192,13 +1192,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
-  | Psetabstractfield (field, shape, initialization_or_assignment),
+  | Psetmixedfield (field, shape, initialization_or_assignment),
     [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetufloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
-      Abstract { field_kind = shape; size = Unknown }
+      Mixed { field_kind = shape; size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let value =
@@ -1500,7 +1500,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbbswap _ | Pisint _ | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
       | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
-      | Pabstractfield _ | Patomic_load _ ),
+      | Pmixedfield _ | Patomic_load _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1515,7 +1515,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _
       | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
       | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Psetabstractfield _ | Pbintcomp _
+      | Psetfloatfield _ | Psetufloatfield _ | Psetmixedfield _ | Pbintcomp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Pbigstring_load_128 _
       | Parrayrefu

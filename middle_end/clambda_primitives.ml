@@ -49,8 +49,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pabstractfield of int * flat_element * alloc_mode
-  | Psetabstractfield of int * flat_element * initialization_or_assignment
+  | Pmixedfield of int * flat_element * alloc_mode
+  | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -239,7 +239,7 @@ let equal (x: primitive) (y: primitive) = x = y
 let result_layout (p : primitive) =
   match p with
   | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _ | Psetabstractfield _
+  | Psetufloatfield _ | Psetmixedfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
     -> Lambda.layout_unit
   | Pmakeblock _ | Pmakearray _ | Pduprecord _
@@ -252,7 +252,7 @@ let result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> Lambda.layout_boxed_float
   | Pufloatfield _ | Punbox_float -> Lambda.layout_unboxed_float
-  | Pabstractfield (_, shape, _) -> begin
+  | Pmixedfield (_, shape, _) -> begin
       match shape with
       | Imm | Float -> Lambda.layout_any_value
       | Float64 -> Lambda.layout_unboxed_float

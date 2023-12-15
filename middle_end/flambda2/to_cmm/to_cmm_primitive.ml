@@ -100,7 +100,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Values { field_kind = Immediate; _ } ->
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
-  | Abstract { field_kind; _ } -> begin
+  | Mixed { field_kind; _ } -> begin
       (* CR mixed blocks: a backend person should confirm I can just use these and
          not add new cmm code *)
       match field_kind with
@@ -119,7 +119,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     | Values { field_kind = Immediate; _ } ->
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
-    | Abstract { field_kind; _ } -> begin
+    | Mixed { field_kind; _ } -> begin
         (* CR mixed blocks: a backend person should confirm I can just use these and
            not add new cmm code *)
         match field_kind with

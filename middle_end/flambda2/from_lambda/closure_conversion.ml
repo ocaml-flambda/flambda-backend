@@ -762,7 +762,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
       | Pmakemixedblock _ ->
-        Misc.fatal_error "Unexpected empty abstract block in [Closure_conversion]"
+        Misc.fatal_error "Unexpected empty mixed block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
@@ -770,7 +770,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
-      | Pabstractfield _ | Psetabstractfield _
+      | Pmixedfield _ | Psetmixedfield _
       | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
       | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _

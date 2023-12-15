@@ -101,7 +101,7 @@ module Duplicate_block_kind : sig
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
-    | Abstract
+    | Mixed
 
   val print : Format.formatter -> t -> unit
 
@@ -130,7 +130,7 @@ module Block_access_field_kind : sig
   val compare : t -> t -> int
 end
 
-module Abstract_block_access_field_kind : sig
+module Mixed_block_access_field_kind : sig
   type t = Lambda.flat_element = Imm | Float | Float64
 
   val print : Format.formatter -> t -> unit
@@ -146,8 +146,8 @@ module Block_access_kind : sig
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
-    | Abstract of { size : Targetint_31_63.t Or_unknown.t;
-                    field_kind : Abstract_block_access_field_kind.t }
+    | Mixed of { size : Targetint_31_63.t Or_unknown.t;
+                 field_kind : Mixed_block_access_field_kind.t }
 
   val print : Format.formatter -> t -> unit
 

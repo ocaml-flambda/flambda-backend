@@ -563,13 +563,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              allocate. *)
           else begin match flat_suffix.(lbl.lbl_num - value_prefix_len) with
           | Imm ->
-            Lprim (Pabstractfield (lbl.lbl_pos, Imm, sem, alloc_heap),
+            Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem, alloc_heap),
                    [targ], loc)
           | Float ->
             let mode = transl_alloc_mode (Option.get alloc_mode) in
-            Lprim (Pabstractfield (lbl.lbl_pos, Float, sem, mode), [targ], loc)
+            Lprim (Pmixedfield (lbl.lbl_pos, Float, sem, mode), [targ], loc)
           | Float64 ->
-            Lprim (Pabstractfield (lbl.lbl_pos, Float64, sem, alloc_heap),
+            Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem, alloc_heap),
                    [targ], loc)
           end
       end
@@ -598,9 +598,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           if lbl.lbl_num < value_prefix_len then
             Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
           else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-          | Imm -> Psetabstractfield(lbl.lbl_pos, Imm, mode)
-          | Float -> Psetabstractfield (lbl.lbl_pos, Float, mode)
-          | Float64 -> Psetabstractfield (lbl.lbl_pos, Float64, mode)
+          | Imm -> Psetmixedfield(lbl.lbl_pos, Imm, mode)
+          | Float -> Psetmixedfield (lbl.lbl_pos, Float, mode)
+          | Float64 -> Psetmixedfield (lbl.lbl_pos, Float64, mode)
         end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
@@ -1544,9 +1544,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                      (* alloc_mode: for floats, same as above. for others it's
                         unused. *)
                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                     | Imm -> Pabstractfield (i, Imm, sem, alloc_heap)
-                     | Float -> Pabstractfield (i, Float, sem, alloc_heap)
-                     | Float64 -> Pabstractfield (i, Float64, sem, alloc_heap)
+                     | Imm -> Pmixedfield (i, Imm, sem, alloc_heap)
+                     | Float -> Pmixedfield (i, Float, sem, alloc_heap)
+                     | Float64 -> Pmixedfield (i, Float64, sem, alloc_heap)
                    end
                in
                Lprim(access, [Lvar init_id],
@@ -1645,11 +1645,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                   Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
                 else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
                 | Imm ->
-                  Psetabstractfield(lbl.lbl_pos, Imm, Assignment modify_heap)
+                  Psetmixedfield(lbl.lbl_pos, Imm, Assignment modify_heap)
                 | Float ->
-                  Psetabstractfield (lbl.lbl_pos, Float, Assignment modify_heap)
+                  Psetmixedfield (lbl.lbl_pos, Float, Assignment modify_heap)
                 | Float64 ->
-                  Psetabstractfield (lbl.lbl_pos, Float64,
+                  Psetmixedfield (lbl.lbl_pos, Float64,
                                      Assignment modify_heap)
               end
           in

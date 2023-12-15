@@ -561,7 +561,8 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
-  | Abstract _ ->
+  | Mixed _ ->
+      (* CR mixed blocks: *)
     Misc.fatal_errorf "TODO: Block_access_kind: %a"
       Flambda_primitive.Block_access_kind.print bk
 
