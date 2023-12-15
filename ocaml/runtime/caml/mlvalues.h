@@ -148,6 +148,11 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 
 #endif
 
+/* Header bits reserved for mixed blocks */
+
+#define Is_mixed_block_reserved(res)               (((reserved_t)res) > 0)
+#define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)res) - 1)
+
 /* Color values are pre-shifted */
 
 #define Color_hd(hd) ((hd) & HEADER_COLOR_MASK)

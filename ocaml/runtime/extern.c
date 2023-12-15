@@ -809,6 +809,11 @@ static void extern_rec(struct caml_extern_state* s, value v)
     header_t hd = Hd_val(v);
     tag_t tag = Tag_hd(hd);
     mlsize_t sz = Wosize_hd(hd);
+    reserved_t reserved = Reserved_hd(hd);
+    if (Is_mixed_block_reserved(reserved)) {
+      extern_invalid_argument(s, "output_value: mixed block");
+      break;
+    }
 
     if (tag == Forward_tag) {
       value f = Forward_val (v);

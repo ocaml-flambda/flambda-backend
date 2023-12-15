@@ -756,11 +756,11 @@ static intnat mark_stack_push_block(struct mark_stack* stk, value block)
   CAMLassert(Tag_val(block) < No_scan_tag);
   CAMLassert(Tag_val(block) != Cont_tag);
 
-  uintnat succ_scannable = Reserved_val(block);
-  if (succ_scannable == 0) {
-    block_wsz = Wosize_val(block);
+  reserved_t reserved = Reserved_val(block);
+  if (Is_mixed_block_reserved(reserved)) {
+    block_wsz = Mixed_block_scannable_wosize_reserved(reserved);
   } else {
-    block_wsz = succ_scannable - 1;
+    block_wsz = Wosize_val(block);
   }
 
   /* Optimisation to avoid pushing small, unmarkable objects such as
@@ -917,9 +917,9 @@ again:
 
       me.start = Op_val(block);
 
-      uintnat succ_scannable = Reserved_hd(hd);
-      if (succ_scannable > 0) {
-        me.end = me.start + succ_scannable - 1;
+      reserved_t reserved = Reserved_hd(hd);
+      if (Is_mixed_block_reserved(reserved)) {
+        me.end = me.start + Mixed_block_scannable_wosize_reserved(reserved);
       } else {
         me.end = me.start + Wosize_hd(hd);
       }
