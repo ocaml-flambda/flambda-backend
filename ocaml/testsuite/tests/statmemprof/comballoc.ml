@@ -8,6 +8,8 @@
      reference = "${test_source_directory}/comballoc.opt.reference"
 *)
 
+[@@@ocaml.flambda_o3]
+
 open Gc.Memprof
 
 let f4 n = (n,n,n,n)
