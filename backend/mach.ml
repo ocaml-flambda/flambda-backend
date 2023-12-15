@@ -291,7 +291,6 @@ let free_conts_for_handlers fundecl =
           S.union next_conts (S.union (free_conts body) (free_conts handler))
         in
         begin match kind with
-        | Regular -> conts
         | Delayed nfail -> S.remove nfail conts
         end
       | Iraise _ -> next_conts

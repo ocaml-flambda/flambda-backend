@@ -470,9 +470,6 @@ val send :
   Debuginfo.t ->
   expression
 
-(** Construct [Cregion e], eliding some useless regions *)
-val region : expression -> expression
-
 (** Entry point *)
 val entry_point : Compilation_unit.t list -> phrase list
 

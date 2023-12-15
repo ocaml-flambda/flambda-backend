@@ -61,18 +61,11 @@ let augment_availability_at_raise avail =
   | Specific_trap (label, _) -> augment_availability_at_exit label avail
 
 let setup_avail_at_raise kind =
-  match (kind : Cmm.trywith_kind) with
-  | Regular ->
-    let res = !avail_at_raise in
-    avail_at_raise := RAS.Unreachable;
-    res
-  | Delayed _ -> !avail_at_raise
+  match (kind : Cmm.trywith_kind) with Delayed _ -> !avail_at_raise
 (* This result will not be used *)
 
-let restore_avail_at_raise kind saved_avail_at_raise =
-  match (kind : Cmm.trywith_kind) with
-  | Regular -> avail_at_raise := saved_avail_at_raise
-  | Delayed _ -> ()
+let restore_avail_at_raise kind _saved_avail_at_raise =
+  match (kind : Cmm.trywith_kind) with Delayed _ -> ()
 
 let check_invariants (instr : M.instruction) ~all_regs_that_might_be_named
     ~(avail_before : RAS.t) =
@@ -423,7 +416,6 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         None, unreachable
       | Itrywith (body, kind, (ts, handler)) ->
         (match kind with
-        | Regular -> ()
         | Delayed nfail -> Hashtbl.add avail_at_exit nfail unreachable);
         let saved_avail_at_raise = setup_avail_at_raise kind in
         let avail_before = ok avail_before in
@@ -432,9 +424,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         in
         let avail_before_handler =
           let with_exn_bucket =
-            match kind with
-            | Regular -> !avail_at_raise
-            | Delayed nfail -> Hashtbl.find avail_at_exit nfail
+            match kind with Delayed nfail -> Hashtbl.find avail_at_exit nfail
           in
           match (with_exn_bucket : RAS.t) with
           | Unreachable -> unreachable
@@ -458,9 +448,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                ~avail_before:avail_before_handler)
         in
         current_trap_stack := saved_trap_stack;
-        (match kind with
-        | Regular -> ()
-        | Delayed nfail -> Hashtbl.remove avail_at_exit nfail);
+        (match kind with Delayed nfail -> Hashtbl.remove avail_at_exit nfail);
         None, avail_after
       | Iraise _ ->
         let avail_before = ok avail_before in

@@ -626,10 +626,6 @@ let rec spill :
       spill env_handler handler at_join (fun new_handler before_handler ->
       let env_body =
         match kind with
-        | Regular ->
-            { env with at_raise = before_handler;
-                       last_regular_trywith_handler = before_handler;
-            }
         | Delayed nfail ->
             { env with at_exit =
                          (nfail, before_handler) :: env.at_exit;

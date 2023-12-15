@@ -618,9 +618,6 @@ let rec add_blocks :
       let label_body = Cmm.new_label () in
       let label_handler, starts_with_pushtrap =
         match kind with
-        | Regular ->
-          let label = Cmm.new_label () in
-          label, Some label
         | Delayed handler_id ->
           let label = State.add_catch_handler state ~handler_id in
           label, None
