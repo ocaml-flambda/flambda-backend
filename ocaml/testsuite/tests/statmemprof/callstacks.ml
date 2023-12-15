@@ -4,14 +4,21 @@
    * flat-float-array
      reference = "${test_source_directory}/callstacks.flat-float-array.reference"
    ** runtime4
-   *** native
-   *** bytecode
+   *** flambda2
+   **** native
+
+   * flat-float-array
+     reference = "${test_source_directory}/callstacks.flat-float-array.bytecode.reference"
+   ** runtime4
+   *** flambda2
+   **** bytecode
 
    * no-flat-float-array
      reference = "${test_source_directory}/callstacks.no-flat-float-array.reference"
    ** runtime4
-   *** native
-   *** bytecode
+   *** flambda2
+   **** native
+   **** bytecode
 *)
 
 open Gc.Memprof
