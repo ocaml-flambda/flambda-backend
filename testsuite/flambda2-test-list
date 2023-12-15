@@ -1,3 +1,2 @@
 # excluded test                  | status      | reason for not running / failure
 # ------------------------------------------------------------------------------------------------
-  tests/asmcomp                    FAIL
