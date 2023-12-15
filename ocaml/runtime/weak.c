@@ -320,8 +320,8 @@ static void ephe_copy_and_darken(value from, value to)
   }
 
   /* Copy non-scannable suffix */
-  memcpy (Bp_val(to)   + scan_to,
-          Bp_val(from) + scan_to,
+  memcpy (Op_val(to)   + scan_to,
+          Op_val(from) + scan_to,
           Bsize_wsize(Wosize_val(from) - scan_to));
 }
 
