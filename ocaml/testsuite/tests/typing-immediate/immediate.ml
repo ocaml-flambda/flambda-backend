@@ -161,7 +161,7 @@ Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
-         it's a boxed variant.
+         it's a boxed variant type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t.
 |}];;
@@ -175,7 +175,7 @@ Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type t is value, because
-         it's a boxed record.
+         it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
          of the annotation on the declaration of the type t/2.
 |}];;

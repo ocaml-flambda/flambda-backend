@@ -27,7 +27,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -42,7 +42,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -57,7 +57,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -72,7 +72,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function result.
+         it's the type of a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -89,7 +89,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]
@@ -106,7 +106,7 @@ Error: Function arguments and returns must be representable.
        The layout of Function_a.t is any, because
          the .cmi file for Function_a.t is missing.
        But the layout of Function_a.t must be representable, because
-         it's used as a function result.
+         it's the type of a function result.
        No .cmi file found containing Function_a.t.
        Hint: Adding "function_a" to your dependencies might help.
 |}]

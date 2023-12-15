@@ -223,7 +223,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -243,7 +243,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -267,7 +267,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;

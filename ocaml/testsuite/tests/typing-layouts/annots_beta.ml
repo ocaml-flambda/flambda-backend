@@ -56,7 +56,7 @@ Line 1, characters 8-36:
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
        The layout of int list is value, because
-         it's a boxed variant.
+         it's a boxed variant type.
        But the layout of int list must be a sublayout of immediate, because
          of the annotation on the type variable 'a.
 |}]
@@ -200,7 +200,7 @@ Line 1, characters 8-28:
             ^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have layout any.
        But it was inferred to have a representable layout, because
-         it's used as a function argument.
+         it's the type of a function argument.
 |}]
 (* CR layouts v2.5: This error message should change to complain
    about the [fun x], not the arrow type. *)
@@ -310,7 +310,7 @@ Error: This pattern matches values of type a
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
        But the layout of a must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
 |}]
 
 (****************************************)
@@ -336,7 +336,7 @@ Line 1, characters 4-43:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have layout any.
        But it was inferred to have a representable layout, because
-         it's used as a function argument.
+         it's the type of a function argument.
 |}]
 (* CR layouts v2.5: This error message will change to complain
    about the fun x, not the arrow type. *)

@@ -37,7 +37,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}]
 
 (* Label_declaration *)
@@ -105,7 +105,7 @@ Error: This pattern matches values of type t_any
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
 |}]
 
 (* Function_result *)
@@ -120,7 +120,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as a function result.
+         it's the type of a function result.
 |}]
 
 (* Structure_item_expression *)
@@ -139,7 +139,7 @@ Error: Function argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as a function argument.
+         it's the type of a function argument.
 |}]
 (* Shadowed by Function_argument *)
 
@@ -153,7 +153,7 @@ Error: Function return types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as a function result.
+         it's the type of a function result.
 |}]
 (* Shadowed by Function_result *)
 

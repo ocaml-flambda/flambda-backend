@@ -419,7 +419,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : void
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of void, because
          of the definition of t at line 2, characters 2-15.
 |}];;
@@ -440,7 +440,7 @@ Error: Signature package constraint types must have layout value.
        The layout of t_void is void, because
          of the definition of t_void at line 5, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
 |}];;
 
 module type S6_5 = sig
@@ -462,7 +462,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -482,7 +482,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -503,7 +503,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's used as an element in a first-class module.
+         it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -534,5 +534,5 @@ Error: This type for x is not a value type.
        The layout of type t_any is any, because
          of the definition of t_any at line 1, characters 0-18.
        But the layout of type t_any must be a sublayout of value, because
-         it's stored in a module structure.
+         it's the type of something stored in a module structure.
 |}]

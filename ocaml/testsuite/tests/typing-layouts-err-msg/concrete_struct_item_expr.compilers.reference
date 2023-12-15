@@ -7,5 +7,5 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 6, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of an expression in a structure.
+         it's the type of an expression in a structure.
 

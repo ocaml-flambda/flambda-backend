@@ -52,7 +52,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type t2_any2 = T2_any2 of t_immediate * t_any
@@ -64,7 +64,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type t2_any3 = T2_any3 of t_any * t_value
@@ -76,7 +76,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type 'a t1_constraint = T1_con of 'a constraint 'a = 'b t1_constraint'
@@ -244,7 +244,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type t5 += T5_8 of t_immediate * t_any
@@ -256,7 +256,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type t5 += T5_9 of t_any * t_value
@@ -268,7 +268,7 @@ Error: Constructor argument types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
-         it's used as the type of a constructor field.
+         it's the type of a constructor field.
 |}];;
 
 type t5 += T5_11 of { x : t_value }
