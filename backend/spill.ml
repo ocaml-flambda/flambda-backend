@@ -467,7 +467,6 @@ let find_spill_at_exit env k =
 let at_raise_from_trap_stack env ts =
   match ts with
   | Uncaught -> Reg.Set.empty
-  | Generic_trap _ -> env.last_regular_trywith_handler
   | Specific_trap (nfail, _) -> find_spill_at_exit env nfail
 
 let find_in_spill_cache nfail at_join env =

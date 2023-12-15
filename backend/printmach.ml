@@ -88,15 +88,13 @@ let regsetaddr' ?(print_reg = reg) ppf s =
 let regsetaddr ppf s = regsetaddr' ppf s
 
 let trap_stack ppf (ts : Mach.trap_stack) =
-  let rec has_specific = function
+  let has_specific = function
     | Uncaught -> false
-    | Generic_trap ts -> has_specific ts
     | Specific_trap _ -> true
   in
   if has_specific ts then begin
     let rec p ppf = function
       | Uncaught -> Format.fprintf ppf "U"
-      | Generic_trap ts -> Format.fprintf ppf "G:%a" p ts
       | Specific_trap (lbl, ts) -> Format.fprintf ppf "S%d:%a" lbl p ts
     in
     Format.fprintf ppf "<%a>" p ts

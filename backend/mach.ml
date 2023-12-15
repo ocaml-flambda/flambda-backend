@@ -17,7 +17,6 @@
 
 type trap_stack =
   | Uncaught
-  | Generic_trap of trap_stack
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
 
 type integer_comparison =
@@ -270,7 +269,6 @@ let free_conts_for_handlers fundecl =
           List.fold_left (fun conts (nfail, ts, i, _is_cold) ->
             let rec add_exn_conts conts = function
               | Uncaught -> conts
-              | Generic_trap ts -> add_exn_conts conts ts
               | Specific_trap (nfail, ts) -> add_exn_conts (S.add nfail conts) ts
             in
             let free = add_exn_conts (free_conts i) ts in
@@ -298,12 +296,10 @@ let free_conts_for_handlers fundecl =
 let rec equal_trap_stack ts1 ts2 =
   match ts1, ts2 with
   | Uncaught, Uncaught -> true
-  | Generic_trap ts1, Generic_trap ts2 -> equal_trap_stack ts1 ts2
   | Specific_trap (lbl1, ts1), Specific_trap (lbl2, ts2) ->
     Int.equal lbl1 lbl2 && equal_trap_stack ts1 ts2
-  | Uncaught, (Generic_trap _ | Specific_trap _)
-  | Generic_trap _, (Uncaught | Specific_trap _)
-  | Specific_trap _, (Uncaught | Generic_trap _) -> false
+  | Uncaught, Specific_trap _
+  | Specific_trap _, Uncaught -> false
 
 
 let equal_integer_comparison left right =
