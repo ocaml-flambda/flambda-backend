@@ -1289,6 +1289,12 @@ let rewrite_simple kinds (uses : uses) simple =
           poison kind)
     ~const:(fun _ -> simple)
 
+let rewrite_or_variable default uses (or_variable : _ Or_variable.t) =
+  match or_variable with
+  | Or_variable.Const _ -> or_variable
+  | Or_variable.Var (v, _) ->
+    if Hashtbl.mem uses (Code_id_or_name.var v) then or_variable else Or_variable.Const default
+
 let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) =
   match field with
   | Tagged_immediate _ -> field
@@ -1302,14 +1308,25 @@ let rewrite_static_const kinds uses (sc : Static_const.t) =
   | Static_const.Block (tag, mut, fields) ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.block tag mut fields
-  | Static_const.Boxed_float _ -> sc (* TODO *)
-  | Static_const.Boxed_int32 _ -> sc (* TODO *)
-  | Static_const.Boxed_int64 _ -> sc (* TODO *)
-  | Static_const.Boxed_nativeint _ -> sc (* TODO *)
-  | Static_const.Boxed_vec128 _ -> sc (* TODO *)
-  | Static_const.Immutable_float_block _ -> sc (* TODO *)
-  | Static_const.Immutable_float_array _ -> sc (* TODO *)
-  | Static_const.Immutable_value_array _ -> sc (* TODO *)
+  | Static_const.Boxed_float f ->
+    Static_const.boxed_float (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses f)
+  | Static_const.Boxed_int32 n ->
+    Static_const.boxed_int32 (rewrite_or_variable Int32.zero uses n)
+  | Static_const.Boxed_int64 n ->
+    Static_const.boxed_int64 (rewrite_or_variable Int64.zero uses n)
+  | Static_const.Boxed_nativeint n ->
+    Static_const.boxed_nativeint (rewrite_or_variable Targetint_32_64.zero uses n)
+  | Static_const.Boxed_vec128 n ->
+    Static_const.boxed_vec128 (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero uses n)
+  | Static_const.Immutable_float_block fields ->
+    let fields = List.map (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses) fields in
+    Static_const.immutable_float_block fields
+  | Static_const.Immutable_float_array fields ->
+    let fields = List.map (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses) fields in
+    Static_const.immutable_float_array fields
+  | Static_const.Immutable_value_array fields ->
+    let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
+    Static_const.immutable_value_array fields
   | Static_const.Empty_array -> sc
   | Static_const.Mutable_string _ -> sc
   | Static_const.Immutable_string _ -> sc
@@ -1419,11 +1436,12 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           | Named defining_expr -> let_.bound_pattern, defining_expr
           | Static_consts group ->
             let bound_static = match let_.bound_pattern with Static l -> l | Set_of_closures _ | Singleton _ -> assert false in
-            let bound_and_group = List.filter (fun ((p, _) : Bound_static.Pattern.t * _) ->
+            let bound_and_group = List.filter_map (fun (((p, _) as arg) : Bound_static.Pattern.t * _) ->
                 match p with
-                | Code code_id -> Hashtbl.mem uses (Code_id_or_name.code_id code_id)
-                | Block_like sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)
-                | Set_of_closures m -> Function_slot.Lmap.exists (fun _ sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)) m
+                | Code code_id ->
+                  if Hashtbl.mem uses (Code_id_or_name.code_id code_id) then Some arg else Some (p, Deleted_code)
+                | Block_like sym -> if Hashtbl.mem uses (Code_id_or_name.symbol sym) then Some arg else None
+                | Set_of_closures m -> if Function_slot.Lmap.exists (fun _ sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)) m then Some arg else None
               ) (List.combine (Bound_static.to_list bound_static) group)
             in
             let bound_static, group = List.split bound_and_group in
