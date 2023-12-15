@@ -6,6 +6,10 @@
    * native
 *)
 
+(* CR-someday mshinwell: enable this for classic mode *)
+
+[@@@ocaml.flambda_o3]
+
 let eliminate_intermediate_float_record () =
   let r = ref 0. in
   for n = 1 to 1000 do
