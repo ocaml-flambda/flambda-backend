@@ -2,7 +2,7 @@
    include config
    flags = "-w -55"
    ocamlc_flags = "config.cmo"
-   ocamlopt_flags = "-inline 20 config.cmx"
+   ocamlopt_flags = "config.cmx"
    * native
 *)
 
