@@ -800,10 +800,10 @@ end;;
 Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
-Error: Methods must have layout value.
-       The layout of this expression is void, because
+Error: The object type must have layout value.
+       The layout of 'a is void, because
          of the definition of t at line 2, characters 2-42.
-       But the layout of this expression must overlap with value, because
+       But the layout of 'a must overlap with value, because
          it's an object.
 |}]
 
