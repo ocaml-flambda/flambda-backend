@@ -703,6 +703,12 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           dacc
           (Exn_continuation.extra_args (Apply_expr.exn_continuation apply))
       in
+      let dacc =
+        match Apply_expr.call_kind apply with
+        | Function _ -> dacc
+        | Method { obj ; kind = _ ; alloc_mode = _ } -> Dacc.used ~denv obj dacc
+        | C_call _ -> dacc
+      in
       dacc
     in
     let dacc =
