@@ -911,7 +911,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
           ++ sp;
         }
 
-        for (i = value_prefix_len; i < size; i++) {
+        for (; i < size; i++) {
           store_mixed_flat_field(block, i, *sp);
           ++ sp;
         }
