@@ -119,7 +119,6 @@ int* caml_init_opcode_nargs(void)
     l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
       l[GETGLOBALFIELD] = l[MAKEBLOCK] = l[C_CALLN] =
       l[BEQ] = l[BNEQ] = l[BLTINT] = l[BLEINT] = l[BGTINT] = l[BGEINT] =
-      l[MAKEMIXEDBLOCK] =
       l[BULTINT] = l[BUGEINT] = l[GETPUBMET] = 2;
 
     opcode_nargs = l;

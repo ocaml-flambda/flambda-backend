@@ -71,7 +71,6 @@ type instruction =
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
   | Kmakefloatblock of int
-  | Kmakemixedblock of int * int        (* value prefix len, flat suffix len *)
   | Kgetfield of int
   | Ksetfield of int
   | Kgetfloatfield of int

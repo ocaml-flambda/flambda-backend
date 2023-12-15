@@ -353,7 +353,10 @@ module Block_access_kind = struct
         | Float | Float64 -> K.naked_float
         (* CR mixed blocks: based on the Naked_floats case I believe naked_float is
            correct here for both Float and Float64, but an flambda2 person
-           should check. *)
+           should check.
+
+           nroberts: I think this should be value?
+        *)
       end
 
   let element_subkind_for_load t =
@@ -361,9 +364,12 @@ module Block_access_kind = struct
     | Values { field_kind = Any_value; _ } -> K.With_subkind.any_value
     | Values { field_kind = Immediate; _ } -> K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
-    | Abstract _ ->
-        (* CR mixed blocks: this is wrong *)
-        assert false
+    | Abstract { field_kind; _ } -> begin
+        match field_kind with
+        | Imm -> K.With_subkind.any_value
+        | Float -> K.With_subkind.boxed_float
+        | Float64 -> K.With_subkind.naked_float
+      end
 
   let element_kind_for_set = element_kind_for_load
 

@@ -859,13 +859,16 @@ let rec comp_expr stack_info env exp sz cont =
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
   | Lprim(Pmakemixedblock (_, shape, _), args, loc) ->
-      let value_prefix_len = shape.value_prefix_len in
-      let flat_suffix_len = Array.length shape.flat_suffix in
-      (* The implementation of [Kmakeabsblock] figures out which args of
-         the flat suffix are floats in need of unboxing dynamically. *)
+      (* There is no notion of a mixed block at runtime in bytecode. Further,
+         source-level unboxed types are represented as boxed in bytecode, so
+         no ceremony is needed to box values before inserting them into
+         the (normal, unmixed) block.
+      *)
+      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
-        (Kmakemixedblock (value_prefix_len, flat_suffix_len) :: cont)
+        (* CR mixed blocks: correct the tag *)
+        (Kmakeblock (total_len, 0) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

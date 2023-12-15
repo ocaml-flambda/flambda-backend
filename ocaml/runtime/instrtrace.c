@@ -86,7 +86,6 @@ void caml_disasm_instr(code_t pc)
     /* Instructions with two operands */
   case APPTERM: case CLOSURE: case CLOSUREREC: case PUSHGETGLOBALFIELD:
   case GETGLOBALFIELD: case MAKEBLOCK:
-  case MAKEMIXEDBLOCK:
   case BEQ: case BNEQ: case BLTINT: case BLEINT: case BGTINT: case BGEINT:
   case BULTINT: case BUGEINT:
     snprintf(buf, sizeof(buf), "%s %d, %d\n", opbuf, pc[0], pc[1]); break;

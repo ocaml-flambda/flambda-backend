@@ -159,32 +159,6 @@ Caml_inline void check_trap_barrier_for_effect
   }
 }
 
-/* Initializing abstract records.  Only correct for 64-bit bytecode.
-
-   XXX layouts: check that we really don't need to support 32-bit bytecode.
-   Perhaps this function should crash loudly if invoked on 32-bits?  Note this
-   isn't the only place where we're assuming 64-bits - otherwise the
-   implementation of projection and update will be wrong.
-
-   This code assumes that both [Float] and [Float64] elements are provided
-   boxed, which is only true in bytecode.  It further assumes that immediates
-   are 64-bits wide: otherwise the use of [Store_double_flat_field] may
-   calculate an incorrect offset.
-
-   [block] is the block to store into (a value)
-   [idx] is the index into the block
-   [element] is the value to store, which may be either an immediate or a pointer
-   to a float
- */
-Caml_inline void store_mixed_flat_field(value block, mlsize_t idx, uintptr_t element) {
-  if (Is_block((int)element)) {
-    double d = (Double_val(element));
-    Store_double_flat_field(block, idx, d);
-  } else {
-    Field(block, idx) = (int)element;
-  }
-}
-
 /* Register optimization.
    Some compilers underestimate the use of the local variables representing
    the abstract machine registers, and don't put them in hardware registers,
@@ -882,43 +856,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
       }
       accu = block;
       Next;
-    }
-    Instruct(MAKEMIXEDBLOCK): {
-        mlsize_t value_prefix_len = *pc++;
-        mlsize_t flat_suffix_len = *pc++;
-        mlsize_t i;
-        value block;
-        mlsize_t size = value_prefix_len + flat_suffix_len;
-        mlsize_t reserved = value_prefix_len + 1;
-        // CR mixed blocks: Double_wosize looks wrong here?
-        if (size <= Max_young_wosize / Double_wosize) {
-          // CR mixed blocks: wrong tag! (0)
-          Alloc_small_with_reserved(block, size * Double_wosize, 0, Enter_gc,
-                                    reserved);
-        } else {
-          // CR mixed blocks: wrong tag! (0)
-          block = caml_alloc_shr_reserved(size * Double_wosize, 0, reserved);
-        }
-
-        if (value_prefix_len == 0) {
-          store_mixed_flat_field(block, 0, accu);
-        } else {
-          Field(block, 0) = accu;
-        }
-
-        for (i = 1; i < value_prefix_len; i++){
-          Field(block, i) = *sp;
-          ++ sp;
-        }
-
-        for (; i < size; i++) {
-          store_mixed_flat_field(block, i, *sp);
-          ++ sp;
-        }
-
-
-        accu = block;
-        Next;
     }
 
 /* Access to components of blocks */
