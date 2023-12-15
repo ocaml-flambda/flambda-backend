@@ -265,8 +265,30 @@ expr:
       Ccatch(Recursive, handlers, $3, Any) }
   | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
   | LPAREN TRY sequence WITH bind_ident sequence RPAREN
-      { unbind_ident $5; Ctrywith($3, Regular, $5, $6, debuginfo (),
-                                  Any) }
+      { let after_push_k = Lambda.next_raise_count () in
+        let after_pop_k = Lambda.next_raise_count () in
+        let exn_k = Lambda.next_raise_count () in
+        let result = Backend_var.create_local "result" in
+        let result' = Backend_var.With_provenance.create result in
+        unbind_ident $5;
+        Ctrywith (
+          Ccatch (Nonrecursive,
+            [after_push_k, [],
+             Ccatch (Nonrecursive,
+               [after_pop_k, [result', typ_val],
+                Cvar result, debuginfo (), false],
+               Cexit (Cmm.Lbl after_pop_k,
+                 [$3], (* original try body *)
+                 [Pop (Pop_specific exn_k)]),
+               Any),
+             debuginfo (), false],
+            Cexit (Cmm.Lbl after_push_k, [], [Push exn_k]),
+            Any),
+          Delayed exn_k,
+          $5, (* exception parameter *)
+          $6, (* exception handler *)
+          debuginfo (),
+          Any) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload {memory_chunk=Word_val;
