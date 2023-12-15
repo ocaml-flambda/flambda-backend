@@ -154,9 +154,6 @@ type trap_action =
   (** Remove the last handler from the trap stack. *)
 
 type trywith_kind =
-  | Regular
-  (** Regular trywith: an uncaught exception from the body will always be
-      handled by this handler. *)
   | Delayed of trywith_shared_label
   (** The body starts with the previous exception handler, and only after going
       through an explicit Push-annotated Cexit will this handler become active.
@@ -308,10 +305,6 @@ type expression =
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
       * expression * Debuginfo.t * kind_for_unboxing
-  (** Only if the [trywith_kind] is [Regular] will a region be inserted for
-      the "try" block. *)
-  | Cregion of expression
-  | Ctail of expression
 
 type property =
   | Zero_alloc

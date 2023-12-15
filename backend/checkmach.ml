@@ -1115,7 +1115,7 @@ end = struct
       | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
         next
-      | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) ->
+      | Itrywith (_body, Delayed _, (_trap_stack, _handler)) ->
         report t next ~msg:"transform" ~desc:"try-with" i.dbg;
         next
     in

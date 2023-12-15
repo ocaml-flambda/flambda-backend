@@ -168,7 +168,6 @@ let trap_action_list ppf traps =
 
 let trywith_kind ppf kind =
   match kind with
-  | Regular -> ()
   | Delayed i -> fprintf ppf "<delayed %d>" i
 
 let to_string msg =
@@ -375,10 +374,6 @@ let rec expr ppf = function
             trywith_kind kind sequence e1 VP.print id;
       with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
             fprintf ppf "%a)@]" sequence e2);
-  | Cregion e ->
-      fprintf ppf "@[<2>(region@ %a)@]" sequence e
-  | Ctail e ->
-      fprintf ppf "@[<2>(tail@ %a)@]" sequence e
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2
