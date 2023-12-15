@@ -522,6 +522,16 @@ stdlib__Int32.cmx : int32.ml \
     stdlib__Int32.cmi
 stdlib__Int32.cmi : int32.mli \
     stdlib.cmi
+stdlib__Int32_u.cmo : int32_u.ml \
+    stdlib.cmi \
+    stdlib__Int32.cmi \
+    stdlib__Int32_u.cmi
+stdlib__Int32_u.cmx : int32_u.ml \
+    stdlib.cmx \
+    stdlib__Int32.cmx \
+    stdlib__Int32_u.cmi
+stdlib__Int32_u.cmi : int32_u.mli \
+    stdlib.cmi
 stdlib__Int64.cmo : int64.ml \
     stdlib.cmi \
     stdlib__Int64.cmi
@@ -529,6 +539,16 @@ stdlib__Int64.cmx : int64.ml \
     stdlib.cmx \
     stdlib__Int64.cmi
 stdlib__Int64.cmi : int64.mli \
+    stdlib.cmi
+stdlib__Int64_u.cmo : int64_u.ml \
+    stdlib.cmi \
+    stdlib__Int64.cmi \
+    stdlib__Int64_u.cmi
+stdlib__Int64_u.cmx : int64_u.ml \
+    stdlib.cmx \
+    stdlib__Int64.cmx \
+    stdlib__Int64_u.cmi
+stdlib__Int64_u.cmi : int64_u.mli \
     stdlib.cmi
 stdlib__Lazy.cmo : lazy.ml \
     stdlib.cmi \
@@ -644,6 +664,16 @@ stdlib__Nativeint.cmx : nativeint.ml \
     stdlib.cmx \
     stdlib__Nativeint.cmi
 stdlib__Nativeint.cmi : nativeint.mli \
+    stdlib.cmi
+stdlib__Nativeint_u.cmo : nativeint_u.ml \
+    stdlib.cmi \
+    stdlib__Nativeint.cmi \
+    stdlib__Nativeint_u.cmi
+stdlib__Nativeint_u.cmx : nativeint_u.ml \
+    stdlib.cmx \
+    stdlib__Nativeint.cmx \
+    stdlib__Nativeint_u.cmi
+stdlib__Nativeint_u.cmi : nativeint_u.mli \
     stdlib.cmi
 stdlib__Obj.cmo : obj.ml \
     stdlib__Sys.cmi \

@@ -255,8 +255,6 @@ module Extended_machtype : sig
 
   val typ_any_int : t
 
-  val typ_int64 : t
-
   val typ_float : t
 
   val typ_void : t
@@ -533,9 +531,6 @@ val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
 
 (** {1} Helper functions and values used by Flambda 2. *)
-
-(** An adequate Cmm machtype for an int64 (including on a 32-bit target). *)
-val typ_int64 : Cmm.machtype
 
 (* CR mshinwell: [dbg] should not be optional. *)
 
