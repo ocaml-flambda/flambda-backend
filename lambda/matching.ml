@@ -123,7 +123,9 @@ let check_record_field_jkind lbl =
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
-  | (Any | Void) as c, _ -> raise (Error (lbl.lbl_loc, Illegal_record_field c))
+  | (Any | Void | Word | Bits32 | Bits64) as c, _ ->
+    (* CR layouts v2.1: support unboxed ints here *)
+    raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors

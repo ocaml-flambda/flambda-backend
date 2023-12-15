@@ -910,8 +910,6 @@ module Extended_machtype = struct
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
-  let typ_int64 = [| Extended_machtype_component.Any_int |]
-
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_void = [||]

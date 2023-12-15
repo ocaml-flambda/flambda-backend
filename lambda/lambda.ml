@@ -729,6 +729,9 @@ let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
 let layout_unboxed_float = Punboxed_float
+let layout_unboxed_nativeint = Punboxed_int Pnativeint
+let layout_unboxed_int32 = Punboxed_int Pint32
+let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
@@ -1560,6 +1563,9 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float
+    | Word -> layout_unboxed_nativeint
+    | Bits32 -> layout_unboxed_int32
+    | Bits64 -> layout_unboxed_int64
     | Void -> assert false
     end
 

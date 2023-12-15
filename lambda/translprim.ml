@@ -460,6 +460,12 @@ let lookup_primitive loc poly pos p =
     | "%perform" -> Primitive (Pperform, 1)
     | "%resume" -> Primitive (Presume, 3)
     | "%dls_get" -> Primitive (Pdls_get, 1)
+    | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
+    | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
+    | "%unbox_int32" -> Primitive(Punbox_int Pint32, 1)
+    | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
+    | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
+    | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
