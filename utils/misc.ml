@@ -252,7 +252,18 @@ module Stdlib = struct
   module String = struct
     include String
     module Set = Set.Make(String)
-    module Map = Map.Make(String)
+    module Map = struct
+      include Map.Make(String)
+
+      let of_seq_multi seq =
+        Seq.fold_left
+          (fun tbl (key, elt) ->
+            update key
+              (function None -> Some [elt] | Some s -> Some (elt :: s))
+              tbl)
+          empty seq
+    end
+
     module Tbl = Hashtbl.Make(struct
       include String
       let hash = Hashtbl.hash
@@ -1334,4 +1345,3 @@ end
 (* Fancy types *)
 
 type (_, _) eq = Refl : ('a, 'a) eq
-
