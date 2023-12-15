@@ -5533,7 +5533,6 @@ and type_expect_
           else begin
             match flat_suffix.(label.lbl_num - value_prefix_len) with
             | Imm | Float64 -> None
-            | Float -> Some (register_allocation expected_mode)
           end
         | Record_unboxed | Record_inlined _ | Record_boxed _ | Record_ufloat ->
           None

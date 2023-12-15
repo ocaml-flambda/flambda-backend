@@ -532,7 +532,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                     label.ld_type
                 else begin match flat_suffix.(idx - value_prefix_len) with
                   | Imm -> num_nodes_visited, Pintval
-                  | Float | Float64 -> num_nodes_visited, Pfloatval
+                  | Float64 -> num_nodes_visited, Pfloatval
                 end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited

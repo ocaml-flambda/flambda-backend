@@ -149,7 +149,7 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
-  | Mixed { field_kind = (Imm | Float | Float64); _ },
+  | Mixed { field_kind = (Imm | Float64); _ },
     (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_set_kind.t) =

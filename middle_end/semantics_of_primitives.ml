@@ -280,10 +280,9 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pfloatfield (_, m) -> is_local_alloc m
   | Pufloatfield _ -> false
-  | Pmixedfield (_, shape, m) -> begin
+  | Pmixedfield (_, shape) -> begin
       match shape with
       | Imm | Float64 -> false
-      | Float -> is_local_alloc m
     end
   | Pstring_load (_, Safe, m)
   | Pbytes_load (_, Safe, m)

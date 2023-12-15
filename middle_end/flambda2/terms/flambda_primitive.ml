@@ -100,7 +100,6 @@ module Mixed_block_kind = struct
   let print_Mixed_block_element ppf (e : Lambda.flat_element) =
     match e with
     | Imm -> Format.fprintf ppf "Imm"
-    | Float -> Format.fprintf ppf "Float"
     | Float64 -> Format.fprintf ppf "Float64"
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
@@ -114,10 +113,7 @@ module Mixed_block_kind = struct
   let compare_flat_element e1 e2 =
     match (e1 : Lambda.flat_element), (e2 : Lambda.flat_element) with
     | Imm, Imm -> 0
-    | Float, Float -> 0
     | Float64, Float64 -> 0
-    | Float, Float64 -> -1
-    | Float64, Float -> 1
     | Imm, _ -> -1
     | _, Imm -> 1
 
@@ -141,7 +137,7 @@ module Mixed_block_kind = struct
     else
       Lambda.(match flat_suffix.(i - value_prefix_len) with
       | Imm -> K.value
-      | Float | Float64 -> K.naked_float)
+      | Float64 -> K.naked_float)
 end
 
 
@@ -298,7 +294,7 @@ module Block_access_field_kind = struct
 end
 
 module Mixed_block_access_field_kind = struct
-  type t = Lambda.flat_element = Imm | Float | Float64
+  type t = Lambda.flat_element = Imm | Float64
 
   let print = Printlambda.flat_element
 
@@ -350,12 +346,9 @@ module Block_access_kind = struct
     | Mixed { field_kind; _ } -> begin
         match field_kind with
         | Imm -> K.value
-        | Float | Float64 -> K.naked_float
+        | Float64 -> K.naked_float
         (* CR mixed blocks: based on the Naked_floats case I believe naked_float is
-           correct here for both Float and Float64, but an flambda2 person
-           should check.
-
-           nroberts: I think this should be value?
+           correct here for Float64, but an flambda2 person should check.
         *)
       end
 
@@ -367,7 +360,6 @@ module Block_access_kind = struct
     | Mixed { field_kind; _ } -> begin
         match field_kind with
         | Imm -> K.With_subkind.any_value
-        | Float -> K.With_subkind.boxed_float
         | Float64 -> K.With_subkind.naked_float
       end
 

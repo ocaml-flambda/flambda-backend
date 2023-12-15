@@ -1118,6 +1118,7 @@ let update_decl_jkind env dpath decl =
 
     type element_repr =
       | Flat_element of flat_element
+      | Float_element
       | Value_element
       | Element_without_runtime_component
 
@@ -1126,7 +1127,7 @@ let update_decl_jkind env dpath decl =
       (* CR layouts v7: Eventually void components will have no runtime width.
       *)
       | Element_without_runtime_component -> Some Imm
-      | Value_element -> None
+      | Float_element | Value_element -> None
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1141,7 +1142,7 @@ let update_decl_jkind env dpath decl =
       let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
       let jkind = Jkind.for_boxed_record ~all_void in
       let classify (lbl : Types.label_declaration) jkind =
-        if is_float env lbl.ld_type then Flat_element Float
+        if is_float env lbl.ld_type then Float_element
         else match Jkind.get_default_value jkind with
           | Value | Immediate64 -> Value_element
           | Immediate -> Flat_element Imm
@@ -1158,7 +1159,7 @@ let update_decl_jkind env dpath decl =
       in
       List.iter
         (function
-           | Flat_element Float -> element_reprs.floats <- true
+           | Float_element -> element_reprs.floats <- true
            | Flat_element Imm -> element_reprs.imms <- true
            | Flat_element Float64 -> element_reprs.float64s <- true
            | Value_element -> element_reprs.values <- true
@@ -1190,7 +1191,8 @@ let update_decl_jkind env dpath decl =
                         classifications
                     in
                     `Continue (Float64 :: suffix)
-                | Flat_element (Imm | Float)
+                | Float_element
+                | Flat_element Imm
                 | Value_element
                 | Element_without_runtime_component as repr -> begin
                     match find_flat_suffix classifications with

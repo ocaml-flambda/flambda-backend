@@ -109,8 +109,10 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * flat_element * field_read_semantics * alloc_mode
-      (* Note the alloc_mode here is only relevant for float fields. *)
+  | Pmixedfield of int * flat_element * field_read_semantics
+  (* [Pmixedfield] is an access to the flat suffix of a mixed record; accesses
+     to the value prefix are [Pfield].
+  *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
   | Psetmixedfield of int * flat_element * initialization_or_assignment
@@ -298,7 +300,7 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Imm | Float | Float64
+and flat_element = Imm | Float64
 and mixed_block_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)

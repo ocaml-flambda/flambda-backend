@@ -541,6 +541,7 @@ module With_subkind = struct
            block, not an array. *)
         float_block ~num_fields:(List.length fields)
       | [], [(tag, _fields)] when tag = Obj.abstract_tag ->
+          (* CR mixed blocks: *)
         (* If we have [Obj.abstract_tag] here, this is always mixed unboxed
            float/immediate block, not an array. *)
         abstract_block

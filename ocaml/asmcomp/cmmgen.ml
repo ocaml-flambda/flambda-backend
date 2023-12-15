@@ -152,9 +152,9 @@ type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
   | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
   | RHS_floatblock of Lambda.alloc_mode * int
-  | RHS_abstractblock of { imms : int;
-                           floats : int;
-                           blockmode : Lambda.alloc_mode }
+  | RHS_mixedblock of { values : int;
+                        floats : int;
+                        blockmode : Lambda.alloc_mode }
   | RHS_nonrec
 
 let rec expr_size env = function
@@ -181,14 +181,8 @@ let rec expr_size env = function
   | Uprim(Pmakeufloatblock (_, mode), args, _) ->
       RHS_floatblock (mode, List.length args)
   | Uprim(Pmakemixedblock(_, shape, blockmode), _args, _) ->
-      let (imms, floats) =
-        Array.fold_left (fun (imms, floats) shape ->
-          match (shape : Lambda.flat_element) with
-          | Imm -> (imms+1, floats)
-          | Float | Float64 -> (imms, floats+1))
-          (0, 0) shape
-      in
-      RHS_abstractblock { imms; floats; blockmode }
+      let (imms, floats) = Lambda.count_mixed_block_values_and_floats shape in
+      RHS_mixedblock { values; floats; blockmode }
   | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
@@ -578,7 +572,7 @@ let rec transl env e =
           make_float_alloc ~mode dbg Obj.double_array_tag
             (List.map (transl env) args)
       | (Pmakemixedblock(_mut, abs, mode), args) ->
-          transl_make_abstract_block dbg env abs mode args
+          transl_make_mixed_block dbg env abs mode args
       | (Pccall prim, args) ->
           transl_ccall env prim args dbg
       | (Pduparray (kind, _), [Uprim (Pmakearray (kind', _, _), args, _dbg)]) ->
@@ -885,15 +879,17 @@ and transl_make_array dbg env kind mode args =
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
 
-and transl_make_abstract_block dbg env (abs : mixed_record_shape)  mode args =
+and transl_make_mixed_block dbg env (abs : mixed_record_shape)  mode args =
   (* CR mixed blocks: double check that `Float` args will be boxed for all middle
      ends that use this file. *)
-  make_abstract_alloc ~mode dbg abs
+  make_mixed_alloc ~mode dbg abs
     (List.mapi (fun i arg ->
-       match abs.(i) with
-       | Imm | Float64 -> transl env arg
-       | Float -> transl_unbox_float dbg env arg)
-       args)
+        if i < value_prefix_len then
+          transl env arg
+        else
+          match flat_suffix.(i - value_prefix_len) with
+          | Imm | Float64 -> transl env arg)
+      args)
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
@@ -954,12 +950,11 @@ and transl_prim_1 env p arg dbg =
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
       get_field env Mutable Punboxed_float (transl env arg) n dbg
-  | Pmixedfield (n, shape, mode) ->
+  | Pmixedfield (n, shape) ->
       (* CR mixed blocks: a backend person to confirm these are fine to use here. *)
       let ptr = transl env arg in
       begin match shape with
       | Imm -> get_field env Mutable Lambda.layout_int ptr n dbg
-      | Float -> box_float dbg mode (floatfield n ptr dbg)
       | Float64 -> get_field env Mutable Punboxed_float ptr n dbg
       end
   | Pint_as_pointer _ ->
@@ -1637,7 +1632,7 @@ and transl_letrec env bindings cont =
        (RHS_block (Alloc_local, _) |
         RHS_infix {blockmode=Alloc_local; _} |
         RHS_floatblock (Alloc_local, _) |
-        RHS_abstractblock {blockmode=Alloc_local; _})) :: _ ->
+        RHS_mixedblock {blockmode=Alloc_local; _})) :: _ ->
       Misc.fatal_error "Invalid stack allocation found"
     | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
@@ -1649,18 +1644,18 @@ and transl_letrec env bindings cont =
     | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
           init_blocks rem)
-    | (id, _exp, RHS_abstractblock {imms; floats; blockmode=Alloc_heap})
+    | (id, _exp, RHS_mixedblock {values; floats; blockmode=Alloc_heap})
       :: rem ->
-        let imms = int_const dbg imms in
+        let values = int_const dbg values in
         let floats = int_const dbg floats in
-        Clet(id, op_alloc "caml_alloc_dummy_abstract" [imms; floats],
+        Clet(id, op_alloc "caml_alloc_dummy_abstract" [values; floats],
              init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
         Clet (id, Cconst_int (1, dbg), init_blocks rem)
   and fill_nonrec = function
     | [] -> fill_blocks bsz
     | (_id, _exp,
-       (RHS_block _ | RHS_infix _ | RHS_floatblock _ | RHS_abstractblock _))
+       (RHS_block _ | RHS_infix _ | RHS_floatblock _ | RHS_mixedblock _))
       :: rem ->
         fill_nonrec rem
     | (id, exp, RHS_nonrec) :: rem ->
@@ -1668,7 +1663,7 @@ and transl_letrec env bindings cont =
   and fill_blocks = function
     | [] -> cont
     | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _
-                | RHS_abstractblock _))
+                | RHS_mixedblock _))
       :: rem ->
         let op =
           Cop(Cextcall("caml_update_dummy", typ_void, [], false),

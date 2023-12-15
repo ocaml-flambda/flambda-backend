@@ -1337,7 +1337,7 @@ let make_mixed_alloc ~mode dbg shape args =
     else
       match (flat_suffix.(idx - value_prefix_len) : Lambda.flat_element) with
       | Imm -> int_array_set arr ofs newval dbg
-      | Float | Float64 -> float_array_set arr ofs newval dbg
+      | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
     let values, floats = Lambda.count_mixed_block_values_and_floats shape in

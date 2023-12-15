@@ -539,7 +539,7 @@ and abstract_reason =
    "flat" elements. Intuitively, a flat element is one that need not be scanned
    by the garbage collector.
 *)
-and flat_element = Imm | Float | Float64
+and flat_element = Imm | Float64
 and mixed_record_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)

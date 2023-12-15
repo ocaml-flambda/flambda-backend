@@ -559,18 +559,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           if lbl.lbl_num < value_prefix_len then
             Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
                    of_location ~scopes e.exp_loc)
-          (* alloc_mode is arbitrary for the non-float cases, as they don't
-             allocate. *)
           else begin match flat_suffix.(lbl.lbl_num - value_prefix_len) with
           | Imm ->
-            Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem, alloc_heap),
-                   [targ], loc)
-          | Float ->
-            let mode = transl_alloc_mode (Option.get alloc_mode) in
-            Lprim (Pmixedfield (lbl.lbl_pos, Float, sem, mode), [targ], loc)
+            Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem), [targ], loc)
           | Float64 ->
-            Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem, alloc_heap),
-                   [targ], loc)
+            Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem), [targ], loc)
           end
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
@@ -599,7 +592,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
           else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
           | Imm -> Psetmixedfield(lbl.lbl_pos, Imm, mode)
-          | Float -> Psetmixedfield (lbl.lbl_pos, Float, mode)
           | Float64 -> Psetmixedfield (lbl.lbl_pos, Float64, mode)
         end
       in
@@ -1541,12 +1533,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                    if lbl.lbl_num < value_prefix_len then
                      Pfield (i, maybe_pointer_type env typ, sem)
                    else begin
-                     (* alloc_mode: for floats, same as above. for others it's
-                        unused. *)
                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                     | Imm -> Pmixedfield (i, Imm, sem, alloc_heap)
-                     | Float -> Pmixedfield (i, Float, sem, alloc_heap)
-                     | Float64 -> Pmixedfield (i, Float64, sem, alloc_heap)
+                     | Imm -> Pmixedfield (i, Imm, sem)
+                     | Float64 -> Pmixedfield (i, Float64, sem)
                    end
                in
                Lprim(access, [Lvar init_id],
@@ -1646,11 +1635,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
                 | Imm ->
                   Psetmixedfield(lbl.lbl_pos, Imm, Assignment modify_heap)
-                | Float ->
-                  Psetmixedfield (lbl.lbl_pos, Float, Assignment modify_heap)
                 | Float64 ->
-                  Psetmixedfield (lbl.lbl_pos, Float64,
-                                     Assignment modify_heap)
+                  Psetmixedfield (lbl.lbl_pos, Float64, Assignment modify_heap)
               end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
