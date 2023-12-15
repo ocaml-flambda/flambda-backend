@@ -9,6 +9,8 @@ flags = "-w +A-70"
 ***** check-program-output
 *)
 
+[@@@ocaml.flambda_oclassic]
+
 type a = { mutable a : int }
 
 let alloc {a} b = a + b
