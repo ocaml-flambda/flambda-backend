@@ -89,7 +89,10 @@ let create_archive file_list lib_name =
        in
        let units =
          List.map (fun (unit, crc) ->
-           Generic_fns.Tbl.add genfns unit.ui_generic_fns;
+           ignore (Generic_fns.Tbl.add
+                                  ~imports:Generic_fns.Partition.Set.empty
+                                  genfns
+                                  unit.ui_generic_fns);
            { li_name = unit.ui_unit;
              li_crc = crc;
              li_defines = unit.ui_defines;
