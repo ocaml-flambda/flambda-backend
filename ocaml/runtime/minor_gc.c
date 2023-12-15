@@ -445,10 +445,10 @@ again:
       }
     }
 
-    if (scannable_wosize < Wosize_val(new_v)) {
-      memcpy (Op_val(new_v) + scannable_wosize,
-              Op_val(v)     + scannable_wosize,
-              Bsize_wsize(Wosize_val(new_v) - scannable_wosize));
+    if (i < Wosize_val(new_v)) {
+      memcpy (Op_val(new_v) + i,
+              Op_val(v)     + i,
+              Bsize_wsize(Wosize_val(new_v) - i));
     }
     CAMLassert (Wosize_val(new_v));
   }
