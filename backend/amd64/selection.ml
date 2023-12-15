@@ -43,6 +43,7 @@ let rec select_addr exp =
       let (a, n) = select_addr arg in
       if Misc.no_overflow_sub n m then (a, n - m) else default
   | Cop(Clsl, [arg; Cconst_int((1|2|3 as shift), _)], _) ->
+      let default = (Ascale (arg, 1 lsl shift), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_lsl n shift
@@ -53,6 +54,7 @@ let rec select_addr exp =
       end
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _)
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
+      let default = (Ascale (arg, mult), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_mul n mult
