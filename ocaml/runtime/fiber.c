@@ -350,6 +350,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     *hp = hd;
     CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
     CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
+    // CR nroberts: mixed blocks
     if (Tag_hd(hd) >= No_scan_tag) {
       sp += Bhsize_hd(hd);
       continue;

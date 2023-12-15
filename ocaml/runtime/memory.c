@@ -495,6 +495,8 @@ Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
 
 #ifdef DEBUG
   if (tag < No_scan_tag) {
+    /* We don't check the reserved bits here because this is OK even for mixed
+       blocks. */
     mlsize_t i;
     for (i = 0; i < wosize; i++)
       Op_hp(v)[i] = Debug_uninit_major;

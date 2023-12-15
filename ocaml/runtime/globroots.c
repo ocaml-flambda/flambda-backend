@@ -207,7 +207,7 @@ void caml_register_dyn_globals(void **globals, int nglobals) {
   caml_plat_unlock(&roots_mutex);
 }
 
-/* Logic to determine at which index within a global root to start
+/* Logic to determine at which index within a global root to start and stop
    scanning.  [*glob_block], [*start], and [*stop] may be updated by this
    function. */
 static void compute_index_for_global_root_scan(value* glob_block, int* start,
