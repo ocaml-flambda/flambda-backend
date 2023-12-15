@@ -68,7 +68,7 @@ let emit unix i =
   Asmgen.compile_implementation_linear unix
     i.output_prefix ~progname:i.source_file
 
-let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
+let implementation unix ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
   let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
     Compilenv.reset info.module_name;
@@ -78,13 +78,7 @@ let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
       else Set_individual_fields
     in
     let pipeline : Asmgen.pipeline =
-      if Config.flambda2 then Direct_to_cmm (flambda2 ~keep_symbol_tables)
-      else
-        let middle_end =
-          if Config.flambda then Flambda_middle_end.lambda_to_clambda
-          else Closure_middle_end.lambda_to_clambda
-        in
-        Via_clambda { middle_end; backend; }
+      Direct_to_cmm (flambda2 ~keep_symbol_tables)
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
     compile info typed ~unix ~transl_style ~pipeline

@@ -76,11 +76,11 @@ jobs:
             check_arch: true
 
           - name: build_upstream_closure
-            config: --enable-middle-end=closure
+            config: --enable-middle-end=upstream-closure
             os: ubuntu-20.04
 
           - name: build_upstream_closure_runtime5
-            config: --enable-middle-end=closure --enable-runtime5
+            config: --enable-middle-end=upstream-closure --enable-runtime5
             os: ubuntu-20.04
             expected_fail: true
 

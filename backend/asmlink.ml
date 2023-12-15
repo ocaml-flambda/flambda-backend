@@ -363,7 +363,8 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
     List.flatten (List.map (fun u -> u.defines) units) in
   List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+    (* Emit the GC roots table, for dynlink. *)
+    (Cmm_helpers.emit_gc_roots_table ~symbols:[]
       (Generic_fns.compile ~shared:false genfns));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
@@ -414,7 +415,7 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   List.iter compile_phrase
-    (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
+    (Cmm_helpers.emit_gc_roots_table ~symbols:[]
       (Generic_fns.compile ~shared:true genfns));
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
   compile_phrase (Cmm_helpers.plugin_header dynunits);
