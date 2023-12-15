@@ -1304,7 +1304,12 @@ let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) 
 
 let rewrite_static_const kinds uses (sc : Static_const.t) =
   match sc with
-  | Static_const.Set_of_closures _ -> sc (* TODO *)
+  | Static_const.Set_of_closures sc ->
+    Static_const.set_of_closures
+      (Set_of_closures.create
+         ~value_slots:(Value_slot.Map.map (rewrite_simple kinds uses) (Set_of_closures.value_slots sc))
+         (Set_of_closures.alloc_mode sc)
+         (Set_of_closures.function_decls sc))
   | Static_const.Block (tag, mut, fields) ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.block tag mut fields
