@@ -36,6 +36,12 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
   value result;
   mlsize_t i;
 
+  // Optimization: for mixed blocks, don't fill in non-scannable fields
+  mlsize_t scannable_wosize =
+    Is_mixed_block_reserved(reserved)
+    ? Mixed_block_scannable_wosize_reserved(reserved)
+    : wosize;
+
   CAMLassert (tag < 256);
   CAMLassert (tag != Infix_tag);
   if (wosize <= Max_young_wosize){
@@ -46,13 +52,13 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
       Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
                                  reserved);
       if (tag < No_scan_tag){
-        for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+        for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
       }
     }
   } else {
     result = caml_alloc_shr_reserved (wosize, tag, reserved);
     if (tag < No_scan_tag) {
-      for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+      for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
     }
     result = caml_check_urgent_gc (result);
   }

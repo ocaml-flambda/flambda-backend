@@ -315,6 +315,17 @@ static void oldify_one (void* st_v, value v, volatile value *p)
         st->todo_list = v;
       } else {
         CAMLassert (sz == 1);
+
+        /* If it's a "mixed" block with a single field, the contents
+           must not be a pointer so we *can* stop here, and might not be
+           scannable so we *must* stop here.
+         */
+        if (Is_mixed_block_reserved(Reserved_hd(hd))) {
+          CAMLassert(
+            Mixed_block_scannable_wosize_reserved(Reserved_hd(hd)) == 0);
+          Field(result, 0) = field0;
+          return;
+        }
         p = Op_val(result);
         v = field0;
         goto tail_call;
@@ -325,6 +336,9 @@ static void oldify_one (void* st_v, value v, volatile value *p)
                                     caml_global_heap_state.MARKED);
       #ifdef DEBUG
       {
+        /* Don't need to check reserved bits for whether this is a mixed block;
+           this is just uninitialized data for debugging.
+         */
         int c;
         for( c = 0; c < sz ; c++ ) {
           Field(result, c) = Val_long(1);
@@ -411,12 +425,17 @@ again:
     new_v = Field(v, 0);                 /* Follow forward pointer. */
     st->todo_list = Field (new_v, 1);    /* Remove from list. */
 
+    mlsize_t scannable_wosize =
+      Is_mixed_block_reserved(Reserved_val(new_v))
+      ? Mixed_block_scannable_wosize_reserved(Reserved_val(new_v))
+      : Wosize_val(new_v);
+
     f = Field(new_v, 0);
-    CAMLassert (!Is_debug_tag(f));
-    if (Is_block (f) && Is_young(f)) {
+    CAMLassert (scannable_wosize != 0 || !Is_debug_tag(f));
+    if (scannable_wosize != 0 && Is_block (f) && Is_young(f)) {
       oldify_one (st, f, Op_val (new_v));
     }
-    for (i = 1; i < Wosize_val (new_v); i++){
+    for (i = 1; i < scannable_wosize; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
       if (Is_block (f) && Is_young(f)) {
@@ -424,6 +443,12 @@ again:
       } else {
         Field(new_v, i) = f;
       }
+    }
+
+    if (scannable_wosize < Wosize_val(new_v)) {
+      memcpy (Op_val(new_v) + scannable_wosize,
+              Op_val(v)     + scannable_wosize,
+              Bsize_wsize(Wosize_val(new_v) - scannable_wosize));
     }
     CAMLassert (Wosize_val(new_v));
   }

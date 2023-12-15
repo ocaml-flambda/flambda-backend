@@ -154,7 +154,6 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
   sz = Wosize_val(arg);
   tg = (tag_t)Long_val(new_tag_v);
   if (sz == 0) CAMLreturn (Atom(tg));
-  // CR mixed blocks: ...
   if (tg >= No_scan_tag) {
     res = caml_alloc(sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
@@ -162,11 +161,25 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc_small(sz, tg);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
+    mlsize_t scannable_sz =
+      Is_mixed_block_reserved(Reserved_val(arg))
+      ? Mixed_block_scannable_wosize_reserved(Reserved_val(arg))
+      : sz;
+
     res = caml_alloc_shr(sz, tg);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
        That's because the new "value" does not point to the minor heap. */
-    for (i = 0; i < sz; i++) caml_initialize(&Field(res, i), Field(arg, i));
+    for (i = 0; i < scannable_sz; i++) {
+      caml_initialize(&Field(res, i), Field(arg, i));
+    }
+
+    if (scannable_sz < sz) {
+      memcpy(Bp_val(res) + scannable_sz,
+             Bp_val(arg) + scannable_sz,
+             Bsize_wsize(sz - scannable_sz));
+    }
+
     /* Give gc a chance to run, and run memprof callbacks */
     caml_process_pending_actions();
   }
