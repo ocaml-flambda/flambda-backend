@@ -108,7 +108,7 @@ let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
   |> List.map (fun (cu, crc) ->
        let crc = Option.map (fun ((), crc) -> crc) crc in
-       Import_info.Impl.create_normal cu ~crc)
+       Import_info.Impl.create cu ~crc)
 
 
 (* Add C objects and options and "custom" info from a library descriptor.

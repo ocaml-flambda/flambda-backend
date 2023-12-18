@@ -29,45 +29,31 @@ module CU := Compilation_unit
 module Intf : sig
   type t
 
-  val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
-
-  val create_normal : CU.t -> crc:string option -> t
+  val create : CU.Name.t -> crc_with_unit:(CU.t * Digest.t) option -> t
 
   val name : t -> CU.Name.t
 
-  (** This function will cause a fatal error if a [CU.t] was not provided when the
-      supplied value of type [t] was created. *)
-  val cu : t -> CU.t
+  val impl : t -> CU.t option
 
-  val crc : t -> string option
+  val crc : t -> Digest.t option
 
-  val crc_with_unit : t -> (CU.t * string) option
+  val crc_with_unit : t -> (CU.t * Digest.t) option
 
   val has_name : t -> name:CU.Name.t -> bool
 
   val dummy : t
 end
 
-(* CR-soon lmaurer: Change the APIs to reflect the differences between the two
-   types. (In particular, an [Impl.t] always has a [CU.t].)*)
 module Impl : sig
   type t
 
-  val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
-
-  val create_normal : CU.t -> crc:string option -> t
+  val create : CU.t -> crc:Digest.t option -> t
 
   val name : t -> CU.Name.t
 
-  (** This function will cause a fatal error if a [CU.t] was not provided when the
-      supplied value of type [t] was created. *)
   val cu : t -> CU.t
 
-  val crc : t -> string option
-
-  val crc_with_unit : t -> (CU.t * string) option
-
-  val has_name : t -> name:CU.Name.t -> bool
+  val crc : t -> Digest.t option
 
   val dummy : t
 end
