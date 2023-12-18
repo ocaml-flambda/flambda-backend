@@ -708,6 +708,8 @@ type any_creation_reason =
   | Dummy_jkind
   | Type_expression_call
   | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
 
 type float64_creation_reason = Primitive of Ident.t
 
@@ -1086,6 +1088,8 @@ end = struct
     | Type_expression_call ->
       fprintf ppf "a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a Tarrow"
+    | Wildcard -> fprintf ppf "a _ in a type"
+    | Unification_var -> fprintf ppf "a fresh unification variable"
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1475,6 +1479,8 @@ module Debug_printers = struct
     | Dummy_jkind -> fprintf ppf "Dummy_jkind"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
+    | Wildcard -> fprintf ppf "Wildcard"
+    | Unification_var -> fprintf ppf "Unification_var"
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"

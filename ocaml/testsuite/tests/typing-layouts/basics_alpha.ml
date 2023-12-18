@@ -45,7 +45,7 @@ module type S1 = sig val f : t_any -> int end
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = ('a : any) -> int constraint ('a : any) = t
+  type ('a : any) s = 'a -> int constraint 'a = t
 end;;
 [%%expect{|
 module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
@@ -54,7 +54,7 @@ module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = int -> ('a : any) constraint ('a : any) = t
+  type ('a : any) s = int -> 'a constraint 'a = t
 end;;
 [%%expect{|
 module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
@@ -301,7 +301,7 @@ Error:
 |}]
 (* CR layouts v2.9: improve error, which will require jkind histories *)
 
-type ('a : any) t4 = ('a : any)
+type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
 type ('a : any) t4 = 'a
@@ -1321,7 +1321,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1347,7 +1347,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 

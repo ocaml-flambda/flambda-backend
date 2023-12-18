@@ -49,19 +49,103 @@ module type S1 = sig val f : t_any -> int end
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = ('a : any) -> int constraint ('a : any) = t
+  type ('a : any) s = 'a -> int constraint 'a = t
+
+  type q = t s
 end;;
 [%%expect{|
-module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
+module type S1 =
+  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
 |}]
 
 module type S1 = sig
   type t : any
 
-  type ('a : any) s = int -> ('a : any) constraint ('a : any) = t
+  type ('a : any) s = int -> 'a constraint 'a = t
+
+  type q = t s
 end;;
 [%%expect{|
-module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
+module type S1 =
+  sig type t : any type 'a s = int -> 'a constraint 'a = t type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = { a: 'a -> 'a }
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type ('a : any) s = { a : 'a -> 'a; } type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A of ('a -> 'a)
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type ('a : any) s = A of ('a -> 'a) type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A of { a: 'a -> 'a }
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig
+    type t : any
+    type ('a : any) s = A of { a : 'a -> 'a; }
+    type q = t s
+  end
+|}]
+
+module S1 = struct
+  type t : any
+
+  type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
+
+  type q = t s
+
+  let f () = A {a = (fun x y -> x)}
+end;;
+[%%expect{|
+module S1 :
+  sig
+    type t : any
+    type ('a : any) s = A : { a : 'a -> 'b -> 'a; } -> 'a s
+    type q = t s
+    val f : unit -> 'a s
+  end
+|}]
+
+module S1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+
+  type q = t s
+
+  let f () = A (fun x y -> x)
+end
+[%%expect{|
+module S1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+    type q = t s
+    val f : unit -> 'a s
+  end
 |}]
 
 module type S1 = sig
@@ -289,7 +373,7 @@ Error:
 |}]
 (* CR layouts v2.9: improve error, which requires layout histories *)
 
-type ('a : any) t4 = ('a : any)
+type ('a : any) t4 = 'a
 and s4 = string t4;;
 [%%expect{|
 type ('a : any) t4 = 'a
@@ -1100,7 +1184,7 @@ val f : ('a : float64). unit -> 'a t22f t22f = <fun>
 
 (* CR layouts v5: bring void version here from layouts_alpha *)
 
-type (_ : any, _ : any) eq = Refl :  ('a : any). ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 
 module Mf : sig
   type t_float64 : float64
@@ -1207,7 +1291,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1219,7 +1303,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : ('b : any) 'a. 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
