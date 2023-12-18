@@ -68,7 +68,8 @@ type prefix = (value_element * mutability) list
 type suffix = (flat_element * mutability) Nonempty_list.t
 
 let enumeration_of_prefix =
-  enumeration_of_list (Seq.product enumeration_of_value_element enumeration_of_mutability)
+  enumeration_of_list
+    (Seq.product enumeration_of_value_element enumeration_of_mutability)
   |> Seq.filter (fun prefix ->
     match List.rev prefix with
     | [] -> true
@@ -94,7 +95,8 @@ let enumeration_of_block =
   Seq.product enumeration_of_prefix enumeration_of_suffix
   |> Seq.filter (fun (prefix, suffix) ->
     List.exists prefix ~f:(fun ((Str | Imm), _) -> true)
-    || List.exists (Nonempty_list.to_list suffix) ~f:(fun ((value : flat_element), _) ->
+    || List.exists (Nonempty_list.to_list suffix)
+      ~f:(fun ((value : flat_element), _) ->
       match value with
       | Imm -> true
       | Float_u -> false))
@@ -211,7 +213,9 @@ end
 
 let main n ~bytecode =
   let named_blocks =
-    Seq.take n enumeration_of_block |> List.of_seq |> List.mapi ~f:Named_block.of_block
+    Seq.take n enumeration_of_block
+    |> List.of_seq
+    |> List.mapi ~f:Named_block.of_block
   in
   let line ?(indent = 0) fmt =
     Printf.ksprintf
@@ -240,15 +244,21 @@ let main n ~bytecode =
   line "(* Helper functions for manipulating the fields of a mixed record *)";
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
-  line {|let create_float_u () = Stdlib__Float_u.of_float (Random.float Float.max_float)|};
+  line
+    {|let create_float_u () =
+  Stdlib__Float_u.of_float (Random.float Float.max_float)|};
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
-    if equal y1 y2 then () else
-      failwith (Printf.sprintf "%%s: %%s <> %%s" message (to_string y1) (to_string y2))
+  if equal y1 y2 then () else
+    failwith
+      (Printf.sprintf "%%s: %%s <> %%s" message (to_string y1) (to_string y2))
 |};
-  line {|let check_string = check_gen ~equal:String.equal ~to_string:(fun x -> x)|};
+  line
+   {|let check_string = check_gen ~equal:String.equal ~to_string:(fun x -> x)|};
   line {|let check_int = check_gen ~equal:Int.equal ~to_string:Int.to_string|};
-  line {|let check_float_u = check_gen ~equal:Float.equal ~to_string:Float.to_string|};
+  line
+   {|let check_float_u =
+  check_gen ~equal:Float.equal ~to_string:Float.to_string|};
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
   line
@@ -335,24 +345,34 @@ let check_reachable_words expected actual message =
     seq_print_in_test "    - Marshaling";
     per_type (fun t -> line "try_marshal %s;" (Named_block.value t));
     seq_print_in_test "    - Hashing";
-    per_type (fun t -> line "ignore (Hashtbl.hash %s : int);" (Named_block.value t));
+    per_type (fun t ->
+        line "ignore (Hashtbl.hash %s : int);" (Named_block.value t));
     if n > 1
     then (
       seq_print_in_test "    - Comparing";
-      per_type (fun t -> line "try_compare t%d t%d;" t.index ((t.index + 1) mod n)));
+      per_type (fun t ->
+          line "try_compare t%d t%d;" t.index ((t.index + 1) mod n)));
     seq_print_in_test "    - Checking field values";
-    per_type (fun t -> List.iter (Named_block.check_field_integrity t) ~f:(line "%s"));
+    per_type (fun t ->
+        List.iter (Named_block.check_field_integrity t) ~f:(line "%s"));
     seq_print_in_test "    - Checking [Obj.reachable_words]";
     per_type (fun t ->
       line
-        {|check_reachable_words (Obj.reachable_words (Obj.repr %s)) (%d%s) "%d";|}
+      {|check_reachable_words (Obj.reachable_words (Obj.repr %s)) (%d%s) "%d";|}
         (Named_block.value t)
         (List.length t.fields + 1)
         (List.map t.fields ~f:(fun (field : Named_block.field) ->
            match field.type_ with
            | Imm -> ""
-           | Float_u -> if not bytecode then "" else " + 2"
-           | Str -> sprintf " + Obj.reachable_words (Obj.repr t%d.%s)" t.index field.name)
+           | Float_u ->
+               (* In bytecode, these fields aren't boxed and thus contribute
+                  two words to the reachable words (the header and the
+                  single-field payload).
+               *)
+               if not bytecode then "" else " + 2"
+           | Str ->
+               sprintf " + Obj.reachable_words (Obj.repr t%d.%s)"
+                 t.index field.name)
          |> String.concat ~sep:"")
         t.index);
     line "();;"
