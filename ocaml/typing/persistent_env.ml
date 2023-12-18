@@ -26,13 +26,17 @@ module Impl = struct
     | Unknown_argument (* The import is a parameter module *)
     | Known of CU.t
 
-  let and_crc_of_import_info info =
-    match Import_info.Intf.crc info with
-    | None -> None
-    | Some crc ->
-        match Import_info.Intf.impl info with
-        | None -> Some (Unknown_argument, crc)
-        | Some cu -> Some (Known cu, crc)
+  module With_crc = struct
+    type nonrec t = t * Digest.t
+
+    let of_import_info info : t option =
+      match Import_info.Intf.crc info with
+      | None -> None
+      | Some crc ->
+          match Import_info.Intf.impl info with
+          | None -> Some (Unknown_argument, crc)
+          | Some cu -> Some (Known cu, crc)
+  end
 end
 module Consistbl = Consistbl.Make (CU.Name) (Impl)
 
@@ -161,11 +165,11 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    match Impl.and_crc_of_import_info import_info with
+    match Impl.With_crc.of_import_info import_info with
     | None -> ()
-    | Some (unit, crc) ->
+    | Some (impl, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name unit crc source
+        Consistbl.check crc_units name impl crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv ps =
