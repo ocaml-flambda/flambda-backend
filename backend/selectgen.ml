@@ -1241,11 +1241,26 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
         | { traps_ref = { contents = Reachable ts; }; _} ->
           with_handler (env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable; }; _ } ->
-          let unreachable =
+          let dummy_constant =
+            match r1 with
+            | None -> Ctuple []
+            | Some r1 ->
+              Ctuple (List.map (fun reg ->
+                  match reg.typ with
+                  | Val | Int -> Cconst_int (1, Debuginfo.none)
+                  | Addr -> Cconst_int (0, Debuginfo.none)
+                  | Float -> Cconst_float (0.0, Debuginfo.none)
+                  | Vec128 ->
+                    Cconst_vec128 ({ low = 0L; high = 0L }, Debuginfo.none)
+                )
+                (Array.to_list r1))
+          in
+          let segfault =
             Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
                       [Cconst_int (0, Debuginfo.none)],
                       Debuginfo.none))
           in
+          let unreachable = Csequence (segfault, dummy_constant) in
           with_handler env unreachable
           (* Misc.fatal_errorf "Selection.emit_expr: \
            *                    Unreachable exception handler %d" lbl *)
