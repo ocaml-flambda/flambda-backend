@@ -140,7 +140,7 @@ module T = struct
       iter_loc_txt sub sub.jkind_annotation jkind
 
   let iter_jst_labeled_tuple sub : LT.core_type -> _ = function
-    | Lttyp_tuple tl -> List.iter (iter_snd (sub.typ sub)) tl
+    | tl -> List.iter (iter_snd (sub.typ sub)) tl
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_layout typ -> iter_jst_layout sub typ
@@ -178,12 +178,19 @@ module T = struct
     | Ptyp_extension x -> sub.extension sub x
 
   let iter_type_declaration sub
-      {ptype_name; ptype_params; ptype_cstrs;
+     ({ptype_name; ptype_params; ptype_cstrs;
        ptype_kind;
        ptype_private = _;
        ptype_manifest;
        ptype_attributes;
-       ptype_loc} =
+       ptype_loc} as ty_decl) =
+    let ptype_attributes =
+      match Jane_syntax.Layouts.of_type_declaration ty_decl with
+      | Some (jkind, attrs) ->
+          iter_loc_txt sub sub.jkind_annotation jkind;
+          attrs
+      | None -> ptype_attributes
+    in
     iter_loc sub ptype_name;
     List.iter (iter_fst (sub.typ sub)) ptype_params;
     List.iter
@@ -519,7 +526,7 @@ module E = struct
       iter_function_body sub body
 
   let iter_labeled_tuple sub : LT.expression -> _ = function
-    | Ltexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
+    | el -> List.iter (iter_snd (sub.expr sub)) el
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
@@ -629,7 +636,7 @@ module P = struct
       List.iter (sub.pat sub) elts
 
   let iter_labeled_tuple sub : LT.pattern -> _ = function
-    | Ltpat_tuple (pl, _) ->
+    | (pl, _) ->
       List.iter (iter_snd (sub.pat sub)) pl
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function

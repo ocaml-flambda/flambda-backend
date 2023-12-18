@@ -460,6 +460,12 @@ let lookup_primitive loc poly pos p =
     | "%perform" -> Primitive (Pperform, 1)
     | "%resume" -> Primitive (Presume, 3)
     | "%dls_get" -> Primitive (Pdls_get, 1)
+    | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
+    | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
+    | "%unbox_int32" -> Primitive(Punbox_int Pint32, 1)
+    | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
+    | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
+    | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -1010,7 +1016,6 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pstringrefs | Pbytesrefs
-  | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
@@ -1047,7 +1052,10 @@ let lambda_primitive_needs_event_after = function
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
-  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
+  | Pobj_magic _ | Punbox_float | Punbox_int _
+  (* These don't allocate in bytecode; they're just identity functions: *)
+  | Pbox_float _ | Pbox_int _
+    -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

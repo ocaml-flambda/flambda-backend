@@ -92,7 +92,7 @@ type flambda2 =
   Cmm.phrase list
 
 let make_package_object unix ~ppf_dump members targetobj targetname coercion
-      ~backend ~(flambda2 : flambda2) =
+      ~(flambda2 : flambda2) =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -137,14 +137,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
       }
     in
     let pipeline : Asmgen.pipeline =
-      if Config.flambda2 then
-        Direct_to_cmm (flambda2 ~keep_symbol_tables:true)
-      else
-        let middle_end =
-          if Config.flambda then Flambda_middle_end.lambda_to_clambda
-          else Closure_middle_end.lambda_to_clambda
-        in
-        Via_clambda { middle_end; backend }
+      Direct_to_cmm (flambda2 ~keep_symbol_tables:true)
     in
     Asmgen.compile_implementation ~pipeline unix
       ~filename:targetname
@@ -167,23 +160,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
 let get_export_info_flambda2 ui : Flambda2_cmx.Flambda_cmx_format.t option =
   assert(Config.flambda2);
   match ui.ui_export_info with
-  | Clambda _ -> assert false
-  | Flambda1 _ -> assert false
   | Flambda2 info -> info
-
-let get_export_info_flambda1 ui : Export_info.t =
-  assert(Config.flambda);
-  match ui.ui_export_info with
-  | Clambda _ -> assert false
-  | Flambda1 (info : Export_info.t) -> info
-  | Flambda2 _ -> assert false
-
-let get_approx ui : Clambda.value_approximation =
-  assert(not (Config.flambda || Config.flambda2));
-  match ui.ui_export_info with
-  | Clambda info -> info
-  | Flambda1 _ -> assert false
-  | Flambda2 _ -> assert false
 
 let build_package_cmx members cmxfile =
   let unit_names =
@@ -208,26 +185,14 @@ let build_package_cmx members cmxfile =
       members [] in
   let ui = Compilenv.current_unit_infos() in
   let ui_export_info =
-    if Config.flambda then
-      let ui_export_info =
-        List.fold_left (fun acc info ->
-            Export_info.merge acc
-              (get_export_info_flambda1 info))
-          (get_export_info_flambda1 ui)
-          units
-      in
-      Flambda1 ui_export_info
-    else if Config.flambda2 then
-      let flambda_export_info =
-        List.fold_left (fun acc info ->
-            Flambda2_cmx.Flambda_cmx_format.merge
-              (get_export_info_flambda2 info) acc)
-          (get_export_info_flambda2 ui)
-          units
-      in
-      Flambda2 flambda_export_info
-    else
-      Clambda (get_approx ui)
+    let flambda_export_info =
+      List.fold_left (fun acc info ->
+          Flambda2_cmx.Flambda_cmx_format.merge
+            (get_export_info_flambda2 info) acc)
+        (get_export_info_flambda2 ui)
+        units
+    in
+    Flambda2 flambda_export_info
   in
   let ui_checks = Checks.create () in
   List.iter (fun info -> Checks.merge info.ui_checks ~into:ui_checks) units;
@@ -260,7 +225,7 @@ let build_package_cmx members cmxfile =
 (* Make the .cmx and the .o for the package *)
 
 let package_object_files unix ~ppf_dump files targetcmx
-                         targetobj targetname coercion ~backend ~flambda2 =
+                         targetobj targetname coercion ~flambda2 =
   let pack_path =
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let name = targetname |> CU.Name.of_string in
@@ -269,13 +234,12 @@ let package_object_files unix ~ppf_dump files targetcmx
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   make_package_object unix ~ppf_dump members targetobj targetname coercion
-    ~backend ~flambda2;
+    ~flambda2;
   build_package_cmx members targetcmx
 
 (* The entry point *)
 
-let package_files unix ~ppf_dump initial_env files targetcmx ~backend
-      ~flambda2 =
+let package_files unix ~ppf_dump initial_env files targetcmx ~flambda2 =
   let files =
     List.map
       (fun f ->
@@ -298,7 +262,7 @@ let package_files unix ~ppf_dump initial_env files targetcmx ~backend
       let coercion =
         Typemod.package_units initial_env files targetcmi comp_unit in
       package_object_files unix ~ppf_dump files targetcmx targetobj targetname
-        coercion ~backend ~flambda2
+        coercion ~flambda2
     )
     ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)
 

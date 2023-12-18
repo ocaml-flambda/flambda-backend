@@ -1549,6 +1549,10 @@ let zap_qtvs_if_boring qtvs =
    This implements Case (C3) from Note [When to print jkind annotations]. *)
 let extract_qtvs tyl =
   let fvs = Ctype.free_non_row_variables_of_list tyl in
+  (* The [Ctype.free*variables] family of functions returns the free
+     variables in reverse order they were encountered in the list of types.
+  *)
+  let fvs = List.rev fvs in
   let tfvs = List.map Transient_expr.repr fvs in
   let vars_jkinds = tree_of_qtvs tfvs in
   zap_qtvs_if_boring vars_jkinds

@@ -34,18 +34,6 @@ let get_module_info comp_unit =
     match Compilenv.get_unit_export_info comp_unit with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
-    | Some (Clambda _) ->
-      (* CR mshinwell: This should be a user error, not a fatal error. Same
-         below. *)
-      Misc.fatal_errorf
-        "The .cmx file for unit %a was compiled with the Closure middle-end, \
-         not Flambda 2, and cannot be loaded"
-        Compilation_unit.Name.print cmx_name
-    | Some (Flambda1 _) ->
-      Misc.fatal_errorf
-        "The .cmx file for unit %a was compiled with the Flambda 1 middle-end, \
-         not Flambda 2, and cannot be loaded"
-        Compilation_unit.Name.print cmx_name
 
 let dump_to_target_if_any main_dump_ppf target ~header ~f a =
   match (target : Flambda_features.dump_target) with
@@ -128,7 +116,11 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
   let run () =
     let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
     let (Mode mode) = Flambda_features.mode () in
-    let raw_flambda, close_program_metadata =
+    let Closure_conversion.
+          { unit = raw_flambda;
+            code_slot_offsets;
+            metadata = close_program_metadata
+          } =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~mode ~big_endian:Arch.big_endian
             ~cmx_loader ~compilation_unit ~module_block_size_in_words
@@ -156,7 +148,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
               reachable_names
             } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
-              Simplify.run ~cmx_loader ~round raw_flambda)
+              Simplify.run ~cmx_loader ~round ~code_slot_offsets raw_flambda)
         in
         (if Flambda_features.inlining_report ()
         then

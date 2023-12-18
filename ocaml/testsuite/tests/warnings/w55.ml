@@ -20,6 +20,8 @@ compiler_reference = "${test_source_directory}/w55.flambda.reference"
 
 *)
 
+[@@@ocaml.flambda_o3]
+
 let f = (fun x -> x + 1) [@inline never]
 
 let g x = (f [@inlined]) x

@@ -73,6 +73,9 @@ let check_record_field_sort loc sort repres =
     raise (Error (loc, Illegal_record_field Float64))
   | Void, _ ->
     raise (Error (loc, Illegal_record_field Void))
+  | (Word | Bits32 | Bits64 as const), _ ->
+    (* CR layouts v2.1: support unboxed ints here *)
+    raise (Error (loc, Illegal_record_field const))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -142,51 +145,6 @@ let transl_apply_position position =
   | Tail ->
     if Config.stack_allocation then Rc_close_at_apply
     else Rc_normal
-
-let may_allocate_in_region lam =
-  (* loop_region raises, if the lambda might allocate in parent region *)
-  let rec loop_region lam =
-    shallow_iter ~tail:(function
-      | Lexclave body -> loop body
-      | lam -> loop_region lam
-    ) ~non_tail:(fun lam -> loop_region lam) lam
-  and loop = function
-    | Lvar _ | Lmutvar _ | Lconst _ -> ()
-
-    | Lfunction {mode=Alloc_heap} -> ()
-    | Lfunction {mode=Alloc_local} -> raise Exit
-
-    | Lapply {ap_mode=Alloc_local}
-    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
-
-    | Lprim (prim, args, _) ->
-       begin match Lambda.primitive_may_allocate prim with
-       | Some Alloc_local -> raise Exit
-       | None | Some Alloc_heap ->
-          List.iter loop args
-       end
-    | Lregion (body, _layout) ->
-       (* [body] might allocate in the parent region because of exclave, and thus
-          [Lregion body] might allocate in the current region *)
-      loop_region body
-    | Lexclave _body ->
-      (* [_body] might do local allocations, but not in the current region;
-        rather, it's in the parent region *)
-      ()
-    | Lwhile {wh_cond; wh_body} -> loop wh_cond; loop wh_body
-    | Lfor {for_from; for_to; for_body} -> loop for_from; loop for_to; loop for_body
-    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
-      | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
-      | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
-      | Levent _ | Lifused _) as lam ->
-       Lambda.iter_head_constructor loop lam
-  in
-  if not Config.stack_allocation then false
-  else begin
-    match loop lam with
-    | () -> false
-    | exception Exit -> true
-  end
 
 let maybe_region get_layout lam =
   let rec remove_tail_markers_and_exclave = function
@@ -1363,7 +1321,9 @@ and transl_function ~in_new_scope ~scopes e alloc_mode param arg_mode arg_sort r
          | (Texp_constraint _ | Texp_coerce _ | Texp_poly _) -> attrs)
       e.exp_attributes e.exp_extra
   in
-  let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
+  let assume_zero_alloc =
+    Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+  in
   let scopes =
     if in_new_scope then begin
       if assume_zero_alloc then set_assume_zero_alloc ~scopes
@@ -1407,7 +1367,9 @@ and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
   let lam =
     match pat_bound_idents pat with
     | (id :: _) when should_introduce_scope ->
-      let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
+      let assume_zero_alloc =
+        Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+      in
       let scopes = enter_value_definition ~scopes ~assume_zero_alloc id in
       transl_scoped_exp ~scopes sort expr
     | _ -> transl_exp ~scopes sort expr

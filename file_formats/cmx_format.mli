@@ -32,13 +32,9 @@ open Misc
    of these infos *)
 
 type export_info =
-  | Clambda of Clambda.value_approximation
-  | Flambda1 of Export_info.t
   | Flambda2 of Flambda2_cmx.Flambda_cmx_format.t option
 
 type export_info_raw =
-  | Clambda_raw of Clambda.value_approximation
-  | Flambda1_raw of Export_info.t
   | Flambda2_raw of Flambda2_cmx.Flambda_cmx_format.raw option
 
 (* Declare machtype here to avoid depending on [Cmm]. *)

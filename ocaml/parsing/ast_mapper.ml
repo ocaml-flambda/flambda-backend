@@ -175,7 +175,7 @@ module T = struct
 
   let map_jst_labeled_tuple sub : LT.core_type -> LT.core_type = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Lttyp_tuple tl -> Lttyp_tuple (List.map (map_snd (sub.typ sub)) tl)
+    | tl -> List.map (map_snd (sub.typ sub)) tl
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
@@ -217,22 +217,32 @@ module T = struct
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
   let map_type_declaration sub
-      {ptype_name; ptype_params; ptype_cstrs;
+     ({ptype_name; ptype_params; ptype_cstrs;
        ptype_kind;
        ptype_private;
        ptype_manifest;
        ptype_attributes;
-       ptype_loc} =
+       ptype_loc} as tyd) =
     let loc = sub.location sub ptype_loc in
+    let jkind, ptype_attributes =
+      match Jane_syntax.Layouts.of_type_declaration tyd with
+      | None -> None, ptype_attributes
+      | Some (jkind, attributes) ->
+          let jkind = map_loc_txt sub sub.jkind_annotation jkind in
+          Some jkind, attributes
+    in
     let attrs = sub.attributes sub ptype_attributes in
-    Type.mk ~loc ~attrs (map_loc sub ptype_name)
+    Jane_syntax.Layouts.type_declaration_of ~loc ~attrs (map_loc sub ptype_name)
       ~params:(List.map (map_fst (sub.typ sub)) ptype_params)
       ~priv:ptype_private
       ~cstrs:(List.map
                 (map_tuple3 (sub.typ sub) (sub.typ sub) (sub.location sub))
                 ptype_cstrs)
       ~kind:(sub.type_kind sub ptype_kind)
-      ?manifest:(map_opt (sub.typ sub) ptype_manifest)
+      ~manifest:(map_opt (sub.typ sub) ptype_manifest)
+      ~jkind
+      ~docs:Docstrings.empty_docs
+      ~text:None
 
   let map_type_kind sub = function
     | Ptype_abstract -> Ptype_abstract
@@ -617,7 +627,7 @@ module E = struct
 
   let map_ltexp sub : LT.expression -> LT.expression = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Ltexp_tuple el -> Ltexp_tuple (List.map (map_snd (sub.expr sub)) el)
+    | el -> List.map (map_snd (sub.expr sub)) el
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
@@ -745,8 +755,8 @@ module P = struct
 
   let map_ltpat sub : LT.pattern -> LT.pattern = function
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
-    | Ltpat_tuple (pl, closed) ->
-      Ltpat_tuple (List.map (map_snd (sub.pat sub)) pl, closed)
+    | (pl, closed) ->
+      (List.map (map_snd (sub.pat sub)) pl, closed)
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)

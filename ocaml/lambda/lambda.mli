@@ -795,3 +795,6 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val is_check_enabled : opt:bool -> property -> bool
+
+(* Returns true if the given lambda can allocate on the local stack *)
+val may_allocate_in_region : lambda -> bool

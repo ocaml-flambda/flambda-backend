@@ -388,4 +388,9 @@ module I : sig
 
   val pclmulqdq: arg -> arg -> arg -> unit
 
+  (* BMI2 instructions *)
+
+  val pext: arg -> arg -> arg -> unit
+  val pdep: arg -> arg -> arg -> unit
+
 end

@@ -15,15 +15,6 @@
 
 (** From Lambda to assembly code *)
 
-(** The type of converters from Lambda to Clambda. *)
-type middle_end =
-     backend:(module Backend_intf.S)
-  -> filename:string
-  -> prefixname:string
-  -> ppf_dump:Format.formatter
-  -> Lambda.program
-  -> Clambda.with_constants
-
 (** The type of converters straight from Lambda to Cmm. This is how Flambda 2
     operates. *)
 type direct_to_cmm =
@@ -33,12 +24,8 @@ type direct_to_cmm =
   -> Lambda.program
   -> Cmm.phrase list
 
-(** The ways to get from Lambda to Cmm. *)
+(** The one true way to get from Lambda to Cmm. *)
 type pipeline =
-  | Via_clambda of {
-      backend : (module Backend_intf.S);
-      middle_end : middle_end;
-    }
   | Direct_to_cmm of direct_to_cmm
 
 (** Compile an implementation from Lambda using the given middle end. *)

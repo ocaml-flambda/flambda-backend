@@ -99,7 +99,9 @@ let merge_cmxa0 ~archives =
         in
         if not (Compilation_unit.Set.is_empty already_defined)
         then failwith "Archives contain multiply-defined units";
-        Generic_fns.Tbl.add genfns cmxa.lib_generic_fns;
+        ignore(Generic_fns.Tbl.add
+                ~imports:Generic_fns.Partition.Set.empty
+                genfns cmxa.lib_generic_fns);
         let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
         let remap oldarr newarr tbl oldb ~get_key =
           let module B = Misc.Bitmap in

@@ -5,3 +5,33 @@
 (rule
  (alias  runtest)
  (action (diff dune.inc dune.inc.gen)))
+
+
+;; Tests that work on in flambda2 only.
+;; This condition is not expressible in "enable_if" clause
+;; because dune does not  support %{config:flamba2} yet.
+
+ (rule
+  (enabled_if (= %{context_name} "main"))
+  (targets fail24.output.corrected)
+  (deps (:ml fail24.ml) filter.sh (:expected fail24.output))
+  (action
+    (with-outputs-to fail24.output.corrected
+     (pipe-outputs
+     (with-accepted-exit-codes 2
+      (bash
+         "if %{bin:ocamlopt.opt} -config | grep -q \"flambda2: true\" ;
+         then
+          %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+           -zero-alloc-check default -checkmach-details-cutoff 20 -O3 ;
+         else
+         # fake it for flambda1 and closure
+          (cat %{expected}; exit 2);
+         fi"))
+     (run "./filter.sh")))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main")))
+ (deps fail24.output fail24.output.corrected)
+ (action (diff fail24.output fail24.output.corrected)))

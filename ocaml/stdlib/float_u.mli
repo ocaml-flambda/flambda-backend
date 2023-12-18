@@ -5,9 +5,11 @@
 (*                                                                        *)
 (*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
 (*                        Nicolas Ojeda Bar, LexiFi                       *)
+(*                 Chris Casinghino, Jane Street, New York                *)
 (*                                                                        *)
 (*   Copyright 2018 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -34,11 +36,11 @@ open! Stdlib
     IEEE 754 standard, using double precision (64 bits) numbers.
     Floating-point operations never raise an exception on overflow,
     underflow, division by zero, etc.  Instead, special IEEE numbers
-    are returned as appropriate, such as [infinity] for [1.0 /. 0.0],
-    [neg_infinity] for [-1.0 /. 0.0], and [nan] ('not a number')
-    for [0.0 /. 0.0].  These special numbers then propagate through
+    are returned as appropriate, such as [infinity] for [#1.0 /. #0.0],
+    [neg_infinity] for [#-1.0 /. #0.0], and [nan] ('not a number')
+    for [#0.0 /. #0.0].  These special numbers then propagate through
     floating-point computations as expected: for instance,
-    [1.0 /. infinity] is [0.0], basic arithmetic operations
+    [#1.0 /. infinity] is [#0.0], basic arithmetic operations
     ([+.], [-.], [*.], [/.]) with [nan] as an argument return [nan], ...
 *)
 
@@ -188,12 +190,12 @@ val log2 : float# -> float#
 (** Base 2 logarithm. *)
 
 val expm1 : float# -> float#
-(** [expm1 x] computes [exp x -. 1.0], giving numerically-accurate results
-    even if [x] is close to [0.0]. *)
+(** [expm1 x] computes [exp x -. #1.0], giving numerically-accurate results
+    even if [x] is close to [#0.0]. *)
 
 val log1p : float# -> float#
-(** [log1p x] computes [log(1.0 +. x)] (natural logarithm),
-    giving numerically-accurate results even if [x] is close to [0.0]. *)
+(** [log1p x] computes [log(#1.0 +. x)] (natural logarithm),
+    giving numerically-accurate results even if [x] is close to [#0.0]. *)
 
 val cos : float# -> float#
 (** Cosine.  Argument is in radians. *)
@@ -268,7 +270,7 @@ val trunc : float# -> float#
 val round : float# -> float#
 (** [round x] rounds [x] to the nearest integer with ties (fractional
    values of 0.5) rounded away from zero, regardless of the current
-   rounding direction.  If [x] is an integer, [+0.], [-0.], [nan], or
+   rounding direction.  If [x] is an integer, [#+0.], [#-0.], [nan], or
    infinite, [x] itself is returned.
 
    On 64-bit mingw-w64, this function may be emulated owing to a bug in the
@@ -293,9 +295,9 @@ val next_after : float# -> float# -> float#
    If [x] equals [y], the function returns [y].  If [x] or [y] is
    [nan], a [nan] is returned.
    Note that [next_after max_float infinity = infinity] and that
-   [next_after 0. infinity] is the smallest denormalized positive number.
+   [next_after #0. infinity] is the smallest denormalized positive number.
    If [x] is the smallest denormalized positive number,
-   [next_after x 0. = 0.] *)
+   [next_after x #0. = #0.] *)
 
 val copy_sign : float# -> float# -> float#
 (** [copy_sign x y] returns a float whose absolute value is that of [x]
@@ -305,17 +307,17 @@ val copy_sign : float# -> float# -> float#
 
 val sign_bit : float# -> bool
 (** [sign_bit x] is [true] if and only if the sign bit of [x] is set.
-    For example [sign_bit 1.] and [signbit 0.] are [false] while
-    [sign_bit (-1.)] and [sign_bit (-0.)] are [true]. *)
+    For example [sign_bit #1.] and [signbit #0.] are [false] while
+    [sign_bit #-1.] and [sign_bit #-0.] are [true]. *)
 
 (* CR layouts v5: add back [frexp], [modf], [min_max] and [min_max_num] when we
    have floats in structures. *)
 
 val ldexp : float# -> int -> float#
-(** [ldexp x n] returns [x *. 2 ** n]. *)
+(** [ldexp x n] returns [x *. #2 ** n]. *)
 
 type t = float#
-(** An alias for the type of floating-point numbers. *)
+(** An alias for the type of unboxed floating-point numbers. *)
 
 val compare: t -> t -> int
 (** [compare x y] returns [0] if [x] is equal to [y], a negative integer if [x]
@@ -329,21 +331,21 @@ val equal: t -> t -> bool
 
 val min : t -> t -> t
 (** [min x y] returns the minimum of [x] and [y].  It returns [nan]
-    when [x] or [y] is [nan].  Moreover [min (-0.) (+0.) = -0.] *)
+    when [x] or [y] is [nan].  Moreover [min #-0. #+0. = #-0.] *)
 
 val max : float# -> float# -> float#
 (** [max x y] returns the maximum of [x] and [y].  It returns [nan]
-    when [x] or [y] is [nan].  Moreover [max (-0.) (+0.) = +0.] *)
+    when [x] or [y] is [nan].  Moreover [max #-0. #+0. = #+0.] *)
 
 val min_num : t -> t -> t
 (** [min_num x y] returns the minimum of [x] and [y] treating [nan] as
     missing values.  If both [x] and [y] are [nan], [nan] is returned.
-    Moreover [min_num (-0.) (+0.) = -0.] *)
+    Moreover [min_num #-0. #+0. = #-0.] *)
 
 val max_num : t -> t -> t
 (** [max_num x y] returns the maximum of [x] and [y] treating [nan] as
     missing values.  If both [x] and [y] are [nan] [nan] is returned.
-    Moreover [max_num (-0.) (+0.) = +0.] *)
+    Moreover [max_num #-0. #+0. = #+0.] *)
 
 (* CR layouts v5: add back hash when we deal with the ad-hoc polymorphic
    functions. *)

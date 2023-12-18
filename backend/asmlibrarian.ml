@@ -27,12 +27,7 @@ type error =
 exception Error of error
 
 let default_ui_export_info =
-  if Config.flambda then
-    Cmx_format.Flambda1 Export_info.empty
-  else if Config.flambda2 then
-    Cmx_format.Flambda2 None
-  else
-    Cmx_format.Clambda Clambda.Value_unknown
+  Cmx_format.Flambda2 None
 
 let read_info name =
   let filename =
@@ -90,7 +85,10 @@ let create_archive file_list lib_name =
        in
        let units =
          List.map (fun (unit, crc) ->
-           Generic_fns.Tbl.add genfns unit.ui_generic_fns;
+           ignore (Generic_fns.Tbl.add
+                                  ~imports:Generic_fns.Partition.Set.empty
+                                  genfns
+                                  unit.ui_generic_fns);
            { li_name = unit.ui_unit;
              li_crc = crc;
              li_defines = unit.ui_defines;

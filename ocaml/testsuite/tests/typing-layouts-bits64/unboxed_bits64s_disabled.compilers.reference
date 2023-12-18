@@ -1,0 +1,5 @@
+File "unboxed_bits64s.ml", line 186, characters 11-17:
+186 | type ('a : bits64) t_bits64 = 'a
+                 ^^^^^^
+Error: Layout bits64 is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_beta to use this feature.
