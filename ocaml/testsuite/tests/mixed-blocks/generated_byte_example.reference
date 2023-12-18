@@ -1,0 +1,40 @@
+Creating values
+ - Doing GC
+Copying values using [with] record update
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+ - Doing GC
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+Copying values via [Stdlib.Weak]
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+ - Doing GC
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+Copying values via [Obj.with_tag]
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+ - Doing GC
+ - Running checks
+    - Marshaling
+    - Hashing
+    - Checking field values
+    - Checking [Obj.reachable_words]
+Testing local allocations
+ - Doing GC
