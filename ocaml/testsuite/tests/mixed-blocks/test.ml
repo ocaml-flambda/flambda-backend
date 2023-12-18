@@ -1,11 +1,13 @@
 (* TEST
    readonly_files = "generate_mixed_blocks_code.ml"
 
-   (* Generate the bytecode/native code versions of [generate_mixed_blocks_code.ml]
-      and run the corresponding programs.
+   (* Generate the bytecode/native code versions of
+      [generate_mixed_blocks_code.ml] and run the corresponding programs. For
+      both settings (bytecode/native code), we additionally generate a small
+      example of such a program to check into source control.
    *)
 
-   (* Next, native code. We test fewer mixed records in native code
+   (* First, native code. We test fewer mixed records in native code
       than bytecode because the bottleneck for this test's runtime
       is ocamlopt compilation time.
    *)
