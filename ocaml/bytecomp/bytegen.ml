@@ -176,7 +176,6 @@ type rhs_kind =
   | RHS_block of int
   | RHS_infix of { blocksize : int; offset : int }
   | RHS_floatblock of int
-  | RHS_mixedblock of { values : int; floats : int }
   | RHS_nonrec
   | RHS_function of int * int
 
@@ -196,13 +195,11 @@ let rec size_of_lambda env = function
   | Llet (Strict, _k, id, Lprim (Pduprecord (kind, size), _, _), body)
     when check_recordwith_updates id body ->
       begin match kind with
+      | Record_mixed _
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float | Record_ufloat -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
-      | Record_mixed mixed ->
-        let values, floats = count_mixed_record_values_and_floats mixed in
-        RHS_mixedblock { values; floats }
       end
   | Llet(_str, _k, id, arg, body) ->
       size_of_lambda (Ident.add id (size_of_lambda env arg) env) body
@@ -230,11 +227,8 @@ let rec size_of_lambda env = function
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
-  | Lprim (Pmakemixedblock (_, mixed_block_shape, _), _, _) ->
-      let values, floats =
-        count_mixed_block_values_and_floats mixed_block_shape
-      in
-      RHS_mixedblock { values; floats }
+  | Lprim (Pmakemixedblock (_, _, _), args, _) ->
+      RHS_block (List.length args)
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
@@ -746,12 +740,6 @@ let rec comp_expr stack_info env exp sz cont =
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_mixedblock { values; floats }) :: rem ->
-              Kconst(Const_base(Const_int floats)) ::
-              Kpush ::
-              Kconst(Const_base(Const_int values)) ::
-              Kccall("caml_alloc_dummy_mixed", 2) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_block blocksize) :: rem ->
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy", 1) :: Kpush ::
@@ -774,7 +762,7 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_nonrec new_env sz i = function
           | [] -> comp_rec new_env sz ndecl decl_size
           | (_id, _exp, (RHS_block _ | RHS_infix _ |
-                         RHS_floatblock _ | RHS_mixedblock _ |
+                         RHS_floatblock _ |
                          RHS_function _))
             :: rem ->
               comp_nonrec new_env sz (i-1) rem
@@ -784,7 +772,7 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_rec new_env sz i = function
           | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
           | (_id, exp, (RHS_block _ | RHS_infix _ |
-                        RHS_floatblock _ | RHS_mixedblock _ |
+                        RHS_floatblock _ |
                         RHS_function _))
             :: rem ->
               comp_expr stack_info new_env exp sz

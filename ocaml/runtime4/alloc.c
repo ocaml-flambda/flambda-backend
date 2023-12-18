@@ -220,36 +220,6 @@ CAMLprim value caml_alloc_dummy_float (value size)
   return caml_alloc (wosize, 0);
 }
 
-/* [value_size] is a [value] representing number of value fields.
-   [float_size] is a [value] representing number of float fields.
-
-   We distinguish these because they aren't the same width on 32-bit platforms.
- */
-// CR nroberts: Does this matter at Jane Street?
-CAMLprim value caml_alloc_dummy_mixed (value value_size, value float_size)
-{
-  mlsize_t wosize = Long_val(float_size) * Double_wosize;
-  wosize += Long_val(imm_size);
-  return caml_alloc (wosize, 0);
-}
-
-CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)
-{
-  mlsize_t wosize = Long_val(vsize), offset = Long_val(voffset);
-  value v = caml_alloc(wosize, Closure_tag);
-  /* The following choice of closure info causes the GC to skip
-     the whole block contents.  This is correct since the dummy
-     block contains no pointers into the heap.  However, the block
-     cannot be marshaled or hashed, because not all closinfo fields
-     and infix header fields are correctly initialized. */
-  Closinfo_val(v) = Make_closinfo(0, wosize, 1);
-  if (offset > 0) {
-    v += Bsize_wsize(offset);
-    Hd_val(v) = Make_header(offset, Infix_tag, Caml_white);
-  }
-  return v;
-}
-
 CAMLprim value caml_update_dummy(value dummy, value newval)
 {
   mlsize_t size, i;
@@ -265,15 +235,6 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     for (i = 0; i < size; i++) {
       Store_double_flat_field (dummy, i, Double_flat_field (newval, i));
     }
-  } else if (tag == Abstract_tag) {
-    CAMLassert (Wosize_val(newval) == Wosize_val(dummy));
-    CAMLassert (Tag_val(dummy) != Infix_tag);
-    Tag_val(dummy) = Abstract_tag;
-    int bytes = Wosize_val(newval) * sizeof(value);
-    /* XXX layouts: I think just doing a memcpy is fine here because we know
-       there are no pointers?  Figuring out which fields are floats would be
-       hard. */
-    memcpy((void*)dummy, (void*)newval, bytes);
   } else if (tag == Infix_tag) {
     value clos = newval - Infix_offset_hd(Hd_val(newval));
     CAMLassert (Tag_val(clos) == Closure_tag);

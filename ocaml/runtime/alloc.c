@@ -329,6 +329,28 @@ CAMLprim value caml_alloc_dummy_float (value size)
   return caml_alloc (wosize, 0);
 }
 
+/* [size] is a [value] representing the number of fields.
+   [scannable_size] is a [value] representing the length of the prefix of
+   fields that contains pointer values.
+*/
+CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
+{
+  mlsize_t wosize = Long_val(size);
+  mlsize_t scannable_wosize = Long_val(scannable_size);
+#ifdef NATIVECODE
+  /* The below code runs for bytecode and native code, and critically assumes
+     that a double record field can be stored in one word. That's true both for
+     32-bit and 64-bit bytecode (as a double record field in a mixed record is
+     always boxed), and for 64-bit native code (as the double record field is
+     stored flat, taking up 1 word).
+   */
+  CAMLassert(Double_wosize == 1);
+#endif
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize(scannable_wosize);
+  return caml_alloc_with_reserved (wosize, 0, reserved);
+}
+
 CAMLprim value caml_alloc_dummy_infix(value vsize, value voffset)
 {
   mlsize_t wosize = Long_val(vsize), offset = Long_val(voffset);
@@ -389,8 +411,10 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
   } else {
     CAMLassert (tag < No_scan_tag);
     CAMLassert (Tag_val(dummy) != Infix_tag);
+    CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
     size = Wosize_val(newval);
+    // CR mixed block: scannable size!
     CAMLassert (size == Wosize_val(dummy));
     /* See comment above why this is safe even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers. */

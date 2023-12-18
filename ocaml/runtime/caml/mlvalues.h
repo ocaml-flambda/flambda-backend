@@ -150,8 +150,9 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 
 /* Header bits reserved for mixed blocks */
 
-#define Is_mixed_block_reserved(res)               (((reserved_t)res) > 0)
-#define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)res) - 1)
+#define Is_mixed_block_reserved(res)               (((reserved_t)(res)) > 0)
+#define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)(res)) - 1)
+#define Reserved_mixed_block_scannable_wosize(sz)  (((mlsize_t)(sz)) + 1)
 
 /* Color values are pre-shifted */
 
