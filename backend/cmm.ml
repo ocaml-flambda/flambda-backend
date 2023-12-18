@@ -63,6 +63,7 @@ let lub_component comp1 comp2 =
   | (Float | Vec128), (Int | Addr | Val)
   | Float, Vec128
   | Vec128, Float ->
+    Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -83,6 +84,7 @@ let ge_component comp1 comp2 =
   | (Float | Vec128), (Int | Addr | Val)
   | Float, Vec128
   | Vec128, Float ->
+    Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
 
 type exttype =
