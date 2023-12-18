@@ -18,10 +18,10 @@
       all_modules = "generate_mixed_blocks_code.ml"
    *** run
       arguments = "1 native"
-      output = "${test_source_directory}/generated_native_example.ml"
+      output = "${test_source_directory}/generated_native_example.ml.corrected"
    **** check-program-output
-      output = "${test_source_directory}/generated_native_example.ml"
-      reference = "${test_source_directory}/generated_native_example.reference"
+      output = "${test_source_directory}/generated_native_example.ml.corrected"
+      reference = "${test_source_directory}/generated_native_example.ml"
    *** run
       arguments = "75 native"
       output = "${test_source_directory}/generated_native.ml"
@@ -42,10 +42,10 @@
        all_modules = "generate_mixed_blocks_code.ml"
    *** run
       arguments = "1 byte"
-      output = "${test_source_directory}/generated_byte_example.ml"
+      output = "${test_source_directory}/generated_byte_example.ml.corrected"
    **** check-program-output
-      output = "${test_source_directory}/generated_byte_example.ml"
-      reference = "${test_source_directory}/generated_byte_example.reference"
+      output = "${test_source_directory}/generated_byte_example.ml.corrected"
+      reference = "${test_source_directory}/generated_byte_example.ml"
    *** run
       arguments = "300 byte"
       output = "${test_source_directory}/generated_byte.ml"
