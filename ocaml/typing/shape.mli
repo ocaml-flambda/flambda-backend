@@ -65,7 +65,7 @@ module Item : sig
 end
 
 type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
+type t = private { hash: int; uid: Uid.t option; desc: desc }
 and desc =
   | Var of var
   | Abs of var * t
