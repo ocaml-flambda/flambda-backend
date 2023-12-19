@@ -285,12 +285,7 @@ module Solver_mono (C : Lattices_mono) = struct
       assert (Result.is_ok (submode_cv ~log src a' v));
       Ok ()
 
-  (* In the following, functions might take two logs: [log] records changes
-     caused by the operation, [optim] records optimizing changes not caused by the
-     operation. Semantically, [optim] happens before [log] and doesn't rely on [log].
-     On the other hand, some changes in [log] might rely on [optim]. *)
-
-  (** Returns [None] if success; [Some x] if failed, and [x] is the next best
+  (** Returns [Ok ()] if success; [Error x] if failed, and [x] is the next best
      guess to replace the constant argument that MIGHT succeed. *)
   let rec submode_vc :
       type a. log:_ -> a C.obj -> a var -> a -> (unit, a) Result.t =
