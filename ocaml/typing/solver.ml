@@ -50,8 +50,17 @@ module Solver_mono (C : Lattices_mono) = struct
        However, we only have [vlower] not [vupper]. Therefore, the [lower] of
        higher variables are not updated immediately, hence conservative. Those
        [lower] of higher variables can be made precise later on demand, see
-       [zap_to_floor_try], which is why we decide we don't need [vupper].
-       *)
+       [zap_to_floor_try].
+
+       One might argue for an additional [vupper] field, so that [lower] are
+       always precise. While this might be doable, we note that the "hotspot" of
+       the mode solver is to detect conflict, which is already achieved without
+       precise [lower]. Adding [vupper] and keeping [lower] precise will come
+       at extra cost. *)
+       (* To summarize, INVARIANT:
+        For any variable [v], we have [v.lower <= v.upper].
+        For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
+        necessarily [u.lower <= v.lower]. *)
       id : int  (** For identification/printing *)
     }
 
@@ -204,6 +213,7 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodemeet (a, vs) ->
       Amodemeet (C.apply dst morph a, List.map (apply_morphvar dst morph) vs)
 
+  (** Arguments not checked; must maintain INVARIANT *)
   let update_lower (type a) ?log (obj : a C.obj) v a =
     (match log with
     | None -> ()
@@ -214,6 +224,7 @@ module Solver_mono (C : Lattices_mono) = struct
       Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
       assert false)
 
+  (** Arguments not checked, must maintain INVARIANT *)
   let update_upper (type a) ?log (obj : a C.obj) v a =
     (match log with
     | None -> ()
@@ -224,6 +235,7 @@ module Solver_mono (C : Lattices_mono) = struct
       Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
       assert false)
 
+  (** Arguments not checked, must maintain INVARIANT *)
   let set_vlower ?log v vlower =
     (match log with
     | None -> ()
