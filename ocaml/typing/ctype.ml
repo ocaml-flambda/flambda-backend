@@ -2338,7 +2338,11 @@ let local_non_recursive_abbrev env p ty =
 (* Since we cannot duplicate universal variables, unification must
    be done at meta-level, using bindings in univar_pairs *)
 (* TODO: use find_opt *)
-let rec unify_univar t1 t2 = function
+let unify_univar t1 t2 pairs =
+  (match get_desc t1, get_desc t2 with
+  | Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2} when Jkind.equal jkind1 jkind2-> ()
+  | _ -> raise Cannot_unify_universal_variables);
+  let rec inner t1 t2 = function
     (cl1, cl2) :: rem ->
       let find_univ t cl =
         try
@@ -2352,11 +2356,13 @@ let rec unify_univar t1 t2 = function
       | Some({contents=None} as r1), Some({contents=None} as r2) ->
           set_univar r1 t2; set_univar r2 t1
       | None, None ->
-          unify_univar t1 t2 rem
+        inner t1 t2 rem
       | _ ->
           raise Cannot_unify_universal_variables
       end
   | [] -> raise Cannot_unify_universal_variables
+  in
+  inner t1 t2 pairs
 
 (* The same as [unify_univar], but raises the appropriate exception instead of
    [Cannot_unify_universal_variables] *)
