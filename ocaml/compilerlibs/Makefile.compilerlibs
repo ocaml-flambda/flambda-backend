@@ -93,7 +93,6 @@ TYPING = \
   typing/predef.cmo \
   typing/datarepr.cmo \
   file_formats/cmi_format.cmo \
-  typing/address.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
   typing/errortrace.cmo \

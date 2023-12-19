@@ -670,17 +670,6 @@ parsing/syntaxerr.cmx : \
     parsing/syntaxerr.cmi
 parsing/syntaxerr.cmi : \
     parsing/location.cmi
-typing/address.cmo : \
-    typing/ident.cmi \
-    utils/compilation_unit.cmi \
-    typing/address.cmi
-typing/address.cmx : \
-    typing/ident.cmx \
-    utils/compilation_unit.cmx \
-    typing/address.cmi
-typing/address.cmi : \
-    typing/ident.cmi \
-    utils/compilation_unit.cmi
 typing/annot.cmi : \
     parsing/location.cmi
 typing/btype.cmo : \
@@ -834,7 +823,6 @@ typing/env.cmo : \
     parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
-    typing/address.cmi \
     typing/env.cmi
 typing/env.cmx : \
     utils/warnings.cmx \
@@ -862,7 +850,6 @@ typing/env.cmx : \
     parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
-    typing/address.cmx \
     typing/env.cmi
 typing/env.cmi : \
     utils/warnings.cmi \
@@ -1276,11 +1263,11 @@ typing/persistent_env.cmo : \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
+    typing/ident.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
     utils/clflags.cmi \
-    typing/address.cmi \
     typing/persistent_env.cmi
 typing/persistent_env.cmx : \
     utils/warnings.cmx \
@@ -1291,11 +1278,11 @@ typing/persistent_env.cmx : \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
     utils/import_info.cmx \
+    typing/ident.cmx \
     utils/consistbl.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmx \
     utils/clflags.cmx \
-    typing/address.cmx \
     typing/persistent_env.cmi
 typing/persistent_env.cmi : \
     typing/subst.cmi \
@@ -1305,10 +1292,10 @@ typing/persistent_env.cmi : \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
+    typing/ident.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
-    file_formats/cmi_format.cmi \
-    typing/address.cmi
+    file_formats/cmi_format.cmi
 typing/predef.cmo : \
     typing/types.cmi \
     typing/path.cmi \

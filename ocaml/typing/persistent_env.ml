@@ -95,11 +95,12 @@ type binding =
   | Static of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
-   representation in memory. *)
-type pers_struct = {
-  ps_import: import;
-  ps_binding: binding;
-} [@@ocaml.warning "-unused-field"]
+   representation in memory. This is currently a placeholder, since such
+   modules have no more associated data than imports, but this will soon
+   change with parameterised modules, in which each import may correspond
+   to any number of different instances, each of which is a different
+   in-memory value. *)
+type pers_struct = unit
 
 type 'a pers_struct_info = pers_struct * 'a
 
@@ -303,14 +304,16 @@ let acknowledge_import penv ~check modname pers_sig =
     | Parameter -> Impl.Unknown_argument
   in
   let {imports;} = penv in
-  let import = { imp_is_param = is_param;
-                 imp_impl = impl;
-                 imp_sign = sign;
-                 imp_filename = filename;
-                 imp_visibility = visibility;
-                 imp_crcs = crcs;
-                 imp_flags = flags;
-               } in
+  let import =
+    { imp_is_param = is_param;
+      imp_impl = impl;
+      imp_sign = sign;
+      imp_filename = filename;
+      imp_visibility = visibility;
+      imp_crcs = crcs;
+      imp_flags = flags;
+    }
+  in
   if check then check_consistency penv import;
   Hashtbl.add imports modname (Found import);
   import
@@ -351,12 +354,17 @@ let make_binding _penv (impl : Impl.t) : binding =
   in
   Static unit
 
+type address =
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
+  | Adot of address * int
+
 type 'a sig_reader =
   Subst.Lazy.signature
   -> Compilation_unit.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
-  -> address:Address.t
+  -> address:address
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
@@ -366,7 +374,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let sign = import.imp_sign in
   let flags = import.imp_flags in
   let binding = make_binding penv impl in
-  let address : Address.t =
+  let address : address =
     match binding with
     | Static unit -> Aunit unit
   in
@@ -379,9 +387,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_import = import;
-             ps_binding = binding;
-           } in
+  let ps = () in
   Hashtbl.add persistent_structures modname (ps, pm);
   (ps, pm)
 
