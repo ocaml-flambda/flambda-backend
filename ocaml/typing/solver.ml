@@ -271,14 +271,16 @@ module Solver_mono (C : Lattices_mono) = struct
          (We don't assume total ordering for generality.)
         Therefore, we set a = join a (f v).lower. This operation has no effect
         in terms of submoding, but we have now ensured that a is within the
-        range of f v, and thus a is within the co-domain of f, and thus its
+        range of f v, and thus a is within the co-domain of f, and thus it's
         safe to apply f' to a. *)
-    if C.le obj a (mlower obj mv)
+    let mlower = mlower obj mv in
+    let mupper = mupper obj mv in
+    if C.le obj a mlower
     then Ok ()
-    else if not (C.le obj a (mupper obj mv))
-    then Error (mupper obj mv)
+    else if not (C.le obj a mupper)
+    then Error mupper
     else
-      let a = C.join obj a (mlower obj mv) in
+      let a = C.join obj a mlower in
       let f' = C.left_adjoint obj f in
       let src = C.src obj f in
       let a' = C.apply src f' a in
@@ -321,12 +323,14 @@ module Solver_mono (C : Lattices_mono) = struct
    fun ~log obj (Amorphvar (v, f) as mv) a ->
     (* See [submode_cmv] for why we need the following seemingly redundant
        lines. *)
-    if C.le obj (mupper obj mv) a
+    let mupper = mupper obj mv in
+    let mlower = mlower obj mv in
+    if C.le obj mupper a
     then Ok ()
-    else if not (C.le obj (mlower obj mv) a)
-    then Error (mlower obj mv)
+    else if not (C.le obj mlower a)
+    then Error mlower
     else
-      let a = C.meet obj a (mupper obj mv) in
+      let a = C.meet obj a mupper in
       let f' = C.right_adjoint obj f in
       let src = C.src obj f in
       let a' = C.apply src f' a in
