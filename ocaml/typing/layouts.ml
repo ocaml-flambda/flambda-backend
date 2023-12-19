@@ -780,7 +780,7 @@ module Layout = struct
       | First_class_module -> fprintf ppf "it's a first-class module type"
       | Separability_check ->
         fprintf ppf "the check that a type is definitely not `float`"
-      | Univar -> fprintf ppf "it's an unannotated universal variable"
+      | Univar -> fprintf ppf "it is or unifies with an unannotated universal variable"
       | Polymorphic_variant_field ->
         fprintf ppf "it's the type of the field of a polymorphic variant"
       | Default_type_layout ->
