@@ -218,7 +218,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call { alloc; is_c_builtin; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with

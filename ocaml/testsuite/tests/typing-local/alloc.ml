@@ -264,6 +264,16 @@ external array_blit :
 external array_fill :
   local_ 'a array -> int -> int -> 'a -> unit = "caml_array_fill"
 
+let maniparray0 =
+  let l = [42] in
+  fun arr ->
+    (* This function should only locally allocate in the C runtime function
+       for doing the array allocation, and not in the OCaml code, in order
+       to ensure that locally-allocating C calls hold onto regions. *)
+    let x = local_array 6 l in
+    assert (x = arr);
+    ()
+
 let maniparray arr =              (* arr = 1,2,3,1,2,3 *)
   let x = local_array 2 [2] in    (* 2,2 *)
   let x = array_append x x in     (* 2,2,2,2 *)
@@ -472,6 +482,7 @@ let () =
   run "longarray" makelongarray 42;
   run "floatgenarray" makeshortarray 42.;
   run "longfgarray" makelongarray 42.;
+  run "maniparray0" maniparray0 [| [42]; [42]; [42]; [42]; [42]; [42] |];
   run "maniparray" maniparray [| [1]; [2]; [3]; [1]; [2]; [3] |];
   run "manipfarray" manipfarray [| 1.; 2.; 3.; 1.; 2.; 3. |];
   run "ref" makeref 42;

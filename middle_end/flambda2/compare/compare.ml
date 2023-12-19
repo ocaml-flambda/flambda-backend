@@ -936,9 +936,10 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { approximant =
             Call_kind.method_call kind1 ~obj:(subst_simple env obj1) alloc_mode1
         }
-  | ( C_call { alloc = alloc1; is_c_builtin = _ },
-      C_call { alloc = alloc2; is_c_builtin = _ } ) ->
+  | ( C_call { alloc = alloc1; is_c_builtin = _; alloc_mode = alloc_mode1 },
+      C_call { alloc = alloc2; is_c_builtin = _; alloc_mode = alloc_mode2 } ) ->
     if Bool.equal alloc1 alloc2
+       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
     then Equivalent
     else Different { approximant = call_kind1 }
   | _, _ -> Different { approximant = call_kind1 }

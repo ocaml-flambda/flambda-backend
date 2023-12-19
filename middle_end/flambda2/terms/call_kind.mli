@@ -58,9 +58,10 @@ type t = private
       }
   | C_call of
       { alloc : bool;
-        is_c_builtin : bool
+        is_c_builtin : bool;
             (* CR mshinwell: This should have the effects and coeffects
                fields *)
+        alloc_mode : Alloc_mode.For_allocations.t
       }
 
 include Expr_std.S with type t := t
@@ -76,4 +77,5 @@ val indirect_function_call_known_arity : Alloc_mode.For_allocations.t -> t
 val method_call :
   Method_kind.t -> obj:Simple.t -> Alloc_mode.For_allocations.t -> t
 
-val c_call : alloc:bool -> is_c_builtin:bool -> t
+val c_call :
+  alloc:bool -> is_c_builtin:bool -> Alloc_mode.For_allocations.t -> t
