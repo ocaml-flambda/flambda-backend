@@ -1291,7 +1291,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : ('b : any) 'a. 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1303,7 +1303,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : ('b : any) 'a. 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
