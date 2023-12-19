@@ -799,21 +799,21 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
       then None
       else
         let kind = TG.kind ty in
-        let ({ canonical_element; alias_of_demoted_element; t = aliases }
-              : Aliases.add_result) =
+        match
           (* This may raise [Binding_time_resolver_failure]. *)
-          match
-            Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
-              ~binding_times_and_modes:(names_to_types t)
-              ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
-          with Ok res -> res
-             | Bottom -> raise Bottom_equation
-        in
-        let t = with_aliases t ~aliases in
-        (* We need to change the demoted alias's type to point to the new
-           canonical element. *)
-        let ty = TG.alias_type_of kind canonical_element in
-        Some (alias_of_demoted_element, t, ty)
+          Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
+            ~binding_times_and_modes:(names_to_types t)
+            ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
+        with
+        | Ok { canonical_element; alias_of_demoted_element; t = aliases } ->
+          let t = with_aliases t ~aliases in
+          (* We need to change the demoted alias's type to point to the new
+             canonical element. *)
+          let ty = TG.alias_type_of kind canonical_element in
+          Some (alias_of_demoted_element, t, ty)
+        | Bottom ->
+          if raise_on_bottom then raise Bottom_equation
+          else None
   in
   match inputs with
   | None -> t
