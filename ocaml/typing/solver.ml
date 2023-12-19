@@ -330,7 +330,9 @@ module Solver_mono (C : Lattices_mono) = struct
       let f' = C.right_adjoint obj f in
       let src = C.src obj f in
       let a' = C.apply src f' a in
-      (* cannot assert [Option.is_none] because [mlower] is imprecise. *)
+      (* If [mlower] was precise, then the check
+         [not (C.le obj (mlower obj mv) a)] should guarantee the following call
+         to return [Ok ()]. However, [mlower] is not precise *)
       Result.map_error (C.apply obj f) (submode_vc ~log src v a')
 
   (** Zap the variable to its lower bound. Returns the [log] of the zapping, in
@@ -405,7 +407,7 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let newvar obj = Amodevar (Amorphvar (fresh obj, C.id))
 
-  let submode_try (type a r l) ?(logging = true) (obj : a C.obj)
+  let submode_try (type a r l) ~logging (obj : a C.obj)
       (a : (a, allowed * r) mode) (b : (a, l * allowed) mode) =
     let log = if logging then Some (ref []) else None in
     let submode_cc left right =
@@ -474,7 +476,7 @@ module Solver_mono (C : Lattices_mono) = struct
       Error e
 
   let submode obj a b =
-    match submode_try obj a b with
+    match submode_try ~logging:true obj a b with
     | Ok log ->
       Option.iter !append_changes log;
       Ok ()
