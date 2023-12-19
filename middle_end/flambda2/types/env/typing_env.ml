@@ -802,9 +802,12 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         let ({ canonical_element; alias_of_demoted_element; t = aliases }
               : Aliases.add_result) =
           (* This may raise [Binding_time_resolver_failure]. *)
-          Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
-            ~binding_times_and_modes:(names_to_types t)
-            ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
+          match
+            Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
+              ~binding_times_and_modes:(names_to_types t)
+              ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
+          with Ok res -> res
+             | Bottom -> raise Bottom_equation
         in
         let t = with_aliases t ~aliases in
         (* We need to change the demoted alias's type to point to the new

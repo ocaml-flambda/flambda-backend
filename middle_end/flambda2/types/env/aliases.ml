@@ -624,19 +624,20 @@ let add_alias_between_canonical_elements ~binding_time_resolver
   if Simple.equal canonical_element to_be_demoted
   then
     if Coercion.is_id coercion_to_canonical
-    then t
+    then Or_bottom.Ok t
     else
       Misc.fatal_errorf
         "Cannot add an alias of %a@ to itself with a non-identity coercion@ %a"
         Simple.print canonical_element Coercion.print coercion_to_canonical
   else
-    let name_to_be_demoted =
+    let open Or_bottom.Let_syntax in
+    let<+ name_to_be_demoted =
       assert (not (Simple.has_coercion to_be_demoted));
       Simple.pattern_match to_be_demoted
-        ~const:(fun c ->
-          Misc.fatal_errorf "Can't demote const %a@ (while adding alias to@ %a)"
-            Reg_width_const.print c Simple.print canonical_element)
-        ~name:(fun name ~coercion:_ -> name)
+        ~const:(fun _ ->
+          (* We're adding aliases between different constants; this is a Bottom case. *)
+            Or_bottom.Bottom)
+        ~name:(fun name ~coercion:_ -> Or_bottom.Ok name)
     in
     let aliases_of_to_be_demoted =
       get_aliases_of_canonical_element t ~canonical_element:to_be_demoted
@@ -775,7 +776,8 @@ let add_alias ~binding_time_resolver ~binding_times_and_modes t
         canonical_element2,
         coercion_from_canonical_element2_to_canonical_element1 )
   in
-  let t =
+  let open Or_bottom.Let_syntax in
+  let<+ t =
     add_alias_between_canonical_elements ~binding_time_resolver
       ~binding_times_and_modes t ~canonical_element
       ~coercion_to_canonical:coercion_from_demoted_canonical_to_canonical
@@ -828,8 +830,11 @@ let add ~binding_time_resolver ~binding_times_and_modes t
   in
   if Flambda_features.check_invariants ()
   then
-    invariant_add_result ~binding_time_resolver ~binding_times_and_modes
-      ~original_t add_result;
+    begin match add_result with
+    | Ok add_result ->
+      invariant_add_result ~binding_time_resolver ~binding_times_and_modes
+        ~original_t add_result
+    | Bottom -> () end;
   add_result
 
 (* CR-someday mshinwell: For the moment we allow relations between canonical
