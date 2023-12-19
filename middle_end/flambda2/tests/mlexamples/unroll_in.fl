@@ -16,18 +16,16 @@ let code rec size(26)
         apply direct(fact_0)
           (my_closure ~ depth my_depth -> next_depth : _ -> imm tagged)
             (Psubint)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Pmulint = n * apply_result in
            cont k (Pmulint))
 in
 (let fact = closure fact_0 @fact in
- apply direct(fact_0) unroll(4)
-   (fact : _ -> imm tagged) (6) &toplevel -> k1 * error
+ apply direct(fact_0) unroll(4) (fact : _ -> imm tagged) (6) -> k1 * error
    where k1 (i : imm tagged) =
      (apply direct(fact_0) unroll(7)
-        (fact : _ -> imm tagged) (6) &toplevel -> k1 * error
+        (fact : _ -> imm tagged) (6) -> k1 * error
         where k1 (j : imm tagged) =
           let Pmakeblock = %Block 0 (fact, i, j) in
           cont k (Pmakeblock)))

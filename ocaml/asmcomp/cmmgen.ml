@@ -116,21 +116,22 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-(* BACKPORT
 (* Minimum of two [mutable_flag] values, assuming [Immutable < Mutable]. *)
 let min_mut x y =
   match x,y with
-  | Immutable,_ | _,Immutable -> Immutable
-  | Mutable,Mutable -> Mutable
-*)
+  | Asttypes.Immutable, _
+  | _, Asttypes.Immutable -> Asttypes.Immutable
+  | Asttypes.Mutable, Asttypes.Mutable -> Asttypes.Mutable
 
-(* BACKPORT BEGIN
-let get_field env mut ptr n dbg =
-  let mut = min_mut mut (mut_from_env env ptr) in
-*)
-let get_field env layout ptr n dbg =
-  let mut = mut_from_env env ptr in
-(* BACKPORT END *)
+let mut_from_lambda = function
+  | Lambda.Immutable -> Asttypes.Immutable
+  | Lambda.Immutable_unique -> Asttypes.Immutable
+  | Lambda.Mutable -> Asttypes.Mutable
+
+let get_field env mut layout ptr n dbg =
+  let mut = if Config.runtime5
+    then min_mut (mut_from_lambda mut) (mut_from_env env ptr)
+    else mut_from_env env ptr in
   let memory_chunk =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int
@@ -662,7 +663,7 @@ let rec transl env e =
          | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
          | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-         | Poffsetref _ | Pfloatcomp _ | Parraylength _
+         | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _ | Parraylength _
          | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
          | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
          | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
@@ -921,13 +922,13 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield (n, layout, _, _) ->
-      get_field env layout (transl env arg) n dbg
+  | Pfield (n, layout, _, mut) ->
+      get_field env mut layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
-      get_field env Punboxed_float (transl env arg) n dbg
+      get_field env Mutable Punboxed_float (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -1020,7 +1021,7 @@ and transl_prim_1 env p arg dbg =
     | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
     | Psetufloatfield (_, _)
-    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Pmakearray (_, _, _)
+    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Punboxed_float_comp _ | Pmakearray (_, _, _)
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
     | Parrayrefs _ | Parraysets _ | Paddbint _ | Psubbint _ | Pmulbint _
@@ -1129,6 +1130,11 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int(Cop(Ccmpf cmp,
                   [transl_unbox_float dbg env arg1;
                    transl_unbox_float dbg env arg2],
+                  dbg)) dbg
+  | Punboxed_float_comp cmp ->
+      tag_int(Cop(Ccmpf cmp,
+                  [transl env arg1;
+                   transl env arg2],
                   dbg)) dbg
 
   (* String operations *)
@@ -1310,7 +1316,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Pmakearray (_, _, _)
+  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _
+  | Pmakearray (_, _, _)
   | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
   | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
   | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _

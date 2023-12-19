@@ -53,15 +53,14 @@ and code rec loopify(never) size(31) newer_version_of(map_local_1)
     | 1 -> k (0)
     where k2 =
       ((let Pfield = %block_load (l, 1) in
-        apply direct(map_local_1_1 heap_or_local)
+        apply direct(map_local_1_1 &my_region)
           ($camlLocal__map_local_9 ~ depth my_depth -> succ my_depth
            : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
             (f, Pfield)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
            ((let Pfield = %block_load (l, 0) in
-             apply f (Pfield) &my_region -> k2 * k1)
+             apply f (Pfield) -> k2 * k1)
               where k2 (apply_result_1) =
                 let Pmakeblock =
                   %Block 0 &my_region (apply_result_1, apply_result)
@@ -85,7 +84,6 @@ and code rec loopify(never) size(19) newer_version_of(length_2)
           ($camlLocal__length_10 ~ depth my_depth -> succ my_depth
            : _ -> imm tagged)
             (Pfield)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Paddint = 1 + apply_result in
@@ -94,7 +92,6 @@ in
 apply direct(length_2_1)
   ($camlLocal__length_10 : _ -> imm tagged)
     ($camlLocal__const_block44)
-    &toplevel
     -> k1 * error
   where k1 (apply_result : imm tagged) =
     let prim = %phys_eq (apply_result, 1) in
@@ -107,7 +104,6 @@ apply direct(length_2_1)
        ($camlLocal__length_10 ~ depth unroll 1 2 -> unroll 0 3
         : _ -> imm tagged)
          (0)
-         &`region`
          -> k1 * error
        where k1 (apply_result : imm tagged) =
          let Paddint = 1 + apply_result in
@@ -132,19 +128,15 @@ apply direct(length_2_1)
              closure `anon-fn[local.ml:24,27--43]_3_1`
                @`anon-fn[local.ml:24,27--43]`
            in
-           apply direct(map_local_1_1 heap_or_local)
+           apply direct(map_local_1_1 &region_1)
              ($camlLocal__map_local_9
               : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                ($`camlLocal__anon-fn[local.ml:24,27--43]_11`,
                 $camlLocal__const_block13)
-               &region_1
                -> k1 * error)
             where k1 (ms : [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
               (apply direct(length_2_1)
-                 ($camlLocal__length_10 : _ -> imm tagged)
-                   (ms)
-                   &region_1
-                   -> k1 * error
+                 ($camlLocal__length_10 : _ -> imm tagged) (ms) -> k1 * error
                  where k1 (apply_result : imm tagged) =
                    let prim = %phys_eq (apply_result, 3) in
                    switch prim
@@ -191,14 +183,13 @@ apply direct(length_2_1)
                    | 0 -> k3
                    | 1 -> k2 (0)
                    where k3 =
-                     (apply direct(find_span_6_1 heap_or_local)
+                     (apply direct(find_span_6_1 &region_2)
                         ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
                          : _ ->
                            [ 0 of [ 0 | 0 of val * val ] *
                                [ 0 | 0 of val * val ] ]
                          )
                           (break_here, l, 0)
-                          &region_2
                           -> k3 * k1
                         where k3
                                 (`*match*` :
@@ -211,7 +202,6 @@ apply direct(length_2_1)
                                  [ 0 | 0 of val * [ 0 | 0 of val * val ] ]
                                )
                                 (break_here, Pfield)
-                                &region_2
                                 -> k3 * k1)
                              where k3
                                      (apply_result :
@@ -225,7 +215,6 @@ apply direct(length_2_1)
                                       ]
                                     )
                                      (Pfield, 0)
-                                     &region_2
                                      -> k3 * k1)
                                   where k3
                                           (apply_result_1 :
@@ -265,7 +254,7 @@ apply direct(length_2_1)
                     let l_1 = %block_load (l, 1) in
                     let a = %block_load (l, 0) in
                     let acc_1 = %Block 0 &my_region (a, acc) in
-                    (apply break_here (a) &my_region -> k3 * k1
+                    (apply break_here (a) -> k3 * k1
                        where k3 (param : imm tagged) =
                          let unboxed_field = %untag_imm param in
                          cont k2 (unboxed_field)
@@ -280,14 +269,13 @@ apply direct(length_2_1)
                               in
                               cont k (Pmakeblock)
                             where k2 =
-                              apply direct(find_span_6_1 heap_or_local)
+                              apply direct(find_span_6_1 &my_region)
                                 ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
                                  : _ ->
                                    [ 0 of [ 0 | 0 of val * val ] *
                                        [ 0 | 0 of val * val ] ]
                                  )
                                   (break_here, l_1, acc_1)
-                                  &my_region
                                   -> k * k1))
               in
               let code loopify(never) size(9) newer_version_of(is_even_7)
@@ -305,7 +293,6 @@ apply direct(length_2_1)
                  ($camlLocal__spans_13
                   : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                    ($camlLocal__is_even_15, $camlLocal__const_block169)
-                   &toplevel
                    -> k1 * error
                  where k1
                          (even_spans :
@@ -313,7 +300,6 @@ apply direct(length_2_1)
                    (apply direct(length_2_1)
                       ($camlLocal__length_10 : _ -> imm tagged)
                         (even_spans)
-                        &toplevel
                         -> k1 * error
                       where k1 (apply_result : imm tagged) =
                         let prim = %phys_eq (apply_result, 3) in

@@ -188,7 +188,8 @@ let output_cmi filename oc cmi =
   output_int64 oc len;
   Out_channel.seek oc val_pos;
   (* BACKPORT BEGIN *)
-  (* mshinwell: upstream uses [Compression] here *)
+  (* CR ocaml 5 compressed-marshal mshinwell:
+     upstream uses [Compression] here *)
   output_value oc
     {
       header_name = cmi.cmi_name;

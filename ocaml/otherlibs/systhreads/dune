@@ -25,8 +25,12 @@
   (native/libthreadsnat_stubs.a as libthreadsnat_stubs.a)
   (native/libthreadsnat_stubs.a as libthreadsnat_stubs_native.a) ; for special_dune compat
   (thread.mli as threads/thread.mli)
+  (event.mli as threads/event.mli)
   (threads.h as caml/threads.h)
+  (native/.threadsnat.objs/native/event.cmx as threads/event.cmx)
   (native/.threadsnat.objs/native/thread.cmx as threads/thread.cmx)
+  (byte/.threads.objs/byte/event.cmi as threads/event.cmi)
+  (byte/.threads.objs/byte/event.cmti as threads/event.cmti)
   (byte/.threads.objs/byte/thread.cmi as threads/thread.cmi)
   (byte/.threads.objs/byte/thread.cmti as threads/thread.cmti))
  (section lib)

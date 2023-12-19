@@ -95,6 +95,7 @@
     debuginfo
     lambda
     runtimedef
+    runtimetags
     instruct
     opcodes
     bytesections
@@ -103,12 +104,12 @@
     symtable
     asttypes
     parsetree
+    typedtree
     outcometree
     cmo_format
     cmxs_format
     debug_event
     compilation_unit
-    address
     import_info
     symbol
     linkage_name)
@@ -130,6 +131,7 @@
 ;  (package ocaml))
 
 ;; .ml:
+(copy_files ../../utils/runtimetags.ml)
 (copy_files ../../utils/binutils.ml)
 (copy_files ../../utils/local_store.ml)
 (copy_files ../../utils/config.ml)
@@ -169,7 +171,6 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
-(copy_files ../../typing/address.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/mode.ml)
@@ -178,6 +179,7 @@
 (copy_files ../../typing/subst.ml)
 (copy_files ../../typing/predef.ml)
 (copy_files ../../typing/datarepr.ml)
+(copy_files ../../typing/typedtree.ml)
 (copy_files ../../file_formats/cmi_format.ml)
 (copy_files ../../typing/persistent_env.ml)
 (copy_files ../../typing/env.ml)
@@ -192,6 +194,7 @@
 (copy_files ../../bytecomp/symtable.ml)
 
 ;; .mli:
+(copy_files ../../utils/runtimetags.mli)
 (copy_files ../../utils/binutils.mli)
 (copy_files ../../utils/local_store.mli)
 (copy_files ../../utils/config.mli)
@@ -231,7 +234,6 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
-(copy_files ../../typing/address.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/mode.mli)
@@ -240,6 +242,7 @@
 (copy_files ../../typing/subst.mli)
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
+(copy_files ../../typing/typedtree.mli)
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)
@@ -301,6 +304,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Runtimetags.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
@@ -321,7 +325,6 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Address.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Import_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
@@ -380,6 +383,7 @@
       %{deps}))
   (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Runtimetags.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
@@ -400,7 +404,6 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Address.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Import_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx

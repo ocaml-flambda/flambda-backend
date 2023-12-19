@@ -84,6 +84,15 @@ let create_code' code =
     }
 
 let create_set_of_closures are_rebuilding set =
+  (* Even if the set of closures was locally allocated, this allocation is
+     global. This will not cause leaks, as lifted constants are static and
+     therefore only allocated once. *)
+  let set =
+    Set_of_closures.create
+      ~value_slots:(Set_of_closures.value_slots set)
+      Alloc_mode.For_allocations.heap
+      (Set_of_closures.function_decls set)
+  in
   let free_names = Set_of_closures.free_names set in
   if ART.do_not_rebuild_terms are_rebuilding
   then Set_of_closures_not_rebuilt { free_names }

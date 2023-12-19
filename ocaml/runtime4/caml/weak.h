@@ -181,7 +181,8 @@ Caml_inline void caml_ephe_clean_partial (value v,
         value f = Forward_val (child);
         if (Is_block (f)) {
           if (!Is_in_value_area(f) || Tag_val (f) == Forward_tag
-              || Tag_val (f) == Lazy_tag || Tag_val (f) == Double_tag){
+              || Tag_val (f) == Lazy_tag || Tag_val (f) == Forcing_tag
+              || Tag_val (f) == Double_tag){
             /* Do not short-circuit the pointer. */
           }else{
             Field (v, i) = child = f;

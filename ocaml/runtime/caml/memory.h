@@ -36,11 +36,13 @@ extern "C" {
 CAMLextern value caml_alloc_shr (mlsize_t wosize, tag_t);
 CAMLextern value caml_alloc_shr_noexc(mlsize_t wosize, tag_t);
 CAMLextern value caml_alloc_shr_reserved (mlsize_t, tag_t, reserved_t);
+CAMLextern value caml_alloc_local(mlsize_t, tag_t);
 
 CAMLextern void caml_adjust_gc_speed (mlsize_t, mlsize_t);
 CAMLextern void caml_alloc_dependent_memory (mlsize_t bsz);
 CAMLextern void caml_free_dependent_memory (mlsize_t bsz);
 CAMLextern void caml_modify (volatile value *, value);
+CAMLextern void caml_modify_local (value obj, intnat i, value val);
 CAMLextern void caml_initialize (volatile value *, value);
 CAMLextern int caml_atomic_cas_field (value, intnat, value, value);
 CAMLextern value caml_check_urgent_gc (value);
@@ -164,6 +166,7 @@ CAMLextern caml_stat_string caml_stat_strconcat(int n, ...);
 CAMLextern wchar_t* caml_stat_wcsconcat(int n, ...);
 #endif
 
+CAMLextern int caml_is_stack(value);
 
 /* void caml_shrink_heap (char *);        Only used in compact.c */
 
@@ -217,6 +220,9 @@ enum caml_alloc_small_flags {
 #define Alloc_small(result, wosize, tag, GC) \
   Alloc_small_with_reserved(result, wosize, tag, GC, (uintnat)0)
 
+CAMLextern caml_local_arenas* caml_get_local_arenas(caml_domain_state*);
+CAMLextern void caml_set_local_arenas(caml_domain_state*, caml_local_arenas* s);
+
 #endif /* CAML_INTERNALS */
 
 struct caml__roots_block {
@@ -268,6 +274,7 @@ struct caml__roots_block {
 */
 
 #define CAMLparam0()                                                    \
+  int caml__missing_CAMLreturn = 0;                                     \
   struct caml__roots_block** caml_local_roots_ptr =                     \
     (DO_CHECK_CAML_STATE ? Caml_check_caml_state() : (void)0,           \
      &CAML_LOCAL_ROOTS);                                                \
@@ -402,6 +409,7 @@ struct caml__roots_block {
   }
 
 #define CAMLdrop do{              \
+  (void)caml__missing_CAMLreturn; \
   *caml_local_roots_ptr = caml__frame; \
 }while (0)
 
@@ -418,7 +426,7 @@ struct caml__roots_block {
 
 #define CAMLreturn(result) CAMLreturnT(value, result)
 
-#define CAMLnoreturn ((void) caml__frame)
+#define CAMLnoreturn ((void) caml__missing_CAMLreturn, (void) caml__frame)
 
 
 /* convenience macro */

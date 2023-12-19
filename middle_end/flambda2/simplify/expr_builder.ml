@@ -546,8 +546,7 @@ let create_let_symbols uacc lifted_constant ~body =
               in
               Binary (Block_load (block_access_kind, Immutable), symbol, index)
             | Project_value_slot { project_from; value_slot } ->
-              Unary
-                (Project_value_slot { project_from; value_slot; kind }, symbol)
+              Unary (Project_value_slot { project_from; value_slot }, symbol)
           in
           ( Named.create_prim prim Debuginfo.none,
             coercion_from_proj_to_var,

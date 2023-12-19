@@ -18,3 +18,5 @@ Manipulation (0 bytes):
   d: 45.14
 CSE test (0 bytes):
   allocated bytes: 0.00
+Float literals:
+  allocated bytes: 0.00

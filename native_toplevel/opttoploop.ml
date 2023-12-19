@@ -96,18 +96,17 @@ type directive_info = {
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name i = function
-  | [] -> ()
-  | Sig_module (_, _, { md_type = Mty_alias _; _ }, _, _)
-    :: rest ->
-      remember phrase_name i rest
-  | Sig_value  (id, _, _) :: rest
-  | Sig_module (id, _, _, _, _) :: rest
-  | Sig_typext (id, _, _, _) :: rest
-  | Sig_class  (id, _, _, _) :: rest ->
-      remembered := Ident.add id (phrase_name, i) !remembered;
-      remember phrase_name (succ i) rest
-  | _ :: rest -> remember phrase_name i rest
+let rec remember phrase_name signature =
+  let exported = List.filter Includemod.is_runtime_component signature in
+  List.iteri (fun i sg ->
+    match sg with
+    | Sig_value  (id, _, _)
+    | Sig_module (id, _, _, _, _)
+    | Sig_typext (id, _, _, _)
+    | Sig_class  (id, _, _, _) ->
+      remembered := Ident.add id (phrase_name, i) !remembered
+    | _ -> ())
+    exported
 
 let toplevel_value id =
   try Ident.find_same id !remembered
@@ -452,7 +451,7 @@ let execute_phrase print_outcome ppf phr =
               (str, coercion, None)
               ~style:Plain_block
           in
-          remember compilation_unit 0 sg';
+          remember compilation_unit sg';
           compilation_unit, close_phrase res, required_globals, size
         else
           let size, res = Translmod.transl_store_phrases compilation_unit str in
