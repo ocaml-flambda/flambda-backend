@@ -1572,7 +1572,21 @@ end = struct
 end
 
 [%%expect{|
-failure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f x = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : any). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : any). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       'a has layout any, which is not representable.
 |}]
 
 module M1 : sig
@@ -1582,7 +1596,7 @@ end = struct
 end
 
 [%%expect{|
-not sure, actually
+module M1 : sig val f : unit -> 'a -> 'a end
 |}]
 
 module type S_any = sig
@@ -1598,25 +1612,53 @@ module type S_float64 = sig
 end
 
 [%%expect{|
-success
+module type S_any = sig val f : ('a : any). 'a -> 'a end
+module type S_value = sig val f : 'a -> 'a end
+module type S_float64 = sig val f : ('a : float64). 'a -> 'a end
 |}]
 
 module F (X : S_any) : S_value = X
 
 [%%expect{|
-failure
+module F : functor (X : S_any) -> S_value
 |}]
 
 module F (X : S_value) : S_any = X
 
 [%%expect{|
-failure
+Line 1, characters 33-34:
+1 | module F (X : S_value) : S_any = X
+                                     ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_any
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : any). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       'a has layout any, which is not a sublayout of value.
 |}]
 
 module F (X : S_value) : S_float64 = X
 
 [%%expect{|
-failure
+Line 1, characters 37-38:
+1 | module F (X : S_value) : S_float64 = X
+                                         ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_float64
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : float64). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       'a has layout float64, which is not a sublayout of value.
 |}]
 
 module M2 : sig
@@ -1626,7 +1668,21 @@ end = struct
 end
 
 [%%expect{|
-failure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a end
+       is not included in
+         sig type ('a : any) t = 'a end
+       Type declarations do not match:
+         type 'a t = 'a
+       is not included in
+         type ('a : any) t = 'a
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}]
 
 module M3 : sig
@@ -1636,7 +1692,21 @@ end = struct
 end
 
 [%%expect{|
-failure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = 'a -> 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a -> 'a end
+       is not included in
+         sig type ('a : any) t = 'a -> 'a end
+       Type declarations do not match:
+         type 'a t = 'a -> 'a
+       is not included in
+         type ('a : any) t = 'a -> 'a
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}]
 
 module M4 : sig
@@ -1646,7 +1716,25 @@ end = struct
 end
 
 [%%expect{|
-failure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { f : 'a. 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { f : 'a. 'a -> 'a; } end
+       is not included in
+         sig type t = { f : ('a : any). 'a -> 'a; } end
+       Type declarations do not match:
+         type t = { f : 'a. 'a -> 'a; }
+       is not included in
+         type t = { f : ('a : any). 'a -> 'a; }
+       Fields do not match:
+         f : 'a. 'a -> 'a;
+       is not the same as:
+         f : ('a : any). 'a -> 'a;
+       The type 'a. 'a -> 'a is not equal to the type ('a : any). 'a -> 'a
+       Type 'a is not equal to type 'a0
 |}]
 
 module M5 : sig
@@ -1656,7 +1744,25 @@ end = struct
 end
 
 [%%expect{|
-failure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { f : ('a : any). 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { f : ('a : any). 'a -> 'a; } end
+       is not included in
+         sig type t = { f : 'a. 'a -> 'a; } end
+       Type declarations do not match:
+         type t = { f : ('a : any). 'a -> 'a; }
+       is not included in
+         type t = { f : 'a. 'a -> 'a; }
+       Fields do not match:
+         f : ('a : any). 'a -> 'a;
+       is not the same as:
+         f : 'a. 'a -> 'a;
+       The type ('a : any). 'a -> 'a is not equal to the type 'a. 'a -> 'a
+       Type 'a is not equal to type 'a0
 |}]
 
 module M6 : sig
@@ -1667,7 +1773,12 @@ end = struct
 end
 
 [%%expect{|
-failure
+Line 5, characters 11-46:
+5 |     ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       float# has layout float64, which is not a sublayout of value.
 |}]
 
 module M7 : sig
@@ -1678,7 +1789,23 @@ end = struct
 end
 
 [%%expect{|
-not sure
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let f (g : 'a. 'a -> 'a) =
+5 |     ignore (g "hello"); ()
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : ('a. 'a -> 'a) -> unit end
+       is not included in
+         sig val f : (('a : any). 'a -> 'a) -> unit end
+       Values do not match:
+         val f : ('a. 'a -> 'a) -> unit
+       is not included in
+         val f : (('a : any). 'a -> 'a) -> unit
+       The type ('a. 'a -> 'a) -> unit is not compatible with the type
+         (('a : any). 'a -> 'a) -> unit
+       Type 'a is not compatible with type 'a0
 |}]
 
 module M8 : sig
@@ -1688,7 +1815,22 @@ end = struct
 end
 
 [%%expect{|
-not sure
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = K of ('a -> 'a)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = K of ('a -> 'a) end
+       is not included in
+         sig type ('a : any) t = K of ('a -> 'a) end
+       Type declarations do not match:
+         type 'a t = K of ('a -> 'a)
+       is not included in
+         type ('a : any) t = K of ('a -> 'a)
+       Their parameters differ:
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
 |}]
 
 module M9 : sig
@@ -1698,6 +1840,21 @@ end = struct
 end
 
 [%%expect{|
-I think this is probably ok
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : any) t = K of ('a -> 'a)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type ('a : any) t = K of ('a -> 'a) end
+       is not included in
+         sig type 'a t = K of ('a -> 'a) end
+       Type declarations do not match:
+         type ('a : any) t = K of ('a -> 'a)
+       is not included in
+         type 'a t = K of ('a -> 'a)
+       Their parameters differ:
+       The type ('a : any) is not equal to the type ('a0 : value)
+       because their layouts are different.
 |}]
-
+(* CR layouts: This one should be fine to accept *)
