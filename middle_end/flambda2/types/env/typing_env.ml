@@ -881,7 +881,7 @@ and add_env_extension_with_extra_variables t
     ~variable:(fun var kind t ->
       add_variable_definition t var kind Name_mode.in_types)
     ~equation:(fun name ty t ->
-      add_equation ~raise_on_bottom:false t name ty ~meet_type)
+      add_equation ~raise_on_bottom:true t name ty ~meet_type)
     env_extension t
 
 let add_env_extension_from_level t level ~meet_type : t =
@@ -893,7 +893,7 @@ let add_env_extension_from_level t level ~meet_type : t =
   let t =
     Name.Map.fold
       (fun name ty t ->
-        add_equation ~raise_on_bottom:false t name ty ~meet_type)
+        add_equation ~raise_on_bottom:true t name ty ~meet_type)
       (TEL.equations level) t
   in
   Variable.Map.fold
@@ -909,9 +909,12 @@ let add_env_extension_strict t env_extension ~meet_type : _ Or_bottom.t =
   try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)
   with Bottom_equation -> Bottom
 
-let add_equation = add_equation ~raise_on_bottom:false
+let add_env_extension_maybe_bottom t env_extension ~meet_type =
+  add_env_extension ~raise_on_bottom:false t env_extension ~meet_type
 
-let add_env_extension = add_env_extension ~raise_on_bottom:false
+let add_equation = add_equation ~raise_on_bottom:true
+
+let add_env_extension = add_env_extension ~raise_on_bottom:true
 
 let add_definitions_of_params t ~params =
   List.fold_left

@@ -145,6 +145,8 @@ val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
    then adding equations in the wrong order can make equations disappear. *)
 val add_env_extension : t -> Typing_env_extension.t -> meet_type:meet_type -> t
 
+val add_env_extension_maybe_bottom : t -> Typing_env_extension.t -> meet_type:meet_type -> t
+
 val add_env_extension_strict :
   t -> Typing_env_extension.t -> meet_type:meet_type -> t Or_bottom.t
 

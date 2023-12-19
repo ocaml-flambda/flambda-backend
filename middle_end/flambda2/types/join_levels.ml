@@ -84,7 +84,7 @@ let join_types ~env_at_fork envs_with_levels =
         (* CR vlaviron: This is very likely quadratic (number of uses times
            number of variables in all uses). However it's hard to know how we
            could do better. *)
-        TE.add_env_extension base_env
+        TE.add_env_extension_maybe_bottom base_env
           (TEE.from_map joined_types)
           ~meet_type:Meet_and_join.meet_type
       in
