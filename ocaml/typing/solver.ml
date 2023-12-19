@@ -34,19 +34,16 @@ let rec find_error (f : 'x -> ('a, 'b) Result.t) : 'x list -> ('a, 'b) Result.t
   | x :: rest -> (
     match f x with Ok () -> find_error f rest | Error _ as e -> e)
 
-module VarSet = Set.Make (Int)
-
 module Solver_mono (C : Lattices_mono) = struct
   type 'a var =
-    { mutable vlower : 'a lmorphvar list
-      (** A list of variables directly under the current variable.
+    { mutable vlower : 'a lmorphvar list;
+          (** A list of variables directly under the current variable.
         Each is a pair [f] [v], and we have [f v <= u] where [u] is the current
         variable.
         TODO: consider using hashset for quicker deduplication *)
-      mutable upper : 'a;
-      (** The precise upper bound of the variable *)
+      mutable upper : 'a;  (** The precise upper bound of the variable *)
       mutable lower : 'a;
-      (** The *conservative* lower bound of the variable.
+          (** The *conservative* lower bound of the variable.
        Why conservative: if a user calls [submode c u] where [c] is
         some constant and [u] some variable, we can modify [u.lower] of course.
        Idealy we should also modify all [v.lower] where [v] is variable above [u].
@@ -55,12 +52,15 @@ module Solver_mono (C : Lattices_mono) = struct
        [lower] of higher variables can be made precise later on demand, see
        [zap_to_floor_try], which is why we decide we don't need [vupper].
        *)
+      id : int  (** For identification/printing *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
 
   and ('b, 'd) morphvar =
     | Amorphvar : 'a var * ('a, 'b, 'd) C.morph -> ('b, 'd) morphvar
+
+  module VarSet = Set.Make (Int)
 
   type change =
     | Cupper : 'a var * 'a -> change
@@ -89,20 +89,18 @@ module Solver_mono (C : Lattices_mono) = struct
         'a * ('a, disallowed * 'r) morphvar list
         -> ('a, disallowed * 'r) mode
 
-  let address_of : 'a var -> int = Obj.magic
-
   let rec print_var : type a. ?traversed:VarSet.t -> a C.obj -> _ -> a var -> _
       =
    fun ?traversed obj ppf v ->
-    Format.fprintf ppf "%x[%a,%a]" (address_of v) (C.print obj) v.lower
-      (C.print obj) v.upper;
+    Format.fprintf ppf "%x[%a,%a]" v.id (C.print obj) v.lower (C.print obj)
+      v.upper;
     match traversed with
     | None -> ()
     | Some traversed ->
-      if VarSet.mem (address_of v) traversed
+      if VarSet.mem v.id traversed
       then ()
       else
-        let traversed = VarSet.add (address_of v) traversed in
+        let traversed = VarSet.add v.id traversed in
         let p = print_morphvar ~traversed obj in
         Format.fprintf ppf "{%a}" (Format.pp_print_list p) v.vlower
 
@@ -391,8 +389,12 @@ module Solver_mono (C : Lattices_mono) = struct
           then set_vlower ?log u (x :: u.vlower);
           Ok ())
 
+  let cnt_id = ref 0
+
   let fresh (type a) (obj : a C.obj) =
-    { upper = C.max obj; lower = C.min obj; vlower = [] }
+    let id = !cnt_id in
+    cnt_id := id + 1;
+    { upper = C.max obj; lower = C.min obj; vlower = []; id }
 
   let newvar obj = Amodevar (Amorphvar (fresh obj, C.id))
 
