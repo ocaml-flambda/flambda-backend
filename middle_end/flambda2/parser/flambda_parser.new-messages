@@ -1,0 +1,3739 @@
+expect_test_spec: TILDEMINUS
+##
+## Ends in an error in state: 0.
+##
+## expect_test_spec' -> . expect_test_spec [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: LPAREN TILDEMINUS
+##
+## Ends in an error in state: 1.
+##
+## atomic_expr -> LPAREN . expr RPAREN [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH TILDEMINUS
+##
+## Ends in an error in state: 3.
+##
+## atomic_expr -> KWD_SWITCH . simple switch [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDEMINUS
+##
+## Ends in an error in state: 10.
+##
+## atomic_expr -> KWD_SWITCH simple . switch [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## simple -> simple . TILDE coercion [ TILDE RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND INT EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE TILDEMINUS
+##
+## Ends in an error in state: 11.
+##
+## simple -> simple TILDE . coercion [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## simple TILDE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH TILDEMINUS
+##
+## Ends in an error in state: 13.
+##
+## coercion -> KWD_DEPTH . rec_info MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO LPAREN TILDEMINUS
+##
+## Ends in an error in state: 14.
+##
+## rec_info_atom -> LPAREN . rec_info RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_UNROLL TILDEMINUS
+##
+## Ends in an error in state: 15.
+##
+## rec_info -> KWD_UNROLL . plain_int rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_UNROLL INT TILDEMINUS
+##
+## Ends in an error in state: 17.
+##
+## rec_info -> KWD_UNROLL plain_int . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL plain_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_SUCC TILDEMINUS
+##
+## Ends in an error in state: 23.
+##
+## rec_info -> KWD_SUCC . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SUCC
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 26.
+##
+## rec_info_atom -> LPAREN rec_info . RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN rec_info
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH INT TILDEMINUS
+##
+## Ends in an error in state: 28.
+##
+## coercion -> KWD_DEPTH rec_info . MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH rec_info
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH INT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 29.
+##
+## coercion -> KWD_DEPTH rec_info MINUSGREATER . rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH rec_info MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT PIPE TILDEMINUS
+##
+## Ends in an error in state: 34.
+##
+## switch -> option(PIPE) . loption(separated_nonempty_list(PIPE,switch_case)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## option(PIPE)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT INT TILDEMINUS
+##
+## Ends in an error in state: 36.
+##
+## switch_case -> tag . MINUSGREATER apply_cont_expr [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## tag
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT INT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 37.
+##
+## switch_case -> tag MINUSGREATER . apply_cont_expr [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## tag MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT TILDEMINUS
+##
+## Ends in an error in state: 43.
+##
+## apply_cont_expr -> continuation . option(trap_action) simple_args [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_PUSH TILDEMINUS
+##
+## Ends in an error in state: 44.
+##
+## trap_action -> KWD_PUSH . LPAREN continuation RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_PUSH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_PUSH LPAREN TILDEMINUS
+##
+## Ends in an error in state: 45.
+##
+## trap_action -> KWD_PUSH LPAREN . continuation RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_PUSH LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_PUSH LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 46.
+##
+## trap_action -> KWD_PUSH LPAREN continuation . RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_PUSH LPAREN continuation
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_POP TILDEMINUS
+##
+## Ends in an error in state: 48.
+##
+## trap_action -> KWD_POP . LPAREN option(raise_kind) continuation RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_POP
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_POP LPAREN TILDEMINUS
+##
+## Ends in an error in state: 49.
+##
+## trap_action -> KWD_POP LPAREN . option(raise_kind) continuation RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_POP LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_POP LPAREN KWD_NOTRACE TILDEMINUS
+##
+## Ends in an error in state: 54.
+##
+## trap_action -> KWD_POP LPAREN option(raise_kind) . continuation RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_POP LPAREN option(raise_kind)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_POP LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 55.
+##
+## trap_action -> KWD_POP LPAREN option(raise_kind) continuation . RPAREN [ RPAREN PIPE LPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_POP LPAREN option(raise_kind) continuation
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT IDENT KWD_POP LPAREN IDENT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 58.
+##
+## apply_cont_expr -> continuation option(trap_action) . simple_args [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation option(trap_action)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 59.
+##
+## simple_args -> LPAREN . separated_nonempty_list(COMMA,simple) RPAREN [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 60.
+##
+## separated_nonempty_list(COMMA,simple) -> simple . [ RPAREN ]
+## separated_nonempty_list(COMMA,simple) -> simple . COMMA separated_nonempty_list(COMMA,simple) [ RPAREN ]
+## simple -> simple . TILDE coercion [ TILDE RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT LPAREN FLOAT COMMA TILDEMINUS
+##
+## Ends in an error in state: 61.
+##
+## separated_nonempty_list(COMMA,simple) -> simple COMMA . separated_nonempty_list(COMMA,simple) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## simple COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT INT MINUSGREATER IDENT LPAREN FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 68.
+##
+## separated_nonempty_list(PIPE,switch_case) -> switch_case . [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## separated_nonempty_list(PIPE,switch_case) -> switch_case . PIPE separated_nonempty_list(PIPE,switch_case) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## switch_case
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_SWITCH FLOAT INT MINUSGREATER IDENT PIPE TILDEMINUS
+##
+## Ends in an error in state: 69.
+##
+## separated_nonempty_list(PIPE,switch_case) -> switch_case PIPE . separated_nonempty_list(PIPE,switch_case) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## switch_case PIPE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET TILDEMINUS
+##
+## Ends in an error in state: 73.
+##
+## let_expr(expr) -> KWD_LET . let_(expr) [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+## let_symbol(expr) -> KWD_LET . separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES TILDEMINUS
+##
+## Ends in an error in state: 74.
+##
+## static_set_of_closures -> KWD_SET_OF_CLOSURES . separated_nonempty_list(KWD_AND,static_closure_binding) with_value_slots_opt KWD_END [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SET_OF_CLOSURES
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES SYMBOL TILDEMINUS
+##
+## Ends in an error in state: 75.
+##
+## static_closure_binding -> symbol . EQUAL fun_decl [ KWD_WITH KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## symbol
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES SYMBOL EQUAL TILDEMINUS
+##
+## Ends in an error in state: 76.
+##
+## static_closure_binding -> symbol EQUAL . fun_decl [ KWD_WITH KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## symbol EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL KWD_CLOSURE TILDEMINUS
+##
+## Ends in an error in state: 77.
+##
+## fun_decl -> KWD_CLOSURE . code_id function_slot_opt alloc_mode_for_allocations_opt [ KWD_WITH KWD_IN KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CLOSURE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT TILDEMINUS
+##
+## Ends in an error in state: 79.
+##
+## fun_decl -> KWD_CLOSURE code_id . function_slot_opt alloc_mode_for_allocations_opt [ KWD_WITH KWD_IN KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CLOSURE code_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AT TILDEMINUS
+##
+## Ends in an error in state: 80.
+##
+## function_slot_opt -> AT . function_slot [ RPAREN KWD_WITH KWD_LOCAL KWD_IN KWD_HEAP_OR_LOCAL KWD_END KWD_AND AMP ]
+##
+## The known suffix of the stack is as follows:
+## AT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT AT IDENT TILDEMINUS
+##
+## Ends in an error in state: 83.
+##
+## fun_decl -> KWD_CLOSURE code_id function_slot_opt . alloc_mode_for_allocations_opt [ KWD_WITH KWD_IN KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CLOSURE code_id function_slot_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_FLOAT AMP TILDEMINUS
+##
+## Ends in an error in state: 84.
+##
+## alloc_mode_for_allocations_opt -> AMP . region [ SYMBOL LPAREN KWD_WITH KWD_IN KWD_END KWD_AND INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## AMP
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES SYMBOL EQUAL KWD_CLOSURE IDENT KWD_IN
+##
+## Ends in an error in state: 90.
+##
+## separated_nonempty_list(KWD_AND,static_closure_binding) -> static_closure_binding . [ KWD_WITH KWD_END ]
+## separated_nonempty_list(KWD_AND,static_closure_binding) -> static_closure_binding . KWD_AND separated_nonempty_list(KWD_AND,static_closure_binding) [ KWD_WITH KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## static_closure_binding
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 79, spurious reduction of production function_slot_opt ->
+## In state 83, spurious reduction of production alloc_mode_for_allocations_opt ->
+## In state 88, spurious reduction of production fun_decl -> KWD_CLOSURE code_id function_slot_opt alloc_mode_for_allocations_opt
+## In state 89, spurious reduction of production static_closure_binding -> symbol EQUAL fun_decl
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES SYMBOL EQUAL KWD_CLOSURE IDENT KWD_AND TILDEMINUS
+##
+## Ends in an error in state: 91.
+##
+## separated_nonempty_list(KWD_AND,static_closure_binding) -> static_closure_binding KWD_AND . separated_nonempty_list(KWD_AND,static_closure_binding) [ KWD_WITH KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## static_closure_binding KWD_AND
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH TILDEMINUS
+##
+## Ends in an error in state: 94.
+##
+## with_value_slots_opt -> KWD_WITH . LBRACE loption(separated_nonempty_list(SEMICOLON,value_slot)) RBRACE [ KWD_IN KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## KWD_WITH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE TILDEMINUS
+##
+## Ends in an error in state: 95.
+##
+## with_value_slots_opt -> KWD_WITH LBRACE . loption(separated_nonempty_list(SEMICOLON,value_slot)) RBRACE [ KWD_IN KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## KWD_WITH LBRACE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE IDENT TILDEMINUS
+##
+## Ends in an error in state: 97.
+##
+## value_slot -> value_slot_for_projection . EQUAL simple [ SEMICOLON RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## value_slot_for_projection
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE IDENT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 98.
+##
+## value_slot -> value_slot_for_projection EQUAL . simple [ SEMICOLON RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## value_slot_for_projection EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE IDENT EQUAL FLOAT TILDEMINUS
+##
+## Ends in an error in state: 99.
+##
+## simple -> simple . TILDE coercion [ TILDE SEMICOLON RBRACE ]
+## value_slot -> value_slot_for_projection EQUAL simple . [ SEMICOLON RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## value_slot_for_projection EQUAL simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE IDENT EQUAL FLOAT SEMICOLON TILDEMINUS
+##
+## Ends in an error in state: 101.
+##
+## separated_nonempty_list(SEMICOLON,value_slot) -> value_slot SEMICOLON . separated_nonempty_list(SEMICOLON,value_slot) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## value_slot SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_SET_OF_CLOSURES SYMBOL EQUAL KWD_CLOSURE IDENT KWD_WITH LBRACE RBRACE TILDEMINUS
+##
+## Ends in an error in state: 106.
+##
+## static_set_of_closures -> KWD_SET_OF_CLOSURES separated_nonempty_list(KWD_AND,static_closure_binding) with_value_slots_opt . KWD_END [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SET_OF_CLOSURES separated_nonempty_list(KWD_AND,static_closure_binding) with_value_slots_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE TILDEMINUS
+##
+## Ends in an error in state: 108.
+##
+## code_header -> KWD_CODE . recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+## deleted_code -> KWD_CODE . code_id KWD_DELETED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_REC TILDEMINUS
+##
+## Ends in an error in state: 110.
+##
+## code_header -> KWD_CODE recursive . option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_UNROLL TILDEMINUS
+##
+## Ends in an error in state: 111.
+##
+## inline -> KWD_UNROLL . LPAREN plain_int RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_UNROLL LPAREN TILDEMINUS
+##
+## Ends in an error in state: 112.
+##
+## inline -> KWD_UNROLL LPAREN . plain_int RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_UNROLL LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 113.
+##
+## inline -> KWD_UNROLL LPAREN plain_int . RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL LPAREN plain_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE TILDEMINUS
+##
+## Ends in an error in state: 115.
+##
+## inline -> KWD_INLINE . LPAREN KWD_ALWAYS RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE . LPAREN KWD_AVAILABLE RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE . LPAREN KWD_NEVER RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE . LPAREN KWD_DEFAULT RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN TILDEMINUS
+##
+## Ends in an error in state: 116.
+##
+## inline -> KWD_INLINE LPAREN . KWD_ALWAYS RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE LPAREN . KWD_AVAILABLE RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE LPAREN . KWD_NEVER RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+## inline -> KWD_INLINE LPAREN . KWD_DEFAULT RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN KWD_NEVER TILDEMINUS
+##
+## Ends in an error in state: 117.
+##
+## inline -> KWD_INLINE LPAREN KWD_NEVER . RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE LPAREN KWD_NEVER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN KWD_DEFAULT TILDEMINUS
+##
+## Ends in an error in state: 119.
+##
+## inline -> KWD_INLINE LPAREN KWD_DEFAULT . RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE LPAREN KWD_DEFAULT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN KWD_AVAILABLE TILDEMINUS
+##
+## Ends in an error in state: 121.
+##
+## inline -> KWD_INLINE LPAREN KWD_AVAILABLE . RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE LPAREN KWD_AVAILABLE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN KWD_ALWAYS TILDEMINUS
+##
+## Ends in an error in state: 123.
+##
+## inline -> KWD_INLINE LPAREN KWD_ALWAYS . RPAREN [ KWD_SIZE KWD_LOOPIFY ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINE LPAREN KWD_ALWAYS
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_INLINE LPAREN KWD_ALWAYS RPAREN TILDEMINUS
+##
+## Ends in an error in state: 125.
+##
+## code_header -> KWD_CODE recursive option(inline) . loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_LOOPIFY TILDEMINUS
+##
+## Ends in an error in state: 126.
+##
+## loopify_opt -> KWD_LOOPIFY . LPAREN loopify RPAREN [ KWD_SIZE ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LOOPIFY
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_LOOPIFY LPAREN TILDEMINUS
+##
+## Ends in an error in state: 127.
+##
+## loopify_opt -> KWD_LOOPIFY LPAREN . loopify RPAREN [ KWD_SIZE ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LOOPIFY LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_LOOPIFY LPAREN KWD_DEFAULT TILDEMINUS
+##
+## Ends in an error in state: 130.
+##
+## loopify -> KWD_DEFAULT . KWD_TAILREC [ RPAREN ]
+## loopify -> KWD_DEFAULT . [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEFAULT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_LOOPIFY LPAREN KWD_ALWAYS TILDEMINUS
+##
+## Ends in an error in state: 133.
+##
+## loopify_opt -> KWD_LOOPIFY LPAREN loopify . RPAREN [ KWD_SIZE ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LOOPIFY LPAREN loopify
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_LOOPIFY LPAREN KWD_ALWAYS RPAREN TILDEMINUS
+##
+## Ends in an error in state: 135.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt . KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE TILDEMINUS
+##
+## Ends in an error in state: 136.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE . LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN TILDEMINUS
+##
+## Ends in an error in state: 137.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN . code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 139.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size . RPAREN option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 140.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN . option(newer_version_of) boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN KWD_NEWER_VERSION_OF TILDEMINUS
+##
+## Ends in an error in state: 141.
+##
+## newer_version_of -> KWD_NEWER_VERSION_OF . LPAREN code_id RPAREN [ KWD_TUPLED IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NEWER_VERSION_OF
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN KWD_NEWER_VERSION_OF LPAREN TILDEMINUS
+##
+## Ends in an error in state: 142.
+##
+## newer_version_of -> KWD_NEWER_VERSION_OF LPAREN . code_id RPAREN [ KWD_TUPLED IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NEWER_VERSION_OF LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN KWD_NEWER_VERSION_OF LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 143.
+##
+## newer_version_of -> KWD_NEWER_VERSION_OF LPAREN code_id . RPAREN [ KWD_TUPLED IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NEWER_VERSION_OF LPAREN code_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN KWD_NEWER_VERSION_OF LPAREN IDENT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 145.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) . boption(KWD_TUPLED) code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN KWD_TUPLED TILDEMINUS
+##
+## Ends in an error in state: 147.
+##
+## code_header -> KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED) . code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive option(inline) loopify_opt KWD_SIZE LPAREN code_size RPAREN option(newer_version_of) boption(KWD_TUPLED)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE IDENT TILDEMINUS
+##
+## Ends in an error in state: 151.
+##
+## deleted_code -> KWD_CODE code_id . KWD_DELETED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE code_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT TILDEMINUS
+##
+## Ends in an error in state: 153.
+##
+## let_binding -> variable . EQUAL named [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 154.
+##
+## let_binding -> variable EQUAL . named [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## variable EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_STRING_LOAD TILDEMINUS
+##
+## Ends in an error in state: 161.
+##
+## prefix_binop -> PRIM_STRING_LOAD . string_accessor_width [ LPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_STRING_LOAD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT TILDEMINUS
+##
+## Ends in an error in state: 165.
+##
+## unop -> PRIM_PROJECT_VALUE_SLOT . function_slot DOT value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_VALUE_SLOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT TILDEMINUS
+##
+## Ends in an error in state: 166.
+##
+## unop -> PRIM_PROJECT_VALUE_SLOT function_slot . DOT value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_VALUE_SLOT function_slot
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT DOT TILDEMINUS
+##
+## Ends in an error in state: 167.
+##
+## unop -> PRIM_PROJECT_VALUE_SLOT function_slot DOT . value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_VALUE_SLOT function_slot DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT TILDEMINUS
+##
+## Ends in an error in state: 169.
+##
+## unop -> PRIM_PROJECT_FUNCTION_SLOT . LPAREN function_slot MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_FUNCTION_SLOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 170.
+##
+## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN . function_slot MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_FUNCTION_SLOT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 171.
+##
+## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot . MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 172.
+##
+## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER . function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MINUSGREATER IDENT TILDEMINUS
+##
+## Ends in an error in state: 173.
+##
+## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER function_slot . RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER function_slot
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV TILDEMINUS
+##
+## Ends in an error in state: 178.
+##
+## unop -> PRIM_NUM_CONV . LPAREN convertible_type MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_NUM_CONV
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN TILDEMINUS
+##
+## Ends in an error in state: 179.
+##
+## unop -> PRIM_NUM_CONV LPAREN . convertible_type MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_NUM_CONV LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_IMM TILDEMINUS
+##
+## Ends in an error in state: 183.
+##
+## convertible_type -> KWD_IMM . KWD_TAGGED [ RPAREN MINUSGREATER ]
+## convertible_type -> KWD_IMM . [ RPAREN MINUSGREATER ]
+##
+## The known suffix of the stack is as follows:
+## KWD_IMM
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT RPAREN
+##
+## Ends in an error in state: 186.
+##
+## unop -> PRIM_NUM_CONV LPAREN convertible_type . MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_NUM_CONV LPAREN convertible_type
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 187.
+##
+## unop -> PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER . convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATER KWD_FLOAT MINUSGREATER
+##
+## Ends in an error in state: 188.
+##
+## unop -> PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER convertible_type . RPAREN [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER convertible_type
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT TILDEMINUS
+##
+## Ends in an error in state: 192.
+##
+## binop_app -> PRIM_INT_SHIFT . standard_int simple int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_SHIFT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT KWD_IMM TILDEMINUS
+##
+## Ends in an error in state: 197.
+##
+## binop_app -> PRIM_INT_SHIFT standard_int . simple int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_SHIFT standard_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT TILDEMINUS
+##
+## Ends in an error in state: 198.
+##
+## binop_app -> PRIM_INT_SHIFT standard_int simple . int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_LSR KWD_LSL KWD_ASR ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_SHIFT standard_int simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR TILDEMINUS
+##
+## Ends in an error in state: 202.
+##
+## binop_app -> PRIM_INT_SHIFT standard_int simple int_shift . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_SHIFT standard_int simple int_shift
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR FLOAT TILDEMINUS
+##
+## Ends in an error in state: 203.
+##
+## binop_app -> PRIM_INT_SHIFT standard_int simple int_shift simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_SHIFT standard_int simple int_shift simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP TILDEMINUS
+##
+## Ends in an error in state: 204.
+##
+## binop_app -> PRIM_INT_COMP . standard_int signed_or_unsigned simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_IMM TILDEMINUS
+##
+## Ends in an error in state: 205.
+##
+## binop_app -> PRIM_INT_COMP standard_int . signed_or_unsigned simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP standard_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_UNSIGNED TILDEMINUS
+##
+## Ends in an error in state: 207.
+##
+## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned . simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP standard_int signed_or_unsigned
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT TILDEMINUS
+##
+## Ends in an error in state: 208.
+##
+## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple . int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE QMARK NOTEQUAL LESSEQUAL LESS GREATEREQUAL GREATER EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP standard_int signed_or_unsigned simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 216.
+##
+## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL FLOAT TILDEMINUS
+##
+## Ends in an error in state: 217.
+##
+## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH TILDE
+##
+## Ends in an error in state: 218.
+##
+## binop_app -> PRIM_INT_ARITH . standard_int simple binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
+## unop -> PRIM_INT_ARITH . standard_int unary_int_arith_op [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_ARITH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH KWD_IMM TILDE
+##
+## Ends in an error in state: 219.
+##
+## binop_app -> PRIM_INT_ARITH standard_int . simple binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
+## unop -> PRIM_INT_ARITH standard_int . unary_int_arith_op [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_ARITH standard_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT TILDEMINUS
+##
+## Ends in an error in state: 223.
+##
+## binop_app -> PRIM_INT_ARITH standard_int simple . binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE STAR SLASH PLUS PERCENT MINUS KWD_LXOR KWD_LOR KWD_LAND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_ARITH standard_int simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND TILDEMINUS
+##
+## Ends in an error in state: 232.
+##
+## binop_app -> PRIM_INT_ARITH standard_int simple binary_int_arith_op . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_ARITH standard_int simple binary_int_arith_op
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND FLOAT TILDEMINUS
+##
+## Ends in an error in state: 233.
+##
+## binop_app -> PRIM_INT_ARITH standard_int simple binary_int_arith_op simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_INT_ARITH standard_int simple binary_int_arith_op simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BYTES_LOAD TILDEMINUS
+##
+## Ends in an error in state: 237.
+##
+## prefix_binop -> PRIM_BYTES_LOAD . string_accessor_width [ LPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BYTES_LOAD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_NATIVEINT TILDEMINUS
+##
+## Ends in an error in state: 240.
+##
+## unop -> PRIM_BOX_NATIVEINT . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BOX_NATIVEINT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT64 TILDEMINUS
+##
+## Ends in an error in state: 242.
+##
+## unop -> PRIM_BOX_INT64 . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BOX_INT64
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT32 TILDEMINUS
+##
+## Ends in an error in state: 244.
+##
+## unop -> PRIM_BOX_INT32 . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BOX_INT32
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 246.
+##
+## unop -> PRIM_BOX_FLOAT . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BOX_FLOAT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET TILDEMINUS
+##
+## Ends in an error in state: 249.
+##
+## ternop_app -> PRIM_BLOCK_SET . block_access_kind simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 251.
+##
+## block_access_kind -> KWD_FLOAT . size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_FLOAT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE TILDEMINUS
+##
+## Ends in an error in state: 252.
+##
+## size_opt -> KWD_SIZE . LPAREN targetint RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SIZE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN TILDEMINUS
+##
+## Ends in an error in state: 253.
+##
+## size_opt -> KWD_SIZE LPAREN . targetint RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SIZE LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 255.
+##
+## size_opt -> KWD_SIZE LPAREN targetint . RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SIZE LPAREN targetint
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM LPAREN
+##
+## Ends in an error in state: 258.
+##
+## ternop_app -> PRIM_BLOCK_SET block_access_kind . simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 269, spurious reduction of production tag_opt ->
+## In state 274, spurious reduction of production size_opt ->
+## In state 275, spurious reduction of production block_access_kind -> block_access_field_kind tag_opt size_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT TILDEMINUS
+##
+## Ends in an error in state: 259.
+##
+## simple -> simple . TILDE coercion [ TILDE DOT ]
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple . DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT TILDEMINUS
+##
+## Ends in an error in state: 260.
+##
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT . LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 261.
+##
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN . simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 262.
+##
+## simple -> simple . TILDE coercion [ TILDE RPAREN ]
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple . RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 263.
+##
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN . init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN LESSMINUS TILDEMINUS
+##
+## Ends in an error in state: 264.
+##
+## init_or_assign -> LESSMINUS . [ SYMBOL INT IDENT FLOAT ]
+## init_or_assign -> LESSMINUS . AMP [ SYMBOL INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## LESSMINUS
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL TILDEMINUS
+##
+## Ends in an error in state: 267.
+##
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL FLOAT TILDEMINUS
+##
+## Ends in an error in state: 268.
+##
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign simple . [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM TILDEMINUS
+##
+## Ends in an error in state: 269.
+##
+## block_access_kind -> block_access_field_kind . tag_opt size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## block_access_field_kind
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG TILDEMINUS
+##
+## Ends in an error in state: 270.
+##
+## tag_opt -> KWD_TAG . LPAREN tag RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_TAG
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN TILDEMINUS
+##
+## Ends in an error in state: 271.
+##
+## tag_opt -> KWD_TAG LPAREN . tag RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_TAG LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 272.
+##
+## tag_opt -> KWD_TAG LPAREN tag . RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_TAG LPAREN tag
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 274.
+##
+## block_access_kind -> block_access_field_kind tag_opt . size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## block_access_field_kind tag_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD TILDEMINUS
+##
+## Ends in an error in state: 276.
+##
+## prefix_binop -> PRIM_BLOCK_LOAD . mutability block_access_kind [ LPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_LOAD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD KWD_IMMUTABLE_UNIQUE TILDEMINUS
+##
+## Ends in an error in state: 279.
+##
+## prefix_binop -> PRIM_BLOCK_LOAD mutability . block_access_kind [ LPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK_LOAD mutability
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK TILDEMINUS
+##
+## Ends in an error in state: 281.
+##
+## block -> PRIM_BLOCK . mutability tag alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK KWD_IMMUTABLE_UNIQUE TILDEMINUS
+##
+## Ends in an error in state: 282.
+##
+## block -> PRIM_BLOCK mutability . tag alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK mutability
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT TILDEMINUS
+##
+## Ends in an error in state: 283.
+##
+## block -> PRIM_BLOCK mutability tag . alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK mutability tag
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT AMP IDENT TILDEMINUS
+##
+## Ends in an error in state: 284.
+##
+## block -> PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt . LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 285.
+##
+## block -> PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt LPAREN . loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_LOAD TILDEMINUS
+##
+## Ends in an error in state: 290.
+##
+## prefix_binop -> PRIM_BIGSTRING_LOAD . string_accessor_width [ LPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_BIGSTRING_LOAD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET TILDEMINUS
+##
+## Ends in an error in state: 294.
+##
+## ternop_app -> PRIM_ARRAY_SET . array_kind simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET KWD_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 297.
+##
+## ternop_app -> PRIM_ARRAY_SET array_kind . simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT TILDEMINUS
+##
+## Ends in an error in state: 298.
+##
+## simple -> simple . TILDE coercion [ TILDE DOT ]
+## ternop_app -> PRIM_ARRAY_SET array_kind simple . DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT TILDEMINUS
+##
+## Ends in an error in state: 299.
+##
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT . LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 300.
+##
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN . simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 301.
+##
+## simple -> simple . TILDE coercion [ TILDE RPAREN ]
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple . RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 302.
+##
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN . init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL TILDEMINUS
+##
+## Ends in an error in state: 303.
+##
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL FLOAT TILDEMINUS
+##
+## Ends in an error in state: 304.
+##
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign simple . [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD TILDEMINUS
+##
+## Ends in an error in state: 305.
+##
+## binop_app -> PRIM_ARRAY_LOAD . array_kind mutability simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 306.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind . mutability simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_IMMUTABLE_UNIQUE TILDEMINUS
+##
+## Ends in an error in state: 307.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability . simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT TILDEMINUS
+##
+## Ends in an error in state: 308.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple . DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE DOT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT TILDEMINUS
+##
+## Ends in an error in state: 309.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT . LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability simple DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 310.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN . simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 311.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN simple . RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO TILDEMINUS
+##
+## Ends in an error in state: 314.
+##
+## named -> KWD_REC_INFO . rec_info_atom [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_REC_INFO
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH TILDEMINUS
+##
+## Ends in an error in state: 316.
+##
+## named -> unop . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## unop
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH FLOAT TILDEMINUS
+##
+## Ends in an error in state: 317.
+##
+## named -> unop simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## unop simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL FLOAT TILDEMINUS
+##
+## Ends in an error in state: 319.
+##
+## binop_app -> simple . infix_binop simple [ KWD_WITH KWD_IN KWD_AND ]
+## named -> simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE STARDOT STAR SLASHDOT SLASH QMARKDOT QMARK PLUSDOT PLUS PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_AND GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT TILDEMINUS
+##
+## Ends in an error in state: 333.
+##
+## binop_app -> simple infix_binop . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple infix_binop
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT FLOAT TILDEMINUS
+##
+## Ends in an error in state: 334.
+##
+## binop_app -> simple infix_binop simple . [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple infix_binop simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_PHYS_EQ TILDEMINUS
+##
+## Ends in an error in state: 338.
+##
+## binop_app -> prefix_binop . LPAREN simple COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## prefix_binop
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN TILDEMINUS
+##
+## Ends in an error in state: 339.
+##
+## binop_app -> prefix_binop LPAREN . simple COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## prefix_binop LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 340.
+##
+## binop_app -> prefix_binop LPAREN simple . COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE COMMA ]
+##
+## The known suffix of the stack is as follows:
+## prefix_binop LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA TILDEMINUS
+##
+## Ends in an error in state: 341.
+##
+## binop_app -> prefix_binop LPAREN simple COMMA . simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## prefix_binop LPAREN simple COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA FLOAT TILDEMINUS
+##
+## Ends in an error in state: 342.
+##
+## binop_app -> prefix_binop LPAREN simple COMMA simple . RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## simple -> simple . TILDE coercion [ TILDE RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## prefix_binop LPAREN simple COMMA simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET TILDEMINUS
+##
+## Ends in an error in state: 347.
+##
+## ternop_app -> bytes_or_bigstring_set . string_accessor_width simple DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT TILDEMINUS
+##
+## Ends in an error in state: 348.
+##
+## ternop_app -> bytes_or_bigstring_set string_accessor_width . simple DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT TILDEMINUS
+##
+## Ends in an error in state: 349.
+##
+## simple -> simple . TILDE coercion [ TILDE DOT ]
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple . DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT TILDEMINUS
+##
+## Ends in an error in state: 350.
+##
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT . LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple DOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 351.
+##
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN . simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple DOT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 352.
+##
+## simple -> simple . TILDE coercion [ TILDE RPAREN ]
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple . RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 353.
+##
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN . simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT RPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 354.
+##
+## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN simple . [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED TILDEMINUS
+##
+## Ends in an error in state: 357.
+##
+## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding . [ KWD_WITH KWD_IN ]
+## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding . KWD_AND separated_nonempty_list(KWD_AND,symbol_binding) [ KWD_WITH KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## symbol_binding
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_AND TILDEMINUS
+##
+## Ends in an error in state: 358.
+##
+## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding KWD_AND . separated_nonempty_list(KWD_AND,symbol_binding) [ KWD_WITH KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## symbol_binding KWD_AND
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL TILDEMINUS
+##
+## Ends in an error in state: 359.
+##
+## static_closure_binding -> symbol . EQUAL fun_decl [ KWD_WITH KWD_IN KWD_AND ]
+## static_data_binding -> symbol . EQUAL static_data [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## symbol
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL TILDEMINUS
+##
+## Ends in an error in state: 360.
+##
+## static_closure_binding -> symbol EQUAL . fun_decl [ KWD_WITH KWD_IN KWD_AND ]
+## static_data_binding -> symbol EQUAL . static_data [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## symbol EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK TILDEMINUS
+##
+## Ends in an error in state: 362.
+##
+## static_data -> STATIC_CONST_FLOAT_BLOCK . LPAREN loption(separated_nonempty_list(COMMA,float_or_variable)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_FLOAT_BLOCK
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN TILDEMINUS
+##
+## Ends in an error in state: 363.
+##
+## static_data -> STATIC_CONST_FLOAT_BLOCK LPAREN . loption(separated_nonempty_list(COMMA,float_or_variable)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_FLOAT_BLOCK LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 369.
+##
+## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable . [ RPAREN ]
+## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable . COMMA separated_nonempty_list(COMMA,float_or_variable) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## float_or_variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT COMMA TILDEMINUS
+##
+## Ends in an error in state: 370.
+##
+## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable COMMA . separated_nonempty_list(COMMA,float_or_variable) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## float_or_variable COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY TILDEMINUS
+##
+## Ends in an error in state: 372.
+##
+## static_data -> STATIC_CONST_FLOAT_ARRAY . LBRACKPIPE loption(separated_nonempty_list(SEMICOLON,float_or_variable)) RBRACKPIPE [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_FLOAT_ARRAY
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE TILDEMINUS
+##
+## Ends in an error in state: 373.
+##
+## static_data -> STATIC_CONST_FLOAT_ARRAY LBRACKPIPE . loption(separated_nonempty_list(SEMICOLON,float_or_variable)) RBRACKPIPE [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_FLOAT_ARRAY LBRACKPIPE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT TILDEMINUS
+##
+## Ends in an error in state: 377.
+##
+## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable . [ RBRACKPIPE ]
+## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable . SEMICOLON separated_nonempty_list(SEMICOLON,float_or_variable) [ RBRACKPIPE ]
+##
+## The known suffix of the stack is as follows:
+## float_or_variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT SEMICOLON TILDEMINUS
+##
+## Ends in an error in state: 378.
+##
+## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable SEMICOLON . separated_nonempty_list(SEMICOLON,float_or_variable) [ RBRACKPIPE ]
+##
+## The known suffix of the stack is as follows:
+## float_or_variable SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK TILDEMINUS
+##
+## Ends in an error in state: 381.
+##
+## static_data -> STATIC_CONST_BLOCK . mutability tag LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_BLOCK
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK KWD_IMMUTABLE_UNIQUE TILDEMINUS
+##
+## Ends in an error in state: 382.
+##
+## static_data -> STATIC_CONST_BLOCK mutability . tag LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_BLOCK mutability
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT TILDEMINUS
+##
+## Ends in an error in state: 383.
+##
+## static_data -> STATIC_CONST_BLOCK mutability tag . LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_BLOCK mutability tag
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 384.
+##
+## static_data -> STATIC_CONST_BLOCK mutability tag LPAREN . loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STATIC_CONST_BLOCK mutability tag LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL TILDEMINUS
+##
+## Ends in an error in state: 391.
+##
+## separated_nonempty_list(COMMA,field_of_block) -> field_of_block . [ RPAREN ]
+## separated_nonempty_list(COMMA,field_of_block) -> field_of_block . COMMA separated_nonempty_list(COMMA,field_of_block) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## field_of_block
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL COMMA TILDEMINUS
+##
+## Ends in an error in state: 392.
+##
+## separated_nonempty_list(COMMA,field_of_block) -> field_of_block COMMA . separated_nonempty_list(COMMA,field_of_block) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## field_of_block COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL KWD_MUTABLE TILDEMINUS
+##
+## Ends in an error in state: 394.
+##
+## static_data -> KWD_MUTABLE . STRING [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_MUTABLE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT TILDEMINUS
+##
+## Ends in an error in state: 398.
+##
+## static_data -> variable . COLON static_data_kind [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON TILDEMINUS
+##
+## Ends in an error in state: 399.
+##
+## static_data -> variable COLON . static_data_kind [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## variable COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_NATIVEINT TILDEMINUS
+##
+## Ends in an error in state: 400.
+##
+## static_data_kind -> KWD_NATIVEINT . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NATIVEINT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT64 TILDEMINUS
+##
+## Ends in an error in state: 402.
+##
+## static_data_kind -> KWD_INT64 . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INT64
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT32 TILDEMINUS
+##
+## Ends in an error in state: 404.
+##
+## static_data_kind -> KWD_INT32 . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INT32
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 406.
+##
+## static_data_kind -> KWD_FLOAT . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_FLOAT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 415.
+##
+## code -> code_header . kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 416.
+##
+## kinded_args -> LPAREN . separated_nonempty_list(COMMA,kinded_variable) RPAREN [ IDENT EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 417.
+##
+## kinded_variable -> variable . kind_with_subkind_opt [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON TILDEMINUS
+##
+## Ends in an error in state: 418.
+##
+## kind_with_subkind_opt -> COLON . kind_with_subkind [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK TILDEMINUS
+##
+## Ends in an error in state: 419.
+##
+## subkind -> LBRACK . ctors RBRACK [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACK
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT TILDEMINUS
+##
+## Ends in an error in state: 420.
+##
+## tag -> INT . [ KWD_OF ]
+## targetint -> INT . [ RBRACK PIPE ]
+##
+## The known suffix of the stack is as follows:
+## INT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT PIPE TILDEMINUS
+##
+## Ends in an error in state: 422.
+##
+## ctors_nonempty -> targetint PIPE . ctors_nonempty [ RBRACK ]
+##
+## The known suffix of the stack is as follows:
+## targetint PIPE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE INT TILDEMINUS
+##
+## Ends in an error in state: 423.
+##
+## nonconst_ctor -> tag . KWD_OF kinds_with_subkinds_nonempty [ RBRACK PIPE ]
+##
+## The known suffix of the stack is as follows:
+## tag
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF TILDEMINUS
+##
+## Ends in an error in state: 424.
+##
+## nonconst_ctor -> tag KWD_OF . kinds_with_subkinds_nonempty [ RBRACK PIPE ]
+##
+## The known suffix of the stack is as follows:
+## tag KWD_OF
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_VAL TILDEMINUS
+##
+## Ends in an error in state: 425.
+##
+## subkind -> KWD_VAL . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_VAL . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_VAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_NATIVEINT TILDEMINUS
+##
+## Ends in an error in state: 429.
+##
+## naked_number_kind -> KWD_NATIVEINT . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_NATIVEINT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NATIVEINT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT64 TILDEMINUS
+##
+## Ends in an error in state: 431.
+##
+## naked_number_kind -> KWD_INT64 . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_INT64 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INT64
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT32 TILDEMINUS
+##
+## Ends in an error in state: 433.
+##
+## naked_number_kind -> KWD_INT32 . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_INT32 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INT32
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_IMM TILDEMINUS
+##
+## Ends in an error in state: 435.
+##
+## naked_number_kind -> KWD_IMM . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_IMM . KWD_TAGGED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_IMM . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_IMM
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT TILDEMINUS
+##
+## Ends in an error in state: 438.
+##
+## naked_number_kind -> KWD_FLOAT . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_FLOAT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_FLOAT . CARET plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_FLOAT . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_FLOAT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT CARET TILDEMINUS
+##
+## Ends in an error in state: 441.
+##
+## subkind -> KWD_FLOAT CARET . plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_FLOAT CARET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_ANY TILDEMINUS
+##
+## Ends in an error in state: 443.
+##
+## subkind -> KWD_ANY . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+##
+## The known suffix of the stack is as follows:
+## KWD_ANY
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_REC_INFO TILDEMINUS
+##
+## Ends in an error in state: 449.
+##
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . STAR separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## kind_with_subkind
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT STAR TILDEMINUS
+##
+## Ends in an error in state: 450.
+##
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind STAR . separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## kind_with_subkind STAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT RPAREN
+##
+## Ends in an error in state: 454.
+##
+## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor . [ RBRACK ]
+## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor . PIPE separated_nonempty_list(PIPE,nonconst_ctor) [ RBRACK ]
+##
+## The known suffix of the stack is as follows:
+## nonconst_ctor
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 438, spurious reduction of production naked_number_kind -> KWD_FLOAT
+## In state 447, spurious reduction of production kind_with_subkind -> naked_number_kind
+## In state 449, spurious reduction of production separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind
+## In state 446, spurious reduction of production kinds_with_subkinds_nonempty -> separated_nonempty_list(STAR,kind_with_subkind)
+## In state 448, spurious reduction of production nonconst_ctor -> tag KWD_OF kinds_with_subkinds_nonempty
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE TILDEMINUS
+##
+## Ends in an error in state: 455.
+##
+## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor PIPE . separated_nonempty_list(PIPE,nonconst_ctor) [ RBRACK ]
+##
+## The known suffix of the stack is as follows:
+## nonconst_ctor PIPE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON KWD_REC_INFO TILDEMINUS
+##
+## Ends in an error in state: 465.
+##
+## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable . [ RPAREN ]
+## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable . COMMA separated_nonempty_list(COMMA,kinded_variable) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## kinded_variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COMMA TILDEMINUS
+##
+## Ends in an error in state: 466.
+##
+## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable COMMA . separated_nonempty_list(COMMA,kinded_variable) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## kinded_variable COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT LPAREN IDENT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 468.
+##
+## code -> code_header kinded_args . variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT TILDEMINUS
+##
+## Ends in an error in state: 469.
+##
+## code -> code_header kinded_args variable . variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT TILDEMINUS
+##
+## Ends in an error in state: 470.
+##
+## code -> code_header kinded_args variable variable . variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT TILDEMINUS
+##
+## Ends in an error in state: 471.
+##
+## code -> code_header kinded_args variable variable variable . MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 472.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER . continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT TILDEMINUS
+##
+## Ends in an error in state: 473.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id . exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR TILDEMINUS
+##
+## Ends in an error in state: 474.
+##
+## exn_continuation_id -> STAR . continuation_id [ EQUAL COLON ]
+##
+## The known suffix of the stack is as follows:
+## STAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT TILDEMINUS
+##
+## Ends in an error in state: 476.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id . return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT COLON TILDEMINUS
+##
+## Ends in an error in state: 477.
+##
+## return_arity -> COLON . kinds_with_subkinds [ EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT COLON KWD_UNIT TILDEMINUS
+##
+## Ends in an error in state: 481.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity . EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 482.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL . expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_INVALID TILDEMINUS
+##
+## Ends in an error in state: 483.
+##
+## atomic_expr -> KWD_INVALID . STRING [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INVALID
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_CONT TILDEMINUS
+##
+## Ends in an error in state: 486.
+##
+## atomic_expr -> KWD_CONT . apply_cont_expr [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CONT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY TILDEMINUS
+##
+## Ends in an error in state: 488.
+##
+## atomic_expr -> KWD_APPLY . apply_expr [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT TILDEMINUS
+##
+## Ends in an error in state: 491.
+##
+## call_kind -> KWD_DIRECT . LPAREN code_id function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DIRECT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN TILDEMINUS
+##
+## Ends in an error in state: 492.
+##
+## call_kind -> KWD_DIRECT LPAREN . code_id function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DIRECT LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT TILDEMINUS
+##
+## Ends in an error in state: 493.
+##
+## call_kind -> KWD_DIRECT LPAREN code_id . function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DIRECT LPAREN code_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AT IDENT TILDEMINUS
+##
+## Ends in an error in state: 494.
+##
+## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt . alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DIRECT LPAREN code_id function_slot_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT KWD_HEAP_OR_LOCAL TILDEMINUS
+##
+## Ends in an error in state: 495.
+##
+## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_types_opt . RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_types_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_CCALL TILDEMINUS
+##
+## Ends in an error in state: 497.
+##
+## call_kind -> KWD_CCALL . boption(KWD_NOALLOC) [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CCALL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_HEAP_OR_LOCAL TILDEMINUS
+##
+## Ends in an error in state: 500.
+##
+## apply_expr -> call_kind . option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_UNROLL TILDEMINUS
+##
+## Ends in an error in state: 501.
+##
+## inlined -> KWD_UNROLL . LPAREN plain_int RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN TILDEMINUS
+##
+## Ends in an error in state: 502.
+##
+## inlined -> KWD_UNROLL LPAREN . plain_int RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 503.
+##
+## inlined -> KWD_UNROLL LPAREN plain_int . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_UNROLL LPAREN plain_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED TILDEMINUS
+##
+## Ends in an error in state: 505.
+##
+## inlined -> KWD_INLINED . LPAREN KWD_ALWAYS RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED . LPAREN KWD_HINT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED . LPAREN KWD_NEVER RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED . LPAREN KWD_DEFAULT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN TILDEMINUS
+##
+## Ends in an error in state: 506.
+##
+## inlined -> KWD_INLINED LPAREN . KWD_ALWAYS RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED LPAREN . KWD_HINT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED LPAREN . KWD_NEVER RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+## inlined -> KWD_INLINED LPAREN . KWD_DEFAULT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_NEVER TILDEMINUS
+##
+## Ends in an error in state: 507.
+##
+## inlined -> KWD_INLINED LPAREN KWD_NEVER . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED LPAREN KWD_NEVER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_HINT TILDEMINUS
+##
+## Ends in an error in state: 509.
+##
+## inlined -> KWD_INLINED LPAREN KWD_HINT . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED LPAREN KWD_HINT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_DEFAULT TILDEMINUS
+##
+## Ends in an error in state: 511.
+##
+## inlined -> KWD_INLINED LPAREN KWD_DEFAULT . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED LPAREN KWD_DEFAULT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS TILDEMINUS
+##
+## Ends in an error in state: 513.
+##
+## inlined -> KWD_INLINED LPAREN KWD_ALWAYS . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINED LPAREN KWD_ALWAYS
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS RPAREN TILDEMINUS
+##
+## Ends in an error in state: 515.
+##
+## apply_expr -> call_kind option(inlined) . option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE TILDEMINUS
+##
+## Ends in an error in state: 516.
+##
+## inlining_state -> KWD_INLINING_STATE . LPAREN inlining_state_depth RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINING_STATE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN TILDEMINUS
+##
+## Ends in an error in state: 517.
+##
+## inlining_state -> KWD_INLINING_STATE LPAREN . inlining_state_depth RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINING_STATE LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH TILDEMINUS
+##
+## Ends in an error in state: 518.
+##
+## inlining_state_depth -> KWD_DEPTH . LPAREN plain_int RPAREN [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN TILDEMINUS
+##
+## Ends in an error in state: 519.
+##
+## inlining_state_depth -> KWD_DEPTH LPAREN . plain_int RPAREN [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT TILDEMINUS
+##
+## Ends in an error in state: 520.
+##
+## inlining_state_depth -> KWD_DEPTH LPAREN plain_int . RPAREN [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## KWD_DEPTH LPAREN plain_int
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 522.
+##
+## inlining_state -> KWD_INLINING_STATE LPAREN inlining_state_depth . RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_INLINING_STATE LPAREN inlining_state_depth
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPAREN RPAREN TILDEMINUS
+##
+## Ends in an error in state: 524.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) . func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN TILDEMINUS
+##
+## Ends in an error in state: 525.
+##
+## func_name_with_optional_arities -> LPAREN . simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT TILDEMINUS
+##
+## Ends in an error in state: 526.
+##
+## func_name_with_optional_arities -> LPAREN simple . COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## simple -> simple . TILDE coercion [ TILDE COLON ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON TILDEMINUS
+##
+## Ends in an error in state: 527.
+##
+## func_name_with_optional_arities -> LPAREN simple COLON . blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN simple COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_UNIT TILDEMINUS
+##
+## Ends in an error in state: 530.
+##
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) . MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN simple COLON blank_or(kinds_with_subkinds)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 531.
+##
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER . kinds_with_subkinds RPAREN [ LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_UNIT TILDEMINUS
+##
+## Ends in an error in state: 532.
+##
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds . RPAREN [ LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT TILDEMINUS
+##
+## Ends in an error in state: 534.
+##
+## func_name_with_optional_arities -> simple . [ LPAREN AMP ]
+## simple -> simple . TILDE coercion [ TILDE LPAREN AMP ]
+##
+## The known suffix of the stack is as follows:
+## simple
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 535.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities . simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT LPAREN FLOAT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 536.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args . AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT AMP TILDEMINUS
+##
+## Ends in an error in state: 537.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP . region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT AMP IDENT TILDEMINUS
+##
+## Ends in an error in state: 538.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region . MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER TILDEMINUS
+##
+## Ends in an error in state: 539.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER . result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER IDENT TILDEMINUS
+##
+## Ends in an error in state: 541.
+##
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation . exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER IDENT STAR TILDEMINUS
+##
+## Ends in an error in state: 542.
+##
+## exn_continuation -> STAR . continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## STAR
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF TILDEMINUS
+##
+## Ends in an error in state: 553.
+##
+## expr -> inner_expr . [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+## where_expr -> inner_expr . KWD_WHERE recursive loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## inner_expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE TILDEMINUS
+##
+## Ends in an error in state: 554.
+##
+## where_expr -> inner_expr KWD_WHERE . recursive loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## inner_expr KWD_WHERE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE KWD_REC TILDEMINUS
+##
+## Ends in an error in state: 555.
+##
+## where_expr -> inner_expr KWD_WHERE recursive . loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## inner_expr KWD_WHERE recursive
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT TILDEMINUS
+##
+## Ends in an error in state: 558.
+##
+## continuation_binding -> continuation_id . continuation_sort kinded_args EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_id
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT KWD_DEFINE_ROOT_SYMBOL TILDEMINUS
+##
+## Ends in an error in state: 561.
+##
+## continuation_binding -> continuation_id continuation_sort . kinded_args EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_id continuation_sort
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT RPAREN TILDEMINUS
+##
+## Ends in an error in state: 562.
+##
+## continuation_binding -> continuation_id continuation_sort kinded_args . EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_id continuation_sort kinded_args
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 563.
+##
+## continuation_binding -> continuation_id continuation_sort kinded_args EQUAL . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_id continuation_sort kinded_args EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET TILDEMINUS
+##
+## Ends in an error in state: 564.
+##
+## let_expr(continuation_body) -> KWD_LET . let_(continuation_body) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## let_symbol(continuation_body) -> KWD_LET . separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELETED KWD_WITH LBRACE RBRACE TILDEMINUS
+##
+## Ends in an error in state: 566.
+##
+## let_symbol(continuation_body) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt . KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELETED KWD_IN TILDEMINUS
+##
+## Ends in an error in state: 567.
+##
+## let_symbol(continuation_body) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE RBRACE TILDEMINUS
+##
+## Ends in an error in state: 573.
+##
+## let_(continuation_body) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt . KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_IN TILDEMINUS
+##
+## Ends in an error in state: 574.
+##
+## let_(continuation_body) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION TILDEMINUS
+##
+## Ends in an error in state: 576.
+##
+## separated_nonempty_list(KWD_AND,let_binding) -> let_binding . [ KWD_WITH KWD_IN ]
+## separated_nonempty_list(KWD_AND,let_binding) -> let_binding . KWD_AND separated_nonempty_list(KWD_AND,let_binding) [ KWD_WITH KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## let_binding
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_AND TILDEMINUS
+##
+## Ends in an error in state: 577.
+##
+## separated_nonempty_list(KWD_AND,let_binding) -> let_binding KWD_AND . separated_nonempty_list(KWD_AND,let_binding) [ KWD_WITH KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## let_binding KWD_AND
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF TILDEMINUS
+##
+## Ends in an error in state: 582.
+##
+## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding . [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding . KWD_ANDWHERE separated_nonempty_list(KWD_ANDWHERE,continuation_binding) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_binding
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF KWD_ANDWHERE TILDEMINUS
+##
+## Ends in an error in state: 583.
+##
+## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding KWD_ANDWHERE . separated_nonempty_list(KWD_ANDWHERE,continuation_binding) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## continuation_binding KWD_ANDWHERE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_WITH LBRACE RBRACE TILDEMINUS
+##
+## Ends in an error in state: 588.
+##
+## let_symbol(expr) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt . KWD_IN expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_IN TILDEMINUS
+##
+## Ends in an error in state: 589.
+##
+## let_symbol(expr) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN . expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE RBRACE TILDEMINUS
+##
+## Ends in an error in state: 592.
+##
+## let_(expr) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt . KWD_IN expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_IN TILDEMINUS
+##
+## Ends in an error in state: 593.
+##
+## let_(expr) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN . expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: LPAREN KWD_HCF KWD_WITH
+##
+## Ends in an error in state: 596.
+##
+## atomic_expr -> LPAREN expr . RPAREN [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 553, spurious reduction of production expr -> inner_expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF RPAREN
+##
+## Ends in an error in state: 598.
+##
+## expect_test_spec -> module_ . BIGARROW module_ EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## module_
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 553, spurious reduction of production expr -> inner_expr
+## In state 602, spurious reduction of production module_ -> expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF BIGARROW TILDEMINUS
+##
+## Ends in an error in state: 599.
+##
+## expect_test_spec -> module_ BIGARROW . module_ EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## module_ BIGARROW
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_HCF BIGARROW KWD_HCF RPAREN
+##
+## Ends in an error in state: 600.
+##
+## expect_test_spec -> module_ BIGARROW module_ . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## module_ BIGARROW module_
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 553, spurious reduction of production expr -> inner_expr
+## In state 602, spurious reduction of production module_ -> expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+flambda_unit: TILDEMINUS
+##
+## Ends in an error in state: 604.
+##
+## flambda_unit' -> . flambda_unit [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+flambda_unit: KWD_HCF RPAREN
+##
+## Ends in an error in state: 605.
+##
+## flambda_unit -> module_ . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## module_
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 553, spurious reduction of production expr -> inner_expr
+## In state 602, spurious reduction of production module_ -> expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+

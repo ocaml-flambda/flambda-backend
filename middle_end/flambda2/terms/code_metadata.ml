@@ -25,12 +25,14 @@ type t =
        for instance as a result of a partial application. *)
     result_arity : [`Unarized] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
+    result_mode : Lambda.alloc_mode;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
     check : Check_attribute.t;
     poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
+    is_opaque : bool;
     recursive : Recursive.t;
     cost_metrics : Cost_metrics.t;
     inlining_arguments : Inlining_arguments.t;
@@ -68,6 +70,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let result_types t = (metadata t).result_types
 
+  let result_mode t = (metadata t).result_mode
+
   let stub t = (metadata t).stub
 
   let inline t = (metadata t).inline
@@ -77,6 +81,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let poll_attribute t = (metadata t).poll_attribute
 
   let is_a_functor t = (metadata t).is_a_functor
+
+  let is_opaque t = (metadata t).is_opaque
 
   let recursive t = (metadata t).recursive
 
@@ -128,12 +134,14 @@ type 'a create_type =
   first_complex_local_param:int ->
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
+  result_mode:Lambda.alloc_mode ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
   check:Check_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
+  is_opaque:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
   inlining_arguments:Inlining_arguments.t ->
@@ -147,9 +155,9 @@ type 'a create_type =
   'a
 
 let createk k code_id ~newer_version_of ~params_arity ~param_modes
-    ~first_complex_local_param ~result_arity ~result_types
+    ~first_complex_local_param ~result_arity ~result_types ~result_mode
     ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~check ~poll_attribute ~is_a_functor ~recursive ~cost_metrics
+    ~check ~poll_attribute ~is_a_functor ~is_opaque ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
     ~absolute_history ~relative_history ~loopify =
   (match stub, inline with
@@ -183,12 +191,14 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       first_complex_local_param;
       result_arity;
       result_types;
+      result_mode;
       contains_no_escaping_local_allocs;
       stub;
       inline;
       check;
       poll_attribute;
       is_a_functor;
+      is_opaque;
       recursive;
       cost_metrics;
       inlining_arguments;
@@ -229,9 +239,9 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
-         is_a_functor; params_arity; param_modes;
+         is_a_functor; is_opaque; params_arity; param_modes;
          first_complex_local_param; result_arity;
-         result_types; contains_no_escaping_local_allocs;
+         result_types; result_mode; contains_no_escaping_local_allocs;
          recursive; cost_metrics; inlining_arguments;
          dbg; is_tupled; is_my_closure_used; inlining_decision;
          absolute_history; relative_history; loopify } =
@@ -243,11 +253,13 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(%a)%t@]@ \
       @[<hov 1>%t(poll_attribute@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
+      @[<hov 1>%t(is_opaque@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>%t(param_modes@ %t(%a)%t)%t@]@ \
       @[<hov 1>(first_complex_local_param@ %d)@]@ \
       @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
+      @[<hov 1>(result_mode@ %s)@]@ \
       @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
       @[<hov 1>%t(recursive@ %a)%t@]@ \
       @[<hov 1>(cost_metrics@ %a)@]@ \
@@ -281,6 +293,9 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.pop
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
+    Flambda_colours.pop
+    (if not is_opaque then Flambda_colours.elide else C.none)
+    is_opaque
     Flambda_colours.pop
     (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
@@ -317,6 +332,7 @@ let [@ocamlformat "disable"] print ppf
     else Flambda_colours.none)
     Flambda_colours.pop
     (Or_unknown_or_bottom.print Result_types.print) result_types
+    (match result_mode with Alloc_heap -> "Heap" | Alloc_local -> "Local")
     contains_no_escaping_local_allocs
     (match recursive with
     | Non_recursive -> Flambda_colours.elide
@@ -346,12 +362,14 @@ let free_names
       first_complex_local_param = _;
       result_arity = _;
       result_types;
+      result_mode = _;
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
       check = _;
       poll_attribute = _;
       is_a_functor = _;
+      is_opaque = _;
       recursive = _;
       cost_metrics = _;
       inlining_arguments = _;
@@ -387,12 +405,14 @@ let apply_renaming
        first_complex_local_param = _;
        result_arity = _;
        result_types;
+       result_mode = _;
        contains_no_escaping_local_allocs = _;
        stub = _;
        inline = _;
        check = _;
        poll_attribute = _;
        is_a_functor = _;
+       is_opaque = _;
        recursive = _;
        cost_metrics = _;
        inlining_arguments = _;
@@ -439,12 +459,14 @@ let ids_for_export
       first_complex_local_param = _;
       result_arity = _;
       result_types;
+      result_mode = _;
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
       check = _;
       poll_attribute = _;
       is_a_functor = _;
+      is_opaque = _;
       recursive = _;
       cost_metrics = _;
       inlining_arguments = _;
@@ -477,12 +499,14 @@ let approx_equal
       first_complex_local_param = first_complex_local_param1;
       result_arity = result_arity1;
       result_types = _;
+      result_mode = result_mode1;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
       stub = stub1;
       inline = inline1;
       check = check1;
       poll_attribute = poll_attribute1;
       is_a_functor = is_a_functor1;
+      is_opaque = is_opaque1;
       recursive = recursive1;
       cost_metrics = cost_metrics1;
       inlining_arguments = inlining_arguments1;
@@ -501,12 +525,14 @@ let approx_equal
       first_complex_local_param = first_complex_local_param2;
       result_arity = result_arity2;
       result_types = _;
+      result_mode = result_mode2;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
       stub = stub2;
       inline = inline2;
       check = check2;
       poll_attribute = poll_attribute2;
       is_a_functor = is_a_functor2;
+      is_opaque = is_opaque2;
       recursive = recursive2;
       cost_metrics = cost_metrics2;
       inlining_arguments = inlining_arguments2;
@@ -524,6 +550,7 @@ let approx_equal
   && List.equal Alloc_mode.For_types.equal param_modes1 param_modes2
   && Int.equal first_complex_local_param1 first_complex_local_param2
   && Flambda_arity.equal_ignoring_subkinds result_arity1 result_arity2
+  && Lambda.equal_alloc_mode result_mode1 result_mode2
   && Bool.equal contains_no_escaping_local_allocs1
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
@@ -531,6 +558,7 @@ let approx_equal
   && Check_attribute.equal check1 check2
   && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
+  && Bool.equal is_opaque1 is_opaque2
   && Recursive.equal recursive1 recursive2
   && Cost_metrics.equal cost_metrics1 cost_metrics2
   && Inlining_arguments.equal inlining_arguments1 inlining_arguments2

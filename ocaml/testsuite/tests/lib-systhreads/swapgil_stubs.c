@@ -113,8 +113,9 @@ static void runtime_reinitialize(void* m)
 
 value swap_gil_setup(value unused)
 {
-  caml_default_locking_scheme.thread_start = runtime_thread_start;
-  caml_default_locking_scheme.thread_stop = runtime_thread_stop;
+  struct caml_locking_scheme *s = caml_get_default_locking_scheme();
+  s->thread_start = runtime_thread_start;
+  s->thread_stop = runtime_thread_stop;
   started = 1;
   return Val_unit;
 }

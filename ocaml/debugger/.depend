@@ -182,7 +182,6 @@ eval.cmo : \
     ../typing/env.cmi \
     debugcom.cmi \
     ../typing/ctype.cmi \
-    ../utils/compilation_unit.cmi \
     ../typing/btype.cmi \
     eval.cmi
 eval.cmx : \
@@ -203,7 +202,6 @@ eval.cmx : \
     ../typing/env.cmx \
     debugcom.cmx \
     ../typing/ctype.cmx \
-    ../utils/compilation_unit.cmx \
     ../typing/btype.cmx \
     eval.cmi
 eval.cmi : \
@@ -286,12 +284,10 @@ loadprinter.cmo : \
     ../utils/misc.cmi \
     ../parsing/longident.cmi \
     ../utils/load_path.cmi \
-    ../typing/jkind.cmi \
     ../typing/ident.cmi \
     ../typing/env.cmi \
     ../otherlibs/dynlink/dynlink.cmi \
     ../typing/ctype.cmi \
-    ../utils/compilation_unit.cmi \
     loadprinter.cmi
 loadprinter.cmx : \
     ../typing/types.cmx \
@@ -303,12 +299,10 @@ loadprinter.cmx : \
     ../utils/misc.cmx \
     ../parsing/longident.cmx \
     ../utils/load_path.cmx \
-    ../typing/jkind.cmx \
     ../typing/ident.cmx \
     ../typing/env.cmx \
-    ../otherlibs/dynlink/dynlink.cmx \
+    ../otherlibs/dynlink/dynlink.cmi \
     ../typing/ctype.cmx \
-    ../utils/compilation_unit.cmx \
     loadprinter.cmi
 loadprinter.cmi : \
     ../parsing/longident.cmi \
@@ -407,7 +401,6 @@ printval.cmo : \
     ../toplevel/genprintval.cmi \
     ../typing/env.cmi \
     debugcom.cmi \
-    ../utils/compilation_unit.cmi \
     printval.cmi
 printval.cmx : \
     ../typing/types.cmx \
@@ -419,7 +412,6 @@ printval.cmx : \
     ../toplevel/genprintval.cmx \
     ../typing/env.cmx \
     debugcom.cmx \
-    ../utils/compilation_unit.cmx \
     printval.cmi
 printval.cmi : \
     ../typing/types.cmi \

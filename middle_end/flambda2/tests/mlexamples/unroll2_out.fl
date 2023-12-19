@@ -14,14 +14,12 @@ and code rec loopify(never) size(23) newer_version_of(foo_0)
       apply direct(foo_0_1)
         $camlUnroll2__foo_2 ~ depth my_depth -> succ my_depth
           (Paddint)
-          &my_region
           -> k * k1
     where k2 =
       let Psubint = x - 1 in
       apply direct(foo_0_1)
         $camlUnroll2__foo_2 ~ depth my_depth -> succ my_depth
           (Psubint)
-          &my_region
           -> k * k1
 in
 let code loopify(never) size(61) newer_version_of(bar_1)
@@ -43,14 +41,12 @@ let code loopify(never) size(61) newer_version_of(bar_1)
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Paddint_1)
-               &my_region
                -> k * k1
          where k3 =
            let Psubint = Paddint - 1 in
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Psubint)
-               &my_region
                -> k * k1)
     where k2 =
       let Psubint = x - 1 in
@@ -64,14 +60,12 @@ let code loopify(never) size(61) newer_version_of(bar_1)
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Paddint)
-               &my_region
                -> k * k1
          where k2 =
            let Psubint_1 = Psubint - 1 in
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Psubint_1)
-               &my_region
                -> k * k1)
 in
 let $camlUnroll2__bar_3 = closure bar_1_1 @bar in

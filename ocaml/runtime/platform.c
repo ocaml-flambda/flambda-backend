@@ -33,6 +33,9 @@
 #include "caml/domain.h"
 #endif
 
+#include "caml/alloc.h"
+#include "sync_posix.h"
+
 /* Error reporting */
 
 void caml_plat_fatal_error(const char * action, int err)
@@ -89,14 +92,7 @@ void caml_plat_mutex_free(caml_plat_mutex* m)
 
 static void caml_plat_cond_init_aux(caml_plat_cond *cond)
 {
-  pthread_condattr_t attr;
-  pthread_condattr_init(&attr);
-#if defined(_POSIX_TIMERS) && \
-    defined(_POSIX_MONOTONIC_CLOCK) && \
-    _POSIX_MONOTONIC_CLOCK != (-1)
-  pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-#endif
-  pthread_cond_init(&cond->cond, &attr);
+  custom_condvar_init(&cond->cond);
 }
 
 /* Condition variables */
@@ -109,24 +105,24 @@ void caml_plat_cond_init(caml_plat_cond* cond, caml_plat_mutex* m)
 void caml_plat_wait(caml_plat_cond* cond)
 {
   caml_plat_assert_locked(cond->mutex);
-  check_err("wait", pthread_cond_wait(&cond->cond, cond->mutex));
+  check_err("wait", custom_condvar_wait(&cond->cond, cond->mutex));
 }
 
 void caml_plat_broadcast(caml_plat_cond* cond)
 {
   caml_plat_assert_locked(cond->mutex);
-  check_err("cond_broadcast", pthread_cond_broadcast(&cond->cond));
+  check_err("cond_broadcast", custom_condvar_broadcast(&cond->cond));
 }
 
 void caml_plat_signal(caml_plat_cond* cond)
 {
   caml_plat_assert_locked(cond->mutex);
-  check_err("cond_signal", pthread_cond_signal(&cond->cond));
+  check_err("cond_signal", custom_condvar_signal(&cond->cond));
 }
 
 void caml_plat_cond_free(caml_plat_cond* cond)
 {
-  check_err("cond_free", pthread_cond_destroy(&cond->cond));
+  check_err("cond_free", custom_condvar_destroy(&cond->cond));
   cond->mutex=0;
 }
 
@@ -155,12 +151,8 @@ static struct lf_skiplist mmap_blocks = {NULL};
 #ifndef _WIN32
 #endif
 
-void* caml_mem_map(uintnat size, uintnat alignment, int reserve_only)
+void* caml_mem_map(uintnat size, int reserve_only)
 {
-  CAMLassert(Is_power_of_2(alignment));
-  CAMLassert(Is_page_aligned(size));
-  alignment = round_up(alignment, caml_plat_mmap_alignment);
-
 #ifdef DEBUG
   if (mmap_blocks.head == NULL) {
     /* The first call to caml_mem_map should be during caml_init_domains, called
@@ -170,7 +162,7 @@ void* caml_mem_map(uintnat size, uintnat alignment, int reserve_only)
   }
 #endif
 
-  void* mem = caml_plat_mem_map(size, alignment, reserve_only);
+  void* mem = caml_plat_mem_map(size, reserve_only);
 
   if (mem == 0) {
     caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",

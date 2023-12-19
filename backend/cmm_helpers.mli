@@ -1310,3 +1310,20 @@ val send_function :
 
 val apply_function :
   Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+
+(* Atomics *)
+
+val atomic_load :
+  dbg:Debuginfo.t -> Lambda.immediate_or_pointer -> expression -> expression
+
+val atomic_exchange : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_fetch_and_add :
+  dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_compare_and_set :
+  dbg:Debuginfo.t ->
+  expression ->
+  old_value:expression ->
+  new_value:expression ->
+  expression

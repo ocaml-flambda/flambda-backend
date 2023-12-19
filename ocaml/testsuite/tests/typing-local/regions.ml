@@ -1,7 +1,8 @@
 (* TEST
    modules = "cstubs.c"
+   * stack-allocation
    include ocamlcommon
-   * native *)
+   ** native *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 external opaque_identity : ('a[@local_opt]) -> ('a[@local_opt]) = "%opaque"

@@ -109,7 +109,7 @@ CAMLexport char * caml_format_exception(value exn)
 #endif
 
 /* Default C implementation in case the OCaml one is not registered. */
-static void default_fatal_uncaught_exception(value exn)
+static void default_fatal_uncaught_exception(value exn, const char *msg2)
 {
   char * msg;
   const value * at_exit;
@@ -123,11 +123,16 @@ static void default_fatal_uncaught_exception(value exn)
   saved_backtrace_pos = Caml_state->backtrace_pos;
   Caml_state->backtrace_active = 0;
   at_exit = caml_named_value("Pervasives.do_at_exit");
+  /* In the event of an asynchronous exception occurring, it will still get
+     caught here, because of the semantics of [caml_callback_exn]. */
   if (at_exit != NULL) caml_callback_exn(*at_exit, Val_unit);
   Caml_state->backtrace_active = saved_backtrace_active;
   Caml_state->backtrace_pos = saved_backtrace_pos;
   /* Display the uncaught exception */
-  fprintf(stderr, "Fatal error: exception %s\n", msg);
+  if (msg2)
+    fprintf(stderr, "Fatal error: exception (from %s) %s\n", msg2, msg);
+  else
+    fprintf(stderr, "Fatal error: exception %s\n", msg);
   caml_stat_free(msg);
   /* Display the backtrace if available */
   if (Caml_state->backtrace_active && !DEBUGGER_IN_USE)
@@ -136,7 +141,7 @@ static void default_fatal_uncaught_exception(value exn)
 
 int caml_abort_on_uncaught_exn = 0; /* see afl.c */
 
-void caml_fatal_uncaught_exception(value exn)
+void caml_fatal_uncaught_exception_with_message(value exn, const char *msg)
 {
   const value *handle_uncaught_exception;
 
@@ -147,11 +152,16 @@ void caml_fatal_uncaught_exception(value exn)
     /* [Printexc.handle_uncaught_exception] does not raise exception. */
     caml_callback2(*handle_uncaught_exception, exn, Val_bool(DEBUGGER_IN_USE));
   else
-    default_fatal_uncaught_exception(exn);
+    default_fatal_uncaught_exception(exn, msg);
   /* Terminate the process */
   if (caml_abort_on_uncaught_exn) {
     abort();
   } else {
     exit(2);
   }
+}
+
+void caml_fatal_uncaught_exception(value exn)
+{
+  caml_fatal_uncaught_exception_with_message(exn, NULL);
 }

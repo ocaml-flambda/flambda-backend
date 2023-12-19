@@ -1,2 +1,2 @@
 File "fail7.ml", line 7, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Fail7.test (camlFail7__test_HIDE_STAMP)
+Error: Annotation check for zero_alloc failed on function Fail7.test (camlFail7.test_HIDE_STAMP)

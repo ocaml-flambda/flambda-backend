@@ -88,6 +88,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pmulfloat m -> Pmulfloat m
   | Pdivfloat m -> Pdivfloat m
   | Pfloatcomp comp -> Pfloatcomp comp
+  | Punboxed_float_comp comp -> Punboxed_float_comp comp
   | Pstringlength -> Pstringlength
   | Pstringrefu -> Pstringrefu
   | Pstringrefs -> Pstringrefs

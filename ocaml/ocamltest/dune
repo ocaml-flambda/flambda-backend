@@ -50,7 +50,7 @@
 (rule
  (targets empty.ml)
  (deps
-  (source_tree ../runtime4/caml))
+  (source_tree ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml))
  (action
   (write-file %{targets} "(* hack *)")))
 
@@ -58,7 +58,7 @@
  (name main)
  (modes byte)
  (flags
-  (:standard -principal -cclib "-I../runtime4"))
+  (:standard -principal -cclib "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
  (modules options main)
  (libraries ocamltest_core_and_plugin))
 

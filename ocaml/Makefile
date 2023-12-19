@@ -646,6 +646,7 @@ runtime4_COMMON_C_SOURCES = \
   obj \
   parsing \
   printexc \
+  prng \
   signals \
   simd \
   skiplist \
@@ -720,6 +721,7 @@ runtime_COMMON_C_SOURCES = \
   runtime_events \
   shared_heap \
   signals \
+  simd \
   skiplist \
   startup_aux \
   str \
@@ -1011,6 +1013,11 @@ $(RUNTIME_DIR)/%.npic.$(O): OC_CFLAGS += $(OC_NATIVE_CFLAGS) $(SHAREDLIB_CFLAGS)
 $(RUNTIME_DIR)/%.npic.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 $(DEPDIR)/$(RUNTIME_DIR)/%.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 
+# The major GC performs better with this flag on Intel processors
+# This is a workaround for an Intel CPU bug:
+# https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
+$(RUNTIME_DIR)/major_gc.%.$(O): OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
+
 ## Compilation of runtime C files
 
 # The COMPILE_C_FILE macro below receives as argument the pattern
@@ -1158,7 +1165,7 @@ clean::
 subdirs = \
   stdlib $(addprefix otherlibs/, \
     $(filter-out runtime_events, $(ALL_OTHERLIBS))) \
-  debugger ocamldoc ocamltest
+  debugger$(RUNTIME_SUFFIX) ocamldoc ocamltest
 
 .PHONY: alldepend
 alldepend: depend
@@ -1352,10 +1359,10 @@ clean::
 
 .PHONY: ocamldebugger
 ocamldebugger: ocamlc ocamlyacc ocamllex otherlibraries
-	$(MAKE) -C debugger all
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) all
 
 partialclean::
-	$(MAKE) -C debugger clean
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) clean
 
 # Check that the native-code compiler is supported
 .PHONY: checknative
@@ -1667,7 +1674,7 @@ depend: beforedepend
 
 .PHONY: distclean
 distclean: clean
-	$(MAKE) -C debugger distclean
+	$(MAKE) -C debugger$(RUNTIME_SUFFIX) distclean
 	$(MAKE) -C manual distclean
 	$(MAKE) -C ocamldoc distclean
 	$(MAKE) -C ocamltest distclean
@@ -1797,7 +1804,7 @@ ifeq "$(WITH_OCAMLDOC)-$(STDLIB_MANPAGES)" "ocamldoc-true"
 	$(MAKE) -C api_docgen install
 endif
 	if test -n "$(WITH_DEBUGGER)"; then \
-	  $(MAKE) -C debugger install; \
+	  $(MAKE) -C debugger$(RUNTIME_SUFFIX) install; \
 	fi
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "true"
 ifeq "$(TOOLCHAIN)" "msvc"

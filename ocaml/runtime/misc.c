@@ -97,6 +97,9 @@ void caml_gc_message (int level, char *msg, ...)
   if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
     va_list ap;
     va_start(ap, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     vfprintf (stderr, msg, ap);
     va_end(ap);
     fflush (stderr);
@@ -134,6 +137,11 @@ CAMLexport void caml_fatal_error_arg2 (const char *fmt1, const char *arg1,
   fprintf (stderr, fmt1, arg1);
   fprintf (stderr, fmt2, arg2);
   exit(2);
+}
+
+void caml_fatal_out_of_memory(void)
+{
+  caml_fatal_error("Out of memory");
 }
 
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)

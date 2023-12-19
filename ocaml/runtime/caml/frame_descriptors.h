@@ -58,9 +58,10 @@
 #define FRAME_DESCRIPTOR_ALLOC 2
 #define FRAME_DESCRIPTOR_FLAGS 3
 #define FRAME_RETURN_TO_C 0xFFFF
+#define FRAME_LONG_MARKER 0x7FFF
 
 typedef struct {
-  uintnat retaddr;
+  int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
   uint16_t frame_data; /* frame size and various flags */
   uint16_t num_live;
   uint16_t live_ofs[1 /* num_live */];
@@ -76,20 +77,67 @@ typedef struct {
     debug_info itself to a debuginfo structure. */
 } frame_descr;
 
+typedef struct {
+  int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
+  uint16_t marker;     /* FRAME_LONG_MARKER */
+  uint16_t _pad;       /* Ensure frame_data is 4-byte aligned */
+  uint32_t frame_data; /* frame size and various flags */
+  uint32_t num_live;
+  uint32_t live_ofs[1 /* num_live */];
+  /*
+    If frame_has_allocs(), alloc lengths follow:
+        uint8_t num_allocs;
+        uint8_t alloc[num_allocs];
+
+    If frame_has_debug(), debug info follows (32-bit aligned):
+        uint32_t debug_info[frame_has_allocs() ? num_allocs : 1];
+
+    Debug info is stored as a relative offset, in bytes, from the
+    debug_info itself to a debuginfo structure. */
+} frame_descr_long;
+
 Caml_inline bool frame_return_to_C(frame_descr *d) {
-  return d->frame_data == 0xFFFF;
+  return d->frame_data == FRAME_RETURN_TO_C;
 }
 
-Caml_inline uint16_t frame_size(frame_descr *d) {
-  return d->frame_data &~ FRAME_DESCRIPTOR_FLAGS;
+Caml_inline bool frame_is_long(frame_descr *d) {
+  CAMLassert(d && !frame_return_to_C(d));
+  return (d -> frame_data == FRAME_LONG_MARKER);
+}
+
+Caml_inline frame_descr_long *frame_as_long(frame_descr *d) {
+  frame_descr_long *dl = (frame_descr_long *) d;
+  return dl;
+}
+
+Caml_inline uint32_t frame_data(frame_descr *d) {
+  if (frame_is_long(d)) {
+    frame_descr_long *dl = frame_as_long(d);
+    return (dl -> frame_data);
+  } else {
+    return (d -> frame_data);
+  }
+}
+
+Caml_inline unsigned char *frame_end_of_live_ofs(frame_descr *d) {
+  if (frame_is_long(d)) {
+    frame_descr_long *dl = frame_as_long(d);
+    return ((unsigned char *)&dl->live_ofs[dl->num_live]);
+  } else {
+    return ((unsigned char *)&d->live_ofs[d->num_live]);
+  }
+}
+
+Caml_inline uint32_t frame_size(frame_descr *d) {
+  return frame_data(d) &~ FRAME_DESCRIPTOR_FLAGS;
 }
 
 Caml_inline bool frame_has_allocs(frame_descr *d) {
-  return (d->frame_data & FRAME_DESCRIPTOR_ALLOC) != 0;
+  return (frame_data(d) & FRAME_DESCRIPTOR_ALLOC) != 0;
 }
 
 Caml_inline bool frame_has_debug(frame_descr *d) {
-  return (d->frame_data & FRAME_DESCRIPTOR_DEBUG) != 0;
+  return (frame_data(d) & FRAME_DESCRIPTOR_DEBUG) != 0;
 }
 
 /* Allocation lengths are encoded reduced by one, so values 0-255 mean
@@ -104,6 +152,10 @@ Caml_inline bool frame_has_debug(frame_descr *d) {
 
 #define Hash_retaddr(addr, mask)                          \
   (((uintnat)(addr) >> 3) & (mask))
+
+#define Retaddr_frame(d) \
+  ((uintnat)&(d)->retaddr_rel + \
+   (uintnat)(intnat)((d)->retaddr_rel))
 
 void caml_init_frame_descriptors(void);
 void caml_register_frametables(void **tables, int ntables);

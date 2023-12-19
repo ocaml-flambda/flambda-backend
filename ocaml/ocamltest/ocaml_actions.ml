@@ -1144,6 +1144,8 @@ let config_variables _log env =
     Ocaml_variables.ocamlrunparam, Sys.safe_getenv "OCAMLRUNPARAM";
     Ocaml_variables.ocamlsrcdir, Ocaml_directories.srcdir;
     Ocaml_variables.os_type, Sys.os_type;
+    Ocaml_variables.runtime_dir,
+      if Config.runtime5 then "runtime" else "runtime4"
   ] env
 
 let flat_float_array = Actions.make
@@ -1290,6 +1292,19 @@ let no_poll_insertion = Actions.make
     "Poll insertion disabled"
     "Poll insertion enabled")
 
+let runtime4 = Actions.make
+  ~name:"runtime4"
+  ~description:"Passes if the OCaml 4.x runtime is being used"
+  (Actions_helpers.pass_or_skip (not Config.runtime5)
+    "4.x runtime being used"
+    "5.x runtime being used")
+
+let runtime5 = Actions.make
+  ~name:"runtime5"
+  ~description:"Passes if the OCaml 5.x runtime is being used"
+  (Actions_helpers.pass_or_skip Config.runtime5
+    "5.x runtime being used"
+    "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1500,5 +1515,7 @@ let _ =
     ocamlmklib;
     codegen;
     cc;
-    ocamlobjinfo
+    ocamlobjinfo;
+    runtime4;
+    runtime5
   ]

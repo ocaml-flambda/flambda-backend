@@ -186,7 +186,7 @@ let map_summary f = function
   | Env_value_unbound (s, u, r) -> Env_value_unbound (f s, u, r)
   | Env_module_unbound (s, u, r) -> Env_module_unbound (f s, u, r)
 
-type address = Address.t =
+type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
