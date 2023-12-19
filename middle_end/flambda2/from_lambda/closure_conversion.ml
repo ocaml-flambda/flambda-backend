@@ -1348,9 +1348,11 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             in
             Expr_with_acc.create_switch acc
               (Switch.create ~condition_dbg ~scrutinee ~arms)
-          | Some case ->
-            let acc, action = Targetint_31_63.Map.find case arms acc in
-            Expr_with_acc.create_apply_cont acc action)
+          | Some case -> (
+            match Targetint_31_63.Map.find case arms acc with
+            | acc, action -> Expr_with_acc.create_apply_cont acc action
+            | exception Not_found ->
+              Expr_with_acc.create_invalid acc Zero_switch_arms))
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
