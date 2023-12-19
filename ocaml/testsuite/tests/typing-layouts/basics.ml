@@ -1858,3 +1858,37 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 (* CR layouts: This one should be fine to accept *)
+
+(*****************************************************)
+(* Test 38: Ensure Univar unification checks layouts *)
+
+let poly : ('a. 'a -> 'a) -> int * bool =
+  fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
+
+[%%expect{|
+Line 2, characters 7-38:
+2 |   fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type ('a : immediate). 'a -> 'a
+       but a pattern was expected which matches values of type 'a. 'a -> 'a
+       Type 'a is not compatible with type 'a0
+|}]
+(* CR layouts: This one should be fine to accept *)
+
+type ('a : any) foo = 'a
+type ('a : any) bar
+
+let f (x : < foo : ('a : float64) . 'a foo bar >)
+  : < foo : 'a . 'a foo bar > = x
+
+[%%expect{|
+type ('a : any) foo = 'a
+type ('a : any) bar
+Line 5, characters 32-33:
+5 |   : < foo : 'a . 'a foo bar > = x
+                                    ^
+Error: This expression has type < foo : ('a : float64). 'a foo bar >
+       but an expression was expected of type < foo : 'a. 'a foo bar >
+       Type 'a foo = 'a is not compatible with type 'a0 foo = 'a0
+       Types for method foo are incompatible
+|}]

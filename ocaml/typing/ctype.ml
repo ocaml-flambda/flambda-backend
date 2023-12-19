@@ -2338,10 +2338,8 @@ let local_non_recursive_abbrev env p ty =
 (* Since we cannot duplicate universal variables, unification must
    be done at meta-level, using bindings in univar_pairs *)
 (* TODO: use find_opt *)
-let unify_univar t1 t2 pairs =
-  (match get_desc t1, get_desc t2 with
-  | Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2} when Jkind.equal jkind1 jkind2-> ()
-  | _ -> raise Cannot_unify_universal_variables);
+let unify_univar t1 t2 jkind1 jkind2 pairs =
+  if not (Jkind.equal jkind1 jkind2) then raise Cannot_unify_universal_variables;
   let rec inner t1 t2 = function
     (cl1, cl2) :: rem ->
       let find_univ t cl =
@@ -2366,8 +2364,8 @@ let unify_univar t1 t2 pairs =
 
 (* The same as [unify_univar], but raises the appropriate exception instead of
    [Cannot_unify_universal_variables] *)
-let unify_univar_for tr_exn t1 t2 univar_pairs =
-  try unify_univar t1 t2 univar_pairs
+let unify_univar_for tr_exn t1 t2 jkind1 jkind2 univar_pairs =
+  try unify_univar t1 t2 jkind1 jkind2 univar_pairs
   with Cannot_unify_universal_variables -> raise_unexplained_for tr_exn
 
 (* Test the occurrence of free univars in a type *)
@@ -2801,8 +2799,8 @@ let rec mcomp type_pairs env t1 t2 =
                enter_poly env univar_pairs
                  t1 tl1 t2 tl2 (mcomp type_pairs env)
              with Escape _ -> raise Incompatible)
-        | (Tunivar _, Tunivar _) ->
-            (try unify_univar t1' t2' !univar_pairs
+        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}) ->
+            (try unify_univar t1' t2' jkind1 jkind2 !univar_pairs
              with Cannot_unify_universal_variables -> raise Incompatible)
         | (_, _) ->
             raise Incompatible
@@ -3216,21 +3214,9 @@ let rec unify (env:Env.t ref) t1 t2 =
     | (_, Tvar _) ->
         if unify1_var !env t2 t1 then () else unify2 env t1 t2
     | (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-        unify_univar_for Unify t1 t2 !univar_pairs;
+        unify_univar_for Unify t1 t2 l1 l2 !univar_pairs;
         update_level_for Unify !env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
-        (* CR layouts v1.5: make test cases that hit this.  Easier once we have
-           annotations on univars, I think.
-
-           Richard suggests:
-
-           let poly : ('a. 'a -> 'a) -> int * bool =
-             fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
-
-           Which should probably fail, even though it would be sound to accept.
-        *)
-        if not (Jkind.equal l1 l2) then
-          raise_for Unify (Unequal_var_jkinds (t1, l1, t2, l2));
         link_type t1 t2
     | (Tconstr (p1, [], a1), Tconstr (p2, [], a2))
           when Path.same p1 p2 (* && actual_mode !env = Old *)
@@ -3313,18 +3299,7 @@ and unify3 env t1 t1' t2 t2' =
 
   begin match (d1, d2) with (* handle vars and univars specially *)
     (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-      unify_univar_for Unify t1' t2' !univar_pairs;
-      (* CR layouts v1.5: make a test case for this once we have annotations on
-         univars
-
-        type ('a : any) foo = 'a
-        type ('a : any) bar
-
-        let f (x : < foo : ('a : void) . 'a foo bar >)
-          : < foo : 'a . 'a foo bar > = x
-      *)
-      if not (Jkind.equal l1 l2) then
-        raise_for Unify (Unequal_var_jkinds (t1, l1, t2, l2));
+      unify_univar_for Unify t1' t2' l1 l2 !univar_pairs;
       link_type t1' t2'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
@@ -4480,8 +4455,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Moregen env univar_pairs t1 tl1 t2 tl2
                 (moregen inst_nongen variance type_pairs env)
-          | (Tunivar _, Tunivar _) ->
-              unify_univar_for Moregen t1' t2' !univar_pairs
+          | (Tunivar {jkind=l1}, Tunivar {jkind=l2}) ->
+              unify_univar_for Moregen t1' t2' l1 l2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Moregen
         end
@@ -4567,8 +4542,8 @@ and moregen_row inst_nongen variance type_pairs env row1 row2 =
   end;
   let md1 = get_desc rm1 (* This lets us undo a following [link_type] *) in
   begin match md1, get_desc rm2 with
-    Tunivar _, Tunivar _ ->
-      unify_univar_for Moregen rm1 rm2 !univar_pairs
+    Tunivar {jkind=l1}, Tunivar {jkind=l2} ->
+      unify_univar_for Moregen rm1 rm2 l1 l2 !univar_pairs
   | Tunivar _, _ | _, Tunivar _ ->
       raise_unexplained_for Moregen
   | _ when static_row row1 -> ()
@@ -4898,8 +4873,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Equality env univar_pairs t1 tl1 t2 tl2
                 (eqtype rename type_pairs subst env)
-          | (Tunivar _, Tunivar _) ->
-              unify_univar_for Equality t1' t2' !univar_pairs
+          | (Tunivar {jkind=l1}, Tunivar {jkind=l2}) ->
+              unify_univar_for Equality t1' t2' l1 l2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Equality
         end
