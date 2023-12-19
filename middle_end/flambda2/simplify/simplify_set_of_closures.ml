@@ -197,6 +197,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       then Recursive
       else Non_recursive
     in
+    if NO.mem_var free_names_of_body my_region
+       && Lambda.is_heap_mode (Code.result_mode code)
+    then
+      Misc.fatal_errorf
+        "Unexpected free my_region in code with heap result mode:\n%a"
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
@@ -244,15 +251,18 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       my_closure Expr.print body DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
 
-let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-    ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-    ~params : _ Or_unknown_or_bottom.t =
+let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+    ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+    ~lifted_consts_this_function ~params : _ Or_unknown_or_bottom.t =
   match
-    Flambda_features.function_result_types ~is_a_functor, return_cont_uses
+    ( is_opaque,
+      Flambda_features.function_result_types ~is_a_functor,
+      return_cont_uses )
   with
-  | false, _ -> Unknown
-  | true, None -> Bottom
-  | true, Some uses ->
+  | true, _, _ -> Unknown
+  | false, _, None -> Bottom
+  | false, false, Some _ -> Unknown
+  | false, true, Some uses ->
     let env_at_fork =
       (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
          that the environment contains bindings for any symbols being defined by
@@ -383,10 +393,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     decision
   in
   let is_a_functor = Code.is_a_functor code in
+  let is_opaque = Code.is_opaque code in
   let result_types =
-    compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-      ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-      ~params
+    compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+      ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+      ~lifted_consts_this_function ~params
   in
   let outer_dacc =
     (* This is the complicated part about slot offsets. We just traversed the
@@ -426,11 +437,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~newer_version_of ~params_arity:(Code.params_arity code)
       ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
-      ~result_arity ~result_types
+      ~result_arity ~result_types ~result_mode:(Code.result_mode code)
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
-      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor
+      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
       ~inlining_decision ~absolute_history ~relative_history ~loopify

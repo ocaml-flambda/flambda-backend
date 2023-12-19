@@ -63,7 +63,7 @@
 
 struct generic_table CAML_TABLE_STRUCT(char);
 
-void caml_alloc_minor_tables ()
+void caml_alloc_minor_tables (void)
 {
   Caml_state->ref_table =
     caml_stat_alloc_noexc(sizeof(struct caml_ref_table));
@@ -259,7 +259,7 @@ void caml_oldify_one (value v, value *p)
             }
           }
         }
-        if (!vv || ft == Forward_tag || ft == Lazy_tag
+        if (!vv || ft == Forward_tag || ft == Lazy_tag || ft == Forcing_tag
 #ifdef FLAT_FLOAT_ARRAY
             || ft == Double_tag
 #endif
@@ -359,7 +359,7 @@ void caml_oldify_mopup (void)
 }
 
 #ifdef DEBUG
-static void verify_minor_heap()
+static void verify_minor_heap(void)
 {
   header_t* p;
   struct caml_local_arena* arena = Caml_state->local_arenas ?

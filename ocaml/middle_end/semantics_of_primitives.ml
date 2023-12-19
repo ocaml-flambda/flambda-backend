@@ -75,7 +75,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
   | Punbox_float | Punbox_int _
   | Pintoffloat
-  | Pfloatcomp _ -> No_effects, No_coeffects
+  | Pfloatcomp _
+  | Punboxed_float_comp _ -> No_effects, No_coeffects
   | Pbox_float m | Pbox_int (_, m)
   | Pfloatofint m
   | Pnegfloat m
@@ -215,7 +216,8 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Poffsetref _ -> false
   | Punbox_float | Punbox_int _
   | Pintoffloat
-  | Pfloatcomp _ -> false
+  | Pfloatcomp _
+  | Punboxed_float_comp _ -> false
   | Pbox_float m | Pbox_int (_, m)
   | Pfloatofint m
   | Pnegfloat m

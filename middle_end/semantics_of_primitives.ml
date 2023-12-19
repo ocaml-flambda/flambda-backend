@@ -89,7 +89,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pmake_unboxed_product _
   | Punboxed_product_field _
   | Pintoffloat
-  | Pfloatcomp _ -> No_effects, No_coeffects
+  | Pfloatcomp _
+  | Punboxed_float_comp _ -> No_effects, No_coeffects
   | Pbox_float m | Pbox_int (_, m)
   | Pfloatofint m
   | Pnegfloat m
@@ -231,7 +232,8 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pmake_unboxed_product _
   | Punboxed_product_field _
   | Pintoffloat
-  | Pfloatcomp _ -> false
+  | Pfloatcomp _
+  | Punboxed_float_comp _ -> false
   | Pbox_float m | Pbox_int (_, m)
   | Pfloatofint m
   | Pnegfloat m

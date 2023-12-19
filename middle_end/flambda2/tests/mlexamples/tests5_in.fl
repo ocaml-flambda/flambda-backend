@@ -17,7 +17,6 @@ let code rec size(22)
       apply direct(g_1)
         (g ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 and code rec size(22)
       g_1 (y : imm tagged)
@@ -37,7 +36,6 @@ and code rec size(22)
       apply direct(f_0)
         (f ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 in
 (let f = closure f_0 @f and g = closure g_1 @g in

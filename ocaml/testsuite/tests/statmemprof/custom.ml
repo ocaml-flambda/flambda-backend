@@ -1,6 +1,5 @@
 (* TEST
-* skip
-reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+* runtime4
 *)
 
 open Gc.Memprof

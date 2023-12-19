@@ -56,7 +56,6 @@ and cfg_magic_number = "Caml2021G520"
 
 let safe_string = true
 let default_safe_string = true
-let naked_pointers = false
 let flambda_backend = true
 
 let interface_suffix = ref ".mli"

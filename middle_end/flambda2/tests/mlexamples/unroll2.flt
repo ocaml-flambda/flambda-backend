@@ -10,22 +10,16 @@ let code rec loopify(never) size(23)
     where k3 =
       let Paddint = x + 1 in
       apply direct(foo_0)
-        my_closure ~ depth my_depth -> next_depth
-          (Paddint)
-          &my_region
-          -> k * k1
+        my_closure ~ depth my_depth -> next_depth (Paddint) -> k * k1
     where k2 =
       let Psubint = x - 1 in
       apply direct(foo_0)
-        my_closure ~ depth my_depth -> next_depth
-          (Psubint)
-          &my_region
-          -> k * k1
+        my_closure ~ depth my_depth -> next_depth (Psubint) -> k * k1
 in
 let code size(5)
       bar_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
   let foo = %project_value_slot bar.foo my_closure in
-  apply direct(foo_0) unroll(2) foo (x) &my_region -> k * k1
+  apply direct(foo_0) unroll(2) foo (x) -> k * k1
 in
 (let foo = closure foo_0 @foo in
  let bar = closure bar_1 @bar with { foo = foo } in
@@ -53,14 +47,12 @@ and code rec loopify(never) size(23) newer_version_of(foo_0)
       apply direct(foo_0_1)
         $camlUnroll2__foo_2 ~ depth my_depth -> succ my_depth
           (Paddint)
-          &my_region
           -> k * k1
     where k2 =
       let Psubint = x - 1 in
       apply direct(foo_0_1)
         $camlUnroll2__foo_2 ~ depth my_depth -> succ my_depth
           (Psubint)
-          &my_region
           -> k * k1
 in
 let code loopify(never) size(61) newer_version_of(bar_1)
@@ -82,14 +74,12 @@ let code loopify(never) size(61) newer_version_of(bar_1)
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Paddint_1)
-               &my_region
                -> k * k1
          where k3 =
            let Psubint = Paddint - 1 in
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Psubint)
-               &my_region
                -> k * k1)
     where k2 =
       let Psubint = x - 1 in
@@ -103,14 +93,12 @@ let code loopify(never) size(61) newer_version_of(bar_1)
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Paddint)
-               &my_region
                -> k * k1
          where k2 =
            let Psubint_1 = Psubint - 1 in
            apply direct(foo_0_1) inlining_state(depth(20))
              $camlUnroll2__foo_2 ~ depth unroll 1 1 -> unroll 0 2
                (Psubint_1)
-               &my_region
                -> k * k1)
 in
 let $camlUnroll2__bar_3 = closure bar_1_1 @bar in

@@ -706,7 +706,7 @@ CAMLexport void caml_modify_local (value obj, intnat i, value val)
   }
 }
 
-CAMLexport intnat caml_local_region_begin()
+CAMLexport intnat caml_local_region_begin(void)
 {
   return Caml_state->local_sp;
 }
@@ -716,7 +716,7 @@ CAMLexport void caml_local_region_end(intnat reg)
   Caml_state->local_sp = reg;
 }
 
-CAMLexport caml_local_arenas* caml_get_local_arenas()
+CAMLexport caml_local_arenas* caml_get_local_arenas(void)
 {
   caml_local_arenas* s = Caml_state->local_arenas;
   if (s != NULL)
@@ -739,7 +739,7 @@ CAMLexport void caml_set_local_arenas(caml_local_arenas* s)
   }
 }
 
-void caml_local_realloc()
+void caml_local_realloc(void)
 {
   caml_local_arenas* s = caml_get_local_arenas();
   intnat i;

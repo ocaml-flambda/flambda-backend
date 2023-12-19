@@ -89,7 +89,7 @@
    cmi_format persistent_env env errortrace mode
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
-   includemod includemod_errorprinter address
+   includemod includemod_errorprinter
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
@@ -98,7 +98,7 @@
    annot outcometree
 
    ;; lambda/
-   debuginfo lambda matching printlambda runtimedef tmc simplif switch
+   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -331,6 +331,7 @@
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)
     (runtimedef.mli as compiler-libs/runtimedef.mli)
+    (runtimetags.mli as compiler-libs/runtimetags.mli)
     (simplif.mli as compiler-libs/simplif.mli)
     (switch.mli as compiler-libs/switch.mli)
     (translmode.mli as compiler-libs/translmode.mli)

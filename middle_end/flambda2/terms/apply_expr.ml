@@ -81,8 +81,7 @@ type t =
     inlining_state : Inlining_state.t;
     probe : Probe.t;
     position : Position.t;
-    relative_history : Inlining_history.Relative.t;
-    region : Variable.t
+    relative_history : Inlining_history.Relative.t
   }
 
 let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
@@ -93,10 +92,9 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; args_arity;
       return_arity; call_kind; dbg; inlined; inlining_state; probe;
-      position; relative_history; region } =
+      position; relative_history } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}\
-      \u{27c5}%t%a%t\u{27c6}@ \
       (%a))@]@ \
       @[<hov 1>(args_arity@ %a)@]@ \
       @[<hov 1>(return_arity@ %a)@]@ \
@@ -111,9 +109,6 @@ let [@ocamlformat "disable"] print ppf
     (Misc.Stdlib.Option.print Simple.print) callee
     Result_continuation.print continuation
     Exn_continuation.print exn_continuation
-    Flambda_colours.variable
-    Variable.print region
-    Flambda_colours.pop
     Simple.List.print args
     Flambda_arity.print args_arity
     Flambda_arity.print return_arity
@@ -144,8 +139,7 @@ let invariant
        inlining_state = _;
        probe = _;
        position = _;
-       relative_history = _;
-       region = _
+       relative_history = _
      } as t) =
   (match callee with
   | Some _ -> ()
@@ -177,7 +171,7 @@ let invariant
 
 let create ~callee ~continuation exn_continuation ~args ~args_arity
     ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state ~probe
-    ~position ~relative_history ~region =
+    ~position ~relative_history =
   let t =
     { callee;
       continuation;
@@ -191,8 +185,7 @@ let create ~callee ~continuation exn_continuation ~args ~args_arity
       inlining_state;
       probe;
       position;
-      relative_history;
-      region
+      relative_history
     }
   in
   invariant t;
@@ -231,8 +224,7 @@ let free_names_without_exn_continuation
       inlining_state = _;
       probe = _;
       position = _;
-      relative_history = _;
-      region
+      relative_history = _
     } =
   Name_occurrences.union_list
     [ (match callee with
@@ -240,8 +232,7 @@ let free_names_without_exn_continuation
       | Some callee -> Simple.free_names callee);
       Result_continuation.free_names continuation;
       Simple.List.free_names args;
-      Call_kind.free_names call_kind;
-      Name_occurrences.singleton_variable region Name_mode.normal ]
+      Call_kind.free_names call_kind ]
 
 let free_names_except_callee
     { callee = _;
@@ -256,15 +247,13 @@ let free_names_except_callee
       inlining_state = _;
       probe = _;
       position = _;
-      relative_history = _;
-      region
+      relative_history = _
     } =
   Name_occurrences.union_list
     [ Result_continuation.free_names continuation;
       Exn_continuation.free_names exn_continuation;
       Simple.List.free_names args;
-      Call_kind.free_names call_kind;
-      Name_occurrences.singleton_variable region Name_mode.normal ]
+      Call_kind.free_names call_kind ]
 
 let free_names t =
   Name_occurrences.union
@@ -286,8 +275,7 @@ let apply_renaming
        inlining_state;
        probe;
        position;
-       relative_history;
-       region
+       relative_history
      } as t) renaming =
   let continuation' =
     Result_continuation.apply_renaming continuation renaming
@@ -304,11 +292,9 @@ let apply_renaming
   in
   let args' = Simple.List.apply_renaming args renaming in
   let call_kind' = Call_kind.apply_renaming call_kind renaming in
-  let region' = Renaming.apply_variable renaming region in
   if continuation == continuation'
      && exn_continuation == exn_continuation'
      && callee == callee' && args == args' && call_kind == call_kind'
-     && region == region'
   then t
   else
     { callee = callee';
@@ -323,8 +309,7 @@ let apply_renaming
       inlining_state;
       probe;
       position;
-      relative_history;
-      region = region'
+      relative_history
     }
 
 let ids_for_export
@@ -340,8 +325,7 @@ let ids_for_export
       inlining_state = _;
       probe = _;
       position = _;
-      relative_history = _;
-      region
+      relative_history = _
     } =
   let callee_ids =
     match callee with
@@ -358,11 +342,9 @@ let ids_for_export
     Result_continuation.ids_for_export continuation
   in
   let exn_continuation_ids = Exn_continuation.ids_for_export exn_continuation in
-  Ids_for_export.add_variable
-    (Ids_for_export.union
-       (Ids_for_export.union callee_and_args_ids call_kind_ids)
-       (Ids_for_export.union result_continuation_ids exn_continuation_ids))
-    region
+  Ids_for_export.union
+    (Ids_for_export.union callee_and_args_ids call_kind_ids)
+    (Ids_for_export.union result_continuation_ids exn_continuation_ids)
 
 let erase_callee t = { t with callee = None }
 
@@ -386,8 +368,6 @@ let probe t = t.probe
 
 let returns t =
   match continuation t with Return _ -> true | Never_returns -> false
-
-let region t = t.region
 
 let args_arity t = t.args_arity
 
