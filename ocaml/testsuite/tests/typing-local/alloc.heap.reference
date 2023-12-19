@@ -23,6 +23,7 @@
       longarray: Allocation
   floatgenarray: Allocation
     longfgarray: Allocation
+    maniparray0: Allocation
      maniparray: Allocation
     manipfarray: Allocation
             ref: Allocation

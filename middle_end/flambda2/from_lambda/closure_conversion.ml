@@ -414,17 +414,18 @@ module Inlining = struct
 end
 
 let close_c_call acc env ~loc ~let_bound_ids_with_kinds
-    ({ prim_name;
-       prim_arity;
-       prim_alloc;
-       prim_c_builtin;
-       prim_effects = _;
-       prim_coeffects = _;
-       prim_native_name;
-       prim_native_repr_args;
-       prim_native_repr_res
-     } :
-      Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
+    (({ prim_name;
+        prim_arity;
+        prim_alloc;
+        prim_c_builtin;
+        prim_effects = _;
+        prim_coeffects = _;
+        prim_native_name;
+        prim_native_repr_args;
+        prim_native_repr_res
+      } :
+       Primitive.description) as prim_desc) ~(args : Simple.t list list)
+    exn_continuation dbg ~current_region
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let args =
     List.map
@@ -516,8 +517,17 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let return_arity =
     Flambda_arity.create_singletons [K.With_subkind.anything return_kind]
   in
+  let alloc_mode =
+    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    | None ->
+      (* This happens when stack allocation is disabled. *)
+      Alloc_mode.For_allocations.heap
+    | Some alloc_mode ->
+      Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
+  in
   let call_kind =
-    Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
+    Call_kind.c_call ~needs_caml_c_call:prim_alloc ~is_c_builtin:prim_c_builtin
+      alloc_mode
   in
   let call_symbol =
     let prim_name =
@@ -719,7 +729,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_c_call acc env ~loc ~let_bound_ids_with_kinds prim ~args
-      exn_continuation dbg k
+      exn_continuation dbg ~current_region k
   | Pgetglobal cu, [] ->
     if Compilation_unit.equal cu (Env.current_unit env)
     then
