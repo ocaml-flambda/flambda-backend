@@ -1561,3 +1561,143 @@ Error: This expression has type t_any but an expression was expected of type
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
+
+(******************************************************)
+(* Test 37: Ensure signature inclusion checks layouts *)
+
+module M1 : sig
+  val f : ('a : any). 'a -> 'a
+end = struct
+  let f x = x
+end
+
+[%%expect{|
+failure
+|}]
+
+module M1 : sig
+  val f : unit -> 'a -> 'a
+end = struct
+  let rec f : type (a : any). unit -> a -> a = fun _ -> f ()
+end
+
+[%%expect{|
+not sure, actually
+|}]
+
+module type S_any = sig
+  val f : ('a : any). 'a -> 'a
+end
+
+module type S_value = sig
+  val f : 'a -> 'a
+end
+
+module type S_float64 = sig
+  val f : ('a : float64). 'a -> 'a
+end
+
+[%%expect{|
+success
+|}]
+
+module F (X : S_any) : S_value = X
+
+[%%expect{|
+failure
+|}]
+
+module F (X : S_value) : S_any = X
+
+[%%expect{|
+failure
+|}]
+
+module F (X : S_value) : S_float64 = X
+
+[%%expect{|
+failure
+|}]
+
+module M2 : sig
+  type ('a : any) t = 'a
+end = struct
+  type ('a : value) t = 'a
+end
+
+[%%expect{|
+failure
+|}]
+
+module M3 : sig
+  type ('a : any) t = 'a -> 'a
+end = struct
+  type 'a t = 'a -> 'a
+end
+
+[%%expect{|
+failure
+|}]
+
+module M4 : sig
+  type t = { f : ('a : any). 'a -> 'a }
+end = struct
+  type t = { f : 'a. 'a -> 'a }
+end
+
+[%%expect{|
+failure
+|}]
+
+module M5 : sig
+  type t = { f : 'a. 'a -> 'a }
+end = struct
+  type t = { f : ('a : any). 'a -> 'a }
+end
+
+[%%expect{|
+failure
+|}]
+
+module M6 : sig
+  val f : ('a. 'a -> 'a) -> unit
+end = struct
+  let f (g : ('a : any). 'a -> 'a) =
+    ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+end
+
+[%%expect{|
+failure
+|}]
+
+module M7 : sig
+  val f : (('a : any). 'a -> 'a) -> unit
+end = struct
+  let f (g : 'a. 'a -> 'a) =
+    ignore (g "hello"); ()
+end
+
+[%%expect{|
+not sure
+|}]
+
+module M8 : sig
+  type ('a : any) t = K of ('a -> 'a)
+end = struct
+  type 'a t = K of ('a -> 'a)
+end
+
+[%%expect{|
+not sure
+|}]
+
+module M9 : sig
+  type 'a t = K of ('a -> 'a)
+end = struct
+  type ('a : any) t = K of ('a -> 'a)
+end
+
+[%%expect{|
+I think this is probably ok
+|}]
+
