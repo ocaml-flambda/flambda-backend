@@ -3,7 +3,7 @@
    modules = "globrootsprim.c globroots.ml"
 
    * skip
-     reason = "OCaml 5 only"
+     reason = "CR ocaml 5 domains: re-enable this test"
 *)
 
 open Globroots

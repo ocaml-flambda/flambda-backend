@@ -1,7 +1,7 @@
 (* TEST
   modules="opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml"
   * skip
-  reason = "OCaml 5 only"
+  reason = "CR ocaml 5 domains: re-enable this test"
   ** not-bsd
   *** bytecode
   *** native

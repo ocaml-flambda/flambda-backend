@@ -1455,7 +1455,7 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'b ('a : float64). 'a -> 'b -> unit = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
 val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]

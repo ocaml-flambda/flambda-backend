@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -55,6 +57,8 @@ val alloc_local : locality_mode
 val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
+
+val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
@@ -138,6 +142,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -460,6 +465,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
 }
@@ -515,6 +521,7 @@ and lfunction = private
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
     mode : alloc_mode;     (* alloc mode of the closure itself *)
+    ret_mode: alloc_mode;
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
   }
@@ -635,6 +642,7 @@ val lfunction :
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
   mode:alloc_mode ->
+  ret_mode:alloc_mode ->
   region:bool ->
   lambda
 

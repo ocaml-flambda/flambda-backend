@@ -216,6 +216,11 @@ utils/profile.cmx : \
     utils/misc.cmx \
     utils/profile.cmi
 utils/profile.cmi :
+utils/runtimetags.cmo : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmx : \
+    utils/runtimetags.cmi
+utils/runtimetags.cmi :
 utils/strongly_connected_components.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -3940,6 +3945,7 @@ lambda/lambda.cmi : \
     typing/types.cmi \
     typing/subst.cmi \
     typing/primitive.cmi \
+    typing/typedtree.cmi \
     typing/path.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
@@ -3966,6 +3972,7 @@ lambda/matching.cmo : \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
+    utils/config.cmi \
     utils/clflags.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
@@ -3989,6 +3996,7 @@ lambda/matching.cmx : \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
+    utils/config.cmx \
     utils/clflags.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \

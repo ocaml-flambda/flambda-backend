@@ -121,7 +121,7 @@ CAMLprim value caml_reify_bytecode(value ls_prog,
 
   clos = caml_alloc_small (2, Closure_tag);
   Code_val(clos) = (code_t) prog;
-  Closinfo_val(clos) = Make_closinfo(0, 2);
+  Closinfo_val(clos) = Make_closinfo(0, 2, 1);
   bytecode = caml_alloc_small (2, Abstract_tag);
   Bytecode_val(bytecode)->prog = prog;
   Bytecode_val(bytecode)->len = len;

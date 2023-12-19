@@ -62,7 +62,7 @@ void caml_garbage_collection(void)
 
   { /* Compute the total allocation size at this point,
        including allocations combined by Comballoc */
-    unsigned char* alloc_len = (unsigned char*)(&d->live_ofs[d->num_live]);
+    unsigned char* alloc_len = frame_end_of_live_ofs(d);
     int i, nallocs = *alloc_len++;
     intnat allocsz = 0;
 

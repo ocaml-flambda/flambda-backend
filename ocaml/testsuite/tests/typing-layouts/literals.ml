@@ -4,86 +4,69 @@
 *)
 
 (*****************************************)
+(* Prelude: Functions on unboxed floats. *)
+
+module Float_u = Stdlib__Float_u
+
+let test s f = Format.printf "%s: %f\n" s (Float_u.to_float f); Format.print_flush ()
+
+[%%expect{|
+module Float_u = Stdlib__Float_u
+val test : string -> float# -> unit = <fun>
+|}]
+
+(*****************************************)
 (* Expressions *)
 
-let e = #2.718281828459045
+let () = test "e" #2.718281828459045
+
 [%%expect{|
-Line 1, characters 8-26:
-1 | let e = #2.718281828459045
-            ^^^^^^^^^^^^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+e: 2.718282
 |}]
 
-let negative_one_half = -#0.5
+let () = test "negative_one_half" (-#0.5)
 [%%expect{|
-Line 1, characters 24-29:
-1 | let negative_one_half = -#0.5
-                            ^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = - #0.5
+let () = test "negative_one_half" (- #0.5)
 [%%expect{|
-Line 1, characters 24-30:
-1 | let negative_one_half = - #0.5
-                            ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = -.#0.5
+let () = test "negative_one_half" (-.#0.5)
 [%%expect{|
-Line 1, characters 24-30:
-1 | let negative_one_half = -.#0.5
-                            ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let negative_one_half = -. #0.5
+let () = test "negative_one_half" (-. #0.5)
 [%%expect{|
-Line 1, characters 24-31:
-1 | let negative_one_half = -. #0.5
-                            ^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+negative_one_half: -0.500000
 |}]
 
-let positive_one_dot = +#1.
+let () = test "positive_one_dot" (+#1.)
 [%%expect{|
-Line 1, characters 23-27:
-1 | let positive_one_dot = +#1.
-                           ^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = + #1.
+let () = test "positive_one_dot" (+ #1.)
 [%%expect{|
-Line 1, characters 23-28:
-1 | let positive_one_dot = + #1.
-                           ^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = +.#1.
+let () = test "positive_one_dot" (+.#1.)
 [%%expect{|
-Line 1, characters 23-28:
-1 | let positive_one_dot = +.#1.
-                           ^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let positive_one_dot = +. #1.
+let () = test "positive_one_dot" (+. #1.)
 [%%expect{|
-Line 1, characters 23-29:
-1 | let positive_one_dot = +. #1.
-                           ^^^^^^
-Error: Unboxed float literals aren't supported yet.
+positive_one_dot: 1.000000
 |}]
 
-let one_billion = #1e9
+let () = test "one_billion" (#1e9)
 [%%expect{|
-Line 1, characters 18-22:
-1 | let one_billion = #1e9
-                      ^^^^
-Error: Unboxed float literals aren't supported yet.
+one_billion: 1000000000.000000
 |}]
 
 let zero = #0n
@@ -150,28 +133,22 @@ Line 1, characters 26-36:
 Error: Unboxed int literals aren't supported yet.
 |}]
 
-let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
+let () = test "one_twenty_seven_point_two_five_in_floating_hex" (#0x7f.4)
 [%%expect{|
-Line 1, characters 54-61:
-1 | let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
-                                                          ^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+one_twenty_seven_point_two_five_in_floating_hex: 127.250000
 |}]
 
-let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
+let () = test "five_point_three_seven_five_in_floating_hexponent" (#0xa.cp-1)
 [%%expect{|
-Line 1, characters 56-65:
-1 | let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
-                                                            ^^^^^^^^^
-Error: Unboxed float literals aren't supported yet.
+five_point_three_seven_five_in_floating_hexponent: 5.375000
 |}]
 
-let unknown_floating_point_suffix = #0.P
+let () = test "unknown_floating_point_suffix" (#0.P)
 [%%expect{|
-Line 1, characters 36-40:
-1 | let unknown_floating_point_suffix = #0.P
-                                        ^^^^
-Error: Unboxed float literals aren't supported yet.
+Line 1, characters 46-52:
+1 | let () = test "unknown_floating_point_suffix" (#0.P)
+                                                  ^^^^^^
+Error: Unknown modifier 'P' for literal #0.P
 |}]
 
 (*****************************************)
@@ -201,17 +178,51 @@ let f x =
 
 f #5.;;
 [%%expect {|
-Line 3, characters 4-7:
-3 |   | #4. -> `Four
-        ^^^
-Error: Unboxed float literals aren't supported yet.
+val f : float# -> [> `Five | `Four | `Other ] = <fun>
+- : [> `Five | `Four | `Other ] = `Five
 |}];;
+
+let f x =
+  match x with
+  | #4. -> #0.
+  | #5. -> #1.
+  | x ->  x
+;;
+
+test "result" (f #7.);;
+[%%expect {|
+val f : float# -> float# = <fun>
+result: 7.000000
+- : unit = ()
+|}];;
+
+let f x =
+  match x with
+  | #4. -> #0.
+  | #5. -> #1.
+;;
+
+test "result" (f #7.);;
+(* This is here to test the [partial-match] warning *)
+[%%expect {|
+Lines 2-4, characters 2-14:
+2 | ..match x with
+3 |   | #4. -> #0.
+4 |   | #5. -> #1.
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+#0.
+
+val f : float# -> float# = <fun>
+Exception: Match_failure ("", 2, 2).
+|}];;
+
 
 (*****************************************)
 (* Lexing edge cases *)
 
 (* Unboxed literals at the beginning of the line aren't directives. *)
-let f _ _ = ();;
+let f (_ : float#) _ = ();;
 let () = f
 #2.
 #2L
@@ -222,13 +233,14 @@ let () = f
 ;;
 
 [%%expect{|
-val f : 'a -> 'b -> unit = <fun>
-Line 3, characters 0-3:
-3 | #2.
+val f : float# -> 'a -> unit = <fun>
+Line 4, characters 0-3:
+4 | #2L
     ^^^
-Error: Unboxed float literals aren't supported yet.
+Error: Unboxed int literals aren't supported yet.
 |}];;
 
+let f _ _ = ();;
 let () = f
 (* This lexes as a directive. #2 is not a valid unboxed int literal
    anyway, as it lacks a suffix.
@@ -239,4 +251,5 @@ let () = f
 ;;
 
 [%%expect{|
+val f : 'a -> 'b -> unit = <fun>
 |}];;

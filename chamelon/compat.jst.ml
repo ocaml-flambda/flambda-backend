@@ -52,6 +52,7 @@ type texp_function_identifier = {
   warnings : Warnings.state;
   arg_sort : Jkind.sort;
   ret_sort : Jkind.sort;
+  ret_mode : Alloc.t;
 }
 
 let texp_function_defaults =
@@ -64,6 +65,7 @@ let texp_function_defaults =
     warnings = Warnings.backup ();
     arg_sort = Jkind.Sort.value;
     ret_sort = Jkind.Sort.value;
+    ret_mode = Alloc.legacy;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -81,6 +83,7 @@ let mkTexp_function ?(id = texp_function_defaults)
       warnings = id.warnings;
       arg_sort = id.arg_sort;
       ret_sort = id.ret_sort;
+      ret_mode = id.ret_mode;
     }
 
 type texp_sequence_identifier = Jkind.sort
@@ -138,6 +141,7 @@ let view_texp (e : expression_desc) =
         warnings;
         arg_sort;
         ret_sort;
+        ret_mode;
       } ->
       Texp_function
         ( { arg_label; param; cases },
@@ -150,6 +154,7 @@ let view_texp (e : expression_desc) =
             warnings;
             arg_sort;
             ret_sort;
+            ret_mode;
           } )
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)

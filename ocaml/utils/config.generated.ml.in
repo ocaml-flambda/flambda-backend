@@ -116,4 +116,5 @@ let flexdll_dirs = [@flexdll_dir@]
 
 let ar_supports_response_files = @ar_supports_response_files@
 
+let naked_pointers = "@naked_pointers@" = "true"
 let runtime5 = "@enable_runtime5@" = "yes"

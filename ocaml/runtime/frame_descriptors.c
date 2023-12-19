@@ -35,10 +35,10 @@ extern intnat * caml_frametable[];
 
 static frame_descr * next_frame_descr(frame_descr * d) {
   unsigned char num_allocs = 0, *p;
-  CAMLassert(d->retaddr >= 4096);
+  CAMLassert(Retaddr_frame(d) >= 4096);
   if (!frame_return_to_C(d)) {
     /* Skip to end of live_ofs */
-    p = (unsigned char*)&d->live_ofs[d->num_live];
+    p = frame_end_of_live_ofs(d);
     /* Skip alloc_lengths if present */
     if (frame_has_allocs(d)) {
       num_allocs = *p;
@@ -95,7 +95,7 @@ static void fill_hashtable(
     intnat len = *tbl;
     frame_descr * d = (frame_descr *)(tbl + 1);
     for (intnat j = 0; j < len; j++) {
-      uintnat h = Hash_retaddr(d->retaddr, table->mask);
+      uintnat h = Hash_retaddr(Retaddr_frame(d), table->mask);
       while (table->descriptors[h] != NULL) {
         h = (h+1) & table->mask;
       }
@@ -224,7 +224,7 @@ frame_descr* caml_find_frame_descr(caml_frame_descrs fds, uintnat pc)
   while (1) {
     d = fds.descriptors[h];
     if (d == 0) return NULL; /* can happen if some code compiled without -g */
-    if (d->retaddr == pc) break;
+    if (Retaddr_frame(d) == pc) break;
     h = (h+1) & fds.mask;
   }
   return d;
