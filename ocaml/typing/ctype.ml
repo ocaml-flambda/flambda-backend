@@ -2091,6 +2091,11 @@ let check_decl_jkind env decl jkind =
       | None -> err
       | Some ty -> check_type_jkind env ty jkind
 
+let check_type_jkind_exn env texn ty jkind =
+  match check_type_jkind env ty jkind with
+  | Ok _ -> ()
+  | Error err -> raise_for texn (Bad_jkind (ty,err))
+
 let constrain_type_jkind_exn env texn ty jkind =
   match constrain_type_jkind env ty jkind with
   | Ok _ -> ()
@@ -4405,7 +4410,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         moregen_occur env (get_level t1) t2;
         update_scope_for Moregen (get_scope t1) t2;
         occur_for Moregen env t1 t2;
-        constrain_type_jkind_exn env Moregen t2 jkind;
+        check_type_jkind_exn env Moregen t2 jkind;
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
@@ -4421,7 +4426,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
             (Tvar { jkind }, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env (get_level t1') t2;
               update_scope_for Moregen (get_scope t1') t2;
-              constrain_type_jkind_exn env Moregen t2 jkind;
+              check_type_jkind_exn env Moregen t2 jkind;
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
