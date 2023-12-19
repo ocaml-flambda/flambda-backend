@@ -68,16 +68,30 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
+type address =
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
+  | Adot of address * int
+
+type 'a sig_reader =
+  Subst.Lazy.signature
+  -> Compilation_unit.Name.t
+  -> Shape.Uid.t
+  -> shape:Shape.t
+  -> address:address
+  -> flags:Cmi_format.pers_flags list
+  -> 'a
+
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
-val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> 'a
-val find : allow_hidden:bool -> 'a t -> (Persistent_signature.t -> 'a)
+val read : 'a t -> 'a sig_reader
+  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
+val find : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> 'a
 
 val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 
-val check : allow_hidden:bool -> 'a t -> (Persistent_signature.t -> 'a)
+val check : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected
@@ -130,8 +144,7 @@ val import_crcs : 'a t -> source:filepath ->
 val imports : 'a t -> Import_info.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> Digest.t
+val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
