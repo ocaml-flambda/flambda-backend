@@ -984,6 +984,7 @@ let add_parameters lam params =
     ~loc:Loc_unknown
     ~body:lam
     ~mode:alloc_heap
+    ~ret_mode:alloc_heap
     ~region:true
 
 let transl_implementation_module
