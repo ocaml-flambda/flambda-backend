@@ -1451,7 +1451,8 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
     | (Prim_local | Prim_poly), _ ->
       (* For primitives that might allocate locally, [p.prim_alloc] just says
          whether [caml_c_call] is required, without telling us anything
-         about allocation. *)
+         about local allocation.  (However if [p.prim_alloc = false] we
+         do actually know that the primitive does not allocate on the heap.) *)
       Some alloc_local
     | Prim_global, _ ->
       (* For primitives that definitely do not allocate locally,
