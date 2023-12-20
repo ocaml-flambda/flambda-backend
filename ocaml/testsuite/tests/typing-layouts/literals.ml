@@ -135,11 +135,11 @@ Line 1, characters 52-58:
 Error: Unknown modifier 'P' for literal #0.P
 |}]
 
-let () = test_int32 "unknown_floating_point_suffix" (#0g)
+let () = test_int32 "unknown_int_suffix" (#0g)
 [%%expect{|
-Line 1, characters 52-57:
-1 | let () = test_int32 "unknown_floating_point_suffix" (#0g)
-                                                        ^^^^^
+Line 1, characters 41-46:
+1 | let () = test_int32 "unknown_int_suffix" (#0g)
+                                             ^^^^^
 Error: Unknown modifier 'g' for literal #0g
 |}]
 
