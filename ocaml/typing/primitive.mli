@@ -44,7 +44,7 @@ type mode =
    will be instantiated either all to [Local] or all to [Global].
    [Prim_poly] never appears in [Lambda] terms. *)
 
-type description = private
+type 'ret_mode description_gen = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
@@ -58,9 +58,18 @@ type description = private
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * native_repr) list;
-    prim_native_repr_res: mode * native_repr }
+    prim_native_repr_res: 'ret_mode * native_repr }
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
+
+type description = mode description_gen
+
+val simple_on_values_gen
+  :  name:string
+  -> arity:int
+  -> alloc:bool
+  -> global:'ret_mode
+  -> 'ret_mode description_gen
 
 val simple_on_values
   :  name:string
@@ -76,8 +85,8 @@ val make
   -> coeffects:coeffects
   -> native_name:string
   -> native_repr_args: (mode * native_repr) list
-  -> native_repr_res: mode * native_repr
-  -> description
+  -> native_repr_res: 'ret_mode * native_repr
+  -> 'ret_mode description_gen
 
 val parse_declaration
   :  Parsetree.value_description
@@ -90,7 +99,7 @@ val print
   -> Outcometree.out_val_decl
   -> Outcometree.out_val_decl
 
-val native_name: description -> string
+val native_name: 'ret_mode description_gen -> string
 val byte_name: description -> string
 val vec128_name: vec128_type -> string
 

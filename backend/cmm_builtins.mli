@@ -31,7 +31,7 @@ val extcall :
     corresponds to [prim]. If [prim] is a C builtin supported on the target,
     returns [Cmm.operation] variant for [prim]'s intrinsics. *)
 val cextcall :
-  Primitive.description ->
+  Lambda.external_call ->
   expression list ->
   Debuginfo.t ->
   machtype ->

@@ -424,7 +424,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         prim_native_repr_args;
         prim_native_repr_res
       } :
-       Primitive.description) as prim_desc) ~(args : Simple.t list list)
+       Lambda.external_call) as prim_desc) ~(args : Simple.t list list)
     exn_continuation dbg ~current_region
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let args =
@@ -493,8 +493,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       Apply_cont_expr.continuation apply_cont, false
     | _ -> Continuation.create (), true
   in
-  let kind_of_primitive_native_repr
-      ((_, repr) : Primitive.mode * Primitive.native_repr) =
+  let kind_of_primitive_native_repr ((_, repr) : _ * Primitive.native_repr) =
     match repr with
     | Same_as_ocaml_repr sort ->
       K.With_subkind.(
@@ -720,7 +719,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
   in
   let dbg = Debuginfo.from_location loc in
   match prim, args with
-  | Pccall { prim_desc = prim }, args ->
+  | Pccall prim, args ->
     let exn_continuation =
       match exn_continuation with
       | None ->

@@ -122,7 +122,7 @@ let gen_array_set_kind mode =
 let prim_sys_argv =
   Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
-let to_locality ~poly = function
+let to_locality ~poly : Primitive.mode * _ -> _ = function
   | Prim_global, _ -> alloc_heap
   | Prim_local, _ -> alloc_local
   | Prim_poly, _ ->
@@ -130,7 +130,7 @@ let to_locality ~poly = function
     | None -> assert false
     | Some locality -> transl_locality_mode locality
 
-let to_modify_mode ~poly = function
+let to_modify_mode ~poly : Primitive.mode * _ -> _ = function
   | Prim_global, _ -> modify_heap
   | Prim_local, _ -> modify_maybe_stack
   | Prim_poly, _ ->
@@ -910,7 +910,7 @@ let lambda_of_prim prim_name prim loc args arg_exps ~ret_mode =
     | Apply _ | Revapply _), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
-let check_primitive_arity loc p =
+let check_primitive_arity loc (p : Primitive.description) =
   let mode =
     match p.prim_native_repr_res with
     | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global

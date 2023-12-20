@@ -56,7 +56,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pperform -> Pperform
   | Presume -> Presume
   | Preperform -> Preperform
-  | Pccall { prim_desc = prim } -> Pccall prim
+  | Pccall prim -> Pccall prim
   | Praise kind -> Praise kind
   | Psequand -> Psequand
   | Psequor -> Psequor
@@ -187,7 +187,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~coeffects:Has_coeffects
       ~native_name:"caml_obj_dup"
       ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
-      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
+      ~native_repr_res:(Lambda.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
   | Punbox_float -> Punbox_float
   | Pbox_float m -> Pbox_float m
   | Punbox_int bi -> Punbox_int bi

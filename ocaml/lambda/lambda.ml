@@ -43,6 +43,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type prim_mode =
+  | Prim_global
+  | Prim_local
+
 include (struct
 
   type locality_mode =
@@ -351,32 +355,30 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-and external_call = {
-  prim_desc : Primitive.description;
-}
+and external_call = prim_mode Primitive.description_gen
 
 let external_call (prim_desc : Primitive.description) ~(ret_mode : alloc_mode) =
   let prim_native_repr_res =
     match prim_desc.prim_native_repr_res with
-    | Prim_local, _
-    | Prim_global, _ -> prim_desc.prim_native_repr_res
+    | Prim_local, rep -> Prim_local, rep
+    | Prim_global, rep -> Prim_global, rep
     | Prim_poly, native_repr ->
       (* See comment in the .mli *)
       match ret_mode with
-      | Alloc_heap -> Primitive.Prim_global, native_repr
-      | Alloc_local -> Primitive.Prim_local, native_repr
+      | Alloc_heap -> Prim_global, native_repr
+      | Alloc_local -> Prim_local, native_repr
   in
-  let prim_desc =
-    Primitive.make ~name:prim_desc.prim_name
-      ~alloc:prim_desc.prim_alloc
-      ~c_builtin:prim_desc.prim_c_builtin
-      ~effects:prim_desc.prim_effects
-      ~coeffects:prim_desc.prim_coeffects
-      ~native_name:prim_desc.prim_native_name
-      ~native_repr_args:prim_desc.prim_native_repr_args
-      ~native_repr_res:prim_native_repr_res
-  in
-  { prim_desc }
+  Primitive.make ~name:prim_desc.prim_name
+    ~alloc:prim_desc.prim_alloc
+    ~c_builtin:prim_desc.prim_c_builtin
+    ~effects:prim_desc.prim_effects
+    ~coeffects:prim_desc.prim_coeffects
+    ~native_name:prim_desc.prim_native_name
+    ~native_repr_args:prim_desc.prim_native_repr_args
+    ~native_repr_res:prim_native_repr_res
+
+let simple_on_values ~name ~arity ~alloc =
+  Primitive.simple_on_values_gen ~name ~arity ~alloc ~global:Prim_global
 
 let vec128_name = function
   | Unknown128 -> "unknown128"
@@ -1467,7 +1469,7 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
-let alloc_mode_of_primitive_description (p : Primitive.description) =
+let alloc_mode_of_primitive_description (p : external_call) =
   if not Config.stack_allocation then
     if p.prim_alloc then Some alloc_heap else None
   else
@@ -1483,9 +1485,6 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
          [p.prim_alloc = false] actually tells us that the primitive does
          not allocate at all. *)
       if p.prim_alloc then Some alloc_heap else None
-    | Prim_poly, _ ->
-      Misc.fatal_errorf "Prim_poly should never be encountered here (%s)"
-        p.prim_name
 
 (* Changes to this function may also require changes in Flambda 2 (e.g.
    closure_conversion.ml). *)
@@ -1504,7 +1503,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall { prim_desc = p } -> alloc_mode_of_primitive_description p
+  | Pccall p -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1634,7 +1633,7 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
   | Pufloatfield _ | Punbox_float -> Punboxed_float
-  | Pccall { prim_desc = { prim_native_repr_res = _, repr_res } } ->
+  | Pccall { prim_native_repr_res = _, repr_res } ->
     layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

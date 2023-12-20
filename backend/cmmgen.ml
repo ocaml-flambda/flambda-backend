@@ -667,7 +667,7 @@ let rec transl env e =
           transl_make_array dbg env kind alloc_heap args
       | (Pduparray _, [arg]) ->
           let prim_obj_dup =
-            Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+            Lambda.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
           in
           transl_ccall env prim_obj_dup [arg] dbg
       | (Pmakearray _, []) ->

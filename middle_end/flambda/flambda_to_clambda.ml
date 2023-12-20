@@ -79,7 +79,7 @@ let check_closure t ulam named : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_value_is_closure"
+      Lambda.simple_on_values ~name:"caml_check_value_is_closure"
         ~arity:2 ~alloc:false
     in
     let str = Format.asprintf "%a" Flambda.print_named named in
@@ -109,7 +109,7 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
     let desc =
-      Primitive.simple_on_values ~name:"caml_check_field_access"
+      Lambda.simple_on_values ~name:"caml_check_field_access"
         ~arity:3 ~alloc:false
     in
     let str =

@@ -727,7 +727,7 @@ let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
   match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
+let cextcall (prim : Lambda.external_call) args dbg ret ty_args returns =
   let name = Primitive.native_name prim in
   let default =
     Cop

@@ -440,7 +440,7 @@ let comp_primitive stack_info p sz args =
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
-  | Pccall { prim_desc = p } -> Kccall(p.prim_name, p.prim_arity)
+  | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->
       check_stack stack_info (sz + 4);
       Kperform

@@ -37,6 +37,12 @@ type immediate_or_pointer =
   | Immediate
   | Pointer
 
+(* like [Primitive.mode], but without [Prim_poly]; see comments on declaration
+   of [external_call] *)
+type prim_mode =
+  | Prim_global
+  | Prim_local
+
 type locality_mode = private
   | Alloc_heap
   | Alloc_local
@@ -328,16 +334,18 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-and external_call = private {
-  prim_desc : Primitive.description;
-  (** This is guaranteed never to be [Prim_poly].  This ensures that we can
+and external_call = prim_mode Primitive.description_gen
+  (** We cannot have [Prim_poly] in Lambda code. Changing the parameter
+      on [Primitive.description_gen] from [Primitive.mode] to [prim_mode]
+      ensures this is the case. Avoiding [Prim_poly] ensures that we can
       precisely identify whether or not the frontend decided that this
       particular primitive application needed an enclosing region or not.
       Also see [alloc_mode_of_primitive_description]. *)
-}
 
 val external_call : Primitive.description -> ret_mode:alloc_mode
   -> external_call
+
+val simple_on_values : name:string -> arity:int -> alloc:bool -> external_call
 
 val vec128_name: vec128_type -> string
 
@@ -764,7 +772,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
   *)
 
 val alloc_mode_of_primitive_description :
-  Primitive.description -> alloc_mode option
+  external_call -> alloc_mode option
   (** Like [primitive_may_allocate], for [external] calls. *)
 
 (***********************)
