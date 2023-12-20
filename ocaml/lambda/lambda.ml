@@ -1455,8 +1455,8 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
       Some alloc_local
     | Prim_global, _ ->
       (* For primitives that definitely do not allocate locally,
-         [p.prim_alloc] actually tells us precisely whether the primitive
-         allocates. *)
+         [p.prim_alloc = false] actually tells us that the primitive does
+         not allocate at all. *)
       if p.prim_alloc then Some alloc_heap else None
 
 (* Changes to this function may also require changes in Flambda 2 (e.g.
