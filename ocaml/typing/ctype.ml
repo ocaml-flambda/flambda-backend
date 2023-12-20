@@ -3924,7 +3924,7 @@ type filter_method_failure =
   | Unification_error of unification_error
   | Not_a_method
   | Not_an_object of type_expr
-  | Not_a_value of type_expr * Layout.Violation.t
+  | Not_a_value of Layout.Violation.t
 
 exception Filter_method_failed of filter_method_failure
 
@@ -3991,7 +3991,7 @@ let filter_method env name ty =
         constrain_type_layout env ty (Layout.value ~why:Object)
       with
       | Ok _ -> ()
-      | Error err -> raise (Filter_method_failed (Not_a_value (ty, err)))
+      | Error err -> raise (Filter_method_failed (Not_a_value err))
       end;
       link_type ty ty';
       ty_meth
