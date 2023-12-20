@@ -54,8 +54,7 @@ external set : ('a : float64) array -> int -> ('a : float64) -> unit = "%float_u
    @raise Invalid_argument
    if [n] is outside the range 0 to [length a - 1]. *)
 
-external make : int -> ('a : float64) -> ('a : float64) array =
-  "caml_make_float_u_array_byte" "caml_make_float_u_array"
+val make : int -> ('a : float64) -> ('a : float64) array
 (** [make n x] returns a fresh array of length [n],
    initialized with [x].
    All the elements of this new array are initially
@@ -68,8 +67,7 @@ external make : int -> ('a : float64) -> ('a : float64) array =
    If the value of [x] is a floating-point number, then the maximum
    size is only [Sys.max_array_length / 2].*)
 
-external create : int -> ('a : float64) -> ('a : float64) array =
-  "caml_make_float_u_array_byte" "caml_make_float_u_array"
+val create : int -> ('a : float64) -> ('a : float64) array
   [@@ocaml.deprecated "Use Array.make/ArrayLabels.make instead."]
 (** @deprecated [create] is an alias for {!make}. *)
 

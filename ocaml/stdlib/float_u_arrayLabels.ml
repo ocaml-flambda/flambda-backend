@@ -29,17 +29,55 @@ external get: ('a : float64) array -> int -> ('a : float64) = "%float_u_array_sa
 external set: ('a : float64) array -> int -> ('a : float64) -> unit = "%float_u_array_safe_set"
 external unsafe_get: ('a : float64) array -> int -> ('a : float64) = "%float_u_array_unsafe_get"
 external unsafe_set: ('a : float64) array -> int -> ('a : float64) -> unit = "%float_u_array_unsafe_set"
-external make: int -> ('a : float64) -> ('a : float64) array =
-  "caml_make_float_u_array_byte" "caml_make_float_u_array"
-external create: int -> ('a : float64) -> ('a : float64) array =
-  "caml_make_float_u_array_byte" "caml_make_float_u_array"
-external unsafe_sub : ('a : float64) array -> int -> int -> ('a : float64) array = "caml_float_u_array_sub"
-external append_prim : ('a : float64) array -> ('a : float64) array -> ('a : float64) array = "caml_float_u_array_append"
-external concat : ('a : float64) array list -> ('a : float64) array = "caml_float_u_array_concat"
+external floatarray_create : int -> ('a : float64) array = "caml_floatarray_create"
 external unsafe_blit :
   ('a : float64) array -> int -> ('a : float64) array -> int -> int -> unit = "caml_floatarray_blit"
-external unsafe_fill :
-  ('a : float64) array -> int -> int -> ('a : float64) -> unit = "caml_float_u_array_fill_byte" "caml_float_u_array_fill"
+
+let unsafe_fill : ('a : float64) array -> int -> int -> ('a : float64) -> unit =
+  fun a ofs len v ->
+    for i = ofs to ofs + len - 1 do unsafe_set a i v done
+
+let make : int -> ('a : float64) -> ('a : float64) array = fun n v ->
+  let result = floatarray_create n in
+  unsafe_fill result 0 n v;
+  result
+
+let create: int -> ('a : float64) -> ('a : float64) array = make
+
+let unsafe_sub: ('a : float64) array -> int -> int -> ('a : float64) array = fun a ofs len ->
+  let result = floatarray_create len in
+  unsafe_blit a ofs result 0 len;
+  result
+
+let append_prim: ('a : float64) array -> ('a : float64) array -> ('a : float64) array = fun a1 a2 ->
+  let l1 = length a1 in
+  let l2 = length a2 in
+  let result = floatarray_create (l1 + l2) in
+  unsafe_blit a1 0 result 0 l1;
+  unsafe_blit a2 0 result l1 l2;
+  result
+let ensure_ge (x:int) y =
+  if x >= y then x else invalid_arg "Float_u_array.concat"
+
+let rec sum_lengths acc = function
+  | [] -> acc
+  | hd :: tl -> sum_lengths (ensure_ge (length hd + acc) acc) tl
+
+let concat: ('a : float64) array list -> ('a : float64) array = fun l ->
+  let len = sum_lengths 0 l in
+  let result = floatarray_create len in
+  let rec loop l i =
+    match l with
+    | [] -> assert (i = len)
+    | hd :: tl ->
+      let hlen = length hd in
+      unsafe_blit hd 0 result i hlen;
+      loop tl (i + hlen)
+  in
+  loop l 0;
+  result
+
+let empty () = floatarray_create 0
 (* external create_float: int -> float array = "caml_make_float_vect"
  * let make_float = create_float *)
 
@@ -52,8 +90,6 @@ external unsafe_fill :
  *   external unsafe_set : floatarray -> int -> float -> unit
  *       = "%floatarray_unsafe_set"
  * end *)
-
-external empty: unit -> ('a : float64) array = "caml_float_u_array_empty"
 
 let init l f =
   if l = 0 then (empty ()) else
