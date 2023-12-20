@@ -186,7 +186,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~effects:Only_generative_effects
       ~coeffects:Has_coeffects
       ~native_name:"caml_obj_dup"
-      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
+      ~native_repr_args:[(), P.Same_as_ocaml_repr Jkind.Sort.Value]
       ~native_repr_res:(Lambda.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
   | Punbox_float -> Punbox_float
   | Pbox_float m -> Pbox_float m

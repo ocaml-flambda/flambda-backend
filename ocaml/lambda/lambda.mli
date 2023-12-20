@@ -334,10 +334,11 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-and external_call = prim_mode Primitive.description_gen
+and external_call = (unit, prim_mode) Primitive.description_gen
   (** We cannot have [Prim_poly] in Lambda code. Changing the parameter
       on [Primitive.description_gen] from [Primitive.mode] to [prim_mode]
-      ensures this is the case. Avoiding [Prim_poly] ensures that we can
+      ensures this is the case. (We also have no need for argument modes
+      in Lambda, thus the [unit].) Avoiding [Prim_poly] ensures that we can
       precisely identify whether or not the frontend decided that this
       particular primitive application needed an enclosing region or not.
       Also see [alloc_mode_of_primitive_description]. *)

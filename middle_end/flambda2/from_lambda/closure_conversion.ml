@@ -591,7 +591,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let call : Acc.t -> Expr_with_acc.t =
     List.fold_left2
       (fun (call : Simple.t list -> Acc.t -> Expr_with_acc.t) arg
-           (arg_repr : Primitive.mode * Primitive.native_repr) ->
+           (arg_repr : _ * Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None

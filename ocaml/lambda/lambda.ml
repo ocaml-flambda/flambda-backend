@@ -355,13 +355,16 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-and external_call = prim_mode Primitive.description_gen
+and external_call = (unit, prim_mode) Primitive.description_gen
 
 let external_call (prim_desc : Primitive.description) ~(ret_mode : alloc_mode) =
-  let prim_native_repr_res =
+  let native_repr_args =
+    List.map (fun (_, repr) -> (), repr) prim_desc.prim_native_repr_args
+  in
+  let native_repr_res =
     match prim_desc.prim_native_repr_res with
-    | Prim_local, rep -> Prim_local, rep
-    | Prim_global, rep -> Prim_global, rep
+    | Prim_local, native_repr -> Prim_local, native_repr
+    | Prim_global, native_repr -> Prim_global, native_repr
     | Prim_poly, native_repr ->
       (* See comment in the .mli *)
       match ret_mode with
@@ -374,11 +377,12 @@ let external_call (prim_desc : Primitive.description) ~(ret_mode : alloc_mode) =
     ~effects:prim_desc.prim_effects
     ~coeffects:prim_desc.prim_coeffects
     ~native_name:prim_desc.prim_native_name
-    ~native_repr_args:prim_desc.prim_native_repr_args
-    ~native_repr_res:prim_native_repr_res
+    ~native_repr_args
+    ~native_repr_res
 
 let simple_on_values ~name ~arity ~alloc =
-  Primitive.simple_on_values_gen ~name ~arity ~alloc ~global:Prim_global
+  Primitive.simple_on_values_gen ~name ~arity ~alloc
+    ~arg_global:() ~ret_global:Prim_global
 
 let vec128_name = function
   | Unknown128 -> "unknown128"

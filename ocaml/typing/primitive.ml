@@ -39,7 +39,7 @@ type mode =
   | Prim_global
   | Prim_poly
 
-type 'ret_mode description_gen =
+type ('arg_mode, 'ret_mode) description_gen =
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
@@ -47,10 +47,10 @@ type 'ret_mode description_gen =
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * native_repr) list;
+    prim_native_repr_args: ('arg_mode * native_repr) list;
     prim_native_repr_res: 'ret_mode * native_repr }
 
-type description = mode description_gen
+type description = (mode, mode) description_gen
 
 type error =
   | Old_style_float_with_native_repr_attribute
@@ -93,7 +93,7 @@ let rec make_native_repr_args arity x =
   else
     x :: make_native_repr_args (arity - 1) x
 
-let simple_on_values_gen ~name ~arity ~alloc ~global =
+let simple_on_values_gen ~name ~arity ~alloc ~arg_global ~ret_global =
   {prim_name = name;
    prim_arity = arity;
    prim_alloc = alloc;
@@ -103,11 +103,12 @@ let simple_on_values_gen ~name ~arity ~alloc ~global =
    prim_native_name = "";
    prim_native_repr_args =
      make_native_repr_args arity
-       (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value);
-   prim_native_repr_res = (global, Same_as_ocaml_repr Jkind.Sort.Value) }
+       (arg_global, Same_as_ocaml_repr Jkind.Sort.Value);
+   prim_native_repr_res = (ret_global, Same_as_ocaml_repr Jkind.Sort.Value) }
 
 let simple_on_values ~name ~arity ~alloc =
-  simple_on_values_gen ~name ~arity ~alloc ~global:Prim_global
+  simple_on_values_gen ~name ~arity ~alloc
+    ~arg_global:Prim_global ~ret_global:Prim_global
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
