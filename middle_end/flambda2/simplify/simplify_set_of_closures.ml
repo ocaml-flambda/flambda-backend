@@ -486,6 +486,11 @@ let simplify_function context ~outer_dacc function_slot code_id
           let max_function_simplify_run =
             Flambda_features.Expert.max_function_simplify_run ()
           in
+          if should_resimplify && Flambda_features.dump_flambda () && debug ()
+          then
+            Format.eprintf
+              "@\n%tAfter a single simplify_set_of_closures:%t@\n%a@\n@."
+              Flambda_colours.each_file Flambda_colours.pop Code.print new_code;
           if should_resimplify && count < max_function_simplify_run
           then run ~outer_dacc ~code:new_code (count + 1)
           else
