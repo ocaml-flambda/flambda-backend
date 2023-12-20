@@ -143,6 +143,31 @@ Line 1, characters 41-46:
 Error: Unknown modifier 'g' for literal #0g
 |}]
 
+
+let () = test_nativeint "invalid_nativeint" (#0x10000000000000000n)
+[%%expect{|
+Line 1, characters 44-67:
+1 | let () = test_nativeint "invalid_nativeint" (#0x10000000000000000n)
+                                                ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Integer literal exceeds the range of representable integers of type nativeint
+|}]
+
+let () = test_int64 "invalid_int64" (#0x10000000000000000L)
+[%%expect{|
+Line 1, characters 36-59:
+1 | let () = test_int64 "invalid_int64" (#0x10000000000000000L)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Integer literal exceeds the range of representable integers of type int64
+|}]
+
+let () = test_int32 "invalid_int32" (#0x100000000l)
+[%%expect{|
+Line 1, characters 36-51:
+1 | let () = test_int32 "invalid_int32" (#0x100000000l)
+                                        ^^^^^^^^^^^^^^^
+Error: Integer literal exceeds the range of representable integers of type int32
+|}]
+
 (*****************************************)
 (* Patterns *)
 
