@@ -1241,26 +1241,26 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
         | { traps_ref = { contents = Reachable ts; }; _} ->
           with_handler (env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable; }; _ } ->
-          let dummy_constant =
-            match r1 with
-            | None -> Ctuple []
-            | Some r1 ->
-              Ctuple (List.map (fun reg ->
-                  match reg.typ with
-                  | Val | Int -> Cconst_int (1, Debuginfo.none)
-                  | Addr -> Cconst_int (0, Debuginfo.none)
-                  | Float -> Cconst_float (0.0, Debuginfo.none)
-                  | Vec128 ->
-                    Cconst_vec128 ({ low = 0L; high = 0L }, Debuginfo.none)
-                )
-                (Array.to_list r1))
-          in
+          let dummy_constant = Cconst_int (1, Debuginfo.none) in
           let segfault =
-            Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
+            Cmm.(Cop ((Cload { memory_chunk = Word_int;
+                               mutability = Mutable;
+                               is_atomic = false; }),
                       [Cconst_int (0, Debuginfo.none)],
                       Debuginfo.none))
           in
-          let unreachable = Csequence (segfault, dummy_constant) in
+          let dummy_raise =
+            Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
+          in
+          let unreachable =
+            (* The use of a raise operation means that this handler is known
+               not to return, making it compatible with any layout for the body
+               or surrounding code.
+               We also set the trap stack to [Uncaught] to ensure that we don't
+               introduce spurious control-flow edges inside the function. *)
+            Csequence (segfault, dummy_raise)
+          in
+          let env = env_set_trap_stack env Uncaught in
           with_handler env unreachable
           (* Misc.fatal_errorf "Selection.emit_expr: \
            *                    Unreachable exception handler %d" lbl *)
@@ -1699,6 +1699,13 @@ method emit_tail (env:environment) exp =
         | { traps_ref = { contents = Reachable ts; }; _} ->
           with_handler (env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable; }; _ } ->
+          (* Note: The following [unreachable] expression has machtype [|Int|],
+             but this might not be the correct machtype for this function's
+             return value.
+             It doesn't matter at runtime since the expression cannot return,
+             but if we start checking (or joining) the machtypes of the
+             different tails we will need to implement something like the
+             [emit_expr_aux] version above, that hides the machtype. *)
           let unreachable =
             Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
                       [Cconst_int (0, Debuginfo.none)],
