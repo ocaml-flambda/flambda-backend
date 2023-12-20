@@ -58,7 +58,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Plslint
   | Plsrint
   | Pasrint
-  | Pintcomp _ -> No_effects, No_coeffects
+  | Pintcomp _
+  | Punboxed_int_comp _ -> No_effects, No_coeffects
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }
@@ -231,7 +232,8 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pisint
   | Pisout
   | Pintofbint _
-  | Pbintcomp _ -> false
+  | Pbintcomp _
+  | Punboxed_int_comp _ -> false
   | Pdivbint { mode = m }
   | Pmodbint { mode = m }
   | Pbintofint (_,m)

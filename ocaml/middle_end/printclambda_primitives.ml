@@ -33,6 +33,15 @@ let alloc_kind = function
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s%s" (boxed_integer_mark name bi) (alloc_kind m)
 
+let unboxed_integer_mark name bi m =
+  match bi with
+  | Lambda.Pnativeint -> Printf.sprintf "Nativeint_u.%s%s" name (alloc_kind m)
+  | Lambda.Pint32 -> Printf.sprintf "Int32_u.%s%s" name (alloc_kind m)
+  | Lambda.Pint64 -> Printf.sprintf "Int64_u.%s%s" name (alloc_kind m)
+
+let print_unboxed_integer name ppf bi m =
+  fprintf ppf "%s" (unboxed_integer_mark name bi m);;
+
 let array_kind array_kind =
   let open Lambda in
   match array_kind with
@@ -266,6 +275,12 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
   | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
   | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Ceq) -> print_unboxed_integer "==" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cne) -> print_unboxed_integer "!=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Clt) -> print_unboxed_integer "<" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cgt) -> print_unboxed_integer ">" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cle) -> print_unboxed_integer "<=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cge) -> print_unboxed_integer ">=" ppf bi alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       Printlambda.print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->

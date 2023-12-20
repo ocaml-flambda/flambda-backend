@@ -845,6 +845,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ tag_int
         (Binary (convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
     ]
+  | Punboxed_int_comp (kind, comp), [[arg1]; [arg2]] ->
+    [ tag_int
+        (Binary (convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
+    ]
   | Pintoffloat, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Tagged_immediate in
@@ -1464,7 +1468,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _
       | Pmulbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _
       | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _
+      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Punboxed_int_comp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Pbigstring_load_128 _
       | Parrayrefu
