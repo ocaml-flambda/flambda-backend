@@ -1026,7 +1026,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         } ->
       let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Indirect alloc)
-    | C_call { alloc; _ } -> C_call { alloc }
+    | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let param_arity = Apply_expr.args_arity app in

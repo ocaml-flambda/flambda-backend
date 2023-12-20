@@ -53,9 +53,9 @@ let direct_call_size = 4
 
 let indirect_call_size = 6
 
-let alloc_extcall_size = 10
+let needs_caml_c_call_extcall_size = 10
 
-let nonalloc_extcall_size = 4
+let does_not_need_caml_c_call_extcall_size = 4
 
 let array_length_size = 2
 
@@ -70,13 +70,14 @@ let unary_int_prim_size kind op =
   | Tagged_immediate, Swap_byte_endianness ->
     (* CR pchambart: size depends a lot of the architecture. If the backend
        handles it, this is a single arith op. *)
-    2 + nonalloc_extcall_size + 1
+    2 + does_not_need_caml_c_call_extcall_size + 1
   | Naked_immediate, Neg -> 1
-  | Naked_immediate, Swap_byte_endianness -> nonalloc_extcall_size + 1
-  | Naked_int64, Neg when arch32 -> nonalloc_extcall_size + 1
+  | Naked_immediate, Swap_byte_endianness ->
+    does_not_need_caml_c_call_extcall_size + 1
+  | Naked_int64, Neg when arch32 -> does_not_need_caml_c_call_extcall_size + 1
   | (Naked_int32 | Naked_int64 | Naked_nativeint), Neg -> 1
   | (Naked_int32 | Naked_int64 | Naked_nativeint), Swap_byte_endianness ->
-    nonalloc_extcall_size + 1
+    does_not_need_caml_c_call_extcall_size + 1
 
 let arith_conversion_size src dst =
   match
@@ -89,13 +90,13 @@ let arith_conversion_size src dst =
   | Naked_int64, (Naked_nativeint | Naked_immediate)
   | Naked_int64, Naked_float
     when arch32 ->
-    nonalloc_extcall_size + 1 (* arg *)
+    does_not_need_caml_c_call_extcall_size + 1 (* arg *)
   | Tagged_immediate, Naked_int64
   | Naked_int32, Naked_int64
   | (Naked_nativeint | Naked_immediate), Naked_int64
   | Naked_float, Naked_int64
     when arch32 ->
-    alloc_extcall_size + 1 (* arg *) + 1 (* unbox *)
+    needs_caml_c_call_extcall_size + 1 (* arg *) + 1 (* unbox *)
   | Naked_float, Naked_float -> 0
   | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
       Tagged_immediate ) ->
@@ -146,13 +147,14 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
   match kind, init with
-  | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
+  | Values _, Assignment Heap ->
+    does_not_need_caml_c_call_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
-  | Values (Assignment Heap) -> nonalloc_extcall_size
+  | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
 
@@ -173,7 +175,7 @@ let string_or_bigstring_load kind width =
     (* 7 (not allow_unaligned_access) *)
     | Thirty_two -> 2 (* add, load (allow_unaligned_access) *)
     (* 17 (not allow_unaligned_access) *)
-    | Sixty_four -> if arch32 then nonalloc_extcall_size else 2
+    | Sixty_four -> if arch32 then does_not_need_caml_c_call_extcall_size else 2
     (* add, load (allow_unaligned_access) *)
     (* 37 (not allow_unaligned_access) *)
     | One_twenty_eight _ -> 2 (* add, load (alignment handled explicitly) *)
@@ -201,10 +203,11 @@ let binary_int_arith_primitive kind op =
   with
   (* Int64 bits ints on 32-bit archs *)
   | (Naked_int64, Add | Naked_int64, Sub | Naked_int64, Mul) when arch32 ->
-    nonalloc_extcall_size + 2
-  | (Naked_int64, Div | Naked_int64, Mod) when arch32 -> alloc_extcall_size + 2
+    does_not_need_caml_c_call_extcall_size + 2
+  | (Naked_int64, Div | Naked_int64, Mod) when arch32 ->
+    needs_caml_c_call_extcall_size + 2
   | (Naked_int64, And | Naked_int64, Or | Naked_int64, Xor) when arch32 ->
-    nonalloc_extcall_size + 2
+    does_not_need_caml_c_call_extcall_size + 2
   (* Tagged integers *)
   | Tagged_immediate, Add -> 2
   | Tagged_immediate, Sub -> 2
@@ -234,7 +237,7 @@ let binary_int_shift_primitive kind op =
   with
   (* Int64 special case *)
   | (Naked_int64, Lsl | Naked_int64, Lsr | Naked_int64, Asr) when arch32 ->
-    nonalloc_extcall_size + 2
+    does_not_need_caml_c_call_extcall_size + 2
   (* Int32 special case *)
   | Naked_int32, Lsr when arch64 -> 2
   (* Tagged integers *)
@@ -260,11 +263,11 @@ let binary_int_comp_primitive kind cmp =
   | Naked_int64, Gt Signed
   | Naked_int64, Ge Signed
     when arch32 ->
-    alloc_extcall_size + 2
+    needs_caml_c_call_extcall_size + 2
   | ( Naked_int64,
       (Neq | Eq | Lt Unsigned | Le Unsigned | Gt Unsigned | Ge Unsigned) )
     when arch32 ->
-    alloc_extcall_size + 2
+    needs_caml_c_call_extcall_size + 2
   (* Tagged integers *)
   | Tagged_immediate, Neq
   | Tagged_immediate, Eq
@@ -316,7 +319,7 @@ let nullary_prim_size prim =
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
-  | Duplicate_array _ | Duplicate_block _ -> alloc_extcall_size + 1
+  | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
   | Array_length -> array_length_size
@@ -338,7 +341,7 @@ let unary_prim_size prim =
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
   | End_region | End_try_region -> 1
-  | Obj_dup -> alloc_extcall_size + 1
+  | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ -> 1
 
@@ -361,7 +364,8 @@ let binary_prim_size prim =
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
-  | Atomic_exchange | Atomic_fetch_and_add -> nonalloc_extcall_size
+  | Atomic_exchange | Atomic_fetch_and_add ->
+    does_not_need_caml_c_call_extcall_size
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
@@ -372,7 +376,7 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
   (* ~ 1 block_load + 1 block_set *)
-  | Atomic_compare_and_set -> nonalloc_extcall_size
+  | Atomic_compare_and_set -> does_not_need_caml_c_call_extcall_size
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with
@@ -404,8 +408,9 @@ let apply apply =
     indirect_call_size
   | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
     indirect_call_size
-  | C_call { alloc = true; _ } -> alloc_extcall_size
-  | C_call { alloc = false; _ } -> nonalloc_extcall_size
+  | C_call { needs_caml_c_call = true; _ } -> needs_caml_c_call_extcall_size
+  | C_call { needs_caml_c_call = false; _ } ->
+    does_not_need_caml_c_call_extcall_size
   | Method _ -> 8
 (* from flambda/inlining_cost.ml *)
 

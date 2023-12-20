@@ -23,6 +23,7 @@
       longarray: No Allocation
   floatgenarray: No Allocation
     longfgarray: No Allocation
+    maniparray0: No Allocation
      maniparray: No Allocation
     manipfarray: No Allocation
             ref: No Allocation

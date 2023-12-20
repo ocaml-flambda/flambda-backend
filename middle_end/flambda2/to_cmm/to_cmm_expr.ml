@@ -218,7 +218,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call { needs_caml_c_call; is_c_builtin; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -260,7 +260,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         |> List.map K.With_subkind.kind)
     in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~returns ~ty_args
+           callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
