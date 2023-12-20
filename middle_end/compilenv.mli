@@ -30,15 +30,16 @@ val reset_info_tables: unit -> unit
 val current_unit_infos: unit -> unit_infos
         (* Return the infos for the unit being compiled *)
 
-val get_global_export_info : Compilation_unit.t -> Cmx_format.export_info option
+val get_global_export_info : Compilation_unit.t
+  -> Flambda2_cmx.Flambda_cmx_format.t option
         (* Means of getting the export info found in the
            .cmx file of the given unit. *)
 
 val get_unit_export_info
-  : Compilation_unit.t -> Cmx_format.export_info option
+  : Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option
 
-val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
-        (* Set the export information for the current unit (Flambda 2 only). *)
+val set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
+        (* Set the export information for the current unit. *)
 
 val need_curry_fun:
   Lambda.function_kind -> Cmm.machtype list -> Cmm.machtype -> unit
