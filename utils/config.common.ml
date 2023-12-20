@@ -38,12 +38,12 @@ and cmo_magic_number = "Caml1999O521"
 and cma_magic_number = "Caml1999A521"
 and cmx_magic_number =
   if flambda || flambda2 then
-    "Caml2021y521"
+    "Caml2021y522"
   else
     "Caml2021Y521"
 and cmxa_magic_number =
   if flambda || flambda2 then
-    "Caml2021z521"
+    "Caml2021z522"
   else
     "Caml2021Z521"
 and ast_impl_magic_number = "Caml1999M033"
