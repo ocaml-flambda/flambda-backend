@@ -1057,8 +1057,7 @@ let primitive_needs_event_after = function
   | Primitive (prim,_) -> lambda_primitive_needs_event_after prim
   | External _ | Sys_argv -> true
   | Comparison(comp, knd) ->
-      lambda_primitive_needs_event_after
-        (comparison_primitive comp knd)
+      lambda_primitive_needs_event_after (comparison_primitive comp knd)
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false

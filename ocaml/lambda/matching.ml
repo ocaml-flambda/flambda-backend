@@ -2247,18 +2247,12 @@ let divide_array ~scopes kind ctx pm =
 let strings_test_threshold = 8
 
 let prim_string_notequal =
-  let external_call =
-    Lambda.simple_on_values ~name:"caml_string_notequal" ~arity:2
-      ~alloc:false
-  in
-  Pccall external_call
+  Pccall (Lambda.simple_on_values ~name:"caml_string_notequal" ~arity:2
+            ~alloc:false)
 
 let prim_string_compare =
-  let external_call =
-    Lambda.simple_on_values ~name:"caml_string_compare" ~arity:2
-      ~alloc:false
-  in
-  Pccall external_call
+  Pccall (Lambda.simple_on_values ~name:"caml_string_compare" ~arity:2
+            ~alloc:false)
 
 let bind_sw arg layout k =
   match arg with

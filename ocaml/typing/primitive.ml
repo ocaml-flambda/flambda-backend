@@ -102,8 +102,7 @@ let simple_on_values_gen ~name ~arity ~alloc ~arg_global ~ret_global =
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
    prim_native_repr_args =
-     make_native_repr_args arity
-       (arg_global, Same_as_ocaml_repr Jkind.Sort.Value);
+     make_native_repr_args arity (arg_global, Same_as_ocaml_repr Jkind.Sort.Value);
    prim_native_repr_res = (ret_global, Same_as_ocaml_repr Jkind.Sort.Value) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects

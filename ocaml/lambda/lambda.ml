@@ -1637,8 +1637,7 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
   | Pufloatfield _ | Punbox_float -> Punboxed_float
-  | Pccall { prim_native_repr_res = _, repr_res } ->
-    layout_of_native_repr repr_res
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
