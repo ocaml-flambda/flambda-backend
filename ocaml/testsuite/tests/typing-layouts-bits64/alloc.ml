@@ -104,7 +104,9 @@ let[@inline never] literal_test x y =
   let open Int64_u in
   let[@inline never] f x y = (#1L + x) * (y - #4L) in
   match x with
-  | #2L ->  (f x y) / (#3L % #10L)
+  | #2L | #0x7fffffffffffffffL ->  (f x y) / (#3L % #10L)
   | _ -> #0L
 
 let _ = measure_alloc "literals (should be -1): %Ld" (fun () -> literal_test #2L #3L)
+let _ = measure_alloc "literals (should be -3074457345618258602): %Ld"
+          (fun () -> literal_test #0x7fffffffffffffffL #0x7fffffffffffffffL)
