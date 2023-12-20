@@ -2042,8 +2042,12 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   =
   match x with
-  | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
-  | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
+  | Float (x, None) ->
+    paren (first_is '-' x) (fun f -> pp f "%s") f (Misc.format_as_unboxed_literal x)
+  | Float (x, Some suffix)
+  | Integer (x, suffix) ->
+    paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
+      (Misc.format_as_unboxed_literal x, suffix)
 
 and function_param ctxt f
     ({ pparam_desc; pparam_loc = _ } :
