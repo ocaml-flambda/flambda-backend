@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts"
+   flags = "-extension layouts_beta"
    * expect
 *)
 

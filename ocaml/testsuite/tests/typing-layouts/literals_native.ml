@@ -1,6 +1,6 @@
 (* TEST
    * flambda2
-   flags = "-extension layouts"
+   flags = "-extension layouts_beta"
    ** native
    ** bytecode
 *)
@@ -8,16 +8,7 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-module Float_u = struct
-  include Stdlib__Float_u
-
-  let ( + ) = add
-  let ( - ) = sub
-  let ( * ) = mul
-  let ( / ) = div
-  let ( ** ) = pow
-  let ( > ) x y = (compare x y) > 0
-end
+module Float_u = Stdlib__Float_u
 module Int32_u = Stdlib__Int32_u
 module Int64_u = Stdlib__Int64_u
 module Nativeint_u = Stdlib__Nativeint_u
