@@ -83,7 +83,7 @@ let [@ocamlformat "disable"] print ppf t =
       Simple.print obj
       Method_kind.print kind
       Alloc_mode.For_allocations.print alloc_mode
-  | C_call { needs_caml_c_call; is_c_builtin;alloc_mode } ->
+  | C_call { needs_caml_c_call; is_c_builtin; alloc_mode } ->
     fprintf ppf "@[<hov 1>(C@ \
         @[<hov 1>(needs_caml_c_call@ %b)@]@ \
         @[<hov 1>(is_c_builtin@ %b)@]@ \
