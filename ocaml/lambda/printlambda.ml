@@ -373,7 +373,7 @@ let primitive ppf = function
   | Punboxed_product_field (n, layouts) ->
       fprintf ppf "unboxed_product_field %d [%a]" n
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") layout) layouts
-  | Pccall p -> fprintf ppf "%s" p.prim_name
+  | Pccall { prim_desc = p } -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
   | Psequor -> fprintf ppf "||"

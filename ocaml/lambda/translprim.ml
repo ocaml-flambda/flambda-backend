@@ -711,61 +711,62 @@ let caml_string_compare =
 let caml_bytes_compare =
   Primitive.simple_on_values ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
 
-let comparison_primitive comparison comparison_kind =
+let comparison_primitive comparison comparison_kind ~ret_mode =
+  let pccall prim_desc = Pccall (Lambda.external_call prim_desc ~ret_mode) in
   match comparison, comparison_kind with
-  | Equal, Compare_generic -> Pccall caml_equal
+  | Equal, Compare_generic -> pccall caml_equal
   | Equal, Compare_ints -> Pintcomp Ceq
   | Equal, Compare_floats -> Pfloatcomp CFeq
-  | Equal, Compare_strings -> Pccall caml_string_equal
-  | Equal, Compare_bytes -> Pccall caml_bytes_equal
+  | Equal, Compare_strings -> pccall caml_string_equal
+  | Equal, Compare_bytes -> pccall caml_bytes_equal
   | Equal, Compare_nativeints -> Pbintcomp(Pnativeint, Ceq)
   | Equal, Compare_int32s -> Pbintcomp(Pint32, Ceq)
   | Equal, Compare_int64s -> Pbintcomp(Pint64, Ceq)
-  | Not_equal, Compare_generic -> Pccall caml_notequal
+  | Not_equal, Compare_generic -> pccall caml_notequal
   | Not_equal, Compare_ints -> Pintcomp Cne
   | Not_equal, Compare_floats -> Pfloatcomp CFneq
-  | Not_equal, Compare_strings -> Pccall caml_string_notequal
-  | Not_equal, Compare_bytes -> Pccall caml_bytes_notequal
+  | Not_equal, Compare_strings -> pccall caml_string_notequal
+  | Not_equal, Compare_bytes -> pccall caml_bytes_notequal
   | Not_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cne)
   | Not_equal, Compare_int32s -> Pbintcomp(Pint32, Cne)
   | Not_equal, Compare_int64s -> Pbintcomp(Pint64, Cne)
-  | Less_equal, Compare_generic -> Pccall caml_lessequal
+  | Less_equal, Compare_generic -> pccall caml_lessequal
   | Less_equal, Compare_ints -> Pintcomp Cle
   | Less_equal, Compare_floats -> Pfloatcomp CFle
-  | Less_equal, Compare_strings -> Pccall caml_string_lessequal
-  | Less_equal, Compare_bytes -> Pccall caml_bytes_lessequal
+  | Less_equal, Compare_strings -> pccall caml_string_lessequal
+  | Less_equal, Compare_bytes -> pccall caml_bytes_lessequal
   | Less_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cle)
   | Less_equal, Compare_int32s -> Pbintcomp(Pint32, Cle)
   | Less_equal, Compare_int64s -> Pbintcomp(Pint64, Cle)
-  | Less_than, Compare_generic -> Pccall caml_lessthan
+  | Less_than, Compare_generic -> pccall caml_lessthan
   | Less_than, Compare_ints -> Pintcomp Clt
   | Less_than, Compare_floats -> Pfloatcomp CFlt
-  | Less_than, Compare_strings -> Pccall caml_string_lessthan
-  | Less_than, Compare_bytes -> Pccall caml_bytes_lessthan
+  | Less_than, Compare_strings -> pccall caml_string_lessthan
+  | Less_than, Compare_bytes -> pccall caml_bytes_lessthan
   | Less_than, Compare_nativeints -> Pbintcomp(Pnativeint, Clt)
   | Less_than, Compare_int32s -> Pbintcomp(Pint32, Clt)
   | Less_than, Compare_int64s -> Pbintcomp(Pint64, Clt)
-  | Greater_equal, Compare_generic -> Pccall caml_greaterequal
+  | Greater_equal, Compare_generic -> pccall caml_greaterequal
   | Greater_equal, Compare_ints -> Pintcomp Cge
   | Greater_equal, Compare_floats -> Pfloatcomp CFge
-  | Greater_equal, Compare_strings -> Pccall caml_string_greaterequal
-  | Greater_equal, Compare_bytes -> Pccall caml_bytes_greaterequal
+  | Greater_equal, Compare_strings -> pccall caml_string_greaterequal
+  | Greater_equal, Compare_bytes -> pccall caml_bytes_greaterequal
   | Greater_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cge)
   | Greater_equal, Compare_int32s -> Pbintcomp(Pint32, Cge)
   | Greater_equal, Compare_int64s -> Pbintcomp(Pint64, Cge)
-  | Greater_than, Compare_generic -> Pccall caml_greaterthan
+  | Greater_than, Compare_generic -> pccall caml_greaterthan
   | Greater_than, Compare_ints -> Pintcomp Cgt
   | Greater_than, Compare_floats -> Pfloatcomp CFgt
-  | Greater_than, Compare_strings -> Pccall caml_string_greaterthan
-  | Greater_than, Compare_bytes -> Pccall caml_bytes_greaterthan
+  | Greater_than, Compare_strings -> pccall caml_string_greaterthan
+  | Greater_than, Compare_bytes -> pccall caml_bytes_greaterthan
   | Greater_than, Compare_nativeints -> Pbintcomp(Pnativeint, Cgt)
   | Greater_than, Compare_int32s -> Pbintcomp(Pint32, Cgt)
   | Greater_than, Compare_int64s -> Pbintcomp(Pint64, Cgt)
-  | Compare, Compare_generic -> Pccall caml_compare
+  | Compare, Compare_generic -> pccall caml_compare
   | Compare, Compare_ints -> Pcompare_ints
   | Compare, Compare_floats -> Pcompare_floats
-  | Compare, Compare_strings -> Pccall caml_string_compare
-  | Compare, Compare_bytes -> Pccall caml_bytes_compare
+  | Compare, Compare_strings -> pccall caml_string_compare
+  | Compare, Compare_bytes -> pccall caml_bytes_compare
   | Compare, Compare_nativeints -> Pcompare_bints Pnativeint
   | Compare, Compare_int32s -> Pcompare_bints Pint32
   | Compare, Compare_int64s -> Pcompare_bints Pint64
@@ -812,6 +813,7 @@ let lambda_of_loc kind sloc =
 let caml_restore_raw_backtrace =
   Primitive.simple_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
     ~alloc:false
+  |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
 
 let try_ids = Hashtbl.create 8
 
@@ -821,16 +823,18 @@ let add_exception_ident id =
 let remove_exception_ident id =
   Hashtbl.remove try_ids id
 
-let lambda_of_prim prim_name prim loc args arg_exps =
+let lambda_of_prim prim_name prim loc args arg_exps ~ret_mode =
   match prim, args with
   | Primitive (prim, arity), args when arity = List.length args ->
       Lprim(prim, args, loc)
   | Sys_argv, [] ->
+      let prim_sys_argv = Lambda.external_call prim_sys_argv ~ret_mode in
       Lprim(Pccall prim_sys_argv, [Lconst (const_int 0)], loc)
   | External prim, args ->
+      let prim = Lambda.external_call prim ~ret_mode in
       Lprim(Pccall prim, args, loc)
   | Comparison(comp, knd), ([_;_] as args) ->
-      let prim = comparison_primitive comp knd in
+      let prim = comparison_primitive comp knd ~ret_mode in
       Lprim(prim, args, loc)
   | Raise kind, [arg] ->
       let kind =
@@ -972,20 +976,21 @@ let transl_primitive loc p env ty ~poly_mode path =
     make_params ty p.prim_native_repr_args p.prim_native_repr_res
   in
   let args = List.map (fun p -> Lvar p.name) params in
+  let ret_mode = to_locality p.prim_native_repr_res in
   match params with
-  | [] -> lambda_of_prim p.prim_name prim loc args None
+  | [] -> lambda_of_prim p.prim_name prim loc args None ~ret_mode
   | _ ->
      let loc =
        Debuginfo.Scoped_location.map_scopes (fun ~scopes ->
          Debuginfo.Scoped_location.enter_partial_or_eta_wrapper ~scopes)
          loc
      in
-     let body = lambda_of_prim p.prim_name prim loc args None in
      let region =
-       match to_locality p.prim_native_repr_res with
+       match ret_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
+     let body = lambda_of_prim p.prim_name prim loc args None ~ret_mode in
      let rec count_nlocal = function
        | [] -> assert false
        | [_] -> if region then 0 else 1
@@ -1056,15 +1061,18 @@ let primitive_needs_event_after = function
   | Primitive (prim,_) -> lambda_primitive_needs_event_after prim
   | External _ | Sys_argv -> true
   | Comparison(comp, knd) ->
-      lambda_primitive_needs_event_after (comparison_primitive comp knd)
+      lambda_primitive_needs_event_after
+        (comparison_primitive comp knd
+          ~ret_mode:Lambda.alloc_heap (* arbitrary *) )
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
 
-let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
+let transl_primitive_application loc p env ty pmode mode path exp args arg_exps
+      pos =
   let prim =
     lookup_primitive_and_mark_used
-      (to_location loc) mode pos p env (Some path)
+      (to_location loc) pmode pos p env (Some path)
   in
   let has_constant_constructor =
     match arg_exps with
@@ -1079,7 +1087,9 @@ let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
     | None -> prim
     | Some prim -> prim
   in
-  let lam = lambda_of_prim p.prim_name prim loc args (Some arg_exps) in
+  let lam =
+    lambda_of_prim p.prim_name prim loc args (Some arg_exps) ~ret_mode:mode
+  in
   let lam =
     if primitive_needs_event_after prim then begin
       match exp with

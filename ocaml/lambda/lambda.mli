@@ -121,7 +121,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -327,6 +327,17 @@ and raise_kind =
   | Raise_regular
   | Raise_reraise
   | Raise_notrace
+
+and external_call = private {
+  prim_desc : Primitive.description;
+  (** This is guaranteed never to be [Prim_poly].  This ensures that we can
+      precisely identify whether or not the frontend decided that this
+      particular primitive application needed an enclosing region or not.
+      Also see [alloc_mode_of_primitive_description]. *)
+}
+
+val external_call : Primitive.description -> ret_mode:alloc_mode
+  -> external_call
 
 val vec128_name: vec128_type -> string
 

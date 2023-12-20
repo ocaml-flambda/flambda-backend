@@ -1908,6 +1908,7 @@ let get_pat_args_lazy p rem =
 
 let prim_obj_tag =
   Primitive.simple_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
+  |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
 
 let get_mod_field modname field =
   lazy
@@ -2247,12 +2248,20 @@ let divide_array ~scopes kind ctx pm =
 let strings_test_threshold = 8
 
 let prim_string_notequal =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2
-            ~alloc:false)
+  let external_call =
+    Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2
+      ~alloc:false
+    |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
+  in
+  Pccall external_call
 
 let prim_string_compare =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2
-            ~alloc:false)
+  let external_call =
+    Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2
+      ~alloc:false
+    |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
+  in
+  Pccall external_call
 
 let bind_sw arg layout k =
   match arg with

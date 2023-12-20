@@ -720,7 +720,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
   in
   let dbg = Debuginfo.from_location loc in
   match prim, args with
-  | Pccall prim, args ->
+  | Pccall { prim_desc = prim }, args ->
     let exn_continuation =
       match exn_continuation with
       | None ->

@@ -98,7 +98,8 @@ let declare_probe_handlers lam =
 
 let prim_fresh_oo_id =
   Pccall
-    (Primitive.simple_on_values ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false)
+    (Primitive.simple_on_values ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false
+     |> Lambda.external_call ~ret_mode:Lambda.alloc_heap)
 
 let transl_extension_constructor ~scopes env path ext =
   let path =
@@ -374,9 +375,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
       in
+      let mode = transl_locality_mode ap_mode in
       let lam =
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode
+          (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode mode
           path prim_exp args (List.map fst arg_exps) position
       in
       if extra_args = [] then lam
@@ -385,7 +387,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
-        let mode = transl_locality_mode ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode

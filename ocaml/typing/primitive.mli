@@ -41,7 +41,8 @@ type mode =
 (* [Prim_poly] arguments and results are subject to mode inference,
    allowing e.g. (+.) to work on local or global floats. After
    typechecking, all [Prim_poly] modes on a given primitive application
-   will be instantiated either all to [Local] or all to [Global] *)
+   will be instantiated either all to [Local] or all to [Global].
+   [Prim_poly] never appears in [Lambda] terms. *)
 
 type description = private
   { prim_name: string;         (* Name of primitive  or C function *)

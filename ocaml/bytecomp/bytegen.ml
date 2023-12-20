@@ -440,7 +440,7 @@ let comp_primitive stack_info p sz args =
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
-  | Pccall p -> Kccall(p.prim_name, p.prim_arity)
+  | Pccall { prim_desc = p } -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->
       check_stack stack_info (sz + 4);
       Kperform
@@ -868,6 +868,7 @@ let rec comp_expr stack_info env exp sz cont =
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
         Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+        |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
       in
       comp_expr stack_info env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
   | Lprim (Pduparray _, _, _) ->

@@ -56,7 +56,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pperform -> Pperform
   | Presume -> Presume
   | Preperform -> Preperform
-  | Pccall prim -> Pccall prim
+  | Pccall { prim_desc = prim } -> Pccall prim
   | Praise kind -> Praise kind
   | Psequand -> Psequand
   | Psequor -> Psequor

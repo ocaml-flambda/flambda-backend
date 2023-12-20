@@ -163,7 +163,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -350,6 +350,33 @@ and raise_kind =
   | Raise_regular
   | Raise_reraise
   | Raise_notrace
+
+and external_call = {
+  prim_desc : Primitive.description;
+}
+
+let external_call (prim_desc : Primitive.description) ~(ret_mode : alloc_mode) =
+  let prim_native_repr_res =
+    match prim_desc.prim_native_repr_res with
+    | Prim_local, _
+    | Prim_global, _ -> prim_desc.prim_native_repr_res
+    | Prim_poly, native_repr ->
+      (* See comment in the .mli *)
+      match ret_mode with
+      | Alloc_heap -> Primitive.Prim_global, native_repr
+      | Alloc_local -> Primitive.Prim_local, native_repr
+  in
+  let prim_desc =
+    Primitive.make ~name:prim_desc.prim_name
+      ~alloc:prim_desc.prim_alloc
+      ~c_builtin:prim_desc.prim_c_builtin
+      ~effects:prim_desc.prim_effects
+      ~coeffects:prim_desc.prim_coeffects
+      ~native_name:prim_desc.prim_native_name
+      ~native_repr_args:prim_desc.prim_native_repr_args
+      ~native_repr_res:prim_native_repr_res
+  in
+  { prim_desc }
 
 let vec128_name = function
   | Unknown128 -> "unknown128"
@@ -1445,7 +1472,7 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
     if p.prim_alloc then Some alloc_heap else None
   else
     match p.prim_native_repr_res with
-    | (Prim_local | Prim_poly), _ ->
+    | Prim_local, _ ->
       (* For primitives that might allocate locally, [p.prim_alloc] just says
          whether [caml_c_call] is required, without telling us anything
          about local allocation.  (However if [p.prim_alloc = false] we
@@ -1456,6 +1483,9 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
          [p.prim_alloc = false] actually tells us that the primitive does
          not allocate at all. *)
       if p.prim_alloc then Some alloc_heap else None
+    | Prim_poly, _ ->
+      Misc.fatal_errorf "Prim_poly should never be encountered here (%s)"
+        p.prim_name
 
 (* Changes to this function may also require changes in Flambda 2 (e.g.
    closure_conversion.ml). *)
@@ -1474,7 +1504,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall p -> alloc_mode_of_primitive_description p
+  | Pccall { prim_desc = p } -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1604,7 +1634,8 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_boxed_float
   | Pufloatfield _ | Punbox_float -> Punboxed_float
-  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
+  | Pccall { prim_desc = { prim_native_repr_res = _, repr_res } } ->
+    layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint

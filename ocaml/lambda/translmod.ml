@@ -269,6 +269,7 @@ let preallocate_letrec ~bindings ~body =
   assert (Clflags.is_flambda2 ());
   let caml_update_dummy_prim =
     Primitive.simple_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
+    |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
   in
   let update_dummy var expr =
     Lprim (Pccall caml_update_dummy_prim, [Lvar var; expr], Loc_unknown)
@@ -284,6 +285,7 @@ let preallocate_letrec ~bindings ~body =
        let desc =
          Primitive.simple_on_values ~name:"caml_alloc_dummy" ~arity:1
            ~alloc:true
+         |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
        in
        let size : lambda = Lconst (Const_base (Const_int size)) in
        Llet (Strict, Lambda.layout_block, id,
