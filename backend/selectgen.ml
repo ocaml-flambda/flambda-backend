@@ -1521,7 +1521,7 @@ method emit_tail (env:environment) exp =
      end
   | Cphantom_let (_var, _defining_expr, body) ->
       self#emit_tail env body
-  | Cop((Capply(ty, _)) as op, args, dbg) ->
+  | Cop((Capply(ty, Rc_normal)) as op, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> ()
       | Some(simple_args, env) ->
