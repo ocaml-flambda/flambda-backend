@@ -1443,6 +1443,25 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
+let alloc_mode_of_primitive_description (p : Primitive.description) =
+  if not Config.stack_allocation then
+    if p.prim_alloc then Some alloc_heap else None
+  else
+    match p.prim_native_repr_res with
+    | (Prim_local | Prim_poly), _ ->
+      (* For primitives that might allocate locally, [p.prim_alloc] just says
+         whether [caml_c_call] is required, without telling us anything
+         about local allocation.  (However if [p.prim_alloc = false] we
+         do actually know that the primitive does not allocate on the heap.) *)
+      Some alloc_local
+    | Prim_global, _ ->
+      (* For primitives that definitely do not allocate locally,
+         [p.prim_alloc = false] actually tells us that the primitive does
+         not allocate at all. *)
+      if p.prim_alloc then Some alloc_heap else None
+
+(* Changes to this function may also require changes in Flambda 2 (e.g.
+   closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1458,12 +1477,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall p ->
-     if not p.prim_alloc then None
-     else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some alloc_local
-       | Prim_global, _ -> Some alloc_heap
-     end
+  | Pccall p -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
