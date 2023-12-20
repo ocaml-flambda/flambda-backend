@@ -594,3 +594,75 @@ Line 2, characters 2-34:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Module M defines a function whose first argument is not a value, f .
 |}]
+
+(*******************************)
+(* Test 10: Specializing [any] *)
+
+(* see also the test any_in_types.ml, which makes sure running code
+   that looks like this produces the right result *)
+
+module type S = sig
+  type t : any
+
+  val one : unit -> t
+  val print : t -> unit
+end
+
+module Floaty : S with type t := float# = struct
+  let one () = Stdlib__Float_u.of_float 1.  (* CR layouts: use literal syntax *)
+  let print t = Printf.printf "%f" (Stdlib__Float_u.to_float t)
+end
+
+module Inty : S with type t := int = struct
+  let one () = 1
+  let print t = Printf.printf "%d" t
+end
+
+module Stringy : S with type t := string = struct
+  let one () = "one"
+  let print t = Printf.printf "%s" t
+end
+
+[%%expect{|
+module type S =
+  sig type t : any val one : unit -> t val print : t -> unit end
+module Floaty : sig val one : unit -> float# val print : float# -> unit end
+module Inty : sig val one : unit -> int val print : int -> unit end
+module Stringy : sig val one : unit -> string val print : string -> unit end
+|}]
+
+module F1 (X : S with type t := float#) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+module F2 (X : S with type t := string) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+module F1 :
+  functor (X : sig val one : unit -> float# val print : float# -> unit end)
+    -> sig val print_one : unit -> unit end
+module F2 :
+  functor (X : sig val one : unit -> string val print : string -> unit end)
+    -> sig val print_one : unit -> unit end
+|}]
+
+module F_bad (X : S) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+Line 4, characters 29-39:
+4 |   let print_one () = X.print (X.one ())
+                                 ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       X.t has layout any, which is not representable.
+|}]
+

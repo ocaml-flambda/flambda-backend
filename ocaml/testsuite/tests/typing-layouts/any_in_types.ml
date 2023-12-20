@@ -4,6 +4,9 @@
    * bytecode
 *)
 
+(* See also Test 10 in modules.ml, which tests for type-checking failures in
+   code that is similar to this. *)
+
 let unbox = Stdlib__Float_u.of_float
 
 module type S = sig
