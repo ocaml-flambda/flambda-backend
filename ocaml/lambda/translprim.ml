@@ -516,9 +516,17 @@ let glb_array_type t1 t2 =
   | Paddrarray, x | x, Paddrarray -> x
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
-  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  (* Unboxed types *)
+  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
+  | Punboxedfloatarray, _ | _, Punboxedfloatarray ->
+    Misc.fatal_error "There is no glb between Punboxedfloatarray and other array kinds."
+
+  | Punboxedintarray Pnativeint, Punboxedintarray Pnativeint -> Punboxedintarray Pnativeint
+  | Punboxedintarray Pint32, Punboxedintarray Pint32 -> Punboxedintarray Pint32
+  | Punboxedintarray Pint64, Punboxedintarray Pint64 -> Punboxedintarray Pint64
+  | Punboxedintarray _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "There is no glb between Punboxedintarray and other array kinds."
 
 let glb_array_ref_type t1 t2 =
   match t1, t2 with
@@ -546,9 +554,17 @@ let glb_array_ref_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
 
+  (* Unboxed types *)
   | Punboxedfloatarray_ref, Punboxedfloatarray -> Punboxedfloatarray_ref
+  | Punboxedfloatarray_ref, _ | _, Punboxedfloatarray ->
+    Misc.fatal_error "Punboxedfloatarray only works with its own ref type and vice versa."
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | Punboxedintarray_ref Pnativeint, Punboxedintarray Pnativeint ->
+    Punboxedintarray_ref Pnativeint
+  | Punboxedintarray_ref Pint32, Punboxedintarray Pint32 -> Punboxedintarray_ref Pint32
+  | Punboxedintarray_ref Pint64, Punboxedintarray Pint64 -> Punboxedintarray_ref Pint64
+  | Punboxedintarray_ref _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "Punboxedintarray only works with its own ref type and vice versa."
 
 let glb_array_set_type t1 t2 =
   match t1, t2 with
@@ -576,9 +592,17 @@ let glb_array_set_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
 
+  (* Unboxed types *)
   | Punboxedfloatarray_set, Punboxedfloatarray -> Punboxedfloatarray_set
+  | Punboxedfloatarray_set, _ | _, Punboxedfloatarray ->
+    Misc.fatal_error "Punboxedfloatarray only works with its own set type and vice versa."
 
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | Punboxedintarray_set Pnativeint, Punboxedintarray Pnativeint ->
+    Punboxedintarray_set Pnativeint
+  | Punboxedintarray_set Pint32, Punboxedintarray Pint32 -> Punboxedintarray_set Pint32
+  | Punboxedintarray_set Pint64, Punboxedintarray Pint64 -> Punboxedintarray_set Pint64
+  | Punboxedintarray_set _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "Punboxedintarray only works with its own set type and vice versa."
 
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void

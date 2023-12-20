@@ -494,26 +494,30 @@ let comp_primitive stack_info p sz args =
   | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
       Kccall("caml_array_get_addr", 2)
   | Parrayrefs (Punboxedintarray_ref _) ->
-      Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
+      (* CR layouts v4: add unboxed int array support *)
+      Misc.fatal_error "Unboxed int array is not yet supported"
   | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
   | Parraysets (Punboxedfloatarray_set | Pfloatarray_set) ->
       Kccall("caml_floatarray_set", 3)
   | Parraysets (Paddrarray_set _ | Pintarray_set) ->
       Kccall("caml_array_set_addr", 3)
   | Parraysets (Punboxedintarray_set _) ->
-      Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
+      (* CR layouts v4: add unboxed int array support *)
+      Misc.fatal_error "Unboxed int array is not yet supported"
   | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
   | Parrayrefu (Punboxedfloatarray_ref | Pfloatarray_ref _) ->
       Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
   | Parrayrefu (Punboxedintarray_ref _) ->
-      Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
+      (* CR layouts v4: add unboxed int array support *)
+      Misc.fatal_error "Unboxed int array is not yet supported"
   | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
   | Parraysetu (Punboxedfloatarray_set | Pfloatarray_set) ->
       Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
   | Parraysetu (Punboxedintarray_set _) ->
-      Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
+      (* CR layouts v4: add unboxed int array support *)
+      Misc.fatal_error "Unboxed int array is not yet supported"
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -854,7 +858,8 @@ let rec comp_expr stack_info env exp sz cont =
                  (Kmakeblock(List.length args, 0) ::
                   Kccall("caml_make_array", 1) :: cont)
       | Punboxedfloatarray | Punboxedintarray _ ->
-          Misc.fatal_error "XXX mshinwell: bytecode support for unboxed arrays"
+          (* CR layouts v4: change this to support array expressions and comprehension *)
+          Misc.fatal_error "Pmakearray doesn't support unboxed types yet"
       end
   | Lprim((Presume|Prunstack), args, _) ->
       let nargs = List.length args - 1 in

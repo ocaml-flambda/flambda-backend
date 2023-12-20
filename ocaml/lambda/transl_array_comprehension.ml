@@ -704,7 +704,8 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
     | _, (Punboxedfloatarray | Punboxedintarray _) ->
-      Misc.fatal_error "XXX mshinwell: for frontend devs"
+        (* CR layouts v4: add array comprehension support for unboxed types *)
+        Misc.fatal_error "Unboxed types are not yet supported by array comprehension."
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -795,7 +796,8 @@ let body
     | Pintarray | Paddrarray | Pfloatarray ->
         set_element_in_bounds body
     | Punboxedfloatarray | Punboxedintarray _ ->
-        Misc.fatal_error "XXX mshinwell: for frontend devs"
+        (* CR layouts v4: add array comprehension support for unboxed types *)
+        Misc.fatal_error "Unboxed types are not yet supported by array comprehension."
   in
   Lsequence(
     set_element_known_kind_in_bounds,

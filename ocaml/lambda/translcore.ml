@@ -644,7 +644,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
                 | Punboxedfloatarray | Punboxedintarray _ ->
-                  Misc.fatal_error "XXX mshinwell: for frontend devs"
+                  (* CR layouts v4: add array expression support for unboxed types *)
+                  Misc.fatal_error
+                    "Unboxed types are not yet supported by array expressions"
             in
             match amut with
             | Mutable   -> duparray_to_mutable const
