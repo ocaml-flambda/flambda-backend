@@ -772,8 +772,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
       revised.
   *)
 
-val alloc_mode_of_primitive_description :
-  external_call -> alloc_mode option
+val alloc_mode_of_primitive_description : external_call -> alloc_mode option
   (** Like [primitive_may_allocate], for [external] calls. *)
 
 (***********************)

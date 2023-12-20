@@ -299,8 +299,7 @@ let transform_primitive env (prim : L.primitive) args loc =
         let arity = 1 + num_dimensions in
         let name = "caml_ba_get_" ^ string_of_int num_dimensions in
         let desc =
-          Primitive.simple_on_values ~name ~arity ~alloc:true
-          |> L.external_call ~ret_mode:L.alloc_heap
+          L.simple_on_values ~name ~arity ~alloc:true
         in
         Primitive (L.Pccall desc, args, loc)
       else
@@ -319,8 +318,7 @@ let transform_primitive env (prim : L.primitive) args loc =
         let arity = 2 + num_dimensions in
         let name = "caml_ba_set_" ^ string_of_int num_dimensions in
         let desc =
-          Primitive.simple_on_values ~name ~arity ~alloc:true
-          |> L.external_call ~ret_mode:L.alloc_heap
+          L.simple_on_values ~name ~arity ~alloc:true
         in
         Primitive (L.Pccall desc, args, loc)
       else

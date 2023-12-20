@@ -115,8 +115,7 @@ module Lambda_utils = struct
     (* CR layouts v4: To change when non-values are allowed in arrays. *)
     let c_prim name arity =
       let external_call =
-        Primitive.simple_on_values ~name ~arity ~alloc:true
-        |> Lambda.external_call ~ret_mode:Lambda.alloc_heap
+        Lambda.simple_on_values ~name ~arity ~alloc:true
       in
       Pccall external_call
 

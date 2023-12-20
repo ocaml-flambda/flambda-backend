@@ -98,8 +98,7 @@ let declare_probe_handlers lam =
 
 let prim_fresh_oo_id =
   Pccall
-    (Primitive.simple_on_values ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false
-     |> Lambda.external_call ~ret_mode:Lambda.alloc_heap)
+    (Lambda.simple_on_values ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false)
 
 let transl_extension_constructor ~scopes env path ext =
   let path =
