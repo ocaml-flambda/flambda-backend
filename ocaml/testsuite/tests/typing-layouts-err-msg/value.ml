@@ -364,7 +364,27 @@ Error: This expression has type t_float64
          it's the type of a lazy expression.
 |}];;
 
-(* Class_argument *)
+(* Class_type_argument *)
+module M = struct
+  type ('a : void) t
+
+  class virtual ['a] foo =
+    object
+      val virtual baz : 'a t
+    end
+end
+[%%expect{|
+Line 6, characters 24-26:
+6 |       val virtual baz : 'a t
+                            ^^
+Error: This type ('a : void) should be an instance of type ('a0 : value)
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with void, because
+         of the definition of t at line 2, characters 2-20.
+|}];;
+
+(* Class_term_argument *)
 class foo (x : t_float64) =
   object end;;
 [%%expect{|
@@ -376,7 +396,7 @@ Error: This pattern matches values of type t_float64
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
-         it's a type argument to a class constructor.
+         it's the type of a term-level argument to a class constructor.
 |}];;
 
 (* Structure_element *)

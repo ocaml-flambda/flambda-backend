@@ -187,7 +187,8 @@ module Layout : sig
     | Existential_type_variable
     | Array_element
     | Lazy_expression
-    | Class_argument
+    | Class_type_argument
+    | Class_term_argument
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check

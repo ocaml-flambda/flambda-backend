@@ -1512,7 +1512,7 @@ let rec approx_declaration cl =
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Class_argument)
+        else Ctype.newvar (Layout.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we update
            classes to work with layouts *)
       in
@@ -1531,7 +1531,7 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Class_argument)
+        else Ctype.newvar (Layout.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax layouts in classes *)
       in
@@ -1644,7 +1644,7 @@ let class_infos define_class kind
            we should lift this restriction. Doing so causes bad error messages
            today, so we wait for tomorrow. *)
         Ctype.unify env param.ctyp_type
-          (Ctype.newvar (Layout.value ~why:Class_argument));
+          (Ctype.newvar (Layout.value ~why:Class_type_argument));
         (param, v)
       with Already_bound ->
         raise(Error(sty.ptyp_loc, env, Repeated_parameter))

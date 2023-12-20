@@ -3006,7 +3006,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   if !Clflags.principal then Ctype.begin_def ();
   let tps = create_type_pat_state Modules_rejected in
   (* CR layouts: will change when we relax layout restrictions in classes. *)
-  let nv = newvar (Layout.value ~why:Class_argument) in
+  let nv = newvar (Layout.value ~why:Class_term_argument) in
   let alloc_mode = simple_pat_mode Value.legacy in
   let pat =
     type_pat tps Value ~no_existentials:In_class_args ~alloc_mode

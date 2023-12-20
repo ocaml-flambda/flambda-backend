@@ -279,7 +279,8 @@ module Layout = struct
     | Existential_type_variable
     | Array_element
     | Lazy_expression
-    | Class_argument
+    | Class_type_argument
+    | Class_term_argument
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check
@@ -793,8 +794,10 @@ module Layout = struct
         fprintf ppf "it's the type of an array element"
       | Lazy_expression ->
         fprintf ppf "it's the type of a lazy expression"
-      | Class_argument ->
+      | Class_type_argument ->
         fprintf ppf "it's a type argument to a class constructor"
+      | Class_term_argument ->
+        fprintf ppf "it's the type of a term-level argument to a class constructor"
       | Structure_element ->
          fprintf ppf "it's the type of something stored in a module structure"
       | Debug_printer_argument ->
@@ -1210,7 +1213,8 @@ module Layout = struct
       | Existential_type_variable -> fprintf ppf "Existential_type_variable"
       | Array_element -> fprintf ppf "Array_element"
       | Lazy_expression -> fprintf ppf "Lazy_expression"
-      | Class_argument -> fprintf ppf "Class_argument"
+      | Class_type_argument -> fprintf ppf "Class_type_argument"
+      | Class_term_argument -> fprintf ppf "Class_term_argument"
       | Structure_element -> fprintf ppf "Structure_element"
       | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
       | V1_safety_check -> fprintf ppf "V1_safety_check"
