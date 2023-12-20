@@ -610,33 +610,43 @@ type constant_integer_result =
   | Int64 of int64
   | Nativeint of nativeint
 
-let constant_integer i ~name ~suffix : (constant_integer_result, error) result =
+type constant_integer_error =
+  | Int32_literal_overflow
+  | Int64_literal_overflow
+  | Nativeint_literal_overflow
+  | Unknown_constant_literal
+
+let constant_integer i ~suffix :
+    (constant_integer_result, constant_integer_error) result =
   match suffix with
   | 'l' ->
     begin
       try Ok (Int32 (Misc.Int_literal_converter.int32 i))
-      with Failure _ -> Error (Literal_overflow "int32")
+      with Failure _ -> Error Int32_literal_overflow
     end
   | 'L' ->
     begin
       try Ok (Int64 (Misc.Int_literal_converter.int64 i))
-      with Failure _ -> Error (Literal_overflow "int64")
+      with Failure _ -> Error Int64_literal_overflow
     end
   | 'n' ->
     begin
       try Ok (Nativeint (Misc.Int_literal_converter.nativeint i))
-      with Failure _ -> Error (Literal_overflow "nativeint")
+      with Failure _ -> Error Nativeint_literal_overflow
     end
-  | c -> Error (Unknown_literal (name , c))
+  | _ -> Error Unknown_constant_literal
 
 let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
   | Pconst_integer (i, Some suffix) ->
-    begin match constant_integer i ~name:i ~suffix with
+    begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_int32 v)
       | Ok (Int64 v) -> Ok (Const_int64 v)
       | Ok (Nativeint v) -> Ok (Const_nativeint v)
-      | Error _ as err -> err
+      | Error Int32_literal_overflow -> Error (Literal_overflow "int32")
+      | Error Int64_literal_overflow -> Error (Literal_overflow "int64")
+      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint")
+      | Error Unknown_constant_literal -> Error (Unknown_literal (i, suffix))
     end
   | Pconst_integer (i,None) ->
      begin
@@ -656,13 +666,17 @@ let constant_or_raise env loc cst =
 let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
   = function
   | Float (f, None) -> Ok (Const_unboxed_float f)
-  | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
+  | Float (x, Some c) -> Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
   | Integer (i, suffix) ->
-    begin match constant_integer i ~name:("#"^i) ~suffix with
+    begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
       | Ok (Int64 v) -> Ok (Const_unboxed_int64 v)
       | Ok (Nativeint v) -> Ok (Const_unboxed_nativeint v)
-      | Error _ as err -> err
+      | Error Int32_literal_overflow -> Error (Literal_overflow "int32#")
+      | Error Int64_literal_overflow -> Error (Literal_overflow "int64#")
+      | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint#")
+      | Error Unknown_constant_literal ->
+        Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
     end
 
 let unboxed_constant_or_raise env loc cst =
