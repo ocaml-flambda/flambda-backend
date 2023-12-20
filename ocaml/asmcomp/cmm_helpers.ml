@@ -1570,7 +1570,7 @@ let box_sized size mode dbg exp =
 (* Simplification of some primitives into C calls *)
 
 let default_prim name =
-  Primitive.simple_on_values ~name ~arity:0(*ignored*) ~alloc:true
+  Lambda.simple_on_values ~name ~arity:0(*ignored*) ~alloc:true
 
 let simplif_primitive p : Clambda_primitives.primitive =
   match (p : Clambda_primitives.primitive) with

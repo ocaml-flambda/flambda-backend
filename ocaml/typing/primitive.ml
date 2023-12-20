@@ -106,10 +106,6 @@ let simple_on_values_gen ~name ~arity ~alloc ~arg_global ~ret_global =
        (arg_global, Same_as_ocaml_repr Jkind.Sort.Value);
    prim_native_repr_res = (ret_global, Same_as_ocaml_repr Jkind.Sort.Value) }
 
-let simple_on_values ~name ~arity ~alloc =
-  simple_on_values_gen ~name ~arity ~alloc
-    ~arg_global:Prim_global ~ret_global:Prim_global
-
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
   {prim_name = name;

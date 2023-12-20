@@ -72,12 +72,6 @@ val simple_on_values_gen
   -> ret_global:'ret_mode
   -> ('arg_mode, 'ret_mode) description_gen
 
-val simple_on_values
-  :  name:string
-  -> arity:int
-  -> alloc:bool
-  -> description
-
 val make
   :  name:string
   -> alloc:bool
