@@ -88,6 +88,10 @@ let alloc_mode = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
 
+let alloc_mode' = function
+  | Alloc_heap -> "heap"
+  | Alloc_local -> "local"
+
 let boxed_integer_name = function
   | Pnativeint -> "nativeint"
   | Pint32 -> "int32"
