@@ -66,8 +66,12 @@ module type S1 = sig
   type q = t s
 end;;
 [%%expect{|
-module type S1 =
-  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
+Line 4, characters 35-41:
+4 |   type 'a s = 'a -> int constraint 'a = t
+                                       ^^^^^^
+Error: The type constraints are not consistent.
+       Type ('a : '_representable_layout_1) is not compatible with type t
+       t has layout any, which is not representable.
 |}]
 
 module type S1 = sig
@@ -82,82 +86,223 @@ module type S1 =
   sig type t : any type 'a s = int -> 'a constraint 'a = t type q = t s end
 |}]
 
-module type S1 = sig
+module M1 = struct
   type t : any
 
   type ('a : any) s = { a: 'a -> 'a }
 
   type q = t s
+
+  let f1 () : 'a s = { a = fun x -> Stdlib__Float_u.abs x }
+  let f2 () : 'a s = { a = fun x -> x ^ "!" }
+  let f3 () : 'a s = { a = fun x -> x + 1 }
 end;;
 [%%expect{|
-module type S1 =
-  sig type t : any type ('a : any) s = { a : 'a -> 'a; } type q = t s end
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = { a : 'a -> 'a; }
+    type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
+  end
 |}]
 
-module type S1 = sig
+module M1 = struct
   type t : any
 
   type ('a : any) s = A of ('a -> 'a)
 
   type q = t s
+
+  let f1 () : 'a s = A (fun x -> Stdlib__Float_u.abs x)
+  let f2 () : 'a s = A (fun x -> x ^ "!")
+  let f3 () : 'a s = A (fun x -> x + 1)
 end;;
 [%%expect{|
-module type S1 =
-  sig type t : any type ('a : any) s = A of ('a -> 'a) type q = t s end
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A of ('a -> 'a)
+    type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
+  end
 |}]
 
-module type S1 = sig
+module M1 = struct
   type t : any
 
   type ('a : any) s = A of { a: 'a -> 'a }
 
   type q = t s
+
+  let f1 () : 'a s = A { a = fun x -> Stdlib__Float_u.abs x }
+  let f2 () : 'a s = A { a = fun x -> x ^ "!" }
+  let f3 () : 'a s = A { a = fun x -> x + 1 }
 end;;
 [%%expect{|
-module type S1 =
+module M1 :
   sig
     type t : any
     type ('a : any) s = A of { a : 'a -> 'a; }
     type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
   end
 |}]
 
-module S1 = struct
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
+
+  type q = t s
+
+  let f0 () = A {a = (fun x y -> x)}
+  let f1 () = A {a = (fun x y -> x + 1)}
+  let f2 () = A {a = (fun x y -> x ^ "!")}
+  let f3 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+  let f4 () = A {a = (fun x y -> x + y)}
+  let f5 () = A {a = (fun x y -> x ^ y)}
+end;;
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a : any) 'b. { a : 'a -> 'b -> 'a; } -> 'a s
+    type q = t s
+    val f0 : unit -> 'a s
+    val f1 : unit -> int s
+    val f2 : unit -> string s
+    val f3 : unit -> float# s
+    val f4 : unit -> int s
+    val f5 : unit -> string s
+  end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+
+  type q = t s
+
+  let f0 () = A (fun x y -> x)
+  let f1 () = A (fun x y -> x + 1)
+  let f2 () = A (fun x y -> x ^ "!")
+  let f3 () = A (fun x y -> Stdlib__Float_u.abs x)
+  let f4 () = A (fun x y -> x + y)
+  let f5 () = A (fun x y -> x ^ y)
+end
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+    type q = t s
+    val f0 : unit -> 'a s
+    val f1 : unit -> int s
+    val f2 : unit -> string s
+    val f3 : unit -> float# s
+    val f4 : unit -> int s
+    val f5 : unit -> string s
+  end
+|}]
+
+module type S1 = sig
   type t : any
 
   type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
 
   type q = t s
-
-  let f () = A {a = (fun x y -> x)}
 end;;
 [%%expect{|
-module S1 :
+module type S1 =
   sig
     type t : any
     type ('a : any) s = A : { a : 'a -> 'b -> 'a; } -> 'a s
     type q = t s
-    val f : unit -> 'a s
   end
 |}]
 
-module S1 = struct
+module M1 = struct
+  type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
+
+  let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+end;;
+
+[%%expect{|
+Line 4, characters 53-54:
+4 |   let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+                                                         ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       float# has layout float64, which is not a sublayout of value.
+|}]
+
+module type S1 = sig
   type t : any
 
   type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
 
   type q = t s
-
-  let f () = A (fun x y -> x)
-end
+end;;
 [%%expect{|
-module S1 :
+module type S1 =
   sig
     type t : any
     type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
     type q = t s
-    val f : unit -> 'a s
   end
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+
+  let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
+end;;
+
+[%%expect{|
+Line 4, characters 48-49:
+4 |   let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
+                                                    ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       float# has layout float64, which is not a sublayout of value.
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
+
+  let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
+end;;
+
+[%%expect{|
+Line 4, characters 55-56:
+4 |   let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
+                                                           ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       float# has layout float64, which is not a sublayout of value.
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+
+  let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
+end;;
+
+[%%expect{|
+Line 4, characters 50-51:
+4 |   let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
+                                                      ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       float# has layout float64, which is not a sublayout of value.
 |}]
 
 module type S1 = sig
@@ -170,7 +315,7 @@ Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_1) is not compatible with type t
+       Type ('a : '_representable_layout_2) is not compatible with type t
        t has layout any, which is not representable.
 |}]
 
@@ -184,7 +329,7 @@ Line 4, characters 35-41:
 4 |   type 'a s = int -> 'a constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_2) is not compatible with type t
+       Type ('a : '_representable_layout_3) is not compatible with type t
        t has layout any, which is not representable.
 |}]
 
@@ -194,7 +339,7 @@ Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_3)
+         ('a : '_representable_layout_4)
        t_any has layout any, which is not representable.
 |}];;
 
@@ -205,7 +350,7 @@ Line 1, characters 7-18:
            ^^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_4)
+         ('a : '_representable_layout_5)
        t_any has layout any, which is not representable.
 |}];;
 
@@ -1537,7 +1682,7 @@ Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_6)
        because it is in the left-hand side of a sequence
        t_any has layout any, which is not representable.
 |}]
@@ -1553,7 +1698,7 @@ Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_7)
        because it is in the body of a while-loop
        t_any has layout any, which is not representable.
 |}]
@@ -1569,7 +1714,7 @@ Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_8)
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
