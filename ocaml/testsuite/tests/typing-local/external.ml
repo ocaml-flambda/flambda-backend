@@ -10,6 +10,7 @@ end = struct
     :  (float[@local_opt])
     -> (int64[@local_opt])
     = "caml_int64_bits_of_float" "caml_int64_bits_of_float_unboxed"
+    [@@unboxed] [@@noalloc]
 end
 
 let go_m f =
