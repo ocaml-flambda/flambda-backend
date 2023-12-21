@@ -915,7 +915,11 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global
+    | Prim_global, _ | Prim_poly, _ ->
+      (* We assume all primitives are compiled to have the same arity for
+         different modes and types, so just pick one of the modes in the
+         [Prim_poly] case. *)
+      Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
@@ -987,8 +991,42 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
+     let alloc_mode = to_locality p.prim_native_repr_res in
+     let () =
+       (* CR mshinwell: Write a version of [primitive_may_allocate] that
+          works on the [prim] type. *)
+       match body with
+       | Lprim (prim, _, _) ->
+         (match Lambda.primitive_may_allocate prim with
+          | None ->
+            (* We don't check anything in this case; if the primitive doesn't
+               allocate, then after [Lambda] it will be translated to a term
+               not involving any region variables, meaning there would be
+               no concern about potentially unbound region variables. *)
+            ()
+          | Some lambda_alloc_mode ->
+            (* In this case we add a check to ensure the middle end has
+               the correct information as to whether a region was inserted
+               at this point. *)
+            match alloc_mode, lambda_alloc_mode with
+            | Alloc_heap, Alloc_heap
+            | Alloc_local, Alloc_local -> ()
+            | Alloc_local, Alloc_heap ->
+              (* This case is ok: the Lambda-derived information is more
+                 precise.  A region will be inserted, likely unused, and
+                 deleted by the middle end. *)
+              ()
+            | Alloc_heap, Alloc_local ->
+              Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
+                  (from to_locality, %a; from primitive_may_allocate, %a)"
+                Printlambda.lambda body
+                Printlambda.alloc_mode alloc_mode
+                Printlambda.alloc_mode lambda_alloc_mode
+         )
+       | _ -> ()
+     in
      let region =
-       match to_locality p.prim_native_repr_res with
+       match alloc_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
