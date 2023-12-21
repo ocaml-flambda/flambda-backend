@@ -84,13 +84,14 @@ let array_set_kind ppf k =
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
 
-let alloc_mode = function
+let alloc_mode_if_local = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
 
-let alloc_mode' = function
-  | Alloc_heap -> "heap"
-  | Alloc_local -> "local"
+let alloc_mode ppf alloc_mode =
+  match alloc_mode with
+  | Alloc_heap -> fprintf ppf "heap"
+  | Alloc_local -> fprintf ppf "local"
 
 let boxed_integer_name = function
   | Pnativeint -> "nativeint"
@@ -147,7 +148,7 @@ let rec layout is_top ppf layout_ =
 let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
-  let smode = alloc_mode mode in
+  let smode = alloc_mode_if_local mode in
   match kind with
   | Pvalue Pgenval when is_heap_mode mode -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
@@ -279,31 +280,31 @@ let primitive ppf = function
   | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Immutable_unique, shape, mode) ->
       fprintf ppf "make%sblock_unique %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Mutable, shape, mode) ->
       fprintf ppf "make%smutable %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakefloatblock (Immutable, mode) ->
       fprintf ppf "make%sfloatblock Immutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sfloatblock Immutable_unique"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable, mode) ->
       fprintf ppf "make%sufloatblock Immutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sufloatblock Immutable_unique"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -344,7 +345,7 @@ let primitive ppf = function
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, sem, mode) ->
       fprintf ppf "floatfield%a%s %i"
-        field_read_semantics sem (alloc_mode mode) n
+        field_read_semantics sem (alloc_mode_if_local mode) n
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
@@ -423,11 +424,12 @@ let primitive ppf = function
 
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
   | Pmakearray (k, Mutable, mode) ->
-     fprintf ppf "make%sarray[%s]" (alloc_mode mode) (array_kind k)
+     fprintf ppf "make%sarray[%s]" (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable, mode) ->
-     fprintf ppf "make%sarray_imm[%s]" (alloc_mode mode) (array_kind k)
+     fprintf ppf "make%sarray_imm[%s]" (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable_unique, mode) ->
-      fprintf ppf "make%sarray_unique[%s]" (alloc_mode mode) (array_kind k)
+      fprintf ppf "make%sarray_unique[%s]" (alloc_mode_if_local mode)
+        (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->

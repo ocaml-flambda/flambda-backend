@@ -1012,10 +1012,10 @@ let transl_primitive loc p env ty ~poly_mode path =
               ()
             | Alloc_heap, Alloc_local ->
               Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
-                  (from to_locality, %s; from primitive_may_allocate, %s)"
+                  (from to_locality, %a; from primitive_may_allocate, %a)"
                 Printlambda.lambda body
-                (Printlambda.alloc_mode' alloc_mode)
-                (Printlambda.alloc_mode' lambda_alloc_mode)
+                Printlambda.alloc_mode alloc_mode
+                Printlambda.alloc_mode lambda_alloc_mode
          )
        | _ -> ()
      in
