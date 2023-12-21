@@ -1675,3 +1675,20 @@ Error: This expression has type t_any but an expression was expected of type
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
+
+(******************************************************)
+(* Test 37: Ensure signature inclusion checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*****************************************************)
+(* Test 38: Ensure Univar unification checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*************************************************************)
+(* Test 39: Inference of functions that don't bind arguments *)
+
+(* Doesn't need layouts_alpha. *)
