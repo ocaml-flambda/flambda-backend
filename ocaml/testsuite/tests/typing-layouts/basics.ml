@@ -2049,3 +2049,64 @@ Error: This expression has type < foo : ('a : float64). 'a foo bar >
        Type 'a foo = 'a is not compatible with type 'a0 foo = 'a0
        Types for method foo are incompatible
 |}]
+
+(*************************************************************)
+(* Test 39: Inference of functions that don't bind arguments *)
+
+let rec f () : 'a -> 'a = f ()
+
+[%%expect{|
+val f : unit -> 'a -> 'a = <fun>
+|}]
+
+module M = struct
+  let rec f () : 'a -> 'a = f ()
+end
+
+[%%expect{|
+module M : sig val f : unit -> 'a -> 'a end
+|}]
+
+let rec f () : 'a -> 'a = f ()
+let g : ('a : any). unit -> 'a -> 'a = f
+
+[%%expect{|
+val f : unit -> 'a -> 'a = <fun>
+Line 2, characters 39-40:
+2 | let g : ('a : any). unit -> 'a -> 'a = f
+                                           ^
+Error: This definition has type unit -> 'b -> 'b which is less general than
+         ('a : any). unit -> 'a -> 'a
+       'a has layout any, which is not a sublayout of value.
+|}]
+
+module M : sig
+  val f : ('a : any). unit -> 'a -> 'a
+end = struct
+  let rec f () : 'a -> 'a = f ()
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let rec f () : 'a -> 'a = f ()
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : unit -> ('a -> 'a) end
+       is not included in
+         sig val f : ('a : any). unit -> 'a -> 'a end
+       Values do not match:
+         val f : unit -> ('a -> 'a)
+       is not included in
+         val f : ('a : any). unit -> 'a -> 'a
+       The type unit -> ('a -> 'a) is not compatible with the type
+         unit -> 'b -> 'b
+       'a has layout any, which is not representable.
+|}]
+
+let rec f : ('a : any). unit -> 'a -> 'a = fun () -> f ()
+
+[%%expect{|
+val f : ('a : any). unit -> 'a -> 'a = <fun>
+|}]
