@@ -380,7 +380,14 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-failure
+module M :
+  sig type 'a t1 : value constraint 'a = 'b t2 and (!'c : any) t2 end
+type t3 = t_any M.t2
+Line 10, characters 10-20:
+10 | type t4 = t_any M.t2 M.t1
+               ^^^^^^^^^^
+Error: This type t_any M.t2 should be an instance of type 'a M.t2
+       t_any has layout any, which is not a sublayout of value.
 |}]
 
 module M : sig
@@ -395,7 +402,14 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-failure
+module M :
+  sig type (!'c : any) t2 and 'a t1 : value constraint 'a = 'b t2 end
+type t3 = t_any M.t2
+Line 10, characters 10-20:
+10 | type t4 = t_any M.t2 M.t1
+               ^^^^^^^^^^
+Error: This type t_any M.t2 should be an instance of type 'a M.t2
+       t_any has layout any, which is not a sublayout of value.
 |}]
 
 module M : sig
@@ -410,6 +424,13 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-failure
+module M :
+  sig type (!'c : any) t2 type 'a t1 : value constraint 'a = 'b t2 end
+type t3 = t_any M.t2
+Line 10, characters 10-20:
+10 | type t4 = t_any M.t2 M.t1
+               ^^^^^^^^^^
+Error: This type t_any M.t2 should be an instance of type 'a M.t2
+       t_any has layout any, which is not a sublayout of value.
 |}]
 
