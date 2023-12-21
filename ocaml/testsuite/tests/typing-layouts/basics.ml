@@ -61,6 +61,18 @@ module type S1 =
 module type S1 = sig
   type t : any
 
+  type 'a s = 'a -> int constraint 'a = t
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
   type ('a : any) s = int -> 'a constraint 'a = t
 
   type q = t s

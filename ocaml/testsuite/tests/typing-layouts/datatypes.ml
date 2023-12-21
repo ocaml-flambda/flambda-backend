@@ -355,3 +355,61 @@ and t9_4 = { x : float#; y : string floaty; }
 and t9_5 = { x : float#; y : 'a. 'a floaty; }
 |}]
 
+(*****************************************************)
+(* Test 10: Constraints and parameter kind inference *)
+
+module M : sig
+  type ('a : any) t constraint 'a = int
+end = struct
+  type ('a : value) t = 'a constraint 'a = int
+end
+
+[%%expect {|
+module M : sig type 'a t constraint 'a = int end
+|}]
+
+module M : sig
+  type 'a t1 : value constraint 'a = 'b t2
+  and (!'c : any) t2
+end = struct
+  type 'a t1 = 'b constraint 'a = 'b t2
+  and (!'c : any) t2
+end
+
+type t3 = t_any M.t2
+type t4 = t_any M.t2 M.t1
+
+[%%expect {|
+failure
+|}]
+
+module M : sig
+  type (!'c : any) t2
+  and 'a t1 : value constraint 'a = 'b t2
+end = struct
+  type (!'c : any) t2
+  and 'a t1 = 'b constraint 'a = 'b t2
+end
+
+type t3 = t_any M.t2
+type t4 = t_any M.t2 M.t1
+
+[%%expect {|
+failure
+|}]
+
+module M : sig
+  type (!'c : any) t2
+  type 'a t1 : value constraint 'a = 'b t2
+end = struct
+  type (!'c : any) t2
+  type 'a t1 = 'b constraint 'a = 'b t2
+end
+
+type t3 = t_any M.t2
+type t4 = t_any M.t2 M.t1
+
+[%%expect {|
+failure
+|}]
+

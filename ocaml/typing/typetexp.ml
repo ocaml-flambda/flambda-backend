@@ -552,7 +552,7 @@ let transl_type_param env path styp =
   (* Our choice for now is that if you want a parameter of jkind any, you have
    to ask for it with an annotation.  Some restriction here seems necessary
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
-   have jkind any).  But it might be possible to infer any in some cases. *)
+   have jkind any).  But it might be possible to infer [any] in some cases. *)
   let jkind = Jkind.of_new_sort ~why:Unannotated_type_parameter in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
