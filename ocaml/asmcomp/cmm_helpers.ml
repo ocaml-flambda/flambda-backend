@@ -86,6 +86,8 @@ let boxedintnat_header = block_header Obj.custom_tag 2
 let boxedint32_local_header = local_block_header Obj.custom_tag 2
 let boxedint64_local_header = local_block_header Obj.custom_tag (1 + 8 / size_addr)
 let boxedintnat_local_header = local_block_header Obj.custom_tag 2
+let custom_header ~size = block_header Obj.custom_tag size
+let custom_local_header ~size = local_block_header Obj.custom_tag size
 let caml_nativeint_ops = "caml_nativeint_ops"
 let caml_int32_ops = "caml_int32_ops"
 let caml_int64_ops = "caml_int64_ops"
@@ -797,6 +799,58 @@ let array_indexing ?typ log2size ptr ofs dbg =
       Cop(add, [Cop(add, [ptr; lsl_const ofs (log2size - 1) dbg], dbg);
                     Cconst_int((-1) lsl (log2size - 1), dbg)], dbg)
 
+(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
+   cross-compiling for 64-bit on a 32-bit host *)
+let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
+
+let custom_ops_unboxed_int32_odd_array =
+  Cconst_symbol ("_unboxed_int32_odd_array", Debuginfo.none)
+
+let custom_ops_unboxed_int32_even_array =
+  Cconst_symbol ("_unboxed_int32_even_array", Debuginfo.none)
+
+let custom_ops_unboxed_int64_array =
+  Cconst_symbol ("_unboxed_int64_array", Debuginfo.none)
+
+let custom_ops_unboxed_nativeint_array =
+  Cconst_symbol ("_unboxed_nativeint_array", Debuginfo.none)
+
+let unboxed_int32_array_length arr dbg =
+  (* A dynamic test is needed to determine if the array contains an odd or even
+     number of elements *)
+  bind "arr" arr (fun arr ->
+      let custom_ops_var = Backend_var.create_local "custom_ops" in
+      let num_words_var = Backend_var.create_local "num_words" in
+      Clet
+        ( VP.create num_words_var,
+          (* need to subtract so as not to count the custom_operations field *)
+          sub_int (get_size arr dbg) (int ~dbg 1) dbg,
+          Clet
+            ( VP.create custom_ops_var,
+              (* CR gbury/mshinwell: check the atomicity of this load *)
+              Cop (mk_load_immut Word_int, [arr], dbg),
+              Cifthenelse
+                ( Cop
+                    ( Ccmpa Ceq,
+                      [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
+                      dbg ),
+                  dbg,
+                  (* unboxed int32 odd *)
+                  (sub_int
+                     (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                     (int ~dbg 1))
+                    dbg,
+                  dbg,
+                  (* assumed to be unboxed int32 even *)
+                  mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
+                  dbg,
+                  Any ) ) ))
+
+let unboxed_int64_or_nativeint_array_length arr dbg =
+  bind "arr" arr (fun arr ->
+      (* need to subtract so as not to count the custom_operations field *)
+      sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+
 let addr_array_ref arr ofs dbg =
   Cop(mk_load_mut Word_val,
     [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -832,6 +886,55 @@ let float_array_set arr ofs newval dbg =
 let addr_array_initialize arr ofs newval dbg =
   Cop(Cextcall("caml_initialize", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+
+let unboxed_int32_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field. We add 2 not 1 since
+               the call to [array_indexing], below, is in terms of 32-bit
+               words. *)
+            add_int index (int ~dbg 2) dbg
+          in
+          let log2_size_addr = 2 in
+          Cop
+            (* CR gbury/mshinwell: check the atomicity of the load *)
+            ( mk_load_mut Thirtytwo_signed,
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
+
+let unboxed_int64_or_nativeint_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field *)
+            add_int index (int ~dbg 1) dbg
+          in
+          int_array_ref arr index dbg))
+
+let unboxed_int32_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int32_array_ref]. *)
+                add_int index (int ~dbg 2) dbg
+              in
+              let log2_size_addr = 2 in
+              Cop
+                ( Cstore (Thirtytwo_signed, Assignment),
+                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  dbg ))))
+
+let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
+                add_int index (int ~dbg 1) dbg
+              in
+              int_array_set arr index new_value dbg)))
 
 
 (* String length *)
@@ -2507,8 +2610,11 @@ let arraylength kind arg dbg =
       Cop(Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
       Cop(Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray ->
+  | Pfloatarray | Punboxedfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
+    unboxed_int64_or_nativeint_array_length arg dbg
+  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
 
 let bbswap bi arg dbg =
   let prim, tyarg = match (bi : Primitive.boxed_integer) with
@@ -2699,6 +2805,12 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
       int_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode ->
       float_array_ref mode arg1 arg2 dbg
+  | Punboxedfloatarray_ref ->
+      unboxed_float_array_ref arg1 arg2 dbg
+  | Punboxedintarray_ref Pint32 ->
+      unboxed_int32_array_ref arg1 arg2 dbg
+  | Punboxedintarray_ref (Pint64 | Pnativeint) ->
+      unboxed_int64_or_nativeint_array_ref arg1 arg2 dbg
 
 let arrayref_safe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
@@ -2752,6 +2864,29 @@ let arrayref_safe rkind arg1 arg2 dbg =
                 (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
+  | Punboxedfloatarray_ref ->
+      bind "index" arg2 (fun idx ->
+      bind "arr" arg1 (fun arr ->
+        Csequence(
+          make_checkbound dbg [
+            float_array_length_shifted
+              (get_header_masked arr dbg) dbg;
+              idx],
+          unboxed_float_array_ref arr idx dbg)))
+  | Punboxedintarray_ref (Pint64 | Pnativeint) ->
+      bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
+            Csequence
+              (make_checkbound dbg
+                 [unboxed_int64_or_nativeint_array_length arr dbg; idx],
+               unboxed_int64_or_nativeint_array_ref arr idx dbg )))
+  | Punboxedintarray_ref Pint32 ->
+      bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
+            Csequence
+              (make_checkbound dbg [unboxed_int32_array_length arr dbg; idx],
+               unboxed_int32_array_ref arr idx dbg )))
+
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -2800,8 +2935,12 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
       addr_array_set mode arg1 arg2 arg3 dbg
   | Pintarray_set ->
       int_array_set arg1 arg2 arg3 dbg
-  | Pfloatarray_set ->
-      float_array_set arg1 arg2 arg3 dbg
+  | Pfloatarray_set | Punboxedfloatarray_set ->
+    float_array_set arg1 arg2 arg3 dbg
+  | Punboxedintarray_set (Pint64 | Pnativeint) ->
+    unboxed_int64_or_nativeint_array_set arg1 ~index:arg2 ~new_value:arg3 dbg
+  | Punboxedintarray_set Pint32 ->
+    unboxed_int32_array_set arg1 ~index:arg2 ~new_value:arg3 dbg
   )
 
 let arrayset_safe skind arg1 arg2 arg3 dbg =
@@ -2855,7 +2994,7 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           int_array_set arr idx newval dbg))))
-  | Pfloatarray_set ->
+  | Pfloatarray_set | Punboxedfloatarray_set ->
       bind_load "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
@@ -2865,6 +3004,24 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           float_array_set arr idx newval dbg))))
+  | Punboxedintarray_set (Pint64 | Pnativeint) ->
+    bind "newval" arg3 (fun newval ->
+        bind "index" arg2 (fun idx ->
+            bind "arr" arg1 (fun arr ->
+                Csequence
+                  (make_checkbound dbg
+                     [unboxed_int64_or_nativeint_array_length arr dbg; idx],
+                   unboxed_int64_or_nativeint_array_set arr ~index:idx
+                     ~new_value:newval dbg))))
+  | Punboxedintarray_set Pint32 ->
+    bind "newval" arg3 (fun newval ->
+        bind "index" arg2 (fun idx ->
+            bind "arr" arg1 (fun arr ->
+                Csequence
+                  (make_checkbound dbg
+                     [unboxed_int32_array_length arr dbg; idx],
+                   unboxed_int32_array_set arr ~index:idx
+                     ~new_value:newval dbg))))
   )
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
@@ -3204,3 +3361,60 @@ let kind_of_layout (layout : Lambda.layout) =
     Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
+
+let make_unboxed_int32_array_payload dbg unboxed_int32_list =
+  let rec aux acc = function
+    | [] -> true, List.rev acc
+    | a :: [] ->
+      let i =
+        (* CR gbury: check/test that this is correct *)
+        if big_endian
+        then Cop (Clsl, [a; Cconst_int (32, dbg)], dbg)
+        else sign_extend_32 dbg a
+      in
+      false, List.rev (i :: acc)
+    | a :: b :: r ->
+      let i =
+        (* CR gbury: check/test that this is correct *)
+        if big_endian
+        then Cop (Cor, [Cop (Clsl, [a; Cconst_int (32, dbg)], dbg); b], dbg)
+        else Cop (Cor, [a; Cop (Clsl, [b; Cconst_int (32, dbg)], dbg)], dbg)
+      in
+      aux (i :: acc) r
+  in
+  aux [] unboxed_int32_list
+
+let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
+  let even_num_of_elts, payload =
+    make_unboxed_int32_array_payload dbg elements
+  in
+  let header =
+    let size = 1 (* custom_ops field *) + List.length payload in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  let custom_ops =
+    (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
+       the block *)
+    if even_num_of_elts
+    then custom_ops_unboxed_int32_even_array
+    else custom_ops_unboxed_int32_odd_array
+  in
+  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
+
+let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
+    (mode : Lambda.alloc_mode) dbg =
+  let header =
+    let size = 1 (* custom_ops field *) + List.length elements in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
+
+let allocate_unboxed_int64_array =
+  allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_int64_array
+
+let allocate_unboxed_nativeint_array =
+  allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
