@@ -1445,16 +1445,19 @@ let alloc_mode_of_primitive_description (p : Primitive.description) =
     if p.prim_alloc then Some alloc_heap else None
   else
     match p.prim_native_repr_res with
-    | (Prim_local | Prim_poly), _ ->
+    | Prim_local, _ ->
       (* For primitives that might allocate locally, [p.prim_alloc] just says
          whether [caml_c_call] is required, without telling us anything
          about local allocation.  (However if [p.prim_alloc = false] we
          do actually know that the primitive does not allocate on the heap.) *)
       Some alloc_local
-    | Prim_global, _ ->
+    | (Prim_global | Prim_poly), _ ->
       (* For primitives that definitely do not allocate locally,
          [p.prim_alloc = false] actually tells us that the primitive does
-         not allocate at all. *)
+         not allocate at all.
+
+         No external call that is [Prim_poly] may allocate locally.
+      *)
       if p.prim_alloc then Some alloc_heap else None
 
 (* Changes to this function may also require changes in Flambda 2 (e.g.
