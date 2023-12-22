@@ -182,6 +182,8 @@ module type S = sig
     val zap_to_legacy : ('l * allowed) t -> Const.t
   end
 
+  (** The most general mode. Used in most type checking,
+      including in value bindings in [Env] *)
   module Value : sig
     module Monadic : sig
       include Common with type error = [`Uniqueness of Uniqueness.error]
@@ -268,6 +270,9 @@ module type S = sig
     val zap_to_legacy : lr -> Const.t
   end
 
+  (** The mode on arrow types. Compared to [Value], it contains the [Locality]
+      axis instead of [Regionality] axis, as arrow types are exposed to users
+      and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
       include Common with type error = [`Uniqueness of Uniqueness.error]
