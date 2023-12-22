@@ -1923,19 +1923,30 @@ Error: Signature mismatch:
 |}]
 
 module M6 : sig
-  val f : ('a. 'a -> 'a) -> unit
+  val f : ('a. 'a -> unit) -> unit
 end = struct
-  let f (g : ('a : any). 'a -> 'a) =
+  let f (g : ('a : any). 'a -> unit) =
     ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
 end
 
 [%%expect{|
-Line 5, characters 11-46:
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let f (g : ('a : any). 'a -> unit) =
 5 |     ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
-       float# has layout float64, which is not a sublayout of value.
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : (('a : any). 'a -> unit) -> unit end
+       is not included in
+         sig val f : ('a. 'a -> unit) -> unit end
+       Values do not match:
+         val f : (('a : any). 'a -> unit) -> unit
+       is not included in
+         val f : ('a. 'a -> unit) -> unit
+       The type (('a : any). 'a -> unit) -> unit
+       is not compatible with the type ('a. 'a -> unit) -> unit
+       Type 'a is not compatible with type 'a0
 |}]
 
 module M7 : sig
