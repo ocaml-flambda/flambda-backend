@@ -88,7 +88,7 @@ module type S = sig
 
   val undo_changes : changes -> unit
 
-  val append_changes : (changes ref -> unit) ref
+  val set_append_changes : (changes ref -> unit) -> unit
 
   type nonrec allowed = allowed
 

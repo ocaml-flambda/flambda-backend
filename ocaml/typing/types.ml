@@ -669,7 +669,7 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.append_changes := (fun changes -> log_change (Cmodes !changes));
+  Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
   Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)

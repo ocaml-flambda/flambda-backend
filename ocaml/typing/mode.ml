@@ -820,7 +820,7 @@ type changes = S.changes
 
 let undo_changes = S.undo_changes
 
-let append_changes = S.append_changes
+let set_append_changes = S.set_append_changes
 
 (** Representing a single object *)
 module type Obj = sig

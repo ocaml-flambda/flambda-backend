@@ -88,6 +88,8 @@ module Solver_mono (C : Lattices_mono) = struct
   (* To be filled in by [types.ml] *)
   let append_changes : (changes ref -> unit) ref = ref (fun _ -> assert false)
 
+  let set_append_changes f = append_changes := f
+
   type ('a, 'd) mode =
     | Amode : 'a -> ('a, 'l * 'r) mode
     | Amodevar : ('a, 'd) morphvar -> ('a, 'd) mode
@@ -612,7 +614,7 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
   let undo_changes = S.undo_changes
 
-  let append_changes = S.append_changes
+  let set_append_changes = S.set_append_changes
 
   module type Solver_polarized =
     Solver_polarized
