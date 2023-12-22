@@ -4019,7 +4019,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option (newvar (Jkind.value ~why:Type_argument))
-        else newvar (Jkind.of_new_sort ~why:Function_argument)
+        else newvar (Jkind.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
