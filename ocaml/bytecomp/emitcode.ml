@@ -406,7 +406,7 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan unit_name objfile ~required_globals ~arg_block_field code =
+let to_file outchan unit_name objfile ~required_globals code =
   init();
   Fun.protect ~finally:clear (fun () ->
   output_string outchan cmo_magic_number;
@@ -435,21 +435,11 @@ let to_file outchan unit_name objfile ~required_globals ~arg_block_field code =
       (p, pos_out outchan - p)
     end else
       (0, 0) in
-  let cu_arg_descr =
-    match !Clflags.as_argument_for, arg_block_field with
-    | Some param, Some arg_block_field ->
-        Some { arg_param = param |> Compilation_unit.Name.of_string;
-               arg_block_field = arg_block_field }
-    | None, None -> None
-    | Some _, None -> Misc.fatal_error "Expected argument field"
-    | None, Some _ -> Misc.fatal_error "Unexpected argument field"
-  in
   let compunit =
     { cu_name = unit_name;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
-      cu_arg_descr;
       cu_imports = Env.imports() |> Array.of_list;
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;

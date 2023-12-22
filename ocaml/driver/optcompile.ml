@@ -33,19 +33,13 @@ let interface ~source_file ~output_prefix =
 (** Native compilation backend for .ml files. *)
 
 let compile i ~backend ~middle_end ~transl_style
-      Typedtree.{structure; coercion; secondary_iface} =
-  let secondary_coercion =
-    match secondary_iface with
-    | Some { si_coercion_from_primary; si_signature = _ } ->
-      Some si_coercion_from_primary
-    | None -> None
-  in
-  (structure, coercion, secondary_coercion)
+      Typedtree.{structure; coercion; _} =
+  (structure, coercion)
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
-    (fun (program : Lambda.program) ->
+    (fun program ->
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
@@ -57,8 +51,7 @@ let compile i ~backend ~middle_end ~transl_style
             ~middle_end
             ~ppf_dump:i.ppf_dump
             lambda;
-          Compilenv.save_unit_info (cmx i)
-            ~arg_block_field:program.arg_block_field))
+       Compilenv.save_unit_info (cmx i)))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

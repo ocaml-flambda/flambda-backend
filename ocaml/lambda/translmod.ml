@@ -946,46 +946,6 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
-let add_arg_block_to_module_block primary_block_lam size restr =
-  let primary_block_id = Ident.create_local "*primary-block*" in
-  let arg_block_id = Ident.create_local "*arg-block*" in
-  let arg_block_lam =
-    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
-  in
-  let get_field i = Lprim (mod_field i, [Lvar primary_block_id], Loc_unknown) in
-  let all_fields = List.init size get_field @ [Lvar arg_block_id] in
-  let arg_block_field = size in
-  let new_size = size + 1 in
-  Llet(Strict, layout_module, primary_block_id, primary_block_lam,
-       Llet(Strict, layout_module, arg_block_id, arg_block_lam,
-            Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-                  all_fields,
-                  Loc_unknown))),
-  new_size,
-  Some arg_block_field
-
-let transl_implementation_module ~scopes module_id (str, cc, cc2) =
-  let path = global_path module_id in
-  let lam, size =
-    transl_struct ~scopes Loc_unknown [] cc path str
-  in
-  let lam, size, arg_block_field =
-    match cc2 with
-    | None -> lam, size, None
-    | Some cc2 -> add_arg_block_to_module_block lam size cc2
-  in
-  lam, size, arg_block_field
-
-(* Convert an flambda-style implementation (module block only) to a
-   non-flambda-style one (set global as side effect) *)
-
-let wrap_in_setglobal implementation =
-  let code =
-    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
-           Loc_unknown)
-  in
-  { implementation with code }
-
 (* Compile an implementation *)
 
 type compilation_unit_style =
@@ -993,27 +953,33 @@ type compilation_unit_style =
   | Set_global_to_block
   | Set_individual_fields
 
-let transl_implementation_plain_block compilation_unit impl =
+let transl_implementation_plain_block compilation_unit (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let body, (size, arg_block_field) =
+  let body, size =
     Translobj.transl_label_init (fun () ->
-      let body, size, arg_block_field =
-        transl_implementation_module ~scopes compilation_unit impl in
-      Translcore.declare_probe_handlers body, (size, arg_block_field))
+      let body, size =
+        transl_struct ~scopes Loc_unknown [] cc
+          (global_path compilation_unit) str in
+      Translcore.declare_probe_handlers body, size)
   in
   { compilation_unit;
     main_module_block_size = size;
-    arg_block_field;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation_set_global module_name impl =
-  transl_implementation_plain_block module_name impl
-  |> wrap_in_setglobal
+let transl_implementation_set_global module_name (str, cc) =
+  let implementation =
+    transl_implementation_plain_block module_name (str, cc)
+  in
+  let code =
+    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
+           Loc_unknown)
+  in
+  { implementation with code }
 
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)
@@ -1566,42 +1532,10 @@ let build_ident_map restr idlist more_ids =
   in
   natural_map pos map prims aliases more_ids
 
-let store_arg_block_with_module_block
-    module_name set_primary_fields restr size =
-  let glob = Lprim(Pgetglobal module_name, [], Loc_unknown) in
-  let primary_block_id = Ident.create_local "*primary-block*" in
-  let primary_block_lam =
-    (* We could just access the global, but if [restr] is the trivial coercion,
-       that would end up storing the global in itself as a circular reference,
-       which we might be able to get working but doesn't seem worth the
-       hassle. Instead, we access each field of the global and repackage it as a
-       new block (which will be optimised away if not needed). *)
-    let get_field i = Lprim (mod_field i, [glob], Loc_unknown) in
-    let fields = List.init size get_field in
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap), fields, Loc_unknown)
-  in
-  let arg_block_id = Ident.create_local "*arg-block*" in
-  let arg_block_lam =
-    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
-  in
-  let arg_field = size in
-  let new_size = size + 1 in
-  let set_arg_block =
-    Lprim(mod_setfield arg_field, [glob; Lvar arg_block_id], Loc_unknown)
-  in
-  let lam =
-    Lsequence(set_primary_fields,
-              Llet(Strict, layout_module, primary_block_id, primary_block_lam,
-                   Llet(Strict, layout_module, arg_block_id, arg_block_lam,
-                        set_arg_block)))
-  in
-  new_size, lam, Some arg_field
-
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen
-      ~scopes module_name ({ str_items = str }, restr, restr2) topl =
+let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
@@ -1621,34 +1555,22 @@ let transl_store_gen
     in
     Translcore.declare_probe_handlers expr
   in
-  let size, expr =
-    transl_store_label_init module_name size f str
-  in
-  match restr2 with
-  | None -> size, expr, None
-  | Some restr2 ->
-      store_arg_block_with_module_block module_name expr restr2 size
+  transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  let size, lam, _arg_block_field =
-    transl_store_gen ~scopes module_name (str,Tcoerce_none,None) true
-  in
-  size, lam
+  transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_implementation_set_fields compilation_unit impl =
+let transl_implementation_set_fields compilation_unit (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code, arg_block_field =
-    transl_store_gen ~scopes compilation_unit impl false
-  in
+  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
-    arg_block_field;
     code;
     (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)

@@ -94,7 +94,6 @@ let default_ui_export_info =
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
-    ui_arg_descr = None;
     ui_imports_cmi = [];
     ui_imports_cmx = [];
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
@@ -109,7 +108,6 @@ let reset compilation_unit =
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
-  current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
   current_unit.ui_generic_fns <-
@@ -150,7 +148,6 @@ let read_unit_info filename =
     let ui = {
       ui_unit = uir.uir_unit;
       ui_defines = uir.uir_defines;
-      ui_arg_descr = uir.uir_arg_descr;
       ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
@@ -356,7 +353,6 @@ let write_unit_info info filename =
   let raw_info = {
     uir_unit = info.ui_unit;
     uir_defines = info.ui_defines;
-    uir_arg_descr = info.ui_arg_descr;
     uir_imports_cmi = Array.of_list info.ui_imports_cmi;
     uir_imports_cmx = Array.of_list info.ui_imports_cmx;
     uir_generic_fns = info.ui_generic_fns;
@@ -375,17 +371,8 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename ~arg_block_field =
+let save_unit_info filename =
   current_unit.ui_imports_cmi <- Env.imports();
-  current_unit.ui_arg_descr <-
-    begin match !Clflags.as_argument_for, arg_block_field with
-    | Some arg_param, Some arg_block_field ->
-      let arg_param = Compilation_unit.Name.of_string arg_param in
-      Some { arg_param; arg_block_field }
-    | None, None -> None
-    | Some _, None -> Misc.fatal_error "No argument block"
-    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
-    end;
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

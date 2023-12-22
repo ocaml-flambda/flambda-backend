@@ -45,9 +45,6 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_arg_descr: Lambda.arg_descr option;
-                                          (* If this is an argument unit, the
-                                             parameter it implements *)
     mutable ui_imports_cmi: Import_info.t array;
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t array;
