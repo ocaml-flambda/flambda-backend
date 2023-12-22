@@ -57,10 +57,10 @@ module Solver_mono (C : Lattices_mono) = struct
        the mode solver is to detect conflict, which is already achieved without
        precise [lower]. Adding [vupper] and keeping [lower] precise will come
        at extra cost. *)
-       (* To summarize, INVARIANT:
-        For any variable [v], we have [v.lower <= v.upper].
-        For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
-        necessarily [u.lower <= v.lower]. *)
+      (* To summarize, INVARIANT:
+         For any variable [v], we have [v.lower <= v.upper].
+         For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
+         necessarily [u.lower <= v.lower]. *)
       id : int  (** For identification/printing *)
     }
 
@@ -256,8 +256,7 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let submode_cmv :
       type a l.
-      log:_ -> a C.obj -> a -> (a, l * allowed) morphvar -> (unit, a) Result.t
-      =
+      log:_ -> a C.obj -> a -> (a, l * allowed) morphvar -> (unit, a) Result.t =
    fun ~log obj a (Amorphvar (v, f) as mv) ->
     (* Want a <= f v, therefore f' a <= v. Ideally the two are equivalent.
        However, [f v] could have been implicitly injected into a larger lattice,
@@ -370,14 +369,7 @@ module Solver_mono (C : Lattices_mono) = struct
       type a l0 r0 l1 r1.
       a C.obj -> (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool =
    fun dst (Amorphvar (v0, f0)) (Amorphvar (v1, f1)) ->
-    let obj0 = C.src dst f0 in
-    let obj1 = C.src dst f1 in
-    match C.eq_obj obj0 obj1 with
-    | None -> false
-    | Some Refl ->
-      v0 == v1
-      && C.disallow_left (C.disallow_right f0)
-         = C.disallow_left (C.disallow_right f1)
+    match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
 
   let submode_mvmv (type a) ~log (dst : a C.obj) (Amorphvar (v, f) as mv)
       (Amorphvar (u, g) as mu) =

@@ -35,6 +35,19 @@ module Product = struct
     | SAxis0 : ('a0, 'a1, 'a0, 'b0, 'a1, 'b0) saxis
     | SAxis1 : ('a0, 'a1, 'a1, 'a0, 'b1, 'b1) saxis
 
+  let rev_eq_saxis (type a0 a1 a b0 b1 b a0' a1' a') :
+      (a0, a1, a, b0, b1, b) saxis ->
+      (a0', a1', a', b0, b1, b) saxis ->
+      (a, a') Misc.eq ->
+      (a0 * a1, a0' * a1') Misc.eq option =
+   fun a b eq ->
+    match eq with
+    | Refl -> (
+      match a, b with
+      | SAxis0, SAxis0 -> Some Refl
+      | SAxis1, SAxis1 -> Some Refl
+      | _, _ -> None)
+
   let flip (type a0 a1 a b0 b1 b) :
       (a0, a1, a, b0, b1, b) saxis -> (b0, b1, b, a0, a1, a) saxis = function
     | SAxis0 -> SAxis0
@@ -350,6 +363,8 @@ module Lattices = struct
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
 
+  (* CR zqian: Do we know that the following is guaranteed to be optimized into
+     %equal? *)
   let eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
    fun a b ->
     match a, b with
@@ -407,6 +422,100 @@ module Lattices_mono = struct
     | Compose : ('b, 'c, 'd) morph * ('a, 'b, 'd) morph -> ('a, 'c, 'd) morph
         (** Compoistion of two morphisms *)
 
+  include Magic_allow_disallow (struct
+    type ('a, 'b, 'd) sided = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
+
+    let rec allow_left :
+        type a b l r. (a, b, allowed * r) morph -> (a, b, l * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = allow_left f in
+        let g = allow_left g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = allow_left f in
+        Set (sax, f)
+
+    let rec allow_right :
+        type a b l r. (a, b, l * allowed) morph -> (a, b, l * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Compose (f, g) ->
+        let f = allow_right f in
+        let g = allow_right g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = allow_right f in
+        Set (sax, f)
+
+    let rec disallow_left :
+        type a b l r. (a, b, l * r) morph -> (a, b, disallowed * r) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = disallow_left f in
+        let g = disallow_left g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = disallow_left f in
+        Set (sax, f)
+
+    let rec disallow_right :
+        type a b l r. (a, b, l * r) morph -> (a, b, l * disallowed) morph =
+      function
+      | Id -> Id
+      | Proj (src, ax) -> Proj (src, ax)
+      | Min_with ax -> Min_with ax
+      | Max_with ax -> Max_with ax
+      | Const_max src -> Const_max src
+      | Const_min src -> Const_min src
+      | Compose (f, g) ->
+        let f = disallow_right f in
+        let g = disallow_right g in
+        Compose (f, g)
+      | Unique_to_linear -> Unique_to_linear
+      | Linear_to_unique -> Linear_to_unique
+      | Local_to_regional -> Local_to_regional
+      | Global_to_regional -> Global_to_regional
+      | Locality_as_regionality -> Locality_as_regionality
+      | Regional_to_local -> Regional_to_local
+      | Regional_to_global -> Regional_to_global
+      | Set (sax, f) ->
+        let f = disallow_right f in
+        Set (sax, f)
+  end)
+
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
    fun dst -> function
     | Id -> dst
@@ -428,6 +537,57 @@ module Lattices_mono = struct
       let dst0 = proj_obj (Product.dst sax) dst in
       let src0 = src dst0 f in
       set_obj (Product.flip sax) src0 dst
+
+  let rec eq_morph :
+      type a0 l0 r0 a1 b l1 r1.
+      b obj ->
+      (a0, b, l0 * r0) morph ->
+      (a1, b, l1 * r1) morph ->
+      (a0, a1) Misc.eq option =
+   fun obj f0 f1 ->
+    (* The following looks slow, but note that %equal would also be slow
+       (recursive on [Compose]) *)
+    match f0, f1 with
+    | Id, Id -> Some Refl
+    | Proj (src0, ax0), Proj (src1, ax1) -> (
+      match eq_obj src0 src1 with
+      | Some Refl -> (
+        match Product.eq_axis ax0 ax1 with
+        | None -> None
+        | Some Refl -> Some Refl)
+      | None -> None)
+    | Max_with ax0, Max_with ax1 -> (
+      match Product.eq_axis ax0 ax1 with Some Refl -> Some Refl | None -> None)
+    | Min_with ax0, Min_with ax1 -> (
+      match Product.eq_axis ax0 ax1 with Some Refl -> Some Refl | None -> None)
+    | Const_min src0, Const_min src1 -> (
+      match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
+    | Const_max src0, Const_max src1 -> (
+      match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
+    | Unique_to_linear, Unique_to_linear -> Some Refl
+    | Linear_to_unique, Linear_to_unique -> Some Refl
+    | Local_to_regional, Local_to_regional -> Some Refl
+    | Locality_as_regionality, Locality_as_regionality -> Some Refl
+    | Global_to_regional, Global_to_regional -> Some Refl
+    | Regional_to_local, Regional_to_local -> Some Refl
+    | Regional_to_global, Regional_to_global -> Some Refl
+    | Compose (f0, g0), Compose (f1, g1) -> (
+      match eq_morph obj f0 f1 with
+      | None -> None
+      | Some Refl -> (
+        let mid = src obj f0 in
+        match eq_morph mid g0 g1 with None -> None | Some Refl -> Some Refl))
+    | Set (sax0, f0), Set (sax1, f1) -> (
+      let ax0 = Product.dst sax0 in
+      let ax1 = Product.dst sax1 in
+      match Product.eq_axis ax0 ax1 with
+      | Some Refl -> (
+        let obj = proj_obj ax0 obj in
+        match eq_morph obj f0 f1 with
+        | None -> None
+        | Some eq -> Product.rev_eq_saxis sax0 sax1 eq)
+      | None -> None)
+    | _, _ -> None
 
   let rec print_morph :
       type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
@@ -651,100 +811,6 @@ module Lattices_mono = struct
     | Set (sax, f) ->
       let f' = right_adjoint (proj_obj (Product.dst sax) dst) f in
       Set (Product.flip sax, f')
-
-  include Magic_allow_disallow (struct
-    type ('a, 'b, 'd) sided = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
-
-    let rec allow_left :
-        type a b l r. (a, b, allowed * r) morph -> (a, b, l * r) morph =
-      function
-      | Id -> Id
-      | Proj (src, ax) -> Proj (src, ax)
-      | Min_with ax -> Min_with ax
-      | Const_min src -> Const_min src
-      | Compose (f, g) ->
-        let f = allow_left f in
-        let g = allow_left g in
-        Compose (f, g)
-      | Unique_to_linear -> Unique_to_linear
-      | Linear_to_unique -> Linear_to_unique
-      | Local_to_regional -> Local_to_regional
-      | Locality_as_regionality -> Locality_as_regionality
-      | Regional_to_local -> Regional_to_local
-      | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
-        let f = allow_left f in
-        Set (sax, f)
-
-    let rec allow_right :
-        type a b l r. (a, b, l * allowed) morph -> (a, b, l * r) morph =
-      function
-      | Id -> Id
-      | Proj (src, ax) -> Proj (src, ax)
-      | Max_with ax -> Max_with ax
-      | Const_max src -> Const_max src
-      | Compose (f, g) ->
-        let f = allow_right f in
-        let g = allow_right g in
-        Compose (f, g)
-      | Unique_to_linear -> Unique_to_linear
-      | Linear_to_unique -> Linear_to_unique
-      | Global_to_regional -> Global_to_regional
-      | Locality_as_regionality -> Locality_as_regionality
-      | Regional_to_local -> Regional_to_local
-      | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
-        let f = allow_right f in
-        Set (sax, f)
-
-    let rec disallow_left :
-        type a b l r. (a, b, l * r) morph -> (a, b, disallowed * r) morph =
-      function
-      | Id -> Id
-      | Proj (src, ax) -> Proj (src, ax)
-      | Min_with ax -> Min_with ax
-      | Max_with ax -> Max_with ax
-      | Const_max src -> Const_max src
-      | Const_min src -> Const_min src
-      | Compose (f, g) ->
-        let f = disallow_left f in
-        let g = disallow_left g in
-        Compose (f, g)
-      | Unique_to_linear -> Unique_to_linear
-      | Linear_to_unique -> Linear_to_unique
-      | Local_to_regional -> Local_to_regional
-      | Global_to_regional -> Global_to_regional
-      | Locality_as_regionality -> Locality_as_regionality
-      | Regional_to_local -> Regional_to_local
-      | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
-        let f = disallow_left f in
-        Set (sax, f)
-
-    let rec disallow_right :
-        type a b l r. (a, b, l * r) morph -> (a, b, l * disallowed) morph =
-      function
-      | Id -> Id
-      | Proj (src, ax) -> Proj (src, ax)
-      | Min_with ax -> Min_with ax
-      | Max_with ax -> Max_with ax
-      | Const_max src -> Const_max src
-      | Const_min src -> Const_min src
-      | Compose (f, g) ->
-        let f = disallow_right f in
-        let g = disallow_right g in
-        Compose (f, g)
-      | Unique_to_linear -> Unique_to_linear
-      | Linear_to_unique -> Linear_to_unique
-      | Local_to_regional -> Local_to_regional
-      | Global_to_regional -> Global_to_regional
-      | Locality_as_regionality -> Locality_as_regionality
-      | Regional_to_local -> Regional_to_local
-      | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
-        let f = disallow_right f in
-        Set (sax, f)
-  end)
 end
 
 module C = Lattices_mono

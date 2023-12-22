@@ -47,6 +47,8 @@ module type Lattices = sig
   val print : 'a obj -> Format.formatter -> 'a -> unit
 
   val eq_obj : 'a obj -> 'b obj -> ('a, 'b) Misc.eq option
+
+  val print_obj : Format.formatter -> 'a obj -> unit
 end
 
 (** Extend [Lattices] with monotone functions (including identity) to form a
@@ -113,7 +115,14 @@ module type Lattices_mono = sig
   (** Apply morphism on constant *)
   val apply : 'b obj -> ('a, 'b, 'd) morph -> 'a -> 'b
 
-  val print_obj : Format.formatter -> 'a obj -> unit
+  (** Checks if two morphisms are equal. If so, returns [Some Refl].
+    Used for deduplication only; it is fine (but not recommended) to return
+   [None] for equal morphisms *)
+  val eq_morph :
+    'b obj ->
+    ('a0, 'b, 'l0 * 'r0) morph ->
+    ('a1, 'b, 'l1 * 'r1) morph ->
+    ('a0, 'a1) Misc.eq option
 
   (** Print morphism *)
   val print_morph : 'b obj -> Format.formatter -> ('a, 'b, 'd) morph -> unit
