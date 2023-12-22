@@ -26,15 +26,3 @@ val extcall :
   machtype ->
   expression list ->
   expression
-
-(** [cextcall prim args dbg type_of_result] returns Cextcall operation that
-    corresponds to [prim]. If [prim] is a C builtin supported on the target,
-    returns [Cmm.operation] variant for [prim]'s intrinsics. *)
-val cextcall :
-  Primitive.description ->
-  expression list ->
-  Debuginfo.t ->
-  machtype ->
-  exttype list ->
-  bool ->
-  expression
