@@ -26,9 +26,6 @@ type error =
 
 exception Error of error
 
-let default_ui_export_info =
-  Cmx_format.Flambda2 None
-
 let read_info name =
   let filename =
     try
@@ -41,7 +38,7 @@ let read_info name =
      since the compiler will go looking directly for .cmx files.
      The linker, which is the only one that reads .cmxa files, does not
      need the approximation. *)
-  info.ui_export_info <- default_ui_export_info;
+  info.ui_export_info <- None;
   (Filename.chop_suffix filename ".cmx" ^ ext_obj, (info, crc))
 
 let create_archive file_list lib_name =

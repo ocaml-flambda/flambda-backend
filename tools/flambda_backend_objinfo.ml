@@ -193,9 +193,9 @@ let print_cmx_infos (uir, sections, crc) =
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
     match uir.uir_export_info with
-    | Flambda2_raw None ->
+    | None ->
       printf "Flambda 2 unit (with no export information)\n"
-    | Flambda2_raw (Some cmx) ->
+    | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
       let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
