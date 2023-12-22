@@ -58,8 +58,11 @@ module Solver_mono (C : Lattices_mono) = struct
        precise [lower]. Adding [vupper] and keeping [lower] precise will come
        at extra cost. *)
       (* To summarize, INVARIANT:
-         For any variable [v], we have [v.lower <= v.upper].
-         For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
+         - For any variable [v], we have [v.lower <= v.upper].
+         - Variables that have been fully constrained will have
+         [v.lower = v.upper]. Note that adding a boolean field indicating that
+         won't help much.
+         - For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
          necessarily [u.lower <= v.lower]. *)
       id : int  (** For identification/printing *)
     }
