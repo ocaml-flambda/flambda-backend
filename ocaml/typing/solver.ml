@@ -349,10 +349,14 @@ module Solver_mono (C : Lattices_mono) = struct
 
       As mentioned in [var], [v.lower] is not precise; to get the precise lower
       bound of [v], we call [submode v v.lower]. This would call [submode u
-      v.lower] for every [u] below [v], which might fail because for some [u],
+      v.lower] for every [u] in [v.vlower], which might fail because for some [u]
       [u.lower] is more up-to-date than [v.lower]. In that case, we call
       [submode v u.lower]. We repeat this process until no failure, and we will
-      get the precise lower bound. *)
+      get the precise lower bound.
+
+      The loop is guaranteed to terminate, because for each iteration our
+      guessed lower bound is strictly higher; and all lattices are finite.
+      *)
   let zap_to_floor_try (type a) (obj : a C.obj) (v : a var) =
     let rec loop lower =
       let log = ref [] in

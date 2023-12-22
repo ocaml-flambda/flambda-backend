@@ -29,7 +29,7 @@ module type Allow_disallow_arg = sig
   type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
 end
 
-(** A collection of lattices, indexed by [obj] *)
+(** A collection of lattices, indexed by [obj]; *)
 module type Lattices = sig
   (** Lattice identifers, indexed by ['a] the carrier type of that lattice *)
   type 'a obj
@@ -171,7 +171,8 @@ module type Solver_polarized = sig
   (** The maximum mode in the lattice *)
   val max : 'a obj -> ('a, 'l * 'r) mode
 
-  (** Pushes the mode variable to the lowest constant possible. *)
+  (** Pushes the mode variable to the lowest constant possible.
+      WARNING: the lattice must be finite for this to terminate.*)
   val zap_to_floor : 'a obj -> ('a, allowed * 'r) mode -> 'a
 
   (** Pushes the mode variable to the highest constant possible. *)
@@ -206,11 +207,13 @@ module type Solver_polarized = sig
   val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
 
   (** Checks if a mode has been constrained sufficiently to a constant.
-        Expensive. *)
+        Expensive.
+      WARNING: the lattice must be finite for this to terminate.*)
   val check_const : 'a obj -> ('a, 'l * 'r) mode -> 'a option
 
   (** Print a mode. Calls [check_const] for cleaner printing and thus
-    expensive.  *)
+    expensive.
+      WARNING: the lattice must be finite for this to terminate.*)
   val print :
     ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
 
