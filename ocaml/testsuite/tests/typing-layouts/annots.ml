@@ -249,6 +249,8 @@ Error: This definition has type 'b -> 'b which is less general than
          ('a : any). 'a -> 'a
        'a has layout any, which is not representable.
 |}]
+(* CR layouts v2.9: This error message is not great. Check later if layout history
+   is able to improve it. *)
 
 let f : ('a : float64). 'a -> 'a = fun x -> x
 ;;
