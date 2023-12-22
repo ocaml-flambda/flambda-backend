@@ -32,9 +32,11 @@ module State : sig
 
   val get_next_instruction_id : t -> int
 
-  val add_iend_with_poptrap : t -> Mach.instruction -> unit
+  val add_iend_with_poptrap : t -> Mach.instruction -> Label.t -> unit
 
   val is_iend_with_poptrap : t -> Mach.instruction -> bool
+
+  val get_iend_with_poptrap : t -> Mach.instruction -> Label.t option
 
   val add_exception_handler : t -> Label.t -> unit
 
@@ -48,7 +50,7 @@ end = struct
       layout : Cfg_with_layout.layout;
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
-      mutable iends_with_poptrap : Mach.instruction list;
+      mutable iends_with_poptrap : (Mach.instruction * Label.t) list;
       mutable exception_handlers : Label.t list
     }
 
@@ -115,13 +117,17 @@ end = struct
     | Itrywith _ | Iraise _ ->
       false
 
-  let add_iend_with_poptrap t iend =
+  let add_iend_with_poptrap t iend pop_action =
     assert (is_iend iend);
-    t.iends_with_poptrap <- iend :: t.iends_with_poptrap
+    t.iends_with_poptrap <- (iend, pop_action) :: t.iends_with_poptrap
 
   let is_iend_with_poptrap t iend =
     assert (is_iend iend);
-    List.memq iend t.iends_with_poptrap
+    List.mem_assq iend t.iends_with_poptrap
+
+  let get_iend_with_poptrap t iend =
+    assert (is_iend iend);
+    List.assq_opt iend t.iends_with_poptrap
 
   let add_exception_handler t lbl =
     t.exception_handlers <- lbl :: t.exception_handlers
@@ -558,9 +564,9 @@ let rec add_blocks :
       else
         terminate_block
           ~trap_actions:
-            (if State.is_iend_with_poptrap state last
-            then [Cmm.Pop Pop_generic]
-            else [])
+            (match State.get_iend_with_poptrap state last with
+            | Some _lbl_handler -> [Cmm.Pop Pop_generic]
+            | None -> [])
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions
@@ -628,7 +634,7 @@ let rec add_blocks :
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body));
       let next, add_next_block = prepare_next_block () in
-      State.add_iend_with_poptrap state (get_end body);
+      State.add_iend_with_poptrap state (get_end body) label_handler;
       State.add_exception_handler state label_handler;
       add_blocks body state ~starts_with_pushtrap ~start:label_body ~next
         ~is_cold;
