@@ -1087,7 +1087,7 @@ end = struct
     (* CR layouts: Improve output or remove this constructor ^^ *)
     | Type_expression_call ->
       fprintf ppf "a call to [type_expression] via the ocaml API"
-    | Inside_of_Tarrow -> fprintf ppf "argument or result of a Tarrow"
+    | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Wildcard -> fprintf ppf "a _ in a type"
     | Unification_var -> fprintf ppf "a fresh unification variable"
 
