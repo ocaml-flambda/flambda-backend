@@ -1429,7 +1429,7 @@ let report_error env ppf = function
       fprintf ppf
         "@[<hov>The universal type variable %a was %s to have@ \
          layout %a, but was inferred to have %t.@]"
-        Printast.tyvar name
+        Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
         Jkind.format jkind_info.original_jkind
         (fun ppf -> match Jkind.get inferred_jkind with
