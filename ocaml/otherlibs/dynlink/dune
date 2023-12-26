@@ -67,7 +67,6 @@
     location
     longident
     docstrings
-    printast
     syntaxerr
     jane_asttypes
     jane_syntax_parsing
@@ -158,7 +157,6 @@
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
-(copy_files ../../parsing/printast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
 (copy_files ../../parsing/jane_asttypes.ml)
 (copy_files ../../parsing/jane_syntax_parsing.ml)
@@ -221,7 +219,6 @@
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
-(copy_files ../../parsing/printast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
 (copy_files ../../parsing/jane_asttypes.mli)
 (copy_files ../../parsing/jane_syntax_parsing.mli)
@@ -330,7 +327,6 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
@@ -410,7 +406,6 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_asttypes.cmx

@@ -1359,7 +1359,7 @@ let report_error env ppf = function
         but is here applied to %i argument(s)@]"
       longident lid expected provided
   | Bound_type_variable name ->
-    fprintf ppf "Already bound type parameter %a" Printast.tyvar name
+    fprintf ppf "Already bound type parameter %a" Pprintast.tyvar name
   | Recursive_type ->
     fprintf ppf "This type is recursive"
   | Unbound_row_variable lid ->
@@ -1415,7 +1415,7 @@ let report_error env ppf = function
   | Cannot_quantify (name, reason) ->
       fprintf ppf
         "@[<hov>The universal type variable %a cannot be generalized:@ "
-        Printast.tyvar name;
+        Pprintast.tyvar name;
       begin match reason with
       | Unified v ->
         fprintf ppf "it is bound to@ %a" Printtyp.type_expr v

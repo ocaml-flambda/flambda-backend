@@ -477,7 +477,6 @@ parsing/jane_asttypes.cmx : \
 parsing/jane_asttypes.cmi : \
     parsing/location.cmi
 parsing/jane_syntax.cmo : \
-    parsing/printast.cmi \
     parsing/parsetree.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
@@ -490,7 +489,6 @@ parsing/jane_syntax.cmo : \
     parsing/ast_helper.cmi \
     parsing/jane_syntax.cmi
 parsing/jane_syntax.cmx : \
-    parsing/printast.cmx \
     parsing/parsetree.cmi \
     utils/misc.cmx \
     parsing/longident.cmx \
@@ -511,6 +509,7 @@ parsing/jane_syntax.cmi : \
     parsing/asttypes.cmi
 parsing/jane_syntax_parsing.cmo : \
     parsing/parsetree.cmi \
+    utils/misc.cmi \
     parsing/location.cmi \
     utils/language_extension_kernel.cmi \
     utils/language_extension.cmi \
@@ -518,6 +517,7 @@ parsing/jane_syntax_parsing.cmo : \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmx : \
     parsing/parsetree.cmi \
+    utils/misc.cmx \
     parsing/location.cmx \
     utils/language_extension_kernel.cmx \
     utils/language_extension.cmx \
@@ -569,6 +569,7 @@ parsing/longident.cmx : \
 parsing/longident.cmi :
 parsing/parse.cmo : \
     parsing/syntaxerr.cmi \
+    parsing/pprintast.cmi \
     parsing/parser.cmi \
     parsing/location.cmi \
     parsing/lexer.cmi \
@@ -576,6 +577,7 @@ parsing/parse.cmo : \
     parsing/parse.cmi
 parsing/parse.cmx : \
     parsing/syntaxerr.cmx \
+    parsing/pprintast.cmx \
     parsing/parser.cmx \
     parsing/location.cmx \
     parsing/lexer.cmx \
@@ -627,7 +629,6 @@ parsing/parsetree.cmi : \
     parsing/location.cmi \
     parsing/asttypes.cmi
 parsing/pprintast.cmo : \
-    parsing/printast.cmi \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -637,7 +638,6 @@ parsing/pprintast.cmo : \
     parsing/ast_helper.cmi \
     parsing/pprintast.cmi
 parsing/pprintast.cmx : \
-    parsing/printast.cmx \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
@@ -650,6 +650,7 @@ parsing/pprintast.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi
 parsing/printast.cmo : \
+    parsing/pprintast.cmi \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -657,6 +658,7 @@ parsing/printast.cmo : \
     parsing/asttypes.cmi \
     parsing/printast.cmi
 parsing/printast.cmx : \
+    parsing/pprintast.cmx \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
@@ -666,11 +668,9 @@ parsing/printast.cmx : \
 parsing/printast.cmi : \
     parsing/parsetree.cmi
 parsing/syntaxerr.cmo : \
-    parsing/printast.cmi \
     parsing/location.cmi \
     parsing/syntaxerr.cmi
 parsing/syntaxerr.cmx : \
-    parsing/printast.cmx \
     parsing/location.cmx \
     parsing/syntaxerr.cmi
 parsing/syntaxerr.cmi : \
@@ -1153,14 +1153,14 @@ typing/mtype.cmi : \
     typing/ident.cmi \
     typing/env.cmi
 typing/oprint.cmo : \
-    parsing/printast.cmi \
+    parsing/pprintast.cmi \
     typing/outcometree.cmi \
     utils/language_extension.cmi \
     typing/jkind.cmi \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmx : \
-    parsing/printast.cmx \
+    parsing/pprintast.cmx \
     typing/outcometree.cmi \
     utils/language_extension.cmx \
     typing/jkind.cmx \
@@ -1422,6 +1422,7 @@ typing/printtyped.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
     parsing/printast.cmi \
+    parsing/pprintast.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/mode.cmi \
@@ -1437,6 +1438,7 @@ typing/printtyped.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
     parsing/printast.cmx \
+    parsing/pprintast.cmx \
     typing/path.cmx \
     parsing/parsetree.cmi \
     typing/mode.cmx \
@@ -1785,9 +1787,9 @@ typing/typedecl.cmo : \
     typing/typedecl_separability.cmi \
     typing/subst.cmi \
     typing/printtyp.cmi \
-    parsing/printast.cmi \
     typing/primitive.cmi \
     typing/predef.cmi \
+    parsing/pprintast.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/oprint.cmi \
@@ -1820,9 +1822,9 @@ typing/typedecl.cmx : \
     typing/typedecl_separability.cmx \
     typing/subst.cmx \
     typing/printtyp.cmx \
-    parsing/printast.cmx \
     typing/primitive.cmx \
     typing/predef.cmx \
+    parsing/pprintast.cmx \
     typing/path.cmx \
     parsing/parsetree.cmi \
     typing/oprint.cmx \
@@ -2173,8 +2175,8 @@ typing/typetexp.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/printtyp.cmi \
-    parsing/printast.cmi \
     typing/predef.cmi \
+    parsing/pprintast.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/oprint.cmi \
@@ -2198,8 +2200,8 @@ typing/typetexp.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
     typing/printtyp.cmx \
-    parsing/printast.cmx \
     typing/predef.cmx \
+    parsing/pprintast.cmx \
     typing/path.cmx \
     parsing/parsetree.cmi \
     typing/oprint.cmx \
