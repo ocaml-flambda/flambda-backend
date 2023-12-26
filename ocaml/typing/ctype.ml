@@ -4391,6 +4391,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         moregen_occur env (get_level t1) t2;
         update_scope_for Moregen (get_scope t1) t2;
         occur_for Moregen env t1 t2;
+        (* use [check], not [constrain], here because [constrain] would be like
+        instantiating [t2], which we do not wish to do *)
         check_type_jkind_exn env Moregen t2 jkind;
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
@@ -4407,6 +4409,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
             (Tvar { jkind }, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env (get_level t1') t2;
               update_scope_for Moregen (get_scope t1') t2;
+              (* use [check], not [constrain], here because [constrain] would be like
+              instantiating [t2], which we do not wish to do *)
               check_type_jkind_exn env Moregen t2 jkind;
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
