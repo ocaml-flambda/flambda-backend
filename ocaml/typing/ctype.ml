@@ -3213,8 +3213,8 @@ let rec unify (env:Env.t ref) t1 t2 =
         if unify1_var !env t1 t2 then () else unify2 env t1 t2
     | (_, Tvar _) ->
         if unify1_var !env t2 t1 then () else unify2 env t1 t2
-    | (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-        unify_univar_for Unify t1 t2 l1 l2 !univar_pairs;
+    | (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
+        unify_univar_for Unify t1 t2 k1 k2 !univar_pairs;
         update_level_for Unify !env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
         link_type t1 t2
@@ -3298,8 +3298,8 @@ and unify3 env t1 t1' t2 t2' =
     (not (eq_type t2 t2')) && (deep_occur t1'  t2) in
 
   begin match (d1, d2) with (* handle vars and univars specially *)
-    (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-      unify_univar_for Unify t1' t2' l1 l2 !univar_pairs;
+    (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
+      unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
@@ -4455,8 +4455,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Moregen env univar_pairs t1 tl1 t2 tl2
                 (moregen inst_nongen variance type_pairs env)
-          | (Tunivar {jkind=l1}, Tunivar {jkind=l2}) ->
-              unify_univar_for Moregen t1' t2' l1 l2 !univar_pairs
+          | (Tunivar {jkind=k1}, Tunivar {jkind=k2}) ->
+              unify_univar_for Moregen t1' t2' k1 k2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Moregen
         end
@@ -4542,8 +4542,8 @@ and moregen_row inst_nongen variance type_pairs env row1 row2 =
   end;
   let md1 = get_desc rm1 (* This lets us undo a following [link_type] *) in
   begin match md1, get_desc rm2 with
-    Tunivar {jkind=l1}, Tunivar {jkind=l2} ->
-      unify_univar_for Moregen rm1 rm2 l1 l2 !univar_pairs
+    Tunivar {jkind=k1}, Tunivar {jkind=k2} ->
+      unify_univar_for Moregen rm1 rm2 k1 k2 !univar_pairs
   | Tunivar _, _ | _, Tunivar _ ->
       raise_unexplained_for Moregen
   | _ when static_row row1 -> ()
@@ -4821,8 +4821,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
 
   try
     match (get_desc t1, get_desc t2) with
-      (Tvar { jkind = l1 }, Tvar { jkind = l2 }) when rename ->
-        eqtype_subst type_pairs subst t1 l1 t2 l2
+      (Tvar { jkind = k1 }, Tvar { jkind = k2 }) when rename ->
+        eqtype_subst type_pairs subst t1 k1 t2 k2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
     | _ ->
@@ -4833,8 +4833,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
         if not (TypePairs.mem type_pairs (t1', t2')) then begin
           TypePairs.add type_pairs (t1', t2');
           match (get_desc t1', get_desc t2') with
-            (Tvar { jkind = l1 }, Tvar { jkind = l2 }) when rename ->
-              eqtype_subst type_pairs subst t1' l1 t2' l2
+            (Tvar { jkind = k1 }, Tvar { jkind = k2 }) when rename ->
+              eqtype_subst type_pairs subst t1' k1 t2' k2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
@@ -4873,8 +4873,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Equality env univar_pairs t1 tl1 t2 tl2
                 (eqtype rename type_pairs subst env)
-          | (Tunivar {jkind=l1}, Tunivar {jkind=l2}) ->
-              unify_univar_for Equality t1' t2' l1 l2 !univar_pairs
+          | (Tunivar {jkind=k1}, Tunivar {jkind=k2}) ->
+              unify_univar_for Equality t1' t2' k1 k2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Equality
         end
