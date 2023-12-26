@@ -800,7 +800,7 @@ end;;
 Line 5, characters 4-7:
 5 |     t.v # baz11
         ^^^
-Error: The object type must have layout value.
+Error: Object types must have layout value.
        The layout of the type of this expression is void, because
          of the definition of t at line 2, characters 2-42.
        But the layout of the type of this expression must overlap with value, because

@@ -91,7 +91,7 @@ let f: ('a : void) -> 'b = fun x -> x # baz
 Line 1, characters 36-37:
 1 | let f: ('a : void) -> 'b = fun x -> x # baz
                                         ^
-Error: The object type must have layout value.
+Error: Object types must have layout value.
        The layout of the type of this expression is void, because
          of the annotation on the type variable 'a.
        But the layout of the type of this expression must overlap with value, because
