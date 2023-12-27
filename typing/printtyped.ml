@@ -145,7 +145,7 @@ let arg_label i ppf = function
 let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
     if print_quote
-    then Printast.tyvar
+    then Pprintast.tyvar
     else fun ppf s -> fprintf ppf "%s" s
   in
   match l with

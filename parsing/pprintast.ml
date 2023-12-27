@@ -288,7 +288,14 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 
 let constant_string f s = pp f "%S" s
 
-let tyvar = Printast.tyvar
+let tyvar ppf s =
+  if String.length s >= 2 && s.[1] = '\'' then
+    (* without the space, this would be parsed as
+       a character literal *)
+    Format.fprintf ppf "' %s" s
+  else
+    Format.fprintf ppf "'%s" s
+
 let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
 
 let tyvar_jkind_loc ~print_quote f (str,jkind) =
@@ -300,6 +307,7 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
   match jkind with
   | None -> pptv f str.txt
   | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
+
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
