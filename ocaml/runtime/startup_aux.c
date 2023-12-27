@@ -57,7 +57,9 @@ static void init_startup_params(void)
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
 
 #ifdef DEBUG
-  atomic_store_relaxed(&caml_verb_gc, 0x3F);
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // atomic_store_relaxed(&caml_verb_gc, 0x3F);
 #endif
 #ifndef NATIVE_CODE
   cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
