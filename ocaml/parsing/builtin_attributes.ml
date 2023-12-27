@@ -102,15 +102,11 @@ let builtin_attrs =
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
   ; "unaliasable"; "ocaml.unaliasable"
-<<<<<<< HEAD
   ; "builtin"; "ocaml.builtin"
   ; "no_effects"; "ocaml.no_effects"
   ; "no_coeffects"; "ocaml.no_coeffects"
-  ; "only_generative_effects"; "ocaml.only_generative_effects";
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-=======
+  ; "only_generative_effects"; "ocaml.only_generative_effects"
   ; "error_message"; "ocaml.error_message"
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't

@@ -1544,7 +1544,7 @@ let rec approx_description ct =
 
 (*******************************)
 
-let temp_abbrev loc arity uid =
+let temp_abbrev loc id arity uid =
   let params = ref [] in
   for i = 1 to arity do
     params := Ctype.newvar (Jkind.value ~why:(
@@ -1576,9 +1576,9 @@ let initial_env define_class approx
     (res, env) (cl, id, ty_id, obj_id, uid) =
   (* Temporary abbreviations *)
   let arity = List.length cl.pci_params in
-  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc arity uid in
+  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc obj_id arity uid in
   let env = Env.add_type ~check:true obj_id obj_td env in
-  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc arity uid in
+  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc ty_id arity uid in
 
   (* Temporary type for the class constructor *)
   let constr_type =
@@ -1646,7 +1646,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_argument));
+              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1655,7 +1655,6 @@ let class_infos define_class kind
       in
       let params = List.map (fun (cty, _) -> cty.ctyp_type) ci_params in
 
-<<<<<<< HEAD
       (* Allow self coercions (only for class declarations) *)
       let coercion_locs = ref [] in
 
@@ -1678,39 +1677,6 @@ let class_infos define_class kind
       List.iter (Ctype.limited_generalize sign.csig_self_row) params;
       Ctype.limited_generalize_class_type sign.csig_self_row typ;
     end
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-  (* Introduce class parameters *)
-  let ci_params =
-    let make_param (sty, v) =
-      try
-        let param = transl_type_param env (Pident ty_id) sty in
-        (* CR layouts: we require class type parameters to be values, but
-           we should lift this restriction. Doing so causes bad error messages
-           today, so we wait for tomorrow. *)
-        Ctype.unify env param.ctyp_type
-          (Ctype.newvar (Jkind.value ~why:Class_argument));
-        (param, v)
-      with Already_bound ->
-        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
-    in
-      List.map make_param cl.pci_params
-=======
-  (* Introduce class parameters *)
-  let ci_params =
-    let make_param (sty, v) =
-      try
-        let param = transl_type_param env (Pident ty_id) sty in
-        (* CR layouts: we require class type parameters to be values, but
-           we should lift this restriction. Doing so causes bad error messages
-           today, so we wait for tomorrow. *)
-        Ctype.unify env param.ctyp_type
-          (Ctype.newvar (Jkind.value ~why:Class_type_argument));
-        (param, v)
-      with Already_bound ->
-        raise(Error(sty.ptyp_loc, env, Repeated_parameter))
-    in
-      List.map make_param cl.pci_params
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
   in
   (* Check the abbreviation for the object type *)
   let (obj_params', obj_type) = Ctype.instance_class params typ in

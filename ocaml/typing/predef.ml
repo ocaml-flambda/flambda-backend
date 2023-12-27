@@ -172,7 +172,6 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
-<<<<<<< HEAD
 let predef_jkind_annotation const =
   Option.map
     (fun const ->
@@ -189,15 +188,12 @@ let predef_jkind_annotation const =
        const, user_written)
     const
 
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-=======
 let option_argument_jkind = Jkind.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
 let list_argument_jkind = Jkind.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)

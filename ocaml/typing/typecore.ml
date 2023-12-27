@@ -2795,11 +2795,10 @@ let type_pattern_list
   (patl, !new_env, forces, pvs, mvs)
 
 let type_class_arg_pattern cl_num val_env met_env l spat =
-<<<<<<< HEAD
   let pvs, pat =
     with_local_level_if_principal begin fun () ->
       let tps = create_type_pat_state Modules_rejected in
-      let nv = newvar (Jkind.value ~why:Class_argument) in
+      let nv = newvar (Jkind.value ~why:Class_term_argument) in
       let alloc_mode = simple_pat_mode Value.legacy in
       let pat =
         type_pat tps Value ~no_existentials:In_class_args ~alloc_mode
@@ -2812,59 +2811,12 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
       (* CR layouts v5: value restriction here to be relaxed *)
       if is_optional l then
         unify_pat (ref val_env) pat
-          (type_option (newvar (Jkind.value ~why:Type_argument)));
+          (type_option (newvar Predef.option_argument_jkind));
       tps.tps_pattern_variables, pat
     end
       ~post:(fun (pvs, _) -> iter_pattern_variables_type generalize_structure
                                pvs)
   in
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-  if !Clflags.principal then Ctype.begin_def ();
-  let tps = create_type_pat_state Modules_rejected in
-  (* CR layouts: will change when we relax jkind restrictions in classes. *)
-  let nv = newvar (Jkind.value ~why:Class_argument) in
-  let alloc_mode = simple_pat_mode Value.legacy in
-  let pat =
-    type_pat tps Value ~no_existentials:In_class_args ~alloc_mode
-      (ref val_env) spat nv in
-  if has_variants pat then begin
-    Parmatch.pressure_variants val_env [pat];
-    finalize_variants pat;
-  end;
-  List.iter (fun f -> f()) tps.tps_pattern_force;
-  (* CR layouts v5: value restriction here to be relaxed *)
-  if is_optional l then
-    unify_pat (ref val_env) pat
-      (type_option (newvar (Jkind.value ~why:Type_argument)));
-  let pvs = tps.tps_pattern_variables in
-  if !Clflags.principal then begin
-    Ctype.end_def ();
-    iter_pattern_variables_type generalize_structure pvs;
-  end;
-=======
-  if !Clflags.principal then Ctype.begin_def ();
-  let tps = create_type_pat_state Modules_rejected in
-  (* CR layouts: will change when we relax jkind restrictions in classes. *)
-  let nv = newvar (Jkind.value ~why:Class_term_argument) in
-  let alloc_mode = simple_pat_mode Value.legacy in
-  let pat =
-    type_pat tps Value ~no_existentials:In_class_args ~alloc_mode
-      (ref val_env) spat nv in
-  if has_variants pat then begin
-    Parmatch.pressure_variants val_env [pat];
-    finalize_variants pat;
-  end;
-  List.iter (fun f -> f()) tps.tps_pattern_force;
-  (* CR layouts v5: value restriction here to be relaxed *)
-  if is_optional l then
-    unify_pat (ref val_env) pat
-      (type_option (newvar Predef.option_argument_jkind));
-  let pvs = tps.tps_pattern_variables in
-  if !Clflags.principal then begin
-    Ctype.end_def ();
-    iter_pattern_variables_type generalize_structure pvs;
-  end;
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
   let (pv, val_env, met_env) =
     List.fold_right
       (fun {pv_id; pv_uid; pv_type; pv_loc; pv_as_var; pv_attributes}
@@ -4069,16 +4021,8 @@ let rec approx_type env sty =
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
       let arg =
         if is_optional p
-<<<<<<< HEAD
-        then type_option (newvar (Jkind.value ~why:Type_argument))
-        else newvar (Jkind.any ~why:Inside_of_Tarrow)
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-        then type_option (newvar (Jkind.value ~why:Type_argument))
-        else newvar (Jkind.of_new_sort_var ~why:Function_argument)
-=======
         then type_option (newvar Predef.option_argument_jkind)
-        else newvar (Jkind.of_new_sort_var ~why:Function_argument)
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
+        else newvar (Jkind.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
@@ -7918,6 +7862,12 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           if maybe_expansive exp then lower_contravariant env pat.pat_type)
         mode_pat_typ_list exp_list;
       iter_pattern_variables_type generalize pvs;
+      (* update pattern variable jkind reasons *)
+      List.iter
+        (fun pv ->
+          let reason = Jkind.Generalized (Some pv.pv_id, pv.pv_loc) in
+          Ctype.update_generalized_ty_jkind_reason pv.pv_type reason)
+        pvs;
       List.iter2
         (fun (_, _, expected_ty) (exp, vars) ->
           match vars with
@@ -7937,359 +7887,19 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 lower_contravariant env exp.exp_type;
               generalize_and_check_univars env "definition"
                 exp expected_ty vars)
-        mode_pat_typ_list exp_list
+        mode_pat_typ_list exp_list;
+      let update_exp_jkind (_, p, _) (exp, _) =
+        let pat_name =
+          match p.pat_desc with
+            Tpat_var (id, _, _, _) -> Some id
+          | Tpat_alias(_, id, _, _, _) -> Some id
+          | _ -> None in
+        let reason = Jkind.Generalized (pat_name, exp.exp_loc) in
+        Ctype.update_generalized_ty_jkind_reason exp.exp_type reason
+      in
+      List.iter2 update_exp_jkind mode_pat_typ_list exp_list;
     end
   in
-<<<<<<< HEAD
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-  (* Only bind pattern variables after generalizing *)
-  List.iter (fun f -> f()) force;
-  let exp_env =
-    (* See Note [add_module_variables after checking expressions]
-
-       We can't defer type-checking module variables with recursive definitions,
-       so things like [let rec (module M) = m in ...] always fail, even if the
-       type of [m] is known.
-    *)
-    if is_recursive then add_module_variables new_env mvs
-    else if entirely_functions
-    then begin
-      (* Add ghost bindings to help detecting missing "rec" keywords.
-
-         We only add those if the body of the definition is obviously a
-         function. The rationale is that, in other cases, the hint is probably
-         wrong (and the user is using "advanced features" anyway (lazy,
-         recursive values...)).
-
-         [pvb_loc] (below) is the location of the first let-binding (in case of
-         a let .. and ..), and is where the missing "rec" hint suggests to add a
-         "rec" keyword. *)
-      match spat_sexp_list with
-      | {pvb_loc; _} :: _ -> maybe_add_pattern_variables_ghost pvb_loc env pvs
-      | _ -> assert false
-    end
-    else env in
-
-  let current_slot = ref None in
-  let rec_needed = ref false in
-  let warn_about_unused_bindings =
-    List.exists
-      (fun attrs ->
-         Builtin_attributes.warning_scope ~ppwarning:false attrs (fun () ->
-           Warnings.is_active (check "") || Warnings.is_active (check_strict "")
-           || (is_recursive && (Warnings.is_active Warnings.Unused_rec_flag))))
-      attrs_list
-  in
-  let mode_typ_slot_list =
-    (* Algorithm to detect unused declarations in recursive bindings:
-       - During type checking of the definitions, we capture the 'value_used'
-         events on the bound identifiers and record them in a slot corresponding
-         to the current definition (!current_slot).
-         In effect, this creates a dependency graph between definitions.
-
-       - After type checking the definition (!current_slot = None),
-         when one of the bound identifier is effectively used, we trigger
-         again all the events recorded in the corresponding slot.
-         The effect is to traverse the transitive closure of the graph created
-         in the first step.
-
-       We also keep track of whether *all* variables in a given pattern
-       are unused. If this is the case, for local declarations, the issued
-       warning is 26, not 27.
-     *)
-    List.map2
-      (fun attrs (mode, pat, expected_ty) ->
-         Builtin_attributes.warning_scope ~ppwarning:false attrs (fun () ->
-           if not warn_about_unused_bindings then mode, expected_ty, None
-           else
-             let some_used = ref false in
-             (* has one of the identifier of this pattern been used? *)
-             let slot = ref [] in
-             List.iter
-               (fun id ->
-                  let vd = Env.find_value (Path.Pident id) new_env in
-                  (* note: Env.find_value does not trigger the value_used
-                           event *)
-                  let name = Ident.name id in
-                  let used = ref false in
-                  if not (name = "" || name.[0] = '_' || name.[0] = '#') then
-                    add_delayed_check
-                      (fun () ->
-                         if not !used then
-                           Location.prerr_warning vd.Subst.Lazy.val_loc
-                             ((if !some_used then check_strict else check) name)
-                      );
-                  Env.set_value_used_callback
-                    vd
-                    (fun () ->
-                       match !current_slot with
-                       | Some slot ->
-                         slot := vd.val_uid :: !slot; rec_needed := true
-                       | None ->
-                         List.iter Env.mark_value_used (get_ref slot);
-                         used := true;
-                         some_used := true
-                    )
-               )
-               (Typedtree.pat_bound_idents pat);
-             mode, expected_ty, Some slot
-         ))
-      attrs_list
-      pat_list
-  in
-  let exp_list =
-    List.map2
-      (fun {pvb_expr=sexp; pvb_attributes; _} (mode, expected_ty, slot) ->
-        if is_recursive then current_slot := slot;
-        match get_desc expected_ty with
-        | Tpoly (ty, tl) ->
-            if !Clflags.principal then begin_def ();
-            let vars, ty' = instance_poly ~keep_names:true true tl ty in
-            if !Clflags.principal then begin
-              end_def ();
-              generalize_structure ty'
-            end;
-            let exp =
-              Builtin_attributes.warning_scope pvb_attributes (fun () ->
-                type_expect exp_env mode sexp (mk_expected ty'))
-            in
-            exp, Some vars
-        | _ ->
-            let exp =
-              Builtin_attributes.warning_scope pvb_attributes (fun () ->
-                type_expect exp_env mode sexp (mk_expected expected_ty))
-            in
-            exp, None)
-      spat_sexp_list mode_typ_slot_list in
-  current_slot := None;
-  if is_recursive && not !rec_needed then begin
-    let {pvb_pat; pvb_attributes} = List.hd spat_sexp_list in
-    (* See PR#6677 *)
-    Builtin_attributes.warning_scope ~ppwarning:false pvb_attributes
-      (fun () ->
-         Location.prerr_warning pvb_pat.ppat_loc Warnings.Unused_rec_flag
-      )
-  end;
-  List.iter2
-    (fun (_,pat,_) (attrs, exp) ->
-       Builtin_attributes.warning_scope ~ppwarning:false attrs
-         (fun () ->
-            ignore(check_partial env pat.pat_type pat.pat_loc
-                     [case pat exp] : Typedtree.partial)
-         )
-    )
-    pat_list
-    (List.map2 (fun (attrs, _, _, _) (e, _) -> attrs, e) spatl exp_list);
-  let pvs = List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs in
-  end_def();
-  List.iter2
-    (fun (_,pat,_) (exp, _) ->
-       if maybe_expansive exp then
-         lower_contravariant env pat.pat_type)
-    pat_list exp_list;
-  iter_pattern_variables_type generalize pvs;
-  List.iter2
-    (fun (_,_,expected_ty) (exp, vars) ->
-       match vars with
-       | None ->
-         (* We generalize expressions even if they are not bound to a variable
-            and do not have an expliclit polymorphic type annotation.  This is
-            not needed in general, however those types may be shown by the
-            interactive toplevel, for example:
-            {[
-              let _ = Array.get;;
-              - : 'a array -> int -> 'a = <fun>
-            ]}
-            so we do it anyway. *)
-         generalize exp.exp_type
-       | Some vars ->
-           if maybe_expansive exp then
-             lower_contravariant env exp.exp_type;
-           generalize_and_check_univars env "definition" exp expected_ty vars)
-    pat_list exp_list;
-=======
-  (* Only bind pattern variables after generalizing *)
-  List.iter (fun f -> f()) force;
-  let exp_env =
-    (* See Note [add_module_variables after checking expressions]
-
-       We can't defer type-checking module variables with recursive definitions,
-       so things like [let rec (module M) = m in ...] always fail, even if the
-       type of [m] is known.
-    *)
-    if is_recursive then add_module_variables new_env mvs
-    else if entirely_functions
-    then begin
-      (* Add ghost bindings to help detecting missing "rec" keywords.
-
-         We only add those if the body of the definition is obviously a
-         function. The rationale is that, in other cases, the hint is probably
-         wrong (and the user is using "advanced features" anyway (lazy,
-         recursive values...)).
-
-         [pvb_loc] (below) is the location of the first let-binding (in case of
-         a let .. and ..), and is where the missing "rec" hint suggests to add a
-         "rec" keyword. *)
-      match spat_sexp_list with
-      | {pvb_loc; _} :: _ -> maybe_add_pattern_variables_ghost pvb_loc env pvs
-      | _ -> assert false
-    end
-    else env in
-
-  let current_slot = ref None in
-  let rec_needed = ref false in
-  let warn_about_unused_bindings =
-    List.exists
-      (fun attrs ->
-         Builtin_attributes.warning_scope ~ppwarning:false attrs (fun () ->
-           Warnings.is_active (check "") || Warnings.is_active (check_strict "")
-           || (is_recursive && (Warnings.is_active Warnings.Unused_rec_flag))))
-      attrs_list
-  in
-  let mode_typ_slot_list =
-    (* Algorithm to detect unused declarations in recursive bindings:
-       - During type checking of the definitions, we capture the 'value_used'
-         events on the bound identifiers and record them in a slot corresponding
-         to the current definition (!current_slot).
-         In effect, this creates a dependency graph between definitions.
-
-       - After type checking the definition (!current_slot = None),
-         when one of the bound identifier is effectively used, we trigger
-         again all the events recorded in the corresponding slot.
-         The effect is to traverse the transitive closure of the graph created
-         in the first step.
-
-       We also keep track of whether *all* variables in a given pattern
-       are unused. If this is the case, for local declarations, the issued
-       warning is 26, not 27.
-     *)
-    List.map2
-      (fun attrs (mode, pat, expected_ty) ->
-         Builtin_attributes.warning_scope ~ppwarning:false attrs (fun () ->
-           if not warn_about_unused_bindings then mode, expected_ty, None
-           else
-             let some_used = ref false in
-             (* has one of the identifier of this pattern been used? *)
-             let slot = ref [] in
-             List.iter
-               (fun id ->
-                  let vd = Env.find_value (Path.Pident id) new_env in
-                  (* note: Env.find_value does not trigger the value_used
-                           event *)
-                  let name = Ident.name id in
-                  let used = ref false in
-                  if not (name = "" || name.[0] = '_' || name.[0] = '#') then
-                    add_delayed_check
-                      (fun () ->
-                         if not !used then
-                           Location.prerr_warning vd.Subst.Lazy.val_loc
-                             ((if !some_used then check_strict else check) name)
-                      );
-                  Env.set_value_used_callback
-                    vd
-                    (fun () ->
-                       match !current_slot with
-                       | Some slot ->
-                         slot := vd.val_uid :: !slot; rec_needed := true
-                       | None ->
-                         List.iter Env.mark_value_used (get_ref slot);
-                         used := true;
-                         some_used := true
-                    )
-               )
-               (Typedtree.pat_bound_idents pat);
-             mode, expected_ty, Some slot
-         ))
-      attrs_list
-      pat_list
-  in
-  let exp_list =
-    List.map2
-      (fun {pvb_expr=sexp; pvb_attributes; _} (mode, expected_ty, slot) ->
-        if is_recursive then current_slot := slot;
-        match get_desc expected_ty with
-        | Tpoly (ty, tl) ->
-            if !Clflags.principal then begin_def ();
-            let vars, ty' = instance_poly ~keep_names:true true tl ty in
-            if !Clflags.principal then begin
-              end_def ();
-              generalize_structure ty'
-            end;
-            let exp =
-              Builtin_attributes.warning_scope pvb_attributes (fun () ->
-                type_expect exp_env mode sexp (mk_expected ty'))
-            in
-            exp, Some vars
-        | _ ->
-            let exp =
-              Builtin_attributes.warning_scope pvb_attributes (fun () ->
-                type_expect exp_env mode sexp (mk_expected expected_ty))
-            in
-            exp, None)
-      spat_sexp_list mode_typ_slot_list in
-  current_slot := None;
-  if is_recursive && not !rec_needed then begin
-    let {pvb_pat; pvb_attributes} = List.hd spat_sexp_list in
-    (* See PR#6677 *)
-    Builtin_attributes.warning_scope ~ppwarning:false pvb_attributes
-      (fun () ->
-         Location.prerr_warning pvb_pat.ppat_loc Warnings.Unused_rec_flag
-      )
-  end;
-  List.iter2
-    (fun (_,pat,_) (attrs, exp) ->
-       Builtin_attributes.warning_scope ~ppwarning:false attrs
-         (fun () ->
-            ignore(check_partial env pat.pat_type pat.pat_loc
-                     [case pat exp] : Typedtree.partial)
-         )
-    )
-    pat_list
-    (List.map2 (fun (attrs, _, _, _) (e, _) -> attrs, e) spatl exp_list);
-  let pvs = List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs in
-  end_def();
-  List.iter2
-    (fun (_,pat,_) (exp, _) ->
-       if maybe_expansive exp then
-         lower_contravariant env pat.pat_type)
-    pat_list exp_list;
-  iter_pattern_variables_type generalize pvs;
-  (* update pattern variable jkind reasons *)
-  List.iter
-    (fun pv ->
-      let reason = Jkind.Generalized (Some pv.pv_id, pv.pv_loc) in
-      Ctype.update_generalized_ty_jkind_reason pv.pv_type reason)
-    pvs;
-  List.iter2
-    (fun (_,_,expected_ty) (exp, vars) ->
-       match vars with
-       | None ->
-         (* We generalize expressions even if they are not bound to a variable
-            and do not have an expliclit polymorphic type annotation.  This is
-            not needed in general, however those types may be shown by the
-            interactive toplevel, for example:
-            {[
-              let _ = Array.get;;
-              - : 'a array -> int -> 'a = <fun>
-            ]}
-            so we do it anyway. *)
-         generalize exp.exp_type
-       | Some vars ->
-           if maybe_expansive exp then
-             lower_contravariant env exp.exp_type;
-           generalize_and_check_univars env "definition" exp expected_ty vars)
-    pat_list exp_list;
-  let update_exp_jkind (_, p, _) (exp, _) =
-    let pat_name =
-      match p.pat_desc with
-        Tpat_var (id, _, _, _) -> Some id
-      | Tpat_alias(_, id, _, _, _) -> Some id
-      | _ -> None in
-    let reason = Jkind.Generalized (pat_name, exp.exp_loc) in
-    Ctype.update_generalized_ty_jkind_reason exp.exp_type reason
-  in
-  List.iter2 update_exp_jkind pat_list exp_list;
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
   let l = List.combine pat_list exp_list in
   let l = List.combine sorts l in
   let l =
@@ -8750,13 +8360,9 @@ and type_comprehension_expr
            a companion CR layouts v4 at the point of interest in that file. *)
         Jkind.value ~why:Jkind.Array_element
   in
-<<<<<<< HEAD
   let element_ty =
     with_local_level_if_principal begin fun () ->
-      (* CR layouts v4: When this changes from [value], you will also have to
-         update the use of [transl_exp] in transl_array_comprehension.ml. See
-         a companion CR layouts v4 at the point of interest in that file. *)
-      let element_ty = newvar (Jkind.value ~why:reason) in
+      let element_ty = newvar jkind in
       unify_exp_types
         loc
         env
@@ -8765,34 +8371,6 @@ and type_comprehension_expr
       element_ty
     end ~post:generalize_structure
   in
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-  if !Clflags.principal then begin_def ();
-  (* CR layouts v4: When this changes from [value], you will also have to
-     update the use of [transl_exp] in transl_array_comprehension.ml. See
-     a companion CR layouts v4 at the point of interest in that file. *)
-  let element_ty = newvar (Jkind.value ~why:reason) in
-  unify_exp_types
-    loc
-    env
-    (instance (container_type element_ty))
-    (instance ty_expected);
-  if !Clflags.principal then begin
-    end_def();
-    generalize_structure element_ty;
-  end;
-=======
-  if !Clflags.principal then begin_def ();
-  let element_ty = newvar jkind in
-  unify_exp_types
-    loc
-    env
-    (instance (container_type element_ty))
-    (instance ty_expected);
-  if !Clflags.principal then begin
-    end_def();
-    generalize_structure element_ty;
-  end;
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
   let new_env, comp_clauses =
     (* To understand why we don't provide modes here, see "What modes should
        comprehensions use?", above *)

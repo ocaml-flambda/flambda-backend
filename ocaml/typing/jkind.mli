@@ -264,15 +264,8 @@ type immediate64_creation_reason =
   (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
   | Separability_check
 
-<<<<<<< HEAD
-type void_creation_reason = V1_safety_check
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-type void_creation_reason =
-  | V1_safety_check
-=======
 (* CR layouts v5: make new void_creation_reasons *)
 type void_creation_reason = |
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
 
 type any_creation_reason =
   | Missing_cmi of Path.t

@@ -80,16 +80,8 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-<<<<<<< HEAD
-  | Non_value_in_sig of Jkind.Violation.t * string
-  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-  | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
-=======
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
-  | Float64_in_block of type_expr * jkind_sort_loc
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -2724,6 +2716,7 @@ let report_error ppf = function
       let get_jkind_error : _ Errortrace.elt -> _ = function
       | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->
         Some (ty, violation)
+      | Unequal_var_jkinds_with_no_history
       | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
       | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
       in
@@ -2946,16 +2939,8 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
-<<<<<<< HEAD
-      val_name (Jkind.Violation.report_with_name ~name:val_name) err
-  | Invalid_jkind_in_block (typ, sort_const, lloc) ->
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-      val_name (Jkind.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block (typ, lloc) ->
-=======
       val_name (Jkind.Violation.report_with_offender ~offender) err
-  | Float64_in_block (typ, lloc) ->
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
+  | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"
