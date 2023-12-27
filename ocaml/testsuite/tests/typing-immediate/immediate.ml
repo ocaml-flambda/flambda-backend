@@ -177,10 +177,8 @@ Line 2, characters 2-38:
 Error: The layout of type t is value, because
          it's a boxed record type.
        But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t/2.
+         of the annotation on the declaration of the type t.
 |}];;
-(* CR layouts v2.9: Investigate why the "/2" is here and check if it's only limited
-   to expect tests. *)
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
 module C = struct

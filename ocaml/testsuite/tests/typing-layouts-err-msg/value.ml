@@ -34,15 +34,9 @@ val f : unit -> t_float64 = <fun>
 Line 3, characters 6-7:
 3 |   let v = f () in
           ^
-Error: Variables bound in a class must have layout value.
-       The layout of v is float64, because
-         it's the type of a variable bound by a `let`, defaulted to layout float64.
-       But the layout of v must be a sublayout of value, because
-         it's the type of a let-bound variable in a class expression.
+Error: The types of variables bound by a 'let' in a class function
+       must have layout value. Instead, v's type has layout float64.
 |}];;
-(* CR layouts v2.9: The part about defaulting here is incorrect.
-   It's due to the logic in Pcl_let using sorts directly instead of
-   layouts. *)
 
 (* Tuple_element *)
 type t = t_any * t_any

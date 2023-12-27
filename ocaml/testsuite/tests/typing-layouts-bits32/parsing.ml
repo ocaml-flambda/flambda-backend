@@ -43,7 +43,10 @@ Line 1, characters 9-15:
 1 | type t = int32# list;;
              ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : int32# list) = ();;
@@ -52,7 +55,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int32# list) = ();;
                ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C of int32# list;;
@@ -61,7 +67,10 @@ Line 1, characters 14-20:
 1 | type t = C of int32# list;;
                   ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C : int32# list -> t;;
@@ -70,7 +79,10 @@ Line 1, characters 13-19:
 1 | type t = C : int32# list -> t;;
                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: int32#c
@@ -89,7 +101,10 @@ Line 1, characters 9-15:
 1 | type t = int32#c;;
              ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : int32#c) = ();;
@@ -98,7 +113,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int32#c) = ();;
                ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of int32#c;;
@@ -107,7 +125,10 @@ Line 1, characters 14-20:
 1 | type t = C of int32#c;;
                   ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : int32#c -> t;;
@@ -116,7 +137,10 @@ Line 1, characters 13-19:
 1 | type t = C : int32#c -> t;;
                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: int32# c
@@ -128,7 +152,10 @@ Line 1, characters 9-15:
 1 | type t = int32# c;;
              ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : int32# c) = ();;
@@ -137,7 +164,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int32# c) = ();;
                ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of int32# c;;
@@ -146,7 +176,10 @@ Line 1, characters 14-20:
 1 | type t = C of int32# c;;
                   ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : int32# c -> t;;
@@ -155,7 +188,10 @@ Line 1, characters 13-19:
 1 | type t = C : int32# c -> t;;
                  ^^^^^^
 Error: This type int32# should be an instance of type ('a : value)
-       int32# has layout bits32, which is not a sublayout of value.
+       The layout of int32# is bits32, because
+         it is the primitive bits32 type int32#.
+       But the layout of int32# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: int32 #c

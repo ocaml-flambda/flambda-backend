@@ -80,9 +80,9 @@ Error: This type t_any should be an instance of type
 let x: t_any = assert false
 
 [%%expect{|
-Line 1, characters 4-12:
+Line 1, characters 4-5:
 1 | let x: t_any = assert false
-        ^^^^^^^^
+        ^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
          ('a : '_representable_layout_3)
@@ -135,11 +135,11 @@ external eq : t_any -> 'a -> bool = "%equal"
 Line 1, characters 14-19:
 1 | external eq : t_any -> 'a -> bool = "%equal"
                   ^^^^^
-Error: Function argument types must have a representable layout.
+Error: External types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's the type of a function argument.
+         it's the type of an argument in an external declaration.
 |}]
 (* Shadowed by Function_argument *)
 
@@ -149,11 +149,11 @@ external eq : 'a -> 'a -> t_any = "%equal"
 Line 1, characters 26-31:
 1 | external eq : 'a -> 'a -> t_any = "%equal"
                               ^^^^^
-Error: Function return types must have a representable layout.
+Error: External types must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
-         it's the type of a function result.
+         it's the type of the result of an external declaration.
 |}]
 (* Shadowed by Function_result *)
 
@@ -165,7 +165,15 @@ Line 1, characters 8-30:
 1 | let _ = (assert false : t_any); ()
             ^^^^^^^^^^^^^^^^^^^^^^
 Warning 10 [non-unit-statement]: this expression should have type unit.
-Uncaught exception: Ctype.Unify(_)
 
+Line 1, characters 9-21:
+1 | let _ = (assert false : t_any); ()
+             ^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_6)
+       because it is in the left-hand side of a sequence
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-16.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
-(* CR layouts v2.9: this error message should be fixed *)

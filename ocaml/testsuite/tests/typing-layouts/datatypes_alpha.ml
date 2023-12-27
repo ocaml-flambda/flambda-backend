@@ -384,7 +384,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         'a has layout void, which does not overlap with value.
+         The layout of 'a is void, because
+           of the definition of void_t at line 1, characters 0-23.
+         But the layout of 'a must overlap with value, because
+           it instantiates an unannotated type parameter of t8_5, defaulted to layout value.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -403,7 +406,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         'a has layout value, which is not a sublayout of immediate.
+         The layout of 'a is value, because
+           it instantiates an unannotated type parameter of t10, defaulted to layout value.
+         But the layout of 'a must be a sublayout of immediate, because
+           of the definition of imm_t at line 1, characters 0-27.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -420,7 +426,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         float# has layout float64, which is not a sublayout of void.
+         The layout of float# is float64, because
+           it is the primitive float64 type float#.
+         But the layout of float# must be a sublayout of void, because
+           of the annotation on the universal variable 'b.
        The fix will likely be to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]

@@ -32,48 +32,14 @@ module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-<<<<<<< HEAD
 module type S1 = sig val f : int -> t_any end
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-        t_any has layout any, which is not representable.
-=======
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-       The layout of t_any is any, because
-         of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be representable, because
-         it's the type of a function result.
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
 |}];;
 
 module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-<<<<<<< HEAD
 module type S1 = sig val f : t_any -> int end
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-        t_any has layout any, which is not representable.
-=======
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-       The layout of t_any is any, because
-         of the definition of t_any at line 1, characters 0-18.
-       But the layout of t_any must be representable, because
-         it's the type of a function argument.
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
 |}];;
 
 module type S1 = sig
@@ -937,23 +903,9 @@ end
 Line 3, characters 11-12:
 3 |     let VV v = v in
                ^
-<<<<<<< HEAD
 Error: The types of variables bound by a 'let' in a class function
        must have layout value. Instead, v's type has layout void.
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-Error: Variables bound in a class must have layout value.
-       v has layout void, which is not a sublayout of value.
-=======
-Error: Variables bound in a class must have layout value.
-       The layout of v is void, because
-         it's the type of a variable bound by a `let`, defaulted to layout void.
-       But the layout of v must be a sublayout of value, because
-         it's the type of a let-bound variable in a class expression.
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
 |}];;
-(* CR layouts v2.9: The part about defaulting here is incorrect.
-   It's due to the logic in Pcl_let using sorts directly instead of
-   layouts. *)
 
 (* Hits the Cfk_concrete case of Pcf_val *)
 module M12_2 = struct
@@ -1846,7 +1798,6 @@ Error: This type signature for foo33 is not a value type.
 (* Test 34: Layout clash in polymorphic record type *)
 
 (* tested elsewhere *)
-<<<<<<< HEAD
 
 (****************************************************)
 (* Test 35: check bad layout error in filter_arrow *)
@@ -1860,7 +1811,10 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       'a -> 'b has layout value, which is not a sublayout of immediate.
+       The layout of 'a -> 'b is value, because
+         it's a function type.
+       But the layout of 'a -> 'b must be a sublayout of immediate, because
+         of the definition of t35 at line 1, characters 0-30.
 |}]
 
 (**************************************************)
@@ -1879,7 +1833,10 @@ Line 1, characters 10-22:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_5)
        because it is in the left-hand side of a sequence
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = while false do (assert false : t_any); done
@@ -1895,7 +1852,10 @@ Line 1, characters 25-37:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_6)
        because it is in the body of a while-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = for i = 0 to 0 do (assert false : t_any); done
@@ -1911,7 +1871,10 @@ Line 1, characters 28-40:
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_7)
        because it is in the body of a for-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 1, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 (******************************************************)
@@ -1930,16 +1893,8 @@ Error: This expression has type t_any but an expression was expected of type
 (* Test 39: Inference of functions that don't bind arguments *)
 
 (* Doesn't need layouts_alpha. *)
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-=======
-
-(***************************************************)
-(* Test 35: check bad layout error in filter_arrow *)
-
-(* tested elsewhere *)
 
 (****************************************************)
-(* Test 36: unannotated type parameter defaults to layout value *)
+(* Test 40: unannotated type parameter defaults to layout value *)
 
-(* tested elsewhere *)
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
+(* Doesn't need layouts_alpha. *)

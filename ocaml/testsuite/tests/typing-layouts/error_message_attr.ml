@@ -18,6 +18,7 @@ Line 1, characters 31-47:
                                    ^^^^^^^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
 error_message attribute expects a string argument
+
 Line 1, characters 51-52:
 1 | let f (v: float#): ((_ : value)[@error_message]) = v
                                                        ^
@@ -36,6 +37,7 @@ Line 1, characters 31-49:
                                    ^^^^^^^^^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
 error_message attribute expects a string argument
+
 Line 1, characters 53-54:
 1 | let f (v: float#): ((_ : value)[@error_message 1]) = v
                                                          ^
@@ -167,6 +169,7 @@ Line 1, characters 28-44:
                                 ^^^^^^^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'error_message'.
 error_message attribute expects a string argument
+
 Line 1, characters 20-21:
 1 | let f (x : bool) = (x : int)[@error_message]
                         ^

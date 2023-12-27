@@ -14,15 +14,11 @@ let r = Original.r
 
 type s = Original.s = S
 let s : s = Original.s
-<<<<<<< HEAD
 
 (* Check expansion in gadt *)
 type ('a,'b) gadt =
 | G: ('a, 'a ti) gadt
 
 type 'a is_int = 'a Original.is_int = Is_int : int is_int
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-=======
 
 type u = { y: Original.u } [@@unboxed]
->>>>>>> 114ab8b0 (Enable layout histories (#1823))

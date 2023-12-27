@@ -99,7 +99,6 @@ let k = match Middle.s with Middle.S -> ()
 [%%expect {|
 val k : unit = ()
 |}]
-<<<<<<< HEAD
 
 (* #11560: gadts and missing cmis *)
 
@@ -117,11 +116,8 @@ let g : bool Middle.is_int -> 'a = function _ -> .
 val f : 'a Middle.is_int -> 'a -> int = <fun>
 val g : bool Middle.is_int -> 'a = <fun>
 |}]
-||||||| parent of 114ab8b0 (Enable layout histories (#1823))
-=======
 
 let f (x: Middle.u) = x
 [%%expect {|
 val f : Middle.u -> Middle.u = <fun>
 |}]
->>>>>>> 114ab8b0 (Enable layout histories (#1823))
