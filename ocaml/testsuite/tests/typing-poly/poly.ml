@@ -1795,10 +1795,10 @@ external reraise : exn -> 'a = "%reraise"
 module M :
   functor () ->
     sig
-      val f : 'a -> 'a
-      val g : 'a -> 'a
-      val h : 'a -> 'a
-      val i : 'a -> 'a
+      val f : ('a : any). 'a -> 'a
+      val g : ('a : any). 'a -> 'a
+      val h : ('a : any). 'a -> 'a
+      val i : ('a : any). 'a -> 'a
     end
 |}]
 

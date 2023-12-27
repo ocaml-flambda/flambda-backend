@@ -1023,7 +1023,8 @@ val catch : (unit -> local_ string) -> string * string = <fun>
 (* same, but this time the function is allowed to return its argument *)
 let use_locally (f : local_ 'a -> local_ 'a) : local_ 'a -> local_ 'a = f
 [%%expect{|
-val use_locally : (local_ 'a -> local_ 'a) -> local_ 'a -> local_ 'a = <fun>
+val use_locally :
+  ('a : any). (local_ 'a -> local_ 'a) -> local_ 'a -> local_ 'a = <fun>
 |}]
 
 let loc = ((fun x -> local_ x) : local_ int -> local_ int)

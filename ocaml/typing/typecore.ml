@@ -4007,7 +4007,7 @@ let rec approx_type env sty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
            unlike in the monomorphic case *)
-          Typetexp.transl_simple_type env ~closed:false arg_mode arg_sty
+          Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_mode arg_sty
         in
         let ret = approx_type env sty in
         let marg = Alloc.of_const arg_mode in
@@ -4019,7 +4019,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option (newvar (Jkind.value ~why:Type_argument))
-        else newvar (Jkind.of_new_sort ~why:Function_argument)
+        else newvar (Jkind.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
@@ -4062,7 +4062,7 @@ let type_pattern_approx env spat ty_expected =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
       let ty_pat =
-        Typetexp.transl_simple_type env ~closed:false arg_type_mode sty
+        Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in
       begin try unify env ty_pat.ctyp_type ty_expected with Unify trace ->
         raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
@@ -5679,7 +5679,7 @@ and type_expect_
           let type_mode =
             mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
           in
-          Typetexp.transl_simple_type env ~closed:false type_mode sty
+          Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
         end
         ~post:(fun cty -> generalize_structure cty.ctyp_type)
       in
@@ -6014,7 +6014,7 @@ and type_expect_
             | Some sty ->
                 let sty = Ast_helper.Typ.force_poly sty in
                 let cty =
-                  Typetexp.transl_simple_type env ~closed:false
+                  Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false
                     Alloc.Const.legacy sty
                 in
                 cty.ctyp_type, Some cty
@@ -6374,7 +6374,7 @@ and type_function
     | _ -> false
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
+  let { ty_arg; arg_mode; ty_ret; ret_mode } =
     with_local_level_if separate begin fun () ->
       let force_tpoly =
         (* If [has_poly] is true then we rely on the later call to
@@ -6394,6 +6394,13 @@ and type_function
         generalize_structure ty_arg;
         generalize_structure ty_ret)
   in
+  let type_sort ~why ty =
+    match Ctype.type_sort ~why env ty with
+    | Ok sort -> sort
+    | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
+  in
+  let arg_sort = type_sort ~why:Function_argument ty_arg in
+  let ret_sort = type_sort ~why:Function_result ty_ret in
   apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
        && get_level ty_arg < Btype.generic_level then begin
@@ -7145,11 +7152,17 @@ and type_application env app_loc expected_mode position_and_mode
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
     [Nolabel, sarg] when is_ignore funct ->
-      let {ty_arg; arg_mode; arg_sort; ty_ret; ret_mode} =
+      let {ty_arg; arg_mode; ty_ret; ret_mode} =
         with_local_level_if_principal (fun () ->
           filter_arrow_mono env (instance funct.exp_type) Nolabel
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
+      let type_sort ~why ty =
+        match Ctype.type_sort ~why env ty with
+        | Ok sort -> sort
+        | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
+      in
+      let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ap_mode = Alloc.locality ret_mode in
       let mode_res =
         mode_cross_to_min env ty_ret (Value.of_alloc ret_mode)

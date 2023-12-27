@@ -510,3 +510,8 @@ Line 2, characters 2-34:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Module M defines a function whose first argument is not a value, f .
 |}]
+
+(*******************************)
+(* Test 10: Specializing [any] *)
+
+(* in modules.ml only *)
