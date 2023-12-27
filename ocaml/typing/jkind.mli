@@ -221,7 +221,11 @@ type value_creation_reason =
   | Boxed_variant
   | Extensible_variant
   | Primitive of Ident.t
-  | Type_argument of {parent_path: Path.t; position: int; arity: int}
+  | Type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
   (* [position] is 1-indexed *)
   | Tuple
   | Row_variable
@@ -253,7 +257,7 @@ type immediate_creation_reason =
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
   | Gc_ignorable_check
-  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
+(* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
 type immediate64_creation_reason =
   | Local_mode_cross_check
@@ -299,7 +303,11 @@ type creation_reason =
   | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
-  | Imported_type_argument of {parent_path: Path.t; position: int; arity: int}
+  | Imported_type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
   (* [position] is 1-indexed *)
   | Generalized of Ident.t option * Location.t
 
@@ -515,6 +523,7 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 (* history *)
 
 val has_imported_history : t -> bool
+
 val update_reason : t -> creation_reason -> t
 
 (******************************)
