@@ -643,7 +643,6 @@ type concrete_jkind_reason =
   | Function_argument
   | Function_result
   | Structure_item_expression
-  | V1_safety_check
   | External_argument
   | External_result
   | Statement
@@ -1079,8 +1078,6 @@ end = struct
       fprintf ppf "it's the type of a function result"
     | Structure_item_expression ->
       fprintf ppf "it's the type of an expression in a structure"
-    | V1_safety_check ->
-      fprintf ppf "it's part of the v1 safety check"
     | External_argument ->
       fprintf ppf "it's the type of an argument in an external declaration"
     | External_result ->
@@ -1499,8 +1496,6 @@ module Debug_printers = struct
         fprintf ppf "Function_result"
     | Structure_item_expression ->
         fprintf ppf "Structure_item_expression"
-    | V1_safety_check ->
-        fprintf ppf "V1_safety_check"
     | External_argument ->
         fprintf ppf "External_argument"
     | External_result ->
