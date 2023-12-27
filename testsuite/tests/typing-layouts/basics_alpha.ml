@@ -26,29 +26,39 @@ type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
 |}];;
 
-(************************************************************)
-(* Test 1: Disallow non-representable function args/returns *)
+(******************************************************************)
+(* Test 1: Allow non-representable function args/returns in types *)
 module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : int -> t_any end
 |}];;
 
 module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : t_any -> int end
 |}];;
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = 'a -> int constraint 'a = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = 'a -> int constraint 'a = t end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = int -> 'a constraint 'a = t
+end;;
+[%%expect{|
+module type S1 = sig type t : any type 'a s = int -> 'a constraint 'a = t end
+|}]
 
 module type S1 = sig
   type t : any
@@ -1166,7 +1176,7 @@ Error: Non-value detected in [value_kind].
 (********************************************************************)
 (* Test 23: checking the error message from impossible GADT matches *)
 
-type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 
 module M : sig
   type t_void : void
@@ -1311,7 +1321,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1337,7 +1347,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1665,3 +1675,20 @@ Error: This expression has type t_any but an expression was expected of type
        because it is in the body of a for-loop
        t_any has layout any, which is not representable.
 |}]
+
+(******************************************************)
+(* Test 37: Ensure signature inclusion checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*****************************************************)
+(* Test 38: Ensure Univar unification checks layouts *)
+
+(* Doesn't need layouts_alpha. *)
+
+
+(*************************************************************)
+(* Test 39: Inference of functions that don't bind arguments *)
+
+(* Doesn't need layouts_alpha. *)

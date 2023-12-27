@@ -196,6 +196,8 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+  | Wildcard
+  | Unification_var
 
 type annotation_context =
   | Type_declaration of Path.t
@@ -261,14 +263,15 @@ type void_creation_reason = V1_safety_check
 
 type any_creation_reason =
   | Missing_cmi of Path.t
-  | Wildcard
-  | Unification_var
   | Initial_typedecl_env
   | Dummy_jkind
     (* This is used when the jkind is about to get overwritten;
        key example: when creating a fresh tyvar that is immediately
        unified to correct levels *)
   | Type_expression_call
+  | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
 
 type float64_creation_reason = Primitive of Ident.t
 

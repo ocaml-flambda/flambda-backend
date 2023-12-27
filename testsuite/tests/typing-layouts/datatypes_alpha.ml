@@ -384,3 +384,8 @@ Error: Layout mismatch in final type declaration consistency check.
 (* Test 9: Looking through polytypes in mutually recursive type declarations *)
 
 (* Doesn't need layouts_alpha. *)
+
+(*****************************************************)
+(* Test 10: Constraints and parameter kind inference *)
+
+(* Doesn't need layouts_alpha. *)
