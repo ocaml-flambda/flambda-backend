@@ -1618,11 +1618,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     | Immutable -> Predef.type_iarray
     | Mutable -> Predef.type_array
   in
-  (* CR layouts v4: The code below is written this way to make it easier to update
-     when we generalize array to contain non-value jkinds. When that happens,
-     change the next two lines to use [Jkind.of_new_sort_var]. *)
-  let jkind = Jkind.value ~why:Array_element in
-  let arg_sort = Jkind.sort_of_jkind jkind in
+  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
@@ -8652,7 +8648,7 @@ and type_generic_array
   in
   let alloc_mode = register_allocation expected_mode in
   (* CR layouts v4: non-values in arrays *)
-  let ty = newgenvar (Jkind.value ~why:Array_element) in
+  let ty = newgenvar (Jkind.of_new_sort ~why:Array_element) in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
@@ -8900,14 +8896,14 @@ and type_comprehension_expr
      - [{body = sbody; clauses}]:
          The actual comprehension to be translated. *)
   let comprehension_type, container_type, make_texp,
-      {body = sbody; clauses}, reason =
+      {body = sbody; clauses}, jkind =
     match cexpr with
     | Cexp_list_comprehension comp ->
         List_comprehension,
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
-        Jkind.Type_argument
+        Jkind.(value ~why:Type_argument)
     | Cexp_array_comprehension (amut, comp) ->
         let container_type = match amut with
           | Mutable   -> Predef.type_array
@@ -8917,14 +8913,14 @@ and type_comprehension_expr
         container_type,
         (fun tcomp -> Texp_array_comprehension (amut, tcomp)),
         comp,
-        Jkind.Array_element
+        Jkind.(value ~why:Array_comprehension_element)
   in
   let element_ty =
     with_local_level_if_principal begin fun () ->
       (* CR layouts v4: When this changes from [value], you will also have to
          update the use of [transl_exp] in transl_array_comprehension.ml. See
          a companion CR layouts v4 at the point of interest in that file. *)
-      let element_ty = newvar (Jkind.value ~why:reason) in
+      let element_ty = newvar jkind in
       unify_exp_types
         loc
         env

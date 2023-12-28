@@ -1005,12 +1005,11 @@ type t13 = t_void array
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-Line 1, characters 20-21:
+Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
-                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+                     ^^^^^^^
+Error: Type t_void has layout void.
+       Array expressions may not yet contain types of this layout.
 |}];;
 
 let x13 v =
@@ -1018,11 +1017,12 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 18-19:
+Lines 2-4, characters 2-21:
+2 | ..match v with
 3 |   | [| v |] -> VV v
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
+4 |   | _ -> assert false
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.
 |}];;
 

@@ -26,7 +26,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External | Array_expression
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -2911,6 +2911,7 @@ let report_error ppf = function
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
       | Unboxed_record -> "Unboxed record element"
+      | Array_expression -> "Array expressions"
       | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
@@ -2927,6 +2928,7 @@ let report_error ppf = function
       | Cstr_tuple -> "Variants"
       | Record -> "Records"
       | Unboxed_record -> "Unboxed records"
+      | Array_expression -> "Array expressions"
       | External -> assert false
     in
     fprintf ppf

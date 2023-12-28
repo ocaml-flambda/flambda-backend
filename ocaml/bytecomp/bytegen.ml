@@ -848,7 +848,7 @@ let rec comp_expr stack_info env exp sz cont =
         Pintarray | Paddrarray ->
           comp_args stack_info env args sz
             (Kmakeblock(List.length args, 0) :: cont)
-      | Pfloatarray ->
+      | Punboxedfloatarray | Pfloatarray ->
           comp_args stack_info env args sz
             (Kmakefloatblock(List.length args) :: cont)
       | Pgenarray ->
@@ -857,9 +857,9 @@ let rec comp_expr stack_info env exp sz cont =
           else comp_args stack_info env args sz
                  (Kmakeblock(List.length args, 0) ::
                   Kccall("caml_make_array", 1) :: cont)
-      | Punboxedfloatarray | Punboxedintarray _ ->
+      | Punboxedintarray _ ->
           (* CR layouts v4: change this to support array expressions and comprehension *)
-          Misc.fatal_error "Pmakearray doesn't support unboxed types yet"
+          Misc.fatal_error "Pmakearray doesn't support unboxed ints yet"
       end
   | Lprim((Presume|Prunstack), args, _) ->
       let nargs = List.length args - 1 in

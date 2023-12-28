@@ -71,7 +71,7 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External | Array_expression
 
 type reaching_type_path = reaching_type_step list
 and reaching_type_step =

@@ -80,12 +80,6 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
-let is_sort_float64 env ty =
-  let jkind = Ctype.estimate_type_jkind env ty in
-  match Jkind.(Sort.get_default_value (sort_of_jkind jkind)) with
-  | Float64 -> true
-  | Value | Void | Word | Bits32 | Bits64 -> false
-
 let is_always_gc_ignorable env ty =
   let jkind =
     (* We check that we're compiling to (64-bit) native code before counting
@@ -115,10 +109,12 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 (* CR layouts v2.5: when we allow [float# array] or [float# lazy], this should
    be updated to check for unboxed float. *)
-let classify env ty : classification =
+let classify env loc ty : classification =
   let ty = scrape_ty env ty in
+  let jkind = Ctype.estimate_type_jkind env ty in
+  match Jkind.(Sort.get_default_value (sort_of_jkind jkind)) with
+  | Value -> begin
   if is_always_gc_ignorable env ty then Int
-  else if is_sort_float64 env ty then Unboxed_float
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
       Any
@@ -148,12 +144,16 @@ let classify env ty : classification =
       Addr
   | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
       assert false
+  end
+  | Float64 -> Unboxed_float
+  | (Bits32 | Bits64 | Word | Void as const) ->
+    raise Typedecl.(Error (loc, Invalid_jkind_in_block (ty, const, Array_expression)))
 
-let array_type_kind env ty =
+let array_type_kind env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
-      begin match classify env elt_ty with
+      begin match classify env loc elt_ty with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
       | Addr | Lazy -> Paddrarray
@@ -166,9 +166,19 @@ let array_type_kind env ty =
       (* This can happen with e.g. Obj.field *)
       Pgenarray
 
-let array_kind exp = array_type_kind exp.exp_env exp.exp_type
+let array_kind exp = array_type_kind exp.exp_env exp.exp_loc exp.exp_type
 
-let array_pattern_kind pat = array_type_kind pat.pat_env pat.pat_type
+let array_pattern_kind pat = array_type_kind pat.pat_env pat.pat_loc pat.pat_type
+
+let array_element_sort array_kind =
+  match array_kind with
+  | Pgenarray | Paddrarray | Pfloatarray | Pintarray ->
+    Jkind.Sort.value
+  | Punboxedfloatarray -> Jkind.Sort.float64
+  (* CR layouts v4: Unboxed int array not yet supported.
+     Change this when that happens *)
+  | Punboxedintarray _ ->
+    Misc.fatal_error "Unboxed ints array elements are not yet supported."
 
 let bigarray_decode_type env ty tbl dfl =
   match scrape env ty with
@@ -355,7 +365,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
-    num_nodes_visited, Parrayval (array_type_kind env ty)
+    num_nodes_visited, Parrayval (array_type_kind env loc ty)
   | Tconstr(p, _, _) -> begin
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
@@ -633,8 +643,8 @@ let function_arg_layout env loc sort ty =
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
-let lazy_val_requires_forward env ty =
-  match classify env ty with
+let lazy_val_requires_forward env loc ty =
+  match classify env loc ty with
   | Any | Lazy -> true
   | Unboxed_float ->
     if !Clflags.native_code then true
@@ -661,7 +671,7 @@ let classify_lazy_argument : Typedtree.expression ->
        if Config.flat_float_array
        then `Float_that_cannot_be_shortcut
        else `Constant_or_function
-    | Texp_ident _ when lazy_val_requires_forward e.exp_env e.exp_type ->
+    | Texp_ident _ when lazy_val_requires_forward e.exp_env e.exp_loc e.exp_type ->
        `Identifier `Forward_value
     | Texp_ident _ ->
        `Identifier `Other
