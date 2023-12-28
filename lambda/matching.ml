@@ -1177,7 +1177,10 @@ let can_group discr pat =
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
-  | Constant (Const_nativeint _), Constant (Const_nativeint _) ->
+  | Constant (Const_nativeint _), Constant (Const_nativeint _)
+  | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
+  | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
+  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
       true
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
@@ -1198,7 +1201,8 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
+          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _
+          | Const_unboxed_int32 _ | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -2888,6 +2892,21 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int32 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint32, Cne))
+          (Punboxed_int_comp (Pint32, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int64 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint64, Cne))
+          (Punboxed_int_comp (Pint64, Clt))
+          arg const_lambda_list
+    | Const_unboxed_nativeint _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pnativeint, Cne))
+          (Punboxed_int_comp (Pnativeint, Clt))
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)

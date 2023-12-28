@@ -1027,9 +1027,10 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base (Const_string (s, _, _)) ->
             str (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
-        | Const_base(Const_unboxed_float _) ->
-            (* CR alanechang: implement unboxed float constants in closure *)
-            Misc.fatal_error "Unboxed float constants are not supported in closure. Consider using flambda2."
+        | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
+                     | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
+            (* CR alanechang: implement unboxed constants in closure *)
+            Misc.fatal_error "Unboxed constants are not supported in closure. Consider using flambda2."
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)
