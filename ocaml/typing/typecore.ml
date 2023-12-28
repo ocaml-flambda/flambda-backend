@@ -4749,6 +4749,8 @@ type split_function_ty =
        [a_i -> a_{i+1} -> ... -> b].
     *)
     filtered_arrow: filtered_arrow;
+    arg_sort : Jkind.sort;
+    ret_sort : Jkind.sort;
     (* If [i = n], then [Final_arg];
        if [i < n], then the mode of the result of partially applying
        [f] up to [a_i].
@@ -4907,8 +4909,15 @@ let split_function_ty
     else arg_value_mode
   in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
+  let type_sort ~why ty =
+    match Ctype.type_sort ~why env ty with
+    | Ok sort -> sort
+    | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
+  in
+  let arg_sort = type_sort ~why:Function_argument ty_arg in
+  let ret_sort = type_sort ~why:Function_result ty_ret in
   env,
-  { filtered_arrow; alloc_mode; ty_arg_mono;
+  { filtered_arrow; arg_sort; ret_sort; alloc_mode; ty_arg_mono;
     expected_inner_mode; expected_pat_mode; curry;
   }
 
@@ -5844,32 +5853,8 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
-<<<<<<< HEAD
       let (ty, exp_extra) =
         type_constraint env sty (mode_annots_from_exp_attrs sexp)
-||||||| 107cd289
-      (* Pretend separate = true, 1% slowdown for lablgtk *)
-      let cty =
-        with_local_level begin fun () ->
-          let mode_annots = mode_annots_from_exp_attrs sexp in
-          let type_mode =
-            mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
-          in
-          Typetexp.transl_simple_type env ~closed:false type_mode sty
-        end
-        ~post:(fun cty -> generalize_structure cty.ctyp_type)
-=======
-      (* Pretend separate = true, 1% slowdown for lablgtk *)
-      let cty =
-        with_local_level begin fun () ->
-          let mode_annots = mode_annots_from_exp_attrs sexp in
-          let type_mode =
-            mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
-          in
-          Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
-        end
-        ~post:(fun cty -> generalize_structure cty.ctyp_type)
->>>>>>> origin/main
       in
       let ty' = instance ty in
       let arg = type_argument env expected_mode sarg ty (instance ty) in
@@ -6506,7 +6491,7 @@ and type_constraint env sty mode_annots =
       let type_mode =
         mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
       in
-      Typetexp.transl_simple_type env ~closed:false type_mode sty
+      Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
     end
       ~post:(fun cty -> generalize_structure cty.ctyp_type)
   in
@@ -6595,355 +6580,10 @@ and type_binding_op_ident env s =
   assert (kind = Id_value);
   path, desc
 
-<<<<<<< HEAD
 (* Typecheck parameters one at a time followed by the body. Later parameters
    are checked in the scope of earlier ones. That's necessary to support
    constructs like [fun (type a) (x : a) -> ...] and
    [fun (module M : S) (x : M.t) -> ...].
-||||||| 107cd289
-and type_function
-    ?in_function loc attrs env (expected_mode : expected_mode)
-      ty_expected_explained arg_label ~mode_annots ~has_poly caselist =
-  let { ty = ty_expected; explanation } = ty_expected_explained in
-  let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
-  let alloc_mode =
-    if expected_mode.exact then
-      (* expected_mode.mode is exact *)
-      alloc_mode
-    else
-      (* expected_mode.mode is upper bound *)
-      fst (Alloc.newvar_below alloc_mode)
-  in
-  if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
-  register_allocation_mode alloc_mode;
-  let (loc_fun, ty_fun) =
-    match in_function with
-    | Some (loc_fun, ty_fun, _) -> (loc_fun, ty_fun)
-    | None -> (loc, instance ty_expected)
-  in
-  let uncurried_function =
-    match caselist with
-    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
-        is_an_uncurried_function e
-    | _ -> false
-  in
-  let separate = !Clflags.principal || Env.has_local_constraints env in
-  let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
-    with_local_level_if separate begin fun () ->
-      let force_tpoly =
-        (* If [has_poly] is true then we rely on the later call to
-           type_pat to enforce the invariant that the parameter type
-           be a [Tpoly] node *)
-        not has_poly
-      in
-      try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
-      with Filter_arrow_failed err ->
-        let first = Option.is_none in_function in
-        let err =
-          error_of_filter_arrow_failure ~explanation ~first ty_fun err
-        in
-        raise (Error(loc_fun, env, err))
-    end
-      ~post:(fun {ty_arg; ty_ret; _} ->
-        generalize_structure ty_arg;
-        generalize_structure ty_ret)
-  in
-  apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
-  if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
-       && get_level ty_arg < Btype.generic_level then begin
-    let snap = Btype.snapshot () in
-    let really_poly =
-      try
-        unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind))) ty_arg;
-        false
-      with Unify _ -> true
-    in
-    Btype.backtrack snap;
-    if really_poly then
-      Location.prerr_warning loc
-        (Warnings.Not_principal "this higher-rank function");
-  end;
-  let env, region_locked =
-    match in_function with
-    | Some (_, _, region_locked) -> env, region_locked
-    | None ->
-      let region_locked = not (Is_local_returning.function_ caselist) in
-      let env =
-        Env.add_closure_lock
-          ?closure_context:expected_mode.closure_context
-          (Alloc.locality alloc_mode)
-          (Alloc.linearity alloc_mode)
-          env
-      in
-      let env =
-        if region_locked then Env.add_region_lock env
-        else env
-      in
-      env, region_locked
-  in
-  let arg_value_mode = Value.of_alloc arg_mode in
-  let arg_value_mode =
-    if region_locked then Value.local_to_regional arg_value_mode
-    else arg_value_mode
-  in
-  let cases_expected_mode, curry =
-    if uncurried_function then begin
-      (* no need to check mode crossing in this case*)
-      (* because ty_res always a function *)
-      let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
-      begin match
-        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      begin match
-        Alloc.submode (Alloc.partial_apply alloc_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      mode_exact (Value.of_alloc inner_alloc_mode),
-      More_args {partial_mode = inner_alloc_mode}
-    end
-    else begin
-      let ret_value_mode = Value.of_alloc ret_mode in
-      let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
-        else begin
-          (* if the function has no region, we force the ret_mode to be local *)
-          match
-            Locality.submode Locality.local (Alloc.locality ret_mode)
-          with
-          | Ok () -> mode_default ret_value_mode
-          | Error () -> raise (Error (loc_fun, env, Function_returns_local))
-        end
-      in
-      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
-      ret_value_mode,
-      Final_arg { partial_mode = Alloc.join [arg_mode; alloc_mode] }
-    end
-  in
-  let in_function =
-    if uncurried_function then
-      Some (loc_fun, ty_fun, region_locked)
-    else
-      None
-  in
-  let ty_arg_mono =
-    if has_poly then ty_arg
-    else begin
-      let ty, vars = tpoly_get_poly ty_arg in
-      if vars = [] then ty
-      else begin
-        with_level ~level:generic_level
-          (fun () -> snd (instance_poly ~keep_names:true false vars ty))
-      end
-    end
-  in
-  let cases, partial =
-    type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg_mono (mk_expected ty_ret) true loc caselist in
-  let not_nolabel_function ty =
-    let ls, tvar = list_labels env ty in
-    List.for_all ((<>) Nolabel) ls && not tvar
-  in
-  if is_optional arg_label && not_nolabel_function ty_ret then
-    Location.prerr_warning (List.hd cases).c_lhs.pat_loc
-      Warnings.Unerasable_optional_argument;
-  let param = name_cases "param" cases in
-  let region = region_locked && not uncurried_function in
-  let warnings = Warnings.backup () in
-  re {
-    exp_desc =
-      Texp_function
-        { arg_label; param; cases; partial; region; curry; warnings;
-          arg_mode; arg_sort; alloc_mode; ret_mode; ret_sort };
-    exp_loc = loc; exp_extra = [];
-    exp_type =
-      instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
-                                 ty_arg, ty_ret, commu_ok)));
-    exp_attributes = attrs;
-    exp_env = env }
-=======
-and type_function
-    ?in_function loc attrs env (expected_mode : expected_mode)
-      ty_expected_explained arg_label ~mode_annots ~has_poly caselist =
-  let { ty = ty_expected; explanation } = ty_expected_explained in
-  let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
-  let alloc_mode =
-    if expected_mode.exact then
-      (* expected_mode.mode is exact *)
-      alloc_mode
-    else
-      (* expected_mode.mode is upper bound *)
-      fst (Alloc.newvar_below alloc_mode)
-  in
-  if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
-  register_allocation_mode alloc_mode;
-  let (loc_fun, ty_fun) =
-    match in_function with
-    | Some (loc_fun, ty_fun, _) -> (loc_fun, ty_fun)
-    | None -> (loc, instance ty_expected)
-  in
-  let uncurried_function =
-    match caselist with
-    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
-        is_an_uncurried_function e
-    | _ -> false
-  in
-  let separate = !Clflags.principal || Env.has_local_constraints env in
-  let { ty_arg; arg_mode; ty_ret; ret_mode } =
-    with_local_level_if separate begin fun () ->
-      let force_tpoly =
-        (* If [has_poly] is true then we rely on the later call to
-           type_pat to enforce the invariant that the parameter type
-           be a [Tpoly] node *)
-        not has_poly
-      in
-      try filter_arrow env (instance ty_expected) arg_label ~force_tpoly
-      with Filter_arrow_failed err ->
-        let first = Option.is_none in_function in
-        let err =
-          error_of_filter_arrow_failure ~explanation ~first ty_fun err
-        in
-        raise (Error(loc_fun, env, err))
-    end
-      ~post:(fun {ty_arg; ty_ret; _} ->
-        generalize_structure ty_arg;
-        generalize_structure ty_ret)
-  in
-  let type_sort ~why ty =
-    match Ctype.type_sort ~why env ty with
-    | Ok sort -> sort
-    | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
-  in
-  let arg_sort = type_sort ~why:Function_argument ty_arg in
-  let ret_sort = type_sort ~why:Function_result ty_ret in
-  apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode;
-  if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
-       && get_level ty_arg < Btype.generic_level then begin
-    let snap = Btype.snapshot () in
-    let really_poly =
-      try
-        unify env (newmono (newvar (Jkind.any ~why:Dummy_jkind))) ty_arg;
-        false
-      with Unify _ -> true
-    in
-    Btype.backtrack snap;
-    if really_poly then
-      Location.prerr_warning loc
-        (Warnings.Not_principal "this higher-rank function");
-  end;
-  let env, region_locked =
-    match in_function with
-    | Some (_, _, region_locked) -> env, region_locked
-    | None ->
-      let region_locked = not (Is_local_returning.function_ caselist) in
-      let env =
-        Env.add_closure_lock
-          ?closure_context:expected_mode.closure_context
-          (Alloc.locality alloc_mode)
-          (Alloc.linearity alloc_mode)
-          env
-      in
-      let env =
-        if region_locked then Env.add_region_lock env
-        else env
-      in
-      env, region_locked
-  in
-  let arg_value_mode = Value.of_alloc arg_mode in
-  let arg_value_mode =
-    if region_locked then Value.local_to_regional arg_value_mode
-    else arg_value_mode
-  in
-  let cases_expected_mode, curry =
-    if uncurried_function then begin
-      (* no need to check mode crossing in this case*)
-      (* because ty_res always a function *)
-      let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
-      begin match
-        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      begin match
-        Alloc.submode (Alloc.partial_apply alloc_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      mode_exact (Value.of_alloc inner_alloc_mode),
-      More_args {partial_mode = inner_alloc_mode}
-    end
-    else begin
-      let ret_value_mode = Value.of_alloc ret_mode in
-      let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
-        else begin
-          (* if the function has no region, we force the ret_mode to be local *)
-          match
-            Locality.submode Locality.local (Alloc.locality ret_mode)
-          with
-          | Ok () -> mode_default ret_value_mode
-          | Error () -> raise (Error (loc_fun, env, Function_returns_local))
-        end
-      in
-      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
-      ret_value_mode,
-      Final_arg { partial_mode = Alloc.join [arg_mode; alloc_mode] }
-    end
-  in
-  let in_function =
-    if uncurried_function then
-      Some (loc_fun, ty_fun, region_locked)
-    else
-      None
-  in
-  let ty_arg_mono =
-    if has_poly then ty_arg
-    else begin
-      let ty, vars = tpoly_get_poly ty_arg in
-      if vars = [] then ty
-      else begin
-        with_level ~level:generic_level
-          (fun () -> snd (instance_poly ~keep_names:true false vars ty))
-      end
-    end
-  in
-  let cases, partial =
-    type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg_mono (mk_expected ty_ret) true loc caselist in
-  let not_nolabel_function ty =
-    let ls, tvar = list_labels env ty in
-    List.for_all ((<>) Nolabel) ls && not tvar
-  in
-  if is_optional arg_label && not_nolabel_function ty_ret then
-    Location.prerr_warning (List.hd cases).c_lhs.pat_loc
-      Warnings.Unerasable_optional_argument;
-  let param = name_cases "param" cases in
-  let region = region_locked && not uncurried_function in
-  let warnings = Warnings.backup () in
-  re {
-    exp_desc =
-      Texp_function
-        { arg_label; param; cases; partial; region; curry; warnings;
-          arg_mode; arg_sort; alloc_mode; ret_mode; ret_sort };
-    exp_loc = loc; exp_extra = [];
-    exp_type =
-      instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
-                                 ty_arg, ty_ret, commu_ok)));
-    exp_attributes = attrs;
-    exp_env = env }
->>>>>>> origin/main
 
    Operates like [type_expect] in that it unifies the "type of the remaining
    function params + body" with [ty_expected], and returns out the inferred
@@ -7028,8 +6668,8 @@ and type_function
               rest
       in
       let env,
-          { filtered_arrow =
-              { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort };
+          { filtered_arrow = { ty_arg; arg_mode; ty_ret; ret_mode };
+            arg_sort; ret_sort;
             ty_arg_mono; expected_pat_mode; expected_inner_mode; curry;
             alloc_mode;
           } =
@@ -8467,8 +8107,8 @@ and type_function_cases_expect
     env expected_mode ty_expected loc cases attrs ~first ~in_function =
   Builtin_attributes.warning_scope attrs begin fun () ->
     let env,
-        { filtered_arrow =
-            { ty_arg; ty_ret; arg_mode; ret_mode; arg_sort; ret_sort };
+        { filtered_arrow = { ty_arg; ty_ret; arg_mode; ret_mode };
+          arg_sort; ret_sort;
           ty_arg_mono; expected_pat_mode; expected_inner_mode; alloc_mode;
         } =
       split_function_ty env expected_mode ty_expected loc ~arg_label:Nolabel
@@ -9010,15 +8650,7 @@ and type_expect_jane_syntax
   | Jexp_n_ary_function x ->
       type_n_ary_function
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
-<<<<<<< HEAD
-  | Jexp_tuple (Ltexp_tuple x) ->
-||||||| 107cd289
-          ~loc_stack
-  | Jexp_tuple (Ltexp_tuple x) ->
-=======
-          ~loc_stack
   | Jexp_tuple x ->
->>>>>>> origin/main
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 

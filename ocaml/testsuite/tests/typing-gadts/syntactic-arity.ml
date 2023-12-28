@@ -15,7 +15,9 @@ type (_, _) eq = Eq : ('a, 'a) eq
 let ok (type a) ?opt:((Eq : (a, int -> int) eq) = assert false) () : a =
   function x -> x + 1;;
 [%%expect{|
-val ok : ?opt:('a -> 'b, int -> int) eq -> unit -> 'a -> 'b = <fun>
+val ok :
+  ('a : any) ('b : any). ?opt:('a -> 'b, int -> int) eq -> unit -> 'a -> 'b =
+  <fun>
 |}];;
 
 let (x : string -> nothing) = ok ();;
@@ -94,7 +96,8 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
 
-val ok : ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b = <fun>
+val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b =
+  <fun>
 |}];;
 
 let bad : type a. (a, int -> int) eq_or_not -> a =
@@ -126,7 +129,8 @@ let ok (type a) (lazy (Eq : (a, int -> int) eq)) : a =
   function x -> x + 1
 
 [%%expect{|
-val ok : ('a -> 'b, int -> int) eq lazy_t -> 'a -> 'b = <fun>
+val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq lazy_t -> 'a -> 'b =
+  <fun>
 |}];;
 
 let bad : type a. (a, int -> int) eq lazy_t -> a =

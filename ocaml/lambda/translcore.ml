@@ -1312,7 +1312,6 @@ and transl_curried_function ~scopes loc repr params body
        | Tfunction_body _ -> param_curries
        | Tfunction_cases fc -> param_curries @ [ Final_arg, fc.fc_arg_mode ])
   in
-<<<<<<< HEAD
   let cases_param, body =
     match body with
     | Tfunction_body body ->
@@ -1468,14 +1467,9 @@ and transl_function ~in_new_scope ~scopes e params body
     ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode alloc_mode in
-  let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
-||||||| 107cd289
-  let assume_zero_alloc = Translattribute.assume_zero_alloc attrs in
-=======
   let assume_zero_alloc =
     Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
   in
->>>>>>> origin/main
   let scopes =
     if in_new_scope then begin
       if assume_zero_alloc then set_assume_zero_alloc ~scopes

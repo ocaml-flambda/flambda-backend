@@ -647,13 +647,9 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
-<<<<<<< HEAD
-  | Optional_arg_default
-||||||| 107cd289
-=======
   | Wildcard
   | Unification_var
->>>>>>> origin/main
+  | Optional_arg_default
 
 type value_creation_reason =
   | Class_let_binding
@@ -1060,13 +1056,9 @@ end = struct
     | External_result ->
       fprintf ppf "used as the result of an external declaration"
     | Statement -> fprintf ppf "used as a statement"
-<<<<<<< HEAD
     | Optional_arg_default -> fprintf ppf "used as an optional argument default"
-||||||| 107cd289
-=======
     | Wildcard -> fprintf ppf "a _ in a type"
     | Unification_var -> fprintf ppf "a fresh unification variable"
->>>>>>> origin/main
 
   let format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -1465,13 +1457,9 @@ module Debug_printers = struct
     | External_argument -> fprintf ppf "External_argument"
     | External_result -> fprintf ppf "External_result"
     | Statement -> fprintf ppf "Statement"
-<<<<<<< HEAD
-    | Optional_arg_default -> fprintf ppf "Optional_arg_default"
-||||||| 107cd289
-=======
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
->>>>>>> origin/main
+    | Optional_arg_default -> fprintf ppf "Optional_arg_default"
 
   let annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p

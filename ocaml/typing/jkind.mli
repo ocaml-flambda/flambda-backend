@@ -196,13 +196,9 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
-<<<<<<< HEAD
-  | Optional_arg_default
-||||||| 107cd289
-=======
   | Wildcard
   | Unification_var
->>>>>>> origin/main
+  | Optional_arg_default
 
 type annotation_context =
   | Type_declaration of Path.t
