@@ -198,6 +198,7 @@ type concrete_jkind_reason =
   | Statement
   | Wildcard
   | Unification_var
+  | Optional_arg_default
 
 type annotation_context =
   | Type_declaration of Path.t

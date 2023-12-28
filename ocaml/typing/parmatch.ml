@@ -20,6 +20,24 @@ open Asttypes
 open Types
 open Typedtree
 
+type 'pattern parmatch_case =
+  { pattern : 'pattern;
+    has_guard : bool;
+    needs_refute : bool;
+  }
+
+let typed_case { c_lhs; c_guard; c_rhs } =
+  { pattern = c_lhs;
+    has_guard = Option.is_some c_guard;
+    needs_refute = (c_rhs.exp_desc = Texp_unreachable);
+  }
+
+let untyped_case { Parsetree.pc_lhs; pc_guard; pc_rhs } =
+  { pattern = pc_lhs;
+    has_guard = Option.is_some pc_guard;
+    needs_refute = (pc_rhs.pexp_desc = Parsetree.Pexp_unreachable);
+  }
+
 (*************************************)
 (* Utilities for building patterns   *)
 (*************************************)
@@ -1901,8 +1919,8 @@ let pressure_variants_in_computation_pattern tdefs patl =
 
 let rec initial_matrix = function
     [] -> []
-  | {c_guard=Some _} :: rem -> initial_matrix rem
-  | {c_guard=None; c_lhs=p} :: rem -> [p] :: initial_matrix rem
+  | {has_guard=true} :: rem -> initial_matrix rem
+  | {has_guard=false; pattern=p} :: rem -> [p] :: initial_matrix rem
 
 (*
    Build up a working pattern matrix by keeping
@@ -1910,9 +1928,9 @@ let rec initial_matrix = function
 *)
 let rec initial_only_guarded = function
   | [] -> []
-  | { c_guard = None; _} :: rem ->
+  | { has_guard=false; _} :: rem ->
       initial_only_guarded rem
-  | { c_lhs = pat; _ } :: rem ->
+  | { pattern = pat; _ } :: rem ->
       [pat] :: initial_only_guarded rem
 
 
@@ -2027,7 +2045,7 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
 let do_check_fragile loc casel pss =
   let exts =
     List.fold_left
-      (fun r c -> collect_paths_from_pat r c.c_lhs)
+      (fun r c -> collect_paths_from_pat r c.pattern)
       [] casel in
   match exts with
   | [] -> ()
@@ -2051,10 +2069,10 @@ let do_check_fragile loc casel pss =
 
 let check_unused pred casel =
   if Warnings.is_active Warnings.Redundant_case
-  || List.exists (fun c -> c.c_rhs.exp_desc = Texp_unreachable) casel then
+  || List.exists (fun vc -> vc.needs_refute) casel then
     let rec do_rec pref = function
       | [] -> ()
-      | {c_lhs=q; c_guard; c_rhs} :: rem ->
+      | {pattern=q; has_guard; needs_refute=refute} :: rem ->
           let qs = [q] in
             begin try
               let pss =
@@ -2065,7 +2083,6 @@ let check_unused pred casel =
                 |> get_mins le_pats in
               (* First look for redundant or partially redundant patterns *)
               let r = every_satisfiables (make_rows pss) (make_row qs) in
-              let refute = (c_rhs.exp_desc = Texp_unreachable) in
               (* Do not warn for unused [pat -> .] *)
               if r = Unused && refute then () else
               let r =
@@ -2111,7 +2128,7 @@ let check_unused pred casel =
             with Empty | Not_found -> assert false
             end ;
 
-          if c_guard <> None then
+          if has_guard then
             do_rec pref rem
           else
             do_rec ([q]::pref) rem in
@@ -2418,7 +2435,7 @@ let check_ambiguous_bindings =
     if is_active warn0 then
       let check_case ns case = match case with
         | { c_lhs = p; c_guard=None ; _} -> [p]::ns
-        | { c_lhs=p; c_guard=Some g; _} ->
+        | { c_lhs = p; c_guard=Some g; _} ->
             let all =
               Ident.Set.inter (pattern_vars p) (all_rhs_idents g) in
             if not (Ident.Set.is_empty all) then begin

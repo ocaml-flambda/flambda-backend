@@ -168,6 +168,19 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let chunks_of n l =
+      if n <= 0 then raise (Invalid_argument "chunks_of");
+      (* Invariant: List.length l = remaining *)
+      let rec aux n acc l ~remaining =
+        match remaining with
+        | 0 -> List.rev acc
+        | _ when remaining <= n -> List.rev (l :: acc)
+        | _ ->
+            let chunk, rest = split_at n l in
+            aux n (chunk :: acc) rest ~remaining:(remaining - n)
+      in
+      aux n [] l ~remaining:(List.length l)
+
     let rec is_prefix ~equal t ~of_ =
       match t, of_ with
       | [], [] -> true

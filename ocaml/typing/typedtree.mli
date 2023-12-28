@@ -207,16 +207,6 @@ and exp_extra =
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
 
-and fun_curry_state =
-  | More_args of { partial_mode : Mode.Alloc.t }
-        (** [partial_mode] is the mode of the resulting closure
-            if this function is partially applied *)
-  | Final_arg of { partial_mode : Mode.Alloc.t }
-        (** [partial_mode] is relevant for the final arg only
-            because of an optimisation that Simplif does to merge
-            functions, which might result in this arg no longer being
-            final *)
-
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
     propagate jkind information inward during compilation.  This
@@ -243,32 +233,26 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_mode : Mode.Alloc.t;
-      (* Mode where the function allocates, ie local for a function of
-         type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t
-      (* Mode at which the closure is allocated *)
-    }
-        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
-            See {!Parsetree} for more details.
-
-            [param] is the identifier that is to be used to name the
-            parameter of the function.
-
-            partial =
-              [Partial] if the pattern match is partial
-              [Total] otherwise.
-
-            partial_mode is the mode of the resulting closure if this function
-            is partially applied to a single argument.
-         *)
+  | Texp_function of
+      { params : function_param list;
+        body : function_body;
+        region : bool;
+        ret_mode : Mode.Alloc.t;
+        (* Mode where the function allocates, ie local for a function of
+           type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
+        ret_sort : Jkind.sort;
+        alloc_mode : Mode.Alloc.t
+        (* Mode at which the closure is allocated *)
+      }
+      (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
+          fun P0 P1 -> E                             (body = Tfunction_body _)
+          This construct has the same arity as the originating
+          {{!Jane_syntax.Expression.Jexp_n_ary_function}[Jexp_n_ary_function]}.
+          Arity determines when side-effects for effectful parameters are run
+          (e.g. optional argument defaults, matching against lazy patterns).
+          Parameters' effects are run left-to-right when an n-ary function is
+          saturated with n arguments.
+      *)
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.t
         (** E0 ~l1:E1 ... ~ln:En
 
@@ -388,7 +372,6 @@ and expression_desc =
       body : value case;
       body_sort : Jkind.sort;
       partial : partial;
-      warnings : Warnings.state;
     }
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
@@ -397,6 +380,66 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+
+and function_curry =
+  | More_args of { partial_mode : Mode.Alloc.t }
+  | Final_arg
+
+and function_param =
+  {
+    fp_arg_label: arg_label;
+    fp_param: Ident.t;
+    (** [fp_param] is the identifier that is to be used to name the
+        parameter of the function.
+    *)
+    fp_partial: partial;
+    (**
+       [fp_partial] =
+       [Partial] if the pattern match is partial
+       [Total] otherwise.
+    *)
+    fp_kind: function_param_kind;
+    fp_sort: Jkind.sort;
+    fp_mode: Mode.Alloc.t;
+    fp_curry: function_curry;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
+    (** [fp_newtypes] are the new type declarations that come *after* that
+        parameter. The newtypes that come before the first parameter are
+        placed as exp_extras on the Texp_function node. This is just used in
+        {!Untypeast}. *)
+    fp_loc: Location.t;
+    (** [fp_loc] is the location of the entire value parameter, not including
+        the [fp_newtypes].
+    *)
+  }
+
+and function_param_kind =
+  | Tparam_pat of pattern
+  (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
+  | Tparam_optional_default of pattern * expression * Jkind.sort
+  (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
+      default value [e], i.e. [?x:(p = e)]. If the parameter is of type
+      [a option], the pattern and expression are of type [a]. [sort] is the
+      sort of [e]. *)
+
+and function_body =
+  | Tfunction_body of expression
+  | Tfunction_cases of function_cases
+(** The function body binds a final argument in [Tfunction_cases],
+    and this argument is pattern-matched against the cases.
+*)
+
+and function_cases =
+  { fc_cases: value case list;
+    fc_arg_mode: Mode.Alloc.t;
+    fc_arg_sort: Jkind.sort;
+    fc_partial: partial;
+    fc_param: Ident.t;
+    fc_loc: Location.t;
+    fc_exp_extra: exp_extra option;
+    fc_attributes: attributes;
+    (** [fc_attributes] is just used in untypeast. *)
+  }
 
 and ident_kind = Id_value | Id_prim of Mode.Locality.t option
 
