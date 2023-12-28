@@ -123,6 +123,21 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       (fun kinds -> List.map C.extended_machtype_of_kind kinds |> Array.concat)
       args_arity
   in
+  let split_args () =
+    let rec aux args args_arity =
+      match args_arity, args with
+      | [], [] -> []
+      | [], _ :: _ ->
+        Misc.fatal_errorf
+          "[split_args]: [args] and [args_ty] do not have compatible lengths"
+      | kinds :: args_arity, args ->
+        let group, rest =
+          Misc.Stdlib.List.map2_prefix (fun _kind arg -> arg) kinds args
+        in
+        C.make_tuple group :: aux rest args_arity
+    in
+    aux args args_arity
+  in
   let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
@@ -175,7 +190,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_allocations.to_lambda alloc_mode)
-        callee args_ty args,
+        callee args_ty (split_args ()),
       free_vars,
       env,
       res,
@@ -203,7 +218,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call { needs_caml_c_call; is_c_builtin; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -245,7 +260,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         |> List.map K.With_subkind.kind)
     in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~returns ~ty_args
+           callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
@@ -272,7 +288,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
+    ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
+        dbg,
       free_vars,
       env,
       res,

@@ -956,6 +956,9 @@ let emit_simd_instr op i =
   | R_RM_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0))
+  | R_RM_to_R ->
+    assert (Reg.is_reg i.arg.(0));
+    assert (Reg.is_reg i.res.(0))
   | R_RM_xmm0_to_fst ->
     assert (arg i 0 = res i 0);
     assert (Reg.is_reg i.arg.(0));
@@ -982,6 +985,8 @@ let emit_simd_instr op i =
   );
   match (op : Simd.operation) with
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
+  | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
+  | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
@@ -1034,6 +1039,10 @@ let emit_simd_instr op i =
   | SSE2 Avg_unsigned_i8 -> I.pavgb (arg i 1) (res i 0)
   | SSE2 Avg_unsigned_i16 -> I.pavgw (arg i 1) (res i 0)
   | SSE2 SAD_unsigned_i8 -> I.psadbw (arg i 1) (res i 0)
+  | SSE2 Mulhi_i16 -> I.pmulhw (arg i 1) (res i 0)
+  | SSE2 Mulhi_unsigned_i16 -> I.pmulhuw (arg i 1) (res i 0)
+  | SSE2 Mullo_i16 -> I.pmullw (arg i 1) (res i 0)
+  | SSE2 Mul_hadd_i16_to_i32 -> I.pmaddwd (arg i 1) (res i 0)
   | SSE2 And_bits -> I.pand (arg i 1) (res i 0)
   | SSE2 Andnot_bits -> I.pandnot (arg i 1) (res i 0)
   | SSE2 Or_bits -> I.por (arg i 1) (res i 0)
@@ -1108,6 +1117,8 @@ let emit_simd_instr op i =
   | SSSE3 Mulsign_i32 -> I.psignd (arg i 1) (res i 0)
   | SSSE3 Alignr_i8 n -> I.palignr (X86_dsl.int n) (arg i 1) (res i 0)
   | SSSE3 Shuffle_8 -> I.pshufb (arg i 1) (res i 0)
+  | SSSE3 Mul_unsigned_hadd_saturating_i8_to_i16 ->
+    I.pmaddubsw (arg i 1) (res i 0)
   | SSE41 (Blend_16 n) -> I.pblendw (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE41 (Blend_32 n) -> I.blendps (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE41 (Blend_64 n) -> I.blendpd (X86_dsl.int n) (arg i 1) (res i 0)
@@ -1160,6 +1171,7 @@ let emit_simd_instr op i =
   | SSE41 (Round_f32 n) -> I.roundps n (arg i 0) (res i 0)
   | SSE41 (Multi_sad_unsigned_i8 n) -> I.mpsadbw (X86_dsl.int n) (arg i 1) (res i 0)
   | SSE41 Minpos_unsigned_i16 -> I.phminposuw (arg i 0) (res i 0)
+  | SSE41 Mullo_i32 -> I.pmulld (arg i 1) (res i 0)
   | SSE42 Cmpgt_i64 -> I.pcmpgtq (arg i 1) (res i 0)
   | SSE42 Crc32_64 -> I.crc32 (arg i 1) (res i 0)
   | SSE42 (Cmpestrm n) -> I.pcmpestrm (X86_dsl.int n) (arg i 1) (arg i 0)

@@ -572,3 +572,97 @@ Line 1, characters 28-33:
 Error: This type signature for x is not a value type.
        x has layout any, which is not a sublayout of value.
 |}]
+
+(****************************************************************)
+(* Test 9: Non-values temporarily banned in recmod safety check *)
+module type S = sig
+  val f : ('a : float64). 'a -> 'a
+end
+
+module rec M : S = M
+
+[%%expect{|
+module type S = sig val f : ('a : float64). 'a -> 'a end
+Line 5, characters 19-20:
+5 | module rec M : S = M
+                       ^
+Error: Cannot safely evaluate the definition of the following cycle
+       of recursively-defined modules: M -> M.
+       There are no safe modules in this cycle (see manual section 12.2).
+Line 2, characters 2-34:
+2 |   val f : ('a : float64). 'a -> 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Module M defines a function whose first argument is not a value, f .
+|}]
+
+(*******************************)
+(* Test 10: Specializing [any] *)
+
+(* see also the test any_in_types.ml, which makes sure running code
+   that looks like this produces the right result *)
+
+module type S = sig
+  type t : any
+
+  val one : unit -> t
+  val print : t -> unit
+end
+
+module Floaty : S with type t := float# = struct
+  let one () = Stdlib__Float_u.of_float 1.  (* CR layouts: use literal syntax *)
+  let print t = Printf.printf "%f" (Stdlib__Float_u.to_float t)
+end
+
+module Inty : S with type t := int = struct
+  let one () = 1
+  let print t = Printf.printf "%d" t
+end
+
+module Stringy : S with type t := string = struct
+  let one () = "one"
+  let print t = Printf.printf "%s" t
+end
+
+[%%expect{|
+module type S =
+  sig type t : any val one : unit -> t val print : t -> unit end
+module Floaty : sig val one : unit -> float# val print : float# -> unit end
+module Inty : sig val one : unit -> int val print : int -> unit end
+module Stringy : sig val one : unit -> string val print : string -> unit end
+|}]
+
+module F1 (X : S with type t := float#) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+module F2 (X : S with type t := string) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+module F1 :
+  functor (X : sig val one : unit -> float# val print : float# -> unit end)
+    -> sig val print_one : unit -> unit end
+module F2 :
+  functor (X : sig val one : unit -> string val print : string -> unit end)
+    -> sig val print_one : unit -> unit end
+|}]
+
+module F_bad (X : S) : sig
+  val print_one : unit -> unit
+end = struct
+  let print_one () = X.print (X.one ())
+end
+
+[%%expect{|
+Line 4, characters 29-39:
+4 |   let print_one () = X.print (X.one ())
+                                 ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       X.t has layout any, which is not representable.
+|}]
+

@@ -394,7 +394,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
     let kind = Flambda_kind.With_subkind.any_value in
     let value_slot = fresh_or_existing_value_slot env value_slot kind in
     let project_from = fresh_or_existing_function_slot env project_from in
-    Project_value_slot { project_from; value_slot; kind }
+    Project_value_slot { project_from; value_slot }
   | Project_function_slot { move_from; move_to } ->
     let move_from = fresh_or_existing_function_slot env move_from in
     let move_to = fresh_or_existing_function_slot env move_to in
@@ -905,7 +905,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:Default_check
               (* CR gyorsh: should [check] be set properly? *)
-            ~is_a_functor:false ~recursive
+            ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~poll_attribute:Default ~dbg:Debuginfo.none ~is_tupled
@@ -979,12 +979,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           ( Call_kind.indirect_function_call_unknown_arity alloc,
             params_arity,
             return_arity ))
-      | C_call { alloc } -> (
+      | C_call { alloc = needs_caml_c_call } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          ( Call_kind.c_call ~alloc ~is_c_builtin:false,
+          ( Call_kind.c_call ~needs_caml_c_call ~is_c_builtin:false
+              Alloc_mode.For_allocations.heap,
             params_arity,
             return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->

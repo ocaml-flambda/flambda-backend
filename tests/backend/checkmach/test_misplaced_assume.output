@@ -1,0 +1,8 @@
+File "test_misplaced_assume.ml", line 6, characters 12-22:
+Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
+
+File "test_misplaced_assume.ml", line 5, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_misplaced_assume.foo (camlTest_misplaced_assume.foo_HIDE_STAMP)
+
+File "test_misplaced_assume.ml", line 6, characters 2-31:
+Error: Unexpected direct tailcall camlTest_misplaced_assume.bar_HIDE_STAMP

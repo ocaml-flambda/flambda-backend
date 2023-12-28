@@ -280,6 +280,14 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
   | Pfloatcomp CFnge, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
+  | Punboxed_float_comp CFnlt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFlt, args, loc)], loc)
+  | Punboxed_float_comp CFngt, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFgt, args, loc)], loc)
+  | Punboxed_float_comp CFnle, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFle, args, loc)], loc)
+  | Punboxed_float_comp CFnge, args ->
+    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFge, args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
@@ -600,11 +608,11 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
   | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
   | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
-  | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
-  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-  | Pmulbint _
+  | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -744,8 +752,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       (Flambda_arity.Component_for_creation.Singleton kind)
   | Lconst const ->
     apply_cps_cont_simple k acc env ccenv [IR.Const const]
-      (* CR mshinwell: improve layout here *)
-      (Singleton Flambda_kind.With_subkind.any_value)
+      (Singleton
+         (Flambda_kind.With_subkind.from_lambda_values_and_unboxed_numbers_only
+            (Lambda.structured_constant_layout const)))
   | Lapply
       { ap_func;
         ap_args;
@@ -806,17 +815,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     in
     let_expr acc ccenv
   | Llet ((Strict | Alias | StrictOpt), layout, id, Lconst const, body) ->
-    let value_kind =
-      match layout with
-      | Pvalue value_kind -> value_kind
-      | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
-      | Punboxed_product _ ->
-        Misc.fatal_errorf "Constant with non-value layout: %a %a"
-          Printlambda.structured_constant const Printlambda.layout layout
-    in
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps acc env ccenv body k k_exn in
-    let kind = Flambda_kind.With_subkind.from_lambda_value_kind value_kind in
+    let kind =
+      Flambda_kind.With_subkind.from_lambda_values_and_unboxed_numbers_only
+        layout
+    in
     CC.close_let acc ccenv
       [id, kind]
       (is_user_visible env id) (Simple (Const const)) ~body

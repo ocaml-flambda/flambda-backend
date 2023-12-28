@@ -1432,6 +1432,7 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
     | Zero_switch_arms
     | Code_not_rebuilt
     | To_cmm_dummy_body
@@ -1455,6 +1456,11 @@ module Invalid = struct
     | Closure_type_was_invalid apply_expr ->
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Calling_local_returning_closure_with_normal_apply apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Calling_local_returning_closure_with_normal_apply@ @[<hov \
+         1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
     | Zero_switch_arms -> "Zero_switch_arms"
     | Code_not_rebuilt -> "Code_not_rebuilt"

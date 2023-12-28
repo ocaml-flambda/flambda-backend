@@ -92,6 +92,7 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
+val warn_unchecked_property : unit -> unit
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -158,6 +159,7 @@ end
     count as misplaced if the compiler could use it in some configuration.
 *)
 val filter_attributes :
+  ?mark:bool ->
   Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool

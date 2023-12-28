@@ -22,7 +22,7 @@ include $(ROOTDIR)/Makefile.common
 BYTECODE_C_SOURCES := $(addsuffix .c, \
   interp misc stacks fix_code startup_aux startup_byt freelist major_gc \
   minor_gc memory alloc roots_byt globroots fail_byt signals \
-  signals_byt printexc backtrace_byt backtrace compare ints eventlog \
+  signals_byt printexc backtrace_byt backtrace compare ints eventlog prng \
   floats simd str array io extern intern hash sys meta parsing gc_ctrl md5 obj \
   lexing callback debugger weak compact finalise custom dynlink \
   afl $(UNIX_OR_WIN32) bigarray main memprof domain \
@@ -31,7 +31,7 @@ BYTECODE_C_SOURCES := $(addsuffix .c, \
 NATIVE_C_SOURCES := $(addsuffix .c, \
   startup_aux startup_nat main fail_nat roots_nat signals \
   signals_nat misc freelist major_gc minor_gc memory alloc compare ints \
-  floats simd str array io extern intern hash sys parsing gc_ctrl eventlog md5 obj \
+  floats simd str array io extern intern hash sys parsing gc_ctrl eventlog prng md5 obj \
   lexing $(UNIX_OR_WIN32) printexc callback weak compact finalise custom \
   globroots backtrace_nat backtrace dynlink_nat debugger meta \
   dynlink clambda_checks afl bigarray \
@@ -112,7 +112,7 @@ libasmrunnnp_OBJECTS := $(NATIVE_C_SOURCES:.c=.nnp.$(O)) $(ASM_OBJECTS)
 # General (non target-specific) assembler and compiler flags
 
 ifneq "$(CCOMPTYPE)" "msvc"
-OC_CFLAGS += -g
+OC_CFLAGS += -g -Wno-unknown-warning-option
 endif
 
 OC_CPPFLAGS += -DCAMLDLLIMPORT=

@@ -13,10 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-// CR ocaml 5 runtime: We will need to pull in changes from the same file in
-// [tip-5] tag in ocaml-jst. We're considering this file to be part of the
-// runtime.
-
 #define CAML_INTERNALS
 
 #define CAML_NAME_SPACE
@@ -186,6 +182,11 @@ struct caml_locking_scheme caml_default_locking_scheme =
     default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
 
+CAMLexport struct caml_locking_scheme *caml_get_default_locking_scheme(void)
+{
+  return &caml_default_locking_scheme;
+}
+
 static void acquire_runtime_lock(void)
 {
   struct caml_locking_scheme* s;
@@ -255,8 +256,6 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
 
 CAMLexport void caml_thread_save_runtime_state(void)
 {
-  if (Caml_state->_in_minor_collection)
-    caml_fatal_error("Thread switch from inside minor GC");
 #ifdef NATIVE_CODE
   curr_thread->top_of_stack = Caml_state->_top_of_stack;
   curr_thread->bottom_of_stack = Caml_state->_bottom_of_stack;

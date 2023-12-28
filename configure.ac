@@ -28,13 +28,12 @@ AC_MSG_NOTICE([Using dune executable: $dune])
 
 AC_ARG_ENABLE([middle-end],
   [AS_HELP_STRING([--enable-middle-end],
-    [Select which middle end to use: closure, flambda or flambda2])],
+    [Select which middle end to use: flambda2 (default) or upstream-closure])],
   [AS_CASE([$enable_middle_end],
-    [closure], [middle_end=closure middle_end_arg=--disable-flambda],
-    [flambda], [middle_end=flambda middle_end_arg=--enable-flambda],
+    [upstream-closure], [middle_end=closure middle_end_arg=--disable-flambda],
     [flambda2], [middle_end=flambda2 middle_end_arg=--enable-flambda2],
-    [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
-  [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
+    [*], [AC_MSG_ERROR([Invalid middle end: must be flambda2 or upstream-closure])])],
+  [middle_end=flambda2 middle_end_arg=--enable-flambda2])
 
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],

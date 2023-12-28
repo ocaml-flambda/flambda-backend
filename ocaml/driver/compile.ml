@@ -36,6 +36,7 @@ let to_bytecode i Typedtree.{structure; coercion; _} =
     (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals } ->
+       Builtin_attributes.warn_unused ();
        lambda
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda

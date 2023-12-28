@@ -226,8 +226,8 @@ let f : (_ : immediate) -> (_ : value) = fun _ -> assert false
 let g : (_ : value) -> (_ : immediate) = fun _ -> assert false
 
 [%%expect {|
-val f : 'b ('a : immediate). 'a -> 'b = <fun>
-val g : ('b : immediate) 'a. 'a -> 'b = <fun>
+val f : ('a : immediate) 'b. 'a -> 'b = <fun>
+val g : 'a ('b : immediate). 'a -> 'b = <fun>
 |}]
 
 (********************************************)
@@ -242,14 +242,15 @@ val f : 'a -> 'a = <fun>
 let f : ('a : any). 'a -> 'a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 8-28:
+Line 1, characters 31-41:
 1 | let f : ('a : any). 'a -> 'a = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                   ^^^^^^^^^^
+Error: This definition has type 'b -> 'b which is less general than
+         ('a : any). 'a -> 'a
+       'a has layout any, which is not representable.
 |}]
-(* CR layouts v2.5: This error message should change to complain
-   about the [fun x], not the arrow type. *)
+(* CR layouts v2.9: This error message is not great. Check later if layout history
+   is able to improve it. *)
 
 let f : ('a : float64). 'a -> 'a = fun x -> x
 ;;
@@ -401,14 +402,12 @@ val f : ('a : float64). 'a -> 'a = <fun>
 let f : type (a : any). a -> a = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 24-30:
+Line 1, characters 33-43:
 1 | let f : type (a : any). a -> a = fun x -> x
-                            ^^^^^^
-Error: The universal type variable 'a was declared to have
-       layout any, but was inferred to have a representable layout.
+                                     ^^^^^^^^^^
+Error: Function arguments and returns must be representable.
+       a has layout any, which is not representable.
 |}]
-(* CR layouts v2.5: This error message will change to complain
-   about the fun x, not the arrow type. *)
 
 (**************************************************)
 (* Test 7: Defaulting universal variable to value *)
@@ -551,13 +550,13 @@ val f : ('a : immediate). 'a -> 'a = <fun>
 let f = fun x y (type (a : immediate)) (z : a) -> z
 
 [%%expect{|
-val f : ('a : immediate) 'c 'b. 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 
 let f = fun x y (type a : immediate) (z : a) -> z
 
 [%%expect{|
-val f : ('a : immediate) 'c 'b. 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)
@@ -574,7 +573,7 @@ exception E : ('a : immediate) ('b : any). 'b t2_any * 'a list -> exn
 
 [%%expect{|
 type (_ : any) t2_any
-exception E : ('a : immediate) ('b : any). 'b t2_any * 'a list -> exn
+exception E : ('b : any) ('a : immediate). 'b t2_any * 'a list -> exn
 |}]
 
 

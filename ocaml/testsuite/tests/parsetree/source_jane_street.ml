@@ -23,6 +23,14 @@ let f (type a : immediate) (type b : immediate)
       (type (c : immediate) (d : immediate))
   = ();;
 
+module type S_for_layouts = sig
+  type t : float64
+
+  type variant = A : ('a : immediate). 'a -> variant
+end;;
+
+type ('a : immediate) for_layouts = 'a;;
+
 (******************)
 (* Comprehensions *)
 
@@ -61,7 +69,7 @@ let f (type a : immediate) (type b : immediate)
 (* Local *)
 
 (* parameters *)
-let f (local_ x) ~(local_ y) ~z:(local_ z) ?foo:(local_ w = 1) = x + y + z + w;;
+let f (local_ x) ~(local_ y) ~z:(local_ z) ?foo:(local_ w = 1) () = x + y + z + w;;
 
 (* bindings *)
 let g () =
@@ -94,17 +102,22 @@ type 'a parameterized_record = {
 type fn = local_ int -> local_ int;;
 type nested_fn = (local_ int -> local_ int) -> local_ int;;
 type ('a, 'b) labeled_fn =
-  a:local_ 'a -> ?b:local_ b -> local_ 'a -> (int -> local_ 'b);;
+  a:local_ 'a -> ?b:local_ 'b -> local_ 'a -> (int -> local_ 'b);;
 
 (*******************)
 (* Include functor *)
 
+module F_struct (_ : sig end) = struct
+end
+
+module type F_sig = functor (_ : sig end) -> sig end
+
 module T = struct
-  include functor F
+  include functor F_struct
 end;;
 
 module type S = sig
-  include functor F
+  include functor F_sig
 end;;
 
 (********************)
@@ -115,10 +128,15 @@ let f x =
   | [::] -> [::]
   | ([:x:] [@test.attr1]) -> (([:x:])[@test.attr1])
   | ([:x;y:] [@test.attr2][@test.attr3]) ->
-      ([:x;y:] [@test.attr2][@test.attr3]);;
+      ([:x;y:] [@test.attr2][@test.attr3])
+  | _ -> assert false;;
 
 (******************)
 (* Labeled tuples *)
+let z, punned = 4, 5
+let x_must_be_even _ = assert false
+exception Odd
+
 let x = (~x:1, ~y:2)
 let x = ((~x:1, ~y:2) [@test.attr])
 let _ = ( ~x: 5, 2, ~z, ~(punned:int))

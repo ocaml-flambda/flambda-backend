@@ -129,21 +129,21 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like symbol, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
-    let structured f = Clambda.Uconst_float f in
+    let structured f = Cmmgen_state.Const_float f in
     let res, env, updates =
       static_boxed_number ~kind:Double ~env ~symbol ~default
         ~emit:C.emit_float_constant ~transl ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int32 v ->
-    let structured i = Clambda.Uconst_int32 i in
+    let structured i = Cmmgen_state.Const_int32 i in
     let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default:0l
         ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int64 v ->
-    let structured i = Clambda.Uconst_int64 i in
+    let structured i = Cmmgen_state.Const_int64 i in
     let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default:0L
         ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v res updates
@@ -152,7 +152,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like symbol, Boxed_nativeint v ->
     let default = Targetint_32_64.zero in
     let transl = C.nativeint_of_targetint in
-    let structured i = Clambda.Uconst_nativeint i in
+    let structured i = Cmmgen_state.Const_nativeint i in
     let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default
         ~emit:C.emit_nativeint_constant ~transl ~structured v res updates
@@ -166,7 +166,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       in
       { Cmm.high; low }
     in
-    let structured { Cmm.high; low } = Clambda.Uconst_vec128 { high; low } in
+    let structured { Cmm.high; low } =
+      Cmmgen_state.Const_vec128 { high; low }
+    in
     let res, env, updates =
       (* Unaligned because boxed vec128 constants are not aligned during code
          emission. Aligning them would complicate block layout. *)

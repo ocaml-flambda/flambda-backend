@@ -68,6 +68,7 @@ val protect : t -> (unit -> 'a) -> 'a
     even in the event an asynchronous exception (e.g. {!Sys.Break}) is raised
     in some signal handler.
 
+    In the event that an asynchronous exception is raised, it will be
+    re-raised as a normal exception from [protect].
+
     @since 5.1 *)
-(* CR ocaml 5 runtime (mshinwell): looks like [protect] needs to use
-   Sys.with_async_exns? *)

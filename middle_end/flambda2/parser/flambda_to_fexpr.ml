@@ -527,7 +527,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot; kind = _ } ->
+  | Project_value_slot { project_from; value_slot } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in
     Project_value_slot { project_from; value_slot }
@@ -1026,7 +1026,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         } ->
       let alloc = alloc_mode_for_allocations env alloc_mode in
       Function (Indirect alloc)
-    | C_call { alloc; _ } -> C_call { alloc }
+    | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let param_arity = Apply_expr.args_arity app in

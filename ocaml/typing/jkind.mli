@@ -42,6 +42,9 @@ module Sort : sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
+    | Word  (** Unboxed native-size integers *)
+    | Bits32  (** Unboxed 32-bit integers *)
+    | Bits64  (** Unboxed 64-bit integers *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -59,6 +62,12 @@ module Sort : sig
 
   val float64 : t
 
+  val word : t
+
+  val bits32 : t
+
+  val bits64 : t
+
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
   val var_name : var -> string
@@ -70,6 +79,8 @@ module Sort : sig
   val equal_const : const -> const -> bool
 
   val format : Format.formatter -> t -> unit
+
+  val format_const : Format.formatter -> const -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
   val default_to_value : t -> unit
@@ -150,9 +161,11 @@ type sort = Sort.t
    in the following lattice:
 
    {[
-               any
-             /    \
-          value  void
+                          any
+                           |
+               ----------------------------
+              /        |       |     ...   \
+           value     void   float64      bits64
             |
         immediate64
             |
@@ -183,7 +196,13 @@ type concrete_jkind_reason =
   | External_argument
   | External_result
   | Statement
+<<<<<<< HEAD
   | Optional_arg_default
+||||||| 107cd289
+=======
+  | Wildcard
+  | Unification_var
+>>>>>>> origin/main
 
 type annotation_context =
   | Type_declaration of Path.t
@@ -229,6 +248,7 @@ type value_creation_reason =
   | Debug_printer_argument
   | V1_safety_check
   | Captured_in_object
+  | Recmod_fun_arg
   | Unknown of string (* CR layouts: get rid of these *)
 
 type immediate_creation_reason =
@@ -248,16 +268,23 @@ type void_creation_reason = V1_safety_check
 
 type any_creation_reason =
   | Missing_cmi of Path.t
-  | Wildcard
-  | Unification_var
   | Initial_typedecl_env
   | Dummy_jkind
     (* This is used when the jkind is about to get overwritten;
        key example: when creating a fresh tyvar that is immediately
        unified to correct levels *)
   | Type_expression_call
+  | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
 
 type float64_creation_reason = Primitive of Ident.t
+
+type word_creation_reason = Primitive of Ident.t
+
+type bits32_creation_reason = Primitive of Ident.t
+
+type bits64_creation_reason = Primitive of Ident.t
 
 type creation_reason =
   | Annotated of annotation_context * Location.t
@@ -267,6 +294,9 @@ type creation_reason =
   | Void_creation of void_creation_reason
   | Any_creation of any_creation_reason
   | Float64_creation of float64_creation_reason
+  | Word_creation of word_creation_reason
+  | Bits32_creation of bits32_creation_reason
+  | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
 
@@ -327,6 +357,9 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Word
+  | Bits32
+  | Bits64
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> const
@@ -355,6 +388,15 @@ val immediate : why:immediate_creation_reason -> t
 
 (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
 val float64 : why:float64_creation_reason -> t
+
+(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+val word : why:word_creation_reason -> t
+
+(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+val bits32 : why:bits32_creation_reason -> t
+
+(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+val bits64 : why:bits64_creation_reason -> t
 
 (******************************)
 (* construction *)

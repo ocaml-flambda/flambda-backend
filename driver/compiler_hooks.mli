@@ -32,10 +32,6 @@ type _ pass =
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Flambda2 : Flambda2_terms.Flambda_unit.t pass
-  | Raw_flambda1 : Flambda.program pass
-  | Flambda1 : Flambda.program pass
-  | Raw_clambda : Clambda.ulambda pass
-  | Clambda : Clambda.ulambda pass
 
   | Mach_polling : Mach.fundecl pass
   | Mach_combine : Mach.fundecl pass

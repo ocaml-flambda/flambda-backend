@@ -17,6 +17,8 @@
 
 open Asttypes
 
+type constant = Typedtree.constant
+
 (* Overriding Asttypes.mutable_flag *)
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
@@ -140,6 +142,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -464,6 +467,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
   (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
@@ -753,6 +757,10 @@ val primitive_may_allocate : primitive -> alloc_mode option
       revised.
   *)
 
+val alloc_mode_of_primitive_description :
+  Primitive.description -> alloc_mode option
+  (** Like [primitive_may_allocate], for [external] calls. *)
+
 (***********************)
 (* For static failures *)
 (***********************)
@@ -796,3 +804,6 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val is_check_enabled : opt:bool -> property -> bool
+
+(* Returns true if the given lambda can allocate on the local stack *)
+val may_allocate_in_region : lambda -> bool

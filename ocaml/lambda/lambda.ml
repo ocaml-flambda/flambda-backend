@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+type constant = Typedtree.constant
+
 type mutable_flag = Immutable | Immutable_unique | Mutable
 
 type compile_time_constant =
@@ -181,6 +183,7 @@ type primitive =
   | Paddfloat of alloc_mode | Psubfloat of alloc_mode
   | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
+  | Punboxed_float_comp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -568,6 +571,7 @@ type function_attribute = {
   poll: poll_attribute;
   loop: loop_attribute;
   is_a_functor: bool;
+  is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
   may_fuse_arity: bool;
@@ -728,6 +732,9 @@ let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
 let layout_unboxed_float = Punboxed_float
+let layout_unboxed_nativeint = Punboxed_int Pnativeint
+let layout_unboxed_int32 = Punboxed_int Pint32
+let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
@@ -758,6 +765,7 @@ let default_function_attribute = {
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
+  is_opaque = false;
   stub = false;
   tmc_candidate = false;
   (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
@@ -1446,6 +1454,28 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
+let alloc_mode_of_primitive_description (p : Primitive.description) =
+  if not Config.stack_allocation then
+    if p.prim_alloc then Some alloc_heap else None
+  else
+    match p.prim_native_repr_res with
+    | Prim_local, _ ->
+      (* For primitives that might allocate locally, [p.prim_alloc] just says
+         whether [caml_c_call] is required, without telling us anything
+         about local allocation.  (However if [p.prim_alloc = false] we
+         do actually know that the primitive does not allocate on the heap.) *)
+      Some alloc_local
+    | (Prim_global | Prim_poly), _ ->
+      (* For primitives that definitely do not allocate locally,
+         [p.prim_alloc = false] actually tells us that the primitive does
+         not allocate at all.
+
+         No external call that is [Prim_poly] may allocate locally.
+      *)
+      if p.prim_alloc then Some alloc_heap else None
+
+(* Changes to this function may also require changes in Flambda 2 (e.g.
+   closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1461,12 +1491,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall p ->
-     if not p.prim_alloc then None
-     else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some alloc_local
-       | Prim_global, _ -> Some alloc_heap
-     end
+  | Pccall p -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1482,7 +1507,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pnegfloat m | Pabsfloat m
   | Paddfloat m | Psubfloat m
   | Pmulfloat m | Pdivfloat m -> Some m
-  | Pfloatcomp _ -> None
+  | Pfloatcomp _ | Punboxed_float_comp _ -> None
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
@@ -1543,13 +1568,14 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Patomic_fetch_add
   | Pdls_get -> None
 
-let constant_layout = function
+let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
   | Const_string _ -> Pvalue Pgenval
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
   | Const_float _ -> Pvalue Pfloatval
+  | Const_unboxed_float _ -> Punboxed_float
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1565,6 +1591,9 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float
+    | Word -> layout_unboxed_nativeint
+    | Bits32 -> layout_unboxed_int32
+    | Bits64 -> layout_unboxed_int64
     | Void -> assert false
     end
 
@@ -1604,7 +1633,7 @@ let primitive_result_layout (p : primitive) =
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Pintoffloat | Pfloatcomp _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _ | Punboxed_float_comp _
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _
@@ -1721,3 +1750,51 @@ let is_check_enabled ~opt property =
     | Check_all -> true
     | Check_default -> not opt
     | Check_opt_only -> opt
+
+
+let may_allocate_in_region lam =
+  (* loop_region raises, if the lambda might allocate in parent region *)
+  let rec loop_region lam =
+    shallow_iter ~tail:(function
+      | Lexclave body -> loop body
+      | lam -> loop_region lam
+    ) ~non_tail:(fun lam -> loop_region lam) lam
+  and loop = function
+    | Lvar _ | Lmutvar _ | Lconst _ -> ()
+
+    | Lfunction {mode=Alloc_heap} -> ()
+    | Lfunction {mode=Alloc_local} -> raise Exit
+
+    | Lapply {ap_mode=Alloc_local}
+    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
+
+    | Lprim (prim, args, _) ->
+       begin match primitive_may_allocate prim with
+       | Some Alloc_local -> raise Exit
+       | None | Some Alloc_heap ->
+          List.iter loop args
+       end
+    | Lregion (body, _layout) ->
+       (* [body] might allocate in the parent region because of exclave, and thus
+          [Lregion body] might allocate in the current region *)
+      loop_region body
+    | Lexclave _body ->
+      (* [_body] might do local allocations, but not in the current region;
+        rather, it's in the parent region *)
+      ()
+    | Lwhile {wh_cond; wh_body} -> loop wh_cond; loop wh_body
+    | Lfor {for_from; for_to; for_body} -> loop for_from; loop for_to; loop for_body
+    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
+      | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
+      | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
+      | Levent _ | Lifused _) as lam ->
+       iter_head_constructor loop lam
+  in
+  if not Config.stack_allocation then false
+  else begin
+    match loop lam with
+    | () -> false
+    | exception Exit -> true
+  end
+
+

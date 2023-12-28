@@ -1,4 +1,5 @@
 File "fail21.ml", line 10, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail21.test4 (camlFail21.test4_HIDE_STAMP)
+
 File "fail21.ml", line 12, characters 2-9:
-  allocate 24 bytes (fail21.ml:12,2--9;fail21.ml:3,30--35)
+Error: Unexpected allocation of 24 bytes (fail21.ml:12,2--9;fail21.ml:3,30--35)

@@ -19,10 +19,6 @@ type _ pass =
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Flambda2 : Flambda2_terms.Flambda_unit.t pass
-  | Raw_flambda1 : Flambda.program pass
-  | Flambda1 : Flambda.program pass
-  | Raw_clambda : Clambda.ulambda pass
-  | Clambda : Clambda.ulambda pass
 
   | Mach_polling : Mach.fundecl pass
   | Mach_combine : Mach.fundecl pass
@@ -48,10 +44,6 @@ type t = {
   mutable lambda : (Lambda.program -> unit) list;
   mutable raw_flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
   mutable flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
-  mutable raw_flambda1 : (Flambda.program -> unit) list;
-  mutable flambda1 : (Flambda.program -> unit) list;
-  mutable raw_clambda : (Clambda.ulambda -> unit) list;
-  mutable clambda : (Clambda.ulambda -> unit) list;
   mutable mach_polling : (Mach.fundecl -> unit) list;
   mutable mach_combine : (Mach.fundecl -> unit) list;
   mutable mach_cse : (Mach.fundecl -> unit) list;
@@ -75,10 +67,6 @@ let hooks : t = {
   lambda = [];
   raw_flambda2 = [];
   flambda2 = [];
-  raw_flambda1 = [];
-  flambda1 = [];
-  raw_clambda = [];
-  clambda = [];
   mach_polling = [];
   mach_combine = [];
   mach_cse = [];
@@ -108,10 +96,6 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Lambda -> hooks.lambda <- f :: hooks.lambda
   | Raw_flambda2 -> hooks.raw_flambda2 <- f :: hooks.raw_flambda2
   | Flambda2 -> hooks.flambda2 <- f :: hooks.flambda2
-  | Raw_flambda1 -> hooks.raw_flambda1 <- f :: hooks.raw_flambda1
-  | Flambda1 -> hooks.flambda1 <- f :: hooks.flambda1
-  | Raw_clambda -> hooks.clambda <- f :: hooks.clambda
-  | Clambda -> hooks.clambda <- f :: hooks.clambda
 
   | Mach_combine -> hooks.mach_combine <- f :: hooks.mach_combine
   | Mach_polling -> hooks.mach_polling <- f :: hooks.mach_polling
@@ -139,10 +123,6 @@ let execute : type a. a pass -> a -> unit =
   | Lambda -> execute_hooks hooks.lambda arg
   | Raw_flambda2 -> execute_hooks hooks.raw_flambda2 arg
   | Flambda2 -> execute_hooks hooks.flambda2 arg
-  | Raw_flambda1 -> execute_hooks hooks.raw_flambda1 arg
-  | Flambda1 -> execute_hooks hooks.flambda1 arg
-  | Raw_clambda -> execute_hooks hooks.raw_clambda arg
-  | Clambda -> execute_hooks hooks.clambda arg
   | Mach_polling -> execute_hooks hooks.mach_polling arg
   | Mach_combine -> execute_hooks hooks.mach_combine arg
   | Mach_cse -> execute_hooks hooks.mach_cse arg
@@ -169,10 +149,6 @@ let clear : type a. a pass -> unit =
   | Lambda -> hooks.lambda <- []
   | Raw_flambda2 -> hooks.raw_flambda2 <- []
   | Flambda2 -> hooks.flambda2 <- []
-  | Raw_flambda1 -> hooks.raw_flambda1 <- []
-  | Flambda1 -> hooks.flambda1 <- []
-  | Raw_clambda -> hooks.raw_clambda <- []
-  | Clambda -> hooks.clambda <- []
   | Mach_polling -> hooks.mach_polling <- []
   | Mach_combine -> hooks.mach_combine <- []
   | Mach_cse -> hooks.mach_cse <- []

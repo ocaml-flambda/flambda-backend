@@ -15,7 +15,6 @@
 
 (* Translation of primitives *)
 
-open Asttypes
 open Primitive
 open Types
 open Typedtree
@@ -461,6 +460,12 @@ let lookup_primitive loc poly pos p =
     | "%perform" -> Primitive (Pperform, 1)
     | "%resume" -> Primitive (Presume, 3)
     | "%dls_get" -> Primitive (Pdls_get, 1)
+    | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
+    | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
+    | "%unbox_int32" -> Primitive(Punbox_int Pint32, 1)
+    | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
+    | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
+    | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -910,7 +915,11 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global
+    | Prim_global, _ | Prim_poly, _ ->
+      (* We assume all primitives are compiled to have the same arity for
+         different modes and types, so just pick one of the modes in the
+         [Prim_poly] case. *)
+      Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
@@ -982,8 +991,42 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
+     let alloc_mode = to_locality p.prim_native_repr_res in
+     let () =
+       (* CR mshinwell: Write a version of [primitive_may_allocate] that
+          works on the [prim] type. *)
+       match body with
+       | Lprim (prim, _, _) ->
+         (match Lambda.primitive_may_allocate prim with
+          | None ->
+            (* We don't check anything in this case; if the primitive doesn't
+               allocate, then after [Lambda] it will be translated to a term
+               not involving any region variables, meaning there would be
+               no concern about potentially unbound region variables. *)
+            ()
+          | Some lambda_alloc_mode ->
+            (* In this case we add a check to ensure the middle end has
+               the correct information as to whether a region was inserted
+               at this point. *)
+            match alloc_mode, lambda_alloc_mode with
+            | Alloc_heap, Alloc_heap
+            | Alloc_local, Alloc_local -> ()
+            | Alloc_local, Alloc_heap ->
+              (* This case is ok: the Lambda-derived information is more
+                 precise.  A region will be inserted, likely unused, and
+                 deleted by the middle end. *)
+              ()
+            | Alloc_heap, Alloc_local ->
+              Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
+                  (from to_locality, %a; from primitive_may_allocate, %a)"
+                Printlambda.lambda body
+                Printlambda.alloc_mode alloc_mode
+                Printlambda.alloc_mode lambda_alloc_mode
+         )
+       | _ -> ()
+     in
      let region =
-       match to_locality p.prim_native_repr_res with
+       match alloc_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -1011,7 +1054,6 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pstringrefs | Pbytesrefs
-  | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
@@ -1040,14 +1082,18 @@ let lambda_primitive_needs_event_after = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
+  | Pfloatcomp _ | Punboxed_float_comp _
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
-  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
+  | Pobj_magic _ | Punbox_float | Punbox_int _
+  (* These don't allocate in bytecode; they're just identity functions: *)
+  | Pbox_float _ | Pbox_int _
+    -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

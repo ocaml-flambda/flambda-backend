@@ -32,6 +32,7 @@ type t =
     check : Check_attribute.t;
     poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
+    is_opaque : bool;
     recursive : Recursive.t;
     cost_metrics : Cost_metrics.t;
     inlining_arguments : Inlining_arguments.t;
@@ -80,6 +81,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let poll_attribute t = (metadata t).poll_attribute
 
   let is_a_functor t = (metadata t).is_a_functor
+
+  let is_opaque t = (metadata t).is_opaque
 
   let recursive t = (metadata t).recursive
 
@@ -138,6 +141,7 @@ type 'a create_type =
   check:Check_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
+  is_opaque:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
   inlining_arguments:Inlining_arguments.t ->
@@ -153,7 +157,7 @@ type 'a create_type =
 let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ~first_complex_local_param ~result_arity ~result_types ~result_mode
     ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~check ~poll_attribute ~is_a_functor ~recursive ~cost_metrics
+    ~check ~poll_attribute ~is_a_functor ~is_opaque ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
     ~absolute_history ~relative_history ~loopify =
   (match stub, inline with
@@ -194,6 +198,7 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       check;
       poll_attribute;
       is_a_functor;
+      is_opaque;
       recursive;
       cost_metrics;
       inlining_arguments;
@@ -234,7 +239,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
-         is_a_functor; params_arity; param_modes;
+         is_a_functor; is_opaque; params_arity; param_modes;
          first_complex_local_param; result_arity;
          result_types; result_mode; contains_no_escaping_local_allocs;
          recursive; cost_metrics; inlining_arguments;
@@ -248,6 +253,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(%a)%t@]@ \
       @[<hov 1>%t(poll_attribute@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
+      @[<hov 1>%t(is_opaque@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>%t(param_modes@ %t(%a)%t)%t@]@ \
       @[<hov 1>(first_complex_local_param@ %d)@]@ \
@@ -287,6 +293,9 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.pop
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
+    Flambda_colours.pop
+    (if not is_opaque then Flambda_colours.elide else C.none)
+    is_opaque
     Flambda_colours.pop
     (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
@@ -360,6 +369,7 @@ let free_names
       check = _;
       poll_attribute = _;
       is_a_functor = _;
+      is_opaque = _;
       recursive = _;
       cost_metrics = _;
       inlining_arguments = _;
@@ -402,6 +412,7 @@ let apply_renaming
        check = _;
        poll_attribute = _;
        is_a_functor = _;
+       is_opaque = _;
        recursive = _;
        cost_metrics = _;
        inlining_arguments = _;
@@ -455,6 +466,7 @@ let ids_for_export
       check = _;
       poll_attribute = _;
       is_a_functor = _;
+      is_opaque = _;
       recursive = _;
       cost_metrics = _;
       inlining_arguments = _;
@@ -494,6 +506,7 @@ let approx_equal
       check = check1;
       poll_attribute = poll_attribute1;
       is_a_functor = is_a_functor1;
+      is_opaque = is_opaque1;
       recursive = recursive1;
       cost_metrics = cost_metrics1;
       inlining_arguments = inlining_arguments1;
@@ -519,6 +532,7 @@ let approx_equal
       check = check2;
       poll_attribute = poll_attribute2;
       is_a_functor = is_a_functor2;
+      is_opaque = is_opaque2;
       recursive = recursive2;
       cost_metrics = cost_metrics2;
       inlining_arguments = inlining_arguments2;
@@ -544,6 +558,7 @@ let approx_equal
   && Check_attribute.equal check1 check2
   && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
+  && Bool.equal is_opaque1 is_opaque2
   && Recursive.equal recursive1 recursive2
   && Cost_metrics.equal cost_metrics1 cost_metrics2
   && Inlining_arguments.equal inlining_arguments1 inlining_arguments2

@@ -258,3 +258,6 @@ module Opt = struct
   let[@zero_alloc opt] test x = x,x
   let[@zero_alloc opt strict] test x = x,x
 end
+
+let[@zero_alloc assume never_returns_normally strict] test60 x = (x,x)
+let[@zero_alloc assume strict never_returns_normally] test61 x = (x,x)

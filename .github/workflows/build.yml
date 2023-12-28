@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+      - '*microbranch'
+    tags:
+      - '*'
   pull_request:
 jobs:
   build:
@@ -13,28 +16,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: closure
-            config: --enable-middle-end=closure
-            os: ubuntu-latest
-            build_ocamlparam: ''
-            check_arch: true
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
-
-          - name: flambda1
-            config: --enable-middle-end=flambda
-            os: ubuntu-latest
-            build_ocamlparam: ''
-
-          - name: flambda1_frame_pointers
-            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
-            os: ubuntu-latest
-            build_ocamlparam: ''
-
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            expected_fail: true
+
+          - name: flambda2_debug_runtime5
+            config: --enable-middle-end=flambda2 --enable-runtime5
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
@@ -63,11 +54,6 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_no_cfg
-            config: --enable-middle-end=flambda2
-            os: ubuntu-latest
-            build_ocamlparam: _,ocamlcfg=0
-
           - name: flambda2_macos
             config: --enable-middle-end=flambda2
             os: macos-latest
@@ -91,11 +77,11 @@ jobs:
             check_arch: true
 
           - name: build_upstream_closure
-            config: --enable-middle-end=closure
+            config: --enable-middle-end=upstream-closure
             os: ubuntu-20.04
 
           - name: build_upstream_closure_runtime5
-            config: --enable-middle-end=closure --enable-runtime5
+            config: --enable-middle-end=upstream-closure --enable-runtime5
             os: ubuntu-20.04
             expected_fail: true
 

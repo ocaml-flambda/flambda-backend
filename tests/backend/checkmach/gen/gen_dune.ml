@@ -23,7 +23,7 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -124,4 +124,12 @@ let () =
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
   print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
   print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_assume_fail";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_assume_on_call";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_misplaced_attr";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_all";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_attr_check_none";
   ()

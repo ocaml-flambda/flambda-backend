@@ -188,5 +188,3 @@ class virtual selector_generic : object
      because the traversal uses functional object copies. *)
   val contains_calls : bool ref
 end
-
-val reset : unit -> unit

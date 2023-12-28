@@ -67,6 +67,7 @@ let fmt_constant f x =
   | Const_string (s, strloc, Some delim) ->
       fprintf f "Const_string (%S,%a,Some %S)" s fmt_location strloc delim
   | Const_float (s) -> fprintf f "Const_float %s" s
+  | Const_unboxed_float (s) -> fprintf f "Const_unboxed_float %s" s
   | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
   | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
   | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i
@@ -144,7 +145,7 @@ let arg_label i ppf = function
 let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
     if print_quote
-    then Printast.tyvar
+    then Pprintast.tyvar
     else fun ppf s -> fprintf ppf "%s" s
   in
   match l with

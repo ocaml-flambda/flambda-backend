@@ -50,9 +50,9 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
-  | Naked_number Naked_int64 -> typ_int64
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Cmm.typ_int
   | Region | Rec_info -> assert false
 
@@ -66,9 +66,9 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
-  | Naked_number Naked_int64 -> Extended_machtype.typ_int64
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Extended_machtype.typ_any_int
   | Region | Rec_info -> assert false
 
@@ -243,7 +243,7 @@ let invalid res ~message =
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
-      "caml_flambda2_invalid" Cmm.typ_void
+      Cmm.caml_flambda2_invalid Cmm.typ_void
       [symbol ~dbg (To_cmm_result.symbol res message_sym)]
   in
   call_expr, res

@@ -1,6 +1,6 @@
 (* TEST
    * flambda2
-   flags = "-extension layouts_beta"
+   flags = "-extension layouts"
    ** native
 *)
 
@@ -66,17 +66,17 @@ struct
 
   let[@inline never] step n estimate =
     let new_term =
-      ((of_float (-1.)) ** n)
-      / ((n * (of_float 2.)) + (of_float 1.))
+      ((-#1.) ** n)
+      / ((n * #2.) + #1.)
     in
     estimate + new_term
 
   let rec go n est =
-    if n > (of_float 10000.) then est else go (n+ (of_float 1.)) (step n est)
+    if n > #10000. then est else go (n+ #1.) (step n est)
 
   let estimate () =
     let est =
-      measure_alloc (fun () -> go (of_float 0.) (of_float 0.))
+      measure_alloc (fun () -> go #0. #0.)
     in
     Printf.printf "Unboxed:\n  estimate: %f\n  allocations: %s\n"
       ((to_float est) *. 4.) (get_allocations ())
@@ -123,9 +123,9 @@ let print_record_and_allocs s r =
 (* Building a record should only allocate the box *)
 let[@inline never] build x =
   { a = x;
-    b = Float_u.of_float 42.0;
+    b = #42.0;
     c = consumer x x;
-    d = consumer x (Float_u.of_float 1.0) }
+    d = consumer x #1.0 }
 
 let[@inline never] project_a r = r.a
 let[@inline never] update_d r x = r.d <- x
@@ -136,11 +136,11 @@ let[@inline never] manipulate ({c; _} as r) =
   match r with
   | { b; _ } ->
     update_d r (consumer b (project_a r));
-    r.b <- Float_u.sub c (Float_u.of_float 21.1);
+    r.b <- Float_u.sub c #21.1;
     r.a
 
 let _ =
-  let r = measure_alloc_value (fun () -> build (Float_u.of_float 3.14)) in
+  let r = measure_alloc_value (fun () -> build #3.14) in
   print_record_and_allocs "Construction (40 bytes for record)" r;
   let _ = measure_alloc (fun () -> manipulate r) in
   print_record_and_allocs "Manipulation (0 bytes)" r
@@ -163,7 +163,22 @@ let[@inline never] cse_test b r =
     (0., 0.)
 
 let _ =
-  let r = build (Float_u.of_float 3.14) in
+  let r = build #3.14 in
   let _ = measure_alloc_value (fun () -> cse_test false r) in
   let allocs = get_exact_allocations () in
   Printf.printf "CSE test (0 bytes):\n  allocated bytes: %.2f\n" allocs
+
+let[@inline never] literal_test x y =
+  let open Float_u in
+  (#1. + x) * (y - #4.) / (#3. ** #1.)
+
+let print_allocs s =
+  let allocs = get_exact_allocations () in
+  Printf.printf
+    "%s:\n  allocated bytes: %.2f\n"
+    s allocs
+
+let _ =
+  let r = measure_alloc (fun () -> literal_test #2. #3.) in
+  assert (Float_u.equal r (-#1.));
+  print_allocs "Float literals";

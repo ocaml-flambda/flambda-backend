@@ -46,47 +46,47 @@ external to_int32: nativeint -> int32 = "%nativeint_to_int32"
 let zero = 0n
 let one = 1n
 let minus_one = -1n
-let succ n = add n 1n
-let pred n = sub n 1n
-let abs n = if n >= 0n then n else neg n
+let[@inline available] succ n = add n 1n
+let[@inline available] pred n = sub n 1n
+let[@inline available] abs n = if n >= 0n then n else neg n
 let size = Sys.word_size
 let min_int = shift_left 1n (size - 1)
 let max_int = sub min_int 1n
-let lognot n = logxor n (-1n)
+let[@inline available] lognot n = logxor n (-1n)
 
 let unsigned_to_int =
   let max_int = of_int Stdlib.max_int in
-  fun n ->
+  fun[@inline available] n ->
     if compare zero n <= 0 && compare n max_int <= 0 then
       Some (to_int n)
     else
       None
 
 external format : string -> nativeint -> string = "caml_nativeint_format"
-let to_string n = format "%d" n
+let[@inline available] to_string n = format "%d" n
 
 external of_string: string -> nativeint = "caml_nativeint_of_string"
 
-let of_string_opt s =
+let[@inline available] of_string_opt s =
   (* TODO: expose a non-raising primitive directly. *)
   try Some (of_string s)
   with Failure _ -> None
 
 type t = nativeint
 
-let compare (x: t) (y: t) = Stdlib.compare x y
-let equal (x: t) (y: t) = compare x y = 0
+let[@inline available] compare (x: t) (y: t) = Stdlib.compare x y
+let[@inline available] equal (x: t) (y: t) = compare x y = 0
 
-let unsigned_compare n m =
+let[@inline available] unsigned_compare n m =
   compare (sub n min_int) (sub m min_int)
 
-let min x y : t = if x <= y then x else y
-let max x y : t = if x >= y then x else y
+let[@inline available] min x y : t = if x <= y then x else y
+let[@inline available] max x y : t = if x >= y then x else y
 
 (* Unsigned division from signed division of the same
    bitness. See Warren Jr., Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3.
 *)
-let unsigned_div n d =
+let[@inline available] unsigned_div n d =
   if d < zero then
     if unsigned_compare n d < 0 then zero else one
   else
@@ -94,8 +94,8 @@ let unsigned_div n d =
     let r = sub n (mul q d) in
     if unsigned_compare r d >= 0 then succ q else q
 
-let unsigned_rem n d =
-  sub n (mul (unsigned_div n d) d)
+let[@inline available] unsigned_rem n d =
+  sub n (mul ((unsigned_div[@inlined]) n d) d)
 
 external seeded_hash_param :
   int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]

@@ -1,9 +1,10 @@
 (* TEST
-   * expect
+   * flambda2
+   ** expect
      flags = "-extension layouts_alpha"
-   * expect
+   ** expect
      flags = "-extension layouts_beta"
-   * expect
+   ** expect
      flags = "-extension layouts"
 *)
 
@@ -746,7 +747,7 @@ type t14_1 = { x : float#; y : float# }
 let f14_1 {x;y} = FU.sub x y
 
 (* construction *)
-let r14 = { x = FU.of_float 3.14; y = FU.of_float 2.72 }
+let r14 = { x = #3.14; y = #2.72 }
 
 let sum14_1 = FU.to_float (f14_1 r14)
 
@@ -759,14 +760,14 @@ type t14_2 = { mutable a : float#; b : float#; mutable c : float# }
 
 let f14_3 ({b; c; _} as r) =
   (* pure record update *)
-  let r' = { r with b = FU.of_float 20.0; c = r.a } in
+  let r' = { r with b = #20.0; c = r.a } in
   (* mutation *)
   r.a <- FU.sub r.a r'.b;
-  r'.a <- FU.of_float 42.0;
+  r'.a <- #42.0;
   r'
 
 let a, b, c, a', b', c' =
-  let r = {a = FU.of_float 3.1; b = FU.of_float (-0.42); c = FU.of_float 27.7 } in
+  let r = {a = #3.1; b = -#0.42; c = #27.7 } in
   let r' = f14_3 r in
   FU.to_float r.a,
   FU.to_float r.b,

@@ -311,7 +311,7 @@ let rec print_list pr sep ppf =
 let pr_present =
   print_list (fun ppf s -> fprintf ppf "`%s" s) (fun ppf -> fprintf ppf "@ ")
 
-let pr_var = Printast.tyvar
+let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
@@ -419,10 +419,6 @@ let mode_agree expected real =
   locality_agree expected.oam_locality real.oam_locality &&
   uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
   linearity_agree expected.oam_linearity real.oam_linearity
-
-let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
-  | Olay_var v     -> fprintf ppf "%s" v
 
 let is_local mode =
   match mode.oam_locality with

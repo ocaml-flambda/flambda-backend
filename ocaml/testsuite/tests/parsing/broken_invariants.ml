@@ -18,8 +18,6 @@ let f = function [%record_with_functor_fields] -> ();;
 module type s = sig
  [%%missing_rhs]
 end;;
-type t = [%lt_unlabeled_typ];;
-let x = [%lt_unlabeled_exp];;
-let f ([%lt_unlabeled_pat]) = ();;
+
 let f ([%lt_empty_open_pat]) = ();;
 let f ([%lt_short_closed_pat]) = ();;

@@ -468,7 +468,9 @@ CAMLexport void caml_main(char_os **argv)
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
   if (!caml_startup_aux(/* pooling */ caml_params->cleanup_on_exit))
     return;
@@ -609,7 +611,9 @@ CAMLexport value caml_startup_code_exn(
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;

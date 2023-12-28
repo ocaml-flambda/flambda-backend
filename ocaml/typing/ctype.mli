@@ -176,7 +176,7 @@ val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        Jkind.t -> type_declaration
+        Jkind.t -> jkind_annot:Jkind.annotation option -> type_declaration
 val existential_name: constructor_description -> type_expr -> string
 
 type existential_treatment =
@@ -278,10 +278,8 @@ val unify_delaying_jkind_checks :
 type filtered_arrow =
   { ty_arg : type_expr;
     arg_mode : Mode.Alloc.t;
-    arg_sort : Jkind.sort;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t;
-    ret_sort : Jkind.sort
+    ret_mode : Mode.Alloc.t
   }
 
 val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->

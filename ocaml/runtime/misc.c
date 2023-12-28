@@ -139,6 +139,11 @@ CAMLexport void caml_fatal_error_arg2 (const char *fmt1, const char *arg1,
   exit(2);
 }
 
+void caml_fatal_out_of_memory(void)
+{
+  caml_fatal_error("Out of memory");
+}
+
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
 {
   tbl->size = 0;

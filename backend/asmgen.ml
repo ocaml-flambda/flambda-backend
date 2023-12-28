@@ -152,8 +152,6 @@ let write_ir prefix =
     Linear_format.save filename linear_unit_info
   end;
   if should_save_cfg_before_emit () then begin
-    if not !Flambda_backend_flags.use_ocamlcfg then
-      Misc.fatal_error "Flag '-save-ir-after simplify_cfg' requires '-ocamlcfg'";
     let filename = Compiler_pass.(to_output_filename Simplify_cfg ~prefix) in
     cfg_unit_info.items <- List.rev cfg_unit_info.items;
     Cfg_format.save filename cfg_unit_info
@@ -346,24 +344,17 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             else Available_regs.fundecl fundecl)
         ++ pass_dump_if ppf_dump Flambda_backend_flags.davail
              "Register availability analysis"
-        ++ Profile.record ~accumulate:true "mach to linear" (fun (fd : Mach.fundecl) ->
-          if !Flambda_backend_flags.use_ocamlcfg then begin
-            fd
-            ++ Profile.record ~accumulate:true "cfgize"
-                 (Cfgize.fundecl
-                    ~before_register_allocation:false
-                    ~preserve_orig_labels:false
-                    ~simplify_terminators:true)
-            ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
-            ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-            ++ Profile.record ~accumulate:true "save_cfg" save_cfg
-            ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
-                 (reorder_blocks_random ppf_dump)
-            ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-          end else begin
-            fd
-            ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
-          end))
+        ++ Profile.record ~accumulate:true "cfgize"
+             (Cfgize.fundecl
+                ~before_register_allocation:false
+                ~preserve_orig_labels:false
+                ~simplify_terminators:true)
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
+        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
+        ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+        ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
+             (reorder_blocks_random ppf_dump)
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
@@ -480,14 +471,6 @@ let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
           !Translmod.primitive_declarations));
   emit_end_assembly sourcefile ()
 
-type middle_end =
-     backend:(module Backend_intf.S)
-  -> filename:string
-  -> prefixname:string
-  -> ppf_dump:Format.formatter
-  -> Lambda.program
-  -> Clambda.with_constants
-
 type direct_to_cmm =
      ppf_dump:Format.formatter
   -> prefixname:string
@@ -496,10 +479,6 @@ type direct_to_cmm =
   -> Cmm.phrase list
 
 type pipeline =
-  | Via_clambda of {
-      backend : (module Backend_intf.S);
-      middle_end : middle_end;
-    }
   | Direct_to_cmm of direct_to_cmm
 
 let asm_filename output_prefix =
@@ -517,12 +496,6 @@ let compile_implementation unix ?toplevel ~pipeline
       Compilation_unit.Set.iter Compilenv.require_global
         program.required_globals;
       match pipeline with
-      | Via_clambda { middle_end; backend; } ->
-        let clambda_with_constants =
-          middle_end ~backend ~filename ~prefixname ~ppf_dump program
-        in
-        end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
-          (fun () -> Profile.record "cmm" Cmmgen.compunit clambda_with_constants)
       | Direct_to_cmm direct_to_cmm ->
         let cmm_phrases =
           direct_to_cmm ~ppf_dump ~prefixname ~filename program

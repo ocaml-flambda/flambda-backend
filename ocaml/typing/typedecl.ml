@@ -26,7 +26,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | External
+type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -81,7 +81,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -346,7 +346,7 @@ let transl_global_flags loc attrs =
   | true -> Types.Global
   | false -> Types.Unrestricted
 
-let transl_labels env univars closed lbls =
+let transl_labels ~new_var_jkind env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
   List.iter
@@ -360,7 +360,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
+         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -391,9 +391,9 @@ let transl_labels env univars closed lbls =
       lbls in
   lbls, lbls'
 
-let transl_types_gf env univars closed tyl =
+let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy arg in
+    let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -401,13 +401,13 @@ let transl_types_gf env univars closed tyl =
   let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
   tyl_gfl, tyl_gfl'
 
-let transl_constructor_arguments env univars closed = function
+let transl_constructor_arguments ~new_var_jkind env univars closed = function
   | Pcstr_tuple l ->
-      let flds, flds' = transl_types_gf env univars closed l in
+      let flds, flds' = transl_types_gf ~new_var_jkind env univars closed l in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
   | Pcstr_record l ->
-      let lbls, lbls' = transl_labels env univars closed l in
+      let lbls, lbls' = transl_labels ~new_var_jkind env univars closed l in
       Types.Cstr_record lbls',
       Cstr_record lbls
 
@@ -439,7 +439,7 @@ let make_constructor
   match sret_type with
   | None ->
       let args, targs =
-        transl_constructor_arguments env None true sargs
+        transl_constructor_arguments ~new_var_jkind:Any env None true sargs
       in
         tvars, targs, None, args, None
   | Some sret_type ->
@@ -465,10 +465,10 @@ let make_constructor
           in
           let univars = if closed then Some univar_list else None in
           let args, targs =
-            transl_constructor_arguments env univars closed sargs
+            transl_constructor_arguments ~new_var_jkind:Sort env univars closed sargs
           in
           let tret_type =
-            transl_simple_type env ?univars ~closed Mode.Alloc.Const.legacy
+            transl_simple_type ~new_var_jkind:Sort env ?univars ~closed Mode.Alloc.Const.legacy
               sret_type
           in
           let ret_type = tret_type.ctyp_type in
@@ -626,8 +626,8 @@ let transl_declaration env sdecl (id, uid) =
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty,
-      transl_simple_type env ~closed:false Mode.Alloc.Const.legacy sty', loc)
+      transl_simple_type ~new_var_jkind:Any env ~closed:false Mode.Alloc.Const.legacy sty,
+      transl_simple_type ~new_var_jkind:Sort env ~closed:false Mode.Alloc.Const.legacy sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in
@@ -651,7 +651,7 @@ let transl_declaration env sdecl (id, uid) =
       None -> None, None
     | Some sty ->
       let no_row = not (is_fixed_type sdecl) in
-      let cty = transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty in
+      let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
   let any = Jkind.any ~why:Initial_typedecl_env in
@@ -740,7 +740,7 @@ let transl_declaration env sdecl (id, uid) =
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
-          let lbls, lbls' = transl_labels env None true lbls in
+          let lbls, lbls' = transl_labels ~new_var_jkind:Any env None true lbls in
           let rep, jkind =
             if unbox then
               Record_unboxed, any
@@ -1039,7 +1039,10 @@ let check_representable ~why ~allow_float env loc kloc typ =
       | Float64 when allow_float -> ()
       (* CR layouts v2.5: If we want to hold back [float#] records from the
          maturity progression of [float64], we can add a check here. *)
-      | Float64 -> raise (Error (loc, Float64_in_block (typ, kloc)))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        (* CR layouts v2.1: Consider changing the allow_float parameter to
+           allow unboxed ints. *)
+        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
@@ -1110,7 +1113,7 @@ let update_decl_jkind env dpath decl =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
       check_representable ~why:(Label_declaration ld_id) ~allow_float:false
-        env ld_loc Record ld_type;
+        env ld_loc Unboxed_record ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
@@ -1123,6 +1126,9 @@ let update_decl_jkind env dpath decl =
              | Value | Immediate64 | Immediate -> (Has_values, floats)
              | Float64 -> (values, Has_float64s)
              | Void -> (values, floats)
+             (* CR layouts v2.1: make unboxed ints work with records *)
+             | Word | Bits32 | Bits64 ->
+              Misc.fatal_error "Typedecl.update_record_kind: no support for unboxed ints"
              | Any -> assert false)
           (No_values, No_float64s) jkinds
       in
@@ -2355,10 +2361,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let constraints =
     List.map (fun (ty, ty', loc) ->
       let cty =
-        transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty
+        transl_simple_type ~new_var_jkind:Any env ~closed:false Mode.Alloc.Const.legacy ty
       in
       let cty' =
-        transl_simple_type env ~closed:false Mode.Alloc.Const.legacy ty'
+        transl_simple_type ~new_var_jkind:Sort env ~closed:false Mode.Alloc.Const.legacy ty'
       in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
@@ -2372,7 +2378,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       None -> None, None
     | Some sty ->
       let cty =
-        transl_simple_type env ~closed:no_row Mode.Alloc.Const.legacy sty
+        transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty
       in
       Some cty, Some cty.ctyp_type
   in
@@ -2904,6 +2910,7 @@ let report_error ppf = function
       match kloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
+      | Unboxed_record -> "Unboxed record element"
       | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
@@ -2914,18 +2921,17 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Jkind.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block (typ, lloc) ->
+  | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"
-      | Record -> "Unboxed records"
-        (* [Record] always means unboxed record here, because illegal boxed records
-           get rejected with the [Mixed_block] error instead. *)
+      | Record -> "Records"
+      | Unboxed_record -> "Unboxed records"
       | External -> assert false
     in
     fprintf ppf
-      "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
-      Printtyp.type_expr typ struct_desc
+      "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
+      Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
   | Mixed_block  ->
     fprintf ppf
       "@[Records may not contain both unboxed floats and normal values.@]"
@@ -2937,7 +2943,7 @@ let report_error ppf = function
             fprintf ppf "an unnamed existential variable"
         | Some str ->
             fprintf ppf "the existential variable %a"
-              Printast.tyvar str in
+              Pprintast.tyvar str in
       fprintf ppf "@[This type cannot be unboxed because@ \
                    it might contain both float and non-float values,@ \
                    depending on the instantiation of %a.@ \

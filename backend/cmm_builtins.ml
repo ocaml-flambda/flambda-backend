@@ -718,39 +718,6 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> transl_vec128_builtin name args dbg typ_res
 
-let transl_effects (e : Primitive.effects) : Cmm.effects =
-  match e with
-  | No_effects -> No_effects
-  | Only_generative_effects | Arbitrary_effects -> Arbitrary_effects
-
-let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
-  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
-
-(* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
-  let name = Primitive.native_name prim in
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = ret;
-            builtin = prim.prim_c_builtin;
-            effects = transl_effects prim.prim_effects;
-            coeffects = transl_coeffects prim.prim_coeffects;
-            alloc = prim.prim_alloc;
-            returns;
-            ty_args
-          },
-        args,
-        dbg )
-  in
-  if prim.prim_c_builtin
-  then
-    match transl_builtin name args dbg ret with
-    | Some op -> op
-    | None -> default
-  else default
-
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
   if not returns then assert (typ_res = typ_void);
   let default =

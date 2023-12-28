@@ -16,7 +16,6 @@
 (* Elimination of useless Llet(Alias) bindings.
    Also transform let-bound references into variables. *)
 
-open Asttypes
 open Lambda
 open Debuginfo.Scoped_location
 
@@ -786,7 +785,11 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
         Llet(Strict, k, id, def, wrapper_body), inner
-    | Lregion (rest, _) -> aux map true rest
+    | Lregion (rest, ret) ->
+        let wrapper_body, inner = aux map true rest in
+        if may_allocate_in_region wrapper_body then
+          Lregion (wrapper_body, ret), inner
+        else wrapper_body, inner
     | Lexclave rest -> aux map true rest
     | _ when map = [] -> raise Exit
     | body ->

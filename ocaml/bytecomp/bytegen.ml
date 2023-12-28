@@ -111,7 +111,9 @@ let rec is_tailcall = function
 let preserve_tailcall_for_prim = function
     Popaque _ | Psequor | Psequand
   | Pobj_magic _
-  | Prunstack | Pperform | Presume | Preperform ->
+  | Prunstack | Pperform | Presume | Preperform
+  | Pbox_float _ | Punbox_float
+  | Pbox_int _ | Punbox_int _ ->
       true
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -127,8 +129,8 @@ let preserve_tailcall_for_prim = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pdivfloat _ | Pfloatcomp _| Punboxed_float_comp _
+  | Pstringlength | Pstringrefu  | Pstringrefs
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
@@ -578,7 +580,7 @@ let comp_primitive stack_info p sz args =
   | Pnot | Psequand | Psequor
   | Praise _
   | Pmakearray _ | Pduparray _
-  | Pfloatcomp _
+  | Pfloatcomp _ | Punboxed_float_comp _
   | Pmakeblock _
   | Pmakefloatblock _
   | Pmakeufloatblock _
@@ -877,7 +879,7 @@ let rec comp_expr stack_info env exp sz cont =
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
         (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lprim (Pfloatcomp cmp, args, _) ->
+  | Lprim (Pfloatcomp cmp, args, _) | Lprim (Punboxed_float_comp cmp, args, _) ->
       let cont =
         match cmp with
         | CFeq -> Kccall("caml_eq_float", 2) :: cont

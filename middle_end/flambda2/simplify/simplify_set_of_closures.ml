@@ -251,15 +251,18 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       my_closure Expr.print body DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
 
-let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-    ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-    ~params : _ Or_unknown_or_bottom.t =
+let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+    ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+    ~lifted_consts_this_function ~params : _ Or_unknown_or_bottom.t =
   match
-    Flambda_features.function_result_types ~is_a_functor, return_cont_uses
+    ( is_opaque,
+      Flambda_features.function_result_types ~is_a_functor,
+      return_cont_uses )
   with
-  | false, _ -> Unknown
-  | true, None -> Bottom
-  | true, Some uses ->
+  | true, _, _ -> Unknown
+  | false, _, None -> Bottom
+  | false, false, Some _ -> Unknown
+  | false, true, Some uses ->
     let env_at_fork =
       (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
          that the environment contains bindings for any symbols being defined by
@@ -390,10 +393,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     decision
   in
   let is_a_functor = Code.is_a_functor code in
+  let is_opaque = Code.is_opaque code in
   let result_types =
-    compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
-      ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
-      ~params
+    compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
+      ~dacc_after_body ~dacc_at_function_entry ~return_cont_params
+      ~lifted_consts_this_function ~params
   in
   let outer_dacc =
     (* This is the complicated part about slot offsets. We just traversed the
@@ -437,7 +441,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
-      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor
+      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
       ~inlining_decision ~absolute_history ~relative_history ~loopify
@@ -482,6 +486,11 @@ let simplify_function context ~outer_dacc function_slot code_id
           let max_function_simplify_run =
             Flambda_features.Expert.max_function_simplify_run ()
           in
+          if should_resimplify && Flambda_features.dump_flambda () && debug ()
+          then
+            Format.eprintf
+              "@\n%tAfter a single simplify_set_of_closures:%t@\n%a@\n@."
+              Flambda_colours.each_file Flambda_colours.pop Code.print new_code;
           if should_resimplify && count < max_function_simplify_run
           then run ~outer_dacc ~code:new_code (count + 1)
           else

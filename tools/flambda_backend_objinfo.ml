@@ -99,8 +99,15 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs =
+let print_cmi_infos name crcs kind =
+  let open Cmi_format in
   printf "Unit name: %a\n" Compilation_unit.output name;
+  let is_param =
+    match kind with
+    | Normal -> false
+    | Parameter -> true
+  in
+  printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -186,31 +193,9 @@ let print_cmx_infos (uir, sections, crc) =
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
     match uir.uir_export_info with
-    | Clambda_raw approx ->
-      if not !no_approx
-      then begin
-        printf "Clambda approximation:\n";
-        Format.fprintf Format.std_formatter "  %a@." Printclambda.approx approx
-      end
-      else Format.printf "Clambda unit@."
-    | Flambda1_raw export ->
-      if (not !no_approx) || not !no_code
-      then printf "Flambda export information:\n"
-      else printf "Flambda unit\n";
-      if not !no_approx
-      then begin
-        Compilation_unit.set_current (Some uir.uir_unit);
-        let root_symbols =
-          List.map Symbol.for_compilation_unit uir.uir_defines
-        in
-        Format.printf "approximations@ %a@.@." Export_info.print_approx
-          (export, root_symbols)
-      end;
-      if not !no_code
-      then Format.printf "functions@ %a@.@." Export_info.print_functions export
-    | Flambda2_raw None ->
+    | None ->
       printf "Flambda 2 unit (with no export information)\n"
-    | Flambda2_raw (Some cmx) ->
+    | Some cmx ->
       printf "Flambda 2 export information:\n";
       flush stdout;
       let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
@@ -342,6 +327,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+          cmi.Cmi_format.cmi_kind
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt
