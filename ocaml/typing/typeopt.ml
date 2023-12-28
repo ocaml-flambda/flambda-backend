@@ -80,9 +80,11 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
-let is_jkind_float64 env ty =
-  let jkind = Jkind.float64 ~why:Float64_check in
-  Result.is_ok (Ctype.check_type_jkind env ty jkind)
+let is_sort_float64 env ty =
+  let jkind = Ctype.estimate_type_jkind env ty in
+  match Jkind.(Sort.get_default_value (sort_of_jkind jkind)) with
+  | Float64 -> true
+  | Value | Void | Word | Bits32 | Bits64 -> false
 
 let is_always_gc_ignorable env ty =
   let jkind =
@@ -116,7 +118,7 @@ type classification =
 let classify env ty : classification =
   let ty = scrape_ty env ty in
   if is_always_gc_ignorable env ty then Int
-  else if is_jkind_float64 env ty then Unboxed_float
+  else if is_sort_float64 env ty then Unboxed_float
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
       Any
