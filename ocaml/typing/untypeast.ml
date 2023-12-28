@@ -141,6 +141,12 @@ let constant = function
   | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
   | Const_float f -> `Parsetree (Pconst_float (f,None))
   | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
+  | Const_unboxed_int32 i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Int32.to_string i, 'l'))
+  | Const_unboxed_int64 i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Int64.to_string i, 'L'))
+  | Const_unboxed_nativeint i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Nativeint.to_string i, 'n'))
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;

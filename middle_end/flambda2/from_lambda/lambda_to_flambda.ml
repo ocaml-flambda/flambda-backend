@@ -616,7 +616,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Pbigarraydim _
+  | Pbintcomp _ | Punboxed_int_comp _ | Pbigarraydim _
   | Pbigarrayref
       ( true,
         _,

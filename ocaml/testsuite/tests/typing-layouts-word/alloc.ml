@@ -1,6 +1,7 @@
 (* TEST
+   * flambda2
    flags = "-extension layouts_alpha"
-   * native
+   ** native
 *)
 
 (* A test comparing allocations when using unboxed [nativeint#]es to allocations
@@ -98,3 +99,14 @@ end
 
 let () = Collatz_unboxed.go ()
 let () = Collatz_boxed.go ()
+
+let[@inline never] literal_test x y =
+  let open Nativeint_u in
+  let[@inline never] f x y = (#1n + x) * (y - #4n) in
+  match x with
+  | #2n | #0x7fffffffffffffffn ->  (f x y) / (#3n % #10n)
+  | _ -> #0n
+
+let _ = measure_alloc "literals (should be -1): %nd" (fun () -> literal_test #2n #3n)
+let _ = measure_alloc "literals (should be -3074457345618258602): %nd"
+          (fun () -> literal_test #0x7fffffffffffffffn #0x7fffffffffffffffn)

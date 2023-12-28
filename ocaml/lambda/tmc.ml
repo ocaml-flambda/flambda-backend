@@ -885,7 +885,7 @@ let rec choice ctx t =
     | Pnegint | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _
     | Pandint | Porint | Pxorint
     | Plslint | Plsrint | Pasrint
-    | Pintcomp _
+    | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
     | Pintoffloat | Pfloatofint _
     | Pnegfloat _ | Pabsfloat _

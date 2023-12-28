@@ -9,7 +9,7 @@ all_modules = "ppx_no_op.ml"
 module = "source_jane_street.ml"
 flags = "-I ${test_build_directory} \
          -w -26 \
-         -extension layouts \
+         -extension layouts_beta \
          -extension comprehensions \
          -ppx ${program}"
 **** check-ocamlc.byte-output

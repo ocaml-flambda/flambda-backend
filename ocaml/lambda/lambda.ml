@@ -217,6 +217,7 @@ type primitive =
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
+  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -319,6 +320,8 @@ and array_set_kind =
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_integer = boxed_integer
 
 and vec128_type =
   | Unknown128
@@ -1523,7 +1526,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Plslbint (_, m)
   | Plsrbint (_, m)
   | Pasrbint (_, m) -> Some m
-  | Pbintcomp _ -> None
+  | Pbintcomp _ | Punboxed_int_comp _ -> None
   | Pbigarrayset _ | Pbigarraydim _ -> None
   | Pbigarrayref (_, _, _, _) ->
      (* Boxes arising from Bigarray access are always Alloc_heap *)
@@ -1563,6 +1566,9 @@ let constant_layout: constant -> layout = function
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
+  | Const_unboxed_int32 _ -> Punboxed_int Pint32
+  | Const_unboxed_int64 _ -> Punboxed_int Pint64
+  | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
   | Const_float _ -> Pvalue Pfloatval
   | Const_unboxed_float _ -> Punboxed_float
 
@@ -1626,7 +1632,7 @@ let primitive_result_layout (p : primitive) =
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _
-  | Pbintcomp _
+  | Pbintcomp _ | Punboxed_int_comp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
@@ -1785,5 +1791,3 @@ let may_allocate_in_region lam =
     | () -> false
     | exception Exit -> true
   end
-
-

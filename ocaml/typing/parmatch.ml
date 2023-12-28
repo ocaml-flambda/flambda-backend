@@ -130,6 +130,9 @@ let all_coherent column =
         | Const_int32 _, Const_int32 _
         | Const_int64 _, Const_int64 _
         | Const_nativeint _, Const_nativeint _
+        | Const_unboxed_int32 _, Const_unboxed_int32 _
+        | Const_unboxed_int64 _, Const_unboxed_int64 _
+        | Const_unboxed_nativeint _, Const_unboxed_nativeint _
         | Const_float _, Const_float _
         | Const_unboxed_float _, Const_unboxed_float _
         | Const_string _, Const_string _ -> true
@@ -138,6 +141,9 @@ let all_coherent column =
           | Const_int32 _
           | Const_int64 _
           | Const_nativeint _
+          | Const_unboxed_int32 _
+          | Const_unboxed_int64 _
+          | Const_unboxed_nativeint _
           | Const_float _
           | Const_unboxed_float _
           | Const_string _), _ -> false
@@ -255,6 +261,9 @@ let const_compare x y =
     |Const_int32 _
     |Const_int64 _
     |Const_nativeint _
+    |Const_unboxed_int32 _
+    |Const_unboxed_int64 _
+    |Const_unboxed_nativeint _
     ), _ -> Stdlib.compare x y
 
 let records_args l1 l2 =
@@ -1045,6 +1054,21 @@ let build_other ext env =
           build_other_constant
             (function Constant(Const_nativeint i) -> i | _ -> assert false)
             (function i -> Tpat_constant(Const_nativeint i))
+            0n Nativeint.succ d env
+      | Constant Const_unboxed_int32 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int32 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int32 i))
+            0l Int32.succ d env
+      | Constant Const_unboxed_int64 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int64 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int64 i))
+            0L Int64.succ d env
+      | Constant Const_unboxed_nativeint _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_nativeint i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_nativeint i))
             0n Nativeint.succ d env
       | Constant Const_string _ ->
           build_other_constant
@@ -2114,7 +2138,9 @@ let inactive ~partial pat =
             match c with
             | Const_string _
             | Const_int _ | Const_char _ | Const_float _ | Const_unboxed_float _
-            | Const_int32 _ | Const_int64 _ | Const_nativeint _ -> true
+            | Const_int32 _ | Const_int64 _ | Const_nativeint _
+            | Const_unboxed_int32 _ | Const_unboxed_int64 _ | Const_unboxed_nativeint _
+            -> true
           end
         | Tpat_tuple ps ->
             List.for_all (fun (_,p) -> loop p) ps
