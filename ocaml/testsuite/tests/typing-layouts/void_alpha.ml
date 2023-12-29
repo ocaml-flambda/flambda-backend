@@ -481,16 +481,10 @@ Lines 4-11, characters 2-24:
 11 |    b2 = (cons_r 2; {v})}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-<<<<<<< HEAD
-       void_rec has layout void, which is not a sublayout of value.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-       t_void has layout void, which is not a sublayout of value.
-=======
-       The layout of t_void is void, because
+       The layout of void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of void_rec must be a sublayout of value, because
          it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -516,16 +510,10 @@ Lines 2-3, characters 2-32:
 3 |   (x, V b2.v, V b1.v, z, V a1.v)
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-<<<<<<< HEAD
-       t_void has layout void, which is not a sublayout of value.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-       void_rec has layout void, which is not a sublayout of value.
-=======
-       The layout of void_rec is void, because
+       The layout of t_void is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of void_rec must be a sublayout of value, because
+       But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -621,47 +609,12 @@ let [@warning "-10"] exnmatch1 (V v) =
 
 let _ = assert ((exnmatch1 vh) = 1);;
 [%%expect{|
-<<<<<<< HEAD
 Lines 3-5, characters 4-46:
 3 | ....{v = (if true then raise (Ex1 42); v)};
 4 |     if true then raise (Ex2 "test");
 5 |     {v = ((if true then raise (Ex3 true)); v)}
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        void_rec. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = (if true then raise (Ex1 42); v)};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
-=======
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = (if true then raise (Ex1 42); v)};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void, because
-         of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -687,47 +640,12 @@ let [@warning "-10"] exnmatch2 (V v) =
 
 let _ = assert ((exnmatch2 vh) = 3);;
 [%%expect{|
-<<<<<<< HEAD
 Lines 3-5, characters 4-46:
 3 | ....{v = v};
 4 |     if true then raise (Ex2 "test");
 5 |     {v = ((if true then raise (Ex3 true)); v)}
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        void_rec. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
-=======
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void, because
-         of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -752,46 +670,11 @@ let [@warning "-10"] exnmatch3 (V v) =
 
 let _ = assert ((exnmatch3 vh) = 5);;
 [%%expect{|
-<<<<<<< HEAD
 Lines 3-4, characters 4-46:
 3 | ....{v = v};
 4 |     {v = ((if true then raise (Ex3 true)); v)}
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        void_rec. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = ((if true then raise (Ex3 true)); v)}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
-=======
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = ((if true then raise (Ex3 true)); v)}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void, because
-         of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -816,46 +699,11 @@ let [@warning "-10"] exnmatch4 (V v) =
 
 let _ = assert ((exnmatch4 vh) = 0);;
 [%%expect{|
-<<<<<<< HEAD
 Lines 3-4, characters 4-11:
 3 | ....{v = v};
 4 |     {v = v}
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        void_rec. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = v}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
-=======
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = v}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void, because
-         of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -934,17 +782,10 @@ Lines 9-18, characters 2-29:
 18 |   cons_r uivrh.uivrh_x; uivrh
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-<<<<<<< HEAD
-       unboxed_inlined_void_rec has layout void,
-         which is not a sublayout of value.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-       t_void has layout void, which is not a sublayout of value.
-=======
-       The layout of t_void is void, because
+       The layout of unboxed_inlined_void_rec is void, because
          of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value, because
+       But the layout of unboxed_inlined_void_rec must be a sublayout of value, because
          it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

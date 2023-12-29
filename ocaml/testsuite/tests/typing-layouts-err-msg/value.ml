@@ -414,15 +414,11 @@ type t = {a: t_void; b: int}
 let f (x: t) = match x with | {a; b} -> a
 [%%expect {|
 type t = { a : t_void; b : int; }
-Line 2, characters 6-41:
+Line 2, characters 15-41:
 2 | let f (x: t) = match x with | {a; b} -> a
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         it has to be value for the V1 safety check.
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 (* Captured_in_object *)

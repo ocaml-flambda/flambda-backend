@@ -212,7 +212,10 @@ Line 2, characters 16-44:
                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void, because
+         of the definition of t_void at line 6, characters 0-19.
+       But the layout of t_void must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (**************************************)
@@ -420,21 +423,8 @@ let g (x : 'a void5) =
 Lines 2-3, characters 2-16:
 2 | ..match x with
 3 |   | Void5 x -> x..
-<<<<<<< HEAD
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        'a. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
-=======
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because
-         of the definition of void5 at line 1, characters 0-37.
-       But the layout of 'a must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}]
 
 (****************************************)
@@ -844,24 +834,9 @@ end;;
 [%%expect{|
 Line 4, characters 32-33:
 4 |   let foo o (A x) = o # usevoid x
-<<<<<<< HEAD
                                     ^
 Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        'a. Please report this error to the Jane Street compilers team.
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-                ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
-=======
-                ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void, because
-         of the definition of t at line 2, characters 2-30.
-       But the layout of 'a must be a sublayout of value, because
-         it has to be value for the V1 safety check.
->>>>>>> c77b6af8 (Enable layout histories (#1823))
 |}];;
 
 module M11_4 = struct

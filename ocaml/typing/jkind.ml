@@ -1081,23 +1081,11 @@ end = struct
     | External_argument ->
       fprintf ppf "it's the type of an argument in an external declaration"
     | External_result ->
-<<<<<<< HEAD
-      fprintf ppf "used as the result of an external declaration"
-    | Statement -> fprintf ppf "used as a statement"
-    | Optional_arg_default -> fprintf ppf "used as an optional argument default"
-    | Wildcard -> fprintf ppf "a _ in a type"
-    | Unification_var -> fprintf ppf "a fresh unification variable"
-||||||| parent of c77b6af8 (Enable layout histories (#1823))
-      fprintf ppf "used as the result of an external declaration"
-    | Statement -> fprintf ppf "used as a statement"
-    | Wildcard -> fprintf ppf "a _ in a type"
-    | Unification_var -> fprintf ppf "a fresh unification variable"
-=======
       fprintf ppf "it's the type of the result of an external declaration"
     | Statement -> fprintf ppf "it's the type of a statement"
     | Wildcard -> fprintf ppf "it's a _ in the type"
     | Unification_var -> fprintf ppf "it's a fresh unification variable"
->>>>>>> c77b6af8 (Enable layout histories (#1823))
+    | Optional_arg_default -> fprintf ppf "it's the type of an optional argument default"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
