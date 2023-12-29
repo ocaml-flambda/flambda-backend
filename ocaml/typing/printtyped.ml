@@ -182,6 +182,7 @@ let variant_representation i ppf = let open Types in function
 
 let flat_element i ppf = let open Types in function
   | Imm -> line i ppf "Immediate\n"
+  | Float -> line i ppf "Float\n"
   | Float64 -> line i ppf "Float64\n"
 
 let record_representation i ppf = let open Types in function

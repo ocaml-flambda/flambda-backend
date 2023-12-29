@@ -101,11 +101,11 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
   | Mixed { field_kind; _ } -> begin
-      (* CR mixed blocks: a backend person should confirm I can just use these and
-         not add new cmm code *)
+      (* CR mixed blocks v0: a backend person should confirm I can just use
+         these and not add new cmm code *)
       match field_kind with
       | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-      | Float64 -> C.unboxed_float_array_ref block index dbg
+      | Float | Float64 -> C.unboxed_float_array_ref block index dbg
     end
 
 
@@ -120,12 +120,12 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
     | Mixed { field_kind; _ } -> begin
-        (* CR mixed blocks: a backend person should confirm I can just use these and
-           not add new cmm code *)
+        (* CR mixed blocks v0: a backend person should confirm I can just use
+           these and not add new cmm code *)
         match field_kind with
         | Imm ->
           C.setfield_computed Immediate init_or_assign block index new_value dbg
-        | Float64 -> C.float_array_set block index new_value dbg
+        | Float | Float64 -> C.float_array_set block index new_value dbg
       end
 
   in

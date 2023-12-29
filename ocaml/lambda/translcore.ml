@@ -559,12 +559,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           if lbl.lbl_num < value_prefix_len then
             Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
                    of_location ~scopes e.exp_loc)
-          else begin match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-          | Imm ->
-            Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem), [targ], loc)
-          | Float64 ->
-            Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem), [targ], loc)
-          end
+          else
+            let flat_projection =
+              match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+              | Imm -> Projection_imm
+              | Float64 -> Projection_float64
+              | Float ->
+                 (match alloc_mode with
+                  | Some mode -> Projection_float (transl_alloc_mode mode)
+                  | None ->
+                      Misc.fatal_error
+                        "expected typechecking to make [alloc_mode] present \
+                          for float field projection")
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, flat_projection, sem), [targ], loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
@@ -590,9 +598,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_mixed { value_prefix_len; flat_suffix } -> begin
           if lbl.lbl_num < value_prefix_len then
             Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
-          else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-          | Imm -> Psetmixedfield(lbl.lbl_pos, Imm, mode)
-          | Float64 -> Psetmixedfield (lbl.lbl_pos, Float64, mode)
+          else
+            let flat_element =
+              match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+              | Imm -> Imm
+              | Float -> Float
+              | Float64 -> Float64
+            in
+            Psetmixedfield(lbl.lbl_pos, flat_element, mode)
         end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
@@ -1532,11 +1545,18 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  | Record_mixed { value_prefix_len; flat_suffix } ->
                    if lbl.lbl_num < value_prefix_len then
                      Pfield (i, maybe_pointer_type env typ, sem)
-                   else begin
-                     match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                     | Imm -> Pmixedfield (i, Imm, sem)
-                     | Float64 -> Pmixedfield (i, Float64, sem)
-                   end
+                   else
+                     let projection =
+                       match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                       | Imm -> Projection_imm
+                       | Float ->
+                           (* See the handling of [Record_float] above for
+                              why we choose Alloc_heap.
+                           *)
+                           Projection_float alloc_heap
+                       | Float64 -> Projection_float64
+                     in
+                     Pmixedfield (i, projection, sem)
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -1632,11 +1652,15 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 if lbl.lbl_num < value_prefix_len then
                   let ptr = maybe_pointer expr in
                   Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-                else match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Imm ->
-                  Psetmixedfield(lbl.lbl_pos, Imm, Assignment modify_heap)
-                | Float64 ->
-                  Psetmixedfield (lbl.lbl_pos, Float64, Assignment modify_heap)
+                else
+                  let flat_element =
+                    match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                    | Imm -> Imm
+                    | Float -> Float
+                    | Float64 -> Float64
+                  in
+                  Psetmixedfield
+                    (lbl.lbl_pos, flat_element, Assignment modify_heap)
               end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;

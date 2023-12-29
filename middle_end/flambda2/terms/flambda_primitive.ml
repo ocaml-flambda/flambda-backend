@@ -97,25 +97,27 @@ end
 module Mixed_block_kind = struct
   type t = Lambda.mixed_block_shape
 
-  let print_Mixed_block_element ppf (e : Lambda.flat_element) =
+  let print_flat_element ppf (e : Lambda.flat_element) =
     match e with
     | Imm -> Format.fprintf ppf "Imm"
+    | Float -> Format.fprintf ppf "Float"
     | Float64 -> Format.fprintf ppf "Float64"
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
     Format.fprintf ppf "[|@ ";
     Format.fprintf ppf "Value (x%d);@ " value_prefix_len;
     Array.iter (fun elem ->
-      Format.fprintf ppf "%a;@ " print_Mixed_block_element elem)
+      Format.fprintf ppf "%a;@ " print_flat_element elem)
       flat_suffix;
     Format.fprintf ppf "|]"
 
   let compare_flat_element e1 e2 =
     match (e1 : Lambda.flat_element), (e2 : Lambda.flat_element) with
-    | Imm, Imm -> 0
-    | Float64, Float64 -> 0
+    | Imm, Imm | Float, Float | Float64, Float64 -> 0
     | Imm, _ -> -1
     | _, Imm -> 1
+    | Float, _ -> -1
+    | _, Float -> 1
 
   let compare (t1 : t) (t2 : t) =
     let components (t : t) =
@@ -134,10 +136,10 @@ module Mixed_block_kind = struct
   let element_kind i ({ value_prefix_len; flat_suffix } : t) =
     if i < value_prefix_len then
       K.value
-    else
-      Lambda.(match flat_suffix.(i - value_prefix_len) with
+    else (
+      match flat_suffix.(i - value_prefix_len) with
       | Imm -> K.value
-      | Float64 -> K.naked_float)
+      | Float | Float64 -> K.naked_float)
 end
 
 
@@ -294,7 +296,7 @@ module Block_access_field_kind = struct
 end
 
 module Mixed_block_access_field_kind = struct
-  type t = Lambda.flat_element = Imm | Float64
+  type t = Lambda.flat_element = Imm | Float | Float64
 
   let print = Printlambda.flat_element
 
@@ -346,9 +348,10 @@ module Block_access_kind = struct
     | Mixed { field_kind; _ } -> begin
         match field_kind with
         | Imm -> K.value
-        | Float64 -> K.naked_float
-        (* CR mixed blocks: based on the Naked_floats case I believe naked_float is
-           correct here for Float64, but an flambda2 person should check.
+        | Float | Float64 -> K.naked_float
+        (* CR mixed blocks v0: based on the Naked_floats case I believe
+           naked_float is correct here for both Float and Float64, but an
+           flambda2 person should check.
         *)
       end
 
@@ -359,8 +362,8 @@ module Block_access_kind = struct
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind; _ } -> begin
         match field_kind with
-        | Imm -> K.With_subkind.any_value
-        | Float64 -> K.With_subkind.naked_float
+        | Imm -> K.With_subkind.tagged_immediate
+        | Float | Float64 -> K.With_subkind.naked_float
       end
 
   let element_kind_for_set = element_kind_for_load

@@ -758,6 +758,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakemixedblock (mutability, shape, mode), _ ->
     let args = List.flatten args in
+    let args =
+      List.mapi
+        (fun i arg ->
+           match Lambda.get_mixed_block_element shape i with
+           | Value_prefix | Flat_suffix (Float64 | Imm) -> arg
+           | Flat_suffix Float -> unbox_float arg)
+        args
+    in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_mixed_block (shape, mutability, mode), args)]
@@ -1127,18 +1135,27 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
-  | Pmixedfield (field, (Imm | Float64 as shape), sem), [[arg]] ->
+  | Pmixedfield (field, shape, sem), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
-      Mixed { field_kind = shape; size = Unknown }
+      let field_kind : P.Mixed_block_access_field_kind.t =
+        match shape with
+        | Projection_imm -> Imm
+        | Projection_float _ -> Float
+        | Projection_float64 -> Float64
+      in
+      Mixed { field_kind; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
     in
-    [block_access]
+    begin match shape with
+      | Projection_imm | Projection_float64 -> [block_access]
+      | Projection_float mode -> [box_float mode block_access ~current_region]
+    end
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1176,7 +1193,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
-  | Psetmixedfield (field, (Imm | Float64 as shape), initialization_or_assignment),
+  | Psetmixedfield (field, shape, initialization_or_assignment),
     [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetufloatfield";
@@ -1185,6 +1202,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed { field_kind = shape; size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    let value =
+      match shape with
+      | Imm | Float64 -> value
+      | Float -> unbox_float value
+    in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]

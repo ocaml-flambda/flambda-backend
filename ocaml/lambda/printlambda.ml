@@ -244,7 +244,13 @@ let block_shape ppf shape = match shape with
 
 let flat_element ppf : flat_element -> unit = function
   | Imm -> pp_print_string ppf "int"
+  | Float -> pp_print_string ppf "float"
   | Float64 -> pp_print_string ppf "float64"
+
+let flat_element_projection ppf : flat_element_projection -> unit = function
+  | Projection_imm -> pp_print_string ppf "int"
+  | Projection_float m -> fprintf ppf "float[%s]" (alloc_mode m)
+  | Projection_float64 -> pp_print_string ppf "float64"
 
 let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
   begin match value_prefix_len with
@@ -379,7 +385,7 @@ let primitive ppf = function
         field_read_semantics sem n
   | Pmixedfield (n, shape, sem) ->
       fprintf ppf "mixedfield%a %i %a"
-        field_read_semantics sem n flat_element shape
+        field_read_semantics sem n flat_element_projection shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with

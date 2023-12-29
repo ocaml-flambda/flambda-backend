@@ -978,7 +978,8 @@ and transl_make_mixed_block dbg env
          transl env arg
        else
          match flat_suffix.(i - value_prefix_len) with
-         | Imm | Float64 -> transl env arg)
+         | Imm | Float64 -> transl env arg
+         | Float -> transl_unbox_float dbg env arg)
      args)
 
 and transl_ccall env prim args dbg =
@@ -1039,11 +1040,13 @@ and transl_prim_1 env p arg dbg =
   | Pufloatfield n ->
       get_field env Mutable Punboxed_float (transl env arg) n dbg
   | Pmixedfield (n, shape) ->
-      (* CR mixed blocks: a backend person to confirm these are fine to use here. *)
+      (* CR mixed blocks v0: a backend person to confirm these are fine to use
+         here. *)
       let ptr = transl env arg in
       begin match shape with
-      | Imm -> get_field env Mutable Lambda.layout_int ptr n dbg
-      | Float64 -> get_field env Mutable Punboxed_float ptr n dbg
+      | Projection_imm -> get_field env Mutable Lambda.layout_int ptr n dbg
+      | Projection_float mode -> box_float dbg mode (floatfield n ptr dbg)
+      | Projection_float64 -> get_field env Mutable Punboxed_float ptr n dbg
       end
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
@@ -1175,6 +1178,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
       (* CR mixed blocks: a backend person to confirm these are fine to use here. *)
       begin match shape with
       | Imm -> setfield n Immediate init ptr (transl env arg2) dbg
+      | Float -> setfloatfield n init ptr (transl_unbox_float dbg env arg2) dbg
       | Float64 -> setfloatfield n init ptr (transl env arg2) dbg
       end
   (* Boolean operations *)

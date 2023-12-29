@@ -2166,11 +2166,15 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
           else begin
-            match flat_suffix.(pos - value_prefix_len) with
-            | Imm ->
-              Lprim (Pmixedfield (lbl.lbl_pos, Imm, sem), [ arg ], loc)
-            | Float64 ->
-              Lprim (Pmixedfield (lbl.lbl_pos, Float64, sem), [ arg ], loc)
+            let projection =
+              match flat_suffix.(pos - value_prefix_len) with
+              | Imm -> Projection_imm
+              | Float64 -> Projection_float64
+              | Float ->
+                  (* TODO: could optimise to Alloc_local sometimes *)
+                  Projection_float alloc_heap
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, projection, sem), [ arg ], loc)
           end,
           lbl_sort, lbl_layout
       in

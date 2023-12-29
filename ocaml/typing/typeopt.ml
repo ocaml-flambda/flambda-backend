@@ -526,13 +526,13 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
               match rep with
               | Record_float | Record_ufloat ->
                 num_nodes_visited, Pfloatval
-              | Record_mixed { value_prefix_len; flat_suffix } ->
-                if idx < value_prefix_len then
-                  value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                    label.ld_type
-                else begin match flat_suffix.(idx - value_prefix_len) with
-                  | Imm -> num_nodes_visited, Pintval
-                  | Float64 -> num_nodes_visited, Pfloatval
+              | Record_mixed shape ->
+                begin match Types.get_mixed_record_element shape idx with
+                | Value_prefix ->
+                    value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                      label.ld_type
+                | Flat_suffix Imm -> num_nodes_visited, Pintval
+                | Flat_suffix (Float | Float64) -> num_nodes_visited, Pfloatval
                 end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited

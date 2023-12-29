@@ -153,7 +153,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
   | Pmixedfield (n, shape) ->
     fprintf ppf "mixedfield %i %a"
-      n Printlambda.flat_element shape
+      n Printlambda.flat_element_projection shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with

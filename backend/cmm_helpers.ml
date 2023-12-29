@@ -72,6 +72,66 @@ type scannable_prefix =
   | Scan_all
   | Scan_prefix of int
 
+module Mixed_block_support : sig
+  val assert_mixed_block_support : unit -> unit
+
+  val make_header : Nativeint.t -> scannable_prefix:int -> Nativeint.t
+end = struct
+  let required_reserved_header_bits = 8
+
+  let required_addr_size_bits = 64
+
+  (* CR mixed blocks: this needs to be consumed by the frontend. *)
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_scannable_prefix = (1 lsl required_reserved_header_bits) - 2
+
+  let max_header =
+    (1 lsl (required_addr_size_bits - required_reserved_header_bits)) - 1
+    |> Nativeint.of_int
+
+  let assert_mixed_block_support =
+    lazy
+      (if not Config.runtime5
+       then
+         Misc.fatal_error "Mixed block support is only implemented in runtime5";
+       let reserved_header_bits = Config.reserved_header_bits in
+       let addr_size_bits = Arch.size_addr * 8 in
+       match
+         ( reserved_header_bits = required_reserved_header_bits,
+           addr_size_bits = required_addr_size_bits )
+       with
+       | true, true -> ()
+       | false, true ->
+         Misc.fatal_errorf
+           "Need %d reserved header bits for mixed blocks; got %d"
+           required_reserved_header_bits reserved_header_bits
+       | _, false ->
+         Misc.fatal_errorf
+           "Mixed blocks only supported on %d bit platforms; got %d"
+           required_addr_size_bits addr_size_bits)
+
+  let assert_mixed_block_support () = Lazy.force assert_mixed_block_support
+
+  let make_header header ~scannable_prefix =
+    assert_mixed_block_support ();
+    if scannable_prefix > max_scannable_prefix
+    then
+      Misc.fatal_errorf "Scannable prefix too big (%d > %d)" scannable_prefix
+        max_scannable_prefix;
+    if header > max_header
+    then
+      Misc.fatal_errorf
+        "Header too big for the mixed block encoding to be added (%nd > %nd)"
+        header max_header;
+    Nativeint.add
+      (Nativeint.shift_left
+         (Nativeint.of_int (scannable_prefix + 1))
+         (required_addr_size_bits - required_reserved_header_bits))
+      header
+end
+
 let block_header ?(scannable_prefix = Scan_all) tag sz =
   let hdr =
     Nativeint.add
@@ -81,21 +141,7 @@ let block_header ?(scannable_prefix = Scan_all) tag sz =
   match scannable_prefix with
   | Scan_all -> hdr
   | Scan_prefix scannable_prefix ->
-    (* CR mixed blocks: check sz isn't too big *)
-    (* CR mixed blocks: 55 should be constant somewhere *)
-    (* CR mixed blocks: 8 should be constant somewhere. Different configuration
-       mechanism? *)
-    (* CR mixed blocks: how to check for bytecode vs. not? *)
-    (* CR mixed blocks: need to check with mark about GC bit *)
-    assert (Config.reserved_header_bits >= 8);
-    let x =
-      Nativeint.add
-        (Nativeint.shift_left (Nativeint.of_int (scannable_prefix + 1)) 56)
-        hdr
-    in
-    if !Clflags.verbose
-    then Printf.printf "header = 0x%x\n" (Nativeint.to_int x);
-    x
+    Mixed_block_support.make_header hdr ~scannable_prefix
 
 (* Static data corresponding to "value"s must be marked black in case we are in
    no-naked-pointers mode. See [caml_darken] and the code below that emits
@@ -1258,7 +1304,6 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
   then
     let hdr =
       match mode with
-      (* CR mixed blocks: test for locals? *)
       | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
       | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
     in
@@ -1278,6 +1323,7 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
       | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
       | false, Scan_all -> "caml_alloc", [wordsize; tag]
       | true, Scan_prefix prefix_len ->
+        Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
       | false, Scan_prefix _ ->
         Misc.fatal_error
@@ -1335,14 +1381,12 @@ let make_mixed_alloc ~mode dbg shape args =
     if idx < value_prefix_len
     then addr_array_init arr ofs newval dbg
     else
-      match (flat_suffix.(idx - value_prefix_len) : Lambda.flat_element) with
+      match flat_suffix.(idx - value_prefix_len) with
       | Imm -> int_array_set arr ofs newval dbg
-      | Float64 -> float_array_set arr ofs newval dbg
+      | Float | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
     let values, floats = Lambda.count_mixed_block_values_and_floats shape in
-    (* CR mixed blocks: Will this assertion ever trigger? If so, we should
-       detect it earlier. *)
     if size_float <> size_addr
     then
       Misc.fatal_error
@@ -1351,7 +1395,7 @@ let make_mixed_alloc ~mode dbg shape args =
     values + floats
   in
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    (* CR mixed blocks: inline record args to variants? *)
+    (* CR mixed blocks: Support inline record args to variants. *)
     set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)

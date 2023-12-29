@@ -261,7 +261,7 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
-and flat_element = Imm | Float64
+and flat_element = Imm | Float | Float64
 and mixed_record_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
@@ -562,9 +562,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm -> true
-  | Float64, Float64 -> true
-  | (Imm | Float64), _ -> false
+  | Imm, Imm | Float64, Float64 | Float, Float -> true
+  | (Imm | Float64 | Float), _ -> false
 
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
@@ -663,9 +662,18 @@ let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
     (fun (values, floats) elem ->
       match elem with
       | Imm -> (values+1, floats)
-      | Float64 -> (values, floats+1))
+      | Float | Float64 -> (values, floats+1))
     (value_prefix_len, 0)
     flat_suffix
+
+type mixed_record_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+let get_mixed_record_element { value_prefix_len; flat_suffix } i =
+  if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
+  if i < value_prefix_len then Value_prefix
+  else Flat_suffix flat_suffix.(i - value_prefix_len)
 
 (**** Definitions for backtracking ****)
 

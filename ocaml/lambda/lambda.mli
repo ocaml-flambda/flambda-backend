@@ -109,7 +109,7 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * flat_element * field_read_semantics
+  | Pmixedfield of int * flat_element_projection * field_read_semantics
   (* [Pmixedfield] is an access to the flat suffix of a mixed record; accesses
      to the value prefix are [Pfield].
   *)
@@ -300,7 +300,11 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Imm | Float64
+and flat_element = Imm | Float | Float64
+and flat_element_projection =
+  | Projection_imm
+  | Projection_float of alloc_mode
+  | Projection_float64
 and mixed_block_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)
@@ -690,6 +694,12 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
 val transl_mixed_record_shape: Types.mixed_record_shape -> mixed_block_shape
 val count_mixed_block_values_and_floats : mixed_block_shape -> int * int
+
+type mixed_block_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 

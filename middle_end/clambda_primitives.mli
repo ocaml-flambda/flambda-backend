@@ -49,7 +49,7 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pmixedfield of int * flat_element
+  | Pmixedfield of int * flat_element_projection
   | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
@@ -202,7 +202,11 @@ and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
 and flat_element = Lambda.flat_element =
-    Imm | Float64
+    Imm | Float | Float64
+and flat_element_projection = Lambda.flat_element_projection =
+  | Projection_imm
+  | Projection_float of alloc_mode
+  | Projection_float64
 and mixed_block_shape = Lambda.mixed_block_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;

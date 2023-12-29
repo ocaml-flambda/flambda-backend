@@ -7,14 +7,17 @@
 (* Helper functions for manipulating the fields of a mixed record *)
 let create_string () = String.make (Random.int 100) 'a'
 let create_int () = Random.int 0x3FFF_FFFF
-let create_float_u () = Stdlib__Float_u.of_float (Random.float Float.max_float)
+let create_float_u () =
+  Stdlib__Float_u.of_float (Random.float Float.max_float)
 let check_gen ~equal ~to_string ~message y1 y2 =
-    if equal y1 y2 then () else
-      failwith (Printf.sprintf "%s: %s <> %s" message (to_string y1) (to_string y2))
+  if equal y1 y2 then () else
+    failwith
+      (Printf.sprintf "%s: %s <> %s" message (to_string y1) (to_string y2))
 
 let check_string = check_gen ~equal:String.equal ~to_string:(fun x -> x)
 let check_int = check_gen ~equal:Int.equal ~to_string:Int.to_string
-let check_float_u = check_gen ~equal:Float.equal ~to_string:Float.to_string
+let check_float_u =
+  check_gen ~equal:Float.equal ~to_string:Float.to_string
 
 (* Helper functions for testing polymorphic copying. *)
 

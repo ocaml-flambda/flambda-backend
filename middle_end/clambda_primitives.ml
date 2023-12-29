@@ -49,7 +49,7 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pmixedfield of int * flat_element
+  | Pmixedfield of int * flat_element_projection
   | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
@@ -197,7 +197,11 @@ and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
 and flat_element = Lambda.flat_element =
-    Imm | Float64
+    Imm | Float | Float64
+and flat_element_projection = Lambda.flat_element_projection =
+  | Projection_imm
+  | Projection_float of alloc_mode
+  | Projection_float64
 and mixed_block_shape = Lambda.mixed_block_shape =
     { value_prefix_len : int;
       flat_suffix : flat_element array;
@@ -254,8 +258,9 @@ let result_layout (p : primitive) =
   | Pufloatfield _ | Punbox_float -> Lambda.layout_unboxed_float
   | Pmixedfield (_, shape) -> begin
       match shape with
-      | Imm -> Lambda.layout_any_value
-      | Float64 -> Lambda.layout_unboxed_float
+      | Projection_imm -> Lambda.layout_int
+      | Projection_float _ -> Lambda.layout_boxed_float
+      | Projection_float64 -> Lambda.layout_unboxed_float
     end
   | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_native_repr repr_res
   | Praise _ -> Lambda.layout_bottom

@@ -441,8 +441,8 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
-  | Pmixedfield (n, (Imm | Float64), _sem) ->
-      (* CR layouts: This will need reworking if we ever want to bytecode
+  | Pmixedfield (n, _, _sem) ->
+      (* CR layouts: This will need reworking if we ever want bytecode
          to unbox fields that are written with unboxed types in the source
          language. *)
       (* Note, non-value mixed fields are always boxed in bytecode; they
@@ -454,8 +454,8 @@ let comp_primitive stack_info p sz args =
          on 32 bits), and will need reworking when we have other sizes. *)
       match shape with
       | Imm -> Ksetfield n
-      | Float64 -> Ksetfloatfield n
-      (* Note float64s are unboxed in records but otherwise boxed in bytecode. *)
+      (* CR mixed blocks: I think this is wrong. Test case? *)
+      | Float | Float64 -> Ksetfloatfield n
     end
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
