@@ -1454,14 +1454,6 @@ let emit_instr fallthrough i =
   | Lop(Iintop_imm(Icheckalign { bytes_pow2 }, n)) ->
       let mask = bytes_pow2 - 1 in
       if (n land mask) <> 0 then Misc.fatal_errorf "Alignment check on known int failed."
-  | Lop(Iintop (Icheckbound)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (arg i 1) (arg i 0);
-      I.jbe (label lbl)
-  | Lop(Iintop_imm(Icheckbound, n)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (int n) (arg i 0);
-      I.jbe (label lbl)
   | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
   | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->

@@ -238,7 +238,6 @@ let operation d = function
     Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
-  | Ccheckbound -> "checkbound" ^ location d
   | Ccheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d]%s" bytes_pow2 (location d)
   | Cprobe { name; handler_code_sym; enabled_at_init; } ->
     Printf.sprintf "probe[%s %s%s]" name handler_code_sym

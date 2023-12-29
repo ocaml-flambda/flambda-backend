@@ -179,10 +179,6 @@ let basic_or_terminator_of_operation :
     With_next_label
       (fun label_after ->
         Prim { op = Alloc { bytes; dbginfo; mode }; label_after })
-  | Iintop Icheckbound ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkbound { immediate = None }; label_after })
   | Iintop (Icheckalign { bytes_pow2 }) ->
     With_next_label
       (fun label_after ->
@@ -192,10 +188,6 @@ let basic_or_terminator_of_operation :
   | Ipoll { return_label = Some return_label } ->
     Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
       return_label
-  | Iintop_imm (Icheckbound, i) ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkbound { immediate = Some i }; label_after })
   | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
     With_next_label
       (fun label_after ->

@@ -40,8 +40,6 @@ module type S = sig
        N.B. The only instructions supported are the following:
                 - Lop (Ialloc _)
                 - Lop (Ipoll _)
-                - Lop (Iintop Icheckbound)
-                - Lop (Iintop_imm (Icheckbound, _))
                 - Lop (Ispecific _)
                 - Lcondbranch (_, _)
                 - Lcondbranch3 (_, _, _)

@@ -246,9 +246,9 @@ method class_of_operation op =
       | Immutable -> Immutable)
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
-  | Iintop(Icheckbound|Icheckalign _) -> Op_checkbound
+  | Iintop(Icheckalign _) -> Op_checkbound
   | Iintop _ -> Op_pure
-  | Iintop_imm((Icheckbound|Icheckalign _), _) -> Op_checkbound
+  | Iintop_imm((Icheckalign _), _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
   | Iintop_atomic _ -> Op_store true
   | Icompf _

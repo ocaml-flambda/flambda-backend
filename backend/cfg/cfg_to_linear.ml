@@ -188,8 +188,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               returns = true;
               stack_ofs
             }
-        | Checkbound { immediate = None } -> Iintop Icheckbound
-        | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
         | Checkalign { bytes_pow2; immediate = None } ->
           Iintop (Icheckalign { bytes_pow2 })
         | Checkalign { bytes_pow2; immediate = Some i } ->

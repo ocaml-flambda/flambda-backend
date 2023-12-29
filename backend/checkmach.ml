@@ -1030,10 +1030,6 @@ end = struct
     | Istore _ ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
-      (* does not allocate even when it raises because checkbound exception is
-         static. *)
-      transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
     | Iintop (Icheckalign _) | Iintop_imm (Icheckalign _, _) ->
       (* does not allocate even when it raises because checkalign exception is
          static. *)

@@ -162,8 +162,8 @@ let pseudoregs_for_operation op arg res =
     arg.(len-1) <- res.(0);
     (arg, res)
   (* Other instructions are regular *)
-  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound|Icheckalign _)
-  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound|Icheckalign _
+  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckalign _)
+  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckalign _
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
@@ -214,7 +214,7 @@ inherit Selectgen.selector_generic as super
 
 method! is_immediate op n =
   match op with
-  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound ->
+  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _  ->
       is_immediate n
   | _ ->
       super#is_immediate op n

@@ -306,10 +306,6 @@ let check_prim_call_operation :
          && Lambda.eq_mode expected_mode result_mode ->
     (* CR xclerc for xclerc: also check debug info *)
     ()
-  | ( Checkbound { immediate = expected_immediate },
-      Checkbound { immediate = result_immediate } )
-    when Option.equal Int.equal expected_immediate result_immediate ->
-    ()
   | ( Probe
         { name = expected_name;
           handler_code_sym = expected_handler_code_sym;

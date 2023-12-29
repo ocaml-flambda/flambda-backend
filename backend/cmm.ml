@@ -241,7 +241,6 @@ type operation =
   | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
-  | Ccheckbound
   | Ccheckalign of { bytes_pow2: int }
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
