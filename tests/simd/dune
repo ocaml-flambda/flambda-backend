@@ -11,7 +11,7 @@
 
 (executables
  (names basic ops arrays scalar_ops)
- (modules basic ops arrays scalar_ops)
+ (modules basic ops arrays scalar_ops test_helpers)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
