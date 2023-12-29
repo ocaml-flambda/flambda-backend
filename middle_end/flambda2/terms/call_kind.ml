@@ -62,6 +62,8 @@ type t =
   | C_call of
       { needs_caml_c_call : bool;
         is_c_builtin : bool;
+        effects : Effects.t;
+        coeffects: Coeffects.t;
         alloc_mode : Alloc_mode.For_allocations.t
       }
 
@@ -83,15 +85,19 @@ let [@ocamlformat "disable"] print ppf t =
       Simple.print obj
       Method_kind.print kind
       Alloc_mode.For_allocations.print alloc_mode
-  | C_call { needs_caml_c_call; is_c_builtin; alloc_mode } ->
+  | C_call { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode } ->
     fprintf ppf "@[<hov 1>(C@ \
         @[<hov 1>(needs_caml_c_call@ %b)@]@ \
         @[<hov 1>(is_c_builtin@ %b)@]@ \
+        @[<hov 1>(effects@ %a)@]@ \
+        @[<hov 1>(coeffects@ %a)@]@ \
         @[<hov 1>(alloc_mode@ %a)@]\
         )@]"
       needs_caml_c_call
       is_c_builtin
       Alloc_mode.For_allocations.print alloc_mode
+      Effects.print effects
+      Coeffects.print coeffects
 
 let direct_function_call code_id alloc_mode =
   Function { function_call = Direct code_id; alloc_mode }
@@ -104,8 +110,8 @@ let indirect_function_call_known_arity alloc_mode =
 
 let method_call kind ~obj alloc_mode = Method { kind; obj; alloc_mode }
 
-let c_call ~needs_caml_c_call ~is_c_builtin alloc_mode =
-  C_call { needs_caml_c_call; is_c_builtin; alloc_mode }
+let c_call ~needs_caml_c_call ~is_c_builtin ~effects ~coeffects alloc_mode =
+  C_call { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode }
 
 let free_names t =
   match t with
@@ -116,7 +122,7 @@ let free_names t =
   | Function { function_call = Indirect_unknown_arity; alloc_mode }
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     Alloc_mode.For_allocations.free_names alloc_mode
-  | C_call { needs_caml_c_call = _; is_c_builtin = _; alloc_mode } ->
+  | C_call { needs_caml_c_call = _; is_c_builtin = _; effects = _; coeffects = _; alloc_mode } ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Method { kind = _; obj; alloc_mode } ->
     Name_occurrences.union (Simple.free_names obj)
@@ -143,13 +149,14 @@ let apply_renaming t renaming =
     if alloc_mode == alloc_mode'
     then t
     else Function { function_call; alloc_mode = alloc_mode' }
-  | C_call { needs_caml_c_call; is_c_builtin; alloc_mode } ->
+  | C_call { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode } ->
     let alloc_mode' =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode'
     then t
-    else C_call { needs_caml_c_call; is_c_builtin; alloc_mode = alloc_mode' }
+    else C_call { needs_caml_c_call; is_c_builtin; effects; coeffects;
+                  alloc_mode = alloc_mode' }
   | Method { kind; obj; alloc_mode } ->
     let obj' = Simple.apply_renaming obj renaming in
     let alloc_mode' =
@@ -168,7 +175,8 @@ let ids_for_export t =
   | Function { function_call = Indirect_unknown_arity; alloc_mode }
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | C_call { needs_caml_c_call = _; is_c_builtin = _; alloc_mode } ->
+  | C_call { needs_caml_c_call = _; is_c_builtin = _; effects = _; coeffects = _;
+             alloc_mode } ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Method { kind = _; obj; alloc_mode } ->
     Ids_for_export.union

@@ -75,3 +75,9 @@ val classify_continuation_handler :
   num_free_occurrences:Num_occurrences.t Or_unknown.t ->
   is_applied_with_traps:bool ->
   continuation_handler_classification
+
+(** Effects and coeffects of C calls  *)
+
+val transl_c_call_effects : Effects.t ->  Cmm.effects
+
+val transl_c_call_coeffects : Coeffects.t -> Cmm.coeffects

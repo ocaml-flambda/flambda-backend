@@ -59,8 +59,8 @@ type t = private
   | C_call of
       { needs_caml_c_call : bool;
         is_c_builtin : bool;
-            (* CR mshinwell: This should have the effects and coeffects
-               fields *)
+        effects : Effects.t;
+        coeffects: Coeffects.t;
         alloc_mode : Alloc_mode.For_allocations.t
       }
 
@@ -80,5 +80,7 @@ val method_call :
 val c_call :
   needs_caml_c_call:bool ->
   is_c_builtin:bool ->
+  effects:Effects.t ->
+  coeffects:Coeffects.t ->
   Alloc_mode.For_allocations.t ->
   t

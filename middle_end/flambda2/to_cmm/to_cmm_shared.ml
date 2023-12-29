@@ -242,7 +242,9 @@ let invalid res ~message =
     | Some message_sym -> message_sym, res
   in
   let call_expr =
-    extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
+    extcall ~dbg ~alloc:false ~is_c_builtin:false
+      ~effects:Arbitrary_effects ~coeffects:Has_coeffects
+      ~returns:false ~ty_args:[XInt]
       Cmm.caml_flambda2_invalid Cmm.typ_void
       [symbol ~dbg (To_cmm_result.symbol res message_sym)]
   in

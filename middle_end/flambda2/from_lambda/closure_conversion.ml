@@ -443,8 +443,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         prim_arity;
         prim_alloc;
         prim_c_builtin;
-        prim_effects = _;
-        prim_coeffects = _;
+        prim_effects;
+        prim_coeffects;
         prim_native_name;
         prim_native_repr_args;
         prim_native_repr_res
@@ -550,8 +550,11 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Some alloc_mode ->
       Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
   in
+  let effects = Effects.from_lambda prim_effects in
+  let coeffects = Coeffects.from_lambda prim_coeffects in
   let call_kind =
     Call_kind.c_call ~needs_caml_c_call:prim_alloc ~is_c_builtin:prim_c_builtin
+      ~effects ~coeffects
       alloc_mode
   in
   let call_symbol =

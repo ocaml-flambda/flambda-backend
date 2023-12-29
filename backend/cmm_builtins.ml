@@ -718,7 +718,8 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> transl_vec128_builtin name args dbg typ_res
 
-let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
+let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
+    typ_res args =
   if not returns then assert (typ_res = typ_void);
   let default =
     Cop
@@ -729,8 +730,8 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
             ty_args;
             returns;
             builtin = is_c_builtin;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects
+            effects;
+            coeffects
           },
         args,
         dbg )

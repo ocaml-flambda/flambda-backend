@@ -21,6 +21,8 @@ val extcall :
   returns:bool ->
   alloc:bool ->
   is_c_builtin:bool ->
+  effects:Cmm.effects ->
+  coeffects:Cmm.coeffects ->
   ty_args:exttype list ->
   string ->
   machtype ->
