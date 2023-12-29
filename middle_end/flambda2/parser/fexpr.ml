@@ -355,7 +355,7 @@ type binop =
   | Bigarray_get_alignment of int
 
 type ternop =
-  (* XXX mshinwell: Array_set should use "array_set_kind" *)
+  (* CR mshinwell: Array_set should use "array_set_kind" *)
   | Array_set of array_kind * init_or_assign
   | Block_set of block_access_kind * init_or_assign
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width

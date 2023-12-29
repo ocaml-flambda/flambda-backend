@@ -2,14 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
 (*            Mark Shinwell and Xavier Clerc, Jane Street Europe          *)
-(*                           Guillaume Bury, OCamlPro SAS                 *)
+(*                       Guillaume Bury, OCamlPro SAS                     *)
 (*                                                                        *)
-(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
-(*                                                                        *)
-(*   Copyright 2017--2019 Jane Street Group LLC                           *)
+(*   Copyright 2017--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -23,7 +19,7 @@ type t =
   | Naked_int64s
   | Naked_nativeints
 
-let [@ocamlformat "disable"] print ppf t =
+let print ppf t =
   match t with
   | Values_or_immediates_or_naked_floats -> Format.pp_print_string ppf "regular"
   | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
@@ -34,13 +30,16 @@ let compare = Stdlib.compare
 
 let of_element_kind t =
   match (t : Flambda_kind.t) with
-  | Value | Naked_number Naked_immediate | Naked_number Naked_float ->
-    Values_or_immediates_or_naked_floats
+  | Value | Naked_number Naked_float -> Values_or_immediates_or_naked_floats
+  | Naked_number Naked_immediate ->
+    Misc.fatal_errorf
+      "Arrays cannot yet contain elements of kind naked immediate"
   | Naked_number Naked_int32 -> Naked_int32s
   | Naked_number Naked_int64 -> Naked_int64s
   | Naked_number Naked_nativeint -> Naked_nativeints
   | Naked_number Naked_vec128 ->
-    Misc.fatal_errorf "Arrays cannot contains elements of kind unboxed vec128"
+    Misc.fatal_errorf
+      "Arrays cannot yet contain elements of kind unboxed vec128"
   | Region | Rec_info ->
     Misc.fatal_errorf
       "Arrays cannot contain elements of kind region or rec_info"

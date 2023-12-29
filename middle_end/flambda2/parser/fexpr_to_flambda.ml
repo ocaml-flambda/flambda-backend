@@ -452,7 +452,8 @@ let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
       | Values, ia -> Values (init_or_assign env ia)
       | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
         Misc.fatal_error
-          "XXX fexpr support for unboxed int32/64/nativeint arrays"
+          "fexpr support for unboxed int32/64/nativeint arrays not yet \
+           implemented"
     in
     Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)

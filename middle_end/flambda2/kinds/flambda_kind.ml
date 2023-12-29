@@ -334,7 +334,7 @@ module With_subkind = struct
       | Value_array, Value_array
       | Generic_array, Generic_array
       | Unboxed_int32_array, Unboxed_int32_array
-      | Unboxed_int64_array, Unboxed_int32_array
+      | Unboxed_int64_array, Unboxed_int64_array
       | Unboxed_nativeint_array, Unboxed_nativeint_array ->
         true
       | ( Variant { consts = consts1; non_consts = non_consts1 },

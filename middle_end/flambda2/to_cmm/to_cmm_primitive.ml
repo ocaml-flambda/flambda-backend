@@ -130,11 +130,11 @@ let make_array ~dbg kind alloc_mode args =
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
-  assert (C.wordsize_shift = C.numfloat_shift);
   match kind with
   | Immediates | Values | Naked_floats ->
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
        width of floats is equal to the machine word width (see flambda2.ml). *)
+    assert (C.wordsize_shift = C.numfloat_shift);
     C.arraylength Paddrarray arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->
@@ -563,7 +563,7 @@ let unary_primitive env res dbg f arg =
   | Array_length (Array_kind array_kind) ->
     None, res, array_length ~dbg arg array_kind
   | Array_length Float_array_opt_dynamic ->
-    (* See flambda2.ml. *)
+    (* See flambda2.ml (and comment in [array_length], above). *)
     None, res, array_length ~dbg arg Values
   | Bigarray_length { dimension } ->
     ( None,

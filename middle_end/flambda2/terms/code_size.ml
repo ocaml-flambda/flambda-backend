@@ -159,9 +159,8 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   match kind with
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
-  | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
-    ->
-    1
+  | Immediates | Naked_floats -> 1
+  | Naked_int32s | Naked_int64s | Naked_nativeints -> 2 (* as above *)
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -337,7 +336,7 @@ let unary_prim_size prim =
       (* There is a dynamic check here to see if the array has an odd or even
          number of elements *)
       array_length_size + 2 (* compare + load *)
-    | Float_array_opt_dynamic -> array_length_size + 3 (* XXX guess *))
+    | Float_array_opt_dynamic -> array_length_size + 3 (* a bit approximate *))
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
   | Int_as_pointer _ -> 1

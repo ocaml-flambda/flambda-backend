@@ -516,7 +516,7 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
-  | Array_length _ak -> Array_length (Array_kind Values) (* XXX *)
+  | Array_length ak -> Array_length ak
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate

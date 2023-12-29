@@ -488,11 +488,13 @@ let simplify_constant_constructor = function
 
 (* The following function computes the greatest lower bound in the
    semilattice of array kinds:
-          gen
-         /   \
-      addr   float
-       |
-      int
+                                     gen
+                                      |
+      /------+---------+--------------+--------------+---------------\
+      |      |         |              |              |               |
+    addr  float  unboxed-float  unboxed-int32  unboxed-int64  unboxed-nativeint
+      |
+    int
    Note that the GLB is not guaranteed to exist, in which case we return
    our first argument instead of raising a fatal error because, although
    it cannot happen in a well-typed program, (ab)use of Obj.magic can
@@ -500,73 +502,72 @@ let simplify_constant_constructor = function
 *)
 let glb_array_type t1 t2 =
   match t1, t2 with
-  (* No GLB; only used in the [Obj.magic] case *)
-  | Pfloatarray, (Paddrarray | Pintarray)
-  | (Paddrarray | Pintarray), Pfloatarray -> t1
-
-  (* Compute the correct GLB *)
   | Pgenarray, x | x, Pgenarray -> x
   | Paddrarray, x | x, Paddrarray -> x
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
-
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
+  | Punboxedintarray Pint32, Punboxedintarray Pint32 -> Punboxedintarray Pint32
+  | Punboxedintarray Pint64, Punboxedintarray Pint64 -> Punboxedintarray Pint64
+  | Punboxedintarray Pnativeint, Punboxedintarray Pnativeint ->
+    Punboxedintarray Pnativeint
+  (* No GLB; only used in the [Obj.magic] case *)
+  | (Pfloatarray | Pintarray | Punboxedfloatarray | Punboxedintarray _),
+    (Pfloatarray | Pintarray | Punboxedfloatarray | Punboxedintarray _) -> t1
 
 let glb_array_ref_type t1 t2 =
   match t1, t2 with
-  (* No GLB; only used in the [Obj.magic] case *)
-  | Pfloatarray_ref _, (Paddrarray | Pintarray)
-  | (Paddrarray_ref | Pintarray_ref), Pfloatarray -> t1
-
-  (* Compute the correct GLB *)
-
-  (* Pgenarray >= _ *)
+  (* Pgenarray >= _ (for value layouts) *)
   | (Pgenarray_ref _ as x), Pgenarray -> x
   | Pgenarray_ref _, Pintarray -> Pintarray_ref
   | Pgenarray_ref _, Paddrarray -> Paddrarray_ref
   | Pgenarray_ref mode, Pfloatarray -> Pfloatarray_ref mode
   | (Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _ as x), Pgenarray -> x
-
   (* Paddrarray > Pintarray *)
   | Paddrarray_ref, Paddrarray -> Paddrarray_ref
   | Paddrarray_ref, Pintarray -> Pintarray_ref
   | Pintarray_ref, Paddrarray -> Pintarray_ref
-
   (* Pintarray is a minimum *)
   | Pintarray_ref, Pintarray -> Pintarray_ref
-
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
-
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  (* Likewise for the unboxed array kinds *)
+  | Punboxedfloatarray_ref, Punboxedfloatarray -> t1
+  | Punboxedintarray_ref Pint32, Punboxedintarray Pint32 -> t1
+  | Punboxedintarray_ref Pint64, Punboxedintarray Pint64 -> t1
+  | Punboxedintarray_ref Pnativeint, Punboxedintarray Pnativeint -> t1
+  (* No GLB; only used in the [Obj.magic] case *)
+  | (Pgenarray_ref _ | Paddrarray_ref | Pfloatarray_ref _ | Pintarray_ref
+      | Punboxedfloatarray_ref | Punboxedintarray_ref _),
+    (Pgenarray | Pfloatarray | Pintarray | Paddrarray | Punboxedfloatarray
+      | Punboxedintarray _) -> t1
 
 let glb_array_set_type t1 t2 =
   match t1, t2 with
-  (* No GLB; only used in the [Obj.magic] case *)
-  | Pfloatarray_set, (Paddrarray | Pintarray)
-  | (Paddrarray_set _ | Pintarray_set), Pfloatarray -> t1
-
-  (* Compute the correct GLB *)
-
   (* Pgenarray >= _ *)
   | (Pgenarray_set _ as x), Pgenarray -> x
   | Pgenarray_set _, Pintarray -> Pintarray_set
   | Pgenarray_set mode, Paddrarray -> Paddrarray_set mode
   | Pgenarray_set _, Pfloatarray -> Pfloatarray_set
   | (Paddrarray_set _ | Pintarray_set | Pfloatarray_set as x), Pgenarray -> x
-
   (* Paddrarray > Pintarray *)
   | (Paddrarray_set _ as x), Paddrarray -> x
   | Paddrarray_set _, Pintarray -> Pintarray_set
   | Pintarray_set, Paddrarray -> Pintarray_set
-
   (* Pintarray is a minimum *)
   | Pintarray_set, Pintarray -> Pintarray_set
-
   (* Pfloatarray is a minimum *)
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
-
-  | _ -> Misc.fatal_error "XXX mshinwell: for frontend devs"
+  (* Likewise for the unboxed array kinds *)
+  | Punboxedfloatarray_set, Punboxedfloatarray -> t1
+  | Punboxedintarray_set Pint32, Punboxedintarray Pint32 -> t1
+  | Punboxedintarray_set Pint64, Punboxedintarray Pint64 -> t1
+  | Punboxedintarray_set Pnativeint, Punboxedintarray Pnativeint -> t1
+  (* No GLB; only used in the [Obj.magic] case *)
+  | (Pgenarray_set _ | Paddrarray_set _ | Pfloatarray_set | Pintarray_set
+      | Punboxedfloatarray_set | Punboxedintarray_set _),
+    (Pgenarray | Pfloatarray | Pintarray | Paddrarray | Punboxedfloatarray
+      | Punboxedintarray _) -> t1
 
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void

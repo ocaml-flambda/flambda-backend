@@ -42,7 +42,7 @@ val black_closure_header : int -> nativeint
 (** Infix header at the given offset *)
 val infix_header : int -> nativeint
 
-val custom_header : size:int -> nativeint
+val black_custom_header : size:int -> nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
 val closure_info : arity:arity -> startenv:int -> is_last:bool -> nativeint
@@ -918,11 +918,11 @@ val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
 (** Read from an unboxed int64 or unboxed nativeint array (without bounds
-     check). *)
+    check). *)
 val unboxed_int64_or_nativeint_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
-(** Update an unboxed int64 or unboxed nativeint array. *)
+(** Update an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_set :
   expression ->
   index:expression ->
@@ -930,7 +930,8 @@ val unboxed_int32_array_set :
   Debuginfo.t ->
   expression
 
-(** Update an unboxed int64 or unboxed nativeint array. *)
+(** Update an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
 val unboxed_int64_or_nativeint_array_set :
   expression ->
   index:expression ->

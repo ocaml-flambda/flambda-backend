@@ -757,18 +757,3 @@ val machtype_of_layout : Lambda.layout -> machtype
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
-
-(** Allocate a block to hold an unboxed int32 array for the given number of
-    elements. *)
-val allocate_unboxed_int32_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
-
-(** Allocate a block to hold an unboxed int64 array for the given number of
-    elements. *)
-val allocate_unboxed_int64_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
-
-(** Allocate a block to hold an unboxed nativeint array for the given number of
-    elements. *)
-val allocate_unboxed_nativeint_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression

@@ -39,10 +39,10 @@ module Array_kind : sig
     | Immediates  (** An array consisting only of immediate values. *)
     | Values
         (** An array consisting of elements of kind [value]. With the float
-        array optimisation enabled, such elements must never be [float]s. *)
+            array optimisation enabled, such elements must never be [float]s. *)
     | Naked_floats
         (** An array consisting of naked floats, represented using
-        [Double_array_tag]. *)
+            [Double_array_tag]. *)
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints

@@ -470,8 +470,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
 
      assert (Flambda_features.flat_float_array ()); *)
   match
-    T.meet_is_naked_number_array (DA.typing_env dacc) arg_ty
-      K.Naked_number_kind.Naked_float
+    T.meet_is_naked_number_array (DA.typing_env dacc) arg_ty Naked_float
   with
   | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in

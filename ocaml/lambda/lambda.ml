@@ -1616,12 +1616,9 @@ let array_ref_kind_result_layout = function
   | Pfloatarray_ref _ -> layout_boxed_float
   | Punboxedfloatarray_ref -> layout_unboxed_float
   | Pgenarray_ref _ | Paddrarray_ref -> layout_field
-  | Punboxedintarray_ref Pint32 ->
-    Misc.fatal_error "XXX no layout yet for unboxed int32"
-  | Punboxedintarray_ref Pint64 ->
-    Misc.fatal_error "XXX no layout yet for unboxed int64"
-  | Punboxedintarray_ref Pnativeint ->
-    Misc.fatal_error "XXX no layout yet for unboxed nativeint"
+  | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
+  | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
+  | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;

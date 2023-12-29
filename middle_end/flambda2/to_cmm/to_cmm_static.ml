@@ -49,17 +49,30 @@ let rec static_block_updates symb env res acc i = function
       in
       static_block_updates symb env res acc (i + 1) r)
 
-let rec static_unboxed_int_array_updates symb env res acc i = function
+type maybe_int32 =
+  | Int32
+  | Int64_or_nativeint
+
+(* The index [i] is always in the units of the size of the integer concerned,
+   not units of 64-bit words. *)
+let rec static_unboxed_int_array_updates symb env res acc maybe_int32 i =
+  function
   | [] -> env, res, acc
   | sv :: r -> (
     match (sv : _ Or_variable.t) with
-    | Const _ -> static_unboxed_int_array_updates symb env res acc (i + 1) r
+    | Const _ ->
+      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r
     | Var (var, dbg) ->
-      let env, res, acc =
-        C.make_update env res dbg Word_int ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
+      let kind : C.update_kind =
+        match maybe_int32 with
+        | Int64_or_nativeint -> Word_int
+        | Int32 -> Thirtytwo_signed
       in
-      static_unboxed_int_array_updates symb env res acc (i + 1) r)
+      let env, res, acc =
+        C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symb) var ~index:i
+          ~prev_updates:acc
+      in
+      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r)
 
 let rec static_float_array_updates symb env res acc i = function
   | [] -> env, res, acc
@@ -199,9 +212,30 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let float_array = C.emit_float_array_constant sym static_fields in
     let env, res, e = static_float_array_updates sym env res updates 0 fields in
     env, R.update_data res float_array, e
+  | Block_like s, Immutable_int32_array fields ->
+    let sym = R.symbol res s in
+    assert (Arch.size_int = 8);
+    let num_payload_fields = (1 + List.length fields) / 2 in
+    let header = C.black_custom_header ~size:(1 + num_payload_fields) in
+    let static_fields =
+      C.symbol_address
+        (Cmm.global_symbol
+           (if List.length fields mod 2 = 0
+           then "_unboxed_int32_even_array"
+           else "_unboxed_int32_odd_array"))
+      :: List.map
+           (Or_variable.value_map ~default:(Cmm.Cint32 0n) ~f:(fun i ->
+                Cmm.Cint32 (Int64.to_nativeint (Int64.of_int32 i))))
+           fields
+    in
+    let block = C.emit_block sym header static_fields in
+    let env, res, updates =
+      static_unboxed_int_array_updates sym env res updates Int32 0 fields
+    in
+    env, R.set_data res block, updates
   | Block_like s, Immutable_int64_array fields ->
     let sym = R.symbol res s in
-    let header = C.custom_header ~size:(1 + List.length fields) in
+    let header = C.black_custom_header ~size:(1 + List.length fields) in
     let static_fields =
       C.symbol_address (Cmm.global_symbol "_unboxed_int64_array")
       :: List.map
@@ -211,12 +245,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     let block = C.emit_block sym header static_fields in
     let env, res, updates =
-      static_unboxed_int_array_updates sym env res updates 0 fields
+      static_unboxed_int_array_updates sym env res updates Int64_or_nativeint 0
+        fields
     in
     env, R.set_data res block, updates
   | Block_like s, Immutable_nativeint_array fields ->
     let sym = R.symbol res s in
-    let header = C.custom_header ~size:(1 + List.length fields) in
+    let header = C.black_custom_header ~size:(1 + List.length fields) in
     let static_fields =
       C.symbol_address (Cmm.global_symbol "_unboxed_nativeint_array")
       :: List.map
@@ -226,19 +261,10 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     let block = C.emit_block sym header static_fields in
     let env, res, updates =
-      static_unboxed_int_array_updates sym env res updates 0 fields
+      static_unboxed_int_array_updates sym env res updates Int64_or_nativeint 0
+        fields
     in
     env, R.set_data res block, updates
-  | Block_like _s, Immutable_int32_array _fields ->
-    (* CR gbury: we could support this case if needed. However, the
-       [static_unboxed_int_array_updates] function cannot be used as is for
-       int32s arrays because the memory chunk given as argument of the
-       [C.make_update] function would be wrong: it currently is [Word_int]
-       unconditionally, whereas it would need to be [Thirtytwo_signed] for an
-       array of int32s unboxed, plus the index computation would need to be
-       different. *)
-    Misc.fatal_error
-      "Emission of static unboxed int32 arrays is not currently supported"
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -259,26 +285,23 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block = C.emit_block sym header [] in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int32s ->
-    let sym = R.symbol res s in
-    let header = C.custom_header ~size:1 in
     let block =
-      C.emit_block sym header
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
         [C.symbol_address (Cmm.global_symbol "_unboxed_int32_even_array")]
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int64s ->
-    let sym = R.symbol res s in
-    let header = C.custom_header ~size:1 in
     let block =
-      C.emit_block sym header
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
         [C.symbol_address (Cmm.global_symbol "_unboxed_int64_array")]
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_nativeints ->
-    let sym = R.symbol res s in
-    let header = C.custom_header ~size:1 in
     let block =
-      C.emit_block sym header
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
         [C.symbol_address (Cmm.global_symbol "_unboxed_nativeint_array")]
     in
     env, R.set_data res block, updates

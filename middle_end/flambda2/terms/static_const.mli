@@ -41,11 +41,11 @@ type t = private
       (** [Immutable_*_array] constructors always have at least one field. For
         empty arrays, [Empty_array] must be used. *)
   | Empty_array of Empty_array_kind.t
-      (** [Empty_array] must since specify the kind of the empty array. Indeed,
-        arrays of unboxed numbers such as int32 and int64 have a slightly
-        different representation (using custom blocks currently) than regular
-        arrays of values, which affects all operations, most importantly the
-        computation of the length of the array. *)
+      (** [Empty_array] must specify the kind of the empty array.  Arrays of
+      unboxed numbers such as int32 and int64 have a slightly different
+      representation (currently using custom blocks) from regular arrays of
+      values.  This affects all operations, most importantly the computation of
+      the length of the array. *)
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 

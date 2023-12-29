@@ -252,25 +252,46 @@ let invalid res ~message =
   in
   call_expr, res
 
-let make_update env res dbg (kind : Cmm.memory_chunk) ~symbol var ~index
+type update_kind =
+  | Word_val
+  | Word_int
+  | Double
+  | Thirtytwo_signed
+  | Onetwentyeight_unaligned
+
+let make_update env res dbg (kind : update_kind) ~symbol var ~index
     ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
   let cmm =
-    if Config.runtime5
-    then
-      let imm_or_ptr : Lambda.immediate_or_pointer =
+    let must_use_setfield =
+      if not Config.runtime5
+      then None
+      else
         match kind with
-        | Word_val -> Pointer
-        | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-        | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
-        | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
-          Immediate
-      in
+        | Word_val -> Some Lambda.Pointer
+        | Word_int -> Some Lambda.Immediate
+        | Thirtytwo_signed | Double | Onetwentyeight_unaligned ->
+          (* The GC never sees these fields, so we can avoid using
+             [caml_initialize]. This is important as it significantly reduces
+             the complexity of the statically-allocated inconstant unboxed int32
+             array case, which otherwise would have to use 64-bit writes. *)
+          None
+    in
+    match must_use_setfield with
+    | Some imm_or_ptr ->
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
-    else
+    | None ->
       let addr = field_address symbol index dbg in
+      let kind : Cmm.memory_chunk =
+        match kind with
+        | Word_val -> Word_val
+        | Word_int -> Word_int
+        | Double -> Double
+        | Thirtytwo_signed -> Thirtytwo_signed
+        | Onetwentyeight_unaligned -> Onetwentyeight_unaligned
+      in
       store ~dbg kind Initialization ~addr ~new_value:cmm
   in
   let update =
