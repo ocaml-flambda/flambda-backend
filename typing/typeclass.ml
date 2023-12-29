@@ -1506,14 +1506,14 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Jkind.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar Predef.option_argument_jkind)
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1532,7 +1532,7 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1544,10 +1544,12 @@ let rec approx_description ct =
 
 (*******************************)
 
-let temp_abbrev loc arity uid =
+let temp_abbrev loc id arity uid =
   let params = ref [] in
-  for _i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
+  for i = 1 to arity do
+    params := Ctype.newvar (Jkind.value ~why:(
+      Type_argument {parent_path = Path.Pident id; position = i; arity})
+    ) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
   let ty_td =
@@ -1574,9 +1576,9 @@ let initial_env define_class approx
     (res, env) (cl, id, ty_id, obj_id, uid) =
   (* Temporary abbreviations *)
   let arity = List.length cl.pci_params in
-  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc arity uid in
+  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc obj_id arity uid in
   let env = Env.add_type ~check:true obj_id obj_td env in
-  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc arity uid in
+  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc ty_id arity uid in
 
   (* Temporary type for the class constructor *)
   let constr_type =
@@ -1644,7 +1646,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_argument));
+              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))

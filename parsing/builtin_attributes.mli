@@ -208,3 +208,10 @@ val jkind_attribute_of_string : string -> jkind_attribute option
    as the attribute mechanism predates layouts.
 *)
 val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
+
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
+
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option

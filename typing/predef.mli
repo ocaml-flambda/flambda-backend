@@ -87,6 +87,11 @@ val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
 
+(* The jkind used for optional function argument types *)
+val option_argument_jkind : Jkind.t
+(* The jkind used for list argument types *)
+val list_argument_jkind : Jkind.t
+
 (* To build the initial environment. Since there is a nasty mutual
    recursion between predef and env, we break it by parameterizing
    over Env.t, Env.add_type and Env.add_extension. *)

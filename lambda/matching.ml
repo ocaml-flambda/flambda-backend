@@ -4151,7 +4151,7 @@ let report_error ppf = function
       fprintf ppf
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
-        (Jkind.Violation.report_with_name ~name:"This expression") err
+        (Jkind.Violation.report_with_name ~name:"this expression") err
   | Illegal_record_field c ->
       fprintf ppf
         "Sort %s detected where value was expected in a record field:@ Please \
