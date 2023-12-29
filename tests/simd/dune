@@ -1,3 +1,10 @@
+; Helpers
+
+(library
+ (name simd_test_helpers)
+ (wrapped false)
+ (modules test_helpers))
+
 ; Stubs
 
 (foreign_library
@@ -11,7 +18,8 @@
 
 (executables
  (names basic ops arrays scalar_ops)
- (modules basic ops arrays scalar_ops test_helpers)
+ (modules basic ops arrays scalar_ops)
+ (libraries simd_test_helpers)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -95,8 +103,7 @@
   ops_internal.ml
   consts_internal.ml
   arrays_internal.ml
-  scalar_ops_internal.ml
-  test_helpers_internal.ml)
+  scalar_ops_internal.ml)
  (deps basic.ml ops.ml consts.ml scalar_ops.ml)
  (action
   (progn
@@ -104,8 +111,7 @@
    (copy ops.ml ops_internal.ml)
    (copy consts.ml consts_internal.ml)
    (copy arrays.ml arrays_internal.ml)
-   (copy scalar_ops.ml scalar_ops_internal.ml)
-   (copy test_helpers.ml test_helpers_internal.ml))))
+   (copy scalar_ops.ml scalar_ops_internal.ml))))
 
 (executables
  (names
@@ -119,8 +125,8 @@
   ops_internal
   consts_internal
   arrays_internal
-  scalar_ops_internal
-  test_helpers_internal)
+  scalar_ops_internal)
+ (libraries simd_test_helpers)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
