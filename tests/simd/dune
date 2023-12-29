@@ -95,7 +95,8 @@
   ops_internal.ml
   consts_internal.ml
   arrays_internal.ml
-  scalar_ops_internal.ml)
+  scalar_ops_internal.ml
+  test_helpers_internal.ml)
  (deps basic.ml ops.ml consts.ml scalar_ops.ml)
  (action
   (progn
