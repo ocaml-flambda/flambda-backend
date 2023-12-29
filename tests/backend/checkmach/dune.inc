@@ -717,3 +717,9 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_attr_check_none.output test_attr_check_none.output.corrected)
  (action (diff test_attr_check_none.output test_attr_check_none.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps bigarray_not_float.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))

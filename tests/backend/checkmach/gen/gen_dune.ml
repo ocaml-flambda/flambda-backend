@@ -132,4 +132,5 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_all";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
   print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0 "test_attr_check_none";
+  print_test ~flambda_only:true "bigarray_not_float.ml";
   ()
