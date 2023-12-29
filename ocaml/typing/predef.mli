@@ -67,6 +67,34 @@ val path_extension_constructor: Path.t
 val path_floatarray: Path.t
 val path_unboxed_float: Path.t
 
+(** The [not_float] type is an abstract type that is known not to
+    be [float]. [Typeopt.classify] is the only place that looks for it.
+
+    Recommended use:
+
+    {[
+      module M : sig
+        type !'a t = private 'a not_float
+        val create : unit -> t
+        val use : t -> ...
+      end = struct
+        type !'a t = private 'a not_float  (* private, even in the struct *)
+        external create : unit -> t = "some_bit_of_magic"
+        external use : t -> ... = "more_magic"
+      end
+    ]}
+
+    Now, everyone knows that [M.t] is not a float, meaning that the
+    [M.t array] usages will not need to dynamically check for floats,
+    and will definitely not allocate.
+
+    Why is this safe? Because there is no way to use a [not_float].
+
+    The only reason to parameterize [not_float] is to satisfy injectivity
+    checks.
+*)
+val path_not_float: Path.t
+
 val path_int8x16: Path.t
 val path_int16x8: Path.t
 val path_int32x4: Path.t

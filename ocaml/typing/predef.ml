@@ -50,6 +50,7 @@ and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
+and ident_not_float = ident_create "not_float"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -80,6 +81,7 @@ and path_unboxed_float = Pident ident_unboxed_float
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
 and path_unboxed_int64 = Pident ident_unboxed_int64
+and path_not_float = Pident ident_not_float
 
 and path_int8x16 = Pident ident_int8x16
 and path_int16x8 = Pident ident_int16x8
@@ -329,6 +331,9 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
+  |> add_type1 ident_not_float
+       ~variance:Variance.(set Inj null)  (* bivariant & injective *)
+       ~separability:Ind
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]

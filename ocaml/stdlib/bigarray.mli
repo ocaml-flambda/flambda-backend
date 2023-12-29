@@ -258,7 +258,7 @@ val fortran_layout : fortran_layout layout
 
 module Genarray :
   sig
-  type (!'a, !'b, !'c) t
+  type (!'a, !'b, !'c) t = private ('a * 'b * 'c) not_float
   (** The type [Genarray.t] is the type of Bigarrays with variable
      numbers of dimensions.  Any number of dimensions between 0 and 16
      is supported.
@@ -572,7 +572,7 @@ end
    Statically knowing the number of dimensions of the array allows
    faster operations, and more precise static type-checking. *)
 module Array1 : sig
-  type (!'a, !'b, !'c) t
+  type (!'a, !'b, !'c) t = private ('a * 'b * 'c) not_float
   (** The type of one-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
@@ -685,7 +685,7 @@ end
    case of two-dimensional arrays. *)
 module Array2 :
   sig
-  type (!'a, !'b, !'c) t
+  type (!'a, !'b, !'c) t = private ('a * 'b * 'c) not_float
   (** The type of two-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
@@ -818,7 +818,7 @@ end
    of three-dimensional arrays. *)
 module Array3 :
   sig
-  type (!'a, !'b, !'c) t
+  type (!'a, !'b, !'c) t = private ('a * 'b * 'c) not_float
   (** The type of three-dimensional Bigarrays whose elements have
      OCaml type ['a], representation kind ['b], and memory layout ['c]. *)
 
