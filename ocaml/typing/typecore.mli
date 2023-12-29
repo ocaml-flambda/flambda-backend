@@ -47,6 +47,7 @@ type type_forcing_context =
   | Comprehension_for_start
   | Comprehension_for_stop
   | Comprehension_when
+  | Error_message_attr of string
 
 (* The combination of a type and a "type forcing context". The intent is that it
    describes a type that is "expected" (required) by the context. If unifying

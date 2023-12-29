@@ -44,6 +44,7 @@ type type_forcing_context =
   | Comprehension_for_start
   | Comprehension_for_stop
   | Comprehension_when
+  | Error_message_attr of string
 
 type type_expected = {
   ty: type_expr;
@@ -1677,8 +1678,10 @@ let build_or_pat env loc lid =
   (* CR layouts: the use of value here is wrong:
      there could be other jkinds in a polymorphic variant argument;
      see Test 24 in tests/typing-layouts/basics_alpha.ml *)
-  let tyl = List.map (fun _ -> newvar (Jkind.value ~why:Type_argument))
-              decl.type_params in
+  let arity = List.length decl.type_params in
+  let tyl = List.mapi (fun i _ ->
+    newvar (Jkind.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
+  ) decl.type_params in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
@@ -2886,7 +2889,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   let pvs, pat =
     with_local_level_if_principal begin fun () ->
       let tps = create_type_pat_state Modules_rejected in
-      let nv = newvar (Jkind.value ~why:Class_argument) in
+      let nv = newvar (Jkind.value ~why:Class_term_argument) in
       let alloc_mode = simple_pat_mode Value.legacy in
       let pat =
         type_pat tps Value ~no_existentials:In_class_args ~alloc_mode
@@ -2899,7 +2902,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
       (* CR layouts v5: value restriction here to be relaxed *)
       if is_optional l then
         unify_pat (ref val_env) pat
-          (type_option (newvar (Jkind.value ~why:Type_argument)));
+          (type_option (newvar Predef.option_argument_jkind));
       tps.tps_pattern_variables, pat
     end
       ~post:(fun (pvs, _) -> iter_pattern_variables_type generalize_structure
@@ -4056,7 +4059,7 @@ let rec approx_type env sty =
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
-      if is_optional p then newvar (Jkind.value ~why:Type_argument)
+      if is_optional p then newvar Predef.option_argument_jkind
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
         let arg_ty =
@@ -4074,7 +4077,7 @@ let rec approx_type env sty =
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
       let arg =
         if is_optional p
-        then type_option (newvar (Jkind.value ~why:Type_argument))
+        then type_option (newvar Predef.option_argument_jkind)
         else newvar (Jkind.any ~why:Inside_of_Tarrow)
       in
       let ret = approx_type env sty in
@@ -5891,7 +5894,11 @@ and type_expect_
         type_constraint env sty (mode_annots_from_exp_attrs sexp)
       in
       let ty' = instance ty in
-      let arg = type_argument env expected_mode sarg ty (instance ty) in
+      let error_message_attr_opt =
+        Builtin_attributes.error_message_attr sexp.pexp_attributes in
+      let explanation = Option.map (fun msg -> Error_message_attr msg)
+                          error_message_attr_opt in
+      let arg = type_argument ?explanation env expected_mode sarg ty (instance ty) in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
@@ -7479,7 +7486,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       if is_optional lbl then
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
-          (type_option(newvar (Jkind.value ~why:Type_argument)));
+          (type_option(newvar Predef.option_argument_jkind));
       (lbl, Arg (arg, expected_mode.mode, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
@@ -8406,6 +8413,12 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           if maybe_expansive exp then lower_contravariant env pat.pat_type)
         mode_pat_typ_list exp_list;
       iter_pattern_variables_type generalize pvs;
+      (* update pattern variable jkind reasons *)
+      List.iter
+        (fun pv ->
+          let reason = Jkind.Generalized (Some pv.pv_id, pv.pv_loc) in
+          Ctype.update_generalized_ty_jkind_reason pv.pv_type reason)
+        pvs;
       List.iter2
         (fun (_, _, expected_ty) (exp, vars) ->
           match vars with
@@ -8425,7 +8438,17 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 lower_contravariant env exp.exp_type;
               generalize_and_check_univars env "definition"
                 exp expected_ty vars)
-        mode_pat_typ_list exp_list
+        mode_pat_typ_list exp_list;
+      let update_exp_jkind (_, p, _) (exp, _) =
+        let pat_name =
+          match p.pat_desc with
+            Tpat_var (id, _, _, _) -> Some id
+          | Tpat_alias(_, id, _, _, _) -> Some id
+          | _ -> None in
+        let reason = Jkind.Generalized (pat_name, exp.exp_loc) in
+        Ctype.update_generalized_ty_jkind_reason exp.exp_type reason
+      in
+      List.iter2 update_exp_jkind mode_pat_typ_list exp_list;
     end
   in
   let l = List.combine pat_list exp_list in
@@ -8900,14 +8923,14 @@ and type_comprehension_expr
      - [{body = sbody; clauses}]:
          The actual comprehension to be translated. *)
   let comprehension_type, container_type, make_texp,
-      {body = sbody; clauses}, reason =
+      {body = sbody; clauses}, jkind =
     match cexpr with
     | Cexp_list_comprehension comp ->
         List_comprehension,
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
-        Jkind.Type_argument
+        Predef.list_argument_jkind
     | Cexp_array_comprehension (amut, comp) ->
         let container_type = match amut with
           | Mutable   -> Predef.type_array
@@ -8917,14 +8940,14 @@ and type_comprehension_expr
         container_type,
         (fun tcomp -> Texp_array_comprehension (amut, tcomp)),
         comp,
-        Jkind.Array_element
+        (* CR layouts v4: When this changes from [value], you will also have to
+           update the use of [transl_exp] in transl_array_comprehension.ml. See
+           a companion CR layouts v4 at the point of interest in that file. *)
+        Jkind.value ~why:Jkind.Array_element
   in
   let element_ty =
     with_local_level_if_principal begin fun () ->
-      (* CR layouts v4: When this changes from [value], you will also have to
-         update the use of [transl_exp] in transl_array_comprehension.ml. See
-         a companion CR layouts v4 at the point of interest in that file. *)
-      let element_ty = newvar (Jkind.value ~why:reason) in
+      let element_ty = newvar jkind in
       unify_exp_types
         loc
         env
@@ -9363,6 +9386,8 @@ let report_type_expected_explanation expl ppf =
       because "a range-based for iterator stop index in a comprehension"
   | Comprehension_when ->
       because "a when-clause in a comprehension"
+  | Error_message_attr msg ->
+      fprintf ppf "@\n@[%s@]" msg
 
 let escaping_hint failure_reason submode_reason
       (context : Env.closure_context option) =
@@ -9722,8 +9747,8 @@ let report_error ~loc env = function
     ) ()
   | Not_a_value (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
-      fprintf ppf "Method types must have layout value.@ %a"
-        (Jkind.Violation.report_with_name ~name:"This expression")
+      fprintf ppf "Object types must have layout value.@ %a"
+        (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
       ()

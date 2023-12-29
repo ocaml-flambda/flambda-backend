@@ -121,7 +121,7 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
