@@ -454,28 +454,6 @@ type safety_check_sites = {
 let bound_checks = { sc_sites = []; sc_call = 0 }
 let align_checks = { sc_sites = []; sc_call = 0 }
 
-let safety_check_failure_label kind _fdo dbg =
-  if !Clflags.debug then begin
-    let lbl_error = new_label() in
-    let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
-    let info =
-      { sc_lbl = lbl_error;
-        sc_frame = lbl_frame;
-        sc_dbg = dbg } in
-    (match kind with
-    | Bound_check -> bound_checks.sc_sites <- info :: bound_checks.sc_sites
-    | Align_check -> align_checks.sc_sites <- info :: align_checks.sc_sites);
-    lbl_error
-  end else begin
-    match kind with
-    | Bound_check ->
-      if bound_checks.sc_call = 0 then bound_checks.sc_call <- new_label();
-      bound_checks.sc_call
-    | Align_check ->
-      if align_checks.sc_call = 0 then align_checks.sc_call <- new_label();
-      align_checks.sc_call
-  end
-
 let emit_call_safety_error kind sc =
   def_label sc.sc_lbl;
   emit_debug_info sc.sc_dbg;
@@ -1446,14 +1424,6 @@ let emit_instr fallthrough i =
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
-  | Lop(Iintop (Icheckalign { bytes_pow2 })) ->
-      let lbl = safety_check_failure_label Align_check i.fdo i.dbg in
-      let mask = bytes_pow2 - 1 in
-      I.test (Imm (Int64.of_int mask)) (arg i 0);
-      I.jne (label lbl)
-  | Lop(Iintop_imm(Icheckalign { bytes_pow2 }, n)) ->
-      let mask = bytes_pow2 - 1 in
-      if (n land mask) <> 0 then Misc.fatal_errorf "Alignment check on known int failed."
   | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
   | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->

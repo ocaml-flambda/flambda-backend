@@ -441,10 +441,9 @@ let destroyed_at_oper = function
                  | Ipause | Iprefetch _ | Isimd _
                  | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-              | Ipopcnt | Iclz _ | Ictz _ | Icheckalign _))
+              | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
-                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
-                   | Icheckalign _),_))
+                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_))
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
@@ -487,9 +486,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
     [| rax; rdx |]
-  | Op (Intop (Icheckalign _)
-  | Intop_imm ((Icheckalign _), _)) ->
-    assert false
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
@@ -530,7 +526,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkalign _ | Probe _; _}
+  | Prim {op = Probe _; _}
   ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
@@ -562,7 +558,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = (Checkalign _) | Probe _; _} ->
+  | Prim {op = Probe _; _} ->
     false
   | Switch _ ->
     false
@@ -620,9 +616,9 @@ let max_register_pressure =
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _|Icheckalign _)
+           | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckalign _), _)
+                | Iasr | Ipopcnt | Iclz _| Ictz _), _)
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
@@ -730,7 +726,6 @@ let operation_supported = function
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _
-  | Ccheckalign _
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _

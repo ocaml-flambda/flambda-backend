@@ -1030,10 +1030,6 @@ end = struct
     | Istore _ ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Iintop (Icheckalign _) | Iintop_imm (Icheckalign _, _) ->
-      (* does not allocate even when it raises because checkalign exception is
-         static. *)
-      transform t ~next ~exn ~effect:Value.safe "checkalign" dbg
     | Ipoll _
     (* Ignore poll points even though they may trigger an allocations, because
        otherwise all loops would be considered allocating when poll insertion is

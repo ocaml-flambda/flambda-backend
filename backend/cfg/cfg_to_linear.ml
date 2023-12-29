@@ -188,10 +188,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               returns = true;
               stack_ofs
             }
-        | Checkalign { bytes_pow2; immediate = None } ->
-          Iintop (Icheckalign { bytes_pow2 })
-        | Checkalign { bytes_pow2; immediate = Some i } ->
-          Iintop_imm (Icheckalign { bytes_pow2 }, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }

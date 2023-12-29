@@ -49,10 +49,6 @@ module S = struct
           dbginfo : Debuginfo.alloc_dbginfo;
           mode : Lambda.alloc_mode
         }
-    | Checkalign of
-        { bytes_pow2 : int;
-          immediate : int option
-        }
     | Probe of
         { name : string;
           handler_code_sym : string;

@@ -239,7 +239,6 @@ let intop (op : Mach.integer_operation) =
   | Iclz _ -> " clz "
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
-  | Icheckalign _ -> assert false
 
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
@@ -376,10 +375,6 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
         Mach.Iextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
-      | Checkalign { bytes_pow2; immediate = Some x } ->
-        Mach.Iintop_imm (Icheckalign { bytes_pow2 }, x)
-      | Checkalign { bytes_pow2; immediate = None } ->
-        Mach.Iintop (Icheckalign { bytes_pow2 })
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after
@@ -429,7 +424,7 @@ let can_raise_terminator (i : terminator) =
   match i with
   | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
   | Prim
-      { op = External _ | Checkalign _ | Probe _;
+      { op = External _ | Probe _;
         label_after = _
       } ->
     true

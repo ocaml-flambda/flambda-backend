@@ -239,8 +239,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
-  | Op (Intop (Icheckalign _))
-  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckalign _), _)) ->
+  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ ), _)) ->
     (* should not happen *)
     fatal "unexpected instruction"
   end
@@ -250,14 +249,9 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   match (term : Cfg.terminator Cfg.instruction).desc with
   | Never -> fatal "unexpected terminator"
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
-  | Prim  {op = Checkalign { immediate = None; _ }; _} ->
-    may_use_stack_operand_for_only_argument ~has_result:false map term
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
   | Truth_test { ifso = _; ifnot = _; }
-  | Prim {op = Checkalign { immediate = Some _; _ }; _} ->
-    if debug then check_lengths term ~of_arg:0 ~of_res:0;
-    All_spilled_registers_rewritten
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
        makes it more difficult than the cases above, because (i) multiple
