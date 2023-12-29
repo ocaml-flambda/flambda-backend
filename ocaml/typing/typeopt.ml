@@ -502,8 +502,12 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
+  (* CR mixed blocks: It would be better to accurate track the value kind here
+     to aid flambda2 in optimization.
+  *)
+  | Record_mixed _ -> num_nodes_visited, Pgenval
   | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
-  | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
+  | Record_boxed _ | Record_float | Record_ufloat -> begin
       let (_, is_mutable, num_nodes_visited), fields =
         List.fold_left_map
           (fun (idx, is_mutable, num_nodes_visited)
@@ -550,13 +554,11 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [runtime_tag, fields]
           | Record_float | Record_ufloat ->
             [ Obj.double_array_tag, fields ]
-          | Record_mixed _ ->
-            [ Obj.abstract_tag, fields ]
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
             [0, fields]
-          | Record_unboxed -> assert false
+          | Record_mixed _ | Record_unboxed -> assert false
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end

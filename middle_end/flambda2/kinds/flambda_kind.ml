@@ -512,9 +512,6 @@ module With_subkind = struct
 
   let float_block ~num_fields = create value (Float_block { num_fields })
 
-  (* CR mixed blocks: maybe we should be adding new kinds? *)
-  let abstract_block = create value Anything
-
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =
     match naked_number_kind with
     | Naked_immediate -> naked_immediate
@@ -540,11 +537,6 @@ module With_subkind = struct
         (* If we have [Obj.double_array_tag] here, this is always an all-float
            block, not an array. *)
         float_block ~num_fields:(List.length fields)
-      | [], [(tag, _fields)] when tag = Obj.abstract_tag ->
-          (* CR mixed blocks: *)
-        (* If we have [Obj.abstract_tag] here, this is always mixed unboxed
-           float/immediate block, not an array. *)
-        abstract_block
       | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
         let consts =
           Targetint_31_63.Set.of_list

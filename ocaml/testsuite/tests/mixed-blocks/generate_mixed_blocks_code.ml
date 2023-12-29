@@ -383,8 +383,8 @@ let check_reachable_words expected actual message =
                if not bytecode then "" else " + 2"
            | Float ->
                (* The bytecode condition is the same as commented for [Float_u].
-                  Additionally, if the record is all floats, then this field
-                  is stored flat.
+                  Additionally, if the record is not all floats, then this field
+                  is stored boxed.
                *)
                if is_all_floats && not bytecode then "" else " + 2"
            | Str ->
