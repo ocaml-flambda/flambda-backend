@@ -117,7 +117,8 @@
   ops_internal
   consts_internal
   arrays_internal
-  scalar_ops_internal)
+  scalar_ops_internal
+  test_helpers)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
