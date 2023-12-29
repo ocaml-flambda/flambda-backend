@@ -1085,7 +1085,8 @@ end = struct
     | Statement -> fprintf ppf "it's the type of a statement"
     | Wildcard -> fprintf ppf "it's a _ in the type"
     | Unification_var -> fprintf ppf "it's a fresh unification variable"
-    | Optional_arg_default -> fprintf ppf "it's the type of an optional argument default"
+    | Optional_arg_default ->
+      fprintf ppf "it's the type of an optional argument default"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
