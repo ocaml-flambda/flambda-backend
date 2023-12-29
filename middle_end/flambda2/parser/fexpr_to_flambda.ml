@@ -985,6 +985,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
           ( Call_kind.c_call ~needs_caml_c_call ~is_c_builtin:false
+              ~effects:Arbitrary_effects ~coeffects:Has_coeffects
               Alloc_mode.For_allocations.heap,
             params_arity,
             return_arity )
