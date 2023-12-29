@@ -60,7 +60,7 @@ type t = private
       { needs_caml_c_call : bool;
         is_c_builtin : bool;
         effects : Effects.t;
-        coeffects: Coeffects.t;
+        coeffects : Coeffects.t;
         alloc_mode : Alloc_mode.For_allocations.t
       }
 

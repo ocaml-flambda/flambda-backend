@@ -61,9 +61,8 @@ let from_lambda (e : Primitive.effects) : t =
   match e with
   | No_effects -> No_effects
   | Only_generative_effects -> Only_generative_effects Mutable
-  (* CR-someday gyorsh: propagate mutability from attributes.
-     Currently, it does not matter, because this is only used for
-     C calls in the backend, which does not distinguish
-     between Only_generative_effects and Arbitrary_effects.  *)
+  (* CR-someday gyorsh: propagate mutability from attributes. Currently, it does
+     not matter, because this is only used for C calls in the backend, which
+     does not distinguish between Only_generative_effects and
+     Arbitrary_effects. *)
   | Arbitrary_effects -> Arbitrary_effects
-

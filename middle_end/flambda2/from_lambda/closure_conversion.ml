@@ -554,8 +554,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let coeffects = Coeffects.from_lambda prim_coeffects in
   let call_kind =
     Call_kind.c_call ~needs_caml_c_call:prim_alloc ~is_c_builtin:prim_c_builtin
-      ~effects ~coeffects
-      alloc_mode
+      ~effects ~coeffects alloc_mode
   in
   let call_symbol =
     let prim_name =

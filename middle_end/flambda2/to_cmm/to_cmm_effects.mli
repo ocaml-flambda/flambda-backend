@@ -78,6 +78,6 @@ val classify_continuation_handler :
 
 (** Effects and coeffects of C calls  *)
 
-val transl_c_call_effects : Effects.t ->  Cmm.effects
+val transl_c_call_effects : Effects.t -> Cmm.effects
 
 val transl_c_call_coeffects : Coeffects.t -> Cmm.coeffects

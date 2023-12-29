@@ -218,7 +218,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
+  | Call_kind.C_call
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -262,9 +263,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let effects = To_cmm_effects.transl_c_call_effects effects in
     let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects ~coeffects
-           ~returns ~ty_args
-           callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
+           ~coeffects ~returns ~ty_args callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,

@@ -951,10 +951,10 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
           alloc_mode = alloc_mode2
         } ) ->
     if Bool.equal needs_caml_c_call1 needs_caml_c_call2
-    && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
-    && Bool.equal is_c_builtin1 is_c_builtin2
-    && Effects.compare effects1 effects2 = 0
-    && Coeffects.compare coeffects1 coeffects2 = 0
+       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+       && Bool.equal is_c_builtin1 is_c_builtin2
+       && Effects.compare effects1 effects2 = 0
+       && Coeffects.compare coeffects1 coeffects2 = 0
     then Equivalent
     else Different { approximant = call_kind1 }
   | _, _ -> Different { approximant = call_kind1 }
