@@ -45,9 +45,10 @@ let all_of_flat_element = [ Imm; Float_u ]
 
 type value_element =
   | Str
+  | Float
   | Imm
 
-let all_of_value_element = [ Str; Imm ]
+let all_of_value_element = [ Str; Float; Imm ]
 
 type mutability =
   | Mutable
@@ -74,7 +75,7 @@ let enumeration_of_prefix =
     match List.rev prefix with
     | [] -> true
     | (Imm, _) :: _ -> false
-    | (Str, _) :: _ -> true)
+    | ((Str | Float), _) :: _ -> true)
 ;;
 
 let enumeration_of_suffix =
@@ -94,7 +95,7 @@ type block =
 let enumeration_of_block =
   Seq.product enumeration_of_prefix enumeration_of_suffix
   |> Seq.filter (fun (prefix, suffix) ->
-    List.exists prefix ~f:(fun ((Str | Imm), _) -> true)
+    List.exists prefix ~f:(fun ((Str | Imm | Float), _) -> true)
     || List.exists (Nonempty_list.to_list suffix)
       ~f:(fun ((value : flat_element), _) ->
       match value with
@@ -106,6 +107,7 @@ let enumeration_of_block =
 module Named_block = struct
   type field_type =
     | Imm
+    | Float
     | Float_u
     | Str
 
@@ -120,34 +122,40 @@ module Named_block = struct
     ; fields : field list
     }
 
+  let is_all_floats t =
+    List.for_all t.fields ~f:(fun field ->
+        match field.type_ with
+        | Imm | Str -> false
+        | Float | Float_u -> true)
+
   let of_block index { prefix; suffix } =
-    let (num_imms, _), prefix_fields =
+    let num_fields, prefix_fields =
       List.fold_left_map
         prefix
-        ~init:(0, 0)
-        ~f:(fun (num_imms, num_strs) ((elem : value_element), mutability) ->
+        ~init:0
+        ~f:(fun i ((elem : value_element), mutability) ->
           let mutable_ = is_mutable mutability in
-          match elem with
-          | Imm ->
-            ( (num_imms + 1, num_strs)
-            , { type_ = Imm; name = sprintf "imm%d" num_imms; mutable_ } )
-          | Str ->
-            ( (num_imms, num_strs + 1)
-            , { type_ = Str; name = sprintf "str%d" num_strs; mutable_ } ))
+          let field =
+            match elem with
+            | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
+            | Float -> { type_ = Float; name = sprintf "float%d" i; mutable_ }
+            | Str -> { type_ = Str; name = sprintf "str%d" i; mutable_ }
+          in
+          i+1, field)
     in
     let _, suffix_fields =
       List.fold_left_map
         (Nonempty_list.to_list suffix)
-        ~init:(num_imms, 0)
-        ~f:(fun (num_imms, num_flts) ((elem : flat_element), mutability) ->
+        ~init:num_fields
+        ~f:(fun i ((elem : flat_element), mutability) ->
           let mutable_ = is_mutable mutability in
-          match elem with
-          | Imm ->
-            ( (num_imms + 1, num_flts)
-            , { type_ = Imm; name = sprintf "imm%d" num_imms; mutable_ } )
-          | Float_u ->
-            ( (num_imms, num_flts + 1)
-            , { type_ = Float_u; name = sprintf "flt%d" num_flts; mutable_ } ))
+          let field =
+            match elem with
+            | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
+            | Float_u ->
+                { type_ = Float_u; name = sprintf "float_u%d" i; mutable_ }
+          in
+          i+1, field)
     in
     let fields = prefix_fields @ suffix_fields in
     { fields; index }
@@ -169,6 +177,7 @@ module Named_block = struct
               name
               (match type_ with
                | Imm -> "int"
+               | Float -> "float"
                | Float_u -> "float#"
                | Str -> "string"))))
   ;;
@@ -182,6 +191,7 @@ module Named_block = struct
            name
            (match type_ with
             | Imm -> "create_int ()"
+            | Float -> "create_float ()"
             | Float_u -> "create_float_u ()"
             | Str -> "create_string ()")))
     |> sprintf "{ %s }"
@@ -193,7 +203,8 @@ module Named_block = struct
         match field.type_ with
         | Str -> "check_string", None
         | Imm -> "check_int", None
-        | Float_u -> "check_float_u", Some "Stdlib__Float_u.to_float"
+        | Float -> "check_float", None
+        | Float_u -> "check_float", Some "Stdlib__Float_u.to_float"
       in
       let transform value field =
         let access = sprintf "%s.%s" value field in
@@ -244,9 +255,8 @@ let main n ~bytecode =
   line "(* Helper functions for manipulating the fields of a mixed record *)";
   line {|let create_string () = String.make (Random.int 100) 'a'|};
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
-  line
-    {|let create_float_u () =
-  Stdlib__Float_u.of_float (Random.float Float.max_float)|};
+  line {|let create_float () = Random.float Float.max_float|};
+  line {|let create_float_u () = Stdlib__Float_u.of_float (create_float ())|};
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
@@ -257,7 +267,7 @@ let main n ~bytecode =
    {|let check_string = check_gen ~equal:String.equal ~to_string:(fun x -> x)|};
   line {|let check_int = check_gen ~equal:Int.equal ~to_string:Int.to_string|};
   line
-   {|let check_float_u =
+   {|let check_float =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
@@ -357,8 +367,9 @@ let check_reachable_words expected actual message =
         List.iter (Named_block.check_field_integrity t) ~f:(line "%s"));
     seq_print_in_test "    - Checking [Obj.reachable_words]";
     per_type (fun t ->
+      let is_all_floats = Named_block.is_all_floats t in
       line
-      {|check_reachable_words (Obj.reachable_words (Obj.repr %s)) (%d%s) "%d";|}
+      {|check_reachable_words (Obj.reachable_words (Obj.repr %s)) (%d%s) "Reachable words %d";|}
         (Named_block.value t)
         (List.length t.fields + 1)
         (List.map t.fields ~f:(fun (field : Named_block.field) ->
@@ -370,6 +381,12 @@ let check_reachable_words expected actual message =
                   single-field payload).
                *)
                if not bytecode then "" else " + 2"
+           | Float ->
+               (* The bytecode condition is the same as commented for [Float_u].
+                  Additionally, if the record is all floats, then this field
+                  is stored flat.
+               *)
+               if is_all_floats && not bytecode then "" else " + 2"
            | Str ->
                sprintf " + Obj.reachable_words (Obj.repr t%d.%s)"
                  t.index field.name)

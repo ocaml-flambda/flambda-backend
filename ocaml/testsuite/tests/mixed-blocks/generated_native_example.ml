@@ -7,8 +7,8 @@
 (* Helper functions for manipulating the fields of a mixed record *)
 let create_string () = String.make (Random.int 100) 'a'
 let create_int () = Random.int 0x3FFF_FFFF
-let create_float_u () =
-  Stdlib__Float_u.of_float (Random.float Float.max_float)
+let create_float () = Random.float Float.max_float
+let create_float_u () = Stdlib__Float_u.of_float (create_float ())
 let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
     failwith
@@ -16,7 +16,7 @@ let check_gen ~equal ~to_string ~message y1 y2 =
 
 let check_string = check_gen ~equal:String.equal ~to_string:(fun x -> x)
 let check_int = check_gen ~equal:Int.equal ~to_string:Int.to_string
-let check_float_u =
+let check_float =
   check_gen ~equal:Float.equal ~to_string:Float.to_string
 
 (* Helper functions for testing polymorphic copying. *)
@@ -53,11 +53,11 @@ let check_reachable_words expected actual message =
 ;;
 
 (* Type declarations *)
-type t0 = { mutable str0 : string; mutable flt0 : float# }
+type t0 = { mutable str0 : string; mutable float_u1 : float# }
 
 (* Let declarations *)
 let () = print_endline "Creating values";;
-let t0 : t0 = { str0 = create_string (); flt0 = create_float_u () };;
+let t0 : t0 = { str0 = create_string (); float_u1 = create_float_u () };;
 let () = print_endline " - Doing GC";;
 let () = Gc.full_major ();;
 
@@ -73,9 +73,9 @@ let t_orig0 = { t0 with str0 = t0.str0 };;
   ignore (Hashtbl.hash t0 : int);
   print_endline "    - Checking field values";
   check_string t0.str0 t_orig0.str0 ~message:"t0.str0";
-  check_float_u (Stdlib__Float_u.to_float t0.flt0) (Stdlib__Float_u.to_float t_orig0.flt0) ~message:"t0.flt0";
+  check_float (Stdlib__Float_u.to_float t0.float_u1) (Stdlib__Float_u.to_float t_orig0.float_u1) ~message:"t0.float_u1";
   print_endline "    - Checking [Obj.reachable_words]";
-  check_reachable_words (Obj.reachable_words (Obj.repr t0)) (3 + Obj.reachable_words (Obj.repr t0.str0)) "0";
+  check_reachable_words (Obj.reachable_words (Obj.repr t0)) (3 + Obj.reachable_words (Obj.repr t0.str0)) "Reachable words 0";
   ();;
 let () = print_endline " - Running checks";;
 let () = run_checks t0;;
@@ -103,7 +103,7 @@ let () = run_checks t0;;
 (* Testing local allocation *)
 external opaque_ignore : ('a [@local_opt]) -> unit = "%ignore"
 let go () =
-  let local_ t0 : t0 = { str0 = create_string (); flt0 = create_float_u () } in
+  let local_ t0 : t0 = { str0 = create_string (); float_u1 = create_float_u () } in
     let module _ = struct
     let () = print_endline " - Doing GC";;
     let () = Gc.full_major ();;

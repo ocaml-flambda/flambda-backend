@@ -30,6 +30,7 @@
       flags = "-extension layouts"
    ***** run
       stdout = "${test_source_directory}/generated_native_output.ml"
+      stderr = "${test_source_directory}/generated_native_output.ml"
    ****** check-program-output
       output = "${test_source_directory}/generated_native_output.ml"
       reference = "${test_source_directory}/test.reference"
@@ -54,6 +55,7 @@
          flags = "-extension layouts"
    ***** run
       stdout = "${test_source_directory}/generated_byte_output.ml"
+      stderr = "${test_source_directory}/generated_byte_output.ml"
    ****** check-program-output
       output = "${test_source_directory}/generated_byte_output.ml"
       reference = "${test_source_directory}/test.reference"

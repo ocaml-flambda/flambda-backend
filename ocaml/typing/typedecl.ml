@@ -1138,7 +1138,8 @@ let update_decl_jkind env dpath decl =
       (* CR layouts v7: Eventually void components will have no runtime width.
       *)
       | Element_without_runtime_component -> Some Imm
-      | Float_element | Value_element -> None
+      | Float_element -> Some Float
+      | Value_element -> None
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1178,25 +1179,25 @@ let update_decl_jkind env dpath decl =
         classifications;
       let rep =
         match[@warning "+9"] element_reprs with
-        | { values = false; imms = false; floats = true ; float64s = true  } ->
-            (* We store mixed float/float64 records as flat if there are no
-                non-float fields.
-            *)
-            assert_mixed_record_support ();
-            let flat_suffix =
-              List.map
-                (function
-                  | Float_element -> Float
-                  | Flat_float64_element -> Float64
-                  | Element_without_runtime_component -> Imm
-                  | Flat_imm_element | Value_element ->
-                      Misc.fatal_error "Expected only floats and float64s")
-                classifications
-              |> Array.of_list
-            in
-            Record_mixed { value_prefix_len = 0; flat_suffix }
+            (* (* We store mixed float/float64 records as flat if there are no
+             *     non-float fields.
+             * *)
+             * assert_mixed_record_support ();
+             * let flat_suffix =
+             *   List.map
+             *     (function
+             *       | Float_element -> Float
+             *       | Flat_float64_element -> Float64
+             *       | Element_without_runtime_component -> Imm
+             *       | Flat_imm_element | Value_element ->
+             *           Misc.fatal_error "Expected only floats and float64s")
+             *     classifications
+             *   |> Array.of_list
+             * in
+             * Record_mixed { value_prefix_len = 0; flat_suffix } *)
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
-        | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
+        | { values = _    ; imms = true ; floats = _    ; float64s = true  }
+        | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->
             assert_mixed_record_support ();
             let rec find_flat_suffix classifications =
               match classifications with
@@ -1207,8 +1208,9 @@ let update_decl_jkind env dpath decl =
                       let suffix =
                         List.map (fun repr ->
                             match element_repr_to_flat repr with
-                            | Some flat -> flat
-                            | None -> raise (Error (loc, Illegal_mixed_block)))
+                            | Some (Float64 | Imm as flat) -> flat
+                            | Some Float | None ->
+                                raise (Error (loc, Illegal_mixed_block)))
                           classifications
                       in
                       `Continue (Float64 :: suffix)
