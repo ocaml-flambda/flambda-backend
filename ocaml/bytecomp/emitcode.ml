@@ -205,6 +205,10 @@ and emit_branch_comp = function
 | Clt -> out opBLTINT | Cle -> out opBLEINT
 | Cgt -> out opBGTINT | Cge -> out opBGEINT
 
+let runtime5_only () =
+  if not Config.runtime5 then
+    Misc.fatal_error "Effect primitives are only supported on runtime5"
+
 let emit_instr = function
     Klabel lbl -> define_label lbl
   | Kacc n ->
@@ -308,17 +312,11 @@ let emit_instr = function
   | Kgetpubmet tag -> out opGETPUBMET; out_int tag; out_int 0
   | Kgetdynmet -> out opGETDYNMET
   | Kevent ev -> record_event ev
-  (* CR mshinwell: enable for effects support
-  | Kperform -> out opPERFORM
-  | Kresume -> out opRESUME
-  | Kresumeterm n -> out opRESUMETERM; out_int n
-  | Kreperformterm n -> out opREPERFORMTERM; out_int n
-  | Kstop -> out opSTOP *)
-  | Kperform
-  | Kresume
-  | Kresumeterm _
-  | Kreperformterm _
-  | Kstop -> Misc.fatal_error "No effects support provided yet"
+  | Kperform -> runtime5_only (); out opPERFORM
+  | Kresume -> runtime5_only (); out opRESUME
+  | Kresumeterm n -> runtime5_only (); out opRESUMETERM; out_int n
+  | Kreperformterm n -> runtime5_only (); out opREPERFORMTERM; out_int n
+  | Kstop -> out opSTOP
 
 (* Emission of a list of instructions. Include some peephole optimization. *)
 
