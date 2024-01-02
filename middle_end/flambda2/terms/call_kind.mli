@@ -36,6 +36,30 @@ module Method_kind : sig
   val to_lambda : t -> Lambda.meth_kind
 end
 
+(** Algebraic effect operations.  The corresponding [Apply_expr] will have the
+    callee set to [None] and an empty argument list for these. *)
+module Effect : sig
+  type t = private
+    | Perform of { eff : Simple.t }
+    | Reperform of
+        { eff : Simple.t;
+          cont : Simple.t;
+          last_fiber : Simple.t
+        }
+    | Run_stack of
+        { stack : Simple.t;
+          f : Simple.t;
+          arg : Simple.t
+        }
+    | Resume of
+        { stack : Simple.t;
+          f : Simple.t;
+          arg : Simple.t
+        }
+
+  include Contains_names.S with type t := t
+end
+
 (* The allocation mode corresponds to the type of the function that is called:
    if the function has return mode [Heap], then the alloc_mode is [Heap] as
    well; if the function has return mode [Local], then the alloc_mode is [Local
@@ -63,6 +87,7 @@ type t = private
         coeffects : Coeffects.t;
         alloc_mode : Alloc_mode.For_allocations.t
       }
+  | Effect of Effect.t
 
 include Expr_std.S with type t := t
 
@@ -84,3 +109,11 @@ val c_call :
   coeffects:Coeffects.t ->
   Alloc_mode.For_allocations.t ->
   t
+
+val perform : eff:Simple.t -> t
+
+val reperform : eff:Simple.t -> cont:Simple.t -> last_fiber:Simple.t -> t
+
+val run_stack : stack:Simple.t -> f:Simple.t -> arg:Simple.t -> t
+
+val resume : stack:Simple.t -> f:Simple.t -> arg:Simple.t -> t
