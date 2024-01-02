@@ -35,7 +35,7 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
   value result;
   mlsize_t i;
 
-  CAMLassert (tag < 256);
+  CAMLassert (tag < Num_tags);
   CAMLassert (tag != Infix_tag);
   if (wosize <= Max_young_wosize){
     if (wosize == 0){
