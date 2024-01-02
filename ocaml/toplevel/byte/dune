@@ -48,6 +48,7 @@
                     stdlib__Digest
                     stdlib__Domain
                     stdlib__Either
+                    stdlib__Effect
                     stdlib__Ephemeron
                     stdlib__Filename
                     stdlib__Float
