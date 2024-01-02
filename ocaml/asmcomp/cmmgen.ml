@@ -996,17 +996,14 @@ and transl_prim_1 env p arg dbg =
   | Pget_header m ->
       box_int dbg Pnativeint m (get_header (transl env arg) dbg)
   | Pperform ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (* CR mshinwell: use [Runtimetags] once available
       let cont =
-        make_alloc dbg cont_tag [int_const dbg 0] ~mode:Lambda.alloc_heap
+        make_alloc dbg Runtimetags.cont_tag [int_const dbg 0]
+          ~mode:Lambda.alloc_heap
       in
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* CR mshinwell: check Rc_normal *)
       Cop(Capply (typ_val, Rc_normal),
        [Cconst_symbol ("caml_perform", dbg); transl env arg; cont],
        dbg)
-      *)
   | Pdls_get ->
       Cop(Cdls_get, [transl env arg], dbg)
   | Patomic_load {immediate_or_pointer = Immediate} ->
@@ -1281,35 +1278,23 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
 
   (* Effects *)
   | Presume ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* CR mshinwell: check Rc_normal *)
       Cop (Capply (typ_val, Rc_normal),
            [Cconst_symbol ("caml_resume", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
-      *)
   | Prunstack ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* CR mshinwell: check Rc_normal *)
       Cop (Capply (typ_val, Rc_normal),
            [Cconst_symbol ("caml_runstack", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
-      *)
   | Preperform ->
-      Misc.fatal_error "Effects-related primitives not yet supported"
-      (*
-      (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely
-         to be in production by then *)
+      (* CR mshinwell: check Rc_normal *)
       Cop (Capply (typ_val, Rc_normal),
            [Cconst_symbol ("caml_reperform", dbg);
            transl env arg1; transl env arg2; transl env arg3],
            dbg)
-      *)
 
   | Pperform | Pdls_get
   | Patomic_exchange | Patomic_fetch_add | Patomic_load _

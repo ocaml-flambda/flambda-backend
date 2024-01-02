@@ -271,3 +271,25 @@ CAMLprim value caml_atomic_fetch_add(value ref, value incr)
   *p = Val_long(Long_val(ret) + Long_val(incr));
   return ret;
 }
+
+// Dummy implementations so effect.ml can compile
+
+CAMLprim value caml_continuation_use_noexc()
+{
+  caml_fatal_error("Effects not implemented in runtime4");
+}
+
+CAMLprim value caml_alloc_stack()
+{
+  caml_fatal_error("Effects not implemented in runtime4");
+}
+
+CAMLprim value caml_get_continuation_callstack()
+{
+  caml_fatal_error("Effects not implemented in runtime4");
+}
+
+CAMLprim value caml_continuation_use_and_update_handler_noexc()
+{
+  caml_fatal_error("Effects not implemented in runtime4");
+}

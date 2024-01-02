@@ -55,7 +55,7 @@ val create : 'uc Component_for_creation.t list -> 'uc t
 val create_singletons : Flambda_kind.With_subkind.t list -> [> ] t
 
 (** "No parameters".  (Not e.g. "one parameter of type void".) *)
-val nullary : [> `Unarized] t
+val nullary : [> ] t
 
 (** How many parameters, potentially of unboxed product layout, the given
     arity describes. *)

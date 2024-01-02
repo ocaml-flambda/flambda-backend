@@ -3601,3 +3601,40 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
         },
       [atomic; old_value; new_value],
       dbg )
+
+let perform ~dbg eff =
+  let cont =
+    make_alloc dbg Runtimetags.cont_tag
+      [int_const dbg 0]
+      ~mode:Lambda.alloc_heap
+  in
+  (* CR mshinwell: Rc_normal may be wrong, but this code is unlikely to be in
+     production by then *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [Cconst_symbol (Cmm.global_symbol "caml_perform", dbg); eff; cont],
+      dbg )
+
+let run_stack ~dbg ~stack ~f ~arg =
+  (* CR mshinwell: Check Rc_normal *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [Cconst_symbol (Cmm.global_symbol "caml_runstack", dbg); stack; f; arg],
+      dbg )
+
+let resume ~dbg ~stack ~f ~arg =
+  (* CR mshinwell: Check Rc_normal *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [Cconst_symbol (Cmm.global_symbol "caml_resume", dbg); stack; f; arg],
+      dbg )
+
+let reperform ~dbg ~eff ~cont ~last_fiber =
+  (* CR mshinwell: Check Rc_normal *)
+  Cop
+    ( Capply (typ_val, Rc_normal),
+      [ Cconst_symbol (Cmm.global_symbol "caml_reperform", dbg);
+        eff;
+        cont;
+        last_fiber ],
+      dbg )
