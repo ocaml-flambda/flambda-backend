@@ -1681,10 +1681,12 @@ void caml_poll_gc_work(void)
        caml_poll_gc_work is called. */
   }
 
+  caml_reset_young_limit(d);
+
   if (atomic_load_acquire(&d->requested_external_interrupt)) {
+    /* This function might allocate (e.g. upon a systhreads yield). */
     caml_domain_external_interrupt_hook();
   }
-  caml_reset_young_limit(d);
 }
 
 void caml_handle_gc_interrupt(void)
