@@ -710,8 +710,10 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
         Mutable, Resizable_array.make ~loc array_kind (int 0)
-    | Dynamic_size, (Pfloatarray | Punboxedfloatarray) ->
+    | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
+    | Dynamic_size, Punboxedfloatarray ->
+        Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
     | Dynamic_size, Punboxedintarray Pint32 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
     | Dynamic_size, Punboxedintarray Pint64 ->
