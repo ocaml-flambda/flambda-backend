@@ -103,6 +103,12 @@ module Inlining_tree : sig
   and decisions = Decision_with_context.t list
 end
 
+(* Records that the inlining decision made for this apply node. Each decision is
+   associated with a context, which is a combination of the unrolling depth,
+   pass, inlining arguments and other parameters that influenced the inlining
+   heuristics. [are_rebuilding_terms] is also part of this context - so it can
+   be used to differentiate between the decisions taken during speculative
+   inlining and on decisions made on the regular downgrade traversal. *)
 val record_decision_at_call_site_for_known_function :
   tracker:Inlining_history.Tracker.t ->
   unrolling_depth:int option ->
