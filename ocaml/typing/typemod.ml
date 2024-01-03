@@ -3307,6 +3307,22 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
+let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
+  (* Cms files do not store the typetree. Toplevels attributes are
+    as they are not explicitely associated with a uid so we need
+    to manually register them. *)
+  let attributes =
+    List.filter_map
+      (function
+        | { pstr_desc = Pstr_attribute attr; _ } -> Some attr
+        | _ -> None
+      )
+      ast
+  in
+  Env.register_uid uid
+    ~loc:(Location.in_file sourcefile)
+    ~attributes
+
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
@@ -3322,10 +3338,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
-      let shape =
-        Shape.set_uid_if_none shape
-          (Uid.of_compilation_unit_id modulename)
-      in
+      let uid = Uid.of_compilation_unit_id modulename in
+      let shape = Shape.set_uid_if_none shape uid in
+      if !Clflags.binary_annotations_cms then
+        cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
@@ -3447,9 +3463,29 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface modulename env ast =
+let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
+  (* Cms files do not store the typetree. Toplevels attributes are
+    as they are not explicitely associated with a uid so we need
+    to manually register them. *)
+  let attributes =
+    List.filter_map
+      (function
+        | { psig_desc = Psig_attribute attr; _ } -> Some attr
+        | _ -> None
+      )
+      ast
+  in
+  Env.register_uid uid
+    ~loc:(Location.in_file sourcefile)
+    ~attributes
+
+let type_interface sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+  end;
+  if !Clflags.binary_annotations_cms then begin
+    let uid = Shape.Uid.of_compilation_unit_id modulename in
+    cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
   end;
   transl_signature env ast
 

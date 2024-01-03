@@ -42,7 +42,7 @@ val type_implementation:
   string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        Compilation_unit.t -> Env.t -> Parsetree.signature -> Typedtree.signature
+  string -> Compilation_unit.t -> Env.t -> Parsetree.signature -> Typedtree.signature
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
