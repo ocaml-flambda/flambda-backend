@@ -8,13 +8,15 @@
    flags = "-extension layouts_beta"
    * bytecode
    flags = "-extension layouts_beta"
+   * native
+   flags = "-extension layouts"
+   * bytecode
+   flags = "-extension layouts"
 *)
 
 (* This file tests using external C functions with nativeint#. *)
 
 external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
-external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
-  "%unbox_nativeint"
 
 let print_nativeintu s f = Printf.printf "%s: %nd\n" s (to_nativeint f)
 let print_nativeint s f = Printf.printf "%s: %nd\n" s f
@@ -33,7 +35,7 @@ external lognot_UtoBU : nativeint# -> (nativeint[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
 
 let () =
-  let i = lognot_UtoU (of_nativeint 42n) in
+  let i = lognot_UtoU #42n in
   print_nativeintu "nativeint# -> nativeint#, ~42" i
 
 let () =
@@ -41,7 +43,7 @@ let () =
   print_nativeintu "nativeint -> nativeint#, ~(-100)" i
 
 let () =
-  let f = lognot_UtoB (of_nativeint 255n) in
+  let f = lognot_UtoB #255n in
   print_nativeint "nativeint# -> nativeint, ~255" f
 
 let () =
@@ -49,7 +51,7 @@ let () =
   print_nativeintu "(nativeint[@unboxed]) -> nativeint#, ~1024" f
 
 let () =
-  let f = lognot_UtoBU (of_nativeint (-1726n)) in
+  let f = lognot_UtoBU (-#1726n) in
   print_nativeint "nativeint# -> (nativeint[@unboxed]), ~(-1726)" f
 
 (* If there are more than 5 args, you get an array in bytecode *)
@@ -61,7 +63,7 @@ external sum_7 :
 let _ =
   let f =
     sum_7
-      (of_nativeint 1n) 2n (of_nativeint 3n) 4n
-      (of_nativeint 5n) 6n (of_nativeint 7n)
+      #1n 2n #3n 4n
+      #5n 6n #7n
   in
   print_nativeintu "Function of 7 args, 1+2+3+4+5+6+7" f

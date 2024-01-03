@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha"
+   flags = "-extension layouts"
 *)
 
 module Int32_u = Stdlib__Int32_u
