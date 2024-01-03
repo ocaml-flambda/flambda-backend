@@ -527,8 +527,13 @@ and print ppf (t : expr) =
   | Let let_expr -> print_let_expr ppf let_expr
   | Let_cont let_cont -> print_let_cont_expr ppf let_cont
   | Apply apply ->
-    Format.fprintf ppf "@[<hov 1>(%tapply%t@ %a)@]" Flambda_colours.expr_keyword
-      Flambda_colours.pop Apply.print apply
+    let name =
+      match Apply.call_kind apply with
+      | Function _ | Method _ | C_call _ -> "apply"
+      | Effect _ -> "effect"
+    in
+    Format.fprintf ppf "@[<hov 1>(%t%s%t@ %a)@]" Flambda_colours.expr_keyword
+      name Flambda_colours.pop Apply.print apply
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
@@ -1340,6 +1345,8 @@ module Named = struct
   type t = named
 
   let create_simple simple = Simple simple
+
+  let create_var var = Simple (Simple.var var)
 
   let create_prim prim dbg = Prim (prim, dbg)
 

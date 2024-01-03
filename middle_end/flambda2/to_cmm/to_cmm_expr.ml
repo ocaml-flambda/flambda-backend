@@ -218,7 +218,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call
+  | C_call
       { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
@@ -271,7 +271,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       env,
       res,
       Ece.all )
-  | Call_kind.Method { kind; obj; alloc_mode } ->
+  | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =
       match callee with
@@ -297,6 +297,92 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       env,
       res,
       Ece.all )
+  | Effect op -> (
+    match op with
+    | Perform { eff } ->
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = eff; free_vars = eff_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res eff
+      in
+      C.perform ~dbg eff, eff_free_vars, env, res, Ece.all
+    | Reperform { eff; cont; last_fiber } ->
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = eff; free_vars = eff_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res eff
+      in
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = cont; free_vars = cont_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res cont
+      in
+      let { To_cmm_env.env;
+            res;
+            expr =
+              { cmm = last_fiber; free_vars = last_fiber_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res last_fiber
+      in
+      let free_vars =
+        Backend_var.Set.union
+          (Backend_var.Set.union eff_free_vars cont_free_vars)
+          last_fiber_free_vars
+      in
+      C.reperform ~dbg ~eff ~cont ~last_fiber, free_vars, env, res, Ece.all
+    | Run_stack { stack; f; arg } ->
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = stack; free_vars = stack_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res stack
+      in
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = f; free_vars = f_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res f
+      in
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = arg; free_vars = arg_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res arg
+      in
+      let free_vars =
+        Backend_var.Set.union
+          (Backend_var.Set.union stack_free_vars f_free_vars)
+          arg_free_vars
+      in
+      C.run_stack ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all
+    | Resume { stack; f; arg } ->
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = stack; free_vars = stack_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res stack
+      in
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = f; free_vars = f_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res f
+      in
+      let { To_cmm_env.env;
+            res;
+            expr = { cmm = arg; free_vars = arg_free_vars; effs = _ }
+          } =
+        C.simple ~dbg env res arg
+      in
+      let free_vars =
+        Backend_var.Set.union
+          (Backend_var.Set.union stack_free_vars f_free_vars)
+          arg_free_vars
+      in
+      C.resume ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all)
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
