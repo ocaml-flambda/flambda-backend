@@ -58,9 +58,9 @@ STDLIB_MODULE_BASENAMES = \
   marshal \
   array \
   iarray \
-  float_u_array \
   float \
   float_u \
+  float_u_array \
   int32 \
   int32_u \
   int64 \
