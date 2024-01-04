@@ -1112,6 +1112,7 @@ again:
     }
 
     value_ptr scan_end = me.end;
+    CAMLassert(scan_end != NULL);
     if (scan_end - me.start > budget) {
       intnat scan_len = budget < 0 ? 0 : budget;
       scan_end = me.start + scan_len;
@@ -1228,7 +1229,7 @@ void caml_darken_cont(value cont)
         value stk = Field(cont, 0);
         if (Ptr_val(stk) != NULL)
           caml_scan_stack(&caml_darken, darken_scanning_flags, Caml_state,
-                          Ptr_val(stk), 0, NULL);
+                          Ptr_val(stk), 0);
         atomic_store_release(Hp_atomic_val(cont),
                              With_status_hd(hd, caml_global_heap_state.MARKED));
       }
