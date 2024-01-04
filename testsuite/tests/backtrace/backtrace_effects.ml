@@ -46,5 +46,9 @@ let _ = baz ()
  flags = "-g";
  ocamlrunparam += ",b=1";
  exit_status = "2";
- skip;
+ runtime5;
+ { reference = "${test_source_directory}/backtrace_effects.byte.reference";
+   bytecode;
+ }
+ { native; }
 *)

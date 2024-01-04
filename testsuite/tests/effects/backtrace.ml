@@ -58,5 +58,10 @@ let _ = main ()
 (* TEST
  flags = "-g";
  ocamlrunparam += ",b=1";
- skip;
+ runtime5;
+ {
+   reference="${test_source_directory}/backtrace.byte.reference";
+   bytecode;
+ }
+ { native; }
 *)

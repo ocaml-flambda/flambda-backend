@@ -1,6 +1,6 @@
 (* TEST
- skip;
- toplevel;
+   runtime5;
+   toplevel;
 *)
 
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/479 *)

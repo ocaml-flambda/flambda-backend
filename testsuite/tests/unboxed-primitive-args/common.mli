@@ -5,6 +5,7 @@ type 'a typ =
   | Int64     : int64     typ
   | Nativeint : nativeint typ
   | Float     : float     typ
+  | Float32   : float32   typ
   | Float64x2 : float64x2 typ
   | Int64x2   : int64x2   typ
 

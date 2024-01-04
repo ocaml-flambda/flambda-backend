@@ -1,36 +1,107 @@
 (setglobal Test!
   (let
-    (empty_cases_returning_string/270 =
-       (function {nlocal = 0} param/272
+    (empty_cases_returning_string/271 =
+       (function {nlocal = 0} param/273
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 28 50])))
      empty_cases_returning_float64/273 =
        (function {nlocal = 0} param/275 : unboxed_float
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 28 50])))
+     empty_cases_returning_float64/273 =
+       (function {nlocal = 0} param/275 : unboxed_float
+=======
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 28 50])))
+     empty_cases_returning_float64/274 =
+       (function {nlocal = 0} param/276 : unboxed_float
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 29 50])))
      empty_cases_accepting_string/276 =
        (function {nlocal = 0} param/278
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 29 50])))
+     empty_cases_accepting_string/276 =
+       (function {nlocal = 0} param/278
+=======
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 29 50])))
+     empty_cases_accepting_string/277 =
+       (function {nlocal = 0} param/279
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 30 50])))
      empty_cases_accepting_float64/279 =
        (function {nlocal = 0} param/281[unboxed_float]
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 30 50])))
+     empty_cases_accepting_float64/279 =
+       (function {nlocal = 0} param/281[unboxed_float]
+=======
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 30 50])))
+     empty_cases_accepting_float64/280 =
+       (function {nlocal = 0} param/282[unboxed_float]
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Match_failure/41!!) [0: "test.ml" 31 50])))
      non_empty_cases_returning_string/282 =
        (function {nlocal = 0} param/284
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 31 50])))
+     non_empty_cases_returning_string/282 =
+       (function {nlocal = 0} param/284
+=======
+           (makeblock 0 (getpredef Match_failure/39!!) [0: "test.ml" 31 50])))
+     non_empty_cases_returning_string/283 =
+       (function {nlocal = 0} param/285
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 32 68])))
      non_empty_cases_returning_float64/285 =
        (function {nlocal = 0} param/287 : unboxed_float
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 32 68])))
+     non_empty_cases_returning_float64/285 =
+       (function {nlocal = 0} param/287 : unboxed_float
+=======
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 32 68])))
+     non_empty_cases_returning_float64/286 =
+       (function {nlocal = 0} param/288 : unboxed_float
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 33 68])))
      non_empty_cases_accepting_string/288 =
        (function {nlocal = 0} param/290
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 33 68])))
+     non_empty_cases_accepting_string/288 =
+       (function {nlocal = 0} param/290
+=======
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 33 68])))
+     non_empty_cases_accepting_string/289 =
+       (function {nlocal = 0} param/291
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 34 68])))
      non_empty_cases_accepting_float64/291 =
        (function {nlocal = 0} param/293[unboxed_float]
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 34 68])))
+     non_empty_cases_accepting_float64/291 =
+       (function {nlocal = 0} param/293[unboxed_float]
+=======
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 34 68])))
+     non_empty_cases_accepting_float64/292 =
+       (function {nlocal = 0} param/294[unboxed_float]
+>>>>>>> f06c0085dd (Locals x effects)
          (raise
+<<<<<<< HEAD
            (makeblock 0 (getpredef Assert_failure/51!!) [0: "test.ml" 35 68]))))
     (makeblock 0 empty_cases_returning_string/270
       empty_cases_returning_float64/273 empty_cases_accepting_string/276
@@ -38,3 +109,20 @@
       non_empty_cases_returning_float64/285
       non_empty_cases_accepting_string/288
       non_empty_cases_accepting_float64/291)))
+||||||| parent of f06c0085dd (Locals x effects)
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 35 68]))))
+    (makeblock 0 empty_cases_returning_string/270
+      empty_cases_returning_float64/273 empty_cases_accepting_string/276
+      empty_cases_accepting_float64/279 non_empty_cases_returning_string/282
+      non_empty_cases_returning_float64/285
+      non_empty_cases_accepting_string/288
+      non_empty_cases_accepting_float64/291)))
+=======
+           (makeblock 0 (getpredef Assert_failure/49!!) [0: "test.ml" 35 68]))))
+    (makeblock 0 empty_cases_returning_string/271
+      empty_cases_returning_float64/274 empty_cases_accepting_string/277
+      empty_cases_accepting_float64/280 non_empty_cases_returning_string/283
+      non_empty_cases_returning_float64/286
+      non_empty_cases_accepting_string/289
+      non_empty_cases_accepting_float64/292)))
+>>>>>>> f06c0085dd (Locals x effects)

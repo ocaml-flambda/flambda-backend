@@ -25,6 +25,7 @@ let f x =
 0
 type t = { a : bool; mutable b : int option; }
 (let
+<<<<<<< HEAD
   (f/282 =
      (function {nlocal = 0} x/284 : int
        (if (field_int 0 x/284)
@@ -33,9 +34,34 @@ type t = { a : bool; mutable b : int option; }
              (if (seq (setfield_ptr 1 x/284 0) 0) 2
                (let (*match*/289 =o (field_mut 1 x/284))
                  (field_imm 0 *match*/289)))
+||||||| parent of f06c0085dd (Locals x effects)
+  (f/280 =
+     (function {nlocal = 0} x/282 : int
+       (if (field_int 0 x/282)
+         (let (*match*/286 =o (field_mut 1 x/282))
+           (if *match*/286
+             (if (seq (setfield_ptr 1 x/282 0) 0) 2
+               (let (*match*/287 =o (field_mut 1 x/282))
+                 (field_imm 0 *match*/287)))
+=======
+  (f/281 =
+     (function {nlocal = 0} x/283 : int
+       (if (field_int 0 x/283)
+         (let (*match*/287 =o (field_mut 1 x/283))
+           (if *match*/287
+             (if (seq (setfield_ptr 1 x/283 0) 0) 2
+               (let (*match*/288 =o (field_mut 1 x/283))
+                 (field_imm 0 *match*/288)))
+>>>>>>> f06c0085dd (Locals x effects)
              1))
          0)))
+<<<<<<< HEAD
   (apply (field_imm 1 (global Toploop!)) "f" f/282))
+||||||| parent of f06c0085dd (Locals x effects)
+  (apply (field_imm 1 (global Toploop!)) "f" f/280))
+=======
+  (apply (field_imm 1 (global Toploop!)) "f" f/281))
+>>>>>>> f06c0085dd (Locals x effects)
 val f : t -> int = <fun>
 |}]
 
@@ -56,13 +82,33 @@ let f x =
 0
 type t = { a : bool; mutable b : int option; }
 (let
+<<<<<<< HEAD
   (f/293 =
      (function {nlocal = 0} x/294 : int
        (if (field_int 0 x/294)
          (let (*match*/298 =o (field_mut 1 x/294))
            (if *match*/298 (field_imm 0 *match*/298) 1))
+||||||| parent of f06c0085dd (Locals x effects)
+  (f/291 =
+     (function {nlocal = 0} x/292 : int
+       (if (field_int 0 x/292)
+         (let (*match*/296 =o (field_mut 1 x/292))
+           (if *match*/296 (field_imm 0 *match*/296) 1))
+=======
+  (f/292 =
+     (function {nlocal = 0} x/293 : int
+       (if (field_int 0 x/293)
+         (let (*match*/297 =o (field_mut 1 x/293))
+           (if *match*/297 (field_imm 0 *match*/297) 1))
+>>>>>>> f06c0085dd (Locals x effects)
          0)))
+<<<<<<< HEAD
   (apply (field_imm 1 (global Toploop!)) "f" f/293))
+||||||| parent of f06c0085dd (Locals x effects)
+  (apply (field_imm 1 (global Toploop!)) "f" f/291))
+=======
+  (apply (field_imm 1 (global Toploop!)) "f" f/292))
+>>>>>>> f06c0085dd (Locals x effects)
 val f : t -> int = <fun>
 |}]
 
@@ -85,25 +131,73 @@ let f r =
    unsound here. *)
 [%%expect {|
 (let
+<<<<<<< HEAD
   (f/300 =
      (function {nlocal = 0} r/301 : int
+||||||| parent of f06c0085dd (Locals x effects)
+  (f/298 =
+     (function {nlocal = 0} r/299 : int
+=======
+  (f/299 =
+     (function {nlocal = 0} r/300 : int
+>>>>>>> f06c0085dd (Locals x effects)
        (region
          (let
+<<<<<<< HEAD
            (*match*/303 =[(consts (0)) (non_consts ([0: *]))]
               (makelocalblock 0 (*) r/301))
+||||||| parent of f06c0085dd (Locals x effects)
+           (*match*/301 =[(consts (0)) (non_consts ([0: *]))]
+              (makelocalblock 0 (*) r/299))
+=======
+           (*match*/302 =[(consts (0)) (non_consts ([0: *]))]
+              (makelocalblock 0 (*) r/300))
+>>>>>>> f06c0085dd (Locals x effects)
            (catch
+<<<<<<< HEAD
              (if *match*/303
                (let (*match*/305 =o (field_mut 0 (field_imm 0 *match*/303)))
                  (if *match*/305 (exit 7) 0))
+||||||| parent of f06c0085dd (Locals x effects)
+             (if *match*/301
+               (let (*match*/303 =o (field_mut 0 (field_imm 0 *match*/301)))
+                 (if *match*/303 (exit 7) 0))
+=======
+             (if *match*/302
+               (let (*match*/304 =o (field_mut 0 (field_imm 0 *match*/302)))
+                 (if *match*/304 (exit 7) 0))
+>>>>>>> f06c0085dd (Locals x effects)
                (exit 7))
             with (7)
+<<<<<<< HEAD
              (if (seq (setfield_ptr 0 r/301 0) 0) 1
                (if *match*/303
+||||||| parent of f06c0085dd (Locals x effects)
+             (if (seq (setfield_ptr 0 r/299 0) 0) 1
+               (if *match*/301
+=======
+             (if (seq (setfield_ptr 0 r/300 0) 0) 1
+               (if *match*/302
+>>>>>>> f06c0085dd (Locals x effects)
                  (let
+<<<<<<< HEAD
                    (*match*/307 =o (field_mut 0 (field_imm 0 *match*/303)))
                    (field_imm 0 *match*/307))
+||||||| parent of f06c0085dd (Locals x effects)
+                   (*match*/305 =o (field_mut 0 (field_imm 0 *match*/301)))
+                   (field_imm 0 *match*/305))
+=======
+                   (*match*/306 =o (field_mut 0 (field_imm 0 *match*/302)))
+                   (field_imm 0 *match*/306))
+>>>>>>> f06c0085dd (Locals x effects)
                  3)))))))
+<<<<<<< HEAD
   (apply (field_imm 1 (global Toploop!)) "f" f/300))
+||||||| parent of f06c0085dd (Locals x effects)
+  (apply (field_imm 1 (global Toploop!)) "f" f/298))
+=======
+  (apply (field_imm 1 (global Toploop!)) "f" f/299))
+>>>>>>> f06c0085dd (Locals x effects)
 val f : int option ref -> int = <fun>
 |}]
 
@@ -123,10 +217,22 @@ let test = function
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
+<<<<<<< HEAD
   (test/311 =
      (function {nlocal = 0} param/314[(consts (0)) (non_consts ([0: *]))]
        : int (if param/314 (field_imm 0 (field_imm 0 param/314)) 0)))
   (apply (field_imm 1 (global Toploop!)) "test" test/311))
+||||||| parent of f06c0085dd (Locals x effects)
+  (test/309 =
+     (function {nlocal = 0} param/312[(consts (0)) (non_consts ([0: *]))]
+       : int (if param/312 (field_imm 0 (field_imm 0 param/312)) 0)))
+  (apply (field_imm 1 (global Toploop!)) "test" test/309))
+=======
+  (test/310 =
+     (function {nlocal = 0} param/313[(consts (0)) (non_consts ([0: *]))]
+       : int (if param/313 (field_imm 0 (field_imm 0 param/313)) 0)))
+  (apply (field_imm 1 (global Toploop!)) "test" test/310))
+>>>>>>> f06c0085dd (Locals x effects)
 val test : int t option -> int = <fun>
 |}]
 
@@ -144,11 +250,25 @@ let test = function
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
+<<<<<<< HEAD
   (test/319 =
      (function {nlocal = 0} param/321 : int
        (let (*match*/322 =o (field_mut 0 param/321))
          (if *match*/322 (field_imm 0 (field_imm 0 *match*/322)) 0))))
   (apply (field_imm 1 (global Toploop!)) "test" test/319))
+||||||| parent of f06c0085dd (Locals x effects)
+  (test/317 =
+     (function {nlocal = 0} param/319 : int
+       (let (*match*/320 =o (field_mut 0 param/319))
+         (if *match*/320 (field_imm 0 (field_imm 0 *match*/320)) 0))))
+  (apply (field_imm 1 (global Toploop!)) "test" test/317))
+=======
+  (test/318 =
+     (function {nlocal = 0} param/320 : int
+       (let (*match*/321 =o (field_mut 0 param/320))
+         (if *match*/321 (field_imm 0 (field_imm 0 *match*/321)) 0))))
+  (apply (field_imm 1 (global Toploop!)) "test" test/318))
+>>>>>>> f06c0085dd (Locals x effects)
 val test : int t option ref -> int = <fun>
 |}]
 
@@ -169,11 +289,25 @@ let test n =
 0
 type _ t = Int : int -> int t | Bool : bool -> bool t
 (let
+<<<<<<< HEAD
   (test/327 =
      (function {nlocal = 0} n/328 : int
+||||||| parent of f06c0085dd (Locals x effects)
+  (test/325 =
+     (function {nlocal = 0} n/326 : int
+=======
+  (test/326 =
+     (function {nlocal = 0} n/327 : int
+>>>>>>> f06c0085dd (Locals x effects)
        (region
          (let
+<<<<<<< HEAD
            (*match*/331 =[(consts (0)) (non_consts ([0: *]))]
+||||||| parent of f06c0085dd (Locals x effects)
+           (*match*/329 =[(consts (0)) (non_consts ([0: *]))]
+=======
+           (*match*/330 =[(consts (0)) (non_consts ([0: *]))]
+>>>>>>> f06c0085dd (Locals x effects)
               (makelocalblock 0 ([(consts ())
                                   (non_consts ([0: *,
                                                 [(consts ())
@@ -182,13 +316,37 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
                 (makelocalblock 0 (*,[(consts ()) (non_consts ([1: [int]]
                                       [0: [int]]))])
                   (makelocalmutable 0 (int) 1) [0: 42])))
+<<<<<<< HEAD
            (if *match*/331
+||||||| parent of f06c0085dd (Locals x effects)
+           (if *match*/329
+=======
+           (if *match*/330
+>>>>>>> f06c0085dd (Locals x effects)
              (let
+<<<<<<< HEAD
                (*match*/332 =a (field_imm 0 *match*/331)
                 *match*/334 =o (field_mut 0 (field_imm 0 *match*/332)))
                (if *match*/334 (field_imm 0 (field_imm 1 *match*/332))
                  (~ (field_imm 0 (field_imm 1 *match*/332)))))
+||||||| parent of f06c0085dd (Locals x effects)
+               (*match*/330 =a (field_imm 0 *match*/329)
+                *match*/332 =o (field_mut 0 (field_imm 0 *match*/330)))
+               (if *match*/332 (field_imm 0 (field_imm 1 *match*/330))
+                 (~ (field_imm 0 (field_imm 1 *match*/330)))))
+=======
+               (*match*/331 =a (field_imm 0 *match*/330)
+                *match*/333 =o (field_mut 0 (field_imm 0 *match*/331)))
+               (if *match*/333 (field_imm 0 (field_imm 1 *match*/331))
+                 (~ (field_imm 0 (field_imm 1 *match*/331)))))
+>>>>>>> f06c0085dd (Locals x effects)
              3)))))
+<<<<<<< HEAD
   (apply (field_imm 1 (global Toploop!)) "test" test/327))
+||||||| parent of f06c0085dd (Locals x effects)
+  (apply (field_imm 1 (global Toploop!)) "test" test/325))
+=======
+  (apply (field_imm 1 (global Toploop!)) "test" test/326))
+>>>>>>> f06c0085dd (Locals x effects)
 val test : 'a -> int = <fun>
 |}]

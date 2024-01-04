@@ -1,14 +1,9 @@
 (* TEST
- {
-   skip;
- }{
-   reason = "CR ocaml 5 effects: re-enable this test";
-   skip;
+   runtime5;
    frame_pointers;
    readonly_files = "fp_backtrace.c";
    all_modules = "${readonly_files} reperform.ml";
    native;
- }
 *)
 
 open Effect
