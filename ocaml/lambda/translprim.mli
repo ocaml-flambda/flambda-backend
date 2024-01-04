@@ -51,6 +51,7 @@ val transl_primitive_application :
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
+  | Invalid_array_kind_in_glb of Lambda.array_kind
 
 exception Error of Location.t * error
 

@@ -35,6 +35,7 @@ type constant =
   | Const_unboxed_float of string
   | Const_int32 of int32
   | Const_int64 of int64
+  (* CR mshinwell: This should use [Targetint.t] not [nativeint] *)
   | Const_nativeint of nativeint
   | Const_unboxed_int32 of int32
   | Const_unboxed_int64 of int64

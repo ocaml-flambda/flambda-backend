@@ -26,6 +26,8 @@ module Naked_number_kind : sig
     | Naked_vec128
 
   val print : Format.formatter -> t -> unit
+
+  val equal : t -> t -> bool
 end
 
 (** The kinds themselves. *)
@@ -149,6 +151,9 @@ module With_subkind : sig
       | Immediate_array
       | Value_array
       | Generic_array
+      | Unboxed_int32_array
+      | Unboxed_int64_array
+      | Unboxed_nativeint_array
 
     include Container_types.S with type t := t
   end

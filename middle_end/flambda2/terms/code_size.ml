@@ -141,8 +141,11 @@ let block_load (kind : Flambda_primitive.Block_access_kind.t) =
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
-  | Naked_floats -> 1
-  | Values -> 1
+  | Naked_floats | Values -> 1
+  | Naked_int32s | Naked_int64s | Naked_nativeints ->
+    (* more computation is needed because of the representation using a custom
+       block *)
+    2
 
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
@@ -157,6 +160,7 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
+  | Naked_int32s | Naked_int64s | Naked_nativeints -> 2 (* as above *)
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -322,7 +326,17 @@ let unary_prim_size prim =
   | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
-  | Array_length -> array_length_size
+  | Array_length array_kind -> (
+    match array_kind with
+    | Array_kind
+        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
+      ->
+      array_length_size
+    | Array_kind Naked_int32s ->
+      (* There is a dynamic check here to see if the array has an odd or even
+         number of elements *)
+      array_length_size + 2 (* compare + load *)
+    | Float_array_opt_dynamic -> array_length_size + 3 (* a bit approximate *))
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
   | Int_as_pointer _ -> 1

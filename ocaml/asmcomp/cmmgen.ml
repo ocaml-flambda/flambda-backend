@@ -873,6 +873,8 @@ and transl_make_array dbg env kind mode args =
   | Pfloatarray ->
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
+  | Punboxedfloatarray | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =

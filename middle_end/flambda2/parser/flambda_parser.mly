@@ -235,6 +235,7 @@ let make_boxed_const_int (i, m) : static_data =
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
 %type <Fexpr.array_kind> array_kind
+%type <Fexpr.empty_array_kind> empty_array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
 %type <Fexpr.block_access_field_kind> block_access_field_kind
@@ -384,7 +385,7 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH { Array_length }
+  | PRIM_ARRAY_LENGTH { Array_length (Array_kind Values) }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -468,6 +469,9 @@ array_kind:
   | { Values }
   | KWD_IMM { Immediates }
   | KWD_FLOAT { Naked_floats }
+
+empty_array_kind:
+  | { Values_or_immediates_or_naked_floats }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
@@ -918,7 +922,7 @@ static_data:
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
-  | STATIC_CONST_EMPTY_ARRAY { Empty_array }
+  | STATIC_CONST_EMPTY_ARRAY kind=empty_array_kind { Empty_array kind }
   | KWD_MUTABLE; s = STRING { Mutable_string { initial_value = s } }
   | s = STRING { Immutable_string s }
 ;

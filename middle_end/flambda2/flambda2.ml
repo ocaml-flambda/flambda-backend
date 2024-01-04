@@ -95,11 +95,19 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
   Misc.Color.setup (Flambda_features.colour ());
   (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
      the length of arrays will need fixing, I don't think it only applies to the
-     Cmm translation. *)
+     Cmm translation.
+
+     This is partially fixed now, but the float array optimization case for
+     array length in the Cmm translation assumes the floats are word width. *)
   (* The Flambda 2 code won't currently operate on 32-bit hosts; see
      [Name_occurrences]. *)
   if Sys.word_size <> 64
   then Misc.fatal_error "Flambda 2 can only run on 64-bit hosts at present";
+  (* At least one place in the Cmm translation code (for unboxed arrays) cannot
+     cope with big-endian systems, and it seems unlikely any such systems will
+     have to be supported in the future anyway. *)
+  if Arch.big_endian
+  then Misc.fatal_error "Flambda2 only supports little-endian hosts";
   (* When the float array optimisation is enabled, the length of an array needs
      to be computed differently according to the array kind, in the case where
      the width of a float is not equal to the machine word width (at present,

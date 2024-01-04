@@ -617,7 +617,8 @@ val prove_unique_fully_constructed_immutable_heap_block :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
+val meet_is_naked_number_array :
+  Typing_env.t -> t -> Flambda_kind.Naked_number_kind.t -> bool meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
@@ -727,8 +728,11 @@ type to_lift = private
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
+  | Immutable_int32_array of { fields : Int32.t list }
+  | Immutable_int64_array of { fields : Int64.t list }
+  | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_value_array of { fields : Simple.t list }
-  | Empty_array
+  | Empty_array of Empty_array_kind.t
 
 type reification_result = private
   | Lift of to_lift

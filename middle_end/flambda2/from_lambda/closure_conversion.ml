@@ -801,8 +801,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
-      | Pmakearray (_, _, _mode) ->
-        register_const0 acc Static_const.empty_array "empty_array"
+      | Pmakearray (array_kind, _, _mode) ->
+        let array_kind = Empty_array_kind.of_lambda array_kind in
+        register_const0 acc (Static_const.empty_array array_kind) "empty_array"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
       | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _

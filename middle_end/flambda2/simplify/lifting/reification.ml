@@ -58,10 +58,19 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Immutable_float_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_float_array art fields
+  | Immutable_int32_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_int32_array art fields
+  | Immutable_int64_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_int64_array art fields
+  | Immutable_nativeint_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_nativeint_array art fields
   | Immutable_value_array { fields } ->
     let fields = convert_fields fields in
     RSC.create_immutable_value_array art fields
-  | Empty_array -> RSC.create_empty_array art
+  | Empty_array array_kind -> RSC.create_empty_array art array_kind
 
 let lift dacc ty ~bound_to static_const : _ Or_invalid.t * DA.t =
   let dacc, symbol =
