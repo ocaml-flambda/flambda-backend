@@ -630,28 +630,33 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
-      let array_type = glb_array_type (to_location loc) t (array_type_kind env p) in
+      let loc = to_location loc in
+      let array_type = glb_array_type loc t (array_type_kind env loc p) in
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
   | Primitive (Parrayrefu rt, arity), p1 :: _ -> begin
-      let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1)
+      let loc = to_location loc in
+      let array_ref_type = glb_array_ref_type loc rt (array_type_kind env loc p1)
       in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefu array_ref_type, arity))
     end
   | Primitive (Parraysetu st, arity), p1 :: _ -> begin
-      let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
+      let loc = to_location loc in
+      let array_set_type = glb_array_set_type loc st (array_type_kind env loc p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysetu array_set_type, arity))
     end
   | Primitive (Parrayrefs rt, arity), p1 :: _ -> begin
-      let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1) in
+      let loc = to_location loc in
+      let array_ref_type = glb_array_ref_type loc rt (array_type_kind env loc p1) in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefs array_ref_type, arity))
     end
   | Primitive (Parraysets st, arity), p1 :: _ -> begin
-      let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
+      let loc = to_location loc in
+      let array_set_type = glb_array_set_type loc st (array_type_kind env loc p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysets array_set_type, arity))
     end
@@ -1191,8 +1196,8 @@ let report_error ppf = function
       fprintf ppf "Wrong arity for builtin primitive \"%s\"" prim_name
   | Invalid_array_kind_in_glb kind ->
       let name = Printlambda.array_kind kind in
-      fprintf ppf "Array kind %s can only be operated on using its own primitives \
-        and those primitives can only work on %s" name name
+      fprintf ppf "@[Array kind %s can only be operated on using its own primitives@ \
+        and those primitives can only work on %s@]" name name
 let () =
   Location.register_error_of_exn
     (function
