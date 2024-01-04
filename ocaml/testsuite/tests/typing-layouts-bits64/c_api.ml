@@ -1,16 +1,17 @@
 (* TEST
    modules = "c_functions.c"
-   * native
+   * flambda2
+   ** native
    flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_alpha"
-   * native
+   ** native
    flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_beta"
-   * native
+   ** native
    flags = "-extension layouts"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts"
 *)
 
