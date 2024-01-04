@@ -67,12 +67,4 @@ module type S = sig
   val relax_poll
      : return_label:Cmm.label option
     -> Linear.instruction_desc
-
-  val relax_intop_checkbound
-     : unit
-    -> Linear.instruction_desc
-  val relax_intop_imm_checkbound
-     : bound:int
-    -> Linear.instruction_desc
-  val relax_specific_op : Arch.specific_operation -> Linear.instruction_desc
 end

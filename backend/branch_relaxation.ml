@@ -98,9 +98,6 @@ module Make (T : Branch_relaxation_intf.S) = struct
           | Lop (Ialloc { bytes = num_bytes; dbginfo }) ->
             instr.desc <- T.relax_allocation ~num_bytes ~dbginfo;
             fixup true (pc + T.instr_size instr.desc) instr.next
-          | Lop (Ispecific specific) ->
-            instr.desc <- T.relax_specific_op specific;
-            fixup true (pc + T.instr_size instr.desc) instr.next
           | Lcondbranch (test, lbl) ->
             let lbl2 = Cmm.new_label() in
             let llabel = Llabel { label = lbl2; section_name = None } in

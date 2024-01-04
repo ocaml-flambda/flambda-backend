@@ -552,15 +552,6 @@ module BR = Branch_relaxation.Make (struct
 
   let relax_allocation ~num_bytes ~dbginfo =
     Lop (Ispecific (Ifar_alloc { bytes = num_bytes; dbginfo }))
-
-  let relax_intop_checkbound () =
-    assert false
-
-  let relax_intop_imm_checkbound ~bound:_ =
-    assert false
-
-  let relax_specific_op = function
-    | _ -> assert false
 end)
 
 let name_for_float_comparison = function
