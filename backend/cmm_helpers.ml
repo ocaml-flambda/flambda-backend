@@ -773,17 +773,24 @@ let complex_im c dbg =
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
-  let field_size_in_bytes =
-    match memory_chunk with
-    | Byte_unsigned | Byte_signed -> 1
-    | Sixteen_unsigned | Sixteen_signed -> 2
-    | Thirtytwo_unsigned | Thirtytwo_signed | Single -> 4
-    | Word_int | Word_val | Double -> 8
-    | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
-  in
   if n = 0
   then ptr
-  else Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
+  else
+    let field_size_in_bytes =
+      match memory_chunk with
+      | Byte_unsigned | Byte_signed -> 1
+      | Sixteen_unsigned | Sixteen_signed -> 2
+      | Thirtytwo_unsigned | Thirtytwo_signed -> 4
+      | Single ->
+        assert (size_float = 8);
+        (* unclear what to do if this is false *)
+        size_float / 2
+      | Word_int -> size_int
+      | Word_val -> size_addr
+      | Double -> size_float
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
+    in
+    Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
   Cop

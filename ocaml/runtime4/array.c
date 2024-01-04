@@ -51,6 +51,10 @@ static uintnat unboxed_array_deserialize(void* dst)
   caml_failwith("Marshalling is not yet implemented for unboxed arrays");
 }
 
+// Note: if polymorphic comparison and/or hashing are implemented for
+// the int32 unboxed arrays, care needs to be taken with the last word
+// when the array is of odd length -- this is not currently initialized.
+
 CAMLexport struct custom_operations caml_unboxed_int32_odd_array_ops = {
   "_unboxed_int32_odd_array",
   custom_finalize_default,
