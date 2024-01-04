@@ -643,6 +643,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lconst(Const_float_array(List.map extract_float cl))
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
+                | Punboxedfloatarray | Punboxedintarray _ ->
+                  Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
             match amut with
             | Mutable   -> duparray_to_mutable const

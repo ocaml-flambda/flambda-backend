@@ -37,3 +37,4 @@ val print_bigarray :
   Lambda.bigarray_layout -> unit
 val check_attribute : formatter -> check_attribute -> unit
 val alloc_mode : formatter -> alloc_mode -> unit
+val array_kind : array_kind -> string
