@@ -772,8 +772,18 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
-let field_address ptr n dbg =
-  if n = 0 then ptr else Cop (Cadda, [ptr; Cconst_int (n * size_addr, dbg)], dbg)
+let field_address ?(memory_chunk = Word_val) ptr n dbg =
+  let field_size_in_bytes =
+    match memory_chunk with
+    | Byte_unsigned | Byte_signed -> 1
+    | Sixteen_unsigned | Sixteen_signed -> 2
+    | Thirtytwo_unsigned | Thirtytwo_signed | Single -> 4
+    | Word_int | Word_val | Double -> 8
+    | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
+  in
+  if n = 0
+  then ptr
+  else Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
   Cop
@@ -1066,12 +1076,12 @@ let unboxed_int32_array_ref arr index dbg =
             add_int index (int ~dbg 2) dbg
           in
           let log2_size_addr = 2 in
-          (* N.B. The resulting value must be sign extended! *)
-          sign_extend_32 dbg
-            (Cop
-               ( mk_load_mut Thirtytwo_signed,
-                 [array_indexing log2_size_addr arr index dbg],
-                 dbg ))))
+          (* N.B. The resulting value will be sign extended by the code
+             generated for a [Thirtytwo_signed] load. *)
+          Cop
+            ( mk_load_mut Thirtytwo_signed,
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
 
 let unboxed_int64_or_nativeint_array_ref arr index dbg =
   bind "arr" arr (fun arr ->

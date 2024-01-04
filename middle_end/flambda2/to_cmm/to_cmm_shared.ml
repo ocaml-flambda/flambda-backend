@@ -283,8 +283,7 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
     | Some imm_or_ptr ->
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
     | None ->
-      let addr = field_address symbol index dbg in
-      let kind : Cmm.memory_chunk =
+      let memory_chunk : Cmm.memory_chunk =
         match kind with
         | Word_val -> Word_val
         | Word_int -> Word_int
@@ -292,7 +291,8 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
         | Thirtytwo_signed -> Thirtytwo_signed
         | Onetwentyeight_unaligned -> Onetwentyeight_unaligned
       in
-      store ~dbg kind Initialization ~addr ~new_value:cmm
+      let addr = field_address ~memory_chunk symbol index dbg in
+      store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =
     match prev_updates with

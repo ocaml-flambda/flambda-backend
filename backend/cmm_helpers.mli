@@ -149,8 +149,11 @@ val return_unit : Debuginfo.t -> expression -> expression
 val mk_load_mut : memory_chunk -> operation
 
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
-    field of the block pointed to by [ptr] *)
-val field_address : expression -> int -> Debuginfo.t -> expression
+    field of the block pointed to by [ptr].  [memory_chunk] is only used for
+    computation of the field width; it defaults to a memory chunk matching the
+    machine width. *)
+val field_address :
+  ?memory_chunk:memory_chunk -> expression -> int -> Debuginfo.t -> expression
 
 (** [get_field_gen mut ptr n dbg] returns an expression for the access to the
     [n]th field of the block pointed to by [ptr].  The [memory_chunk] used is
