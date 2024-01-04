@@ -50,7 +50,7 @@ let rec findi_acc i p = function
   | x :: xs -> if p x then i else findi_acc (i + 1) p xs
 let findi = findi_acc 0
 
-let arena = 4096
+let arena = 16384
 let header_size = 4
 let max_slot = 128
 let avail_arena = arena - header_size
