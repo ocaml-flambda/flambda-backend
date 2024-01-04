@@ -290,7 +290,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
       Field(result, 0) = Val_ptr(stk);
       if (stk != NULL) {
         caml_scan_stack(&oldify_one, oldify_scanning_flags, st,
-                        stk, 0, NULL);
+                        stk, 0);
       }
     }
     else
@@ -650,8 +650,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   CAML_EV_BEGIN(EV_MINOR_LOCAL_ROOTS);
   caml_do_local_roots(
     &oldify_one, oldify_scanning_flags, &st,
-    domain->local_roots, domain->current_stack, domain->gc_regs,
-    caml_get_local_arenas(domain));
+    domain->local_roots, domain->current_stack, domain->gc_regs);
 
   scan_roots_hook = atomic_load(&caml_scan_roots_hook);
   if (scan_roots_hook != NULL)

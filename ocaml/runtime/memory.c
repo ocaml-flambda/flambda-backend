@@ -327,7 +327,9 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
 CAMLexport int caml_is_stack (value v)
 {
   int i;
-  struct caml_local_arenas* loc = Caml_state->local_arenas;
+  // We elide a call to caml_get_local_arenas_and_save_local_sp here
+  // for speed, since we never read the local sp.
+  struct caml_local_arenas* loc = Caml_state->current_stack->local_arenas;
   if (!Is_block(v)) return 0;
   if (Color_hd(Hd_val(v)) != NOT_MARKABLE) return 0;
   if (loc == NULL) return 0;
@@ -360,32 +362,46 @@ CAMLexport void caml_modify_local (value obj, intnat i, value val)
   }
 }
 
-CAMLexport caml_local_arenas* caml_get_local_arenas(caml_domain_state* dom)
+CAMLexport caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
+  struct stack_info* stack)
 {
-  caml_local_arenas* s = dom->local_arenas;
-  if (s != NULL)
-    s->saved_sp = dom->local_sp;
+  caml_local_arenas* s = stack->local_arenas;
+
+  // OCaml code may have updated [Caml_state->local_sp], so sync it to
+  // the [stack_info] structure, in the case where we are working with
+  // the current stack.
+  // CR mshinwell: should we be using stack->id for the comparison?
+  if (stack == Caml_state->current_stack && s != NULL) {
+    Caml_state->current_stack->local_sp = Caml_state->local_sp;
+  }
+
   return s;
 }
 
-CAMLexport void caml_set_local_arenas(caml_domain_state* dom, caml_local_arenas* s)
+CAMLexport void caml_set_local_arenas(caml_local_arenas* s, uintnat local_sp)
 {
-  dom->local_arenas = s;
+  Caml_state->current_stack->local_arenas = s;
   if (s != NULL) {
     struct caml_local_arena a = s->arenas[s->count - 1];
-    dom->local_sp = s->saved_sp;
-    dom->local_top = (void*)(a.base + a.length);
-    dom->local_limit = - a.length;
+    Caml_state->current_stack->local_sp = local_sp;
+    Caml_state->current_stack->local_top = (void*)(a.base + a.length);
+    Caml_state->current_stack->local_limit = - a.length;
   } else {
-    dom->local_sp = 0;
-    dom->local_top = NULL;
-    dom->local_limit = 0;
+    Caml_state->current_stack->local_sp = 0;
+    Caml_state->current_stack->local_top = NULL;
+    Caml_state->current_stack->local_limit = 0;
   }
+
+  // Sync changes to the root of [Caml_state], ready for OCaml code.
+  Caml_state->local_sp = Caml_state->current_stack->local_sp;
+  Caml_state->local_top = Caml_state->current_stack->local_top;
+  Caml_state->local_limit = Caml_state->current_stack->local_limit;
 }
 
 void caml_local_realloc(void)
 {
-  caml_local_arenas* s = caml_get_local_arenas(Caml_state);
+  caml_local_arenas* s =
+    caml_get_local_arenas_and_save_local_sp(Caml_state->current_stack);
   intnat i;
   char* arena;
   caml_stat_block block;
@@ -393,7 +409,6 @@ void caml_local_realloc(void)
     s = caml_stat_alloc(sizeof(*s));
     s->count = 0;
     s->next_length = 0;
-    s->saved_sp = Caml_state->local_sp;
   }
   if (s->count == Max_local_arenas)
     caml_fatal_error("Local allocation stack overflow - exceeded Max_local_arenas");
@@ -407,7 +422,7 @@ void caml_local_realloc(void)
       s->next_length *= 4;
     }
     /* may need to loop, if a very large allocation was requested */
-  } while (s->saved_sp + s->next_length < 0);
+  } while (Caml_state->local_sp + s->next_length < 0);
 
   arena = caml_stat_alloc_aligned_noexc(s->next_length, 0, &block);
   if (arena == NULL)
@@ -417,7 +432,7 @@ void caml_local_realloc(void)
     *((header_t*)(arena + i)) = Debug_uninit_local;
   }
 #endif
-  for (i = s->saved_sp; i < 0; i += sizeof(value)) {
+  for (i = Caml_state->local_sp; i < 0; i += sizeof(value)) {
     *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
   }
   caml_gc_message(0x08,
@@ -427,7 +442,7 @@ void caml_local_realloc(void)
   s->arenas[s->count-1].length = s->next_length;
   s->arenas[s->count-1].base = arena;
   s->arenas[s->count-1].alloc_block = block;
-  caml_set_local_arenas(Caml_state, s);
+  caml_set_local_arenas(s, Caml_state->local_sp);
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 

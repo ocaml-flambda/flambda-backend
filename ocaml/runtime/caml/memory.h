@@ -220,8 +220,15 @@ enum caml_alloc_small_flags {
 #define Alloc_small(result, wosize, tag, GC) \
   Alloc_small_with_reserved(result, wosize, tag, GC, (uintnat)0)
 
-CAMLextern caml_local_arenas* caml_get_local_arenas(caml_domain_state*);
-CAMLextern void caml_set_local_arenas(caml_domain_state*, caml_local_arenas* s);
+// Retrieve the local arenas for the given stack.
+// If the stack is the current stack, the copy of [local_sp] at the
+// root of [Caml_state] is saved in the current [stack_info]
+// structure, as it may have been updated by OCaml code.
+CAMLextern caml_local_arenas* caml_get_local_arenas_and_save_local_sp(
+  struct stack_info*);
+
+// Update the local arenas in [Caml_state].
+CAMLextern void caml_set_local_arenas(caml_local_arenas* s, uintnat local_sp);
 
 #endif /* CAML_INTERNALS */
 
