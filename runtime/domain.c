@@ -736,7 +736,6 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->backtrace_active = 0;
   caml_register_generational_global_root(&domain_state->backtrace_last_exn);
 
-  domain_state->local_arenas = NULL;
   domain_state->local_sp = 0;
   domain_state->local_top = NULL;
   domain_state->local_limit = 0;
