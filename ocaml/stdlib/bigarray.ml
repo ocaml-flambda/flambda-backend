@@ -97,7 +97,7 @@ let c_layout = C_layout
 let fortran_layout = Fortran_layout
 
 module Genarray = struct
-  type (!'a, !'b, !'c) t
+  type (!'a, !'b, !'c) t = private ('a * 'b * 'c) not_float
   external create: ('a, 'b) kind -> 'c layout -> int array -> ('a, 'b, 'c) t
      = "caml_ba_create"
   external get: ('a, 'b, 'c) t -> int array -> 'a

@@ -122,7 +122,9 @@ let classify env ty : classification =
            || Path.same p Predef.path_array
            || Path.same p Predef.path_nativeint
            || Path.same p Predef.path_int32
-           || Path.same p Predef.path_int64 then Addr
+           || Path.same p Predef.path_int64
+           || Path.same p Predef.path_not_float
+           then Addr
       else begin
         try
           match (Env.find_type p env).type_kind with
