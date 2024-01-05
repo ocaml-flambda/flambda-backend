@@ -306,6 +306,8 @@ let app ?uid f ~arg =
 let comp_unit ?uid s =
       { uid; desc = Comp_unit s; hash = Hashtbl.hash (hash_comp_unit, uid, s) }
 
+let no_fuel_left ?uid s = { s with uid }
+
 let decompose_abs t =
   match t.desc with
   | Abs (x, t) -> Some (x, t)
@@ -591,7 +593,7 @@ end) = struct
       proj ?uid t item
   | NLeaf -> leaf' uid
   | NComp_unit s -> comp_unit ?uid s
-  | NoFuelLeft t -> { t with uid }
+  | NoFuelLeft t -> no_fuel_left ?uid t
 
   let reduce global_env t =
     let fuel = ref Params.fuel in
