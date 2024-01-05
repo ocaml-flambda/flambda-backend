@@ -24,7 +24,6 @@ type valnum = int
 
 type op_class =
   | Op_pure           (* pure arithmetic, produce one or several result *)
-  | Op_checkbound     (* checkbound-style: no result, can raise an exn *)
   | Op_load of Mach.mutable_flag (* memory load *)
   | Op_store of bool  (* memory store, false = init, true = assign *)
   | Op_other   (* anything else that does not allocate nor store in memory *)
@@ -246,9 +245,7 @@ method class_of_operation op =
       | Immutable -> Immutable)
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
-  | Iintop(Icheckbound|Icheckalign _) -> Op_checkbound
   | Iintop _ -> Op_pure
-  | Iintop_imm((Icheckbound|Icheckalign _), _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
   | Iintop_atomic _ -> Op_store true
   | Icompf _
@@ -320,7 +317,7 @@ method private cse n i k =
        self#cse n2 i.next (fun next -> k { i with next; })
   | Iop op ->
       begin match self#class_of_operation op with
-      | (Op_pure | Op_checkbound | Op_load _) as op_class ->
+      | (Op_pure | Op_load _) as op_class ->
           let (n1, varg) = valnum_regs n i.arg in
           let n2 = set_unknown_regs n1 (Proc.destroyed_at_oper i.desc) in
           begin match find_equation op_class n1 (op, varg) with

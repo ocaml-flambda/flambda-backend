@@ -490,7 +490,14 @@ let transl_builtin name args dbg typ_res =
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
-        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
+        (* Here is an example to show how csel is compiled:
+         *   (csel val (!= cond/306 1) ifso/304 ifnot/305))
+         * [test_bool] goes from a tagged to an untagged bool. *)
+        let cond = test_bool dbg cond in
+        match cond with
+        | Cconst_int (0, _) -> ifnot
+        | Cconst_int (1, _) -> ifso
+        | _ -> Cop (op, [cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
@@ -718,40 +725,8 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> transl_vec128_builtin name args dbg typ_res
 
-let transl_effects (e : Primitive.effects) : Cmm.effects =
-  match e with
-  | No_effects -> No_effects
-  | Only_generative_effects | Arbitrary_effects -> Arbitrary_effects
-
-let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
-  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
-
-(* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
-  let name = Primitive.native_name prim in
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = ret;
-            builtin = prim.prim_c_builtin;
-            effects = transl_effects prim.prim_effects;
-            coeffects = transl_coeffects prim.prim_coeffects;
-            alloc = prim.prim_alloc;
-            returns;
-            ty_args
-          },
-        args,
-        dbg )
-  in
-  if prim.prim_c_builtin
-  then
-    match transl_builtin name args dbg ret with
-    | Some op -> op
-    | None -> default
-  else default
-
-let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
+let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
+    typ_res args =
   if not returns then assert (typ_res = typ_void);
   let default =
     Cop
@@ -762,8 +737,8 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
             ty_args;
             returns;
             builtin = is_c_builtin;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects
+            effects;
+            coeffects
           },
         args,
         dbg )

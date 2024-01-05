@@ -43,6 +43,7 @@ let rec select_addr exp =
       let (a, n) = select_addr arg in
       if Misc.no_overflow_sub n m then (a, n - m) else default
   | Cop(Clsl, [arg; Cconst_int((1|2|3 as shift), _)], _) ->
+      let default = (Ascale (arg, 1 lsl shift), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_lsl n shift
@@ -53,6 +54,7 @@ let rec select_addr exp =
       end
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _)
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
+      let default = (Ascale (arg, mult), 0) in
       begin match select_addr arg with
         (Alinear e, n) ->
         if Misc.no_overflow_mul n mult
@@ -160,8 +162,8 @@ let pseudoregs_for_operation op arg res =
     arg.(len-1) <- res.(0);
     (arg, res)
   (* Other instructions are regular *)
-  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound|Icheckalign _)
-  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound|Icheckalign _
+  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _)
+  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
@@ -212,7 +214,7 @@ inherit Selectgen.selector_generic as super
 
 method! is_immediate op n =
   match op with
-  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound ->
+  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _  ->
       is_immediate n
   | _ ->
       super#is_immediate op n

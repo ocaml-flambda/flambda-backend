@@ -10,5 +10,14 @@ positive_one_dot: 1.000000
 one_billion: 1000000000.000000
 one_twenty_seven_point_two_five_in_floating_hex: 127.250000
 five_point_three_seven_five_in_floating_hexponent: 5.375000
+zero: 0
+positive_one: 1
+positive_one: 1
+negative_one: -1
+negative_one: -1
+two_fifty_five_in_hex: 255
+twenty_five_in_octal: 25
+forty_two_in_binary: 42
 result: 7.000000
 larger match result: 3.000000
+result: 7

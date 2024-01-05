@@ -65,7 +65,7 @@ module Item : sig
 end
 
 type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
+type t = private { hash: int; uid: Uid.t option; desc: desc }
 and desc =
   | Var of var
   | Abs of var * t
@@ -88,6 +88,9 @@ val app : ?uid:Uid.t -> t -> arg:t -> t
 val str : ?uid:Uid.t -> t Item.Map.t -> t
 val proj : ?uid:Uid.t -> t -> Item.t -> t
 val leaf : Uid.t -> t
+val leaf' : Uid.t option -> t
+val no_fuel_left : ?uid:Uid.t -> t -> t
+val comp_unit : ?uid:Uid.t -> string -> t
 
 val decompose_abs : t -> (var * t) option
 

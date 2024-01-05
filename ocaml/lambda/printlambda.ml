@@ -19,7 +19,6 @@ open Primitive
 open Types
 open Lambda
 
-
 let rec struct_const ppf = function
   | Const_base(Const_int n) -> fprintf ppf "%i" n
   | Const_base(Const_char c) -> fprintf ppf "%C" c
@@ -27,16 +26,16 @@ let rec struct_const ppf = function
   | Const_immstring s -> fprintf ppf "#%S" s
   | Const_base(Const_float f) -> fprintf ppf "%s" f
   | Const_base(Const_unboxed_float f) ->
-    let s =
-      match String.split_on_char '-' f with
-      | [""; f] -> "-#" ^ f
-      | [f] -> "#" ^ f
-      | _ -> Misc.fatal_errorf "Invalid Const_unboxed_float constant: %s" f
-    in
-    fprintf ppf "%s" s
+      fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
+  | Const_base(Const_unboxed_int32 i) ->
+      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
+  | Const_base(Const_unboxed_int64 i) ->
+      fprintf ppf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
+  | Const_base(Const_unboxed_nativeint i) ->
+      fprintf ppf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
   | Const_block(tag, []) ->
       fprintf ppf "[%i]" tag
   | Const_block(tag, sc1::scl) ->
@@ -61,6 +60,10 @@ let array_kind = function
   | Paddrarray -> "addr"
   | Pintarray -> "int"
   | Pfloatarray -> "float"
+  | Punboxedfloatarray -> "unboxed_float"
+  | Punboxedintarray Pint32 -> "unboxed_int32"
+  | Punboxedintarray Pint64 -> "unboxed_int64"
+  | Punboxedintarray Pnativeint -> "unboxed_nativeint"
 
 let array_ref_kind ppf k =
   let pp_mode ppf = function
@@ -72,6 +75,10 @@ let array_ref_kind ppf k =
   | Paddrarray_ref -> fprintf ppf "addr"
   | Pintarray_ref -> fprintf ppf "int"
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+  | Punboxedfloatarray_ref -> fprintf ppf "unboxed_float"
+  | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
 
 let array_set_kind ppf k =
   let pp_mode ppf = function
@@ -83,10 +90,19 @@ let array_set_kind ppf k =
   | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
+  | Punboxedfloatarray_set -> fprintf ppf "unboxed_float"
+  | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
+  | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
+  | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
 
-let alloc_mode = function
+let alloc_mode_if_local = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
+
+let alloc_mode ppf alloc_mode =
+  match alloc_mode with
+  | Alloc_heap -> fprintf ppf "heap"
+  | Alloc_local -> fprintf ppf "local"
 
 let boxed_integer_name = function
   | Pnativeint -> "nativeint"
@@ -143,7 +159,7 @@ let rec layout is_top ppf layout_ =
 let layout ppf layout_ = layout true ppf layout_
 
 let return_kind ppf (mode, kind) =
-  let smode = alloc_mode mode in
+  let smode = alloc_mode_if_local mode in
   match kind with
   | Pvalue Pgenval when is_heap_mode mode -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
@@ -199,6 +215,15 @@ let boxed_integer_mark name bi m =
 
 let print_boxed_integer name ppf bi m =
   fprintf ppf "%s" (boxed_integer_mark name bi m);;
+
+let unboxed_integer_mark name bi m =
+  match bi with
+  | Pnativeint -> Printf.sprintf "Nativeint_u.%s%s" name (alloc_kind m)
+  | Pint32 -> Printf.sprintf "Int32_u.%s%s" name (alloc_kind m)
+  | Pint64 -> Printf.sprintf "Int64_u.%s%s" name (alloc_kind m)
+
+let print_unboxed_integer name ppf bi m =
+  fprintf ppf "%s" (unboxed_integer_mark name bi m);;
 
 let print_bigarray name unsafe kind ppf layout =
   fprintf ppf "Bigarray.%s[%s,%s]"
@@ -275,31 +300,31 @@ let primitive ppf = function
   | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Immutable_unique, shape, mode) ->
       fprintf ppf "make%sblock_unique %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Mutable, shape, mode) ->
       fprintf ppf "make%smutable %i%a"
-        (alloc_mode mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakefloatblock (Immutable, mode) ->
       fprintf ppf "make%sfloatblock Immutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sfloatblock Immutable_unique"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable, mode) ->
       fprintf ppf "make%sufloatblock Immutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sufloatblock Immutable_unique"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
-        (alloc_mode mode)
+        (alloc_mode_if_local mode)
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -340,7 +365,7 @@ let primitive ppf = function
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, sem, mode) ->
       fprintf ppf "floatfield%a%s %i"
-        field_read_semantics sem (alloc_mode mode) n
+        field_read_semantics sem (alloc_mode_if_local mode) n
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
@@ -419,11 +444,12 @@ let primitive ppf = function
 
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
   | Pmakearray (k, Mutable, mode) ->
-     fprintf ppf "make%sarray[%s]" (alloc_mode mode) (array_kind k)
+     fprintf ppf "make%sarray[%s]" (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable, mode) ->
-     fprintf ppf "make%sarray_imm[%s]" (alloc_mode mode) (array_kind k)
+     fprintf ppf "make%sarray_imm[%s]" (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable_unique, mode) ->
-      fprintf ppf "make%sarray_unique[%s]" (alloc_mode mode) (array_kind k)
+      fprintf ppf "make%sarray_unique[%s]" (alloc_mode_if_local mode)
+        (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
@@ -474,6 +500,12 @@ let primitive ppf = function
   | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
   | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
   | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Ceq) -> print_unboxed_integer "==" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cne) -> print_unboxed_integer "!=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Clt) -> print_unboxed_integer "<" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cgt) -> print_unboxed_integer ">" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cle) -> print_unboxed_integer "<=" ppf bi alloc_heap
+  | Punboxed_int_comp(bi, Cge) -> print_unboxed_integer ">=" ppf bi alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -665,6 +697,7 @@ let name_of_primitive = function
   | Plsrbint _ -> "Plsrbint"
   | Pasrbint _ -> "Pasrbint"
   | Pbintcomp _ -> "Pbintcomp"
+  | Punboxed_int_comp _ -> "Punboxed_int_comp"
   | Pbigarrayref _ -> "Pbigarrayref"
   | Pbigarrayset _ -> "Pbigarrayset"
   | Pbigarraydim _ -> "Pbigarraydim"

@@ -355,12 +355,16 @@ let exttype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> XInt
   | Float64 -> XFloat
+  | Word -> XInt
+  | Bits32 -> XInt32
+  | Bits64 -> XInt64
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
 
 let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float
+  | Word | Bits32 | Bits64 -> typ_int
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
@@ -668,8 +672,8 @@ let rec transl env e =
          | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
          | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-         | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
-         | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _) | Pstring_load _
+         | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
          | Pbbswap _ | Pget_header _), _)
         ->
@@ -869,6 +873,8 @@ and transl_make_array dbg env kind mode args =
   | Pfloatarray ->
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
+  | Punboxedfloatarray | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
@@ -1026,7 +1032,7 @@ and transl_prim_1 env p arg dbg =
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
     | Parrayrefs _ | Parraysets _ | Paddbint _ | Psubbint _ | Pmulbint _
     | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
-    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
     | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
@@ -1205,6 +1211,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Punboxed_int_comp(_, cmp) ->
+      tag_int (Cop(Ccmpi cmp,
+                     [transl env arg1;
+                      transl env arg2], dbg)) dbg
   | Patomic_exchange ->
      Cop (Cextcall ("caml_atomic_exchange", typ_val, [], false),
           [transl env arg1; transl env arg2], dbg)
@@ -1321,7 +1331,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
   | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
   | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
-  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _

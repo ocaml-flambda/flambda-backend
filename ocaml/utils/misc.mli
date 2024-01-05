@@ -143,6 +143,12 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val chunks_of : int -> 'a t -> 'a t t
+    (** [chunks_of n t] returns a list of nonempty lists whose
+        concatenation is equal to the original list. Every list has [n]
+        elements, except for possibly the last list, which may have fewer.
+        [chunks_of] raises if [n <= 0]. *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
@@ -202,7 +208,10 @@ module Stdlib : sig
   module String : sig
     include module type of String
     module Set : Set.S with type elt = string
-    module Map : Map.S with type key = string
+    module Map : sig
+      include Map.S with type key = string
+      val of_seq_multi : (string * 'a) Seq.t -> 'a list t
+    end
     module Tbl : Hashtbl.S with type key = string
 
     val print : Format.formatter -> t -> unit
@@ -403,6 +412,17 @@ val ordinal_suffix : int -> string
     an ordinal number: [1] -> ["st"], [2] -> ["nd"], [3] -> ["rd"],
     [4] -> ["th"], and so on.  Handles larger numbers (e.g., [42] -> ["nd"]) and
     the numbers 11--13 (which all get ["th"]) correctly. *)
+
+val format_as_unboxed_literal : string -> string
+(** [format_as_unboxed_literal constant_literal] converts [constant_literal] to its
+    corresponding unboxed literal by either adding "#" in front or changing
+    "-" to "-#".
+
+    Examples:
+
+      [0.1] to [#0.1]
+      [-3] to [-#3]
+      [0xa.cp-1] to [#0xa.cp-1] *)
 
 val normalise_eol : string -> string
 (** [normalise_eol s] returns a fresh copy of [s] with any '\r' characters

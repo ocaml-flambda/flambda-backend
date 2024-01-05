@@ -71,7 +71,7 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
-type jkind_sort_loc = Cstr_tuple | Record | External
+type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
 
 type reaching_type_path = reaching_type_step list
 and reaching_type_step =
@@ -121,8 +121,8 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string

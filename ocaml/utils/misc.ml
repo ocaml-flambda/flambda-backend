@@ -168,6 +168,19 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let chunks_of n l =
+      if n <= 0 then raise (Invalid_argument "chunks_of");
+      (* Invariant: List.length l = remaining *)
+      let rec aux n acc l ~remaining =
+        match remaining with
+        | 0 -> List.rev acc
+        | _ when remaining <= n -> List.rev (l :: acc)
+        | _ ->
+            let chunk, rest = split_at n l in
+            aux n (chunk :: acc) rest ~remaining:(remaining - n)
+      in
+      aux n [] l ~remaining:(List.length l)
+
     let rec is_prefix ~equal t ~of_ =
       match t, of_ with
       | [], [] -> true
@@ -252,7 +265,18 @@ module Stdlib = struct
   module String = struct
     include String
     module Set = Set.Make(String)
-    module Map = Map.Make(String)
+    module Map = struct
+      include Map.Make(String)
+
+      let of_seq_multi seq =
+        Seq.fold_left
+          (fun tbl (key, elt) ->
+            update key
+              (function None -> Some [elt] | Some s -> Some (elt :: s))
+              tbl)
+          empty seq
+    end
+
     module Tbl = Hashtbl.Make(struct
       include String
       let hash = Hashtbl.hash
@@ -749,6 +773,11 @@ let ordinal_suffix n =
   | 2 when not teen -> "nd"
   | 3 when not teen -> "rd"
   | _ -> "th"
+
+let format_as_unboxed_literal s =
+  if String.starts_with ~prefix:"-" s
+  then "-#" ^ (String.sub s 1 (String.length s - 1))
+  else "#" ^ s
 
 (* Color handling *)
 module Color = struct
@@ -1334,4 +1363,3 @@ end
 (* Fancy types *)
 
 type (_, _) eq = Refl : ('a, 'a) eq
-

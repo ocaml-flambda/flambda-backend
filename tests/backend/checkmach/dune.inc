@@ -13,6 +13,12 @@
 
 (rule
  (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_match_on_mutable_state.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (alias   runtest)
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_flambda.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
@@ -206,25 +212,6 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail10.output fail10.output.corrected)
  (action (diff fail10.output fail10.output.corrected)))
-
-(rule
- (enabled_if (= %{context_name} "main"))
- (targets fail11.output.corrected)
- (deps (:ml fail11.ml) filter.sh)
- (action
-   (with-outputs-to fail11.output.corrected
-    (pipe-outputs
-    (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
-    (run "./filter.sh")
-   ))))
-
-(rule
- (alias   runtest)
- (enabled_if (= %{context_name} "main"))
- (deps fail11.output fail11.output.corrected)
- (action (diff fail11.output fail11.output.corrected)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))

@@ -217,6 +217,7 @@ type primitive =
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
+  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -304,21 +305,29 @@ and block_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray
+  | Punboxedintarray of unboxed_integer
 
 and array_ref_kind =
   | Pgenarray_ref of alloc_mode
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
+  | Punboxedfloatarray_ref
+  | Punboxedintarray_ref of unboxed_integer
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
+  | Punboxedfloatarray_set
+  | Punboxedintarray_set of unboxed_integer
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_integer = boxed_integer
 
 and vec128_type =
   | Unknown128
@@ -544,7 +553,9 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type function_kind = Curried of {nlocal: int} | Tupled
+type curried_function_kind = { nlocal : int } [@@unboxed]
+
+type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 
@@ -572,6 +583,7 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
+  may_fuse_arity: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -729,6 +741,9 @@ let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
 let layout_unboxed_float = Punboxed_float
+let layout_unboxed_nativeint = Punboxed_int Pnativeint
+let layout_unboxed_int32 = Punboxed_int Pint32
+let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
@@ -762,6 +777,14 @@ let default_function_attribute = {
   is_opaque = false;
   stub = false;
   tmc_candidate = false;
+  (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
+     that runtime arity matches syntactic arity in more situations.
+     Many things compile to functions without having a notion of syntactic arity
+     that survives typechecking, e.g. functors. Multi-arg functors are compiled
+     as nested unary functions, and rely on the arity fusion in simplif to make
+     them multi-argument. So, we keep arity fusion turned on by default for now.
+  *)
+  may_fuse_arity = true;
 }
 
 let default_stub_attribute =
@@ -1440,6 +1463,28 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
+let alloc_mode_of_primitive_description (p : Primitive.description) =
+  if not Config.stack_allocation then
+    if p.prim_alloc then Some alloc_heap else None
+  else
+    match p.prim_native_repr_res with
+    | Prim_local, _ ->
+      (* For primitives that might allocate locally, [p.prim_alloc] just says
+         whether [caml_c_call] is required, without telling us anything
+         about local allocation.  (However if [p.prim_alloc = false] we
+         do actually know that the primitive does not allocate on the heap.) *)
+      Some alloc_local
+    | (Prim_global | Prim_poly), _ ->
+      (* For primitives that definitely do not allocate locally,
+         [p.prim_alloc = false] actually tells us that the primitive does
+         not allocate at all.
+
+         No external call that is [Prim_poly] may allocate locally.
+      *)
+      if p.prim_alloc then Some alloc_heap else None
+
+(* Changes to this function may also require changes in Flambda 2 (e.g.
+   closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1455,12 +1500,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetufloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall p ->
-     if not p.prim_alloc then None
-     else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some alloc_local
-       | Prim_global, _ -> Some alloc_heap
-     end
+  | Pccall p -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1483,8 +1523,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref) -> None
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref | Punboxedintarray_ref _)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref | Punboxedintarray_ref _) -> None
   | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
   | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
   | Pisint _ | Pisout -> None
@@ -1503,7 +1545,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Plslbint (_, m)
   | Plsrbint (_, m)
   | Pasrbint (_, m) -> Some m
-  | Pbintcomp _ -> None
+  | Pbintcomp _ | Punboxed_int_comp _ -> None
   | Pbigarrayset _ | Pbigarraydim _ -> None
   | Pbigarrayref (_, _, _, _) ->
      (* Boxes arising from Bigarray access are always Alloc_heap *)
@@ -1543,6 +1585,9 @@ let constant_layout: constant -> layout = function
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
+  | Const_unboxed_int32 _ -> Punboxed_int Pint32
+  | Const_unboxed_int64 _ -> Punboxed_int Pint64
+  | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
   | Const_float _ -> Pvalue Pfloatval
   | Const_unboxed_float _ -> Punboxed_float
 
@@ -1560,13 +1605,20 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float
+    | Word -> layout_unboxed_nativeint
+    | Bits32 -> layout_unboxed_int32
+    | Bits64 -> layout_unboxed_int64
     | Void -> assert false
     end
 
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float
+  | Punboxedfloatarray_ref -> layout_unboxed_float
   | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
+  | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
+  | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1603,7 +1655,7 @@ let primitive_result_layout (p : primitive) =
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _
-  | Pbintcomp _
+  | Pbintcomp _ | Punboxed_int_comp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
@@ -1701,12 +1753,16 @@ let array_ref_kind mode = function
   | Paddrarray -> Paddrarray_ref
   | Pintarray -> Pintarray_ref
   | Pfloatarray -> Pfloatarray_ref mode
+  | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
+  | Punboxedfloatarray -> Punboxedfloatarray_ref
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+  | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
+  | Punboxedfloatarray -> Punboxedfloatarray_set
 
 let is_check_enabled ~opt property =
   match property with
@@ -1762,5 +1818,3 @@ let may_allocate_in_region lam =
     | () -> false
     | exception Exit -> true
   end
-
-

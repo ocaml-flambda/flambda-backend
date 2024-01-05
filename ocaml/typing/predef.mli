@@ -36,6 +36,9 @@ val type_lazy_t: type_expr -> type_expr
 val type_extension_constructor:type_expr
 val type_floatarray:type_expr
 val type_unboxed_float:type_expr
+val type_unboxed_nativeint:type_expr
+val type_unboxed_int32:type_expr
+val type_unboxed_int64:type_expr
 
 val type_int8x16: type_expr
 val type_int16x8: type_expr
@@ -83,6 +86,11 @@ val ident_nil : Ident.t
 val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
+
+(* The jkind used for optional function argument types *)
+val option_argument_jkind : Jkind.t
+(* The jkind used for list argument types *)
+val list_argument_jkind : Jkind.t
 
 (* To build the initial environment. Since there is a nasty mutual
    recursion between predef and env, we break it by parameterizing

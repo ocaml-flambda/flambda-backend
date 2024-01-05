@@ -42,6 +42,9 @@ module Sort : sig
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
+    | Word  (** Unboxed native-size integers *)
+    | Bits32  (** Unboxed 32-bit integers *)
+    | Bits64  (** Unboxed 64-bit integers *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -59,6 +62,12 @@ module Sort : sig
 
   val float64 : t
 
+  val word : t
+
+  val bits32 : t
+
+  val bits64 : t
+
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
   val var_name : var -> string
@@ -70,6 +79,8 @@ module Sort : sig
   val equal_const : const -> const -> bool
 
   val format : Format.formatter -> t -> unit
+
+  val format_const : Format.formatter -> const -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
   val default_to_value : t -> unit
@@ -150,9 +161,11 @@ type sort = Sort.t
    in the following lattice:
 
    {[
-               any
-             /    \
-          value  void
+                          any
+                           |
+               ----------------------------
+              /        |       |     ...   \
+           value     void   float64      bits64
             |
         immediate64
             |
@@ -172,27 +185,29 @@ type concrete_jkind_reason =
   | Match
   | Constructor_declaration of int
   | Label_declaration of Ident.t
-  | Unannotated_type_parameter
+  | Unannotated_type_parameter of Path.t
   | Record_projection
   | Record_assignment
   | Let_binding
   | Function_argument
   | Function_result
   | Structure_item_expression
-  | V1_safety_check
   | External_argument
   | External_result
   | Statement
+  | Wildcard
+  | Unification_var
+  | Optional_arg_default
 
 type annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
-  | With_constraint of string
   | Newtype_declaration of string
   | Constructor_type_parameter of Path.t * string
   | Univar of string
   | Type_variable of string
   | Type_wildcard of Location.t
+  | With_error_message of string * annotation_context
 
 type value_creation_reason =
   | Class_let_binding
@@ -207,7 +222,12 @@ type value_creation_reason =
   | Boxed_variant
   | Extensible_variant
   | Primitive of Ident.t
-  | Type_argument (* CR layouts: Should this take a Path.t? *)
+  | Type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
+  (* [position] is 1-indexed *)
   | Tuple
   | Row_variable
   | Polymorphic_variant
@@ -223,7 +243,8 @@ type value_creation_reason =
   | Existential_type_variable
   | Array_element
   | Lazy_expression
-  | Class_argument
+  | Class_type_argument
+  | Class_term_argument
   | Structure_element
   | Debug_printer_argument
   | V1_safety_check
@@ -237,38 +258,59 @@ type immediate_creation_reason =
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
   | Gc_ignorable_check
-  | Value_kind
+(* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
 type immediate64_creation_reason =
   | Local_mode_cross_check
+  (* CR layouts v2.8: Remove Local_mode_cross_check after the check uses modal kinds *)
   | Gc_ignorable_check
+  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
   | Separability_check
 
-type void_creation_reason = V1_safety_check
+(* CR layouts v5: make new void_creation_reasons *)
+type void_creation_reason = |
 
 type any_creation_reason =
   | Missing_cmi of Path.t
-  | Wildcard
-  | Unification_var
   | Initial_typedecl_env
   | Dummy_jkind
     (* This is used when the jkind is about to get overwritten;
        key example: when creating a fresh tyvar that is immediately
        unified to correct levels *)
   | Type_expression_call
+  | Inside_of_Tarrow
+  | Wildcard
+  | Unification_var
 
 type float64_creation_reason = Primitive of Ident.t
 
+type word_creation_reason = Primitive of Ident.t
+
+type bits32_creation_reason = Primitive of Ident.t
+
+type bits64_creation_reason = Primitive of Ident.t
+
 type creation_reason =
   | Annotated of annotation_context * Location.t
+  | Missing_cmi of Path.t
   | Value_creation of value_creation_reason
   | Immediate_creation of immediate_creation_reason
   | Immediate64_creation of immediate64_creation_reason
   | Void_creation of void_creation_reason
   | Any_creation of any_creation_reason
   | Float64_creation of float64_creation_reason
+  | Word_creation of word_creation_reason
+  | Bits32_creation of bits32_creation_reason
+  | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
+  | Imported_type_argument of
+      { parent_path : Path.t;
+        position : int;
+        arity : int
+      }
+  (* [position] is 1-indexed *)
+  | Generalized of Ident.t option * Location.t
 
 type interact_reason =
   | Gadt_equation of Path.t
@@ -283,10 +325,9 @@ module Violation : sig
 
   type t
 
-  val of_ : violation -> t
+  (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
 
-  (** Mark a [t] as having arisen from a missing cmi *)
-  val record_missing_cmi : missing_cmi_for:Path.t -> t -> t
+  val of_ : ?missing_cmi:Path.t -> violation -> t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
@@ -327,6 +368,9 @@ type const =
   | Immediate64
   | Immediate
   | Float64
+  | Word
+  | Bits32
+  | Bits64
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> const
@@ -355,6 +399,15 @@ val immediate : why:immediate_creation_reason -> t
 
 (** This is the jkind of unboxed 64-bit floats.  They have sort Float64. *)
 val float64 : why:float64_creation_reason -> t
+
+(** This is the jkind of unboxed native-sized integers. They have sort Word. *)
+val word : why:word_creation_reason -> t
+
+(** This is the jkind of unboxed 32-bit integers. They have sort Bits32. *)
+val bits32 : why:bits32_creation_reason -> t
+
+(** This is the jkind of unboxed 64-bit integers. They have sort Bits64. *)
+val bits64 : why:bits64_creation_reason -> t
 
 (******************************)
 (* construction *)
@@ -466,6 +519,13 @@ val format_history :
 (** Provides the [Printtyp.path] formatter back up the dependency chain to
     this module. *)
 val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
+
+(******************************)
+(* history *)
+
+val has_imported_history : t -> bool
+
+val update_reason : t -> creation_reason -> t
 
 (******************************)
 (* relations *)

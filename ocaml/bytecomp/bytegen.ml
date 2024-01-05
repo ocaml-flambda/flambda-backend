@@ -137,7 +137,8 @@ let preserve_tailcall_for_prim = function
   | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+  | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
+  | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
   | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
   | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
@@ -491,16 +492,28 @@ let comp_primitive stack_info p sz args =
   | Parrayrefs (Pfloatarray_ref _) -> Kccall("caml_floatarray_get", 2)
   | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
       Kccall("caml_array_get_addr", 2)
+  | Parrayrefs (Punboxedfloatarray_ref | Punboxedintarray_ref _) ->
+      Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
+        Printlambda.primitive p
   | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
   | Parraysets Pfloatarray_set -> Kccall("caml_floatarray_set", 3)
   | Parraysets (Paddrarray_set _ | Pintarray_set) ->
       Kccall("caml_array_set_addr", 3)
+  | Parraysets (Punboxedfloatarray_set | Punboxedintarray_set _) ->
+      Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
+        Printlambda.primitive p
   | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
   | Parrayrefu (Pfloatarray_ref _) -> Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
+  | Parrayrefu (Punboxedfloatarray_ref | Punboxedintarray_ref _) ->
+      Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
+        Printlambda.primitive p
   | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
   | Parraysetu Pfloatarray_set -> Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
+  | Parraysetu (Punboxedfloatarray_set | Punboxedintarray_set _) ->
+      Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
+        Printlambda.primitive p
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -540,12 +553,12 @@ let comp_primitive stack_info p sz args =
   | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
   | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
   | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) -> Kccall("caml_greaterequal", 2)
+  | Pbintcomp(_, Ceq) | Punboxed_int_comp(_, Ceq) -> Kccall("caml_equal", 2)
+  | Pbintcomp(_, Cne) | Punboxed_int_comp(_, Cne) -> Kccall("caml_notequal", 2)
+  | Pbintcomp(_, Clt) | Punboxed_int_comp(_, Clt) -> Kccall("caml_lessthan", 2)
+  | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
+  | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
+  | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, _, _) -> Kccall("caml_ba_set_" ^ Int.to_string n, n + 2)
   | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
@@ -825,7 +838,7 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakearray (kind, _, _), args, loc) ->
+  | Lprim((Pmakearray (kind, _, _)) as p, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
         Pintarray | Paddrarray ->
@@ -840,6 +853,10 @@ let rec comp_expr stack_info env exp sz cont =
           else comp_args stack_info env args sz
                  (Kmakeblock(List.length args, 0) ::
                   Kccall("caml_make_array", 1) :: cont)
+      | Punboxedfloatarray | Punboxedintarray _ ->
+          Misc.fatal_errorf
+            "Cannot use Pmakeblock for unboxed arrays in bytecode"
+            Printlambda.primitive p
       end
   | Lprim((Presume|Prunstack), args, _) ->
       let nargs = List.length args - 1 in

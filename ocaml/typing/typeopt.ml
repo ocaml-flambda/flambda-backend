@@ -202,7 +202,7 @@ let value_kind_of_value_jkind jkind =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 -> assert false
+  | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -561,31 +561,47 @@ let value_kind env loc ty =
   with
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
-let layout env loc sort ty =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue (value_kind env loc ty)
+let[@inline always] layout_of_const_sort_generic ~value_kind ~error
+  : Jkind.Sort.const -> _ = function
+  | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
-  | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+  | Word when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pnativeint
+  | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint32
+  | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint64
+  | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
+    error const
+
+let layout env loc sort ty =
+  layout_of_const_sort_generic
+    (Jkind.Sort.get_default_value sort)
+    ~value_kind:(lazy (value_kind env loc ty))
+    ~error:(function
+      | Value -> assert false
+      | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
-  | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+  layout_of_const_sort_generic
+    (Jkind.Sort.get_default_value sort)
+    ~value_kind:(lazy Pgenval)
+    ~error:(function
+    | Value -> assert false
+    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | (Float64 | Word | Bits32 | Bits64 as const) ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
-let layout_of_const_sort (s : Jkind.Sort.const) =
-  match s with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
-  | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
-  | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
+let layout_of_const_sort s =
+  layout_of_const_sort_generic
+    s
+    ~value_kind:(lazy Pgenval)
+    ~error:(fun const ->
+      Misc.fatal_errorf "layout_of_const_sort: %a encountered"
+        Jkind.Sort.format_const const)
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with

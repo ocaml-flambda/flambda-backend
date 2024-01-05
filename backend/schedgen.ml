@@ -170,11 +170,10 @@ method oper_in_basic_block = function
    Hence, a checkbound instruction within a try...with block ends the
    current basic block. *)
 
-method private instr_in_basic_block instr try_nesting =
+method private instr_in_basic_block instr =
   match instr.desc with
     Lop op ->
-      self#oper_in_basic_block op &&
-      not (try_nesting > 0 && self#is_checkbound op)
+      self#oper_in_basic_block op
   | Lreloadretaddr -> true
   | _ -> false
 
@@ -190,11 +189,6 @@ method is_load = function
     Iload _ -> true
   | _ -> false
 
-method is_checkbound = function
-    Iintop(Icheckbound) -> true
-  | Iintop_imm(Icheckbound, _) -> true
-  | _ -> false
-
 method private instr_is_store instr =
   match instr.desc with
     Lop op -> self#is_store op
@@ -203,11 +197,6 @@ method private instr_is_store instr =
 method private instr_is_load instr =
   match instr.desc with
     Lop op -> self#is_load op
-  | _ -> false
-
-method private instr_is_checkbound instr =
-  match instr.desc with
-    Lop op -> self#is_checkbound op
   | _ -> false
 
 (* Estimate the latency of an operation. *)
@@ -296,9 +285,6 @@ method private add_instruction ready_queue instr =
     code_stores := [node];
     code_loads := [];
     code_checkbounds := []
-  end
-  else if self#instr_is_checkbound instr then begin
-    code_checkbounds := [node]
   end;
   (* Remember the registers used and produced by this instruction *)
   for i = 0 to Array.length instr.res - 1 do
@@ -363,22 +349,22 @@ method private reschedule ready_queue date cont =
 
 method schedule_fundecl f =
 
-  let rec schedule i try_nesting =
+  let rec schedule i =
     match i.desc with
     | Lend -> i
     | Lpushtrap { lbl_handler = _; }
-      -> { i with next = schedule i.next (try_nesting + 1) }
-    | Lpoptrap -> { i with next = schedule i.next (try_nesting - 1) }
+      -> { i with next = schedule i.next }
+    | Lpoptrap -> { i with next = schedule i.next }
     | _ ->
-        if self#instr_in_basic_block i try_nesting then begin
+        if self#instr_in_basic_block i then begin
           clear_code_dag();
-          schedule_block [] i try_nesting
+          schedule_block [] i
         end else
-          { i with next = schedule i.next try_nesting }
+          { i with next = schedule i.next }
 
-  and schedule_block ready_queue i try_nesting =
-    if self#instr_in_basic_block i try_nesting then
-      schedule_block (self#add_instruction ready_queue i) i.next try_nesting
+  and schedule_block ready_queue i =
+    if self#instr_in_basic_block i then
+      schedule_block (self#add_instruction ready_queue i) i.next
     else begin
       let critical_outputs =
         match i.desc with
@@ -387,11 +373,11 @@ method schedule_fundecl f =
         | Lreturn -> [||]
         | _ -> i.arg in
       List.iter (fun x -> ignore (longest_path critical_outputs x)) ready_queue;
-      self#reschedule ready_queue 0 (schedule i try_nesting)
+      self#reschedule ready_queue 0 (schedule i)
     end in
 
   if f.fun_fast && !Clflags.insn_sched then begin
-    let new_body = schedule f.fun_body 0 in
+    let new_body = schedule f.fun_body in
     clear_code_dag();
     { fun_name = f.fun_name;
       fun_args = f.fun_args;

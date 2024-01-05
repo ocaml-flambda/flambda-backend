@@ -319,16 +319,19 @@ end
 
 module Mutable_unboxing_result = struct
   type t =
-    { additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
+    { did_unbox_a_mutable_block : bool;
+      additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
       let_rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
 
-  let [@ocamlformat "disable"] print ppf { additionnal_epa; let_rewrites } =
+  let [@ocamlformat "disable"] print ppf { did_unbox_a_mutable_block; additionnal_epa; let_rewrites } =
     Format.fprintf ppf
       "@[<hov 1>(\
+         @[<hov 1>(did_unbox_a_mutable_block@ %b)@]@ \
          @[<hov 1>(additionnal_epa@ %a)@]@ \
          @[<hov 1>(let_rewrites@ %a)@]\
        )@]"
+      did_unbox_a_mutable_block
       (Continuation.Map.print Continuation_extra_params_and_args.print) additionnal_epa
       (Named_rewrite_id.Map.print Named_rewrite.print) let_rewrites
 end

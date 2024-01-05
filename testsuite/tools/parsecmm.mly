@@ -75,7 +75,6 @@ let access_array base numelt size =
 %token BYTE
 %token CASE
 %token CATCH
-%token CHECKBOUND
 %token COLON
 %token DATA
 %token DIVF
@@ -395,7 +394,6 @@ binaryop:
   | NGTF                        { Ccmpf CFngt }
   | GEF                         { Ccmpf CFge }
   | NGEF                        { Ccmpf CFnge }
-  | CHECKBOUND                  { Ccheckbound }
   | MULH                        { (Cmulhi {signed = true}) }
   | MULH UNSIGNED               { (Cmulhi {signed = false}) }
 ;

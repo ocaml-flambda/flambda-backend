@@ -427,3 +427,23 @@ module TestOnlyGenerativeEffectsStruct = struct
   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
   external z : int -> int = "x" "y" [@@only_generative_effects] (* accepted *)
 end
+
+module type TestErrorMessageSig = sig
+  type 'a t1 = 'a [@@error_message ""] (* rejected *)
+  type s1 = Foo1 [@error_message ""] (* rejected *)
+  val x : int [@@error_message ""] (* rejected *)
+
+  external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+    "x" "y"
+  external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+end
+
+module TestErrorMessageStruct = struct
+  type 'a t1 = 'a [@@error_message ""] (* rejected *)
+  type s1 = Foo1 [@error_message ""] (* rejected *)
+  let x : int = 42 [@@error_message ""] (* rejected *)
+
+  external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+    "x" "y"
+  external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+end

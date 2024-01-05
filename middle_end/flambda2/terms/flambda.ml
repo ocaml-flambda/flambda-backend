@@ -1420,8 +1420,9 @@ module Named = struct
                  ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
                  | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
                  | Immutable_float_array _ | Mutable_string _
-                 | Immutable_string _ | Empty_array | Immutable_value_array _ )
-               ->
+                 | Immutable_string _ | Empty_array _ | Immutable_value_array _
+                 | Immutable_int32_array _ | Immutable_int64_array _
+                 | Immutable_nativeint_array _ ) ->
                acc)
            init
 end

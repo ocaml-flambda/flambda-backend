@@ -910,8 +910,6 @@ module Extended_machtype = struct
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
-  let typ_int64 = [| Extended_machtype_component.Any_int |]
-
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_void = [||]
@@ -2511,6 +2509,8 @@ let arraylength kind arg dbg =
       Cop(Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedfloatarray | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let bbswap bi arg dbg =
   let prim, tyarg = match (bi : Primitive.boxed_integer) with
@@ -2701,6 +2701,8 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
       int_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode ->
       float_array_ref mode arg1 arg2 dbg
+  | Punboxedfloatarray_ref | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let arrayref_safe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
@@ -2754,6 +2756,8 @@ let arrayref_safe rkind arg1 arg2 dbg =
                 (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
+  | Punboxedfloatarray_ref | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -2804,6 +2808,8 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
       int_array_set arg1 arg2 arg3 dbg
   | Pfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
+  | Punboxedfloatarray_set | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let arrayset_safe skind arg1 arg2 arg3 dbg =
@@ -2867,6 +2873,8 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           float_array_set arr idx newval dbg))))
+  | Punboxedfloatarray_set | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =

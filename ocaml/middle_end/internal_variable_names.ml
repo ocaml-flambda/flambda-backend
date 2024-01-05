@@ -91,6 +91,7 @@ let pbigstring_set_32 = "Pbigstring_set_32"
 let pbigstring_set_64 = "Pbigstring_set_64"
 let pbigstring_set_128 = "Pbigstring_set_128"
 let pbintcomp = "Pbintcomp"
+let punboxed_int_comp = "Punboxed_int_comp"
 let pbintofint = "Pbintofint"
 let pbswap16 = "Pbswap16"
 let pbytes_of_string = "Pbytes_of_string"
@@ -223,6 +224,7 @@ let pbigstring_set_32_arg = "Pbigstring_set_32_arg"
 let pbigstring_set_64_arg = "Pbigstring_set_64_arg"
 let pbigstring_set_128_arg = "Pbigstring_set_128_arg"
 let pbintcomp_arg = "Pbintcomp_arg"
+let punboxed_int_comp_arg = "Punboxed_int_comp_arg"
 let pbintofint_arg = "Pbintofint_arg"
 let pbswap16_arg = "Pbswap16_arg"
 let pbytes_of_string_arg = "Pbytes_of_string_arg"
@@ -456,6 +458,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Plsrbint _ -> plsrbint
   | Pasrbint _ -> pasrbint
   | Pbintcomp _ -> pbintcomp
+  | Punboxed_int_comp _ -> punboxed_int_comp
   | Pbigarrayref _ -> pbigarrayref
   | Pbigarrayset _ -> pbigarrayset
   | Pbigarraydim _ -> pbigarraydim
@@ -591,6 +594,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Plsrbint _ -> plsrbint_arg
   | Pasrbint _ -> pasrbint_arg
   | Pbintcomp _ -> pbintcomp_arg
+  | Punboxed_int_comp _ -> punboxed_int_comp_arg
   | Pbigarrayref _ -> pbigarrayref_arg
   | Pbigarrayset _ -> pbigarrayset_arg
   | Pbigarraydim _ -> pbigarraydim_arg

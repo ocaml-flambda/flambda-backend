@@ -1,4 +1,4 @@
-# 2 "backend/amd64/cfg_stack_operands.ml"
+# 2 "backend/amd64/regalloc_stack_operands.ml"
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
@@ -64,7 +64,6 @@ let may_use_stack_operand_for_result
   May_still_have_spilled_registers
 
 type result =
-  | No_result
   | Result_can_be_on_stack
   | Result_cannot_be_on_stack
 
@@ -79,8 +78,6 @@ let binary_operation
   = fun map instr result ->
   if debug then begin
     match result with
-    | No_result ->
-      check_lengths instr ~of_arg:2 ~of_res:0
     | Result_can_be_on_stack ->
       check_lengths instr ~of_arg:2 ~of_res:1;
       check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0)
@@ -91,7 +88,6 @@ let binary_operation
     is_stack_operand instr.arg.(0)
     || is_stack_operand instr.arg.(1)
     || (match result with
-      | No_result -> false
       | Result_cannot_be_on_stack ->
         assert (not (is_stack_operand instr.res.(0)));
         false
@@ -106,7 +102,7 @@ let binary_operation
     match is_spilled map instr.arg.(0), is_spilled map instr.arg.(1) with
     | false, false ->
       begin match result with
-      | No_result | Result_can_be_on_stack ->
+      | Result_can_be_on_stack ->
         All_spilled_registers_rewritten
       | Result_cannot_be_on_stack ->
         May_still_have_spilled_registers
@@ -114,17 +110,12 @@ let binary_operation
     | false, true ->
       use_stack_operand map instr.arg 1;
       begin match result with
-      | No_result ->
-        All_spilled_registers_rewritten
       | Result_can_be_on_stack | Result_cannot_be_on_stack ->
         May_still_have_spilled_registers
       end
     | true, false ->
       (* note: slightly different from the case above, because arg.(0) and res.(0) are the same. *)
       begin match result with
-      | No_result ->
-        use_stack_operand map instr.arg 0;
-        All_spilled_registers_rewritten
       | Result_can_be_on_stack ->
         use_stack_operand map instr.res 0;
         use_stack_operand map instr.arg 0;
@@ -138,11 +129,6 @@ let binary_operation
         May_still_have_spilled_registers
       else begin
         match result with
-        | No_result ->
-          (* CR xclerc for xclerc: try and find for a criterion to choose between
-             the two. *)
-          use_stack_operand map instr.arg 0;
-          May_still_have_spilled_registers
         | Result_can_be_on_stack ->
           use_stack_operand map instr.arg 0;
           use_stack_operand map instr.res 0;
@@ -253,8 +239,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
-  | Op (Intop (Icheckbound | Icheckalign _))
-  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckbound | Icheckalign _), _)) ->
+  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ ), _)) ->
     (* should not happen *)
     fatal "unexpected instruction"
   end
@@ -264,18 +249,9 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   match (term : Cfg.terminator Cfg.instruction).desc with
   | Never -> fatal "unexpected terminator"
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
-  | Prim  {op = Checkbound { immediate = None; }; _} ->
-    binary_operation map term No_result
-  | Prim  {op = Checkalign { immediate = None; _ }; _} ->
-    may_use_stack_operand_for_only_argument ~has_result:false map term
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
   | Truth_test { ifso = _; ifnot = _; }
-  | Prim {op = Checkbound { immediate = Some _; }; _} ->
-    may_use_stack_operand_for_only_argument ~has_result:false map term
-  | Prim {op = Checkalign { immediate = Some _; _ }; _} ->
-    if debug then check_lengths term ~of_arg:0 ~of_res:0;
-    All_spilled_registers_rewritten
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
        makes it more difficult than the cases above, because (i) multiple

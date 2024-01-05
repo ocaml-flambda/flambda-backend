@@ -2056,13 +2056,13 @@ let rec constrain_type_jkind ~fixed env ty jkind fuel =
       match Jkind.sub jkind_bound jkind with
       | Ok () as ok -> ok
       | Error _ as err when fuel < 0 -> err
-      | Error violation ->
+      | Error _ ->
         begin match unbox_once env ty with
         | Final_result ty -> constrain_unboxed ty
         | Stepped ty ->
             constrain_type_jkind ~fixed env ty jkind (fuel - 1)
         | Missing missing_cmi_for ->
-          Error (Jkind.Violation.record_missing_cmi ~missing_cmi_for violation)
+          Error Jkind.(Violation.of_ ~missing_cmi:missing_cmi_for (Not_a_subjkind (update_reason jkind_bound (Missing_cmi missing_cmi_for), jkind)))
         end
     end
   | Tpoly (ty, _) -> constrain_type_jkind ~fixed env ty jkind fuel
@@ -2090,6 +2090,11 @@ let check_decl_jkind env decl jkind =
       match decl.type_manifest with
       | None -> err
       | Some ty -> check_type_jkind env ty jkind
+
+let check_type_jkind_exn env texn ty jkind =
+  match check_type_jkind env ty jkind with
+  | Ok _ -> ()
+  | Error err -> raise_for texn (Bad_jkind (ty,err))
 
 let constrain_type_jkind_exn env texn ty jkind =
   match constrain_type_jkind env ty jkind with
@@ -2133,6 +2138,25 @@ let unification_jkind_check env ty jkind =
   | Perform_checks -> constrain_type_jkind_exn env Unify ty jkind
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
+
+let update_generalized_ty_jkind_reason ty reason =
+  let rec inner ty =
+    let level = get_level ty in
+    if level = generic_level && try_mark_node ty then begin
+      begin match get_desc ty with
+      | Tvar ({ jkind; _ } as r) ->
+        let new_jkind = Jkind.(update_reason jkind reason) in
+        set_type_desc ty (Tvar {r with jkind = new_jkind})
+      | Tunivar ({ jkind; _ } as r) ->
+        let new_jkind = Jkind.(update_reason jkind reason) in
+        set_type_desc ty (Tunivar {r with jkind = new_jkind})
+      | _ -> ()
+      end;
+      iter_type_expr inner ty
+    end
+  in
+  inner ty;
+  unmark_type ty
 
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
@@ -2333,7 +2357,14 @@ let local_non_recursive_abbrev env p ty =
 (* Since we cannot duplicate universal variables, unification must
    be done at meta-level, using bindings in univar_pairs *)
 (* TODO: use find_opt *)
-let rec unify_univar t1 t2 = function
+(* Invariant: [jkind1] and [jkind2] (newly added) have to be the
+   jkinds of Tunivar [t1] and [t2] respectively.
+
+   They carry redundant information but are added to save two calls to
+   [get_desc] which are usually performed already at the call site. *)
+let unify_univar t1 t2 jkind1 jkind2 pairs =
+  if not (Jkind.equal jkind1 jkind2) then raise Cannot_unify_universal_variables;
+  let rec inner t1 t2 = function
     (cl1, cl2) :: rem ->
       let find_univ t cl =
         try
@@ -2347,16 +2378,18 @@ let rec unify_univar t1 t2 = function
       | Some({contents=None} as r1), Some({contents=None} as r2) ->
           set_univar r1 t2; set_univar r2 t1
       | None, None ->
-          unify_univar t1 t2 rem
+        inner t1 t2 rem
       | _ ->
           raise Cannot_unify_universal_variables
       end
   | [] -> raise Cannot_unify_universal_variables
+  in
+  inner t1 t2 pairs
 
 (* The same as [unify_univar], but raises the appropriate exception instead of
    [Cannot_unify_universal_variables] *)
-let unify_univar_for tr_exn t1 t2 univar_pairs =
-  try unify_univar t1 t2 univar_pairs
+let unify_univar_for tr_exn t1 t2 jkind1 jkind2 univar_pairs =
+  try unify_univar t1 t2 jkind1 jkind2 univar_pairs
   with Cannot_unify_universal_variables -> raise_unexplained_for tr_exn
 
 (* Test the occurrence of free univars in a type *)
@@ -2790,8 +2823,8 @@ let rec mcomp type_pairs env t1 t2 =
                enter_poly env univar_pairs
                  t1 tl1 t2 tl2 (mcomp type_pairs env)
              with Escape _ -> raise Incompatible)
-        | (Tunivar _, Tunivar _) ->
-            (try unify_univar t1' t2' !univar_pairs
+        | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}) ->
+            (try unify_univar t1' t2' jkind1 jkind2 !univar_pairs
              with Cannot_unify_universal_variables -> raise Incompatible)
         | (_, _) ->
             raise Incompatible
@@ -3204,22 +3237,10 @@ let rec unify (env:Env.t ref) t1 t2 =
         if unify1_var !env t1 t2 then () else unify2 env t1 t2
     | (_, Tvar _) ->
         if unify1_var !env t2 t1 then () else unify2 env t1 t2
-    | (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-        unify_univar_for Unify t1 t2 !univar_pairs;
+    | (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
+        unify_univar_for Unify t1 t2 k1 k2 !univar_pairs;
         update_level_for Unify !env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
-        (* CR layouts v1.5: make test cases that hit this.  Easier once we have
-           annotations on univars, I think.
-
-           Richard suggests:
-
-           let poly : ('a. 'a -> 'a) -> int * bool =
-             fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
-
-           Which should probably fail, even though it would be sound to accept.
-        *)
-        if not (Jkind.equal l1 l2) then
-          raise_for Unify (Unequal_var_jkinds (t1, l1, t2, l2));
         link_type t1 t2
     | (Tconstr (p1, [], a1), Tconstr (p2, [], a2))
           when Path.same p1 p2 (* && actual_mode !env = Old *)
@@ -3301,19 +3322,8 @@ and unify3 env t1 t1' t2 t2' =
     (not (eq_type t2 t2')) && (deep_occur t1'  t2) in
 
   begin match (d1, d2) with (* handle vars and univars specially *)
-    (Tunivar { jkind = l1 }, Tunivar { jkind = l2 }) ->
-      unify_univar_for Unify t1' t2' !univar_pairs;
-      (* CR layouts v1.5: make a test case for this once we have annotations on
-         univars
-
-        type ('a : any) foo = 'a
-        type ('a : any) bar
-
-        let f (x : < foo : ('a : void) . 'a foo bar >)
-          : < foo : 'a . 'a foo bar > = x
-      *)
-      if not (Jkind.equal l1 l2) then
-        raise_for Unify (Unequal_var_jkinds (t1, l1, t2, l2));
+    (Tunivar { jkind = k1 }, Tunivar { jkind = k2 }) ->
+      unify_univar_for Unify t1' t2' k1 k2 !univar_pairs;
       link_type t1' t2'
   | (Tvar { jkind }, _) ->
       unify3_var env jkind t1' t2 t2'
@@ -3856,24 +3866,14 @@ exception Filter_arrow_failed of filter_arrow_failure
 type filtered_arrow =
   { ty_arg : type_expr;
     arg_mode : Mode.Alloc.t;
-    arg_sort : Jkind.sort;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t;
-    ret_sort : Jkind.sort
+    ret_mode : Mode.Alloc.t
   }
 
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
-    (* CR layouts v3: This is one of two primary places where we are restricting
-       function arguments / returns to be representable.  This one handles
-       function types that arise from inference, and the check in
-       [Typetexp.transl_type_aux] handles function types explicitly written in
-       the source program.  When we decide to drop that restriction, we can
-       allow both to be any.  Separately, the relevant checks on function
-       arguments should happen when functions are constructed, not their
-       types. *)
-    let k_arg, arg_sort = Jkind.of_new_sort_var ~why:Function_argument in
-    let k_res, ret_sort = Jkind.of_new_sort_var ~why:Function_result in
+    let k_arg = Jkind.any ~why:Inside_of_Tarrow in
+    let k_res = Jkind.any ~why:Inside_of_Tarrow in
     let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
@@ -3885,7 +3885,7 @@ let filter_arrow env t l ~force_tpoly =
               (* CR layouts v5: Change the Jkind.value when option can
                  hold non-values. *)
               (Tconstr(Predef.path_option,
-                       [newvar2 level (Jkind.value ~why:Type_argument)],
+                       [newvar2 level Predef.option_argument_jkind],
                        ref Mnil))
           else
             newvar2 level k_arg
@@ -3899,7 +3899,7 @@ let filter_arrow env t l ~force_tpoly =
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
-    t', { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
+    t', { ty_arg; arg_mode; ty_ret; ret_mode }
   in
   let t =
     try expand_head_trace env t
@@ -3928,20 +3928,7 @@ let filter_arrow env t l ~force_tpoly =
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
       then
-        (* CR layouts v2.5: When we move the restrictions on argument from
-           arrows to functions, this function doesn't need to return a sort and
-           these calls to [type_sort] can move.  We could eliminate them
-           entirely by storing sorts on [TArrow], but that seems incompatible
-           with the future plan to shift the jkind requirements from the types
-           to the terms. *)
-        let type_sort ~why ty =
-          match type_sort ~why env ty with
-          | Ok sort -> sort
-          | Error err -> raise (Filter_arrow_failed (Jkind_error (ty, err)))
-        in
-        let arg_sort = type_sort ~why:Function_argument ty_arg in
-        let ret_sort = type_sort ~why:Function_result ty_ret in
-        { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
+        { ty_arg; arg_mode; ty_ret; ret_mode }
       else raise (Filter_arrow_failed
                     (Label_mismatch
                        { got = l; expected = l'; expected_type = t }))
@@ -4428,7 +4415,9 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         moregen_occur env (get_level t1) t2;
         update_scope_for Moregen (get_scope t1) t2;
         occur_for Moregen env t1 t2;
-        constrain_type_jkind_exn env Moregen t2 jkind;
+        (* use [check], not [constrain], here because [constrain] would be like
+        instantiating [t2], which we do not wish to do *)
+        check_type_jkind_exn env Moregen t2 jkind;
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
@@ -4444,7 +4433,9 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
             (Tvar { jkind }, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env (get_level t1') t2;
               update_scope_for Moregen (get_scope t1') t2;
-              constrain_type_jkind_exn env Moregen t2 jkind;
+              (* use [check], not [constrain], here because [constrain] would be like
+              instantiating [t2], which we do not wish to do *)
+              check_type_jkind_exn env Moregen t2 jkind;
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
@@ -4492,8 +4483,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Moregen env univar_pairs t1 tl1 t2 tl2
                 (moregen inst_nongen variance type_pairs env)
-          | (Tunivar _, Tunivar _) ->
-              unify_univar_for Moregen t1' t2' !univar_pairs
+          | (Tunivar {jkind=k1}, Tunivar {jkind=k2}) ->
+              unify_univar_for Moregen t1' t2' k1 k2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Moregen
         end
@@ -4579,8 +4570,8 @@ and moregen_row inst_nongen variance type_pairs env row1 row2 =
   end;
   let md1 = get_desc rm1 (* This lets us undo a following [link_type] *) in
   begin match md1, get_desc rm2 with
-    Tunivar _, Tunivar _ ->
-      unify_univar_for Moregen rm1 rm2 !univar_pairs
+    Tunivar {jkind=k1}, Tunivar {jkind=k2} ->
+      unify_univar_for Moregen rm1 rm2 k1 k2 !univar_pairs
   | Tunivar _, _ | _, Tunivar _ ->
       raise_unexplained_for Moregen
   | _ when static_row row1 -> ()
@@ -4858,8 +4849,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
 
   try
     match (get_desc t1, get_desc t2) with
-      (Tvar { jkind = l1 }, Tvar { jkind = l2 }) when rename ->
-        eqtype_subst type_pairs subst t1 l1 t2 l2
+      (Tvar { jkind = k1 }, Tvar { jkind = k2 }) when rename ->
+        eqtype_subst type_pairs subst t1 k1 t2 k2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
     | _ ->
@@ -4870,8 +4861,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
         if not (TypePairs.mem type_pairs (t1', t2')) then begin
           TypePairs.add type_pairs (t1', t2');
           match (get_desc t1', get_desc t2') with
-            (Tvar { jkind = l1 }, Tvar { jkind = l2 }) when rename ->
-              eqtype_subst type_pairs subst t1' l1 t2' l2
+            (Tvar { jkind = k1 }, Tvar { jkind = k2 }) when rename ->
+              eqtype_subst type_pairs subst t1' k1 t2' k2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
@@ -4910,8 +4901,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tpoly (t1, tl1), Tpoly (t2, tl2)) ->
               enter_poly_for Equality env univar_pairs t1 tl1 t2 tl2
                 (eqtype rename type_pairs subst env)
-          | (Tunivar _, Tunivar _) ->
-              unify_univar_for Equality t1' t2' !univar_pairs
+          | (Tunivar {jkind=k1}, Tunivar {jkind=k2}) ->
+              unify_univar_for Equality t1' t2' k1 k2 !univar_pairs
           | (_, _) ->
               raise_unexplained_for Equality
         end
