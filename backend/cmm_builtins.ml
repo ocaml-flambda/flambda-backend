@@ -490,6 +490,9 @@ let transl_builtin name args dbg typ_res =
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
+        (* Here is an example to show how csel is compiled:
+         *   (csel val (!= cond/306 1) ifso/304 ifnot/305))
+         * [test_bool] goes from a tagged to an untagged bool. *)
         let cond = test_bool dbg cond in
         match cond with
         | Cconst_int (0, _) -> ifnot
