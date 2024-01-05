@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha"
+   flags = "-extension layouts"
 *)
 
 module Nativeint_u = Stdlib__Nativeint_u

@@ -566,11 +566,11 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
   | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float
-  | Word when Language_extension.(is_at_least Layouts Beta) ->
+  | Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pnativeint
-  | Bits32 when Language_extension.(is_at_least Layouts Beta) ->
+  | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint32
-  | Bits64 when Language_extension.(is_at_least Layouts Beta) ->
+  | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
   | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
     error const
@@ -582,10 +582,8 @@ let layout env loc sort ty =
     ~error:(function
       | Value -> assert false
       | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
-      | Float64 ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
-      | (Word | Bits32 | Bits64 as const) ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Beta, Some ty))))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
@@ -594,10 +592,8 @@ let layout_of_sort loc sort =
     ~error:(function
     | Value -> assert false
     | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
-    | Float64 ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
-    | (Word | Bits32 | Bits64 as const) ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Beta, None))))
+    | (Float64 | Word | Bits32 | Bits64 as const) ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
 let layout_of_const_sort s =
   layout_of_const_sort_generic

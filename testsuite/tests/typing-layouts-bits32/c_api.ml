@@ -1,20 +1,23 @@
 (* TEST
    modules = "c_functions.c"
-   * native
+   * flambda2
+   ** native
    flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_alpha"
-   * native
+   ** native
    flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_beta"
+   ** native
+   flags = "-extension layouts"
+   ** bytecode
+   flags = "-extension layouts"
 *)
 
 (* This file tests using external C functions with int32#. *)
 
 external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
-external of_int32 : (int32[@local_opt]) -> int32# =
-  "%unbox_int32"
 
 let print_int32u s f = Printf.printf "%s: %ld\n" s (to_int32 f)
 let print_int32 s f = Printf.printf "%s: %ld\n" s f
@@ -33,7 +36,7 @@ external lognot_UtoBU : int32# -> (int32[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
 
 let () =
-  let i = lognot_UtoU (of_int32 42l) in
+  let i = lognot_UtoU #42l in
   print_int32u "int32# -> int32#, ~42" i
 
 let () =
@@ -41,7 +44,7 @@ let () =
   print_int32u "int32 -> int32#, ~(-100)" i
 
 let () =
-  let f = lognot_UtoB (of_int32 255l) in
+  let f = lognot_UtoB #255l in
   print_int32 "int32# -> int32, ~255" f
 
 let () =
@@ -49,7 +52,7 @@ let () =
   print_int32u "(int32[@unboxed]) -> int32#, ~1024" f
 
 let () =
-  let f = lognot_UtoBU (of_int32 (-1726l)) in
+  let f = lognot_UtoBU (-#1726l) in
   print_int32 "int32# -> (int32[@unboxed]), ~(-1726)" f
 
 (* If there are more than 5 args, you get an array in bytecode *)
@@ -61,7 +64,7 @@ external sum_7 :
 let _ =
   let f =
     sum_7
-      (of_int32 1l) 2l (of_int32 3l) 4l
-      (of_int32 5l) 6l (of_int32 7l)
+      #1l 2l #3l 4l
+      #5l 6l #7l
   in
   print_int32u "Function of 7 args, 1+2+3+4+5+6+7" f
