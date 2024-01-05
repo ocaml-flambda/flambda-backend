@@ -1,25 +1,21 @@
 (* TEST
-   * native
+   * flambda2
+   ** native
    flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_alpha"
-   * native
+   ** native
    flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_beta"
-   * setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-     flags = "-extension layouts"
-   ** ocamlc.byte
-     compiler_reference = "${test_source_directory}/unboxed_bits64s_disabled.compilers.reference"
-   *** check-ocamlc.byte-output
+   ** native
+   flags = "-extension layouts"
+   ** bytecode
+   flags = "-extension layouts"
 *)
 
 (* This file contains various tests for [int64#].  It's not an expect test
    to make sure it gets tested for native code. *)
-
-(* CR layouts v2.5: When unboxed literals work, change this file to use them
-   instead of [of_int64] on boxed literals everywhere. *)
 
 (*****************************************)
 (* Prelude: Functions on unboxed int64s. *)
@@ -64,22 +60,22 @@ let test1 () =
 
   (* Positive numbers *)
 
-  let three = of_int64 3L in
+  let three = #3L in
   print_int64u "Test 1, three" three;
 
-  let twice_three = three + (of_int64 3L) in
+  let twice_three = three + #3L in
   print_int64u "Test 1, twice_three" twice_three;
 
-  let thrice_three = (of_int64 3L) * three in
+  let thrice_three = #3L * three in
   print_int64u "Test 1, thrice_three" thrice_three;
 
   let twice_three_again = thrice_three - three in
   print_int64u "Test 1, twice_three_again" twice_three;
 
-  let three_again = twice_three_again / (of_int64 2L) in
+  let three_again = twice_three_again / #2L in
   print_int64u "Test 1, three_again" three_again;
 
-  let three_again_unsigned = twice_three_again // (of_int64 2L) in
+  let three_again_unsigned = twice_three_again // #2L in
   print_int64u "Test 1, three_again_unsigned" three_again_unsigned;
 
   let twice_three_greater_than_three = twice_three > three in
@@ -87,22 +83,22 @@ let test1 () =
     twice_three_greater_than_three;
 
   let three_with_effort =
-    ((of_int64 3L) + twice_three) * (of_int64 2L) / (of_int64 6L) in
+    (#3L + twice_three) * #2L / #6L in
   print_int64u "Test 1, three_with_effort" three_with_effort;
 
-  let seven_rem_three = (of_int64 7L) % three in
+  let seven_rem_three = #7L % three in
   print_int64u "Test 1, seven_rem_three" seven_rem_three;
 
-  let seven_rem_three_unsigned = (of_int64 7L) %% three in
+  let seven_rem_three_unsigned = #7L %% three in
   print_int64u "Test 1, seven_rem_three_unsigned" seven_rem_three_unsigned;
 
-  let forty_two_logand_three = logand (of_int64 42L) three in
+  let forty_two_logand_three = logand #42L three in
   print_int64u_bin "Test1, forty_two_logand_three (0b00101010 & 0b00000011)" forty_two_logand_three;
 
-  let forty_two_logor_three = logor (of_int64 42L) three in
+  let forty_two_logor_three = logor #42L three in
   print_int64u_bin "Test1, forty_two_logor_three (0b00101010 & 0b00000011)" forty_two_logor_three;
 
-  let forty_two_logxor_three = logxor (of_int64 42L) three in
+  let forty_two_logxor_three = logxor #42L three in
   print_int64u_bin "Test1, forty_two_logxor_three (0b00101010 & 0b00000011)" forty_two_logxor_three;
 
   let lognot_three = lognot three in
@@ -119,22 +115,22 @@ let test1 () =
 
   (* Negative numbers *)
 
-  let minus_five = of_int64 (-5L) in
+  let minus_five = -#5L in
   print_int64u "Test 1, minus_five" minus_five;
 
-  let twice_minus_five = minus_five + (of_int64 (-5L)) in
+  let twice_minus_five = minus_five + (-#5L) in
   print_int64u "Test 1, twice_minus_five" twice_minus_five;
 
-  let thrice_minus_five = (of_int64 (3L)) * minus_five in
+  let thrice_minus_five = #3L * minus_five in
   print_int64u "Test 1, thrice_minus_five" thrice_minus_five;
 
   let twice_minus_five_again = thrice_minus_five - minus_five in
   print_int64u "Test 1, twice_minus_five_again" twice_minus_five;
 
-  let minus_five_again = twice_minus_five_again / (of_int64 2L) in
+  let minus_five_again = twice_minus_five_again / #2L in
   print_int64u "Test 1, minus_five_again" minus_five_again;
 
-  let minus_five_again_unsigned = twice_minus_five_again // (of_int64 2L) in
+  let minus_five_again_unsigned = twice_minus_five_again // #2L in
   print_int64u "Test 1, minus_five_again_unsigned" minus_five_again_unsigned;
 
   let minus_five_greater_than_twice_minus_five = minus_five > twice_minus_five in
@@ -142,22 +138,22 @@ let test1 () =
     minus_five_greater_than_twice_minus_five;
 
   let minus_five_with_effort =
-    ((of_int64 (-5L)) + twice_minus_five) * (of_int64 2L) / (of_int64 6L) in
+    ((-#5L) + twice_minus_five) * #2L / #6L in
   print_int64u "Test 1, minus_five_with_effort" minus_five_with_effort;
 
-  let seven_rem_minus_five = (of_int64 7L) % minus_five in
+  let seven_rem_minus_five = #7L % minus_five in
   print_int64u "Test 1, seven_rem_minus_five" seven_rem_minus_five;
 
-  let seven_rem_minus_five_unsigned = (of_int64 7L) %% minus_five in
+  let seven_rem_minus_five_unsigned = #7L %% minus_five in
   print_int64u "Test 1, seven_rem_minus_five_unsigned" seven_rem_minus_five_unsigned;
 
-  let forty_two_logand_minus_five = logand (of_int64 42L) minus_five in
+  let forty_two_logand_minus_five = logand #42L minus_five in
   print_int64u_bin "Test1, forty_two_logand_minus_five (0b00101010 & 0b1...1011)" forty_two_logand_minus_five;
 
-  let forty_two_logor_minus_five = logor (of_int64 42L) minus_five in
+  let forty_two_logor_minus_five = logor #42L minus_five in
   print_int64u_bin "Test1, forty_two_logor_minus_five (0b00101010 & 0b1...1011)" forty_two_logor_minus_five;
 
-  let forty_two_logxor_minus_five = logxor (of_int64 42L) minus_five in
+  let forty_two_logxor_minus_five = logxor #42L minus_five in
   print_int64u_bin "Test1, forty_two_logxor_minus_five (0b00101010 & 0b1...1011)" forty_two_logxor_minus_five;
 
   let lognot_minus_five = lognot minus_five in
@@ -189,33 +185,33 @@ let[@inline never] twice f (x : 'a t_bits64) = f (f x)
 let[@inline never] compose f g (x : 'a t_bits64) = f (g x)
 
 let[@inline never] twice_on_three f =
-  let pi = Int64_u.of_int64 3L in
+  let pi = #3L in
   twice f pi
 
-let times_four = twice Int64_u.(fun x -> x * (of_int64 2L))
+let times_four = twice Int64_u.(fun x -> x * #2L)
 
 let _ =
   let open Int64_u in
   print_int64u "Test 2, add three twice"
-    (twice (fun x -> x + (of_int64 3L)) (of_int64 0L));
+    (twice (fun x -> x + #3L) #0L);
   print_int64u "Test 2, add three four times"
-    (twice (twice (fun x -> x + (of_int64 3L))) (of_int64 0L));
+    (twice (twice (fun x -> x + #3L)) #0L);
   print_int64u "Test 2, increment three twice"
-    (twice_on_three (fun x -> (of_int64 1L) + x));
+    (twice_on_three (fun x -> #1L + x));
   print_int64u "Test 2, increment three four times"
-    (twice_on_three (twice (fun x -> (of_int64 1L) + x)));
+    (twice_on_three (twice (fun x -> #1L + x)));
   print_int64u "Test 2, two times four"
-    (times_four (of_int64 2L));
+    (times_four #2L);
   print_int64u "Test 2, three times sixteen"
     (twice_on_three times_four);
   print_int64u "Test 2, three times sixteen again"
-    (compose times_four times_four (of_int64 3L));
+    (compose times_four times_four #3L);
   print_int64u "Test 2, three minus four"
-    (let two = twice (fun x -> x + (of_int64 1L)) (of_int64 0L) in
+    (let two = twice (fun x -> x + #1L) #0L in
      let add_two = Int64_u.(+) two in
      let add_two_after = compose add_two in
-     let minus_four = add_two_after (twice (fun x -> x - (of_int64 3L))) in
-     minus_four (of_int64 3L))
+     let minus_four = add_two_after (twice (fun x -> x - #3L)) in
+     minus_four #3L)
 
 (**********************************)
 (* Test 3: int64# in closures *)
@@ -225,7 +221,7 @@ let _ =
 let[@inline never] f3 n m steps () =
   let[@inline never] rec go k =
     if k = n
-    then Int64_u.of_int64 0L
+    then #0L
     else begin
       let acc = go (k + 1) in
       steps.(k) <- Int64_u.to_int64 acc;
@@ -239,7 +235,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
   let (start_k, end_k) = x0 in
   let[@inline never] rec go k =
     if k = end_k
-    then Int64_u.of_int64 0L
+    then #0L
     else begin
       let (x2_1, x2_2) = x2 in
       let (x4_1, x4_2) = x4 in
@@ -256,7 +252,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
 let test3 () =
   (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0L) in
-  let five_times_three = f3 5 (Int64_u.of_int64 3L) steps in
+  let five_times_three = f3 5 #3L steps in
   print_int64u "Test 3, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 3, step %d: %Ld\n") steps;
 
@@ -268,11 +264,11 @@ let test3 () =
       9 * (1 + 2 + 3 + 5 + 8) = 171
   *)
   let steps = Array.init 10 (fun _ -> 0L) in
-  let x1 = Int64_u.of_int64 1L in
-  let x3 = Int64_u.of_int64 2L in
-  let x5 = Int64_u.of_int64 3L in
-  let x7 = Int64_u.of_int64 5L in
-  let x9 = Int64_u.of_int64 8L in
+  let x1 = #1L in
+  let x3 = #2L in
+  let x5 = #3L in
+  let x7 = #5L in
+  let x9 = #8L in
 
   (* all these 8 numbers together sum to 3 *)
   let x2 = (7, 42) in
@@ -292,7 +288,7 @@ let _ = test3 ()
 let[@inline never] test4 () =
   (* Simple indirect call *)
   let[@inline never] go f =
-    Int64_u.to_int64 (f (Int64_u.of_int64 1L) (Int64_u.of_int64 2L))
+    Int64_u.to_int64 (f #1L #2L)
   in
   let (x1, x2) = (go Int64_u.(+), go Int64_u.(-)) in
   print_int64u "Test 4, 1 + 2" (Int64_u.of_int64 x1);
@@ -300,7 +296,7 @@ let[@inline never] test4 () =
 
   (* partial application to int64# *)
   let steps = Array.init 10 (fun _ -> 0L) in
-  let f = Sys.opaque_identity (f3 5 (Int64_u.of_int64 3L)) in
+  let f = Sys.opaque_identity (f3 5 #3L) in
   let five_times_three = f steps in
   print_int64u "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %Ld\n") steps;
@@ -308,7 +304,7 @@ let[@inline never] test4 () =
   (* partial application with int64# remaining *)
   let steps = Array.init 10 (fun _ -> 0L) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Int64_u.of_int64 3L) steps in
+  let six_times_three = f #3L steps in
   print_int64u "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %Ld\n") steps;
 
@@ -317,14 +313,14 @@ let[@inline never] test4 () =
   let f3 = Sys.opaque_identity f3 in
 
   let steps = Array.init 10 (fun _ -> 0L) in
-  let f = Sys.opaque_identity (f3 5 (Int64_u.of_int64 3L)) in
+  let f = Sys.opaque_identity (f3 5 #3L) in
   let five_times_three = f steps in
   print_int64u "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %Ld\n") steps;
 
   let steps = Array.init 10 (fun _ -> 0L) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Int64_u.of_int64 3L) steps in
+  let six_times_three = f #3L steps in
   print_int64u "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %Ld\n") steps
 
@@ -344,9 +340,9 @@ let[@inline never] f5 n m =
 let test5 () =
   let open Int64_u in
   let _ : unit =
-    f5 (of_int64 3L) (of_int64 2L)
+    f5 #3L #2L
       (fun n s m -> print_int64u s (n + m)) "Test 5, 3 + 2 + 1"
-      (of_int64 1L)
+      #1L
   in
   ()
 
@@ -387,20 +383,20 @@ let test6 () =
   (* (30 - 20) / 3 = 3 *)
   let o = (Sys.opaque_identity f6_1) () in
   print_int64u "Test 6, 3"
-    (o#f6_m1 (of_int64 30L) (of_int64 20L) (of_int64 3L));
+    (o#f6_m1 #30L #20L #3L);
 
   (* 4 * 8 = 32 *)
   let o = (Sys.opaque_identity f6_2) (4,7) in
-  let result = o#f6_m2 8 (of_int64 4L) (fun x -> x * of_int64 2L) in
+  let result = o#f6_m2 8 #4L (fun x -> x * #2L) in
   print_int64u "Test 6, 32" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2 + (-1) + 10) = -44 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in
   let result =
-    o#f6_m3 (-2) (of_int64 2L)
+    o#f6_m3 (-2) #2L
       (fun[@inline never] i m1 m2 n m3 ->
          (of_int64 (Int64.of_int (add3 i n))) * (m1 + m2 + m3))
-      (of_int64 (-1L)) (-12,4) (of_int64 10L)
+      (-#1L) (-12,4) #10L
   in
   print_int64u "Test 6, -44" result
 
@@ -412,7 +408,7 @@ let _ = test6 ()
 module M = struct
   open Int64_u
   let[@inline never] f () = assert false
-  let g () = if Sys.opaque_identity true then of_int64 32L else f ()
+  let g () = if Sys.opaque_identity true then #32L else f ()
 end
 
 let test7 () =
