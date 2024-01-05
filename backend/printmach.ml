@@ -112,12 +112,10 @@ let floatcomp c =
 let is_unary_op = function
   | Iclz _
   | Ictz _
-  | Icheckalign _
   | Ipopcnt -> true
   | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Icomp _
-  | Icheckbound
     -> false
 
 let intop = function
@@ -137,8 +135,6 @@ let intop = function
   | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
   | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
-  | Icheckbound -> "checkbound > "
-  | Icheckalign { bytes_pow2 } -> Printf.sprintf "checkalign[%d] " bytes_pow2
 
 let test' ?(print_reg = reg) tst ppf arg =
   let reg = print_reg in

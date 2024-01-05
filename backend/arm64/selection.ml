@@ -80,7 +80,7 @@ method! is_immediate op n =
   match op with
   | Iadd | Isub  -> n <= 0xFFF_FFF && n >= -0xFFF_FFF
   | Iand | Ior | Ixor -> is_logical_immediate n
-  | Icomp _ | Icheckbound -> is_immediate n
+  | Icomp _  -> is_immediate n
   | _ -> super#is_immediate op n
 
 method! is_simple_expr = function
@@ -157,15 +157,6 @@ method! select_operation op args dbg =
           | _ ->
               super#select_operation op args dbg
           end
-      | _ ->
-          super#select_operation op args dbg
-      end
-  (* Checkbounds *)
-  | Ccheckbound ->
-      begin match args with
-      | [Cop(Clsr, [arg1; Cconst_int (n, _)], _); arg2] when n > 0 && n < 64 ->
-          (Ispecific(Ishiftcheckbound { shift = n; }),
-            [arg1; arg2])
       | _ ->
           super#select_operation op args dbg
       end
