@@ -524,8 +524,7 @@ let rec add_blocks :
         terminate_block ~trap_actions:[]
           (copy_instruction_no_reg state last ~desc:Cfg.Never)
       else
-        terminate_block
-          ~trap_actions:[]
+        terminate_block ~trap_actions:[]
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions
