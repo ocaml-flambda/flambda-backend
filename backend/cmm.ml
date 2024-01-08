@@ -166,8 +166,8 @@ type phantom_defining_expr =
 type trywith_shared_label = int
 
 type pop_action =
-  | Pop_generic
   | Pop_specific of trywith_shared_label
+[@@unboxed]
 
 type trap_action =
   | Push of trywith_shared_label

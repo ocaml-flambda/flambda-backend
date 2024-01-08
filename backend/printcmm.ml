@@ -155,7 +155,6 @@ let exit_label ppf = function
 let trap_action ppf ta =
   match ta with
   | Push i -> fprintf ppf "push(%d)" i
-  | Pop Pop_generic -> fprintf ppf "pop"
   | Pop (Pop_specific i) -> fprintf ppf "pop(%d)" i
 
 let trap_action_list ppf traps =
