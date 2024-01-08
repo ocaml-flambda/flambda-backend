@@ -960,7 +960,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           ~block_like:(fun dacc symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
-            | Block (_tag, _mut, fields) ->
+            | Block (_, _, fields) | Immutable_value_array fields ->
               let acc = ref [] in
               List.iteri
                 (fun i (field : Field_of_static_block.t) ->
@@ -1437,7 +1437,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
   | Up -> hole
   | Let let_ -> (
       let[@local] erase () =
-        Format.eprintf "Removing %a@." Bound_pattern.print let_.bound_pattern;
+        (* Format.eprintf "Removing %a@." Bound_pattern.print let_.bound_pattern; *)
         rebuild_holed kinds uses let_.parent hole
       in
       let[@local] default () =
