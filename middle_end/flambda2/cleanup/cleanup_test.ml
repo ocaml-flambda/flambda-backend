@@ -450,6 +450,8 @@ end = struct
     let kind =
       Simple.pattern_match simple
         ~name:(fun name ~coercion:_ ->
+          (* Symbols are always values and might not be in t.kinds *)
+          if Name.is_symbol name then Flambda_kind.value else
           match Name.Map.find_opt name t.kinds with
           | Some k -> k
           | None -> Misc.fatal_errorf "Unbound name %a" Name.print name)
@@ -1363,6 +1365,11 @@ let rewrite_named kinds uses (named : Flambda.named) =
   | Static_consts sc -> Flambda.Named.create_static_consts (rewrite_static_const_group kinds uses sc)
   | Rec_info r -> Flambda.Named.create_rec_info r
 
+let rewrite_apply_cont_expr kinds uses ac =
+  Apply_cont_expr.with_continuation_and_args ac
+    (Apply_cont_expr.continuation ac)
+    ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac))
+
 let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     (rev_expr : rev_expr) : RE.t =
   let { expr; holed_expr; free_names } = rev_expr in
@@ -1370,13 +1377,17 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     match expr with
     | Raw expr -> expr
     | Apply_cont ac ->
-      let ac =
-        Apply_cont_expr.with_continuation_and_args ac
-          (Apply_cont_expr.continuation ac)
-          ~args:(List.map (rewrite_simple kinds uses) (Apply_cont_expr.args ac))
-      in
+      let ac = rewrite_apply_cont_expr kinds uses ac in
       Flambda.Expr.create_apply_cont ac
-    | Switch switch -> Flambda.Expr.create_switch switch
+    | Switch switch ->
+      let switch =
+        Switch_expr.create
+          ~condition_dbg:(Switch_expr.condition_dbg switch)
+          (* Scrutinee should never need rewriting, do it anyway for completeness *)
+          ~scrutinee:(rewrite_simple kinds uses (Switch_expr.scrutinee switch))
+          ~arms:(Targetint_31_63.Map.map (rewrite_apply_cont_expr kinds uses) (Switch_expr.arms switch))
+      in
+      Flambda.Expr.create_switch switch
     | Apply apply ->
       (* TODO rewrite other simples *)
       let call_kind =
