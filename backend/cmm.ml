@@ -165,13 +165,9 @@ type phantom_defining_expr =
 
 type trywith_shared_label = int
 
-type pop_action =
-  | Pop_specific of trywith_shared_label
-[@@unboxed]
-
 type trap_action =
   | Push of trywith_shared_label
-  | Pop of pop_action
+  | Pop of trywith_shared_label
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 

@@ -120,7 +120,7 @@ let set_traps_for_raise env =
   | Uncaught -> ()
   | Specific_trap (lbl, _) ->
     begin match env_find_static_exception lbl env with
-    | s -> set_traps lbl s.traps_ref ts [Pop (Pop_specific lbl)]
+    | s -> set_traps lbl s.traps_ref ts [Pop lbl]
     | exception Not_found -> Misc.fatal_errorf "Trap %d not registered in env" lbl
     end
 
@@ -132,7 +132,7 @@ let trap_stack_is_empty env =
 let pop_all_traps env =
   let rec pop_all acc = function
     | Uncaught -> acc
-    | Specific_trap (lbl, t) -> pop_all (Cmm.Pop (Pop_specific lbl) :: acc) t
+    | Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
   pop_all [] env.trap_stack
 
