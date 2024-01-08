@@ -32,10 +32,6 @@ module State : sig
 
   val get_next_instruction_id : t -> int
 
-  val add_iend_with_poptrap : t -> Mach.instruction -> unit
-
-  val is_iend_with_poptrap : t -> Mach.instruction -> bool
-
   val add_exception_handler : t -> Label.t -> unit
 
   val get_exception_handlers : t -> Label.t list
@@ -48,7 +44,6 @@ end = struct
       layout : Cfg_with_layout.layout;
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
-      mutable iends_with_poptrap : Mach.instruction list;
       mutable exception_handlers : Label.t list
     }
 
@@ -56,7 +51,6 @@ end = struct
     let layout = DLL.make_empty () in
     let catch_handlers = Numbers.Int.Tbl.create 31 in
     let next_instruction_id = 0 in
-    let iends_with_poptrap = [] in
     let exception_handlers = [] in
     { fun_name;
       tailrec_label;
@@ -65,7 +59,6 @@ end = struct
       layout;
       catch_handlers;
       next_instruction_id;
-      iends_with_poptrap;
       exception_handlers
     }
 
@@ -107,21 +100,6 @@ end = struct
     let res = t.next_instruction_id in
     t.next_instruction_id <- succ res;
     res
-
-  let is_iend instr =
-    match instr.Mach.desc with
-    | Iend -> true
-    | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
-    | Itrywith _ | Iraise _ ->
-      false
-
-  let add_iend_with_poptrap t iend =
-    assert (is_iend iend);
-    t.iends_with_poptrap <- iend :: t.iends_with_poptrap
-
-  let is_iend_with_poptrap t iend =
-    assert (is_iend iend);
-    List.memq iend t.iends_with_poptrap
 
   let add_exception_handler t lbl =
     t.exception_handlers <- lbl :: t.exception_handlers
@@ -403,14 +381,6 @@ let copy_instruction_no_reg :
     available_across
   }
 
-let rec get_end : Mach.instruction -> Mach.instruction =
- fun instr ->
-  match instr.Mach.desc with
-  | Iend -> instr
-  | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
-  | Itrywith _ | Iraise _ ->
-    get_end instr.Mach.next
-
 type terminator_info =
   | Terminator of Cfg.terminator Cfg.instruction
   | With_next_label of (Label.t -> Cfg.terminator Cfg.instruction)
@@ -528,8 +498,6 @@ let rec add_blocks :
   in
   let prepare_next_block () =
     match last.next.desc with
-    | Iend when not (State.is_iend_with_poptrap state last.next) ->
-      next, fun () -> ()
     | Iend | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ | Iraise _ ->
       let start = Cmm.new_label () in
@@ -557,10 +525,7 @@ let rec add_blocks :
           (copy_instruction_no_reg state last ~desc:Cfg.Never)
       else
         terminate_block
-          ~trap_actions:
-            (if State.is_iend_with_poptrap state last
-            then [Cmm.Pop Pop_generic]
-            else [])
+          ~trap_actions:[]
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions
@@ -625,7 +590,6 @@ let rec add_blocks :
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body));
       let next, add_next_block = prepare_next_block () in
-      State.add_iend_with_poptrap state (get_end body);
       State.add_exception_handler state label_handler;
       add_blocks body state ~starts_with_pushtrap ~start:label_body ~next
         ~is_cold;
