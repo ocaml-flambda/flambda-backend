@@ -209,7 +209,7 @@ componentlist:
   | componentlist STAR component { $3 :: $1 }
 ;
 traps:
-    LPAREN INTCONST RPAREN       { List.init $2 (fun _ -> Pop Pop_generic) }
+    LPAREN INTCONST RPAREN       { List.init $2 (fun i -> Pop i) }
   | /**/                         { [] }
 expr:
     INTCONST    { Cconst_int ($1, debuginfo ()) }
@@ -278,7 +278,7 @@ expr:
                 Cvar result, debuginfo (), false],
                Cexit (Cmm.Lbl after_pop_k,
                  [$4], (* original try body *)
-                 [Pop (Pop_specific exn_k)]),
+                 [Pop exn_k]),
                Any),
              debuginfo (), false],
             Cexit (Cmm.Lbl after_push_k, [], [Push exn_k]),
