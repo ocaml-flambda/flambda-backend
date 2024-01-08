@@ -3307,23 +3307,27 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
-let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
-  (* Cms files do not store the typetree. Toplevels attributes are
-    as they are not explicitely associated with a uid so we need
-    to manually register them. *)
-  let attributes =
-    List.filter_map
-      (function
-        | { pstr_desc = Pstr_attribute attr; _ } -> Some attr
-        | _ -> None
-      )
-      ast
-  in
-  Env.register_uid uid
-    ~loc:(Location.in_file sourcefile)
-    ~attributes
+let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
+  (* Cms files do not store the typetree. This can be a problem for Merlin has
+    it uses attributes - which is why we manually construct a mapping from uid
+    to attributes while typing.
+    Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
+    except if it is the first element of the compilation unit structure or
+    signature. *)
+    match List.find_map f ast with
+    | None -> ()
+    | Some attr ->
+      Env.register_uid uid
+        ~loc:(Location.in_file sourcefile)
+        ~attributes:[ attr ]
 
-let type_implementation sourcefile outputprefix modulename initial_env ast =
+let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+      ~f:(function
+        | { pstr_desc = Pstr_attribute attr; _ }  -> Some attr
+        | _ -> None)
+
+let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
@@ -3464,22 +3468,13 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
     (Some source_file) None
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
-  (* Cms files do not store the typetree. Toplevels attributes are
-    as they are not explicitely associated with a uid so we need
-    to manually register them. *)
-  let attributes =
-    List.filter_map
-      (function
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+    ~f:(function
         | { psig_desc = Psig_attribute attr; _ } -> Some attr
-        | _ -> None
-      )
-      ast
-  in
-  Env.register_uid uid
-    ~loc:(Location.in_file sourcefile)
-    ~attributes
+        | _ -> None)
 
-let type_interface sourcefile modulename env ast =
+
+let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
   end;
