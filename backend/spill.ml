@@ -467,7 +467,6 @@ let find_spill_at_exit env k =
 let at_raise_from_trap_stack env ts =
   match ts with
   | Uncaught -> Reg.Set.empty
-  | Generic_trap _ -> env.last_regular_trywith_handler
   | Specific_trap (nfail, _) -> find_spill_at_exit env nfail
 
 let find_in_spill_cache nfail at_join env =
@@ -618,25 +617,19 @@ let rec spill :
         before))
   | Iexit (nfail, _traps) ->
       k i (find_spill_at_exit env nfail)
-  | Itrywith(body, kind, (ts, handler)) ->
+  | Itrywith(body, nfail, (ts, handler)) ->
     spill env i.next finally (fun new_next at_join ->
       let env_handler =
         { env with at_raise = at_raise_from_trap_stack env ts; }
       in
       spill env_handler handler at_join (fun new_handler before_handler ->
       let env_body =
-        match kind with
-        | Regular ->
-            { env with at_raise = before_handler;
-                       last_regular_trywith_handler = before_handler;
-            }
-        | Delayed nfail ->
-            { env with at_exit =
-                         (nfail, before_handler) :: env.at_exit;
-            }
+        { env with at_exit =
+                      (nfail, before_handler) :: env.at_exit;
+        }
       in
       spill env_body body at_join (fun new_body before_body ->
-      k (instr_cons_debug (Itrywith(new_body, kind, (ts, new_handler)))
+      k (instr_cons_debug (Itrywith(new_body, nfail, (ts, new_handler)))
          i.arg i.res i.dbg new_next)
         before_body)))
   | Iraise _ ->

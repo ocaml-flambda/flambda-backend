@@ -63,6 +63,7 @@ let lub_component comp1 comp2 =
   | (Float | Vec128), (Int | Addr | Val)
   | Float, Vec128
   | Vec128, Float ->
+    Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -83,6 +84,7 @@ let ge_component comp1 comp2 =
   | (Float | Vec128), (Int | Addr | Val)
   | Float, Vec128
   | Vec128, Float ->
+    Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
 
 type exttype =
@@ -163,17 +165,9 @@ type phantom_defining_expr =
 
 type trywith_shared_label = int
 
-type pop_action =
-  | Pop_generic
-  | Pop_specific of trywith_shared_label
-
 type trap_action =
   | Push of trywith_shared_label
-  | Pop of pop_action
-
-type trywith_kind =
-  | Regular
-  | Delayed of trywith_shared_label
+  | Pop of trywith_shared_label
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
@@ -295,10 +289,9 @@ type expression =
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * kind_for_unboxing
-  | Cregion of expression
-  | Ctail of expression
+  | Ctrywith of expression * trywith_shared_label
+      * Backend_var.With_provenance.t * expression * Debuginfo.t
+      * kind_for_unboxing
 
 type property =
   | Zero_alloc
@@ -369,8 +362,6 @@ let iter_shallow_tail f = function
       true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
-  | Cregion _
-  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -414,8 +405,6 @@ let map_shallow_tail ?kind f = function
               Option.value kind ~default:kind_before)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
-  | Cregion _
-  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -428,8 +417,6 @@ let map_shallow_tail ?kind f = function
 
 let map_tail ?kind f =
   let rec loop = function
-    | Cregion _
-    | Ctail _
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
@@ -469,10 +456,6 @@ let iter_shallow f = function
       List.iter f el
   | Ctrywith (e1, _kind, _id, e2, _dbg, _value_kind) ->
       f e1; f e2
-  | Cregion e ->
-      f e
-  | Ctail e ->
-      f e
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -509,10 +492,6 @@ let map_shallow f = function
       Cexit (n, List.map f el, traps)
   | Ctrywith (e1, kind, id, e2, dbg, value_kind) ->
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
-  | Cregion e ->
-      Cregion (f e)
-  | Ctail e ->
-      Ctail (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

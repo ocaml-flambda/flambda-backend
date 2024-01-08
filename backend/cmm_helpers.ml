@@ -694,7 +694,7 @@ let test_bool dbg cmm =
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
-let rec unbox_float dbg =
+let unbox_float dbg =
   map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
@@ -704,27 +704,13 @@ let rec unbox_float dbg =
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Const_float x) -> Cconst_float (x, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Double, [cmm], dbg))
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_float dbg e)
-            | e -> unbox_float dbg e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit -> Cop (mk_load_immut Double, [cmm], dbg))
-    | Ctail e -> Ctail (unbox_float dbg e)
     | cmm -> Cop (mk_load_immut Double, [cmm], dbg))
 
 (* Vectors *)
 
 let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
 
-let rec unbox_vec128 dbg =
+let unbox_vec128 dbg =
   (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
      unaligned load. *)
   map_tail ~kind:Any (function
@@ -737,21 +723,6 @@ let rec unbox_vec128 dbg =
       | Some (Const_vec128 { low; high }) ->
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_vec128 dbg e)
-            | e -> unbox_vec128 dbg e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit ->
-        Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
-    | Ctail e -> Ctail (unbox_vec128 dbg e)
     | cmm -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
 
 (* Complex *)
@@ -1575,7 +1546,7 @@ let alloc_matches_boxed_int bi ~hdr ~ops =
     && String.equal sym.sym_name caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
-let rec unbox_int dbg bi =
+let unbox_int dbg bi =
   let default arg =
     let memory_chunk =
       if bi = Primitive.Pint32 then Thirtytwo_signed else Word_int
@@ -1611,20 +1582,6 @@ let rec unbox_int dbg bi =
       | Some (Const_int64 n), Primitive.Pint64 ->
         natint_const_untagged dbg (Int64.to_nativeint n)
       | _ -> default cmm)
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_int dbg bi e)
-            | e -> unbox_int dbg bi e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit -> default cmm)
-    | Ctail e -> Ctail (unbox_int dbg bi e)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
@@ -2358,40 +2315,6 @@ let cache_public_method meths tag cache dbg =
                           [cache; Cvar tagged],
                           dbg ),
                       Cvar tagged ) ) ) ) )
-
-let has_local_allocs e =
-  let rec loop ~depth = function
-    | Cregion e -> loop ~depth:(depth + 1) e
-    | Ctail e -> if depth = 0 then () else loop ~depth:(depth - 1) e
-    | Cop ((Calloc Alloc_local | Cextcall _ | Capply _), _, _) when depth = 0 ->
-      raise Exit
-    | e -> iter_shallow (loop ~depth) e
-  in
-  match loop e ~depth:0 with () -> false | exception Exit -> true
-
-let remove_region_tail e =
-  let rec has_tail ~depth = function
-    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
-      raise Exit
-    | Ctail e -> has_tail ~depth:(depth - 1) e
-    | Cregion e -> has_tail ~depth:(depth + 1) e
-    | e -> ignore (iter_shallow_tail (has_tail ~depth) e : bool)
-  in
-  let rec remove_tail ~depth = function
-    | Ctail e ->
-      if depth = 0 then e else Ctail (remove_tail ~depth:(depth - 1) e)
-    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) when depth = 0 ->
-      Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion e -> Cregion (remove_tail ~depth:(depth + 1) e)
-    | e -> map_shallow_tail (remove_tail ~depth) e
-  in
-  match has_tail e ~depth:0 with
-  | () -> e
-  | exception Exit -> remove_tail e ~depth:0
-
-let region e =
-  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
-  if has_local_allocs e then Cregion e else remove_region_tail e
 
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
 
@@ -3357,7 +3280,7 @@ let letin v ~defining_expr ~body =
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
   | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ | Cregion _ | Ctail _ ->
+  | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3373,8 +3296,8 @@ let sequence x y =
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
-let trywith ~dbg ~kind ~body ~exn_var ~handler () =
-  Ctrywith (body, kind, exn_var, handler, dbg, Any)
+let trywith ~dbg ~body ~exn_var ~handler_cont ~handler () =
+  Ctrywith (body, handler_cont, exn_var, handler, dbg, Any)
 
 type static_handler =
   int
@@ -3643,8 +3566,7 @@ let cmm_arith_size (e : Cmm.expression) =
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
-  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
-  | Ctail _ ->
+  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
 let transl_property : Lambda.property -> Cmm.property = function

@@ -143,25 +143,11 @@ type phantom_defining_expr =
 
 type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
-type pop_action =
-  | Pop_generic
-  | Pop_specific of trywith_shared_label
-
 type trap_action =
   | Push of trywith_shared_label
   (** Add the corresponding handler to the trap stack. *)
-  | Pop of pop_action
+  | Pop of trywith_shared_label
   (** Remove the last handler from the trap stack. *)
-
-type trywith_kind =
-  | Regular
-  (** Regular trywith: an uncaught exception from the body will always be
-      handled by this handler. *)
-  | Delayed of trywith_shared_label
-  (** The body starts with the previous exception handler, and only after going
-      through an explicit Push-annotated Cexit will this handler become active.
-      This allows for sharing a single handler in several places, or having
-      multiple entry and exit points to a single trywith block. *)
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
@@ -306,12 +292,14 @@ type expression =
         * expression
         * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * kind_for_unboxing
-  (** Only if the [trywith_kind] is [Regular] will a region be inserted for
-      the "try" block. *)
-  | Cregion of expression
-  | Ctail of expression
+  | Ctrywith of expression * trywith_shared_label
+      * Backend_var.With_provenance.t * expression * Debuginfo.t
+      * kind_for_unboxing
+    (** Ctrywith uses "delayed handlers":
+        The body starts with the previous exception handler, and only after
+        going through an explicit Push-annotated Cexit will this handler become
+        active.  This allows for sharing a single handler in several places, or
+        having multiple entry and exit points to a single trywith block. *)
 
 type property =
   | Zero_alloc

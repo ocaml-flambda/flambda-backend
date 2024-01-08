@@ -88,15 +88,13 @@ let regsetaddr' ?(print_reg = reg) ppf s =
 let regsetaddr ppf s = regsetaddr' ppf s
 
 let trap_stack ppf (ts : Mach.trap_stack) =
-  let rec has_specific = function
+  let has_specific = function
     | Uncaught -> false
-    | Generic_trap ts -> has_specific ts
     | Specific_trap _ -> true
   in
   if has_specific ts then begin
     let rec p ppf = function
       | Uncaught -> Format.fprintf ppf "U"
-      | Generic_trap ts -> Format.fprintf ppf "G:%a" p ts
       | Specific_trap (lbl, ts) -> Format.fprintf ppf "S%d:%a" lbl p ts
     in
     Format.fprintf ppf "<%a>" p ts
@@ -335,9 +333,9 @@ let rec instr ppf i =
       fprintf ppf "@;<0 -2>endcatch@]"
   | Iexit (i, traps) ->
       fprintf ppf "exit%a(%d)" Printcmm.trap_action_list traps i
-  | Itrywith(body, kind, (ts, handler)) ->
-      fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with%a@,%a@;<0 -2>endtry@]"
-             Printcmm.trywith_kind kind instr body trap_stack ts instr handler
+  | Itrywith(body, exn_cont, (ts, handler)) ->
+      fprintf ppf "@[<v 2>try@,%a@;<0 -2>with(%d)%a@,%a@;<0 -2>endtry@]"
+             instr body exn_cont trap_stack ts instr handler
   | Iraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   end;

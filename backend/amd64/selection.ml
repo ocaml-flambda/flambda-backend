@@ -269,7 +269,6 @@ method! select_store is_assign addr exp =
   | Cassign (_, _) | Ctuple _ | Cop (_, _, _) | Csequence (_, _)
   | Cifthenelse (_, _, _, _, _, _, _) | Cswitch (_, _, _, _, _) | Ccatch (_, _, _, _)
   | Cexit (_, _, _) | Ctrywith (_, _, _, _, _, _)
-  | Cregion _ | Ctail _
     ->
       super#select_store is_assign addr exp
 
