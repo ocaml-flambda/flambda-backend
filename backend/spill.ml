@@ -617,21 +617,19 @@ let rec spill :
         before))
   | Iexit (nfail, _traps) ->
       k i (find_spill_at_exit env nfail)
-  | Itrywith(body, kind, (ts, handler)) ->
+  | Itrywith(body, nfail, (ts, handler)) ->
     spill env i.next finally (fun new_next at_join ->
       let env_handler =
         { env with at_raise = at_raise_from_trap_stack env ts; }
       in
       spill env_handler handler at_join (fun new_handler before_handler ->
       let env_body =
-        match kind with
-        | Delayed nfail ->
-            { env with at_exit =
-                         (nfail, before_handler) :: env.at_exit;
-            }
+        { env with at_exit =
+                      (nfail, before_handler) :: env.at_exit;
+        }
       in
       spill env_body body at_join (fun new_body before_body ->
-      k (instr_cons_debug (Itrywith(new_body, kind, (ts, new_handler)))
+      k (instr_cons_debug (Itrywith(new_body, nfail, (ts, new_handler)))
          i.arg i.res i.dbg new_next)
         before_body)))
   | Iraise _ ->

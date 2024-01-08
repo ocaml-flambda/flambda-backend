@@ -686,7 +686,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
   let trywith =
-    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =

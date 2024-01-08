@@ -3296,8 +3296,8 @@ let sequence x y =
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
-let trywith ~dbg ~kind ~body ~exn_var ~handler () =
-  Ctrywith (body, kind, exn_var, handler, dbg, Any)
+let trywith ~dbg ~body ~exn_var ~handler_cont ~handler () =
+  Ctrywith (body, handler_cont, exn_var, handler, dbg, Any)
 
 type static_handler =
   int

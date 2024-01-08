@@ -173,10 +173,6 @@ type trap_action =
   | Push of trywith_shared_label
   | Pop of pop_action
 
-type trywith_kind =
-  | Delayed of trywith_shared_label
-[@@unboxed]
-
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type initialization_or_assignment =
@@ -297,8 +293,9 @@ type expression =
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * kind_for_unboxing
+  | Ctrywith of expression * trywith_shared_label
+      * Backend_var.With_provenance.t * expression * Debuginfo.t
+      * kind_for_unboxing
 
 type property =
   | Zero_alloc

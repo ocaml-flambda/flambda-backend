@@ -76,9 +76,8 @@ let _env_find_with_provenance id env =
 let env_find_static_exception id env =
   Int.Map.find id env.static_exceptions
 
-let env_enter_trywith env kind =
-  match kind with
-  | Delayed id -> let env, _ = env_add_static_exception id [] env in env
+let env_enter_trywith env id =
+  let env, _ = env_add_static_exception id [] env in env
 
 let env_set_trap_stack env trap_stack =
   { env with trap_stack; }
@@ -1201,8 +1200,8 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
               end
           end
       end
-  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
-      let env_body = env_enter_trywith env kind in
+  | Ctrywith(e1, exn_cont, v, e2, dbg, _value_kind) ->
+      let env_body = env_enter_trywith env exn_cont in
       let (r1, s1) = self#emit_sequence env_body e1 ~bound_name in
       let rv = self#regs_for typ_val in
       let with_handler env_handler e2 =
@@ -1226,7 +1225,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
         in
         let r = join env r1 s1 r2 s2 ~bound_name in
         self#insert env
-          (Itrywith(s1#extract, kind,
+          (Itrywith(s1#extract, exn_cont,
                     (env_handler.trap_stack,
                      instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv
                        dbg
@@ -1235,38 +1234,35 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
         r
       in
       let env = env_add v rv env in
-      begin match kind with
-      | Delayed lbl ->
-        begin match env_find_static_exception lbl env_body with
-        | { traps_ref = { contents = Reachable ts; }; _} ->
-          with_handler (env_set_trap_stack env ts) e2
-        | { traps_ref = { contents = Unreachable; }; _ } ->
-          let dummy_constant = Cconst_int (1, Debuginfo.none) in
-          let segfault =
-            Cmm.(Cop ((Cload { memory_chunk = Word_int;
-                               mutability = Mutable;
-                               is_atomic = false; }),
-                      [Cconst_int (0, Debuginfo.none)],
-                      Debuginfo.none))
-          in
-          let dummy_raise =
-            Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
-          in
-          let unreachable =
-            (* The use of a raise operation means that this handler is known
-               not to return, making it compatible with any layout for the body
-               or surrounding code.
-               We also set the trap stack to [Uncaught] to ensure that we don't
-               introduce spurious control-flow edges inside the function. *)
-            Csequence (segfault, dummy_raise)
-          in
-          let env = env_set_trap_stack env Uncaught in
-          with_handler env unreachable
-          (* Misc.fatal_errorf "Selection.emit_expr: \
-           *                    Unreachable exception handler %d" lbl *)
-        | exception Not_found ->
-          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
-        end
+      begin match env_find_static_exception exn_cont env_body with
+      | { traps_ref = { contents = Reachable ts; }; _} ->
+        with_handler (env_set_trap_stack env ts) e2
+      | { traps_ref = { contents = Unreachable; }; _ } ->
+        let dummy_constant = Cconst_int (1, Debuginfo.none) in
+        let segfault =
+          Cmm.(Cop ((Cload { memory_chunk = Word_int;
+                              mutability = Mutable;
+                              is_atomic = false; }),
+                    [Cconst_int (0, Debuginfo.none)],
+                    Debuginfo.none))
+        in
+        let dummy_raise =
+          Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
+        in
+        let unreachable =
+          (* The use of a raise operation means that this handler is known
+              not to return, making it compatible with any layout for the body
+              or surrounding code.
+              We also set the trap stack to [Uncaught] to ensure that we don't
+              introduce spurious control-flow edges inside the function. *)
+          Csequence (segfault, dummy_raise)
+        in
+        let env = env_set_trap_stack env Uncaught in
+        with_handler env unreachable
+        (* Misc.fatal_errorf "Selection.emit_expr: \
+          *                    Unreachable exception handler %d" lbl *)
+      | exception Not_found ->
+        Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
 
 method private emit_sequence ?at_start (env:environment) exp ~bound_name
@@ -1661,8 +1657,8 @@ method emit_tail (env:environment) exp =
       (* The final trap stack doesn't matter, as it's not reachable. *)
       self#insert env (Icatch(rec_flag, env.trap_stack, new_handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, kind, v, e2, dbg, _value_kind) ->
-      let env_body = env_enter_trywith env kind in
+  | Ctrywith(e1, exn_cont, v, e2, dbg, _value_kind) ->
+      let env_body = env_enter_trywith env exn_cont in
       let s1 = self#emit_tail_sequence env_body e1 in
       let rv = self#regs_for typ_val in
       let with_handler env_handler e2 =
@@ -1686,37 +1682,35 @@ method emit_tail (env:environment) exp =
               ))
         in
         self#insert env
-          (Itrywith(s1, kind,
+          (Itrywith(s1, exn_cont,
                     (env_handler.trap_stack,
                      instr_cons_debug (Iop Imove) [|Proc.loc_exn_bucket|] rv dbg
                        s2)))
           [||] [||]
       in
       let env = env_add v rv env in
-      begin match kind with
-      | Delayed lbl ->
-        begin match env_find_static_exception lbl env_body with
-        | { traps_ref = { contents = Reachable ts; }; _} ->
-          with_handler (env_set_trap_stack env ts) e2
-        | { traps_ref = { contents = Unreachable; }; _ } ->
-          (* Note: The following [unreachable] expression has machtype [|Int|],
-             but this might not be the correct machtype for this function's
-             return value.
-             It doesn't matter at runtime since the expression cannot return,
-             but if we start checking (or joining) the machtypes of the
-             different tails we will need to implement something like the
-             [emit_expr_aux] version above, that hides the machtype. *)
-          let unreachable =
-            Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable; is_atomic = false; }),
-                      [Cconst_int (0, Debuginfo.none)],
-                      Debuginfo.none))
-          in
-          with_handler env unreachable
-        (* Misc.fatal_errorf "Selection.emit_expr: \
-           Unreachable exception handler %d" lbl *)
-        | exception Not_found ->
-          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
-        end
+      begin match env_find_static_exception exn_cont env_body with
+      | { traps_ref = { contents = Reachable ts; }; _} ->
+        with_handler (env_set_trap_stack env ts) e2
+      | { traps_ref = { contents = Unreachable; }; _ } ->
+        (* Note: The following [unreachable] expression has machtype [|Int|],
+            but this might not be the correct machtype for this function's
+            return value.
+            It doesn't matter at runtime since the expression cannot return,
+            but if we start checking (or joining) the machtypes of the
+            different tails we will need to implement something like the
+            [emit_expr_aux] version above, that hides the machtype. *)
+        let unreachable =
+          Cmm.(Cop ((Cload { memory_chunk = Word_int; mutability = Mutable;
+                             is_atomic = false; }),
+                    [Cconst_int (0, Debuginfo.none)],
+                    Debuginfo.none))
+        in
+        with_handler env unreachable
+      (* Misc.fatal_errorf "Selection.emit_expr: \
+          Unreachable exception handler %d" lbl *)
+      | exception Not_found ->
+        Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _

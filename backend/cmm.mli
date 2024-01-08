@@ -153,14 +153,6 @@ type trap_action =
   | Pop of pop_action
   (** Remove the last handler from the trap stack. *)
 
-type trywith_kind =
-  | Delayed of trywith_shared_label
-  (** The body starts with the previous exception handler, and only after going
-      through an explicit Push-annotated Cexit will this handler become active.
-      This allows for sharing a single handler in several places, or having
-      multiple entry and exit points to a single trywith block. *)
-[@@unboxed]
-
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type initialization_or_assignment =
@@ -304,8 +296,14 @@ type expression =
         * expression
         * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * kind_for_unboxing
+  | Ctrywith of expression * trywith_shared_label
+      * Backend_var.With_provenance.t * expression * Debuginfo.t
+      * kind_for_unboxing
+    (** Ctrywith uses "delayed handlers":
+        The body starts with the previous exception handler, and only after
+        going through an explicit Push-annotated Cexit will this handler become
+        active.  This allows for sharing a single handler in several places, or
+        having multiple entry and exit points to a single trywith block. *)
 
 type property =
   | Zero_alloc

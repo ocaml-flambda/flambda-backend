@@ -602,9 +602,9 @@ val ite :
     caught exception in the handler. *)
 val trywith :
   dbg:Debuginfo.t ->
-  kind:trywith_kind ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
+  handler_cont:trywith_shared_label ->
   handler:expression ->
   unit ->
   expression

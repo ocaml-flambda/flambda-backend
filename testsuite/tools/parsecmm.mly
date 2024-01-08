@@ -283,7 +283,7 @@ expr:
              debuginfo (), false],
             Cexit (Cmm.Lbl after_push_k, [], [Push exn_k]),
             Any),
-          Delayed exn_k,
+          exn_k,
           $6, (* exception parameter *)
           $7, (* exception handler *)
           debuginfo (),

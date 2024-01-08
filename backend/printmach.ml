@@ -333,9 +333,9 @@ let rec instr ppf i =
       fprintf ppf "@;<0 -2>endcatch@]"
   | Iexit (i, traps) ->
       fprintf ppf "exit%a(%d)" Printcmm.trap_action_list traps i
-  | Itrywith(body, kind, (ts, handler)) ->
-      fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with%a@,%a@;<0 -2>endtry@]"
-             Printcmm.trywith_kind kind instr body trap_stack ts instr handler
+  | Itrywith(body, exn_cont, (ts, handler)) ->
+      fprintf ppf "@[<v 2>try@,%a@;<0 -2>with(%d)%a@,%a@;<0 -2>endtry@]"
+             instr body exn_cont trap_stack ts instr handler
   | Iraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   end;

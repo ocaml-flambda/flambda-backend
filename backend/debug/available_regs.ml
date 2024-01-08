@@ -404,17 +404,14 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         let avail_before = ok avail_before in
         augment_availability_at_exit nfail avail_before;
         None, unreachable
-      | Itrywith (body, kind, (ts, handler)) ->
-        (match kind with
-        | Delayed nfail -> Hashtbl.add avail_at_exit nfail unreachable);
+      | Itrywith (body, nfail, (ts, handler)) ->
+        Hashtbl.add avail_at_exit nfail unreachable;
         let avail_before = ok avail_before in
         let after_body =
           available_regs body ~all_regs_that_might_be_named ~avail_before
         in
         let avail_before_handler =
-          let with_exn_bucket =
-            match kind with Delayed nfail -> Hashtbl.find avail_at_exit nfail
-          in
+          let with_exn_bucket = Hashtbl.find avail_at_exit nfail in
           match (with_exn_bucket : RAS.t) with
           | Unreachable -> unreachable
           | Ok avail_at_raise ->
@@ -436,7 +433,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                ~avail_before:avail_before_handler)
         in
         current_trap_stack := saved_trap_stack;
-        (match kind with Delayed nfail -> Hashtbl.remove avail_at_exit nfail);
+        Hashtbl.remove avail_at_exit nfail;
         None, avail_after
       | Iraise _ ->
         let avail_before = ok avail_before in

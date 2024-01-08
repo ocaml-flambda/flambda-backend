@@ -97,7 +97,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
         transfer i ~next:b ~exn
     | Iexit (n, _trap_actions) ->
         transfer i ~next:(get_lbl n) ~exn
-    | Itrywith(body, Delayed nfail, (trap_stack, handler)) ->
+    | Itrywith(body, nfail, (trap_stack, handler)) ->
         let bx = before end_ exn i.next in
         let exnh = exn_from_trap_stack trap_stack in
         let bh = exnhandler (before bx exnh handler) in
