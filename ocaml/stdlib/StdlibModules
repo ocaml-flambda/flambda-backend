@@ -106,6 +106,7 @@ STDLIB_MODULE_BASENAMES = \
   stdLabels \
   in_channel \
   out_channel \
+  effect \
   camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \
