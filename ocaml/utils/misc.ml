@@ -233,6 +233,15 @@ module Stdlib = struct
         else loop (succ i) in
       loop 0
 
+    let fold_left2 f x a1 a2 =
+      if Array.length a1 <> Array.length a2
+      then invalid_arg "Misc.Stdlib.Array.fold_left2";
+      let r = ref x in
+      for i = 0 to Array.length a1 - 1 do
+        r := f !r (Array.unsafe_get a1 i) (Array.unsafe_get a2 i)
+      done;
+      !r
+
     let for_alli p a =
       let n = Array.length a in
       let rec loop i =

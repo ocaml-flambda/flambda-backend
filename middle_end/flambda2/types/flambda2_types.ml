@@ -37,7 +37,7 @@ end
 module Typing_env_extension = struct
   include Typing_env_extension
 
-  let meet env t1 t2 = Meet_and_join.meet_env_extension env t1 t2
+  let meet = Meet_and_join.meet_env_extension
 end
 
 type typing_env = Typing_env.t

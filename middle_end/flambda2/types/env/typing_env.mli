@@ -55,6 +55,24 @@ module Serializable : sig
     t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
 end
 
+module Meet_env : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> t
+
+  val env : t -> typing_env
+
+  (** Note that we are now in the process of meeting the given two [Simple]s. *)
+  val now_meeting : t -> Simple.t -> Simple.t -> t
+
+  (** Determine whether we are now in the process of meeting the given two
+      [Simple]s. The arguments do not have to be provided in the same order as
+      when [now_meeting] was called. *)
+  val already_meeting : t -> Simple.t -> Simple.t -> bool
+end
+
 module Join_env : sig
   type t
 
@@ -77,8 +95,14 @@ module Join_env : sig
   val already_joining : t -> Simple.t -> Simple.t -> bool
 end
 
+type meet_type_new = t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
+
+type meet_type_old =
+  Meet_env.t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
+
 type meet_type =
-  t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
+| New of meet_type_new
+| Old of meet_type_old
 
 val print : Format.formatter -> t -> unit
 

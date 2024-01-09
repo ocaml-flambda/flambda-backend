@@ -192,6 +192,14 @@ module Stdlib : sig
     val exists2 : ('a -> 'b -> bool) -> 'a array -> 'b array -> bool
     (** Same as [Array.exists2] from the standard library. *)
 
+    val fold_left2 :
+      ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a array -> 'b array -> 'acc
+    (** [fold_left2 f init [|a1; ...; an|] [|b1; ...; bn|]] is
+        [f (... (f (f init a1 b1) a2 b2) ...) an bn].
+        @raise Invalid_argument if the two arrays are determined
+        to have different lengths.
+    *)
+
     val for_alli : (int -> 'a -> bool) -> 'a array -> bool
     (** Same as [Array.for_all] from the standard library, but the
         function is applied with the index of the element as first argument,
