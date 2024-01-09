@@ -1,7 +1,7 @@
 (* TEST
    include unix
    modules = "nested_fiber_.c"
-   * skip
+   * runtime5
      reason = "CR ocaml 5 effects: re-enable this test"
    ** libunix
    *** bytecode
