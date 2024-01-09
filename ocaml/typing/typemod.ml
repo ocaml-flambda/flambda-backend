@@ -3314,12 +3314,17 @@ let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
     Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
     except if it is the first element of the compilation unit structure or
     signature. *)
-    match List.find_map f ast with
-    | None -> ()
-    | Some attr ->
-      Env.register_uid uid
-        ~loc:(Location.in_file sourcefile)
-        ~attributes:[ attr ]
+  let attr =
+    match ast with
+    | x :: _ -> f x
+    | [] -> None
+  in
+  match attr with
+  | None -> ()
+  | Some attr ->
+    Env.register_uid uid
+      ~loc:(Location.in_file sourcefile)
+      ~attributes:[ attr ]
 
 let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
   cms_register_toplevel_attributes ~sourcefile ~uid ast
