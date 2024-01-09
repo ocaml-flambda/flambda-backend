@@ -171,7 +171,7 @@ type apply_dep =
   { apply_in_func : Code_id.t option;
     apply_code_id : Code_id.t;
     apply_params : Simple.t list;
-    apply_closure : Simple.t;
+    apply_closure : Simple.t option;
     apply_return : Variable.t list option;
     apply_exn : Variable.t
   }
@@ -565,10 +565,13 @@ end = struct
               ~name:(fun name ~coercion:_ -> Deps.add_cont_dep deps param name)
               ~const:(fun _ -> ()))
           code_dep.params apply_params;
+        (match apply_closure with
+        | None -> ()
+        | Some apply_closure ->
         Simple.pattern_match apply_closure
           ~name:(fun name ~coercion:_ ->
             Deps.add_cont_dep deps code_dep.my_closure name)
-          ~const:(fun _ -> ());
+          ~const:(fun _ -> ()));
         (match apply_return with
         | None -> ()
         | Some apply_return ->
@@ -603,7 +606,7 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
   let my_closure = Variable.create "my_closure" in
   let params =
     let arity = Code.params_arity code in
-    List.init (Flambda_arity.cardinal arity) (fun i ->
+    List.init (Flambda_arity.cardinal_unarized arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
   let code_dep = { return; my_closure; exn; params } in
@@ -698,7 +701,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           (fun dacc arg -> Dacc.used ~denv arg dacc)
           dacc (Apply_expr.args apply)
       in
-      let dacc = Dacc.used ~denv (Apply_expr.callee apply) dacc in
+      let dacc = match Apply_expr.callee apply with None -> dacc | Some callee -> Dacc.used ~denv callee dacc in
       let dacc =
         List.fold_left
           (fun dacc (arg, _) -> Dacc.used ~denv arg dacc)
@@ -1015,7 +1018,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let dep = Deps.Dep.Field (Function_slot move_to, block) in
           default_bp dacc dep
         | Unary
-            ( Project_value_slot { project_from = _; value_slot; kind = _ },
+            ( Project_value_slot { project_from = _; value_slot },
               block ) ->
           let block =
             Simple.pattern_match block
@@ -1340,9 +1343,19 @@ let rewrite_static_const kinds uses (sc : Static_const.t) =
   | Static_const.Immutable_value_array fields ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.immutable_value_array fields
-  | Static_const.Empty_array -> sc
+  | Static_const.Empty_array _ -> sc
   | Static_const.Mutable_string _ -> sc
   | Static_const.Immutable_string _ -> sc
+  | Static_const.Immutable_int32_array fields ->
+    let fields = List.map (rewrite_or_variable Int32.zero uses) fields in
+    Static_const.immutable_int32_array fields
+  | Static_const.Immutable_int64_array fields ->
+    let fields = List.map (rewrite_or_variable Int64.zero uses) fields in
+    Static_const.immutable_int64_array fields
+  | Static_const.Immutable_nativeint_array fields ->
+    let fields = List.map (rewrite_or_variable Targetint_32_64.zero uses) fields in
+    Static_const.immutable_nativeint_array fields
+
 
 
 
@@ -1401,7 +1414,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
       in
       let apply =
         Apply_expr.create
-          ~callee:(rewrite_simple kinds uses (Apply_expr.callee apply))
+          ~callee:(Option.map (rewrite_simple kinds uses) (Apply_expr.callee apply))
           ~continuation:(Apply_expr.continuation apply)
           (Apply_expr.exn_continuation apply)
           ~args:(List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
@@ -1414,7 +1427,6 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~probe:(Apply_expr.probe apply)
           ~position:(Apply_expr.position apply)
           ~relative_history:(Apply_expr.relative_history apply)
-          ~region:(Apply_expr.region apply)
       in
       Flambda.Expr.create_apply apply
   in
