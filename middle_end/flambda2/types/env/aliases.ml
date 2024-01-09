@@ -635,8 +635,9 @@ let add_alias_between_canonical_elements ~binding_time_resolver
       assert (not (Simple.has_coercion to_be_demoted));
       Simple.pattern_match to_be_demoted
         ~const:(fun _ ->
-          (* We're adding aliases between different constants; this is a Bottom case. *)
-            Or_bottom.Bottom)
+          (* We're adding aliases between different constants; this is a Bottom
+             case. *)
+          Or_bottom.Bottom)
         ~name:(fun name ~coercion:_ -> Or_bottom.Ok name)
     in
     let aliases_of_to_be_demoted =
@@ -828,13 +829,13 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~coercion_from_canonical_element2_to_canonical_element1
       ~canonical_element2
   in
-  if Flambda_features.check_invariants ()
+  (if Flambda_features.check_invariants ()
   then
-    begin match add_result with
+    match add_result with
     | Ok add_result ->
       invariant_add_result ~binding_time_resolver ~binding_times_and_modes
         ~original_t add_result
-    | Bottom -> () end;
+    | Bottom -> ());
   add_result
 
 (* CR-someday mshinwell: For the moment we allow relations between canonical

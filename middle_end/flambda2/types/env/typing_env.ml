@@ -254,8 +254,8 @@ type meet_type_old =
   Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
 
 type meet_type =
-| New of meet_type_new
-| Old of meet_type_old
+  | New of meet_type_new
+  | Old of meet_type_old
 
 module Join_env : sig
   type t
@@ -803,7 +803,7 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
          ignoring any name modes). *)
       let canonical = find_canonical name in
       Some (canonical, t, ty)
-    | alias_rhs ->
+    | alias_rhs -> (
       (* Forget where [name] and [alias_rhs] came from---our job is now to
          record that they're equal. In general, they have canonical expressions
          [c_l] and [c_r], respectively, so what we ultimately need to record is
@@ -838,9 +838,7 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
              canonical element. *)
           let ty = TG.alias_type_of kind canonical_element in
           Some (alias_of_demoted_element, t, ty)
-        | Bottom ->
-          if raise_on_bottom then raise Bottom_equation
-          else None
+        | Bottom -> if raise_on_bottom then raise Bottom_equation else None)
   in
   match inputs with
   | None -> t
@@ -872,26 +870,25 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         assert (Coercion.is_id coercion);
         (* true by definition *)
         match meet_type with
-        | New meet_type_new -> begin
+        | New meet_type_new -> (
+          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+          match meet_type_new t ty existing_ty with
+          | Bottom ->
+            if raise_on_bottom
+            then raise Bottom_equation
+            else MTC.bottom (TG.kind ty), t
+          | Ok (meet_ty, env) -> meet_ty, env)
+        | Old meet_type_old -> (
+          if Name.equal name eqn_name
+          then ty, t
+          else
+            let env = Meet_env.create t in
             let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-            match meet_type_new t ty existing_ty with
-            | Bottom ->
-              if raise_on_bottom
-              then raise Bottom_equation
-              else MTC.bottom (TG.kind ty), t
-            | Ok (meet_ty, env) -> meet_ty, env
-          end
-        | Old meet_type_old -> begin
-            if Name.equal name eqn_name
-            then ty, t
-            else
-              let env = Meet_env.create t in
-              let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-              match meet_type_old env ty existing_ty with
-              | Bottom -> MTC.bottom (TG.kind ty), t
-              | Ok (meet_ty, env_extension) ->
-                meet_ty, add_env_extension ~raise_on_bottom t env_extension ~meet_type
-          end
+            match meet_type_old env ty existing_ty with
+            | Bottom -> MTC.bottom (TG.kind ty), t
+            | Ok (meet_ty, env_extension) ->
+              ( meet_ty,
+                add_env_extension ~raise_on_bottom t env_extension ~meet_type ))
       in
       Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
     in
@@ -936,8 +933,7 @@ let add_env_extension_from_level t level ~meet_type : t =
   in
   let t =
     Name.Map.fold
-      (fun name ty t ->
-        add_equation ~raise_on_bottom:true t name ty ~meet_type)
+      (fun name ty t -> add_equation ~raise_on_bottom:true t name ty ~meet_type)
       (TEL.equations level) t
   in
   Variable.Map.fold

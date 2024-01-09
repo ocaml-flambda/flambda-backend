@@ -70,8 +70,9 @@ let function_result_types ~is_a_functor =
   | All_functions -> true
 
 let use_better_meet () =
-  match !Flambda_backend_flags.Flambda2.meet_algorithm
-        |> with_default ~f:(fun d -> d.meet_algorithm)
+  match
+    !Flambda_backend_flags.Flambda2.meet_algorithm
+    |> with_default ~f:(fun d -> d.meet_algorithm)
   with
   | Basic -> false
   | Advanced -> true

@@ -352,7 +352,8 @@ let meet_alloc_mode env (alloc_mode1 : Alloc_mode.For_types.t)
 let join_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
     (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t =
   match alloc_mode1, alloc_mode2 with
-  | (Heap_or_local | Local), _ | _, (Heap_or_local | Local) -> Alloc_mode.For_types.unknown ()
+  | (Heap_or_local | Local), _ | _, (Heap_or_local | Local) ->
+    Alloc_mode.For_types.unknown ()
   | Heap, Heap -> Alloc_mode.For_types.heap
 
 let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
@@ -1016,11 +1017,13 @@ and meet_row_like :
       | Ok (maps_to_result, env) -> (
         let env : _ Or_bottom.t =
           match
-            TE.add_env_extension_strict env case1.env_extension ~meet_type:(New meet_type)
+            TE.add_env_extension_strict env case1.env_extension
+              ~meet_type:(New meet_type)
           with
           | Bottom -> Bottom
           | Ok env ->
-            TE.add_env_extension_strict env case2.env_extension ~meet_type:(New meet_type)
+            TE.add_env_extension_strict env case2.env_extension
+              ~meet_type:(New meet_type)
         in
         match env with
         | Bottom -> bottom_case ()
@@ -1093,7 +1096,8 @@ and meet_row_like :
     let env : _ Or_bottom.t =
       match !result_env with
       | No_result -> Bottom
-      | Extension ext -> TE.add_env_extension_strict initial_env ext ~meet_type:(New meet_type)
+      | Extension ext ->
+        TE.add_env_extension_strict initial_env ext ~meet_type:(New meet_type)
     in
     match env, !result_is_t1, !result_is_t2 with
     | Bottom, _, _ -> Bottom
@@ -1922,10 +1926,14 @@ let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
 let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
   let scope = TE.current_scope env in
   let scoped_env = TE.increment_scope env in
-  match TE.add_env_extension_strict scoped_env ext1 ~meet_type:(New meet_type) with
+  match
+    TE.add_env_extension_strict scoped_env ext1 ~meet_type:(New meet_type)
+  with
   | Bottom -> Bottom
   | Ok scoped_env -> (
-    match TE.add_env_extension_strict scoped_env ext2 ~meet_type:(New meet_type) with
+    match
+      TE.add_env_extension_strict scoped_env ext2 ~meet_type:(New meet_type)
+    with
     | Bottom -> Bottom
     | Ok scoped_env ->
       let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in

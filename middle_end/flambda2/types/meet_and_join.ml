@@ -30,7 +30,8 @@ let meet_shape env t ~shape ~result_var ~result_kind =
 let meet_env_extension env t1 t2 =
   if Flambda_features.use_better_meet ()
   then Meet_and_join_new.meet_env_extension env t1 t2
-  else Meet_and_join_old.meet_env_extension (Typing_env.Meet_env.create env) t1 t2
+  else
+    Meet_and_join_old.meet_env_extension (Typing_env.Meet_env.create env) t1 t2
 
 let join =
   if Flambda_features.use_better_meet ()
