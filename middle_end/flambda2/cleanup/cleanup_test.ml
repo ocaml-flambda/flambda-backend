@@ -891,16 +891,21 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       Simple.pattern_match field
         ~name:(fun _ ~coercion:_ -> None)
         ~const:(fun cst ->
-          let block =
             Simple.pattern_match block
-              ~name:(fun name ~coercion:_ -> name)
-              ~const:(fun _ -> assert false)
-          in
-          match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
-          | Tagged_immediate i ->
-            let i = Targetint_31_63.to_int_exn i in
-            Some (i, block)
-          | _ -> assert false)
+              ~const:(fun _ -> None)
+              (* CR ncourant: it seems this const case can happen with the following code:
+               *
+               * let[@inline] f b x = if b then Lazy.force x else 0
+               * let g b = f b (lazy 0)
+               *
+               * It is unclear why it has not been transformed by an Invalid by simplify, however.
+              *)
+              ~name:(fun block ~coercion:_ ->
+                  match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
+                  | Tagged_immediate i ->
+                    let i = Targetint_31_63.to_int_exn i in
+                    Some (i, block)
+                  | _ -> assert false))
     in
     let records dacc deps =
       List.fold_left
