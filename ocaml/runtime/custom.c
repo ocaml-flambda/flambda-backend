@@ -32,6 +32,96 @@ uintnat caml_custom_major_ratio = Custom_major_ratio_def;
 uintnat caml_custom_minor_ratio = Custom_minor_ratio_def;
 uintnat caml_custom_minor_max_bsz = Custom_minor_max_bsz_def;
 
+static void caml_set_minor_custom_size(value custom_obj,
+                                       mlsize_t mem,
+                                       mlsize_t max_major,
+                                       mlsize_t mem_minor,
+                                       mlsize_t max_minor)
+{
+  CAMLparam1(custom_obj);
+
+  if (mem > mem_minor) {
+    caml_adjust_gc_speed (mem - mem_minor, max_major);
+  }
+  /* The remaining [mem_minor] will be counted if the block survives a
+     minor GC */
+  add_to_custom_table (&Caml_state->minor_tables->custom, custom_obj,
+                       mem, max_major);
+  /* Keep track of extra resources held by custom block in
+     minor heap. */
+  if (mem_minor != 0) {
+    if (max_minor == 0) max_minor = 1;
+    Caml_state->extra_heap_resources_minor +=
+      (double) mem_minor / (double) max_minor;
+    if (Caml_state->extra_heap_resources_minor > 1.0) {
+      caml_request_minor_gc ();
+    }
+  }
+
+  CAMLreturn0;
+}
+
+/* Use with
+   [external set_custom_size : 'a -> int -> int -> unit = "caml_set_custom_size"]
+*/
+CAMLprim value caml_set_custom_size(value custom_obj,
+                                    value mem_val,
+                                    value max_val)
+{
+  CAMLparam1(custom_obj);
+  mlsize_t mem = Int_val(mem_val);
+  mlsize_t max = Int_val(max_val);
+
+  if (!Is_block(custom_obj) || Tag_val (custom_obj) != Custom_tag)
+    caml_invalid_argument("value is not a custom block");
+
+  if (Is_young(custom_obj)) {
+    caml_set_minor_custom_size(custom_obj, mem, max, mem, max);
+  } else {
+    caml_adjust_gc_speed(mem, max);
+  }
+
+  CAMLreturn(Val_unit);
+}
+
+/* Use with
+   [external set_custom_size_mem : 'a -> int -> unit = "caml_set_custom_size_mem"]
+*/
+CAMLprim value caml_set_custom_size_mem(value custom_obj, value mem_val)
+{
+  CAMLparam1(custom_obj);
+  mlsize_t mem = Int_val(mem_val);
+
+  if (!Is_block(custom_obj) || Tag_val (custom_obj) != Custom_tag)
+    caml_invalid_argument("value is not a custom block");
+
+  /* See also [caml_set_custom_size_mem], which repeats this code. */
+  mlsize_t mem_minor =
+    mem < caml_custom_minor_max_bsz ? mem : caml_custom_minor_max_bsz;
+  mlsize_t max_major =
+    /* The major ratio is a percentage relative to the major heap size.
+       A complete GC cycle will be done every time 2/3 of that much memory
+       is allocated for blocks in the major heap.  Assuming constant
+       allocation and deallocation rates, this means there are at most
+       [M/100 * major-heap-size] bytes of floating garbage at any time.
+       The reason for a factor of 2/3 (or 1.5) is, roughly speaking, because
+       the major GC takes 1.5 cycles (previous cycle + marking phase) before
+       it starts to deallocate dead blocks allocated during the previous cycle.
+       [heap_size / 150] is really [heap_size * (2/3) / 100] (but faster). */
+    caml_heap_size(Caml_state->shared_heap) / 150 * caml_custom_major_ratio;
+  mlsize_t max_minor =
+    Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
+
+  if (Is_young(custom_obj)) {
+    caml_set_minor_custom_size(custom_obj, mem, max_major,
+                               mem_minor, max_minor);
+  } else {
+    caml_adjust_gc_speed(mem, max_major);
+  }
+
+  CAMLreturn(Val_unit);
+}
+
 static value alloc_custom_gen (const struct custom_operations * ops,
                                uintnat bsz,
                                mlsize_t mem,
@@ -52,23 +142,7 @@ static value alloc_custom_gen (const struct custom_operations * ops,
     result = caml_alloc_small(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
     if (ops->finalize != NULL || mem != 0) {
-      if (mem > mem_minor) {
-        caml_adjust_gc_speed (mem - mem_minor, max_major);
-      }
-      /* The remaining [mem_minor] will be counted if the block survives a
-         minor GC */
-      add_to_custom_table (&Caml_state->minor_tables->custom, result,
-                           mem, max_major);
-      /* Keep track of extra resources held by custom block in
-         minor heap. */
-      if (mem_minor != 0) {
-        if (max_minor == 0) max_minor = 1;
-        Caml_state->extra_heap_resources_minor +=
-          (double) mem_minor / (double) max_minor;
-        if (Caml_state->extra_heap_resources_minor > 1.0) {
-          caml_request_minor_gc ();
-        }
-      }
+      caml_set_minor_custom_size(result, mem, max_major, mem_minor, max_minor);
     }
   } else {
     result = caml_alloc_shr(wosize, Custom_tag);
@@ -91,7 +165,7 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
                                        uintnat bsz,
                                        mlsize_t mem)
 {
-
+  /* See also [caml_set_custom_size_mem], which repeats this code. */
   mlsize_t mem_minor =
     mem < caml_custom_minor_max_bsz ? mem : caml_custom_minor_max_bsz;
   mlsize_t max_major =
