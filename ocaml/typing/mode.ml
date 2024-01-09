@@ -295,21 +295,21 @@ module Lattices = struct
       | Comonadic_with_locality -> Linearity
       | Comonadic_with_regionality -> Linearity)
 
-  let set_obj :
+  let src_obj :
       type a0 a1 a b0 b1 b.
       (a0, a1, a, b0, b1, b) Product.saxis ->
-      b obj ->
-      (a0, a1) Product.t obj ->
-      (b0, b1) Product.t obj =
-   fun sax dst -> function
+      a obj ->
+      (b0, b1) Product.t obj ->
+      (a0, a1) Product.t obj =
+   fun sax src -> function
     | Comonadic_with_locality -> (
-      match sax, dst with
+      match sax, src with
       | SAxis0, Locality -> Comonadic_with_locality
       | SAxis0, Regionality -> Comonadic_with_regionality
       | SAxis1, Linearity -> Comonadic_with_locality
       | _, _ -> assert false)
     | Comonadic_with_regionality -> (
-      match sax, dst with
+      match sax, src with
       | SAxis0, Locality -> Comonadic_with_locality
       | SAxis0, Regionality -> Comonadic_with_regionality
       | SAxis1, Linearity -> Comonadic_with_regionality
@@ -536,7 +536,7 @@ module Lattices_mono = struct
     | Set (sax, f) ->
       let dst0 = proj_obj (Product.dst sax) dst in
       let src0 = src dst0 f in
-      set_obj (Product.flip sax) src0 dst
+      src_obj sax src0 dst
 
   let rec eq_morph :
       type a0 l0 r0 a1 b l1 r1.
