@@ -2,7 +2,7 @@
 
 
 flags = "-g"
-* skip
+* runtime5
   reason = "CR ocaml 5 effects: re-enable this test"
 ** bytecode
 ** no-flambda

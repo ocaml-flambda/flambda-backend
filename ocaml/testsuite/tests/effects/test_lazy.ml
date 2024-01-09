@@ -1,5 +1,5 @@
 (* TEST
-   * skip
+   * runtime5
  *)
 
 open Effect

@@ -2,7 +2,7 @@
 
    include unix
    modules = "test7_.c"
-   * skip
+   * runtime5
      reason = "CR ocaml 5 effects: re-enable this test"
    ** libunix
    *** bytecode
