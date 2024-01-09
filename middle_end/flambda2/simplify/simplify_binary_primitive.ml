@@ -931,10 +931,13 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
   if dacc == dacc' then result else SPR.with_dacc result dacc'
 
 let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var
-    (P.result_kind' original_prim)
-    ~original_term
+    _dbg ~arg1 ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  if Simple.is_const arg1
+  then SPR.create_invalid dacc
+  else
+    SPR.create_unknown dacc ~result_var
+      (P.result_kind' original_prim)
+      ~original_term
 
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
