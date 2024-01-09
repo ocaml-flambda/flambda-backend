@@ -3,7 +3,6 @@
 
 
 * runtime5
-reason = "CR ocaml 5 effects: re-enable this test"
 ** frame_pointers
 *** native
 readonly_files = "fp_backtrace.c"

@@ -2,7 +2,6 @@
    include unix
    modules = "nested_fiber_.c"
    * runtime5
-     reason = "CR ocaml 5 effects: re-enable this test"
    ** libunix
    *** bytecode
    *** native
