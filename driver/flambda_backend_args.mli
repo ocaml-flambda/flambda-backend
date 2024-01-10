@@ -51,6 +51,9 @@ module type Flambda_backend_options = sig
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
+
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit

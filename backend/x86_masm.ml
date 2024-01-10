@@ -424,6 +424,7 @@ let print_line b = function
   | Weak _
   | Reloc _
   | Direct_assignment _
+  | Protected _
     -> assert false
 
 let generate_asm oc lines =

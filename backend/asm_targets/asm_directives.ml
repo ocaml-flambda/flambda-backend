@@ -238,6 +238,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let global sym = D.global (Asm_symbol.encode sym)
 
+  let protected sym = D.protected (Asm_symbol.encode sym)
+
   let const_machine_width const = D.qword const
 
   let symbol =

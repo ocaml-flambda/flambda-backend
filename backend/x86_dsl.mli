@@ -87,6 +87,7 @@ module D : sig
   val extrn: string -> data_type -> unit
   val file: file_num:int -> file_name:string -> unit
   val global: string -> unit
+  val protected: string -> unit
   val hidden: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
