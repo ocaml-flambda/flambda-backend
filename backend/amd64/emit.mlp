@@ -717,7 +717,7 @@ let emit_vec128_constant {high; low} lbl =
 
 let global_maybe_protected sym =
   D.global sym;
-  if !Clflags.symbol_visibility_protected then
+  if !Flambda_backend_flags.symbol_visibility_protected then
     match system with
     | S_macosx
     | S_win32

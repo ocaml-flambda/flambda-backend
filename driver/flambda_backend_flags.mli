@@ -65,6 +65,8 @@ val gc_timings : bool ref
 val use_cached_generic_functions : bool ref
 val cached_generic_functions_path : string ref
 
+val symbol_visibility_protected : bool ref
+
 module Flambda2 : sig
   val debug : bool ref
 
