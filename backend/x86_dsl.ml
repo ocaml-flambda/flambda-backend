@@ -379,6 +379,9 @@ module I = struct
 
   let pclmulqdq i x y = emit (PCLMULQDQ (i, x, y))
 
+  let lzcnt x y = emit (LZCNT (x, y))
+  let tzcnt x y = emit (TZCNT (x, y))
+
   let pext x y z = emit (PEXT (x, y, z))
   let pdep x y z = emit (PDEP (x, y, z))
 end

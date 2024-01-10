@@ -334,6 +334,22 @@ BUILTIN(caml_clmul_int64x2);
 BUILTIN(caml_bmi2_int64_extract_bits);
 BUILTIN(caml_bmi2_int64_deposit_bits);
 
+BUILTIN(caml_int64_ctz_nonzero_unboxed_to_untagged);
+BUILTIN(caml_int64_ctz_unboxed_to_untagged);
+BUILTIN(caml_int64_clz_nonzero_unboxed_to_untagged);
+BUILTIN(caml_int64_clz_unboxed_to_untagged);
+BUILTIN(caml_int64_popcnt_unboxed_to_untagged);
+BUILTIN(caml_int32_popcnt_unboxed_to_untagged);
+BUILTIN(caml_int32_ctz_nonzero_unboxed_to_untagged)
+BUILTIN(caml_int32_ctz_unboxed_to_untagged)
+BUILTIN(caml_int32_clz_nonzero_unboxed_to_untagged)
+BUILTIN(caml_int32_clz_unboxed_to_untagged)
+BUILTIN(caml_int_ctz_untagged_to_untagged);
+BUILTIN(caml_int_popcnt_untagged_to_untagged);
+BUILTIN(caml_int_popcnt_tagged_to_untagged);
+BUILTIN(caml_int_clz_untagged_to_untagged);
+BUILTIN(caml_int_clz_tagged_to_untagged);
+
 #include <float.h>
 #include <math.h>
 

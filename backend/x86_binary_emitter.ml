@@ -1646,6 +1646,32 @@ let emit_popcnt b ~dst ~src =
     emit_mod_rm_reg b rexw [ 0x0F; 0xB8 ] rm (rd_of_reg64 reg);
   | _ -> assert false
 
+let emit_tzcnt b ~dst ~src =
+  match (dst, src) with
+  | (Reg16 reg, ((Reg16 _ | Mem _ | Mem64_RIP _) as rm))
+  | (Reg32 reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm)) ->
+    (* TZCNT r16, r/m16 and TZCNT r32, r/m32 *)
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b no_rex [ 0x0F; 0xBC ] rm (rd_of_reg64 reg);
+  | (Reg64 reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as rm)) ->
+    (* TZCNT r64, r/m64 *)
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b rexw [ 0x0F; 0xBC ] rm (rd_of_reg64 reg);
+  | _ -> assert false
+
+let emit_lzcnt b ~dst ~src =
+  match (dst, src) with
+  | (Reg16 reg, ((Reg16 _ | Mem _ | Mem64_RIP _) as rm))
+  | (Reg32 reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm)) ->
+    (* LZCNT r16, r/m16 and LZCNT r32, r/m32 *)
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b no_rex [ 0x0F; 0xBD ] rm (rd_of_reg64 reg);
+  | (Reg64 reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as rm)) ->
+    (* LZCNT r64, r/m64 *)
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b rexw [ 0x0F; 0xBD ] rm (rd_of_reg64 reg);
+  | _ -> assert false
+
 let rd_of_prefetch_hint = function
   | Nta -> 0
   | T0 -> 1
@@ -2022,6 +2048,8 @@ let assemble_instr b loc = function
   | PMULLD (src, dst) -> emit_pmulld b dst src
   | PEXT (src1, src0, dst) -> emit_pext b dst src0 src1
   | PDEP (src1, src0, dst) -> emit_pdep b dst src0 src1
+  | TZCNT (src, dst) -> emit_tzcnt b ~dst ~src
+  | LZCNT (src, dst) -> emit_lzcnt b ~dst ~src
 
 let assemble_line b loc ins =
   try

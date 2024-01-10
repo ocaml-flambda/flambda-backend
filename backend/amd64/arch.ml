@@ -37,6 +37,21 @@ let sse42_support = ref true
 (* Carry-less multiplication (Westmere+) *)
 let clmul_support = ref true
 
+(* Bit manipulation (Haswell+)
+
+  This flag indicates whether the compiler should emit LZCNT/TZCNT
+  instructions for Iclz/Ictz. Note that LZCNT support is technically
+  advertized under the ABM feature flag, but both LZCNT and TZCNT are
+  considered part of BMI.
+
+  IMPORTANT: LZCNT/TZCNT are interpreted as BSR/BSF on architectures prior
+  to Haswell, i.e. they do not cause an illegal instruction fault.
+  That means code using LZCNT/TZCNT will silently produce wrong results.
+
+  CR-soon mslater: cpuid support should be checked at startup
+*)
+let bmi_support = ref true
+
 (* Bit manipulation 2 (Haswell+) *)
 let bmi2_support = ref true
 
@@ -87,6 +102,10 @@ let command_line_options =
       " Enable CLMUL intrinsics (default)";
     "-fno-clmul", Arg.Clear clmul_support,
       " Disable CLMUL intrinsics";
+    "-fbmi", Arg.Set bmi_support,
+      " Enable BMI intrinsics (default)";
+    "-fno-bmi", Arg.Clear bmi_support,
+      " Disable BMI intrinsics";
     "-fbmi2", Arg.Set bmi2_support,
       " Enable BMI2 intrinsics (default)";
     "-fno-bmi2", Arg.Clear bmi2_support,
