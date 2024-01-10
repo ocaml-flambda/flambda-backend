@@ -583,9 +583,6 @@ let unary_primitive env res dbg f arg =
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
   | Reinterpret_int64_as_float ->
-    (* CR-someday mshinwell: We should add support for this operation in the
-       backend. It isn't the identity as there may need to be a move between
-       different register kinds (e.g. integer to XMM registers on x86-64). *)
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
