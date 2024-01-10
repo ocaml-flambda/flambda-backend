@@ -68,7 +68,7 @@ type symbol = {
   sy_name : string;
   mutable sy_type : string option;
   mutable sy_size : int option;
-  mutable sy_global : bool;
+  mutable sy_global_and_protected : bool;
   mutable sy_sec : section;
   mutable sy_pos : int option;
   mutable sy_num : int option; (* position in .symtab *)
@@ -111,7 +111,7 @@ let get_symbol b s =
         sy_type = None;
         sy_size = None;
         sy_pos = None;
-        sy_global = false;
+        sy_global_and_protected = false;
         sy_num = None;
         sy_sec = b.sec;
       }
@@ -2030,7 +2030,7 @@ let assemble_line b loc ins =
         assemble_instr b loc instr;
         incr loc
     | Comment _ -> ()
-    | Global s -> (get_symbol b s).sy_global <- true
+    | GlobalProtected s -> (get_symbol b s).sy_global_and_protected <- true
     | Quad (Const n) -> buf_int64L b n
     | Quad cst ->
         record_local_reloc b (RelocConstant (cst, B64));

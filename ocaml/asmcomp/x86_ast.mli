@@ -213,7 +213,7 @@ type asm_line =
   | Byte of constant
   | Bytes of string
   | Comment of string
-  | Global of string
+  | GlobalProtected of string
   | Hidden of string
   | Weak of string
   | Long of constant

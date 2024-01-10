@@ -384,7 +384,9 @@ let print_line b = function
   | Byte n -> bprintf b "\tBYTE\t%a" cst n
   | Bytes s -> buf_bytes_directive b "BYTE" s
   | Comment s -> bprintf b " ; %s " s
-  | Global s -> bprintf b "\tPUBLIC\t%s" s
+  | GlobalProtected s ->
+    (* No equivalent to STV_PROTECTED in masm *)
+    bprintf b "\tPUBLIC\t%s" s
   | Long n -> bprintf b "\tDWORD\t%a" cst n
   | NewLabel (s, NONE) -> bprintf b "%s:" s
   | NewLabel (s, ptr) -> bprintf b "%s LABEL %s" s (string_of_datatype ptr)
