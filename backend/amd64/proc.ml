@@ -696,7 +696,7 @@ let precolored_regs () =
   if fp then Reg.Set.remove rbp phys_regs else phys_regs
 
 let operation_supported = function
-  | Cpopcnt -> !popcnt_support
+  | Cpopcnt -> Arch.Extension.enabled POPCNT
   | Cprefetch _ | Catomic _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi

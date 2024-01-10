@@ -16,17 +16,28 @@
 
 (* Machine-specific command-line options *)
 
-val popcnt_support : bool ref
-val prefetchw_support : bool ref
-val prefetchwt1_support : bool ref
+module Extension : sig
+  (* CR-soon mslater: cpuid support should be checked at startup *)
+
+  type t =
+    | POPCNT
+    | PREFETCHW
+    | PREFETCHWT1
+    | SSE3
+    | SSSE3
+    | SSE4_1
+    | SSE4_2
+    | CLMUL
+    | BMI (* IMPORTANT: LZCNT/TZCNT are interpreted as BSR/BSF on architectures prior
+             to Haswell, i.e. they do not cause an illegal instruction fault.
+             That means code using LZCNT/TZCNT will silently produce wrong results. *)
+    | BMI2
+
+  val enabled : t -> bool
+  val disabled : t -> bool
+end
+
 val trap_notes : bool ref
-val clmul_support : bool ref
-val bmi_support : bool ref
-val bmi2_support : bool ref
-val sse3_support : bool ref
-val ssse3_support : bool ref
-val sse41_support : bool ref
-val sse42_support : bool ref
 val command_line_options : (string * Arg.spec * string) list
 val assert_simd_enabled : unit -> unit
 
