@@ -94,7 +94,7 @@ module D = struct
   let direct_assignment var const = directive (Direct_assignment (var, const))
   let extrn s ptr = directive (External (s, ptr))
   let file ~file_num ~file_name = directive (File (file_num, file_name))
-  let global s = directive (GlobalProtected s)
+  let global ~protected sym = directive (Global {protected; sym})
 
   let hidden s = directive (Hidden s)
   let weak s = directive (Weak s)

@@ -433,10 +433,9 @@ let print_line b = function
         bprintf b "\t.ascii\t\"%s\""
           (string_of_substring_literal i (String.length s - i) s)
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
-  | GlobalProtected s ->
-    (* Global symbols can be marked as being protected. Unlike in C we don't want
-       them to be preempted as we're doing a lot of cross module inlining. *)
-    bprintf b "\t.globl\t%s\n\t.protected\t%s" s s;
+  | Global { protected; sym } ->
+    bprintf b "\t.globl\t%s" sym;
+    if protected then bprintf b "\n\t.protected\t%s" sym;
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
   | Weak s -> bprintf b "\t.weak\t%s" s;
   | Long n -> bprintf b "\t.long\t%a" cst n

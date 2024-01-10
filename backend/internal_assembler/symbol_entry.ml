@@ -88,11 +88,11 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
     | Some s -> failwith ("Unknown symbol type" ^ s)
     | None -> 0
   in
-  let global_and_protected = Bool.to_int symbol.sy_global_and_protected in
+  let global = Bool.to_int symbol.sy_global in
   let symbol_entry =
     { st_name = String_table.current_length string_table;
-      st_info = (global_and_protected lsl 4) lor bind;
-      st_other = if symbol.sy_global_and_protected then 0x3 else 0;
+      st_info = (global lsl 4) lor bind;
+      st_other = if symbol.sy_protected then 0x3 else 0;
       st_shndx =
         Section_table.get_sec_idx sections
           (X86_proc.Section_name.of_string symbol.sy_sec.sec_name);

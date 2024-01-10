@@ -64,7 +64,7 @@ module type Arg = sig
 
     val new_line : unit -> unit
 
-    val global : string -> unit
+    val global : protected:bool -> string -> unit
 
     val type_ : string -> string -> unit
 
@@ -170,7 +170,7 @@ module type S = sig
   val define_data_symbol : Asm_symbol.t -> unit
 
   (** Mark a symbol as global. *)
-  val global : Asm_symbol.t -> unit
+  val global : protected:bool -> Asm_symbol.t -> unit
 
   (** Emit a machine-width reference to the given symbol. *)
   val symbol : ?comment:string -> Asm_symbol.t -> unit
