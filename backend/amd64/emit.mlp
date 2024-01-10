@@ -708,10 +708,34 @@ let emit_vec128_constant {high; low} lbl =
   D.qword (Const low);
   D.qword (Const high)
 
+let global_maybe_protected sym =
+  D.global sym;
+  if !Flambda_backend_flags.symbol_visibility_protected then
+    match system with
+    | S_macosx
+    | S_win32
+    | S_win64
+    | S_mingw64
+    | S_cygwin
+    | S_mingw
+    | S_unknown -> ()
+    | S_gnu
+    | S_solaris
+    | S_linux_elf
+    | S_bsd_elf
+    | S_beos
+    | S_linux
+    | S_freebsd
+    | S_netbsd
+    | S_openbsd ->
+      (* Global symbols can be marked as being protected. Unlike in C we don't want
+        them to be preempted as we're doing a lot of cross module inlining. *)
+      D.protected sym
+
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
-  D.global lbl;
+  global_maybe_protected lbl;
   _label lbl
 
 let emit_global_label s =
@@ -1804,7 +1828,7 @@ let fundecl fundecl =
   then (* PR#4690 *)
     D.private_extern (emit_symbol fundecl.fun_name)
   else
-    D.global (emit_symbol fundecl.fun_name);
+    global_maybe_protected (emit_symbol fundecl.fun_name);
   (* Even if the function name is Local, still emit an
      actual linker symbol for it. This provides symbols
      for perf, gdb, and similar tools *)
@@ -1878,7 +1902,7 @@ let emit_item = function
     | Local ->
       _label (label_name (emit_symbol s.sym_name))
     | Global ->
-      D.global (emit_symbol s.sym_name);
+      global_maybe_protected (emit_symbol s.sym_name);
       add_def_symbol s.sym_name;
       _label (emit_symbol s.sym_name);
       _label (label_name (emit_symbol s.sym_name))

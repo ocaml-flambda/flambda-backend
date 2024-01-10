@@ -435,7 +435,8 @@ let print_line b = function
         bprintf b "\t.ascii\t\"%s\""
           (string_of_substring_literal i (String.length s - i) s)
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
-  | Global s -> bprintf b "\t.globl\t%s" s;
+  | Global s -> bprintf b "\t.globl\t%s" s
+  | Protected s -> bprintf b "\t.protected\t%s" s;
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
   | Weak s -> bprintf b "\t.weak\t%s" s;
   | Long n -> bprintf b "\t.long\t%a" cst n

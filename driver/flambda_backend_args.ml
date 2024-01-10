@@ -563,6 +563,16 @@ let set_long_frames_threshold n =
             Flambda_backend_flags.max_long_frames_threshold));
   Flambda_backend_flags.long_frames_threshold := n
 
+let mk_symbol_visibility_protected f =
+  "-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_PROTECTED on supported systems"
+;;
+
+let mk_no_symbol_visibility_protected f =
+  "-no-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_DEFAULT"
+;;
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -594,6 +604,9 @@ module type Flambda_backend_options = sig
 
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
+
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
 
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
@@ -698,6 +711,9 @@ struct
 
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
+
+    mk_symbol_visibility_protected F.symbol_visibility_protected;
+    mk_no_symbol_visibility_protected F.symbol_visibility_protected;
 
     mk_long_frames F.long_frames;
     mk_no_long_frames F.no_long_frames;
@@ -856,6 +872,9 @@ module Flambda_backend_options_impl = struct
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
+
+  let symbol_visibility_protected = set' Flambda_backend_flags.symbol_visibility_protected
+  let no_symbol_visibility_protected = clear' Flambda_backend_flags.symbol_visibility_protected
 
   let long_frames =  set' Flambda_backend_flags.allow_long_frames
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
@@ -1119,6 +1138,7 @@ module Extra_params = struct
       end;
       true
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
       begin match Compenv.check_int ppf name v with

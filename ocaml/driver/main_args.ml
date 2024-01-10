@@ -296,7 +296,6 @@ let mk_no_probes f =
     "-no-probes", Arg.Unit f, " Ignore [%%probe ..]"
 ;;
 
-
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
 

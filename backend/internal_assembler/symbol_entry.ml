@@ -92,7 +92,7 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
   let symbol_entry =
     { st_name = String_table.current_length string_table;
       st_info = (global lsl 4) lor bind;
-      st_other = 0;
+      st_other = if symbol.sy_protected then 3 else 0;
       st_shndx =
         Section_table.get_sec_idx sections
           (X86_proc.Section_name.of_string symbol.sy_sec.sec_name);

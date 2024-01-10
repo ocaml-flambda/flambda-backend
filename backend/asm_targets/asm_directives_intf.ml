@@ -66,6 +66,8 @@ module type Arg = sig
 
     val global : string -> unit
 
+    val protected : string -> unit
+
     val type_ : string -> string -> unit
 
     val byte : constant -> unit
@@ -171,6 +173,9 @@ module type S = sig
 
   (** Mark a symbol as global. *)
   val global : Asm_symbol.t -> unit
+
+  (** Mark a symbol as having visibility protected. *)
+  val protected : Asm_symbol.t -> unit
 
   (** Emit a machine-width reference to the given symbol. *)
   val symbol : ?comment:string -> Asm_symbol.t -> unit
