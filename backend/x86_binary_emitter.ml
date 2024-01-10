@@ -2032,10 +2032,8 @@ let assemble_line b loc ins =
         assemble_instr b loc instr;
         incr loc
     | Comment _ -> ()
-    | Global { protected; sym } ->
-      let sym = get_symbol b sym in
-      sym.sy_global <- true;
-      sym.sy_protected <- protected
+    | Global sym -> (get_symbol b sym).sy_global <- true
+    | Protected sym -> (get_symbol b sym).sy_protected <- true
     | Quad (Const n) -> buf_int64L b n
     | Quad cst ->
         record_local_reloc b (RelocConstant (cst, B64));

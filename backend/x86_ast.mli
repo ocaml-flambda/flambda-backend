@@ -374,7 +374,8 @@ type asm_line =
   | Byte of constant
   | Bytes of string
   | Comment of string
-  | Global of { protected: bool; sym: string }
+  | Global of string
+  | Protected of string
   | Hidden of string
   | Weak of string
   | Long of constant

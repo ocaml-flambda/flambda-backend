@@ -716,6 +716,7 @@ let emit_vec128_constant {high; low} lbl =
   D.qword (Const high)
 
 let global_maybe_protected sym =
+  D.global sym;
   match system with
   | S_macosx
   | S_win32
@@ -723,7 +724,7 @@ let global_maybe_protected sym =
   | S_mingw64
   | S_cygwin
   | S_mingw
-  | S_unknown -> D.global ~protected:false sym
+  | S_unknown -> ()
   | S_gnu
   | S_solaris
   | S_linux_elf
@@ -735,7 +736,7 @@ let global_maybe_protected sym =
   | S_openbsd ->
     (* Global symbols can be marked as being protected. Unlike in C we don't want
       them to be preempted as we're doing a lot of cross module inlining. *)
-    D.global ~protected:true sym
+    D.protected sym
 
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
