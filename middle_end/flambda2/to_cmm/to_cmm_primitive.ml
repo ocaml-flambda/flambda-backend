@@ -583,6 +583,7 @@ let unary_primitive env res dbg f arg =
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
   | Reinterpret_int64_as_float ->
+    (* Will be translated to MOVQ by backend/amd64/selection.ml. *)
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
