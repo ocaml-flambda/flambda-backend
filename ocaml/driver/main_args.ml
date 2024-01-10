@@ -296,6 +296,15 @@ let mk_no_probes f =
     "-no-probes", Arg.Unit f, " Ignore [%%probe ..]"
 ;;
 
+let mk_symbol_visibility_protected f =
+    "-symbol-visibility-protected", Arg.Unit f,
+    " Emit symbols with visibility STV_PROTECTED"
+;;
+
+let mk_no_symbol_visibility_protected f =
+    "-no-symbol-visibility-protected", Arg.Unit f,
+    " Emit symbols with visibility STV_DEFAULT"
+;;
 
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
@@ -1089,6 +1098,8 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _symbol_visibility_protected : unit -> unit
+  val _no_symbol_visibility_protected : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1360,6 +1371,8 @@ struct
     mk_save_ir_after ~native:true F._save_ir_after;
     mk_probes F._probes;
     mk_no_probes F._no_probes;
+    mk_symbol_visibility_protected F._symbol_visibility_protected;
+    mk_no_symbol_visibility_protected F._no_symbol_visibility_protected;
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
@@ -2007,6 +2020,8 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
+    let _no_symbol_visibility_protected = clear symbol_visibility_protected
+    let _symbol_visibility_protected = set symbol_visibility_protected
   end
 
   module Odoc_args = struct

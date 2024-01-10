@@ -251,6 +251,8 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _symbol_visibility_protected : unit -> unit
+  val _no_symbol_visibility_protected : unit -> unit
 end
 
 module type Opttop_options = sig
