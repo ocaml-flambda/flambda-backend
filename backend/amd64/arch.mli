@@ -34,7 +34,6 @@ module Extension : sig
     | BMI2
 
   val enabled : t -> bool
-  val disabled : t -> bool
 end
 
 val trap_notes : bool ref

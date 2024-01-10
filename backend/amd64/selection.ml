@@ -376,13 +376,13 @@ method! select_operation op args dbg =
       (* Emit prefetch for read hint when prefetchw is not supported.
          Matches the behavior of gcc's __builtin_prefetch *)
       let is_write =
-        if is_write && (Arch.Extension.disabled PREFETCHW)
+        if is_write && not (Arch.Extension.enabled PREFETCHW)
         then false
         else is_write
       in
       let locality : Arch.prefetch_temporal_locality_hint =
         match select_locality locality with
-        | Moderate when is_write && (Arch.Extension.disabled PREFETCHWT1) -> High
+        | Moderate when is_write && not (Arch.Extension.enabled PREFETCHWT1) -> High
         | l -> l
       in
       let addr, eloc =

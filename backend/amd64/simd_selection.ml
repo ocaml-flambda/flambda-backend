@@ -74,7 +74,7 @@ let float_rounding_of_int = function
   | i -> bad_immediate "Invalid float rounding immediate: %d" i
 
 let select_operation_clmul op args =
-  if Arch.Extension.disabled CLMUL
+  if not (Arch.Extension.enabled CLMUL)
   then None
   else
     match op with
@@ -84,7 +84,7 @@ let select_operation_clmul op args =
     | _ -> None
 
 let select_operation_bmi2 op args =
-  if Arch.Extension.disabled BMI2
+  if not (Arch.Extension.enabled BMI2)
   then None
   else
     match op with
@@ -243,7 +243,7 @@ let select_operation_sse2 op args =
   | _ -> None
 
 let select_operation_sse3 op args =
-  if Arch.Extension.disabled SSE3
+  if not (Arch.Extension.enabled SSE3)
   then None
   else
     match op with
@@ -259,7 +259,7 @@ let select_operation_sse3 op args =
     | _ -> None
 
 let select_operation_ssse3 op args =
-  if Arch.Extension.disabled SSSE3
+  if not (Arch.Extension.enabled SSSE3)
   then None
   else
     match op with
@@ -284,7 +284,7 @@ let select_operation_ssse3 op args =
     | _ -> None
 
 let select_operation_sse41 op args =
-  if Arch.Extension.disabled SSE4_1
+  if not (Arch.Extension.enabled SSE4_1)
   then None
   else
     match op with
@@ -368,7 +368,7 @@ let select_operation_sse41 op args =
     | _ -> None
 
 let select_operation_sse42 op args =
-  if Arch.Extension.disabled SSE4_2
+  if not (Arch.Extension.enabled SSE4_2)
   then None
   else
     match op with
