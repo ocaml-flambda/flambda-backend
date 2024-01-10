@@ -23,8 +23,6 @@ open Cmm
 open Reg
 open Mach
 
-let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD || !simd_regalloc)
-
 let fp = Config.with_frame_pointers
 
 (* Which ABI to use *)
@@ -105,10 +103,7 @@ let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
   | Float -> 1
-  | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    1
+  | Vec128 -> assert_simd_enabled (); 1
 
 let num_stack_slot_classes = 3
 
@@ -116,19 +111,13 @@ let stack_slot_class typ =
   match typ with
   | Val | Addr | Int -> 0
   | Float -> 1
-  | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    2
+  | Vec128 -> assert_simd_enabled (); 2
 
 let stack_class_tag c =
   match c with
   | 0 -> "i"
   | 1 -> "f"
-  | 2 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    "x"
+  | 2 -> assert_simd_enabled (); "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers = [| 13; 16 |]
@@ -143,8 +132,7 @@ let register_name ty r =
   | Float ->
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
+    assert_simd_enabled ();
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -166,15 +154,13 @@ let hard_float_reg =
 let hard_vec128_reg =
   let v = Array.make 16 Reg.dummy in
   for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
-  fun () -> if simd_regalloc_disabled ()
-            then Misc.fatal_error "SIMD register allocation is not enabled."
-            else v
+  fun () -> assert_simd_enabled (); v
 
 let all_phys_regs =
   let basic_regs = Array.append hard_int_reg hard_float_reg in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (hard_vec128_reg ())
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (hard_vec128_reg ())
+            else basic_regs
 
 let phys_reg ty n =
   match ty with
@@ -190,9 +176,9 @@ let rbp = phys_reg Int 12
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm15 () =
-  if simd_regalloc_disabled ()
-  then [| phys_reg Float 115 |]
-  else [| phys_reg Float 115; phys_reg Vec128 115 |]
+  if Language_extension.is_enabled SIMD
+  then [| phys_reg Float 115; phys_reg Vec128 115 |]
+  else [| phys_reg Float 115 |]
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -204,9 +190,7 @@ let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 let stack_slot slot ty =
   (match ty with
    | Float | Int | Addr | Val -> ()
-   | Vec128 ->
-     if simd_regalloc_disabled ()
-     then Misc.fatal_error "SIMD register allocation is not enabled.");
+   | Vec128 -> assert_simd_enabled ());
   Reg.at_location ty (Stack slot)
 
 (* Instruction selection *)
@@ -383,9 +367,9 @@ let destroyed_at_c_call_win64 =
     (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
+            else basic_regs
 
 let destroyed_at_c_call_unix =
   (* Unix: rbx, rbp, r12-r15 preserved *)
@@ -393,9 +377,9 @@ let destroyed_at_c_call_unix =
       (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (hard_vec128_reg ())
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (hard_vec128_reg ())
+            else basic_regs
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered

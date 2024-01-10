@@ -55,9 +55,6 @@ let bmi_support = ref true
 (* Bit manipulation 2 (Haswell+) *)
 let bmi2_support = ref true
 
-(* Enable SIMD register allocation features. *)
-let simd_regalloc = ref false
-
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -109,12 +106,12 @@ let command_line_options =
     "-fbmi2", Arg.Set bmi2_support,
       " Enable BMI2 intrinsics (default)";
     "-fno-bmi2", Arg.Clear bmi2_support,
-      " Disable BMI2 intrinsics";
-    "-fsimd-regalloc", Arg.Set simd_regalloc,
-      " Enable SIMD register allocation (implied by -extension SIMD)";
-    "-fno-simd-regalloc", Arg.Clear simd_regalloc,
-      " Disable SIMD register allocation (overridden by -extension SIMD) (default)";
+      " Disable BMI2 intrinsics"
   ]
+
+let assert_simd_enabled () =
+  if not (Language_extension.is_enabled SIMD) then
+  Misc.fatal_error "SIMD is not enabled."
 
 (* Specific operations for the AMD64 processor *)
 

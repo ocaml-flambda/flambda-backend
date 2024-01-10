@@ -27,8 +27,8 @@ val sse3_support : bool ref
 val ssse3_support : bool ref
 val sse41_support : bool ref
 val sse42_support : bool ref
-val simd_regalloc : bool ref
 val command_line_options : (string * Arg.spec * string) list
+val assert_simd_enabled : unit -> unit
 
 (* Specific operations for the AMD64 processor *)
 
