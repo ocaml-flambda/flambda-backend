@@ -469,7 +469,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               element_kind
             })) -> (
       match fields with
-      | [] -> (
+      | [||] -> (
         match element_kind with
         | Ok element_kind ->
           let array_kind =
@@ -478,7 +478,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           in
           Lift (Empty_array array_kind)
         | Unknown | Bottom -> try_canonical_simple ())
-      | _ :: _ -> (
+      | _ -> (
+        let fields = Array.to_list fields in
         match element_kind with
         | Unknown -> try_canonical_simple ()
         | Bottom ->

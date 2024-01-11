@@ -24,7 +24,8 @@ let add_equation_on_var denv var shape =
   | Ok (_ty, env_extension) ->
     DE.map_typing_env denv ~f:(fun tenv ->
         TE.add_env_extension tenv env_extension)
-  | Bottom -> Misc.fatal_errorf "Meet failed whereas prove previously succeeded"
+  | Bottom ->
+    Misc.fatal_errorf "Meet failed whereas prove and meet previously succeeded"
 
 let denv_of_number_decision naked_kind shape param_var naked_var denv : DE.t =
   let naked_name = VB.create naked_var Name_mode.normal in
