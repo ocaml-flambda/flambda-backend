@@ -15,7 +15,7 @@
 let overhead block slot obj =
   1. -. float_of_int((block / slot) * obj) /. float_of_int block
 
-let max_overhead = 0.101
+let max_overhead = 0.201
 
 (*
   Prevention of false sharing requires certain sizeclasses to be present. This
