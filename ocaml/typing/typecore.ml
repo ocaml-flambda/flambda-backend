@@ -6470,7 +6470,8 @@ and type_ident env ?(recarg=Rejected) lid =
   let val_type, kind =
     match desc.val_kind with
     | Val_prim prim ->
-       let ty, mode = instance_prim_mode prim (instance desc.val_type) in
+       let ty, mode, sort = instance_prim prim desc.val_type in
+       let ty = instance ty in
        begin match prim.prim_native_repr_res, mode with
        (* if the locality of returned value of the primitive is poly
           we then register allocation for further optimization *)
@@ -6480,7 +6481,7 @@ and type_ident env ?(recarg=Rejected) lid =
                           Alloc.max_with_linearity Linearity.many])
        | _ -> ()
        end;
-       ty, Id_prim (Option.map Locality.disallow_right mode)
+       ty, Id_prim (Option.map Locality.disallow_right mode, sort)
     | _ ->
        instance desc.val_type, Id_value in
   path, mode, reason, { desc with val_type }, kind

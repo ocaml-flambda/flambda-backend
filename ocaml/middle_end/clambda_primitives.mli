@@ -54,7 +54,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of Lambda.external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)

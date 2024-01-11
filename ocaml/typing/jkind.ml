@@ -649,6 +649,7 @@ type concrete_jkind_reason =
   | Wildcard
   | Unification_var
   | Optional_arg_default
+  | Repr_poly_in_external
 
 type value_creation_reason =
   | Class_let_binding
@@ -1089,6 +1090,9 @@ end = struct
     | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Optional_arg_default ->
       fprintf ppf "it's the type of an optional argument default"
+    | Repr_poly_in_external ->
+      fprintf ppf
+        "it's the representation polymorphic type in an external declaration"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -1510,6 +1514,7 @@ module Debug_printers = struct
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
+    | Repr_poly_in_external -> fprintf ppf "Repr_poly_in_external"
 
   let rec annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p

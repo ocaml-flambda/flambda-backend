@@ -163,7 +163,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -281,6 +281,15 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+
+and extern_repr =
+  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Unboxed_float of boxed_float
+  | Unboxed_vector of Primitive.boxed_vector
+  | Unboxed_integer of Primitive.boxed_integer
+  | Untagged_int
+
+and external_call_description = extern_repr Primitive.description_gen
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1485,7 +1494,7 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
-let alloc_mode_of_primitive_description (p : Primitive.description) =
+let alloc_mode_of_primitive_description (p : external_call_description) =
   if not Config.stack_allocation then
     if p.prim_alloc then Some alloc_heap else None
   else
@@ -1619,7 +1628,7 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
-let layout_of_native_repr : Primitive.native_repr -> _ = function
+let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
@@ -1667,7 +1676,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1847,3 +1856,17 @@ let may_allocate_in_region lam =
     | () -> false
     | exception Exit -> true
   end
+
+let simple_prim_on_values ~name ~arity ~alloc =
+  Primitive.make
+    ~name
+    ~alloc
+    ~c_builtin:false
+    ~effects:Arbitrary_effects
+    ~coeffects:Has_coeffects
+    ~native_name:""
+    ~native_repr_args:
+      (Primitive.make_prim_repr_args arity
+        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
+    ~is_layout_representation_polymorphic:false

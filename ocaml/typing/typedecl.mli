@@ -135,6 +135,7 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Unexpected_jkind_any_in_primitive of string
 
 exception Error of Location.t * error
 
