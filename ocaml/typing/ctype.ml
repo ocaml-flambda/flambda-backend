@@ -1612,6 +1612,50 @@ let rec instance_prim_locals locals mvar macc finalret ty =
   | [], _ ->
      ty
 
+let instance_prim_repr (desc : Primitive.description) ty =
+  if not desc.prim_is_layout_representation_polymorphic
+  then ty, None
+  else
+  let new_sort_and_jkind = ref None in
+  let get_jkind () =
+    match !new_sort_and_jkind with
+    | Some (_, jkind) ->
+      jkind
+    | None ->
+      let jkind, sort = Jkind.of_new_sort_var ~why:Repr_poly_in_external in
+      new_sort_and_jkind := Some (sort, jkind);
+      jkind
+  in
+  For_copy.with_scope (fun copy_scope ->
+    let rec inner ty =
+      let level = get_level ty in
+      (* only change type vars on generic_level to avoid modifying ones captured
+        from an outer scope *)
+      if level = generic_level && try_mark_node ty then begin
+        begin match get_desc ty with
+        | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+          For_copy.redirect_desc copy_scope ty
+            (Tvar {r with jkind = get_jkind ()})
+        | Tunivar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+          For_copy.redirect_desc copy_scope ty
+            (Tunivar {r with jkind = get_jkind ()})
+        | _ -> ()
+        end;
+        iter_type_expr inner ty
+      end
+    in
+    inner ty;
+    unmark_type ty;
+    match !new_sort_and_jkind with
+    | Some (sort, _) ->
+      (* We don't want to lower the type vars from generic_level due to
+         usages in [includecore.ml]. This means an extra [instance] call
+         is needed in [type_ident], but we only hit it if it's
+         representation polymorphic. *)
+      generic_instance ty, Some sort
+    | None -> ty, None)
+
+
 let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
@@ -1623,6 +1667,11 @@ let instance_prim_mode (desc : Primitive.description) ty =
     Some mode
   else
     ty, None
+
+let instance_prim (desc : Primitive.description) ty =
+  let ty, sort = instance_prim_repr desc ty in
+  let ty, mode = instance_prim_mode desc ty in
+  ty, mode, sort
 
 (**** Instantiation with parameter substitution ****)
 

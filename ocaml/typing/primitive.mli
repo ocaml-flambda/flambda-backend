@@ -26,6 +26,7 @@ type boxed_vector = Pvec128 of vec128_type
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
+  | Repr_poly
   | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
@@ -45,7 +46,7 @@ type mode =
    typechecking, all [Prim_poly] modes on a given primitive application
    will be instantiated either all to [Local] or all to [Global] *)
 
-type description = private
+type ('repr_t) description_gen = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
@@ -58,16 +59,15 @@ type description = private
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * native_repr) list;
-    prim_native_repr_res: mode * native_repr }
+    prim_native_repr_args: (mode * 'repr_t) list;
+    prim_native_repr_res: mode * 'repr_t;
+    prim_is_layout_representation_polymorphic: bool }
+
+type description = native_repr description_gen
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
-val simple_on_values
-  :  name:string
-  -> arity:int
-  -> alloc:bool
-  -> description
+val make_prim_repr_args : int -> 'a -> 'a list
 
 val make
   :  name:string
@@ -76,14 +76,16 @@ val make
   -> effects:effects
   -> coeffects:coeffects
   -> native_name:string
-  -> native_repr_args: (mode * native_repr) list
-  -> native_repr_res: mode * native_repr
-  -> description
+  -> native_repr_args: (mode * 'repr) list
+  -> native_repr_res: mode * 'repr
+  -> is_layout_representation_polymorphic: bool
+  -> 'repr description_gen
 
 val parse_declaration
   :  Parsetree.value_description
   -> native_repr_args:(mode * native_repr) list
   -> native_repr_res:(mode * native_repr)
+  -> is_layout_poly:bool
   -> description
 
 val print
@@ -91,8 +93,8 @@ val print
   -> Outcometree.out_val_decl
   -> Outcometree.out_val_decl
 
-val native_name: description -> string
-val byte_name: description -> string
+val native_name: 'a description_gen -> string
+val byte_name: 'a description_gen -> string
 val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
@@ -107,10 +109,6 @@ val equal_coeffects : coeffects -> coeffects -> bool
     compiler itself. *)
 val native_name_is_external : description -> bool
 
-(** [sort_of_native_repr] returns the sort expected during typechecking (which
-    may be different than the sort used in the external interface). *)
-val sort_of_native_repr : native_repr -> Jkind.Sort.const
-
 type error =
   | Old_style_float_with_native_repr_attribute
   | Old_style_float_with_non_value
@@ -119,5 +117,6 @@ type error =
   | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
+  | Invalid_representation_polymorphic_attribute
 
 exception Error of Location.t * error
