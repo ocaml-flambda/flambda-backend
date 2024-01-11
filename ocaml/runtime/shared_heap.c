@@ -179,19 +179,25 @@ void caml_teardown_shared_heap(struct caml_heap_state* heap) {
 
 /* Allocating and deallocating pools from the global freelist. */
 
+#define NUM_POOLS_TO_ALLOCATE_AT_ONCE 64
+
 static pool* pool_acquire(struct caml_heap_state* local) {
   pool* r;
 
   caml_plat_lock(&pool_freelist.lock);
   if (!pool_freelist.free) {
-    void* mem = caml_mem_map(Bsize_wsize(POOL_WSIZE), 0);
+    void* mem =
+      caml_mem_map(Bsize_wsize(POOL_WSIZE) * NUM_POOLS_TO_ALLOCATE_AT_ONCE, 0);
 
     if (mem) {
       CAMLassert(pool_freelist.free == NULL);
 
       r = (pool*)mem;
-      r->next = pool_freelist.free;
-      r->owner = NULL;
+      for (int i = 0; i < NUM_POOLS_TO_ALLOCATE_AT_ONCE; i++) {
+        r->next = pool_freelist.free;
+        r->owner = NULL;
+        r++;
+      }
       pool_freelist.free = r;
     }
   }
