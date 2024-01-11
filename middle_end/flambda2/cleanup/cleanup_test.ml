@@ -1267,23 +1267,24 @@ and traverse_cont_handler :
 
 type uses = Dep_solver.result
 
+let poison_value = 0 (* 123456789 *)
 let poison (kind : Flambda_kind.t) =
   match kind with
-  | Value -> Simple.const_int (Targetint_31_63.of_int 123456789)
+  | Value -> Simple.const_int (Targetint_31_63.of_int poison_value)
   | Naked_number Naked_float ->
     Simple.const
       (Int_ids.Const.naked_float
-         (Numeric_types.Float_by_bit_pattern.create 123456789.))
+         (Numeric_types.Float_by_bit_pattern.create (float_of_int poison_value)))
   | Naked_number Naked_immediate ->
     Simple.const
-      (Int_ids.Const.naked_immediate (Targetint_31_63.of_int 123456789))
+      (Int_ids.Const.naked_immediate (Targetint_31_63.of_int poison_value))
   | Naked_number Naked_int32 ->
-    Simple.const (Int_ids.Const.naked_int32 123456789l)
+    Simple.const (Int_ids.Const.naked_int32 (Int32.of_int poison_value))
   | Naked_number Naked_int64 ->
-    Simple.const (Int_ids.Const.naked_int64 123456789L)
+    Simple.const (Int_ids.Const.naked_int64 (Int64.of_int poison_value))
   | Naked_number Naked_nativeint ->
     Simple.const
-      (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int 123456789))
+      (Int_ids.Const.naked_nativeint (Targetint_32_64.of_int poison_value))
   | Naked_number Naked_vec128 ->
     Simple.const
       (Int_ids.Const.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
@@ -1304,6 +1305,16 @@ let rewrite_simple kinds (uses : uses) simple =
           in
           poison kind)
     ~const:(fun _ -> simple)
+
+let rewrite_simple_opt (uses : uses) = function
+  | None -> None
+  | (Some simple) as simpl ->
+  Simple.pattern_match simple
+    ~name:(fun name ~coercion:_ ->
+        if Hashtbl.mem uses (Code_id_or_name.name name)
+        then simpl
+        else None)
+    ~const:(fun _ -> simpl)
 
 let rewrite_or_variable default uses (or_variable : _ Or_variable.t) =
   match or_variable with
@@ -1419,7 +1430,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
       in
       let apply =
         Apply_expr.create
-          ~callee:(Option.map (rewrite_simple kinds uses) (Apply_expr.callee apply))
+          ~callee:(rewrite_simple_opt uses (Apply_expr.callee apply))
           ~continuation:(Apply_expr.continuation apply)
           (Apply_expr.exn_continuation apply)
           ~args:(List.map (rewrite_simple kinds uses) (Apply_expr.args apply))
