@@ -47,6 +47,12 @@ jobs:
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
+          - name: flambda2_o3_advanced_meet
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+
           - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
