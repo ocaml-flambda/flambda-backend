@@ -76,6 +76,12 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
 
+          - name: gi
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            check_arch: true
+
           - name: build_upstream_closure
             config: --enable-middle-end=upstream-closure
             os: ubuntu-20.04
