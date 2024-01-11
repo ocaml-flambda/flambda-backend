@@ -186,8 +186,13 @@ type 'a pairwise_disjunction_meet_arg =
     meet : TE.t -> 'a -> 'a -> 'a meet_result
   }
 
-let pairwise_disjunction_meet ~join_env_extension ~meet_type meetx meety
-    initial_env x1 x2 y1 y2 =
+(* Note: We want to avoid allocating the arguments to this function. Since we
+   currently can't lift them (some limitations around coercions), we force
+   inlining of this function, which should allow the compiler to track the
+   individual fields and remove the allocation. Fortunately there is only one
+   call site at the moment, so this shouldn't produce any code duplication. *)
+let[@inline] pairwise_disjunction_meet ~join_env_extension ~meet_type meetx
+    meety initial_env x1 x2 y1 y2 =
   let join_scope = TE.current_scope initial_env in
   let env = TE.increment_scope initial_env in
   let to_extension scoped_env =
@@ -516,6 +521,9 @@ and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
   | Unknown, Unknown -> Ok (Both_inputs, env)
   | _, Unknown -> Ok (Left_input, env)
   | Unknown, _ -> Ok (Right_input, env)
+  (* CR vlaviron: in the next two cases, returning [Bottom] is correct but
+     inconsistent with the rest of the file: since the bottom type was already
+     present, we should return [Left_input] or [Right_input]. *)
   | Bottom, _ -> Bottom
   | _, Bottom -> Bottom
   | Ok descr1, Ok descr2 -> meet_expanded_head0 env descr1 descr2
