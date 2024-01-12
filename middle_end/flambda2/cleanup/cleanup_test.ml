@@ -1325,9 +1325,9 @@ let rewrite_or_variable default uses (or_variable : _ Or_variable.t) =
 let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) =
   match field with
   | Tagged_immediate _ -> field
-  | Symbol sym -> if Hashtbl.mem uses (Code_id_or_name.symbol sym) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int 123456789)
+  | Symbol sym -> if Hashtbl.mem uses (Code_id_or_name.symbol sym) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int poison_value)
   | Dynamically_computed (v, _) ->
-    if Hashtbl.mem uses (Code_id_or_name.var v) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int 123456789)
+    if Hashtbl.mem uses (Code_id_or_name.var v) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int poison_value)
 
 let rewrite_static_const kinds uses (sc : Static_const.t) =
   match sc with
@@ -1502,8 +1502,15 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                     code_metadata;
                     free_names_of_params_and_body
                   } ->
+                let is_my_closure_used = Name_occurrences.mem_var params_and_body.body.free_names params_and_body.my_closure in
                 let params_and_body =
                   rebuild_function_params_and_body kinds uses params_and_body
+                in
+                let code_metadata =
+                  if Bool.equal is_my_closure_used (Code_metadata.is_my_closure_used code_metadata) then
+                    code_metadata
+                  else
+                    Code_metadata.with_is_my_closure_used is_my_closure_used code_metadata
                 in
                 let code =
                   Code.create_with_metadata ~params_and_body ~code_metadata
