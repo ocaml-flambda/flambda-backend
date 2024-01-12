@@ -50,7 +50,8 @@ let precondition : Cfg_with_layout.t -> unit =
              terminator"
             id
       | Name_for_debugger _ -> ()
-      | Dls_get -> ())
+      | Dls_get -> ()
+      | Poll -> ())
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
