@@ -44,11 +44,6 @@ module S = struct
 
   type prim_call_operation =
     | External of external_call_operation
-    | Alloc of
-        { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Lambda.alloc_mode
-        }
     | Probe of
         { name : string;
           handler_code_sym : string;
@@ -106,6 +101,11 @@ module S = struct
         }
     | Dls_get
     | Poll
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo;
+          mode : Lambda.alloc_mode
+        }
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)

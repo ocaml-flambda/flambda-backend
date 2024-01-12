@@ -154,9 +154,7 @@ let basic_or_terminator_of_operation :
             }))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Alloc { bytes; dbginfo; mode }; label_after })
+    Basic (Op (Alloc { bytes; dbginfo; mode }))
   | Ipoll { return_label = None } -> Basic (Op Poll)
   | Ipoll { return_label = Some return_label } ->
     Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
@@ -636,7 +634,7 @@ module Stack_offset_and_exn = struct
         | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
         | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll )
+        | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 
