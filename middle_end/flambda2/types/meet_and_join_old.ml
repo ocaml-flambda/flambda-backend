@@ -179,10 +179,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
     | Some simple2 -> (
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded1
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple2
+        in
         let env_extension =
           add_equation simple2 (ET.to_type expanded1) TEE.empty
         in
-        TG.alias_type_of kind simple2, env_extension
+        ty, env_extension
       | Right_head_unchanged -> TG.alias_type_of kind simple2, TEE.empty
       | New_head (expanded, env_extension) ->
         (* It makes things easier (to check if the result of [meet] was bottom)
@@ -214,10 +219,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged -> TG.alias_type_of kind simple1, TEE.empty
       | Right_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded2
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple1
+        in
         let env_extension =
           add_equation simple1 (ET.to_type expanded2) TEE.empty
         in
-        TG.alias_type_of kind simple1, env_extension
+        ty, env_extension
       | New_head (expanded, env_extension) ->
         let ty =
           if ET.is_bottom expanded
