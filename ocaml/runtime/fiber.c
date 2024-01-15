@@ -51,6 +51,7 @@ static _Atomic int64_t fiber_id = 0;
 
 uintnat caml_get_init_stack_wsize (void)
 {
+  /*
   uintnat default_stack_wsize = Wsize_bsize(Stack_init_bsize);
   uintnat stack_wsize;
 
@@ -58,8 +59,9 @@ uintnat caml_get_init_stack_wsize (void)
     stack_wsize = default_stack_wsize;
   else
     stack_wsize = caml_max_stack_wsize;
+  */
 
-  return stack_wsize;
+  return caml_max_stack_wsize;
 }
 
 void caml_change_max_stack_size (uintnat new_max_wsize)
