@@ -492,19 +492,24 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
              (fun var -> Named.create_simple (Simple.var var))
              let_bound_vars))
   in
+  let alloc_mode =
+    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    | None ->
+      (* This happens when stack allocation is disabled. *)
+      Alloc_mode.For_allocations.heap
+    | Some alloc_mode ->
+      Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
+  in
   let box_return_value =
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
-    | _, Unboxed_float ->
-      Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
+    | _, Unboxed_float -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
-      Some (P.Box_number (Naked_nativeint, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint32 ->
-      Some (P.Box_number (Naked_int32, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint64 ->
-      Some (P.Box_number (Naked_int64, Alloc_mode.For_allocations.heap))
+      Some (P.Box_number (Naked_nativeint, alloc_mode))
+    | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
+    | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, alloc_mode))
     | _, Unboxed_vector (Pvec128 _) ->
-      Some (P.Box_number (Naked_vec128, Alloc_mode.For_allocations.heap))
+      Some (P.Box_number (Naked_vec128, alloc_mode))
     | _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =
@@ -541,14 +546,6 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
   let return_arity =
     Flambda_arity.create_singletons [K.With_subkind.anything return_kind]
-  in
-  let alloc_mode =
-    match Lambda.alloc_mode_of_primitive_description prim_desc with
-    | None ->
-      (* This happens when stack allocation is disabled. *)
-      Alloc_mode.For_allocations.heap
-    | Some alloc_mode ->
-      Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
   in
   let effects = Effects.from_lambda prim_effects in
   let coeffects = Coeffects.from_lambda prim_coeffects in
