@@ -355,37 +355,43 @@ let domainstate_ptr_dwarf_register_number = 14
 
 (* Registers destroyed by operations *)
 
-let int_regs_destroyed_at_c_call_win64 =
-  if Config.runtime5 then [|0;1;4;5;6;7;10;11;12|] else [|0;4;5;6;7;10;11|]
+let int_regs_destroyed_at_c_call_win64 ~alloc =
+  match Config.runtime5, alloc with
+  | true, true -> [|0;4;5;6;7;10;11;12|]
+  | true, false -> [|0;1;4;5;6;7;10;11;12|]
+  | false, _ -> [|0;4;5;6;7;10;11|]
 
-let int_regs_destroyed_at_c_call =
-  if Config.runtime5 then [|0;1;2;3;4;5;6;7;10;11|] else [|0;2;3;4;5;6;7;10;11|]
+let int_regs_destroyed_at_c_call ~alloc =
+  match Config.runtime5, alloc with
+  | true, true -> [|0;2;3;4;5;6;7;10;11|]
+  | true, false -> [|0;1;2;3;4;5;6;7;10;11|]
+  | false, _ -> [|0;2;3;4;5;6;7;10;11|]
 
-let destroyed_at_c_call_win64 =
+let destroyed_at_c_call_win64 ~alloc =
   (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
   let basic_regs = Array.append
-    (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
+      (Array.map (phys_reg Int) (int_regs_destroyed_at_c_call_win64 ~alloc))
     (Array.sub hard_float_reg 0 6)
   in
-  fun () -> if Language_extension.is_enabled SIMD
-            then Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
-            else basic_regs
+  if Language_extension.is_enabled SIMD
+  then Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
+  else basic_regs
 
-let destroyed_at_c_call_unix =
+let destroyed_at_c_call_unix ~alloc =
   (* Unix: rbx, rbp, r12-r15 preserved *)
   let basic_regs = Array.append
-      (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
+      (Array.map (phys_reg Int) (int_regs_destroyed_at_c_call ~alloc))
     hard_float_reg
   in
-  fun () -> if Language_extension.is_enabled SIMD
-            then Array.append basic_regs (hard_vec128_reg ())
-            else basic_regs
+  if Language_extension.is_enabled SIMD
+  then Array.append basic_regs (hard_vec128_reg ())
+  else basic_regs
 
-let destroyed_at_c_call =
+let destroyed_at_c_call ~alloc =
   (* C calling conventions preserve rbx, but it is clobbered
      by the code sequence used for C calls in emit.mlp, so it
      is marked as destroyed. *)
-  if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
+  if win64 then destroyed_at_c_call_win64 ~alloc else destroyed_at_c_call_unix ~alloc
 
 let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then
@@ -406,7 +412,7 @@ let destroyed_at_oper = function
   | Iop(Iextcall {alloc; stack_ofs; }) ->
       assert (stack_ofs >= 0);
       if alloc || stack_ofs > 0 then all_phys_regs ()
-      else destroyed_at_c_call ()
+      else destroyed_at_c_call ~alloc
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _))
@@ -519,7 +525,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
     assert (stack_ofs >= 0);
-    if alloc || stack_ofs > 0 then all_phys_regs () else destroyed_at_c_call ()
+    if alloc || stack_ofs > 0 then all_phys_regs () else destroyed_at_c_call ~alloc
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs ()
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isextend32 | Izextend32
