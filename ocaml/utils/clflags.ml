@@ -195,6 +195,8 @@ let rounds () =
   | None -> !default_simplify_rounds
   | Some r -> r
 
+let no_stack_checks = ref false        (* -no-stack-checks *)
+
 let default_inline_threshold = if Config.flambda then 10. else 10. /. 8.
 let inline_toplevel_multiplier = 16
 let default_inline_toplevel_threshold =

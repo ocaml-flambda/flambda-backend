@@ -296,6 +296,9 @@ let mk_no_probes f =
     "-no-probes", Arg.Unit f, " Ignore [%%probe ..]"
 ;;
 
+let mk_no_stack_checks f =
+  "-no-stack-checks", Arg.Unit f, " Disable stack checks"
+;;
 
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
@@ -1089,6 +1092,7 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _no_stack_checks : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1360,6 +1364,7 @@ struct
     mk_save_ir_after ~native:true F._save_ir_after;
     mk_probes F._probes;
     mk_no_probes F._no_probes;
+    mk_no_stack_checks F._no_stack_checks;
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
@@ -2007,6 +2012,7 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
+    let _no_stack_checks = set no_stack_checks
   end
 
   module Odoc_args = struct
