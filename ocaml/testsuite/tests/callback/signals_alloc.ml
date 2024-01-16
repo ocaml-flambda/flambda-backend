@@ -6,6 +6,7 @@
    ** native
 *)
 external raise_sigusr1 : unit -> unit = "raise_sigusr1"
+external global_opaque_identity : 'a -> 'a = "%opaque"
 
 let do_test () =
   let seen_states = Array.make 5 (-1) in
@@ -21,7 +22,7 @@ let do_test () =
   seen_states.(!pos) <- 1; pos := !pos + 1;
   raise_sigusr1 ();
   seen_states.(!pos) <- 2; pos := !pos + 1;
-  let _ = Sys.opaque_identity (ref 1) in
+  let _ = global_opaque_identity (ref 1) in
   seen_states.(!pos) <- 4; pos := !pos + 1;
   Sys.set_signal Sys.sigusr1 Sys.Signal_default;
   Array.iter (Printf.printf "%d") seen_states;

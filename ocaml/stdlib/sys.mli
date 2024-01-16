@@ -415,7 +415,7 @@ val runtime_warnings_enabled: unit -> bool
 
 (** {1 Optimization} *)
 
-external opaque_identity : 'a -> 'a = "%opaque"
+external opaque_identity : ('a[@local_opt]) -> ('a[@local_opt]) = "%opaque"
 (** For the purposes of optimization, [opaque_identity] behaves like an
     unknown (and thus possibly side-effecting) function.
 

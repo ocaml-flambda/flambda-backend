@@ -2,6 +2,10 @@
    modules = "async_exns_stubs.c"
 *)
 
+external global_opaque_identity : 'a -> 'a = "%identity"
+
+(* Ensure that [Sys.Break] can be raised and caught as an async exception. *)
+
 let () = Sys.catch_break true
 
 (* Lifted out to ensure this works in bytecode, where [b] is easily
@@ -32,7 +36,7 @@ let () =
           r := None;
           while true do
             (* This allocation will eventually trigger the finaliser *)
-            let _ = Sys.opaque_identity (42, Random.int 42) in
+            let _ = global_opaque_identity (42, Random.int 42) in
             ()
           done
         with exn -> Printf.printf "1. wrong handler\n%!"; assert false
@@ -48,7 +52,7 @@ let () =
 let () =
   try
     Sys.with_async_exns (fun () ->
-      try raise (Sys.opaque_identity Sys.Break)
+      try raise (global_opaque_identity Sys.Break)
       with Sys.Break -> Printf.printf "2. OK\n%!"
     )
   with
@@ -62,7 +66,7 @@ let raise_break_from_finaliser () =
   try
     r := None;
     while true do
-      let _ = Sys.opaque_identity (42, Random.int 42) in
+      let _ = global_opaque_identity (42, Random.int 42) in
       ()
     done
   with exn -> Printf.printf "3a/b/c/d. wrong handler\n%!"; exit 1
