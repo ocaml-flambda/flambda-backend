@@ -892,16 +892,20 @@ let array_indexing ?typ log2size ptr ofs dbg =
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
 let custom_ops_unboxed_int32_odd_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_odd_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_odd_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_int32_even_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_even_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_even_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_int64_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int64_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int64_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_nativeint_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_nativeint_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
 let unboxed_int32_array_length arr dbg =
   (* A dynamic test is needed to determine if the array contains an odd or even
