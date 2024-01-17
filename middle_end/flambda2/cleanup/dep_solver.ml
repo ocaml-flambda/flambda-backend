@@ -137,7 +137,13 @@ let fixpoint (graph : graph) : result =
          Queue.push n q)
       used
   in
-  let add_fungraph (fungraph : Cleanup_deps.fun_graph) =
+  let added_fungraphs = Hashtbl.create 100 in
+  let rec add_called called =
+    Hashtbl.iter (fun code_id () ->
+        Hashtbl.replace result (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top));
+        check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top))
+      ) called
+  and add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->
         (match Hashtbl.find_opt all_deps n with
          | None -> Hashtbl.add all_deps n deps
@@ -145,19 +151,19 @@ let fixpoint (graph : graph) : result =
         if Hashtbl.mem result n then Queue.push n q
       ) fungraph.name_to_dep;
     add_used fungraph.used;
-  in
-  let added_fungraphs = Hashtbl.create 100 in
-  let check_and_add_fungraph n elt =
+    add_called fungraph.called;
+  and check_and_add_fungraph n elt =
     Code_id_or_name.pattern_match'
       ~name:(fun _ -> ())
       ~code_id:(fun code_id ->
-          if (match elt with Bottom -> false | Top -> true | Fields _ -> assert false) && not (Hashtbl.mem added_fungraphs code_id) && Hashtbl.mem graph.function_graphs code_id then begin
+          if (match elt with Bottom -> false | Fields _ | Top -> true) && not (Hashtbl.mem added_fungraphs code_id) && Hashtbl.mem graph.function_graphs code_id then begin
             add_fungraph (Hashtbl.find graph.function_graphs code_id);
             Hashtbl.add added_fungraphs code_id ()
           end
         ) n
   in
   add_used graph.toplevel_graph.used;
+  add_called graph.toplevel_graph.called;
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
     let deps =

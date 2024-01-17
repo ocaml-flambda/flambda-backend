@@ -2,11 +2,13 @@ type field =
   | Block of int
   | Value_slot of Value_slot.t
   | Function_slot of Function_slot.t
+  | Apply
 
 let pp_field ppf = function
   | Block i -> Format.fprintf ppf "%i" i
   | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
   | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
+  | Apply -> Format.fprintf ppf "apply"
 
 module Dep = struct
   type t =
@@ -36,7 +38,8 @@ module DepSet = C.Set
 
 type fun_graph =
   { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
-    used : (Code_id_or_name.t, unit) Hashtbl.t
+    used : (Code_id_or_name.t, unit) Hashtbl.t;
+    called: (Code_id.t, unit) Hashtbl.t;
   }
 
 type graph =
@@ -47,7 +50,7 @@ type graph =
 let pp_used_fun_graph ppf (graph : fun_graph) =
   let elts = List.of_seq @@ Hashtbl.to_seq graph.used in
   let pp ppf l =
-    let pp_sep ppf () = Format.pp_print_string ppf ",@ " in
+    let pp_sep ppf () = Format.pp_print_string ppf "@, " in
     let pp ppf (name, ()) =
       Format.fprintf ppf "%a" Code_id_or_name.print name
     in
@@ -63,7 +66,7 @@ let pp_used ppf (graph : graph) =
         graph)
     graph.function_graphs
 
-let create () = { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100 }
+let create () = { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100; called = Hashtbl.create 100 }
 
 let insert t k v =
   match Hashtbl.find_opt t k with
@@ -117,3 +120,5 @@ let add_func_param t ~param ~arg =
   insert tbl (Code_id_or_name.var param) (Alias arg)
 
 let add_use t dep = Hashtbl.replace t.used dep ()
+
+let add_called t code_id = Hashtbl.replace t.called code_id ()

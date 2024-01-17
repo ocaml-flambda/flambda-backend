@@ -340,6 +340,9 @@ end
 
 type cont_kind = Normal of Variable.t list
 
+let all_code = ref Code_id.Map.empty
+let deleted_code = ref Code_id.Map.empty
+
 type denv =
   { parent : rev_expr_holed;
     conts : cont_kind Continuation.Map.t;
@@ -383,7 +386,7 @@ module Dacc : sig
 
   val used : denv:denv -> Simple.t -> t -> t
 
-  val used_code_id : denv:denv -> Code_id.t -> t -> t
+  val called : denv:denv -> Code_id.t -> t -> t
 
   val opaque_let_dependency :
     denv:denv -> Bound_pattern.t -> Name_occurrences.t -> t -> t
@@ -542,8 +545,8 @@ end = struct
       ~const:(fun _ -> ());
     t
 
-  let used_code_id ~denv code_id t =
-    Deps.add_use (cur_deps ~denv t) (Code_id_or_name.code_id code_id);
+  let called ~denv code_id t =
+    Deps.add_called (cur_deps ~denv t) code_id;
     t
 
   let add_apply apply t = { t with apply_deps = apply :: t.apply_deps }
@@ -1384,6 +1387,26 @@ let rewrite_static_const_or_code kinds uses (sc : Flambda.static_const_or_code) 
 let rewrite_static_const_group kinds uses (group : Flambda.static_const_group) =
   Flambda.Static_const_group.map ~f:(rewrite_static_const_or_code kinds uses) group
 
+let rewrite_set_of_closures bound kinds uses value_slots alloc_mode function_decls =
+            let slot_is_used slot =
+              List.exists (fun bv ->
+                  match Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv)) with
+                  | None | Some Bottom -> false
+                  | Some Top -> true
+                  | Some (Fields (_, m)) -> Dep_solver.Field.Map.mem slot m
+                ) bound
+            in
+            let value_slots = Value_slot.Map.filter (fun slot _ -> slot_is_used (Value_slot slot)) value_slots in
+            (* let dummy_code_id = Code_id.create ~name:"dummy_code_id" Compilation_unit.dummy in *)
+            let function_decls =
+              Function_declarations.create
+                (Function_slot.Lmap.filter (fun slot _ -> slot_is_used (Function_slot slot))
+                (Function_declarations.funs_in_order function_decls))
+               in
+            (* TODO remove unused function slots as well *)
+              Set_of_closures.create ~value_slots alloc_mode function_decls
+
+
 let rewrite_named kinds uses (named : Flambda.named) =
   match named with
   | Simple simple -> Flambda.Named.create_simple (rewrite_simple kinds uses simple)
@@ -1486,10 +1509,10 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           | Named defining_expr -> let_.bound_pattern, defining_expr
           | Static_consts group ->
             let bound_static = match let_.bound_pattern with Static l -> l | Set_of_closures _ | Singleton _ -> assert false in
-            let bound_and_group = List.filter_map (fun (((p, _) as arg) : Bound_static.Pattern.t * _) ->
+            let bound_and_group = List.filter_map (fun (((p, e) as arg) : Bound_static.Pattern.t * _) ->
                 match p with
                 | Code code_id ->
-                  if Hashtbl.mem uses (Code_id_or_name.code_id code_id) then Some arg else Some (p, Deleted_code)
+                  if Hashtbl.mem uses (Code_id_or_name.code_id code_id) then Some arg else ((match e with Code { code_metadata ; _ } -> deleted_code := Code_id.Map.add code_id code_metadata !deleted_code | Deleted_code -> () | Static_const _ -> assert false); Some (p, Deleted_code))
                 | Block_like sym -> if Hashtbl.mem uses (Code_id_or_name.symbol sym) then Some arg else None
                 | Set_of_closures m -> if Function_slot.Lmap.exists (fun _ sym -> Hashtbl.mem uses (Code_id_or_name.symbol sym)) m then Some arg else None
               ) (List.combine (Bound_static.to_list bound_static) group)
@@ -1516,6 +1539,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                   Code.create_with_metadata ~params_and_body ~code_metadata
                     ~free_names_of_params_and_body
                 in
+                all_code := Code_id.Map.add (Code.code_id code) code !all_code;
                 Flambda.Static_const_or_code.create_code code
               | Static_const static_const ->
                 Flambda.Static_const_or_code.create_static_const static_const
@@ -1527,27 +1551,10 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
             Bound_pattern.static (Bound_static.create bound_static), Flambda.Named.create_static_consts group
           | Set_of_closures { value_slots; alloc_mode; function_decls } ->
             let bound = match let_.bound_pattern with
-              Set_of_closures s -> s | Static _ | Singleton _ -> assert false
+                Set_of_closures s -> s | Static _ | Singleton _ -> assert false
             in
-            let slot_is_used slot =
-              List.exists (fun bv ->
-                  match Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv)) with
-                  | None | Some Bottom -> false
-                  | Some Top -> true
-                  | Some (Fields (_, m)) -> Dep_solver.Field.Map.mem slot m
-                ) bound
-            in
-            let value_slots = Value_slot.Map.filter (fun slot _ -> slot_is_used (Value_slot slot)) value_slots in
-            (* let dummy_code_id = Code_id.create ~name:"dummy_code_id" Compilation_unit.dummy in
-            let function_decls =
-              Function_declarations.create
-                (Function_slot.Lmap.mapi (fun slot code_id -> if slot_is_used (Function_slot slot) then code_id else dummy_code_id)
-                (Function_declarations.funs_in_order function_decls))
-               in *)
-            (* TODO remove unused function slots as well *)
-            let set_of_closures =
-              Set_of_closures.create ~value_slots alloc_mode function_decls
-            in
+
+            let set_of_closures = rewrite_set_of_closures bound kinds uses value_slots alloc_mode function_decls in
             let_.bound_pattern, Flambda.Named.create_set_of_closures set_of_closures
         in
         let defining_expr = rewrite_named kinds uses defining_expr in
@@ -1600,9 +1607,10 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
 
 let do_print = false
 
-let run (unit : Flambda_unit.t) =
+let run ~cmx_loader (unit : Flambda_unit.t) =
   (* Format.printf "CLEANUP@."; *)
   let dacc = Dacc.empty () in
+  all_code := Code_id.Map.empty;
   let holed, dacc =
     Profile.record_call ~accumulate:false "down" (fun () ->
         let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
@@ -1630,4 +1638,8 @@ let run (unit : Flambda_unit.t) =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds solved_dep holed)
   in
-  unit_with_body unit rebuilt_expr.expr
+  let all_code =
+    Exported_code.add_code ~keep_code:(fun _ -> true) !all_code
+      (Exported_code.mark_as_imported (Flambda_cmx.get_imported_code cmx_loader ()))
+  in
+  unit_with_body unit rebuilt_expr.expr, all_code
