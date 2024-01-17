@@ -1055,10 +1055,11 @@ let unboxed_int32_array_ref arr index dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           let index =
-            (* Need to skip the custom_operations field. We add 2 not 1 since
-               the call to [array_indexing], below, is in terms of 32-bit
-               words. *)
-            add_int index (int ~dbg 2) dbg
+            (* Need to skip the custom_operations field. We add 2 element
+               offsets not 1 since the call to [array_indexing], below, is in
+               terms of 32-bit words. Then we multiply the offset by 2 to get 4
+               since we are manipulating a tagged int. *)
+            add_int index (int ~dbg 4) dbg
           in
           let log2_size_addr = 2 in
           (* N.B. The resulting value will be sign extended by the code
@@ -1072,8 +1073,9 @@ let unboxed_int64_or_nativeint_array_ref arr index dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           let index =
-            (* Need to skip the custom_operations field *)
-            add_int index (int ~dbg 1) dbg
+            (* Need to skip the custom_operations field. 2 not 1 since we are
+               manipulating a tagged int. *)
+            add_int index (int ~dbg 2) dbg
           in
           int_array_ref arr index dbg))
 
@@ -1083,7 +1085,7 @@ let unboxed_int32_array_set arr ~index ~new_value dbg =
           bind "new_value" new_value (fun new_value ->
               let index =
                 (* See comment in [unboxed_int32_array_ref]. *)
-                add_int index (int ~dbg 2) dbg
+                add_int index (int ~dbg 4) dbg
               in
               let log2_size_addr = 2 in
               Cop
@@ -1097,7 +1099,7 @@ let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
           bind "new_value" new_value (fun new_value ->
               let index =
                 (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                add_int index (int ~dbg 1) dbg
+                add_int index (int ~dbg 2) dbg
               in
               int_array_set arr index new_value dbg)))
 
