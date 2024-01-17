@@ -906,37 +906,44 @@ let custom_ops_unboxed_nativeint_array =
 let unboxed_int32_array_length arr dbg =
   (* A dynamic test is needed to determine if the array contains an odd or even
      number of elements *)
-  bind "arr" arr (fun arr ->
-      let custom_ops_var = Backend_var.create_local "custom_ops" in
-      let num_words_var = Backend_var.create_local "num_words" in
-      Clet
-        ( VP.create num_words_var,
-          (* need to subtract so as not to count the custom_operations field *)
-          sub_int (get_size arr dbg) (int ~dbg 1) dbg,
-          Clet
-            ( VP.create custom_ops_var,
-              Cop (mk_load_immut Word_int, [arr], dbg),
-              Cifthenelse
-                ( Cop
-                    ( Ccmpa Ceq,
-                      [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
-                      dbg ),
-                  dbg,
-                  (* unboxed int32 odd *)
-                  (sub_int
-                     (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
-                     (int ~dbg 1))
+  let res =
+    bind "arr" arr (fun arr ->
+        let custom_ops_var = Backend_var.create_local "custom_ops" in
+        let num_words_var = Backend_var.create_local "num_words" in
+        Clet
+          ( VP.create num_words_var,
+            (* need to subtract so as not to count the custom_operations
+               field *)
+            sub_int (get_size arr dbg) (int ~dbg 1) dbg,
+            Clet
+              ( VP.create custom_ops_var,
+                Cop (mk_load_immut Word_int, [arr], dbg),
+                Cifthenelse
+                  ( Cop
+                      ( Ccmpa Ceq,
+                        [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
+                        dbg ),
                     dbg,
-                  dbg,
-                  (* assumed to be unboxed int32 even *)
-                  mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
-                  dbg,
-                  Any ) ) ))
+                    (* unboxed int32 odd *)
+                    (sub_int
+                       (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                       (int ~dbg 1))
+                      dbg,
+                    dbg,
+                    (* assumed to be unboxed int32 even *)
+                    mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
+                    dbg,
+                    Any ) ) ))
+  in
+  tag_int res dbg
 
 let unboxed_int64_or_nativeint_array_length arr dbg =
-  bind "arr" arr (fun arr ->
-      (* need to subtract so as not to count the custom_operations field *)
-      sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int res dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
