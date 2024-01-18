@@ -134,7 +134,7 @@ high-level description of the allocator is provided by the following slide deck:
 The central element of the algorithm is a priority queue. At the start of the
 algorithm, all temporaries are added to the queue using a heuristics to
 determine their priorities. The main loop of the algorithm then extracts the
-temporary with the highest priority tan tries to assign it to a hardware
+temporary with the highest priority and tries to assign it to a hardware
 register. If no hardware registers are available for the temporary, there are
 three possible ways to progress towards a solution:
 
