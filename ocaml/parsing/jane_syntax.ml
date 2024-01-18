@@ -211,7 +211,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
     let structure_item_of_none =
       { pstr_desc =
           Pstr_attribute
-            { attr_name = Location.mknoloc "none";
+            { attr_name = Location.mknoloc "jane.none";
               attr_payload = PStr [];
               attr_loc = Location.none
             };
@@ -278,7 +278,8 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         | _ -> raise Unexpected
 
       let is_none_structure_item = function
-        | { pstr_desc = Pstr_attribute { attr_name = { txt = "none" } } } ->
+        | { pstr_desc = Pstr_attribute { attr_name = { txt = "jane.none" } } }
+          ->
           true
         | _ -> false
 
