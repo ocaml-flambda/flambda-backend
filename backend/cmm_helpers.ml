@@ -892,51 +892,62 @@ let array_indexing ?typ log2size ptr ofs dbg =
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
 let custom_ops_unboxed_int32_odd_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_odd_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_odd_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_int32_even_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int32_even_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_even_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_int64_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_int64_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int64_array_ops", Debuginfo.none)
 
 let custom_ops_unboxed_nativeint_array =
-  Cconst_symbol (Cmm.global_symbol "_unboxed_nativeint_array", Debuginfo.none)
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
 let unboxed_int32_array_length arr dbg =
   (* A dynamic test is needed to determine if the array contains an odd or even
      number of elements *)
-  bind "arr" arr (fun arr ->
-      let custom_ops_var = Backend_var.create_local "custom_ops" in
-      let num_words_var = Backend_var.create_local "num_words" in
-      Clet
-        ( VP.create num_words_var,
-          (* need to subtract so as not to count the custom_operations field *)
-          sub_int (get_size arr dbg) (int ~dbg 1) dbg,
-          Clet
-            ( VP.create custom_ops_var,
-              Cop (mk_load_immut Word_int, [arr], dbg),
-              Cifthenelse
-                ( Cop
-                    ( Ccmpa Ceq,
-                      [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
-                      dbg ),
-                  dbg,
-                  (* unboxed int32 odd *)
-                  (sub_int
-                     (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
-                     (int ~dbg 1))
+  let res =
+    bind "arr" arr (fun arr ->
+        let custom_ops_var = Backend_var.create_local "custom_ops" in
+        let num_words_var = Backend_var.create_local "num_words" in
+        Clet
+          ( VP.create num_words_var,
+            (* need to subtract so as not to count the custom_operations
+               field *)
+            sub_int (get_size arr dbg) (int ~dbg 1) dbg,
+            Clet
+              ( VP.create custom_ops_var,
+                Cop (mk_load_immut Word_int, [arr], dbg),
+                Cifthenelse
+                  ( Cop
+                      ( Ccmpa Ceq,
+                        [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
+                        dbg ),
                     dbg,
-                  dbg,
-                  (* assumed to be unboxed int32 even *)
-                  mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
-                  dbg,
-                  Any ) ) ))
+                    (* unboxed int32 odd *)
+                    (sub_int
+                       (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                       (int ~dbg 1))
+                      dbg,
+                    dbg,
+                    (* assumed to be unboxed int32 even *)
+                    mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
+                    dbg,
+                    Any ) ) ))
+  in
+  tag_int res dbg
 
 let unboxed_int64_or_nativeint_array_length arr dbg =
-  bind "arr" arr (fun arr ->
-      (* need to subtract so as not to count the custom_operations field *)
-      sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int res dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -1048,10 +1059,11 @@ let unboxed_int32_array_ref arr index dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           let index =
-            (* Need to skip the custom_operations field. We add 2 not 1 since
-               the call to [array_indexing], below, is in terms of 32-bit
-               words. *)
-            add_int index (int ~dbg 2) dbg
+            (* Need to skip the custom_operations field. We add 2 element
+               offsets not 1 since the call to [array_indexing], below, is in
+               terms of 32-bit words. Then we multiply the offset by 2 to get 4
+               since we are manipulating a tagged int. *)
+            add_int index (int ~dbg 4) dbg
           in
           let log2_size_addr = 2 in
           (* N.B. The resulting value will be sign extended by the code
@@ -1065,8 +1077,9 @@ let unboxed_int64_or_nativeint_array_ref arr index dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           let index =
-            (* Need to skip the custom_operations field *)
-            add_int index (int ~dbg 1) dbg
+            (* Need to skip the custom_operations field. 2 not 1 since we are
+               manipulating a tagged int. *)
+            add_int index (int ~dbg 2) dbg
           in
           int_array_ref arr index dbg))
 
@@ -1076,7 +1089,7 @@ let unboxed_int32_array_set arr ~index ~new_value dbg =
           bind "new_value" new_value (fun new_value ->
               let index =
                 (* See comment in [unboxed_int32_array_ref]. *)
-                add_int index (int ~dbg 2) dbg
+                add_int index (int ~dbg 4) dbg
               in
               let log2_size_addr = 2 in
               Cop
@@ -1090,7 +1103,7 @@ let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
           bind "new_value" new_value (fun new_value ->
               let index =
                 (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                add_int index (int ~dbg 1) dbg
+                add_int index (int ~dbg 2) dbg
               in
               int_array_set arr index new_value dbg)))
 
