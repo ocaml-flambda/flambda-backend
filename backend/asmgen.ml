@@ -247,6 +247,7 @@ let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
 
 type register_allocator =
   | Upstream
+  | GI
   | IRC
   | LS
 
@@ -255,6 +256,7 @@ let default_allocator = Upstream
 let register_allocator fd : register_allocator =
   match String.lowercase_ascii !Flambda_backend_flags.regalloc with
   | "cfg" -> if should_use_linscan fd then LS else IRC
+  | "gi" -> GI
   | "irc" -> IRC
   | "ls" -> LS
   | "upstream" -> Upstream
@@ -285,7 +287,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
-    | ((IRC | LS) as regalloc) ->
+      | ((GI | IRC | LS) as regalloc) ->
       fd
       ++ Profile.record ~accumulate:true "cfg" (fun fd ->
         let cfg =
@@ -299,6 +301,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         in
         cfg
         ++ begin match regalloc with
+          | GI -> Profile.record ~accumulate:true "cfg_gi" Regalloc_gi.run
           | IRC -> Profile.record ~accumulate:true "cfg_irc" Regalloc_irc.run
           | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
