@@ -267,7 +267,7 @@ module Continuation_param_aliases = struct
 
   type t =
     { removed_aliased_params_and_extra_params : Variable.Set.t;
-      lets_to_introduce : Variable.t Variable.Map.t;
+      lets_to_introduce : Simple.t Variable.Map.t;
       extra_args_for_aliases : Variable.Set.t;
       recursive_continuation_wrapper : recursive_continuation_wrapper
     }
@@ -288,7 +288,7 @@ module Continuation_param_aliases = struct
         %a\
        )@]"
       Variable.Set.print removed_aliased_params_and_extra_params
-      (Variable.Map.print Variable.print) lets_to_introduce
+      (Variable.Map.print Simple.print) lets_to_introduce
       Variable.Set.print extra_args_for_aliases
       pp_wrapper recursive_continuation_wrapper
 end
