@@ -173,8 +173,8 @@ static void st_masterlock_release(st_masterlock * m)
   m->busy = 0;
   // CR ocaml 5 domains: we assume no backup thread
   // st_bt_lock_release(m);
-  custom_condvar_signal(&m->is_free);
   pthread_mutex_unlock(&m->lock);
+  custom_condvar_signal(&m->is_free);
 
   return;
 }
@@ -204,8 +204,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   }
 
   m->busy = 0;
-  atomic_fetch_add(&m->waiters, +1);
   custom_condvar_signal(&m->is_free);
+  atomic_fetch_add(&m->waiters, +1);
   /* releasing the domain lock but not triggering bt messaging
      messaging the bt should not be required because yield assumes
      that a thread will resume execution (be it the yielding thread
