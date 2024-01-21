@@ -2826,3 +2826,25 @@ let foo b =
 val foo : bool -> local_ int option = <fun>
 |}]
 
+type f = local_ local_ string -> string
+[%%expect{|
+Line 1, characters 16-22:
+1 | type f = local_ local_ string -> string
+                    ^^^^^^
+Error: The locality axis has already been specified.
+|}]
+
+let foo () =
+  let local_ local_ _x = "hello" in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo (local_ local_ _) = ()
+[%%expect{|
+Line 1, characters 16-22:
+1 | let foo (local_ local_ _) = ()
+                    ^^^^^^
+Error: The locality axis has already been specified.
+|}]

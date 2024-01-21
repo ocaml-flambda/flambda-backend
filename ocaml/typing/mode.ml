@@ -13,6 +13,32 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Axis = struct
+  type t =
+    [ `Locality
+    | `Regionality
+    | `Uniqueness
+    | `Linearity ]
+
+  let string_of = function
+    | `Locality -> "locality"
+    | `Regionality -> "regionality"
+    | `Uniqueness -> "uniqueness"
+    | `Linearity -> "linearity"
+end
+
+module Global_flag = struct
+  type t =
+    | Global
+    | Unrestricted
+
+  let compare flag0 flag1 =
+    match flag0, flag1 with
+    | Global, Unrestricted -> -1
+    | Unrestricted, Global -> 1
+    | Global, Global | Unrestricted, Unrestricted -> 0
+end
+
 type 'a var =
   { mutable upper : 'a;
     mutable lower : 'a;
@@ -794,6 +820,26 @@ end
 module Alloc = struct
   module Const = struct
     type t = (Locality.Const.t, Uniqueness.Const.t, Linearity.Const.t) modes
+
+    module Option = struct
+      type some = t
+
+      type t =
+        ( Locality.Const.t option,
+          Uniqueness.Const.t option,
+          Linearity.Const.t option )
+        modes
+
+      let none = { locality = None; uniqueness = None; linearity = None }
+
+      let value opt ~default =
+        let locality = Option.value opt.locality ~default:default.locality in
+        let uniqueness =
+          Option.value opt.uniqueness ~default:default.uniqueness
+        in
+        let linearity = Option.value opt.linearity ~default:default.linearity in
+        { locality; uniqueness; linearity }
+    end
 
     let legacy =
       { locality = Locality.Const.legacy;

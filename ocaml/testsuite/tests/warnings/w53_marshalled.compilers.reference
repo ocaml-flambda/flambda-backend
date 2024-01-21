@@ -428,557 +428,487 @@ File "w53.ml", line 226, characters 39-48:
                                              ^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "local_opt" attribute cannot appear in this context
 
-File "w53.ml", line 230, characters 20-25:
-230 |   type 'a t1 = 'a [@local] (* rejected *)
-                          ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 231, characters 21-27:
-231 |   type 'a t1' = 'a [@global] (* rejected *)
-                           ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 233, characters 24-29:
-233 |   type t2 = { x : int [@local] } (* rejected *)
-                              ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 236, characters 27-32:
-236 |   val x : 'a list -> ('a [@local]) list (* rejected *)
-                                 ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 237, characters 28-34:
-237 |   val x' : 'a list -> ('a [@global]) list (* rejected *)
-                                  ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 240, characters 33-39:
-240 |   val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
-                                       ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 242, characters 16-21:
-242 |   val z : 'a [@@local] (* rejected *)
-                      ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 243, characters 17-23:
-243 |   val z' : 'a [@@global] (* rejected *)
-                       ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 245, characters 17-22:
-245 |   val w : 'a [@@@local] (* rejected *)
-                       ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 246, characters 18-24:
-246 |   val w' : 'a [@@@global] (* rejected *)
-                        ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 250, characters 20-25:
-250 |   type 'a t1 = 'a [@local] (* rejected *)
-                          ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 251, characters 21-27:
-251 |   type 'a t1' = 'a [@global] (* rejected *)
-                           ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 253, characters 24-29:
-253 |   type t2 = { x : int [@local] } (* rejected *)
-                              ^^^^^
-Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
-
-File "w53.ml", line 257, characters 13-19:
-257 |   let g (a [@global]) = a (* rejected *)
-                   ^^^^^^
-Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
-
-File "w53.ml", line 262, characters 20-24:
-262 |   type 'a t1 = 'a [@tail] (* rejected *)
+File "w53.ml", line 230, characters 20-24:
+230 |   type 'a t1 = 'a [@tail] (* rejected *)
                           ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 263, characters 21-28:
-263 |   type 'a t1' = 'a [@nontail] (* rejected *)
+File "w53.ml", line 231, characters 21-28:
+231 |   type 'a t1' = 'a [@nontail] (* rejected *)
                            ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 265, characters 24-28:
-265 |   type t2 = { x : int [@tail] } (* rejected *)
+File "w53.ml", line 233, characters 24-28:
+233 |   type t2 = { x : int [@tail] } (* rejected *)
                               ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 266, characters 25-32:
-266 |   type t2' = { x : int [@nontail] } (* rejected *)
+File "w53.ml", line 234, characters 25-32:
+234 |   type t2' = { x : int [@nontail] } (* rejected *)
                                ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 268, characters 32-36:
-268 |   val y : 'a -> f:(('a -> 'b) [@tail]) -> 'b (* rejected *)
+File "w53.ml", line 236, characters 32-36:
+236 |   val y : 'a -> f:(('a -> 'b) [@tail]) -> 'b (* rejected *)
                                       ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 269, characters 33-40:
-269 |   val y' : 'a -> f:(('a -> 'b) [@nontail]) -> 'b (* rejected *)
+File "w53.ml", line 237, characters 33-40:
+237 |   val y' : 'a -> f:(('a -> 'b) [@nontail]) -> 'b (* rejected *)
                                        ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 271, characters 16-20:
-271 |   val z : 'a [@@tail] (* rejected *)
+File "w53.ml", line 239, characters 16-20:
+239 |   val z : 'a [@@tail] (* rejected *)
                       ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 272, characters 17-24:
-272 |   val z' : 'a [@@nontail] (* rejected *)
+File "w53.ml", line 240, characters 17-24:
+240 |   val z' : 'a [@@nontail] (* rejected *)
                        ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 274, characters 6-10:
-274 |   [@@@tail] (* rejected *)
+File "w53.ml", line 242, characters 6-10:
+242 |   [@@@tail] (* rejected *)
             ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 275, characters 6-13:
-275 |   [@@@nontail] (* rejected *)
+File "w53.ml", line 243, characters 6-13:
+243 |   [@@@nontail] (* rejected *)
             ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 279, characters 13-17:
-279 |   let f (a [@tail]) = a (* rejected *)
+File "w53.ml", line 247, characters 13-17:
+247 |   let f (a [@tail]) = a (* rejected *)
                    ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 280, characters 14-21:
-280 |   let f' (a [@nontail]) = a (* rejected *)
+File "w53.ml", line 248, characters 14-21:
+248 |   let f' (a [@nontail]) = a (* rejected *)
                     ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 282, characters 8-12:
-282 |   let [@tail] g a = a (* rejected *)
+File "w53.ml", line 250, characters 8-12:
+250 |   let [@tail] g a = a (* rejected *)
               ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 283, characters 8-15:
-283 |   let [@nontail] g' a = a (* rejected *)
+File "w53.ml", line 251, characters 8-15:
+251 |   let [@nontail] g' a = a (* rejected *)
               ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 285, characters 16-20:
-285 |   let h a = a [@tail] (* rejected *)
+File "w53.ml", line 253, characters 16-20:
+253 |   let h a = a [@tail] (* rejected *)
                       ^^^^
 Warning 53 [misplaced-attribute]: the "tail" attribute cannot appear in this context
 
-File "w53.ml", line 286, characters 17-24:
-286 |   let h' a = a [@nontail] (* rejected *)
+File "w53.ml", line 254, characters 17-24:
+254 |   let h' a = a [@nontail] (* rejected *)
                        ^^^^^^^
 Warning 53 [misplaced-attribute]: the "nontail" attribute cannot appear in this context
 
-File "w53.ml", line 293, characters 21-28:
-293 |   type 'a t1 = 'a [@@noalloc] (* rejected *)
+File "w53.ml", line 261, characters 21-28:
+261 |   type 'a t1 = 'a [@@noalloc] (* rejected *)
                            ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 294, characters 19-26:
-294 |   type s1 = Foo1 [@noalloc] (* rejected *)
+File "w53.ml", line 262, characters 19-26:
+262 |   type s1 = Foo1 [@noalloc] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 295, characters 19-26:
-295 |   val x : int64 [@@noalloc] (* rejected *)
+File "w53.ml", line 263, characters 19-26:
+263 |   val x : int64 [@@noalloc] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 297, characters 24-31:
-297 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
+File "w53.ml", line 265, characters 24-31:
+265 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
                               ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 297, characters 46-53:
-297 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
+File "w53.ml", line 265, characters 46-53:
+265 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
                                                     ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 302, characters 21-28:
-302 |   type 'a t1 = 'a [@@noalloc] (* rejected *)
+File "w53.ml", line 270, characters 21-28:
+270 |   type 'a t1 = 'a [@@noalloc] (* rejected *)
                            ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 303, characters 19-26:
-303 |   type s1 = Foo1 [@noalloc] (* rejected *)
+File "w53.ml", line 271, characters 19-26:
+271 |   type s1 = Foo1 [@noalloc] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 304, characters 25-32:
-304 |   let x : int64 = 42L [@@noalloc] (* rejected *)
+File "w53.ml", line 272, characters 25-32:
+272 |   let x : int64 = 42L [@@noalloc] (* rejected *)
                                ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 306, characters 24-31:
-306 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
+File "w53.ml", line 274, characters 24-31:
+274 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
                               ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 306, characters 46-53:
-306 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
+File "w53.ml", line 274, characters 46-53:
+274 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
                                                     ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 
-File "w53.ml", line 311, characters 21-29:
-311 |   type 'a t1 = 'a [@@untagged] (* rejected *)
+File "w53.ml", line 279, characters 21-29:
+279 |   type 'a t1 = 'a [@@untagged] (* rejected *)
                            ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 312, characters 19-27:
-312 |   type s1 = Foo1 [@untagged] (* rejected *)
+File "w53.ml", line 280, characters 19-27:
+280 |   type s1 = Foo1 [@untagged] (* rejected *)
                          ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 313, characters 17-25:
-313 |   val x : int [@@untagged] (* rejected *)
+File "w53.ml", line 281, characters 17-25:
+281 |   val x : int [@@untagged] (* rejected *)
                        ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 320, characters 21-29:
-320 |   type 'a t1 = 'a [@@untagged] (* rejected *)
+File "w53.ml", line 288, characters 21-29:
+288 |   type 'a t1 = 'a [@@untagged] (* rejected *)
                            ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 321, characters 19-27:
-321 |   type s1 = Foo1 [@untagged] (* rejected *)
+File "w53.ml", line 289, characters 19-27:
+289 |   type s1 = Foo1 [@untagged] (* rejected *)
                          ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 322, characters 22-30:
-322 |   let x : int = 42 [@@untagged] (* rejected *)
+File "w53.ml", line 290, characters 22-30:
+290 |   let x : int = 42 [@@untagged] (* rejected *)
                             ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
 
-File "w53.ml", line 329, characters 21-25:
-329 |   type 'a t1 = 'a [@@poll error] (* rejected *)
+File "w53.ml", line 297, characters 21-25:
+297 |   type 'a t1 = 'a [@@poll error] (* rejected *)
                            ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 330, characters 19-23:
-330 |   type s1 = Foo1 [@poll error] (* rejected *)
+File "w53.ml", line 298, characters 19-23:
+298 |   type s1 = Foo1 [@poll error] (* rejected *)
                          ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 331, characters 19-23:
-331 |   val x : int64 [@@poll error] (* rejected *)
+File "w53.ml", line 299, characters 19-23:
+299 |   val x : int64 [@@poll error] (* rejected *)
                          ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 333, characters 24-28:
-333 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
+File "w53.ml", line 301, characters 24-28:
+301 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
                               ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 333, characters 49-53:
-333 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
+File "w53.ml", line 301, characters 49-53:
+301 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
                                                        ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 335, characters 39-43:
-335 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+File "w53.ml", line 303, characters 39-43:
+303 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
                                              ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 339, characters 21-25:
-339 |   type 'a t1 = 'a [@@poll error] (* rejected *)
+File "w53.ml", line 307, characters 21-25:
+307 |   type 'a t1 = 'a [@@poll error] (* rejected *)
                            ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 340, characters 19-23:
-340 |   type s1 = Foo1 [@poll error] (* rejected *)
+File "w53.ml", line 308, characters 19-23:
+308 |   type s1 = Foo1 [@poll error] (* rejected *)
                          ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 341, characters 25-29:
-341 |   let x : int64 = 42L [@@poll error] (* rejected *)
+File "w53.ml", line 309, characters 25-29:
+309 |   let x : int64 = 42L [@@poll error] (* rejected *)
                                ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 344, characters 24-28:
-344 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
+File "w53.ml", line 312, characters 24-28:
+312 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
                               ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 344, characters 49-53:
-344 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
+File "w53.ml", line 312, characters 49-53:
+312 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
                                                        ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 346, characters 39-43:
-346 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+File "w53.ml", line 314, characters 39-43:
+314 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
                                              ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
 
-File "w53.ml", line 356, characters 17-22:
-356 |   let f2 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
+File "w53.ml", line 324, characters 17-22:
+324 |   let f2 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
                        ^^^^^
 Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context
 
-File "w53.ml", line 360, characters 21-28:
-360 |   type 'a t1 = 'a [@@builtin] (* rejected *)
+File "w53.ml", line 328, characters 21-28:
+328 |   type 'a t1 = 'a [@@builtin] (* rejected *)
                            ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 361, characters 19-26:
-361 |   type s1 = Foo1 [@builtin] (* rejected *)
+File "w53.ml", line 329, characters 19-26:
+329 |   type s1 = Foo1 [@builtin] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 362, characters 17-24:
-362 |   val x : int [@@builtin] (* rejected *)
+File "w53.ml", line 330, characters 17-24:
+330 |   val x : int [@@builtin] (* rejected *)
                        ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 364, characters 22-29:
-364 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+File "w53.ml", line 332, characters 22-29:
+332 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
                             ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 364, characters 42-49:
-364 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+File "w53.ml", line 332, characters 42-49:
+332 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
                                                 ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 369, characters 21-28:
-369 |   type 'a t1 = 'a [@@builtin] (* rejected *)
+File "w53.ml", line 337, characters 21-28:
+337 |   type 'a t1 = 'a [@@builtin] (* rejected *)
                            ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 370, characters 19-26:
-370 |   type s1 = Foo1 [@builtin] (* rejected *)
+File "w53.ml", line 338, characters 19-26:
+338 |   type s1 = Foo1 [@builtin] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 371, characters 22-29:
-371 |   let x : int = 42 [@@builtin] (* rejected *)
+File "w53.ml", line 339, characters 22-29:
+339 |   let x : int = 42 [@@builtin] (* rejected *)
                             ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 373, characters 22-29:
-373 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+File "w53.ml", line 341, characters 22-29:
+341 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
                             ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 373, characters 42-49:
-373 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
+File "w53.ml", line 341, characters 42-49:
+341 |   external y : (int [@builtin]) -> (int [@builtin]) = "x" "y" (* rejected *)
                                                 ^^^^^^^
 Warning 53 [misplaced-attribute]: the "builtin" attribute cannot appear in this context
 
-File "w53.ml", line 378, characters 21-31:
-378 |   type 'a t1 = 'a [@@no_effects] (* rejected *)
+File "w53.ml", line 346, characters 21-31:
+346 |   type 'a t1 = 'a [@@no_effects] (* rejected *)
                            ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 379, characters 19-29:
-379 |   type s1 = Foo1 [@no_effects] (* rejected *)
+File "w53.ml", line 347, characters 19-29:
+347 |   type s1 = Foo1 [@no_effects] (* rejected *)
                          ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 380, characters 17-27:
-380 |   val x : int [@@no_effects] (* rejected *)
+File "w53.ml", line 348, characters 17-27:
+348 |   val x : int [@@no_effects] (* rejected *)
                        ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 382, characters 22-32:
-382 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 350, characters 22-32:
+350 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 382, characters 45-55:
-382 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 350, characters 45-55:
+350 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
                                                    ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 387, characters 21-31:
-387 |   type 'a t1 = 'a [@@no_effects] (* rejected *)
+File "w53.ml", line 355, characters 21-31:
+355 |   type 'a t1 = 'a [@@no_effects] (* rejected *)
                            ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 388, characters 19-29:
-388 |   type s1 = Foo1 [@no_effects] (* rejected *)
+File "w53.ml", line 356, characters 19-29:
+356 |   type s1 = Foo1 [@no_effects] (* rejected *)
                          ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 389, characters 22-32:
-389 |   let x : int = 42 [@@no_effects] (* rejected *)
+File "w53.ml", line 357, characters 22-32:
+357 |   let x : int = 42 [@@no_effects] (* rejected *)
                             ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 391, characters 22-32:
-391 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 359, characters 22-32:
+359 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 391, characters 45-55:
-391 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 359, characters 45-55:
+359 |   external y : (int [@no_effects]) -> (int [@no_effects]) = "x" "y" (* rejected *)
                                                    ^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_effects" attribute cannot appear in this context
 
-File "w53.ml", line 396, characters 21-33:
-396 |   type 'a t1 = 'a [@@no_coeffects] (* rejected *)
+File "w53.ml", line 364, characters 21-33:
+364 |   type 'a t1 = 'a [@@no_coeffects] (* rejected *)
                            ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 397, characters 19-31:
-397 |   type s1 = Foo1 [@no_coeffects] (* rejected *)
+File "w53.ml", line 365, characters 19-31:
+365 |   type s1 = Foo1 [@no_coeffects] (* rejected *)
                          ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 398, characters 17-29:
-398 |   val x : int [@@no_coeffects] (* rejected *)
+File "w53.ml", line 366, characters 17-29:
+366 |   val x : int [@@no_coeffects] (* rejected *)
                        ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 400, characters 22-34:
-400 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+File "w53.ml", line 368, characters 22-34:
+368 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 400, characters 47-59:
-400 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+File "w53.ml", line 368, characters 47-59:
+368 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
                                                      ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 405, characters 21-33:
-405 |   type 'a t1 = 'a [@@no_coeffects] (* rejected *)
+File "w53.ml", line 373, characters 21-33:
+373 |   type 'a t1 = 'a [@@no_coeffects] (* rejected *)
                            ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 406, characters 19-31:
-406 |   type s1 = Foo1 [@no_coeffects] (* rejected *)
+File "w53.ml", line 374, characters 19-31:
+374 |   type s1 = Foo1 [@no_coeffects] (* rejected *)
                          ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 407, characters 22-34:
-407 |   let x : int = 42 [@@no_coeffects] (* rejected *)
+File "w53.ml", line 375, characters 22-34:
+375 |   let x : int = 42 [@@no_coeffects] (* rejected *)
                             ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 409, characters 22-34:
-409 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+File "w53.ml", line 377, characters 22-34:
+377 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 409, characters 47-59:
-409 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
+File "w53.ml", line 377, characters 47-59:
+377 |   external y : (int [@no_coeffects]) -> (int [@no_coeffects]) = "x" "y" (* rejected *)
                                                      ^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "no_coeffects" attribute cannot appear in this context
 
-File "w53.ml", line 414, characters 21-44:
-414 |   type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
+File "w53.ml", line 382, characters 21-44:
+382 |   type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
                            ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 415, characters 19-42:
-415 |   type s1 = Foo1 [@only_generative_effects] (* rejected *)
+File "w53.ml", line 383, characters 19-42:
+383 |   type s1 = Foo1 [@only_generative_effects] (* rejected *)
                          ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 416, characters 17-40:
-416 |   val x : int [@@only_generative_effects] (* rejected *)
+File "w53.ml", line 384, characters 17-40:
+384 |   val x : int [@@only_generative_effects] (* rejected *)
                        ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 418, characters 22-45:
-418 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 386, characters 22-45:
+386 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 418, characters 58-81:
-418 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 386, characters 58-81:
+386 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
                                                                 ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 423, characters 21-44:
-423 |   type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
+File "w53.ml", line 391, characters 21-44:
+391 |   type 'a t1 = 'a [@@only_generative_effects] (* rejected *)
                            ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 424, characters 19-42:
-424 |   type s1 = Foo1 [@only_generative_effects] (* rejected *)
+File "w53.ml", line 392, characters 19-42:
+392 |   type s1 = Foo1 [@only_generative_effects] (* rejected *)
                          ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 425, characters 22-45:
-425 |   let x : int = 42 [@@only_generative_effects] (* rejected *)
+File "w53.ml", line 393, characters 22-45:
+393 |   let x : int = 42 [@@only_generative_effects] (* rejected *)
                             ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 427, characters 22-45:
-427 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 395, characters 22-45:
+395 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
                             ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 427, characters 58-81:
-427 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
+File "w53.ml", line 395, characters 58-81:
+395 |   external y : (int [@only_generative_effects]) -> (int [@only_generative_effects]) = "x" "y" (* rejected *)
                                                                 ^^^^^^^^^^^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "only_generative_effects" attribute cannot appear in this context
 
-File "w53.ml", line 432, characters 21-34:
-432 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
+File "w53.ml", line 400, characters 21-34:
+400 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
                            ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 433, characters 19-32:
-433 |   type s1 = Foo1 [@error_message ""] (* rejected *)
+File "w53.ml", line 401, characters 19-32:
+401 |   type s1 = Foo1 [@error_message ""] (* rejected *)
                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 434, characters 17-30:
-434 |   val x : int [@@error_message ""] (* rejected *)
+File "w53.ml", line 402, characters 17-30:
+402 |   val x : int [@@error_message ""] (* rejected *)
                        ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 436, characters 22-35:
-436 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 404, characters 22-35:
+404 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                             ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 436, characters 51-64:
-436 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 404, characters 51-64:
+404 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                                                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 438, characters 39-52:
-438 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+File "w53.ml", line 406, characters 39-52:
+406 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
                                              ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 442, characters 21-34:
-442 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
+File "w53.ml", line 410, characters 21-34:
+410 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
                            ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 443, characters 19-32:
-443 |   type s1 = Foo1 [@error_message ""] (* rejected *)
+File "w53.ml", line 411, characters 19-32:
+411 |   type s1 = Foo1 [@error_message ""] (* rejected *)
                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 444, characters 22-35:
-444 |   let x : int = 42 [@@error_message ""] (* rejected *)
+File "w53.ml", line 412, characters 22-35:
+412 |   let x : int = 42 [@@error_message ""] (* rejected *)
                             ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 446, characters 22-35:
-446 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 414, characters 22-35:
+414 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                             ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 446, characters 51-64:
-446 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 414, characters 51-64:
+414 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                                                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 448, characters 39-52:
-448 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+File "w53.ml", line 416, characters 39-52:
+416 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
                                              ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context

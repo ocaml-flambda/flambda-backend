@@ -100,6 +100,46 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
+module Mode_expr : sig
+  (** [Mode_expr] appears in several places:
+  - let local_ x = ...
+  - local_ exp
+  - local string -> string
+  - {global_ x : int}
+
+  Note that in the first two cases, axes other than locality are not specified;
+  in the second case, other axes are defaulted to legacy. In the last case, we
+  are specifying modalities.
+
+  In the future the three annotations will be quite different, but for now they
+  are all lists of modes/modalities. [Typemexp] has the three different
+  interpretations of the annotation.
+
+  (TODO: in the future we will have mutable(...), which is similar to the second
+  occurrence above and should be covered by this module)
+  *)
+  type t = string Location.loc list Location.loc
+
+  val empty : t
+
+  val singleton : string -> Location.t -> t
+
+  val embedded_name_str : string
+
+  val is_empty : t -> bool
+
+  val partition_attrs :
+    Parsetree.attributes -> Parsetree.attributes * Parsetree.attributes
+
+  val attr_of : t -> Parsetree.attribute
+
+  val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
+
+  val payload_of : t -> Parsetree.payload
+
+  val of_payload : loc:Location.t -> Parsetree.payload -> t
+end
+
 module N_ary_functions : sig
   (** These types use the [P] prefix to match how they are represented in the
       upstream compiler *)
@@ -169,15 +209,8 @@ module N_ary_functions : sig
       has a type constraint on the body, e.g.
       [let local_ f x : int -> int = ...].
   *)
-  type mode_annotation =
-    | Local
-    | Unique
-    | Once
-
-  val mode_annotation_equal : mode_annotation -> mode_annotation -> bool
-
   type function_constraint =
-    { mode_annotations : mode_annotation Location.loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 

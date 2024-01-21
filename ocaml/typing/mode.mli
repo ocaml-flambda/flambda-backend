@@ -19,6 +19,24 @@ val undo_changes : changes -> unit
 
 val change_log : (changes -> unit) ref
 
+module Axis : sig
+  type t =
+    [ `Locality
+    | `Regionality
+    | `Uniqueness
+    | `Linearity ]
+
+  val string_of : t -> string
+end
+
+module Global_flag : sig
+  type t =
+    | Global
+    | Unrestricted
+
+  val compare : t -> t -> int
+end
+
 module Locality : sig
   module Const : sig
     type t =
@@ -243,6 +261,20 @@ type ('a, 'b, 'c) modes =
 module Alloc : sig
   module Const : sig
     type t = (Locality.Const.t, Uniqueness.Const.t, Linearity.Const.t) modes
+
+    module Option : sig
+      type some = t
+
+      type t =
+        ( Locality.Const.t option,
+          Uniqueness.Const.t option,
+          Linearity.Const.t option )
+        modes
+
+      val none : t
+
+      val value : t -> default:some -> some
+    end
 
     val legacy : t
 

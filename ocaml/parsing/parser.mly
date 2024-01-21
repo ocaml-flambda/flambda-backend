@@ -25,7 +25,6 @@
 %{
 
 open Asttypes
-open Jane_asttypes
 open Longident
 open Parsetree
 open Ast_helper
@@ -150,117 +149,40 @@ let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
 
-let local_ext_loc loc = mkloc "extension.local" loc
-let unique_ext_loc loc = mkloc "extension.unique" loc
-let once_ext_loc loc = mkloc "extension.once" loc
-
-let local_attr loc =
-  mk_attr ~loc (local_ext_loc loc) (PStr [])
-
-let unique_attr loc =
-  mk_attr ~loc (unique_ext_loc loc) (PStr [])
-
-let once_attr loc =
-  mk_attr ~loc (once_ext_loc loc) (PStr [])
-
-let local_extension loc =
-  Exp.mk (Pexp_extension(local_ext_loc loc, PStr []))
-
-let unique_extension loc =
-  Exp.mk (Pexp_extension(unique_ext_loc loc, PStr []))
-
-let once_extension loc =
-  Exp.mk (Pexp_extension(once_ext_loc loc, PStr []))
-
-let mkexp_stack ~loc ~kwd_loc exp =
-  Exp.mk ~loc (Pexp_apply(local_extension kwd_loc, [Nolabel, exp]))
-
-let mkexp_unique ~loc ~kwd_loc exp =
-  Exp.mk ~loc (Pexp_apply(unique_extension kwd_loc, [Nolabel, exp]))
-
-let mkexp_once ~loc ~kwd_loc exp =
-  Exp.mk ~loc (Pexp_apply(once_extension kwd_loc, [Nolabel, exp]))
-
-let mkpat_stack pat loc =
-  {pat with
-   ppat_attributes = local_attr (make_loc loc) :: pat.ppat_attributes}
-
-let mkpat_unique pat loc =
-  {pat with
-   ppat_attributes = unique_attr (make_loc loc) :: pat.ppat_attributes}
-
-let mkpat_once pat loc =
-  {pat with
-   ppat_attributes = once_attr (make_loc loc) :: pat.ppat_attributes}
-
-let mktyp_stack typ loc =
-  {typ with
-   ptyp_attributes = local_attr (make_loc loc) :: typ.ptyp_attributes}
-
-let mktyp_unique typ loc =
-  {typ with
-   ptyp_attributes = unique_attr (make_loc loc) :: typ.ptyp_attributes}
-
-let mktyp_once typ loc =
-  {typ with
-   ptyp_attributes = once_attr (make_loc loc) :: typ.ptyp_attributes}
-
-type mode_annotation = N_ary.mode_annotation =
-  | Local
-  | Unique
-  | Once
-
-(** [loc] is the location to be used for the whole expression including the
-    extension node.  The extension node will always have the location [kwd_loc]. *)
-let exp_with_mode ~loc ~kwd_loc flag exp =
-  match flag with
-  | Local -> mkexp_stack exp ~loc ~kwd_loc
-  | Unique -> mkexp_unique exp ~loc ~kwd_loc
-  | Once -> mkexp_once exp ~loc ~kwd_loc
-
-let exp_with_modes loc modes exp =
-  List.fold_left
-    (fun exp mode -> exp_with_mode mode.txt exp ~loc ~kwd_loc:mode.loc)
-    exp modes
-
-let mkexp_with_mode loc (flag, kwd_loc) exp =
+(* For modes-related attributes, no need to call [register_attr] because they
+result from native syntax which is only parsed at proper places that are
+guaranteed to be used. *)
+let mkexp_with_modes loc modes exp =
+  if Jane_syntax.Mode_expr.is_empty modes then exp
+  else
   let loc = make_loc loc in
-  exp_with_mode ~loc ~kwd_loc:(make_loc kwd_loc) flag exp
+  let payload = Jane_syntax.Mode_expr.payload_of modes in
+  let ext =
+    (* Use the loc of the annotation as the loc of the extension node *)
+    Exp.extension ~loc:modes.loc (
+      Location.mknoloc Jane_syntax.Mode_expr.embedded_name_str,
+      payload
+    )
+  in
+  Exp.apply ~loc ext [Nolabel, exp]
 
-(** [loc] is a location covering all the modes and the expression, and will be
-  used as for all the nested expressions. It is imprecise and taken as ghost. *)
-let ghexp_with_modes loc modes exp =
-  let loc = ghost_loc loc in
-  let modes = List.map (fun (mode, loc) -> mkloc mode (make_loc loc)) modes in
-  exp_with_modes loc modes exp
+let mkpat_with_modes modes pat =
+  if Jane_syntax.Mode_expr.is_empty modes then pat
+  else
+  let attr = Jane_syntax.Mode_expr.attr_of modes in
+  {pat with
+   ppat_attributes = attr :: pat.ppat_attributes}
 
-let mkpat_with_mode = function
-  | Local -> mkpat_stack
-  | Unique -> mkpat_unique
-  | Once -> mkpat_once
+let mktyp_with_modes modes typ =
+  if Jane_syntax.Mode_expr.is_empty modes then typ
+  else
+  let attr = Jane_syntax.Mode_expr.attr_of modes in
+  {typ with
+   ptyp_attributes = attr :: typ.ptyp_attributes}
 
-let mkpat_with_modes flags pat =
-  List.fold_left (fun pat (flag, loc) -> mkpat_with_mode flag pat loc) pat flags
-
-let mktyp_with_mode = function
-  | Local -> mktyp_stack
-  | Unique -> mktyp_unique
-  | Once -> mktyp_once
-
-let mktyp_with_modes flags typ =
-  List.fold_left (fun typ (flag, loc) -> mktyp_with_mode flag typ loc) typ flags
-
-let let_binding_mode_attrs mode_annots =
-  List.map
-    (fun (annot, loc) ->
-       let mk_attr =
-         match annot with
-         | Local -> local_attr
-         | Unique -> unique_attr
-         | Once -> once_attr
-       in
-       mk_attr (make_loc loc))
-    mode_annots
+let let_binding_mode_attrs modes =
+  if Jane_syntax.Mode_expr.is_empty modes then []
+  else [Jane_syntax.Mode_expr.attr_of modes]
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -287,26 +209,19 @@ let maybe_curry_typ typ loc =
       else mktyp_curry typ (make_loc loc)
   | _ -> typ
 
-let global_loc loc = mkloc "extension.global" loc
+let mkld_modality modalities ld =
+  if Jane_syntax.Mode_expr.is_empty modalities
+  then ld
+  else
+  let attr = Jane_syntax.Mode_expr.attr_of modalities in
+  { ld with pld_attributes = attr :: ld.pld_attributes }
 
-let global_attr loc =
-  mk_attr ~loc:loc (global_loc loc) (PStr [])
-
-let mkld_global ld loc =
-  { ld with pld_attributes = global_attr loc :: ld.pld_attributes }
-
-let mkld_global_maybe gbl ld loc =
-  match gbl with
-  | Global -> mkld_global ld loc
-  | Nothing -> ld
-
-let mkcty_global cty loc =
-  { cty with ptyp_attributes = global_attr loc :: cty.ptyp_attributes }
-
-let mkcty_global_maybe gbl cty loc =
-  match gbl with
-  | Global -> mkcty_global cty loc
-  | Nothing -> cty
+let mkcty_modality modalities cty =
+  if Jane_syntax.Mode_expr.is_empty modalities
+  then cty
+  else
+  let attr = Jane_syntax.Mode_expr.attr_of modalities in
+  { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
 
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
@@ -856,7 +771,9 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
     | Some { N_ary.type_constraint; mode_annotations } ->
         let loc = { body.pexp_loc with loc_ghost = true } in
         let body = Exp.mk (mkexp_desc_constraint body type_constraint) ~loc in
-        exp_with_modes loc mode_annotations body
+        let {Location.loc_start; loc_end} = body.pexp_loc in
+        let loc = loc_start, loc_end in
+        mkexp_with_modes loc mode_annotations body
   in
   mk_newtypes ~loc newtypes wrapped_body
 
@@ -2670,30 +2587,30 @@ seq_expr:
   | or_function(fun_seq_expr) { $1 }
 ;
 labeled_simple_pattern:
-    QUESTION LPAREN mode_flags label_let_pattern opt_default RPAREN
+    QUESTION LPAREN mode_expr_legacy label_let_pattern opt_default RPAREN
       { (Optional (fst $4), $5, mkpat_with_modes $3 (snd $4) ) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
-  | OPTLABEL LPAREN mode_flags let_pattern opt_default RPAREN
+  | OPTLABEL LPAREN mode_expr_legacy let_pattern opt_default RPAREN
       { (Optional $1, $5, mkpat_with_modes $3 $4) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
-  | TILDE LPAREN mode_flags label_let_pattern RPAREN
+  | TILDE LPAREN mode_expr_legacy label_let_pattern RPAREN
       { (Labelled (fst $4), None,
          mkpat_with_modes $3 (snd $4) ) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
-  | LABEL LPAREN mode_flag+ pattern RPAREN
+  | LABEL LPAREN mode_expr_legacy_nonempty pattern RPAREN
       { (Labelled $1, None, mkpat_with_modes $3 $4 ) }
   | simple_pattern
       { (Nolabel, None, $1) }
-  | LPAREN mode_flag+ let_pattern RPAREN
+  | LPAREN mode_expr_legacy_nonempty let_pattern RPAREN
       { (Nolabel, None, mkpat_with_modes $2 $3 ) }
   | LABEL LPAREN poly_pattern RPAREN
       { (Labelled $1, None, $3) }
-  | LABEL LPAREN mode_flag+ poly_pattern RPAREN
+  | LABEL LPAREN mode_expr_legacy_nonempty poly_pattern RPAREN
       { (Labelled $1, None, mkpat_with_modes $3 $4) }
   | LPAREN poly_pattern RPAREN
       { (Nolabel, None, $2) }
@@ -2784,7 +2701,7 @@ fun_expr:
           Option.map
             (fun x : N_ary.function_constraint ->
               { type_constraint = Pconstraint x
-              ; mode_annotations = []
+              ; mode_annotations = Jane_syntax.Mode_expr.empty
               })
           $4
         in
@@ -2816,8 +2733,9 @@ fun_expr:
   | UNDERSCORE
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
-  | mode_flag seq_expr
-     { mkexp_with_mode $sloc $1 $2 }
+  | mode_legacy seq_expr
+     { let {txt; loc} = $1 in
+       mkexp_with_modes $sloc (Jane_syntax.Mode_expr.singleton txt loc) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2950,9 +2868,10 @@ comprehension_clause_binding:
      want that [int] to be [local_].  But we can parse [[e for local_ x in xs]].
      We have to have that as a separate rule here because it moves the [local_]
      over to the RHS of the binding, so we need everything to be visible. *)
-  | attributes LOCAL pattern IN expr
-      { let expr =
-          mkexp_stack $5 ~kwd_loc:(make_loc $loc($2)) ~loc:(ghost_loc $sloc)
+  | attributes mode_legacy pattern IN expr
+      { let {txt; loc} = $2 in
+        let expr =
+          mkexp_with_modes $sloc (Jane_syntax.Mode_expr.singleton txt loc) $5
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3
@@ -3128,7 +3047,7 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2, None, []) }
-  | mode_flags let_ident type_constraint EQUAL seq_expr
+  | mode_expr_legacy let_ident type_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
         let t =
           match $3 with
@@ -3136,17 +3055,17 @@ let_binding_body_no_punning:
              Pvc_constraint { locally_abstract_univars = []; typ=t }
           | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
         in
-        let exp = ghexp_with_modes $sloc $1 $5 in
+        let exp = mkexp_with_modes $sloc $1 $5 in
         (v, exp, Some t, let_binding_mode_attrs $1)
       }
-  | mode_flags let_ident COLON poly(core_type) EQUAL seq_expr
+  | mode_expr_legacy let_ident COLON poly(core_type) EQUAL seq_expr
       { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
         let typ_loc = Location.ghostify (make_loc $loc($4)) in
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let exp = ghexp_with_modes $sloc $1 $6 in
+        let exp = mkexp_with_modes $sloc $1 $6 in
         ($2, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
          let_binding_mode_attrs $1)
       }
@@ -3177,8 +3096,8 @@ let_binding_body_no_punning:
       { ($1, $3, None, []) }
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
       { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 }), []) }
-  | mode_flag+ let_ident strict_binding_modes
-      { ($2, ghexp_with_modes $sloc $1 ($3 $1), None,
+  | mode_expr_legacy_nonempty let_ident strict_binding_modes
+      { ($2, mkexp_with_modes $sloc $1 ($3 $1), None,
          let_binding_mode_attrs $1) }
 ;
 let_binding_body:
@@ -3251,11 +3170,6 @@ strict_binding_modes:
       { fun _ -> $2 }
   | fun_params type_constraint? EQUAL fun_body
     { fun mode_annotations ->
-        let mode_annotations =
-          List.map
-            (fun (mode, loc) -> mkloc mode (make_loc loc))
-            mode_annotations
-        in
         let constraint_ : N_ary.function_constraint option =
           match $2 with
           | None -> None
@@ -3267,7 +3181,7 @@ strict_binding_modes:
 ;
 %inline strict_binding:
   strict_binding_modes
-    {$1 []}
+    {$1 Jane_syntax.Mode_expr.empty}
 ;
 fun_body:
   | FUNCTION ext_attributes match_cases
@@ -4031,7 +3945,7 @@ generalized_constructor_arguments:
 
 %inline atomic_type_gbl:
   gbl = global_flag cty = atomic_type {
-  mkcty_global_maybe gbl cty (make_loc $loc(gbl))
+    mkcty_modality gbl cty
 }
 ;
 
@@ -4051,9 +3965,8 @@ label_declaration:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
         let mut, gbl = $1 in
-        mkld_global_maybe gbl
-          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info)
-          (make_loc $loc($1)) }
+        mkld_modality gbl
+          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info)}
 ;
 label_declaration_semi:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
@@ -4064,9 +3977,8 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, gbl = $1 in
-       mkld_global_maybe gbl
-         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info)
-         (make_loc $loc($1)) }
+       mkld_modality gbl
+         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info)}
 ;
 
 /* Type Extensions */
@@ -4253,24 +4165,24 @@ function_type:
 strict_function_or_labeled_tuple_type:
   | mktyp(
       label = arg_label
-      unique_local = mode_flags
+      arg_modes = mode_expr_legacy
       domain = extra_rhs(param_type)
       MINUSGREATER
       codomain = strict_function_or_labeled_tuple_type
-        { Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
+        { Ptyp_arrow(label, mktyp_with_modes arg_modes domain , codomain) }
     )
     { $1 }
   | mktyp(
       label = arg_label
-      arg_unique_local = mode_flags
+      arg_modes = mode_expr_legacy
       domain = extra_rhs(param_type)
       MINUSGREATER
-      ret_unique_local = mode_flags
+      ret_modes = mode_expr_legacy
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            mktyp_with_modes arg_unique_local domain ,
-            mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain))) }
+            mktyp_with_modes arg_modes domain ,
+            mktyp_with_modes ret_modes (maybe_curry_typ codomain $loc(codomain))) }
     )
     { $1 }
   (* These next three cases are for labled tuples - see comment on [tuple_type]
@@ -4287,7 +4199,7 @@ strict_function_or_labeled_tuple_type:
      cases we are in.  *)
   | mktyp(
       label = LIDENT COLON
-      unique_local = mode_flags
+      arg_modes = mode_expr_legacy
       tuple = proper_tuple_type
       MINUSGREATER
       codomain = strict_function_or_labeled_tuple_type
@@ -4296,23 +4208,23 @@ strict_function_or_labeled_tuple_type:
            let label = Labelled label in
            let domain = ptyp_ltuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
-           Ptyp_arrow(label, mktyp_with_modes unique_local domain , codomain) }
+           Ptyp_arrow(label, mktyp_with_modes arg_modes domain , codomain) }
     )
     { $1 }
   | mktyp(
       label = LIDENT COLON
-      arg_unique_local = mode_flags
+      arg_modes = mode_expr_legacy
       tuple = proper_tuple_type
       MINUSGREATER
-      ret_unique_local = mode_flags
+      ret_modes = mode_expr_legacy
       codomain = tuple_type
          { let ty, ltys = tuple in
            let label = Labelled label in
            let domain = ptyp_ltuple $loc(tuple) ((None, ty) :: ltys) in
            let domain = extra_rhs_core_type domain ~pos:$endpos(tuple) in
            Ptyp_arrow(label,
-            mktyp_with_modes arg_unique_local domain ,
-            mktyp_with_modes ret_unique_local (maybe_curry_typ codomain $loc(codomain)))
+            mktyp_with_modes arg_modes domain ,
+            mktyp_with_modes ret_modes (maybe_curry_typ codomain $loc(codomain)))
          }
     )
     { $1 }
@@ -4335,17 +4247,22 @@ strict_function_or_labeled_tuple_type:
   | /* empty */
       { Nolabel }
 ;
-%inline mode_flag:
+%inline mode_legacy:
    | LOCAL
-       { (Local, $sloc) }
+       { mkloc "local" (make_loc $sloc) }
    | UNIQUE
-       { (Unique, $sloc) }
+       { mkloc "unique" (make_loc $sloc) }
    | ONCE
-       { (Once, $sloc) }
+       { mkloc "once" (make_loc $sloc) }
 ;
-%inline mode_flags:
-   | flags = iloption(mode_flag+)
-       { flags }
+
+%inline mode_expr_legacy_nonempty:
+   | mode_legacy+
+      {mkloc $1 (make_loc $sloc)}
+;
+%inline mode_expr_legacy:
+   | { Jane_syntax.Mode_expr.empty }
+   | mode_expr_legacy_nonempty {$1}
 ;
 %inline param_type:
   | mktyp_jane_syntax_ltyp(
@@ -4775,13 +4692,16 @@ mutable_flag:
   | MUTABLE                                     { Mutable }
 ;
 mutable_or_global_flag:
-    /* empty */                                 { Immutable, Nothing }
-  | MUTABLE                                     { Mutable, Nothing }
-  | GLOBAL                                      { Immutable, Global }
+    /* empty */
+    { Immutable, Jane_syntax.Mode_expr.empty }
+  | MUTABLE
+    { Mutable, Jane_syntax.Mode_expr.empty }
+  | GLOBAL
+    { Immutable, Jane_syntax.Mode_expr.singleton "global" (make_loc $sloc) }
 ;
 %inline global_flag:
-          { Nothing }
-  | GLOBAL { Global }
+           { Jane_syntax.Mode_expr.empty }
+  | GLOBAL { Jane_syntax.Mode_expr.singleton "global" (make_loc $sloc) }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

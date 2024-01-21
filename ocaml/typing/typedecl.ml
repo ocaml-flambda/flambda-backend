@@ -333,19 +333,6 @@ let set_private_row env loc p decl =
   in
   set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
 
-(* Translate one type declaration *)
-
-let transl_global_flags loc attrs =
-  let transl_global_flag loc (r : (bool,unit) result) =
-    match r with
-    | Ok b -> b
-    | Error () -> raise(Error(loc, Local_not_enabled))
-  in
-  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
-  match global with
-  | true -> Types.Global
-  | false -> Types.Unrestricted
-
 let transl_labels ~new_var_jkind env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -363,8 +350,9 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
-           | Mutable -> Types.Global
-           | Immutable -> transl_global_flags loc attrs
+           | Mutable -> Mode.Global_flag.Global
+           | Immutable -> Typemexp.transl_global_flags
+              (Jane_syntax.Mode_expr.of_attrs attrs |> fst)
          in
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
@@ -394,7 +382,8 @@ let transl_labels ~new_var_jkind env univars closed lbls =
 let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
+    let gf = Typemexp.transl_global_flags
+      (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
     (cty, gf)
   in
   let tyl_gfl = List.map mk tyl in

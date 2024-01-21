@@ -531,7 +531,8 @@ let expression sub exp =
               in
               let constraint_ =
                 Option.map
-                  (fun x -> { mode_annotations = []; type_constraint = x })
+                  (fun x -> { mode_annotations = Jane_syntax.Mode_expr.empty;
+                              type_constraint = x })
                   constraint_
               in
               Pfunction_cases (cases, loc, attributes), constraint_
