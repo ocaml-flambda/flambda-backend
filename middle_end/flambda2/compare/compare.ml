@@ -252,7 +252,8 @@ let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
     Unary (subst_unary_primitive env unary_primitive, subst_simple env arg)
   | _ -> p
 
-let subst_func_decl env code_id = subst_code_id env code_id
+let subst_func_decl env ({ code_id ; is_required_at_runtime } : Function_declarations.code_id_in_function_declaration) : Function_declarations.code_id_in_function_declaration =
+  { code_id = subst_code_id env code_id ; is_required_at_runtime }
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
@@ -708,8 +709,8 @@ let primitives env prim1 prim2 : Flambda_primitive.t Comparison.t =
   | _, _ -> Different { approximant = subst_primitive env prim1 }
 
 (* Returns unit because the approximant isn't used by sets_of_closures *)
-let function_decls env code_id1 code_id2 : unit Comparison.t =
-  if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+let function_decls env (fun_decl1 : Function_declarations.code_id_in_function_declaration) (fun_decl2 : Function_declarations.code_id_in_function_declaration) : unit Comparison.t =
+  if Bool.equal fun_decl1.is_required_at_runtime fun_decl2.is_required_at_runtime && code_ids env fun_decl1.code_id fun_decl2.code_id |> Comparison.is_equivalent
   then Equivalent
   else Different { approximant = () }
 
@@ -773,8 +774,8 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
     Function_slot.Map.bindings map
-    |> List.map (fun (function_slot, code_id) ->
-           subst_code_id env code_id, (function_slot, code_id))
+    |> List.map (fun (function_slot, (code_id : Function_declarations.code_id_in_function_declaration)) ->
+           subst_code_id env code_id.code_id, (function_slot, code_id))
     |> Code_id.Map.of_list
   in
   (* Using merge here as a map version of [List.iter2]; always returning None
