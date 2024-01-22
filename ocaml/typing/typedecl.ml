@@ -2505,12 +2505,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   in
   let no_row = not (is_fixed_type sdecl) in
   let (tman, man) =  match sdecl.ptype_manifest with
-      None -> None, None
+      None -> Misc.fatal_error "Typedecl.transl_with_constraint: no manifest"
     | Some sty ->
       let cty =
         transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty
       in
-      Some cty, Some cty.ctyp_type
+      cty, cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
      declarations and compute a "merged" declaration; we now need to
@@ -2544,19 +2544,13 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
-    (* Here, `man = None` indicates we have a "fake" with constraint built by
-       [Typetexp.create_package_mty] for a package type. *)
-    if arity_ok && man <> None then
+    if arity_ok then
       sig_decl.type_kind,
       sig_decl.type_unboxed_default,
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
     else
-      (* CR layouts: this is a gross hack.  See the comments in the
-         [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
-      let jkind = Jkind.value ~why:Package_hack in
-        (* Jkind.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Type_abstract Abstract_def, false, jkind, None
+      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params = params;
@@ -2565,7 +2559,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_jkind;
       type_jkind_annotation;
       type_private = priv;
-      type_manifest = man;
+      type_manifest = Some man;
       type_variance = [];
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -2622,7 +2616,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_type = new_sig_decl;
     typ_cstrs = constraints;
     typ_loc = loc;
-    typ_manifest = tman;
+    typ_manifest = Some tman;
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
@@ -2630,6 +2624,30 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
+
+(* A simplified version of [transl_with_constraint], for the case of packages.
+   Package constraints are much simpler than normal with type constraints (e.g.,
+   they can not have parameters and can only update abstract types.) *)
+let transl_package_constraint ~loc ty =
+  { type_params = [];
+    type_arity = 0;
+    type_kind = Type_abstract Abstract_def;
+    type_jkind = Jkind.any ~why:Dummy_jkind;
+    (* There is no reason to calculate an accurate jkind here.  This typedecl
+       will be thrown away once it is used for the package constraint inclusion
+       check, and that check will expand the manifest as needed. *)
+    type_jkind_annotation = None;
+    type_private = Public;
+    type_manifest = Some ty;
+    type_variance = [];
+    type_separability = [];
+    type_is_newtype = false;
+    type_expansion_scope = Btype.lowest_level;
+    type_loc = loc;
+    type_attributes = [];
+    type_unboxed_default = false;
+    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
+  }
 
 (* Approximate a type declaration: just make all types abstract *)
 

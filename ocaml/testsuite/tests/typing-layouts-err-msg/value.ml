@@ -54,31 +54,6 @@ Error: Tuple element types must have layout value.
 (* Probe *)
 (* See [probe.ml] *)
 
-(* Package_hack *)
-module type S = sig
-  type t : immediate
-end
-
-module type S2 = sig
-  val m : (module S with type t = string)
-end
-[%%expect{|
-module type S = sig type t : immediate end
-Line 6, characters 10-41:
-6 |   val m : (module S with type t = string)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : immediate
-       The layout of the first is value, because
-         it's a type declaration in a first-class module.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-20.
-|}];;
-
 (* Object *)
 let f: ('a : void) -> 'b = fun x -> x # baz
 [%%expect{|

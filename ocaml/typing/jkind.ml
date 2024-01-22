@@ -785,7 +785,6 @@ type value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
-  | Package_hack
   | Object
   | Instance_variable
   | Object_field
@@ -1297,8 +1296,6 @@ end = struct
       fprintf ppf "it's the type of a let-bound variable in a class expression"
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
-    | Package_hack ->
-      fprintf ppf "it's a type declaration in a first-class module"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
@@ -1692,7 +1689,6 @@ module Debug_printers = struct
     | Class_let_binding -> fprintf ppf "Class_let_binding"
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
-    | Package_hack -> fprintf ppf "Package_hack"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"

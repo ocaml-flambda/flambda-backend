@@ -65,6 +65,7 @@ type error =
       Longident.t * Path.t * Includemod.explanation
   | With_changes_module_alias of Longident.t * Ident.t * Path.t
   | With_cannot_remove_constrained_type
+  | With_package_manifest of Longident.t * type_expr
   | Repeated_name of Sig_component_kind.t * string
   | Non_generalizable of { vars : type_expr list; expression : type_expr }
   | Non_generalizable_module of
@@ -803,6 +804,100 @@ let merge_constraint initial_env loc sg lid constr =
     (tcstr, sg)
   with Includemod.Error explanation ->
     raise(Error(loc, initial_env, With_mismatch(lid.txt, explanation)))
+
+(* A simplified version of [merge_constraint] for the case of packages. Package
+   constraints are much simpler - they must be "with type" constraints for types
+   with no parameters and can only update abstract types. *)
+let merge_package_constraint initial_env loc sg lid cty =
+  let rec patch_item namelist outer_sig_env sg_for_env ~ghosts item =
+    let return replace_by =
+      Some ((), {Signature_group.ghosts; replace_by})
+    in
+    match item, namelist with
+    | Sig_type(id, sig_decl, rs, priv) , [s]
+      when Ident.name id = s ->
+        begin match sig_decl.type_manifest with
+        | None -> ()
+        | Some ty ->
+          raise (Error(loc, outer_sig_env, With_package_manifest (lid.txt, ty)))
+        end;
+        let new_sig_decl =
+          Typedecl.transl_package_constraint ~loc cty.ctyp_type
+        in
+        (* Here we constrain the jkind of "with type" manifest by the jkind from
+           the declaration from the original signature.  Note that this is also
+           checked in [check_type_decl], but there it is check, not constrain,
+           which we need here to deal with type variables in package constraints
+           (see tests in [typing-modules/package_constraint.ml]).  *)
+        begin match
+          Ctype.constrain_decl_jkind initial_env new_sig_decl
+            sig_decl.type_jkind
+        with
+        | Ok _-> ()
+        | Error v ->
+          (* This is morally part of the below [check_type_decl], so we give the
+             same error that would be given there for good error messages. *)
+          let err =
+            Includemod.Error.In_Type_declaration(id,
+              Type_declarations
+                {got=new_sig_decl;
+                 expected=sig_decl;
+                 symptom=Includecore.Jkind v})
+          in
+          raise Includemod.(Error(initial_env, err))
+        end;
+        check_type_decl outer_sig_env sg_for_env loc id None
+          new_sig_decl sig_decl;
+        let new_sig_decl = { new_sig_decl with type_manifest = None } in
+        return (Some(Sig_type(id, new_sig_decl, rs, priv)))
+    | Sig_module(id, _, md, rs, priv) as item, s :: namelist
+      when Ident.name id = s ->
+        let sig_env = Env.add_signature sg_for_env outer_sig_env in
+        let sg = extract_sig sig_env loc md.md_type in
+        let ((), newsg) = merge_signature sig_env sg namelist in
+        let item =
+          match md.md_type with
+            Mty_alias _ ->
+              (* A module alias cannot be refined, so keep it
+                 and just check that the constraint is correct *)
+              item
+          | _ ->
+              let newmd = {md with md_type = Mty_signature newsg} in
+              Sig_module(id, Mp_present, newmd, rs, priv)
+        in
+        return (Some item)
+    | _ -> None
+  and merge_signature env sg namelist =
+    match
+      Signature_group.replace_in_place (patch_item namelist env sg) sg
+    with
+    | Some (x,sg) -> x, sg
+    | None -> raise(Error(loc, env, With_no_component lid.txt))
+  in
+  try
+    let names = Longident.flatten lid.txt in
+    let (tcstr, sg) = merge_signature initial_env sg names in
+    check_well_formed_module initial_env loc "this instantiated signature"
+      (Mty_signature sg);
+    (tcstr, sg)
+  with Includemod.Error explanation ->
+    raise(Error(loc, initial_env, With_mismatch(lid.txt, explanation)))
+
+let check_package_with_type_constraints loc env mty constraints =
+  let sg = extract_sig env loc mty in
+  let sg =
+    List.fold_left
+      (fun sg (lid, cty) ->
+         snd (merge_package_constraint env loc sg lid cty))
+      sg constraints
+  in
+  let scope = Ctype.create_scope () in
+  Mtype.freshen ~scope (Mty_signature sg)
+
+let () =
+  Typetexp.check_package_with_type_constraints :=
+    check_package_with_type_constraints
+
 
 (* Add recursion flags on declarations arising from a mutually recursive
    block. *)
@@ -3684,6 +3779,12 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "This `with' constraint@ %s := %a@ makes a packed module ill-formed."
         (Path.name p) Printtyp.modtype mty
+  | With_package_manifest (lid, ty) ->
+      Location.errorf ~loc
+        "@[In the constrained signature, type %a is defined to be %a.@ \
+         Package `with' constraints may only be used on abstract types.@]"
+        longident lid
+        Printtyp.type_expr ty
   | Repeated_name(kind, name) ->
       Location.errorf ~loc
         "@[Multiple definition of the %s name %s.@ \
