@@ -976,7 +976,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              probes. *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
           ~return:return_layout
-          ~body
+          ~body:(maybe_region_layout return_layout body)
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
