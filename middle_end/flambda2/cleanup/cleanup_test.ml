@@ -638,9 +638,11 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     Function_slot.Lmap.fold
       (fun function_slot name acc ->
         let acc = Dacc.kind name Flambda_kind.value acc in
-        let code_id = Function_slot.Map.find function_slot funs in
-        let code_id = Code_id_or_name.code_id code_id in
-        Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
+        let { code_id; is_required_at_runtime } = (Function_slot.Map.find function_slot funs : Function_declarations.code_id_in_function_declaration) in
+        if is_required_at_runtime then
+          let code_id = Code_id_or_name.code_id code_id in
+          Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc
+        else acc)
       names_and_function_slots dacc
   in
   let deps =
@@ -764,7 +766,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let dacc = Dacc.add_apply apply_dep dacc in
           (* TODO regions? *)
           (* TODO record function use *)
-          let dacc = Dacc.used_code_id ~denv code_id dacc in
+          let dacc = Dacc.called ~denv code_id dacc in
           dacc
         else default_dacc dacc
       | Function
@@ -1387,7 +1389,7 @@ let rewrite_static_const_or_code kinds uses (sc : Flambda.static_const_or_code) 
 let rewrite_static_const_group kinds uses (group : Flambda.static_const_group) =
   Flambda.Static_const_group.map ~f:(rewrite_static_const_or_code kinds uses) group
 
-let rewrite_set_of_closures bound kinds uses value_slots alloc_mode function_decls =
+let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode function_decls =
             let slot_is_used slot =
               List.exists (fun bv ->
                   match Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv)) with
@@ -1398,9 +1400,10 @@ let rewrite_set_of_closures bound kinds uses value_slots alloc_mode function_dec
             in
             let value_slots = Value_slot.Map.filter (fun slot _ -> slot_is_used (Value_slot slot)) value_slots in
             (* let dummy_code_id = Code_id.create ~name:"dummy_code_id" Compilation_unit.dummy in *)
+            let open Function_declarations in
             let function_decls =
               Function_declarations.create
-                (Function_slot.Lmap.filter (fun slot _ -> slot_is_used (Function_slot slot))
+                (Function_slot.Lmap.mapi (fun slot { code_id ; is_required_at_runtime } -> { code_id ; is_required_at_runtime = is_required_at_runtime && slot_is_used (Function_slot slot) })
                 (Function_declarations.funs_in_order function_decls))
                in
             (* TODO remove unused function slots as well *)
@@ -1525,7 +1528,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                     code_metadata;
                     free_names_of_params_and_body
                   } ->
-                let is_my_closure_used = Name_occurrences.mem_var params_and_body.body.free_names params_and_body.my_closure in
+                let is_my_closure_used = Hashtbl.mem uses (Code_id_or_name.var params_and_body.my_closure) in
                 let params_and_body =
                   rebuild_function_params_and_body kinds uses params_and_body
                 in
@@ -1533,7 +1536,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                   if Bool.equal is_my_closure_used (Code_metadata.is_my_closure_used code_metadata) then
                     code_metadata
                   else
-                    Code_metadata.with_is_my_closure_used is_my_closure_used code_metadata
+                    (assert (not is_my_closure_used); Code_metadata.with_is_my_closure_used is_my_closure_used code_metadata)
                 in
                 let code =
                   Code.create_with_metadata ~params_and_body ~code_metadata
@@ -1554,7 +1557,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                 Set_of_closures s -> s | Static _ | Singleton _ -> assert false
             in
 
-            let set_of_closures = rewrite_set_of_closures bound kinds uses value_slots alloc_mode function_decls in
+            let set_of_closures = rewrite_set_of_closures bound uses value_slots alloc_mode function_decls in
             let_.bound_pattern, Flambda.Named.create_set_of_closures set_of_closures
         in
         let defining_expr = rewrite_named kinds uses defining_expr in

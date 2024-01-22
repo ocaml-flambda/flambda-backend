@@ -141,7 +141,8 @@ let fixpoint (graph : graph) : result =
   let rec add_called called =
     Hashtbl.iter (fun code_id () ->
         Hashtbl.replace result (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top));
-        check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top))
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top)) *)
+        Queue.push (Code_id_or_name.code_id code_id) q (* CR do better, push_front? *)
       ) called
   and add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->

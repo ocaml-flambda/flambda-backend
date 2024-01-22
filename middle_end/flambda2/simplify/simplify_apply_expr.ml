@@ -645,7 +645,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         in
         let function_decls =
           Function_declarations.create
-            (Function_slot.Lmap.singleton wrapper_function_slot code_id)
+            (Function_slot.Lmap.singleton wrapper_function_slot (Code_id code_id : Function_declarations.code_id_in_function_declarations))
         in
         let value_slots =
           List.filter_map
@@ -910,6 +910,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       (* Some types have regressed in precision. Since this used to be a direct
          call, however, we know the function's arity even though we don't know
          which function it is. *)
+      (* Format.eprintf "REGRESSION IN PRECISION %a@." Code_id.print _code_id; *)
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
   in
   let dacc =
