@@ -204,8 +204,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   }
 
   m->busy = 0;
-  custom_condvar_signal(&m->is_free);
   atomic_fetch_add(&m->waiters, +1);
+  custom_condvar_signal(&m->is_free);
   /* releasing the domain lock but not triggering bt messaging
      messaging the bt should not be required because yield assumes
      that a thread will resume execution (be it the yielding thread
