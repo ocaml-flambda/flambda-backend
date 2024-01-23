@@ -1441,4 +1441,29 @@ Ptop_def
   ]
 
 val g : int -> int = <fun>
+Ptop_def
+  [
+    structure_item (//toplevel//[3,15+0]..[3,15+27])
+      Pstr_value Nonrec
+      [
+        <def>
+          pattern (//toplevel//[3,15+4]..[3,15+5])
+            Ppat_var "f" (//toplevel//[3,15+4]..[3,15+5])
+          expression (//toplevel//[3,15+6]..[3,15+27]) ghost
+            Pexp_newtype "a"
+            expression (//toplevel//[3,15+6]..[3,15+27]) ghost
+              Pexp_newtype "b"
+              expression (//toplevel//[3,15+6]..[3,15+27]) ghost
+                Pexp_newtype "c"
+                expression (//toplevel//[3,15+6]..[3,15+27]) ghost
+                  Pexp_newtype "d"
+                  expression (//toplevel//[3,15+6]..[3,15+27]) ghost
+                    Pexp_newtype "e"
+                    expression (//toplevel//[3,15+25]..[3,15+27])
+                      Pexp_construct "()" (//toplevel//[3,15+25]..[3,15+27])
+                      None
+      ]
+  ]
+
+val f : unit = ()
 
