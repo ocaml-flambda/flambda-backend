@@ -136,3 +136,9 @@ let g y =
 (* Newtype *)
 let f (type a b c d e) = ()
 ;;
+
+fun (type a b c d e) -> ()
+;;
+
+let a : type a b c. unit = ()
+;;

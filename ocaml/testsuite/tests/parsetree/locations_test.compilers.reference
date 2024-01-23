@@ -1466,4 +1466,57 @@ Ptop_def
   ]
 
 val f : unit = ()
+Ptop_def
+  [
+    structure_item (//toplevel//[2,1+0]..[2,1+26])
+      Pstr_eval
+      expression (//toplevel//[2,1+0]..[2,1+26])
+        Pexp_newtype "a"
+        expression (//toplevel//[2,1+0]..[2,1+26]) ghost
+          Pexp_newtype "b"
+          expression (//toplevel//[2,1+0]..[2,1+26]) ghost
+            Pexp_newtype "c"
+            expression (//toplevel//[2,1+0]..[2,1+26]) ghost
+              Pexp_newtype "d"
+              expression (//toplevel//[2,1+0]..[2,1+26]) ghost
+                Pexp_newtype "e"
+                expression (//toplevel//[2,1+24]..[2,1+26])
+                  Pexp_construct "()" (//toplevel//[2,1+24]..[2,1+26])
+                  None
+  ]
+
+- : unit = ()
+Ptop_def
+  [
+    structure_item (//toplevel//[2,1+0]..[2,1+29])
+      Pstr_value Nonrec
+      [
+        <def>
+          pattern (//toplevel//[2,1+4]..[2,1+24]) ghost
+            Ppat_constraint
+            pattern (//toplevel//[2,1+4]..[2,1+5])
+              Ppat_var "a" (//toplevel//[2,1+4]..[2,1+5])
+            core_type (//toplevel//[2,1+20]..[2,1+24]) ghost
+              Ptyp_poly 'a 'b 'c
+              core_type (//toplevel//[2,1+20]..[2,1+24])
+                Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
+                []
+          expression (//toplevel//[2,1+4]..[2,1+29])
+            Pexp_newtype "a"
+            expression (//toplevel//[2,1+4]..[2,1+29]) ghost
+              Pexp_newtype "b"
+              expression (//toplevel//[2,1+4]..[2,1+29]) ghost
+                Pexp_newtype "c"
+                expression (//toplevel//[2,1+4]..[2,1+29])
+                  Pexp_constraint
+                  expression (//toplevel//[2,1+27]..[2,1+29])
+                    Pexp_construct "()" (//toplevel//[2,1+27]..[2,1+29])
+                    None
+                  core_type (//toplevel//[2,1+20]..[2,1+24])
+                    Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
+                    []
+      ]
+  ]
+
+val a : unit = ()
 
