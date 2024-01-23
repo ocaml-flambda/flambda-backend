@@ -132,3 +132,13 @@ let g y =
   let f ~y = y + 1 in
   f ~(y:int)
 ;;
+
+(* Newtype *)
+let f (type a b c d e) = ()
+;;
+
+fun (type a b c d e) -> ()
+;;
+
+let a : type a b c. unit = ()
+;;
