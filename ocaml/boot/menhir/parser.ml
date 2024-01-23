@@ -861,9 +861,9 @@ let pat_of_label lbl =
 let mk_newtypes ~loc newtypes exp =
   let mk_one (name, jkind) exp =
     match jkind with
-    | None -> mkexp ~loc (Pexp_newtype (name, exp))
+    | None -> Exp.mk ~loc (Pexp_newtype (name, exp))
     | Some jkind ->
-      Jane_syntax.Layouts.expr_of ~loc:(make_loc loc)
+      Jane_syntax.Layouts.expr_of ~loc
         (Lexp_newtype (name, jkind, exp))
   in
   List.fold_right mk_one newtypes exp
@@ -872,7 +872,7 @@ let mk_newtypes ~loc newtypes exp =
    parsing a bit differently than upstream.  See comment about [Pvc_constraint]
    in [let_binding_body_no_punning]. *)
 let wrap_type_annotation ~loc ?(typloc=loc) newtypes core_type body =
-  let mk_newtypes = mk_newtypes ~loc in
+  let mk_newtypes = mk_newtypes ~loc:(make_loc loc) in
   let exp = mkexp ~loc (Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
   let inner_type = Typ.varify_constructors (List.map fst newtypes) core_type in
@@ -1083,7 +1083,7 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
         let body = Exp.mk (mkexp_desc_constraint body type_constraint) ~loc in
         exp_with_modes loc mode_annotations body
   in
-  mk_newtypes ~loc newtypes wrapped_body
+  mk_newtypes ~loc:(ghost_loc loc) newtypes wrapped_body
 
 let n_ary_function expr ~attrs ~loc =
   wrap_exp_attrs ~loc (N_ary.expr_of expr ~loc:(make_loc loc)) attrs
