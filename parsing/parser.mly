@@ -636,12 +636,14 @@ let pat_of_label lbl =
 let mk_newtypes ~loc newtypes exp =
   let mk_one (name, jkind) exp =
     match jkind with
-    | None -> mkexp ~loc (Pexp_newtype (name, exp))
+    | None -> ghexp ~loc (Pexp_newtype (name, exp))
     | Some jkind ->
-      Jane_syntax.Layouts.expr_of ~loc:(make_loc loc)
+      Jane_syntax.Layouts.expr_of ~loc:(ghost_loc loc)
         (Lexp_newtype (name, jkind, exp))
   in
-  List.fold_right mk_one newtypes exp
+  let exp = List.fold_right mk_one newtypes exp in
+  (* outermost expression should have non-ghost location *)
+  { exp with pexp_loc = make_loc loc }
 
 (* The [typloc] argument is used to adjust a location for something we're
    parsing a bit differently than upstream.  See comment about [Pvc_constraint]
