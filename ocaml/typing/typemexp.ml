@@ -1,7 +1,11 @@
 open Location
 open Mode
 
-type error = Duplicated_mode of Axis.t
+type error =
+  | Unrecognized_mode
+  | Unrecognized_modality
+  | Duplicated_mode of Axis.t
+  | Duplicated_modality of Axis.t
 
 exception Error of Location.t * error
 
@@ -25,7 +29,7 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Linearity.Const.Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
-        | _ -> assert false (* would not be parsed *)
+        | _ -> raise (Error (loc, Unrecognized_mode))
       in
       loop acc rest
   in
@@ -41,9 +45,8 @@ let transl_global_flags gfs =
           Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
           match acc with
           | Unrestricted -> Global_flag.Global
-          | _ -> assert false
-          (* would not be parsed *))
-        | _ -> assert false (* would not be parsed *)
+          | _ -> raise (Error (loc, Duplicated_modality `Locality)))
+        | _ -> raise (Error (loc, Unrecognized_modality))
       in
       loop acc rest
   in
@@ -56,8 +59,13 @@ let transl_alloc_mode modes =
 open Format
 
 let report_error ppf = function
+  | Unrecognized_mode -> fprintf ppf "Unrecognized mode name."
+  | Unrecognized_modality -> fprintf ppf "Unrecognized modality name."
   | Duplicated_mode ax ->
     fprintf ppf "The %s axis has already been specified." (Axis.string_of ax)
+  | Duplicated_modality ax ->
+    fprintf ppf "Modality in the %s axis has already be used."
+      (Axis.string_of ax)
 
 let () =
   Location.register_error_of_exn (function

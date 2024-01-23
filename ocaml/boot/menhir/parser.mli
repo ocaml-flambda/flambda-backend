@@ -129,6 +129,7 @@ type token =
   | BAR
   | BANG
   | BACKQUOTE
+  | AT
   | ASSERT
   | AS
   | ANDOP of (string)

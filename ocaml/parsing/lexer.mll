@@ -752,6 +752,7 @@ rule token = parse
             { PREFIXOP op }
   | ['=' '<' '>' '|' '&' '$'] symbolchar * as op
             { INFIXOP0 op }
+  | "@" { AT }
   | ['@' '^'] symbolchar * as op
             { INFIXOP1 op }
   | ['+' '-'] symbolchar * as op

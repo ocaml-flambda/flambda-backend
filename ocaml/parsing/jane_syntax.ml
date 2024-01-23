@@ -406,6 +406,10 @@ module Mode_expr = struct
 
   let singleton mode loc = Location.mkloc [Location.mkloc mode loc] loc
 
+  let concat mode0 mode1 =
+    let txt = mode0.txt @ mode1.txt in
+    Location.mknoloc txt
+
   let is_empty { txt; _ } = match txt with [] -> true | _ -> false
 
   let embedded_name = Embedded_name.of_feature (Language_extension Mode) []

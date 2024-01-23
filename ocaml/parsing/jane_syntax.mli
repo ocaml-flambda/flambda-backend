@@ -124,6 +124,8 @@ module Mode_expr : sig
 
   val singleton : string -> Location.t -> t
 
+  val concat : t -> t -> t
+
   val embedded_name_str : string
 
   val is_empty : t -> bool
