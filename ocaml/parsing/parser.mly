@@ -293,10 +293,10 @@ let mkexp_constraint ~loc e t =
   match t with
     | N_ary.Pconstraint t ->
       let mode, t = extract_modes_from_type t in
-      mkexp_with_modes loc mode @@ Exp.constraint_ e t
+      mkexp_with_modes loc mode @@ mkexp ~loc (Pexp_constraint (e, t))
     | N_ary.Pcoerce(t1, t2)  ->
       let mode, t2 = extract_modes_from_type t2 in
-      mkexp_with_modes loc mode @@ Exp.coerce e t1 t2
+      mkexp_with_modes loc mode @@ mkexp ~loc (Pexp_coerce (e, t1, t2))
 
 let mkexp_opt_constraint ~loc e = function
   | None -> e

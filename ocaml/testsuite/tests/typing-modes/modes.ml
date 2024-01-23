@@ -40,7 +40,7 @@ let foo () =
   let e @ foo = "hello" in ()
 [%%expect{|
 Line 2, characters 10-13:
-2 |   let e @ foo bar = "hello" in ()
+2 |   let e @ foo = "hello" in ()
               ^^^
 Error: Unrecognized mode for coercion.
 |}]
@@ -59,9 +59,9 @@ Error: This value escapes its region
 (* If you want [foo] to take argument, write like this: *)
 let foo @ local = fun unique-> ()
 [%%expect{|
-Line 1, characters 4-39:
-1 | let foo @ local = fun (x @ local) -> ()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-33:
+1 | let foo @ local = fun unique-> ()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
 
