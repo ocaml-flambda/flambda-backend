@@ -26,13 +26,6 @@ Line 2, characters 6-7:
 Error: This value escapes its region
 |}]
 
-let foo @ local = fun (x @ local) -> ()
-[%%expect{|
-Line 1, characters 4-32:
-1 | let foo @ local (x @ local) = ()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
-|}]
 
 (* Wrong mode names is a type error, not a parse error *)
 type r = string @ foo -> string @ bar
@@ -44,15 +37,17 @@ Error: Unrecognized mode name.
 |}]
 
 let foo () =
-  let e @ foo bar = "hello" in ()
+  let e @ foo = "hello" in ()
 [%%expect{|
 Line 2, characters 10-13:
-2 |   let e @ foo = "hello" in ()
+2 |   let e @ foo bar = "hello" in ()
               ^^^
 Error: Unrecognized mode for coercion.
 |}]
 ;;
-(* In the following, "unique" is parsed as function argument *)
+
+(* in the following, unique is parsed as mode on [foo], instead of argument to
+   the function [foo]. *)
 let r @ local unique = "hello"
 [%%expect{|
 Line 1, characters 4-30:
@@ -60,6 +55,16 @@ Line 1, characters 4-30:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
+
+(* If you want [foo] to take argument, write like this: *)
+let foo @ local = fun unique-> ()
+[%%expect{|
+Line 1, characters 4-39:
+1 | let foo @ local = fun (x @ local) -> ()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region
+|}]
+
 
 let foo () =
   let r @ local unique = "hello" in
@@ -69,7 +74,6 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-(* Mode expression longer than a single LIDENT must be enclosed in parens. *)
 let foo () =
   let e @local unique = "hello" in
   ref e
@@ -80,43 +84,34 @@ Line 3, characters 6-7:
 Error: This value escapes its region
 |}]
 
-(* TODO: maybe this syntax would be better?
-let (e @ local unique) arg = ... in
-*)
-
 (* Each axis can only be specified once. This error should evolve in the future
    after we introduce proper mode expressions *)
 type r = string @ local local -> string @ local
 [%%expect{|
-Line 1, characters 25-30:
-1 | type r = string @ (local local) -> string @ local
-                             ^^^^^
+Line 1, characters 24-29:
+1 | type r = string @ local local -> string @ local
+                            ^^^^^
 Error: The locality axis has already been specified.
 |}]
 
-(* TODO: move modalities to the right:
-type r = {x : string @ global}
-type r = {x : (string @ local -> string) @ global }
-This requires refactoring the parser.
-*)
-type r = {x @ global : string }
+type r = {x : string @ global }
 [%%expect{|
 type r = { global_ x : string; }
 |}]
 
-type r = {x @ global global : string}
+type r = {x : string @ global global }
 [%%expect{|
-Line 1, characters 22-28:
-1 | type r = {x @ (global global) : string}
-                          ^^^^^^
+Line 1, characters 30-36:
+1 | type r = {x : string @ global global }
+                                  ^^^^^^
 Error: Modality in the locality axis has already be used.
 |}]
 
-type r = {x @ foo : string}
+type r = {x : string @ foo}
 [%%expect{|
-Line 1, characters 14-17:
-1 | type r = {x @ foo : string}
-                  ^^^
+Line 1, characters 23-26:
+1 | type r = {x : string @ foo}
+                           ^^^
 Error: Unrecognized modality name.
 |}]
 
@@ -128,20 +123,19 @@ let foo () =
 val foo : unit -> local_ string ref = <fun>
 |}]
 
-let foo () = @local unique
+let foo () =
   let x = ref "hello" in
-  x
+  (x : _ @ local unique)
 [%%expect{|
-Line 3, characters 2-3:
-3 |   x
-      ^
+Line 3, characters 3-4:
+3 |   (x : _ @ local unique)
+       ^
 Error: Found a shared value where a unique value was expected
 |}]
 
 
-(* Mixing legacy syntax and new syntax are allowed for simplicity *)
-
-(* Examples that would trigger syntax error (not type error): *)
+(* Mixing legacy syntax and new syntax are allowed, just for the simplicity of
+   parsing *)
 type r = local_ string @ unique -> unique_ string @ local
 [%%expect{|
 type r = local_ unique_ string -> local_ unique_ string
@@ -155,11 +149,11 @@ Line 1, characters 4-31:
 Error: This value escapes its region
 |}]
 
-type r = {global_ x @ global : string}
+type r = {global_ x : string @ global}
 [%%expect{|
-Line 1, characters 22-28:
-1 | type r = {global_ x @ global : string}
-                          ^^^^^^
+Line 1, characters 31-37:
+1 | type r = {global_ x : string @ global}
+                                   ^^^^^^
 Error: Modality in the locality axis has already be used.
 |}]
 

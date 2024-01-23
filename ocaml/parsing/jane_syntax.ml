@@ -443,13 +443,9 @@ module Mode_expr = struct
 
   let of_attrs attrs =
     let attrs, rest = partition_attrs attrs in
-    let mode =
-      match attrs with
-      | [] -> empty
-      | [attr] -> of_attr attr
-      | _ -> assert false
-    in
-    mode, rest
+    let modes = List.map (fun attr -> (of_attr attr).txt) attrs in
+    let txt = List.concat modes in
+    Location.mknoloc txt, rest
 
   let attr_of modes =
     (* [loc] points to the whole modes string, not the attribute name *)
