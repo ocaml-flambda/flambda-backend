@@ -634,21 +634,16 @@ let pat_of_label lbl =
   Pat.mk ~loc:lbl.loc  (Ppat_var (loc_last lbl))
 
 let mk_newtypes ~loc newtypes exp =
-  let mk_one loc (name, jkind) exp =
+  let mk_one (name, jkind) exp =
     match jkind with
-    | None -> Exp.mk ~loc (Pexp_newtype (name, exp))
+    | None -> ghexp ~loc (Pexp_newtype (name, exp))
     | Some jkind ->
-      Jane_syntax.Layouts.expr_of ~loc
+      Jane_syntax.Layouts.expr_of ~loc:(ghost_loc loc)
         (Lexp_newtype (name, jkind, exp))
   in
-  (* This is doing a fold right while making sure only
-     the outermost expression has non-ghost location *)
-  let rec inner acc = function
-    | x :: ((_ :: _) as xs) -> inner (mk_one (ghost_loc loc) x acc) xs
-    | [x] -> mk_one (make_loc loc) x acc
-    | [] -> acc
-  in
-  inner exp (List.rev newtypes)
+  let exp = List.fold_right mk_one newtypes exp in
+  (* outermost expression should have non-ghost location *)
+  { exp with pexp_loc = make_loc loc }
 
 (* The [typloc] argument is used to adjust a location for something we're
    parsing a bit differently than upstream.  See comment about [Pvc_constraint]
