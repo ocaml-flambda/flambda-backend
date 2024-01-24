@@ -453,6 +453,17 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
       (core_type1 ctxt) aliased_type
       tyvar_option name
       jkind_annotation jkind
+  | Jtyp_layout (Ltyp_poly {bound_vars = []; inner_type}) ->
+    core_type ctxt f inner_type
+  | Jtyp_layout (Ltyp_poly {bound_vars; inner_type}) ->
+    let jkind_poly_var f (name, jkind_opt) =
+      match jkind_opt with
+      | Some jkind -> pp f "(%a@;:@;%a)" tyvar_loc name jkind_annotation jkind
+      | None -> tyvar_loc f name
+    in
+    pp f "@[<2>%a@;.@;%a@]"
+        (list jkind_poly_var ~sep:"@;") bound_vars
+        (core_type ctxt) inner_type
   | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 
