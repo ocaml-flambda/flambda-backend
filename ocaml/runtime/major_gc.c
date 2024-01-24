@@ -140,10 +140,11 @@ typedef struct {
   value alloc_counter;
   value slice_target;
   value slice_budget;
+  value major_slice_work;
 } budget_info;
 
 value* caml_budgets = NULL;
-uintnat caml_budget_buffer_size = 10;
+uintnat caml_budget_buffer_size = 50;
 
 static uintnat slice_counter = 0;
 static uintnat budget_slot = 0;
@@ -178,6 +179,7 @@ static void init_budget_buffer(void)
     info->alloc_counter = Val_long(0);
     info->slice_target = Val_long(0);
     info->slice_budget = Val_long(0);
+    info->major_slice_work = Val_long(0);
 
     caml_budgets[i] = (value) &info->major_cycles_completed;
   }
@@ -565,7 +567,28 @@ static inline intnat diffmod (uintnat x1, uintnat x2)
   return (intnat) (x1 - x2);
 }
 
-static void update_major_slice_work(intnat howmuch) {
+#define Chunk_size 0x4000
+
+typedef enum {
+  Slice_uninterruptible,
+  Slice_interruptible,
+  Slice_opportunistic
+} collection_slice_mode;
+
+static intnat get_major_slice_work(collection_slice_mode mode){
+  caml_domain_state *dom_st = Caml_state;
+
+  if (mode == Slice_interruptible && caml_incoming_interrupts_queued())
+    return 0;
+
+  /* calculate how much work remains to do for this slice */
+  intnat budget =
+    max2 (diffmod (dom_st->slice_target, atomic_load (&work_counter)),
+          dom_st->slice_budget);
+  return min2(budget, Chunk_size);
+}
+
+static void update_major_slice_work(intnat howmuch, collection_slice_mode mode) {
   double heap_words;
   intnat alloc_work, dependent_work, extra_work, new_work;
   intnat my_alloc_count, my_dependent_count;
@@ -693,6 +716,7 @@ static void update_major_slice_work(intnat howmuch) {
   info->alloc_counter = Val_long(atomic_load (&alloc_counter));
   info->slice_target = Val_long(dom_st->slice_target);
   info->slice_budget = Val_long(dom_st->slice_budget);
+  info->major_slice_work = Val_long(get_major_slice_work(mode));
 
   caml_gc_log("Updated major work: [%c] "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
@@ -714,27 +738,6 @@ static void update_major_slice_work(intnat howmuch) {
               atomic_load (&alloc_counter),
               dom_st->slice_target, dom_st->slice_budget
               );
-}
-
-#define Chunk_size 0x4000
-
-typedef enum {
-  Slice_uninterruptible,
-  Slice_interruptible,
-  Slice_opportunistic
-} collection_slice_mode;
-
-static intnat get_major_slice_work(collection_slice_mode mode){
-  caml_domain_state *dom_st = Caml_state;
-
-  if (mode == Slice_interruptible && caml_incoming_interrupts_queued())
-    return 0;
-
-  /* calculate how much work remains to do for this slice */
-  intnat budget =
-    max2 (diffmod (dom_st->slice_target, atomic_load (&work_counter)),
-          dom_st->slice_budget);
-  return min2(budget, Chunk_size);
 }
 
 /* Register the work done by a chunk of slice.
@@ -1594,7 +1597,7 @@ static void major_collection_slice(intnat howmuch,
 
   slice_counter++;
 
-  update_major_slice_work(howmuch);
+  update_major_slice_work(howmuch, mode);
 
   /* When a full slice of major GC work is done,
      or the slice is interrupted (in mode Slice_interruptible),
@@ -2051,7 +2054,7 @@ void caml_teardown_major_gc(void) {
   caml_domain_state* d = Caml_state;
 
   /* account for latest allocations */
-  update_major_slice_work (0);
+  update_major_slice_work (0, Slice_uninterruptible);
   CAMLassert(!caml_addrmap_iter_ok(&d->mark_stack->compressed_stack,
                                    d->mark_stack->compressed_stack_iter));
   caml_addrmap_clear(&d->mark_stack->compressed_stack);

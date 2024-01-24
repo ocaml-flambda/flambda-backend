@@ -549,3 +549,26 @@ module Memprof :
         Calling [stop] when a callback is running can lead to
         callbacks not being called even though some events happened. *)
 end
+
+module Budgets : sig
+  type budget_info = {
+    major_cycles_completed : int;
+    slice_counter : int; (* slice ID, unique throughout the program *)
+    heap_words : int;
+    total_cycle_work : int;
+    my_alloc_count : int;
+    my_dependent_count : int;
+    alloc_work : int;
+    dependent_work : int;
+    extra_work : int;
+    work_counter : int;
+    alloc_counter : int;
+    slice_target : int;
+    slice_budget : int;
+    major_slice_work : int; (* the actual computed work *)
+  }
+
+  type t = budget_info iarray
+
+  external get : unit -> t = "caml_get_budget_buffer" [@@noalloc]
+end
