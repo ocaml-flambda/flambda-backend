@@ -43,7 +43,7 @@ type t = private
 
 and head_of_kind_value = private
   | Variant of
-      { immediates : t;
+      { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
         extensions : variant_extensions;
         is_unique : bool
@@ -301,7 +301,7 @@ val get_tag_for_block : block:Simple.t -> t
 
 val create_variant :
   is_unique:bool ->
-  immediates:t ->
+  immediates:t Or_unknown.t ->
   blocks:row_like_for_blocks Or_unknown.t ->
   extensions:variant_extensions ->
   t
@@ -646,7 +646,7 @@ module Head_of_kind_value : sig
   val create_variant :
     is_unique:bool ->
     blocks:Row_like_for_blocks.t Or_unknown.t ->
-    immediates:flambda_type ->
+    immediates:flambda_type Or_unknown.t ->
     extensions:variant_extensions ->
     t
 

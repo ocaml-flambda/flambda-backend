@@ -504,9 +504,11 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TEE.t) Or_bottom.t =
+    ~(imms1 : TG.t Or_unknown.t)
+    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t Or_unknown.t) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t * TEE.t)
+    Or_bottom.t =
   let blocks =
     meet_unknown meet_row_like_for_blocks
       ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom env blocks1 blocks2
@@ -517,16 +519,19 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     | Ok (Or_unknown.Known blocks', _) ->
       if TG.Row_like_for_blocks.is_bottom blocks' then Bottom else blocks
   in
-  let imms = meet env imms1 imms2 in
+  let imms =
+    meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom env imms1 imms2
+  in
   let imms : _ Or_bottom.t =
     match imms with
-    | Bottom -> imms
-    | Ok (imms', _) -> if TG.is_obviously_bottom imms' then Bottom else imms
+    | Bottom | Ok (Or_unknown.Unknown, _) -> imms
+    | Ok (Or_unknown.Known imms', _) ->
+      if TG.is_obviously_bottom imms' then Bottom else imms
   in
   match blocks, imms with
   | Bottom, Bottom -> Bottom
   | Ok (blocks, env_extension), Bottom ->
-    let immediates = TG.bottom_naked_immediate in
+    let immediates : _ Or_unknown.t = Known TG.bottom_naked_immediate in
     Ok (blocks, immediates, env_extension)
   | Bottom, Ok (immediates, env_extension) ->
     let blocks : _ Or_unknown.t = Known TG.Row_like_for_blocks.bottom in
@@ -535,7 +540,9 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     (match (blocks : _ Or_unknown.t) with
     | Unknown -> ()
     | Known blocks -> assert (not (TG.Row_like_for_blocks.is_bottom blocks)));
-    assert (not (TG.is_obviously_bottom immediates));
+    (match (immediates : _ Or_unknown.t) with
+    | Unknown -> ()
+    | Known imms -> assert (not (TG.is_obviously_bottom imms)));
     let env_extension =
       let env = Meet_env.env env in
       let join_env = Join_env.create env ~left_env:env ~right_env:env in
@@ -1372,20 +1379,18 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t) Or_unknown.t =
+    ~(imms1 : TG.t Or_unknown.t)
+    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t Or_unknown.t) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t) Or_unknown.t =
   let blocks_join env b1 b2 : _ Or_unknown.t =
     join_row_like_for_blocks env b1 b2
   in
   let blocks = join_unknown blocks_join env blocks1 blocks2 in
-  let imms = join ?bound_name:None env imms1 imms2 in
+  let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
   match blocks, imms with
   | Unknown, Unknown -> Unknown
   | Known _, Unknown | Unknown, Known _ | Known _, Known _ ->
-    let imms =
-      match imms with Known imms -> imms | Unknown -> MTC.unknown_like imms1
-    in
     Known (blocks, imms)
 
 and join_head_of_kind_naked_immediate env

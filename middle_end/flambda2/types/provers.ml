@@ -82,10 +82,13 @@ let prove_equals_to_simple_of_kind env t kind : Simple.t proof_of_property =
 let prove_is_int_generic ~variant_only env t : bool generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
-    let imms = blocks_imms.immediates in
-    match blocks_imms.blocks with
-    | Unknown -> if is_bottom env imms then Proved false else Unknown
-    | Known blocks ->
+    match blocks_imms.blocks, blocks_imms.immediates with
+    | Unknown, Unknown -> Unknown
+    | Unknown, Known imms ->
+      if is_bottom env imms then Proved false else Unknown
+    | Known blocks, Unknown ->
+      if TG.Row_like_for_blocks.is_bottom blocks then Proved true else Unknown
+    | Known blocks, Known imms ->
       if TG.Row_like_for_blocks.is_bottom blocks
       then if is_bottom env imms then Invalid else Proved true
       else if is_bottom env imms
@@ -119,18 +122,21 @@ let meet_is_int_variant_only env t =
 let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
-    let imms = blocks_imms.immediates in
-    if not (is_bottom env imms)
-    then Unknown
-    else
-      match blocks_imms.blocks with
-      | Unknown -> Unknown
-      | Known blocks -> (
-        (* CR mshinwell: maybe [all_tags] should return the [Invalid] case
-           directly? *)
-        match TG.Row_like_for_blocks.all_tags blocks with
+    match blocks_imms.immediates with
+    | Unknown -> Unknown
+    | Known imms -> (
+      if not (is_bottom env imms)
+      then Unknown
+      else
+        match blocks_imms.blocks with
         | Unknown -> Unknown
-        | Known tags -> if Tag.Set.is_empty tags then Invalid else Proved tags))
+        | Known blocks -> (
+          (* CR mshinwell: maybe [all_tags] should return the [Invalid] case
+             directly? *)
+          match TG.Row_like_for_blocks.all_tags blocks with
+          | Unknown -> Unknown
+          | Known tags -> if Tag.Set.is_empty tags then Invalid else Proved tags
+          )))
   | Value
       (Ok
         ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
@@ -191,10 +197,13 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
     | Known blocks ->
       if TG.Row_like_for_blocks.is_bottom blocks
       then
-        match prove_naked_immediates_generic env immediates with
-        | Proved imms -> Proved imms
-        | Invalid -> Proved Targetint_31_63.Set.empty
+        match immediates with
         | Unknown -> Unknown
+        | Known imms -> (
+          match prove_naked_immediates_generic env imms with
+          | Proved imms -> Proved imms
+          | Invalid -> Proved Targetint_31_63.Set.empty
+          | Unknown -> Unknown)
       else Unknown)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
@@ -206,8 +215,10 @@ let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
   | Value
       (Ok (Variant { immediates; blocks = _; extensions = _; is_unique = _ }))
-    ->
-    meet_naked_immediates env immediates
+    -> (
+    match immediates with
+    | Unknown -> Need_meet
+    | Known imms -> meet_naked_immediates env imms)
   | Value
       (Ok
         ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
@@ -356,11 +367,13 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
         | Unknown -> Unknown
         | Known non_const_ctors_with_sizes ->
           let const_ctors : _ Or_unknown.t =
-            let imms = blocks_imms.immediates in
-            match prove_naked_immediates_generic env imms with
+            match blocks_imms.immediates with
             | Unknown -> Unknown
-            | Invalid -> Known Targetint_31_63.Set.empty
-            | Proved const_ctors -> Known const_ctors
+            | Known imms -> (
+              match prove_naked_immediates_generic env imms with
+              | Unknown -> Unknown
+              | Invalid -> Known Targetint_31_63.Set.empty
+              | Proved const_ctors -> Known const_ctors)
           in
           Proved { const_ctors; non_const_ctors_with_sizes })))
   | Value (Ok (Mutable_block _)) -> Unknown
@@ -506,18 +519,20 @@ let prove_unique_tag_and_size0 env t :
     * Alloc_mode.For_types.t)
     proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) ->
-    let immediates = blocks_imms.immediates in
-    if is_bottom env immediates
-    then
-      match blocks_imms.blocks with
-      | Unknown -> Unknown
-      | Known blocks -> (
-        match TG.Row_like_for_blocks.get_singleton blocks with
-        | None -> Unknown
-        | Some (tag, shape, size, product, alloc_mode) ->
-          Proved (tag, shape, size, product, alloc_mode))
-    else Unknown
+  | Value (Ok (Variant blocks_imms)) -> (
+    match blocks_imms.immediates with
+    | Unknown -> Unknown
+    | Known immediates ->
+      if is_bottom env immediates
+      then
+        match blocks_imms.blocks with
+        | Unknown -> Unknown
+        | Known blocks -> (
+          match TG.Row_like_for_blocks.get_singleton blocks with
+          | None -> Unknown
+          | Some (tag, shape, size, product, alloc_mode) ->
+            Proved (tag, shape, size, product, alloc_mode))
+    else Unknown)
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
     Unknown
@@ -706,25 +721,27 @@ let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
   | Value (Ok (Variant { immediates; blocks; extensions = _; is_unique = _ }))
     -> (
     let inspect_immediates () =
-      let from_alias =
-        match
-          TE.get_canonical_simple_exn env ~min_name_mode
-            (TG.get_alias_exn immediates)
-        with
-        | simple -> Some simple
-        | exception Not_found -> None
-      in
-      match from_alias with
-      | Some simple -> Proved simple
-      | None -> (
-        match meet_naked_immediates env immediates with
-        | Need_meet -> Unknown
-        | Invalid -> Invalid
-        | Known_result imms -> (
-          match Targetint_31_63.Set.get_singleton imms with
-          | Some imm ->
-            Proved (Simple.const (Reg_width_const.naked_immediate imm))
-          | None -> Unknown))
+      match immediates with
+      | Unknown -> Unknown
+      | Known t -> (
+        let from_alias =
+          match
+            TE.get_canonical_simple_exn env ~min_name_mode (TG.get_alias_exn t)
+          with
+          | simple -> Some simple
+          | exception Not_found -> None
+        in
+        match from_alias with
+        | Some simple -> Proved simple
+        | None -> (
+          match meet_naked_immediates env t with
+          | Need_meet -> Unknown
+          | Invalid -> Invalid
+          | Known_result imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | Some imm ->
+              Proved (Simple.const (Reg_width_const.naked_immediate imm))
+            | None -> Unknown)))
     in
     match proof_kind, blocks with
     | Prove, Unknown -> Unknown
@@ -1076,16 +1093,16 @@ let prove_physical_equality env t1 t2 =
               extensions = _;
               is_unique = _
             } ) -> (
-        match blocks1, blocks2 with
-        | _, Known blocks
-          when TG.is_obviously_bottom immediates1
+        match immediates1, immediates2, blocks1, blocks2 with
+        | Known imms, _, _, Known blocks
+          when TG.is_obviously_bottom imms
                && TG.Row_like_for_blocks.is_bottom blocks ->
           Proved false
-        | Known blocks, _
-          when TG.is_obviously_bottom immediates2
+        | _, Known imms, Known blocks, _
+          when TG.is_obviously_bottom imms
                && TG.Row_like_for_blocks.is_bottom blocks ->
           Proved false
-        | Known blocks1, Known blocks2 -> (
+        | Known imms1, Known imms2, Known blocks1, Known blocks2 -> (
           let immediates_equality : _ generic_proof =
             (* Note: the proof we're returning here has slightly unusual
                semantics. [Invalid] is only returned if neither input can be an
@@ -1096,8 +1113,8 @@ let prove_physical_equality env t1 t2 =
                This is what allows us to combine correctly with the property on
                blocks to return a precise enough result. *)
             match
-              ( prove_naked_immediates_generic env immediates1,
-                prove_naked_immediates_generic env immediates2 )
+              ( prove_naked_immediates_generic env imms1,
+                prove_naked_immediates_generic env imms2 )
             with
             | Invalid, Invalid -> Invalid
             | Invalid, _ | _, Invalid -> Proved false
@@ -1150,7 +1167,7 @@ let prove_physical_equality env t1 t2 =
           | Proved b, Invalid | Invalid, Proved b -> Proved b
           | Proved false, Proved false -> Proved false
           | _, _ -> Unknown)
-        | _, _ -> Unknown)
+        | _, _, _, _ -> Unknown)
       (* Boxed numbers with non-numbers or different kinds -> Proved *)
       | ( Boxed_float _,
           ( Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int32 _

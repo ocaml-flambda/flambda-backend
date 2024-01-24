@@ -1425,10 +1425,16 @@ end = struct
                 blocks = Unknown;
                 extensions = _;
                 is_unique = _
+              }
+          | Variant
+              { immediates = Unknown;
+                blocks = _;
+                extensions = _;
+                is_unique = _
               } ->
             Value_unknown
           | Variant
-              { immediates = imms;
+              { immediates = Known imms;
                 blocks = Known blocks;
                 extensions = _;
                 is_unique = _

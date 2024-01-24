@@ -683,10 +683,13 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t) ~(extensions1 : TG.variant_extensions)
+    ~(imms1 : TG.t Or_unknown.t)
+    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t Or_unknown.t) ~(extensions1 : TG.variant_extensions)
     ~(extensions2 : TG.variant_extensions) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TG.variant_extensions)
+    (TG.Row_like_for_blocks.t Or_unknown.t
+    * TG.t Or_unknown.t
+    * TG.variant_extensions)
     meet_result =
   let join_scope = TE.current_scope initial_env in
   let env = TE.increment_scope initial_env in
@@ -723,7 +726,11 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
               ~meet_type:(New meet_type)) )
   in
   let immediates_result : _ meet_result =
-    match env_imms with Bottom -> Bottom | Ok env -> meet env imms1 imms2
+    match env_imms with
+    | Bottom -> Bottom
+    | Ok env ->
+      meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom env imms1
+        imms2
   in
   let blocks_result : _ meet_result =
     match env_blocks with
@@ -741,7 +748,7 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
   | Bottom, Ok (blocks_result, env) ->
     let blocks = extract_value blocks_result blocks1 blocks2 in
-    let imms = TG.bottom_naked_immediate in
+    let imms = Or_unknown.Known TG.bottom_naked_immediate in
     (* CR vlaviron: recover when this is actually one of the inputs *)
     direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
   | Ok (imms_result, env_imms), Ok (blocks_result, env_blocks) ->
@@ -1622,13 +1629,15 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t) ~(extensions1 : TG.variant_extensions)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t) ~(imms2 : TG.t)
-    ~(extensions2 : TG.variant_extensions) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TG.variant_extensions)
+    ~(imms1 : TG.t Or_unknown.t) ~(extensions1 : TG.variant_extensions)
+    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t Or_unknown.t) ~(extensions2 : TG.variant_extensions) :
+    (TG.Row_like_for_blocks.t Or_unknown.t
+    * TG.t Or_unknown.t
+    * TG.variant_extensions)
     Or_unknown.t =
   let blocks = join_unknown join_row_like_for_blocks env blocks1 blocks2 in
-  let imms = join ?bound_name:None env imms1 imms2 in
+  let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
   let extensions : TG.variant_extensions =
     match extensions1, extensions2 with
     | No_extensions, Ext _ | Ext _, No_extensions | No_extensions, No_extensions
@@ -1646,11 +1655,7 @@ and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
   in
   match blocks, imms, extensions with
   | Unknown, Unknown, No_extensions -> Unknown
-  | Unknown, Unknown, Ext _ ->
-    Known (Unknown, TG.any_naked_immediate, extensions)
-  | Known _, Unknown, (No_extensions | Ext _) ->
-    Known (blocks, TG.any_naked_immediate, extensions)
-  | (Unknown | Known _), Known imms, (No_extensions | Ext _) ->
+  | (Unknown | Known _), (Unknown | Known _), (No_extensions | Ext _) ->
     Known (blocks, imms, extensions)
 
 and join_head_of_kind_naked_immediate env

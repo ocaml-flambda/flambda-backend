@@ -53,7 +53,7 @@ type t =
 
 and head_of_kind_value =
   | Variant of
-      { immediates : t;
+      { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
         extensions : variant_extensions;
         is_unique : bool
@@ -271,7 +271,7 @@ and free_names_head_of_kind_value0 ~follow_value_slots head =
       [ Or_unknown.free_names
           (free_names_row_like_for_blocks ~follow_value_slots)
           blocks;
-        free_names0 ~follow_value_slots immediates;
+        Or_unknown.free_names (free_names0 ~follow_value_slots) immediates;
         free_names_variant_extensions ~follow_value_slots extensions ]
   | Mutable_block { alloc_mode = _ } -> Name_occurrences.empty
   | Boxed_float32 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
@@ -552,7 +552,10 @@ let rec apply_renaming t renaming =
 and apply_renaming_head_of_kind_value head renaming =
   match head with
   | Variant { blocks; immediates; extensions; is_unique } ->
-    let immediates' = apply_renaming immediates renaming in
+    let immediates' =
+      let>+$ immediates = immediates in
+      apply_renaming immediates renaming
+    in
     let blocks' =
       let>+$ blocks = blocks in
       apply_renaming_row_like_for_blocks blocks renaming
@@ -856,7 +859,8 @@ and print_head_of_kind_value ppf head =
        %a)@]%a)@]"
       (if is_unique then " unique" else "")
       (Or_unknown.print print_row_like_for_blocks)
-      blocks print immediates print_variant_extensions extensions
+      blocks (Or_unknown.print print) immediates print_variant_extensions
+      extensions
   | Mutable_block { alloc_mode } ->
     Format.fprintf ppf "@[<hov 1>(Mutable_block@ %a)@]"
       Alloc_mode.For_types.print alloc_mode
@@ -1109,7 +1113,7 @@ and ids_for_export_head_of_kind_value head =
   | Variant { blocks; immediates; extensions; is_unique = _ } ->
     Ids_for_export.union_list
       [ Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks;
-        ids_for_export immediates;
+        Or_unknown.ids_for_export ids_for_export immediates;
         ids_for_export_variant_extensions extensions ]
   | Mutable_block { alloc_mode = _ } -> Ids_for_export.empty
   | Boxed_float (t, _alloc_mode) -> ids_for_export t
@@ -1700,6 +1704,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
   match head with
   | Variant { blocks; immediates; extensions; is_unique } ->
     let immediates' =
+      let>+$ immediates = immediates in
       remove_unused_value_slots_and_shortcut_aliases immediates
         ~used_value_slots ~canonicalise
     in
@@ -2278,7 +2283,10 @@ let rec project_variables_out ~to_project ~expand t =
 and project_head_of_kind_value ~to_project ~expand head =
   match head with
   | Variant { blocks; immediates; extensions; is_unique } ->
-    let immediates' = project_variables_out ~to_project ~expand immediates in
+    let immediates' =
+      let>+$ immediates = immediates in
+      project_variables_out ~to_project ~expand immediates
+    in
     let blocks' =
       let>+$ blocks = blocks in
       project_row_like_for_blocks ~to_project ~expand blocks
@@ -2569,13 +2577,17 @@ let kind t =
   | Rec_info _ -> K.rec_info
   | Region _ -> K.region
 
-let create_variant ~is_unique ~immediates ~blocks ~extensions =
-  if not (K.equal (kind immediates) K.naked_immediate)
-  then
-    Misc.fatal_errorf
-      "Cannot create [immediates] with type that is not of kind \
-       [Naked_immediate]:@ %a"
-      print immediates;
+let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks ~extensions
+    =
+  (match immediates with
+  | Unknown -> ()
+  | Known immediates ->
+    if not (K.equal (kind immediates) K.naked_immediate)
+    then
+      Misc.fatal_errorf
+        "Cannot create [immediates] with type that is not of kind \
+         [Naked_immediate]:@ %a"
+        print immediates);
   Value (TD.create (Variant { immediates; blocks; extensions; is_unique }))
 
 let mutable_block alloc_mode = Value (TD.create (Mutable_block { alloc_mode }))
@@ -3213,7 +3225,7 @@ let tag_immediate t : t =
       (TD.create
          (Variant
             { is_unique = false;
-              immediates = t;
+              immediates = Known t;
               extensions = No_extensions;
               blocks = Known Row_like_for_blocks.bottom
             }))
@@ -3366,7 +3378,7 @@ module Head_of_kind_value = struct
   let create_tagged_immediate imm : t =
     Variant
       { is_unique = false;
-        immediates = this_naked_immediate imm;
+        immediates = Known (this_naked_immediate imm);
         blocks = Known Row_like_for_blocks.bottom;
         extensions = No_extensions
       }
@@ -3475,27 +3487,30 @@ let rec recover_some_aliases t =
         if not (Row_like_for_blocks.is_bottom blocks)
         then t
         else
-          let t' = recover_some_aliases immediates in
-          match t' with
-          | Naked_immediate ty -> (
-            match TD.descr ty with
-            | Ok (Equals alias) ->
-              Simple.pattern_match' alias
-                ~var:(fun _ ~coercion:_ -> t)
-                ~symbol:(fun _ ~coercion:_ -> t)
-                ~const:(fun const ->
-                  match Reg_width_const.descr const with
-                  | Naked_immediate i -> this_tagged_immediate i
-                  | Tagged_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-                  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-                    Misc.fatal_errorf
-                      "Immediates case returned wrong kind of constant:@ %a"
-                      Reg_width_const.print const)
-            | Unknown | Bottom | Ok (No_alias _) -> t)
-          | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-          | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
-            Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
-              t' ())))
+          match immediates with
+          | Unknown -> t
+          | Known immediates -> (
+            let t' = recover_some_aliases immediates in
+            match t' with
+            | Naked_immediate ty -> (
+              match TD.descr ty with
+              | Ok (Equals alias) ->
+                Simple.pattern_match' alias
+                  ~var:(fun _ ~coercion:_ -> t)
+                  ~symbol:(fun _ ~coercion:_ -> t)
+                  ~const:(fun const ->
+                    match Reg_width_const.descr const with
+                    | Naked_immediate i -> this_tagged_immediate i
+                    | Tagged_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+                    | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+                      Misc.fatal_errorf
+                        "Immediates case returned wrong kind of constant:@ %a"
+                        Reg_width_const.print const)
+              | Unknown | Bottom | Ok (No_alias _) -> t)
+            | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
+            | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+              Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
+                t' ()))))
   | Naked_immediate ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) | Ok (No_alias (Is_int _ | Get_tag _)) ->
