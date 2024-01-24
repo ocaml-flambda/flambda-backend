@@ -33,7 +33,9 @@ type _ pass =
   | Cmm : Cmm.phrase list pass
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
-  | Check_allocations : Checkmach.iter_witnesses pass
+  | Check_allocations : Checkmach_types.iter_witnesses pass
+
+  | Imported_compilation_unit : (Compilation_unit.t * string) pass
 
 type t = {
   mutable parse_tree_intf : (Parsetree.signature -> unit) list;
@@ -56,7 +58,8 @@ type t = {
   mutable cfg : (Cfg_with_layout.t -> unit) list;
   mutable cmm : (Cmm.phrase list -> unit) list;
   mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list;
-  mutable check_allocations : (Checkmach.iter_witnesses -> unit) list
+  mutable check_allocations : (Checkmach_types.iter_witnesses -> unit) list;
+  mutable imported_compilation_unit : (Compilation_unit.t * string -> unit) list
 }
 let hooks : t = {
   parse_tree_intf = [];
@@ -80,6 +83,7 @@ let hooks : t = {
   cmm = [];
   inlining_tree = [];
   check_allocations = [];
+  imported_compilation_unit = [];
 }
 
 let execute_hooks : type a. (a -> unit) list -> a -> unit = fun hooks arg ->
@@ -111,6 +115,7 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
   | Check_allocations ->
     hooks.check_allocations <- f :: hooks.check_allocations
+  | Imported_compilation_unit -> hooks.imported_compilation_unit <- f :: hooks.imported_compilation_unit
 
 let execute : type a. a pass -> a -> unit =
   fun representation arg ->
@@ -136,6 +141,7 @@ let execute : type a. a pass -> a -> unit =
   | Cmm -> execute_hooks hooks.cmm arg
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
   | Check_allocations -> execute_hooks hooks.check_allocations arg
+  | Imported_compilation_unit -> execute_hooks hooks.imported_compilation_unit arg
 
 let execute_and_pipe r a = execute r a; a
 
@@ -162,3 +168,4 @@ let clear : type a. a pass -> unit =
   | Cmm -> hooks.cmm <- []
   | Inlining_tree -> hooks.inlining_tree <- []
   | Check_allocations -> hooks.check_allocations <- []
+  | Imported_compilation_unit -> hooks.imported_compilation_unit <- []

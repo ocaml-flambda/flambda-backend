@@ -341,6 +341,7 @@ let dump_obj_by_kind filename ic obj_kind =
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
+    let _filename = (input_value ic : unit_infos_associated_source) in
     (* This consumes ic *)
     let sections = Flambda_backend_utils.File_sections.create
         uir.uir_section_toc filename ic ~first_section_offset in

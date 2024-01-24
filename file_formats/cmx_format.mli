@@ -56,7 +56,12 @@ type unit_infos =
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: Flambda2_cmx.Flambda_cmx_format.t option;
     mutable ui_checks: Checks.t;
-    mutable ui_force_link: bool }         (* Always linked *)
+    mutable ui_force_link: bool;         (* Always linked *)
+    mutable ui_impl_filename : string; }
+
+type unit_infos_associated_source = {
+  filename : string
+}
 
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;

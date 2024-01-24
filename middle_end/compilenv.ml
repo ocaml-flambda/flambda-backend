@@ -57,7 +57,8 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = None }
+    ui_export_info = None;
+    ui_impl_filename = Location.absolute_path !Location.input_name  }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -72,7 +73,8 @@ let reset compilation_unit =
   current_unit.ui_force_link <- !Clflags.link_everything;
   Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
-  current_unit.ui_export_info <- None
+  current_unit.ui_export_info <- None;
+  current_unit.ui_impl_filename <- Location.absolute_path !Location.input_name
 
 let current_unit_infos () =
   current_unit
@@ -89,6 +91,7 @@ let read_unit_info filename =
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
+    let associated_source = (input_value ic : unit_infos_associated_source) in
     (* This consumes the channel *)
     let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     let export_info =
@@ -103,7 +106,8 @@ let read_unit_info filename =
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
-      ui_force_link = uir.uir_force_link
+      ui_force_link = uir.uir_force_link;
+      ui_impl_filename = associated_source.filename;
     }
     in
     (ui, crc)
@@ -148,6 +152,7 @@ let get_unit_info comp_unit =
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;
+            Compiler_hooks.(execute Imported_compilation_unit (ui.ui_unit, ui.ui_impl_filename));
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
@@ -259,6 +264,7 @@ let write_unit_info info filename =
   flush oc;
   let crc = Digest.file filename in
   Digest.output oc crc;
+  output_value oc { filename = info.ui_impl_filename };
   close_out oc
 
 let save_unit_info filename =

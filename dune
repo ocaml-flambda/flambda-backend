@@ -116,6 +116,7 @@
   printlinear
   printmach
   checkmach
+  checkmach_types
   proc
   simd
   simd_selection
