@@ -21,7 +21,7 @@
    lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c callback.c weak.c
    finalise.c domain.c platform.c fiber.c memory.c startup_aux.c runtime_events.c sync.c
    dynlink.c backtrace_byt.c backtrace.c afl.c
-   bigarray.c prng.c win32.c
+   bigarray.c prng.c win32.c major_gc.c
  )
  (action  (with-stdout-to %{targets}
    (chdir ..  (run %{dep:gen_primitives.sh})))))

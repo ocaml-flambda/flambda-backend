@@ -100,6 +100,7 @@ void caml_parse_ocamlrunparam(void)
     while (*opt != '\0'){
       switch (*opt++){
       case 'b': scanmult (opt, &params.backtrace_enabled); break;
+      case 'B': scanmult (opt, &caml_budget_buffer_size); break;
       case 'c': scanmult (opt, &params.cleanup_on_exit); break;
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
       case 'l': scanmult (opt, &params.init_max_stack_wsz); break;

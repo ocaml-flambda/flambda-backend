@@ -125,6 +125,80 @@ static struct ephe_cycle_info_t {
  * the lock. */
 static caml_plat_mutex ephe_lock = CAML_PLAT_MUTEX_INITIALIZER;
 
+typedef struct {
+  value header;
+  value major_cycles_completed; // must be after [header]
+  value slice_counter;
+  value heap_words;
+  value total_cycle_work;
+  value my_alloc_count;
+  value my_dependent_count;
+  value alloc_work;
+  value dependent_work;
+  value extra_work;
+  value work_counter;
+  value alloc_counter;
+  value slice_target;
+  value slice_budget;
+} budget_info;
+
+value* caml_budgets = NULL;
+uintnat caml_budget_buffer_size = 10;
+
+static uintnat slice_counter = 0;
+static uintnat budget_slot = 0;
+
+static void init_budget_buffer(void)
+{
+  caml_budgets = (value*) malloc(sizeof(value) * (1 + caml_budget_buffer_size));
+  if (caml_budgets == NULL) {
+    caml_fatal_error("Cannot allocate budget buffer");
+  }
+
+  caml_budgets[0] = Make_header(caml_budget_buffer_size, 0, NOT_MARKABLE);
+  for (int i = 1; i <= caml_budget_buffer_size; i++) {
+    budget_info* info = (budget_info*) malloc(sizeof(budget_info));
+    if (info == NULL) {
+      caml_fatal_error("Cannot allocate budget info");
+    }
+
+    info->header =
+      Make_header((sizeof(budget_info) / sizeof(value)) - 1, 0, NOT_MARKABLE);
+
+    info->major_cycles_completed = Val_long(0);
+    info->slice_counter = Val_long(0);
+    info->heap_words = Val_long(0);
+    info->total_cycle_work = Val_long(0);
+    info->my_alloc_count = Val_long(0);
+    info->my_dependent_count = Val_long(0);
+    info->alloc_work = Val_long(0);
+    info->dependent_work = Val_long(0);
+    info->extra_work = Val_long(0);
+    info->work_counter = Val_long(0);
+    info->alloc_counter = Val_long(0);
+    info->slice_target = Val_long(0);
+    info->slice_budget = Val_long(0);
+
+    caml_budgets[i] = (value) &info->major_cycles_completed;
+  }
+}
+
+CAMLprim value caml_get_budget_buffer(void)
+{
+  return (value) &caml_budgets[1];
+}
+
+static budget_info* get_next_budget_info(void)
+{
+  budget_info* info =
+    (budget_info*) (((char*) (caml_budgets[budget_slot + 1])) - sizeof(value));
+
+  budget_slot++;
+  if (budget_slot >= caml_budget_buffer_size) budget_slot = 0;
+
+  return info;
+}
+
 #define PREFETCH_BUFFER_SIZE  (1 << 8)
 #define PREFETCH_BUFFER_MIN   64 /* keep pb at least this full */
 #define PREFETCH_BUFFER_MASK  (PREFETCH_BUFFER_SIZE - 1)
@@ -604,6 +678,21 @@ static void update_major_slice_work(intnat howmuch) {
     dom_st->slice_target = atomic_load (&work_counter);  /* already reached */
     dom_st->slice_budget = howmuch;
   }
+
+  budget_info* info = get_next_budget_info();
+  info->major_cycles_completed = Val_long(caml_major_cycles_completed);
+  info->slice_counter = Val_long(slice_counter);
+  info->heap_words = Val_long(heap_words);
+  info->total_cycle_work = Val_long(total_cycle_work);
+  info->my_alloc_count = Val_long(my_alloc_count);
+  info->my_dependent_count = Val_long(my_dependent_count);
+  info->alloc_work = Val_long(alloc_work);
+  info->dependent_work = Val_long(dependent_work);
+  info->extra_work = Val_long(extra_work);
+  info->work_counter = Val_long(atomic_load (&work_counter));
+  info->alloc_counter = Val_long(atomic_load (&alloc_counter));
+  info->slice_target = Val_long(dom_st->slice_target);
+  info->slice_budget = Val_long(dom_st->slice_budget);
 
   caml_gc_log("Updated major work: [%c] "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
@@ -1503,6 +1592,8 @@ static void major_collection_slice(intnat howmuch,
   int log_events = mode != Slice_opportunistic ||
                    (atomic_load_relaxed(&caml_verb_gc) & 0x40);
 
+  slice_counter++;
+
   update_major_slice_work(howmuch);
 
   /* When a full slice of major GC work is done,
@@ -1912,6 +2003,8 @@ static void mark_stack_prune(struct mark_stack* stk)
 }
 
 int caml_init_major_gc(caml_domain_state* d) {
+  init_budget_buffer();
+
   d->mark_stack = caml_stat_alloc_noexc(sizeof(struct mark_stack));
   if(d->mark_stack == NULL) {
     return -1;

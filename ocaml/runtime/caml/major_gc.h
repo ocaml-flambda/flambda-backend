@@ -78,6 +78,8 @@ extern uintnat caml_major_cycles_completed;
 
 double caml_mean_space_overhead(void);
 
+extern uintnat caml_budget_buffer_size;
+
 #endif /* CAML_INTERNALS */
 
 #endif /* CAML_MAJOR_GC_H */
