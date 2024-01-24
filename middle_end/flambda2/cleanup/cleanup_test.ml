@@ -386,6 +386,8 @@ module Dacc : sig
 
   val used : denv:denv -> Simple.t -> t -> t
 
+  val used_code_id : Code_id.t -> t -> t
+
   val called : denv:denv -> Code_id.t -> t -> t
 
   val opaque_let_dependency :
@@ -543,6 +545,10 @@ end = struct
       ~name:(fun name ~coercion:_ ->
         Deps.add_use (cur_deps ~denv t) (Code_id_or_name.name name))
       ~const:(fun _ -> ());
+    t
+
+  let used_code_id code_id t =
+    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id);
     t
 
   let called ~denv code_id t =
@@ -1192,6 +1198,15 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
+  (* Note: this significately degrades the analysis on zero_alloc code. However, it is highly unclear what should be done for zero_alloc code, so we simply mark the code as escaping. *)
+  let never_delete =
+    match Code_metadata.check code_metadata with
+    | Default_check -> !Clflags.zero_alloc_check_assert_all
+    | Ignore_assert_all Zero_alloc -> false
+    | Assume { property = Zero_alloc; _ } -> false
+    | Check { property = Zero_alloc; _ } -> true
+  in
+  let dacc = if never_delete then Dacc.used_code_id code_id dacc else dacc in
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
