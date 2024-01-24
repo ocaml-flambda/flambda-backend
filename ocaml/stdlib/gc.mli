@@ -566,6 +566,9 @@ module Budgets : sig
     slice_target : int;
     slice_budget : int;
     major_slice_work : int; (* the actual computed work *)
+    mark_work : int;
+    sweep_work : int;
+    blocks_marked : int;
   }
 
   type t = budget_info iarray

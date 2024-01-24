@@ -141,6 +141,9 @@ typedef struct {
   value slice_target;
   value slice_budget;
   value major_slice_work;
+  value mark_work;
+  value sweep_work;
+  value blocks_marked;
 } budget_info;
 
 value* caml_budgets = NULL;
@@ -180,6 +183,9 @@ static void init_budget_buffer(void)
     info->slice_target = Val_long(0);
     info->slice_budget = Val_long(0);
     info->major_slice_work = Val_long(0);
+    info->mark_work = Val_long(0);
+    info->sweep_work = Val_long(0);
+    info->blocks_marked = Val_long(0);
 
     caml_budgets[i] = (value) &info->major_cycles_completed;
   }
@@ -199,6 +205,11 @@ static budget_info* get_next_budget_info(void)
   if (budget_slot >= caml_budget_buffer_size) budget_slot = 0;
 
   return info;
+}
+
+static budget_info* get_current_budget_info(void)
+{
+  return (budget_info*) (((char*) (caml_budgets[budget_slot + 1])) - sizeof(value));
 }
 
 #define PREFETCH_BUFFER_SIZE  (1 << 8)
@@ -717,6 +728,11 @@ static void update_major_slice_work(intnat howmuch, collection_slice_mode mode) 
   info->slice_target = Val_long(dom_st->slice_target);
   info->slice_budget = Val_long(dom_st->slice_budget);
   info->major_slice_work = Val_long(get_major_slice_work(mode));
+
+  // These are populated at the end of the major slice.
+  info->mark_work = Val_long(0);
+  info->sweep_work = Val_long(0);
+  info->blocks_marked = Val_long(0);
 
   caml_gc_log("Updated major work: [%c] "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
@@ -1783,6 +1799,12 @@ mark_again:
               (long)sweep_work, (long)mark_work,
               (unsigned long)(domain_state->stat_blocks_marked
                                                       - blocks_marked_before));
+
+  budget_info* info = get_current_budget_info();
+  info->sweep_work = Val_long(sweep_work);
+  info->mark_work = Val_long(mark_work);
+  info->blocks_marked = Val_long(
+    (unsigned long)(domain_state->stat_blocks_marked - blocks_marked_before));
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
     saved_major_cycle = caml_major_cycles_completed;

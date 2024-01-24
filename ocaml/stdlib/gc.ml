@@ -188,6 +188,9 @@ module Budgets = struct
     slice_target : int;
     slice_budget : int;
     major_slice_work : int;
+    mark_work : int;
+    sweep_work : int;
+    blocks_marked : int;
   }
 
   type t = budget_info iarray
