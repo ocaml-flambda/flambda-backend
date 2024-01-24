@@ -464,7 +464,8 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     pp f "@[<2>%a@;.@;%a@]"
         (list jkind_poly_var ~sep:"@;") bound_vars
         (core_type ctxt) inner_type
-  | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
+  | Jtyp_tuple _ | Jtyp_layout (Ltyp_var _) ->
+    pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
@@ -474,7 +475,8 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
       pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
     | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
-    | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
+    | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
+      paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
   | None -> pp f "_"
