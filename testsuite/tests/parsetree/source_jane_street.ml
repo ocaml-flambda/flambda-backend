@@ -27,6 +27,10 @@ module type S_for_layouts = sig
   type t : float64
 
   type variant = A : ('a : immediate). 'a -> variant
+
+  val f1: ('a : float64) ('b : immediate) 'c . 'a -> 'b -> 'c
+  val f2: ('a : float64) 'b ('c : bits64) . 'a -> 'b -> 'c
+  val f3: 'a 'b ('c : word) . 'a -> 'b -> 'c
 end;;
 
 type ('a : immediate) for_layouts = 'a;;
