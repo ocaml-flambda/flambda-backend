@@ -187,10 +187,19 @@ module Budgets = struct
     alloc_counter : int;
     slice_target : int;
     slice_budget : int;
-    major_slice_work : int;
+    major_slice_budget : int;
+    cum_major_slice_budget : int;
+    initial_major_slice_work : int;
     mark_work : int;
+    cum_mark_work : int;
     sweep_work : int;
+    cum_sweep_work : int;
     blocks_marked : int;
+    cum_blocks_marked : int;
+    ephe_mark_work : int;
+    cum_ephe_mark_work : int;
+    ephe_sweep_work : int;
+    cum_ephe_sweep_work : int;
   }
 
   type t = budget_info iarray

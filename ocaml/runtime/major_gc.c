@@ -140,14 +140,30 @@ typedef struct {
   value alloc_counter;
   value slice_target;
   value slice_budget;
-  value major_slice_work;
+  value major_slice_budget;
+  value cum_major_slice_budget;
+  value initial_major_slice_work;
   value mark_work;
+  value cum_mark_work;
   value sweep_work;
+  value cum_sweep_work;
   value blocks_marked;
+  value cum_blocks_marked;
+  value ephe_mark_work;
+  value cum_ephe_mark_work;
+  value ephe_sweep_work;
+  value cum_ephe_sweep_work;
 } budget_info;
 
 value* caml_budgets = NULL;
 uintnat caml_budget_buffer_size = 50;
+
+intnat cum_mark_work = 0;
+intnat cum_sweep_work = 0;
+intnat cum_ephe_mark_work = 0;
+intnat cum_ephe_sweep_work = 0;
+intnat cum_blocks_marked = 0;
+intnat cum_major_slice_budget = 0;
 
 static uintnat slice_counter = 0;
 static uintnat budget_slot = 0;
@@ -182,12 +198,21 @@ static void init_budget_buffer(void)
     info->alloc_counter = Val_long(0);
     info->slice_target = Val_long(0);
     info->slice_budget = Val_long(0);
-    info->major_slice_work = Val_long(0);
+    info->major_slice_budget = Val_long(0);
+    info->cum_major_slice_budget = Val_long(0);
+    info->initial_major_slice_work = Val_long(0);
     info->mark_work = Val_long(0);
+    info->cum_mark_work = Val_long(0);
     info->sweep_work = Val_long(0);
+    info->cum_sweep_work = Val_long(0);
     info->blocks_marked = Val_long(0);
+    info->cum_blocks_marked = Val_long(0);
+    info->ephe_mark_work = Val_long(0);
+    info->cum_ephe_mark_work = Val_long(0);
+    info->ephe_sweep_work = Val_long(0);
+    info->cum_ephe_sweep_work = Val_long(0);
 
-    caml_budgets[i] = (value) &info->major_cycles_completed;
+    caml_budgets[i] = (value) &info->blocks_marked;
   }
 }
 
@@ -581,17 +606,20 @@ typedef enum {
   Slice_opportunistic
 } collection_slice_mode;
 
-static intnat get_major_slice_work(collection_slice_mode mode){
+static intnat get_major_slice_budget(collection_slice_mode mode){
   caml_domain_state *dom_st = Caml_state;
 
   if (mode == Slice_interruptible && caml_incoming_interrupts_queued())
     return 0;
 
   /* calculate how much work remains to do for this slice */
-  intnat budget =
+  return
     max2 (diffmod (dom_st->slice_target, atomic_load (&work_counter)),
           dom_st->slice_budget);
-  return min2(budget, Chunk_size);
+}
+
+static intnat get_major_slice_work(collection_slice_mode mode){
+  return min2(get_major_slice_budget(mode), Chunk_size);
 }
 
 static budget_info* update_major_slice_work(intnat howmuch, collection_slice_mode mode) {
@@ -709,6 +737,7 @@ static budget_info* update_major_slice_work(intnat howmuch, collection_slice_mod
   }
 
   budget_info* info = get_next_budget_info();
+  intnat major_slice_budget = get_major_slice_budget(mode);
   info->major_cycles_completed = Val_long(caml_major_cycles_completed);
   info->slice_counter = Val_long(slice_counter);
   info->heap_words = Val_long(heap_words);
@@ -722,12 +751,25 @@ static budget_info* update_major_slice_work(intnat howmuch, collection_slice_mod
   info->alloc_counter = Val_long(atomic_load (&alloc_counter));
   info->slice_target = Val_long(dom_st->slice_target);
   info->slice_budget = Val_long(dom_st->slice_budget);
-  info->major_slice_work = Val_long(get_major_slice_work(mode));
+  info->major_slice_budget = Val_long(major_slice_budget);
+  info->initial_major_slice_work = Val_long(get_major_slice_work(mode));
+
+  cum_major_slice_budget += major_slice_budget;
+  info->cum_major_slice_budget = cum_major_slice_budget;
 
   // These are populated at the end of the major slice.
-  info->mark_work = Val_long(0);
-  info->sweep_work = Val_long(0);
-  info->blocks_marked = Val_long(0);
+  info->blocks_marked   = Val_long(0);
+  info->ephe_mark_work  = Val_long(0);
+  info->ephe_sweep_work = Val_long(0);
+  info->mark_work       = Val_long(0);
+  info->sweep_work      = Val_long(0);
+
+  // These are updated at the end of the major slice.
+  info->cum_blocks_marked    = Val_long(cum_blocks_marked);
+  info->cum_ephe_mark_work   = Val_long(cum_ephe_mark_work);
+  info->cum_ephe_sweep_work  = Val_long(cum_ephe_sweep_work);
+  info->cum_mark_work        = Val_long(cum_mark_work);
+  info->cum_sweep_work       = Val_long(cum_sweep_work);
 
   caml_gc_log("Updated major work: [%c] "
               " %"ARCH_INTNAT_PRINTF_FORMAT "u heap_words, "
@@ -1599,7 +1641,7 @@ static void major_collection_slice(intnat howmuch,
                                      int force_compaction)
 {
   caml_domain_state* domain_state = Caml_state;
-  intnat sweep_work = 0, mark_work = 0;
+  intnat sweep_work = 0, mark_work = 0, ephe_mark_work = 0, ephe_sweep_work = 0;
   uintnat blocks_marked_before = domain_state->stat_blocks_marked;
   uintnat saved_ephe_cycle;
   uintnat saved_major_cycle = caml_major_cycles_completed;
@@ -1703,6 +1745,7 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_mark(budget, saved_ephe_cycle, EPHE_MARK_DEFAULT);
           intnat work_done = budget - left;
+          ephe_mark_work += work_done;
           commit_major_slice_work (work_done);
 
           // FIXME: Can we delete this?
@@ -1760,6 +1803,7 @@ mark_again:
                (budget = get_major_slice_work(mode)) > 0) {
           intnat left = ephe_sweep (domain_state, budget);
           intnat work_done = budget - left;
+          ephe_sweep_work += work_done;
           commit_major_slice_work(work_done);
         }
 
@@ -1789,19 +1833,35 @@ mark_again:
   call_timing_hook(&caml_major_slice_end_hook);
   if (log_events) CAML_EV_END(EV_MAJOR_SLICE);
 
+  unsigned long blocks_marked =
+    (unsigned long)(domain_state->stat_blocks_marked
+                    - blocks_marked_before);
+
   caml_gc_log
     ("Major slice [%c%c%c]: %ld sweep, %ld mark (%lu blocks)",
               collection_slice_mode_char(mode),
               !caml_incoming_interrupts_queued() ? '.' : '*',
               caml_gc_phase_char(caml_gc_phase),
               (long)sweep_work, (long)mark_work,
-              (unsigned long)(domain_state->stat_blocks_marked
-                                                      - blocks_marked_before));
+              blocks_marked);
 
-  budget_info->sweep_work = Val_long(sweep_work);
-  budget_info->mark_work = Val_long(mark_work);
-  budget_info->blocks_marked = Val_long(
-    (unsigned long)(domain_state->stat_blocks_marked - blocks_marked_before));
+  budget_info->sweep_work      = Val_long(sweep_work);
+  budget_info->mark_work       = Val_long(mark_work);
+  budget_info->ephe_sweep_work = Val_long(ephe_sweep_work);
+  budget_info->ephe_mark_work  = Val_long(ephe_mark_work);
+  budget_info->blocks_marked   = Val_long(blocks_marked);
+
+  cum_sweep_work       += sweep_work;
+  cum_mark_work        += mark_work;
+  cum_ephe_mark_work   += ephe_mark_work;
+  cum_ephe_sweep_work  += ephe_sweep_work;
+  cum_blocks_marked    += blocks_marked;
+
+  budget_info->cum_sweep_work       = Val_long(cum_sweep_work);
+  budget_info->cum_mark_work        = Val_long(cum_mark_work);
+  budget_info->cum_ephe_mark_work   = Val_long(cum_ephe_mark_work);
+  budget_info->cum_ephe_sweep_work  = Val_long(cum_ephe_sweep_work);
+  budget_info->cum_blocks_marked    = Val_long(cum_blocks_marked);
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
     saved_major_cycle = caml_major_cycles_completed;

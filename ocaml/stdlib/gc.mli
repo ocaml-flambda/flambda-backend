@@ -565,10 +565,26 @@ module Budgets : sig
     alloc_counter : int;
     slice_target : int;
     slice_budget : int;
-    major_slice_work : int; (* the actual computed work *)
+    major_slice_budget : int; (* the actual computed work. it may not be spent. *)
+    cum_major_slice_budget : int;
+    initial_major_slice_work : int;
+    (* this is not all of the budget for the entire slice; it's just the
+       budget for the first mini-portion of marking/sweeping. We don't track
+       the subsequent mini-portions; for that, see [slice_target].
+    *)
     mark_work : int;
+    cum_mark_work : int;
     sweep_work : int;
+    cum_sweep_work : int;
     blocks_marked : int;
+    cum_blocks_marked : int;
+    ephe_mark_work : int;
+    cum_ephe_mark_work : int;
+    ephe_sweep_work : int;
+    cum_ephe_sweep_work : int;
+    (* ephe_sweep_work + ephe_mark_work + sweep_work + mark_work is the
+       amount of the major_slice_budget that was actually spent.
+    *)
   }
 
   type t = budget_info iarray
