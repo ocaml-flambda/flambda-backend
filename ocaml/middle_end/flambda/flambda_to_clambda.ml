@@ -710,7 +710,7 @@ and to_clambda_set_of_closures t env
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
-        | Punboxed_float -> true
+        | Punboxed_float Pfloat64 -> true
         | Punboxed_int _ -> true
         | Punboxed_vector _ -> true
         | Pvalue Pintval -> true

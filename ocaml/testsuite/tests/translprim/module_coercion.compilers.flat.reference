@@ -43,19 +43,20 @@
           ignore assert all zero_alloc : int
           (array.unsafe_set[float] prim prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (compare_floats prim prim))
+          ignore assert all zero_alloc : int
+          (compare_floats float prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (==. prim prim))
+          ignore assert all zero_alloc : int (Float.== prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (!=. prim prim))
+          ignore assert all zero_alloc : int (Float.!= prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (<. prim prim))
+          ignore assert all zero_alloc : int (Float.< prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (>. prim prim))
+          ignore assert all zero_alloc : int (Float.> prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (<=. prim prim))
+          ignore assert all zero_alloc : int (Float.<= prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          ignore assert all zero_alloc : int (>=. prim prim)))
+          ignore assert all zero_alloc : int (Float.>= prim prim)))
       (makeblock 0
         (function {nlocal = 0} prim[addrarray] stub
           ignore assert all zero_alloc : int (array.length[addr] prim))

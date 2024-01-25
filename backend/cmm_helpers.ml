@@ -1241,7 +1241,7 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -2817,7 +2817,7 @@ let arraylength kind arg dbg =
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
     Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray | Punboxedfloatarray ->
+  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     (* Note: we only support 64 bit targets now, so this is ok for
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
@@ -3602,12 +3602,13 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
-  | Punboxed_product _ ->
+  | Ptop | Pbottom
+  | Punboxed_float Pfloat64
+  | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ ->
     Any
 
 (* Atomics *)

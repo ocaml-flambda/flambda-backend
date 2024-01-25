@@ -29,12 +29,12 @@ let rec value_kind0 ppf kind =
   match kind with
   | Pgenval -> Format.pp_print_string ppf ""
   | Pintval -> Format.pp_print_string ppf ":int"
-  | Pfloatval -> Format.pp_print_string ppf ":float"
+  | Pboxedfloatval Pfloat64 -> Format.pp_print_string ppf ":float"
   | Parrayval Pgenarray -> Format.pp_print_string ppf ":genarray"
   | Parrayval Pintarray -> Format.pp_print_string ppf ":intarray"
   | Parrayval Pfloatarray -> Format.pp_print_string ppf ":floatarray"
   | Parrayval Paddrarray -> Format.pp_print_string ppf ":addrarray"
-  | Parrayval Punboxedfloatarray -> Format.pp_print_string ppf ":unboxedfloatarray"
+  | Parrayval Punboxedfloatarray Pfloat64 -> Format.pp_print_string ppf ":unboxedfloatarray"
   | Parrayval Punboxedintarray Pint32 -> Format.pp_print_string ppf "unboxedint32array"
   | Parrayval Punboxedintarray Pint64 -> Format.pp_print_string ppf "unboxedint64array"
   | Parrayval Punboxedintarray Pnativeint -> Format.pp_print_string ppf "unboxednativeintarray"
@@ -62,7 +62,7 @@ let layout (layout : Lambda.layout) =
   | Pvalue kind -> value_kind kind
   | Ptop -> ":top"
   | Pbottom -> ":bottom"
-  | Punboxed_float -> ":unboxed_float"
+  | Punboxed_float Pfloat64 -> ":unboxed_float"
   | Punboxed_int Pint32 -> ":unboxed_int32"
   | Punboxed_int Pint64 -> ":unboxed_int64"
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"

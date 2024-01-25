@@ -59,7 +59,7 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 *)
 let record_field_kind l =
   match l with
-  | Punboxed_float -> Pfloatval
+  | Punboxed_float Pfloat64 -> Pboxedfloatval Pfloat64
   | _ -> must_be_value l
 
 (* CR layouts v5: This function is only used for sanity checking the
@@ -643,7 +643,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lconst(Const_float_array(List.map extract_float cl))
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
-                | Punboxedfloatarray | Punboxedintarray _ ->
+                | Punboxedfloatarray Pfloat64 | Punboxedintarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
             match amut with

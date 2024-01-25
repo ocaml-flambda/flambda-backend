@@ -503,7 +503,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let box_return_value =
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
-    | _, Unboxed_float -> Some (P.Box_number (Naked_float, alloc_mode))
+    | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
@@ -531,7 +531,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         kind
           (from_lambda_values_and_unboxed_numbers_only
              (Typeopt.layout_of_const_sort sort)))
-    | Unboxed_float -> K.naked_float
+    | Unboxed_float Pfloat64 -> K.naked_float
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
@@ -577,7 +577,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> (
+        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float Pfloat64) -> (
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
@@ -620,7 +620,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
-          | _, Unboxed_float -> Some (P.Unbox_number Naked_float)
+          | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
@@ -808,29 +808,40 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
       | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _
-      | Punboxed_float_comp _ | Pstringlength | Pstringrefu | Pstringrefs
-      | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
-      | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-      | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _
-      | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-      | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
-      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
-      | Punboxed_int_comp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _
-      | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
-      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
-      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
-      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+      | Pcompare_floats Pfloat64
+      | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat Pfloat64
+      | Pfloatofint (Pfloat64, _)
+      | Pnegfloat (Pfloat64, _)
+      | Pabsfloat (Pfloat64, _)
+      | Paddfloat (Pfloat64, _)
+      | Psubfloat (Pfloat64, _)
+      | Pmulfloat (Pfloat64, _)
+      | Pdivfloat (Pfloat64, _)
+      | Pfloatcomp (Pfloat64, _)
+      | Punboxed_float_comp (Pfloat64, _)
+      | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu
+      | Pbytessetu | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _
+      | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _
+      | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
+      | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
+      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+      | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _ | Pbigarrayref _
+      | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _ | Pstring_load_32 _
+      | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
+      | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _
+      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
+      | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+      | Pbigstring_set_64 _ | Pbigstring_set_128 _ | Pctconst _ | Pbswap16
+      | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
+      | Pobj_dup | Pobj_magic _
+      | Punbox_float Pfloat64
+      | Pbox_float (Pfloat64, _)
+      | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+      | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
+      | Presume | Preperform | Patomic_exchange | Patomic_cas
+      | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in
