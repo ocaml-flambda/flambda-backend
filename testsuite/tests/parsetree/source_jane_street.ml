@@ -9,6 +9,7 @@
 let f (type a : immediate) (x : a) = x;;
 let f (type (a : immediate)) (x : a) = x;;
 let f (type (a : immediate) (b : immediate)) (x : a) = x;;
+let f (type (a : immediate) (b : immediate) c) (x : a) = x;;
 
 let f y (type a : immediate) (x : a) = x;;
 let f y (type (a : immediate)) (x : a) = x;;
@@ -17,6 +18,8 @@ let f y (type (a : immediate) (b : immediate)) (x : a) = x;;
 let f y (type a : immediate) = y;;
 let f y (type (a : immediate)) = y;;
 let f y (type (a : immediate) (b : immediate)) = y;;
+let f y (type (a : immediate) (b : immediate) c) = y;;
+
 
 (* Just newtypes, no value parameters *)
 let f (type a : immediate) (type b : immediate)
