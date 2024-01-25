@@ -248,7 +248,8 @@ module Acc : sig
   val add_shareable_constant :
     symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
-  val add_code : code_id:Code_id.t -> code:Code.t -> t -> t
+  val add_code :
+    code_id:Code_id.t -> code:Code.t -> ?slot_offsets:Slot_offsets.t -> t -> t
 
   val add_free_names : Name_occurrences.t -> t -> t
 

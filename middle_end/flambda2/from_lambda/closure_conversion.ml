@@ -2177,10 +2177,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
           else meta)
         else meta
       in
+      (* The wrapper doesn't contain any set of closures *)
+      let slot_offsets = Slot_offsets.empty in
       ( wrapper_code,
         Function_slot.Map.add main_function_slot main_approx by_function_slot,
         (main_function_slot, main_code_id) :: function_code_ids,
-        Acc.add_code ~code_id:main_code_id ~code:main_code acc )
+        Acc.add_code ~code_id:main_code_id ~code:main_code ~slot_offsets acc )
   in
   let approx =
     let code = Code_or_metadata.create code in

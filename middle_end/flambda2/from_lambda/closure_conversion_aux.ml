@@ -544,10 +544,14 @@ module Acc = struct
 
   let symbol_approximations t = t.symbol_approximations
 
-  let add_code ~code_id ~code t =
+  let add_code ~code_id ~code ?slot_offsets t =
     { t with
       code_map = Code_id.Map.add code_id code t.code_map;
-      code_in_reverse_order = code :: t.code_in_reverse_order
+      code_in_reverse_order = code :: t.code_in_reverse_order;
+      code_slot_offsets =
+        (match slot_offsets with
+        | None -> t.code_slot_offsets
+        | Some offsets -> Code_id.Map.add code_id offsets t.code_slot_offsets)
     }
 
   let add_free_names free_names t =
