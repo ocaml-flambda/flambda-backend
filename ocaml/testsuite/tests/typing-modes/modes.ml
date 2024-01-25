@@ -84,6 +84,16 @@ Line 3, characters 6-7:
 Error: This value escapes its region
 |}]
 
+let foo () =
+  let e : string @ local unique = "hello" in
+  ref e
+[%%expect{|
+Line 3, characters 6-7:
+3 |   ref e
+          ^
+Error: This value escapes its region
+|}]
+
 (* Each axis can only be specified once. This error should evolve in the future
    after we introduce proper mode expressions *)
 type r = string @ local local -> string @ local

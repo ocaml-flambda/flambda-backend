@@ -453,6 +453,14 @@ module Mode_expr = struct
     let attr_loc = modes.loc in
     let attr_payload = payload_of modes in
     { attr_name; attr_loc; attr_payload }
+
+  let ext_of modes =
+    let payload = payload_of modes in
+    (* Use the loc of the annotation as the loc of the extension node *)
+    Ast_helper.Exp.extension ~loc:modes.loc
+      ((Location.mknoloc embedded_name_str),
+      payload)
+
 end
 
 (** List and array comprehensions *)

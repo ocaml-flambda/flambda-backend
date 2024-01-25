@@ -140,6 +140,8 @@ module Mode_expr : sig
   val payload_of : t -> Parsetree.payload
 
   val of_payload : loc:Location.t -> Parsetree.payload -> t
+
+  val ext_of : t -> Parsetree.expression
 end
 
 module N_ary_functions : sig

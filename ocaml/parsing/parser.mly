@@ -156,16 +156,10 @@ guaranteed to be used. *)
 let mkexp_with_modes loc modes exp =
   if Mode.is_empty modes then exp
   else
-  let loc = make_loc loc in
-  let payload = Mode.payload_of modes in
-  let ext =
-    (* Use the loc of the annotation as the loc of the extension node *)
-    Exp.extension ~loc:modes.loc (
-      Location.mknoloc Mode.embedded_name_str,
-      payload
-    )
-  in
-  Exp.apply ~loc ext [Nolabel, exp]
+  mkexp ~loc (Pexp_apply (Mode.ext_of modes, [Nolabel, exp]))
+
+ (* let ghexp_with_modes loc modes exp =
+    ghexp ~loc @@ mkexp_desc_with_modes modes exp *)
 
 let mkpat_with_modes modes pat =
   if Mode.is_empty modes then pat
@@ -184,7 +178,7 @@ let mktyp_with_modes modes typ =
 (* To simplify parsing, we often parse mode expressions as attributes on types,
 for example:
 1. type r = { x : int @ global }
-2. let x : int @ local =  ...
+2. let (x : int @ local) =  ...
 3. "hello" : int @ local
 
 Semantically, the above mode expressions should be attributes on,
@@ -289,14 +283,14 @@ let rec mktailpat nilloc = let open Location in function
 let mkstrexp e attrs =
   { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
 
-let mkexp_constraint ~loc e t =
-  match t with
-    | N_ary.Pconstraint t ->
-      let mode, t = extract_modes_from_type t in
-      mkexp_with_modes loc mode @@ mkexp ~loc (Pexp_constraint (e, t))
-    | N_ary.Pcoerce(t1, t2)  ->
-      let mode, t2 = extract_modes_from_type t2 in
-      mkexp_with_modes loc mode @@ mkexp ~loc (Pexp_coerce (e, t1, t2))
+let mkexp_constraint ~loc e (t, mode) =
+  let e =
+    match t with
+    | Some (N_ary.Pconstraint t) -> mkexp ~loc @@ Pexp_constraint (e, t)
+    | Some (N_ary.Pcoerce(t1, t2))  -> mkexp ~loc @@ Pexp_coerce(e, t1, t2)
+    | None -> e
+  in
+  mkexp_with_modes loc mode e
 
 let mkexp_opt_constraint ~loc e = function
   | None -> e
@@ -312,6 +306,11 @@ let syntax_error () =
 let unclosed opening_name opening_loc closing_name closing_loc =
   raise(Syntaxerr.Error(Syntaxerr.Unclosed(make_loc opening_loc, opening_name,
                                            make_loc closing_loc, closing_name)))
+
+(* Currently we don't support mode annotations in some locations *)
+let mode_unsupported loc =
+  raise(Syntaxerr.Error(Syntaxerr.Not_expecting(loc, "mode annotation")))
+
 
 (* Normal mutable arrays and immutable arrays are parsed identically, just with
    different delimiters.  The parsing is done by the [array_exprs] rule, and the
@@ -796,7 +795,8 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
     | Some { N_ary.type_constraint; mode_annotations } ->
         let {Location.loc_start; loc_end} = body.pexp_loc in
         let loc = loc_start, loc_end in
-        let body = mkexp_constraint ~loc body type_constraint in
+        let type_mode_constraint = (Some type_constraint, Mode.empty) in
+        let body = mkexp_constraint ~loc body type_mode_constraint in
         mkexp_with_modes loc mode_annotations body
   in
   mk_newtypes ~loc newtypes wrapped_body
@@ -2364,7 +2364,7 @@ value:
       { (label, mutable_, Cfk_virtual ty), attrs }
   | override_flag attributes mutable_flag mkrhs(label) EQUAL seq_expr
       { ($4, $3, Cfk_concrete ($1, $6)), $2 }
-  | override_flag attributes mutable_flag mkrhs(label) type_constraint
+  | override_flag attributes mutable_flag mkrhs(label) type_mode_constraint
     EQUAL seq_expr
       { let e = mkexp_constraint ~loc:$sloc $7 $5 in
         ($4, $3, Cfk_concrete ($1, e)), $2
@@ -2827,7 +2827,7 @@ simple_expr:
       { reloc_exp ~loc:$sloc $2 }
   | LPAREN seq_expr error
       { unclosed "(" $loc($1) ")" $loc($3) }
-  | LPAREN seq_expr type_constraint RPAREN
+  | LPAREN seq_expr type_mode_constraint RPAREN
       { mkexp_constraint ~loc:$sloc $2 $3 }
   | indexop_expr(DOT, seq_expr, { None })
       { mk_indexop_expr builtin_indexing_operators ~loc:$sloc $1 }
@@ -3054,7 +3054,7 @@ labeled_simple_expr:
   | TILDE label = LIDENT
       { let loc = $loc(label) in
         (Labelled label, mkexpvar ~loc label) }
-  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
+  | TILDE LPAREN label = LIDENT ty = type_mode_constraint RPAREN
       { (Labelled label, mkexp_constraint ~loc:($startpos($2), $endpos)
                            (mkexpvar ~loc:$loc(label) label) ty) }
   | QUESTION label = LIDENT
@@ -3073,29 +3073,32 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2, None, []) }
-  | mode_expr_legacy let_ident mode_expr type_constraint EQUAL seq_expr
+  | mode_expr_legacy let_ident type_mode_constraint EQUAL seq_expr
       { let v = $2 in (* PR#7344 *)
+        let typ, mode = $3 in
         let t =
-          match $4 with
+          Option.map (function
           | N_ary.Pconstraint t ->
              Pvc_constraint { locally_abstract_univars = []; typ=t }
           | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
+          ) typ
         in
-        let modes = Mode.concat $1 $3 in
-        let exp = mkexp_with_modes $sloc modes $6 in
-        (v, exp, Some t, let_binding_mode_attrs modes)
+        let mode = Mode.concat $1 mode in
+        let exp = mkexp_with_modes $sloc mode $5 in
+        (v, exp, t, let_binding_mode_attrs mode)
       }
-  | mode_expr_legacy let_ident mode_expr COLON poly(core_type) EQUAL seq_expr
-      { let bound_vars, inner_type = $5 in
+  | mode_expr_legacy let_ident COLON poly(core_type) EQUAL seq_expr
+      (* CR zqian: need to fix: mode annotations in this core_type is not read.
+      *)
+      { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
-        let typ_loc = Location.ghostify (make_loc $loc($5)) in
+        let typ_loc = Location.ghostify (make_loc $loc($4)) in
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let modes = Mode.concat $1 $3 in
-        let exp = mkexp_with_modes $sloc modes $7 in
+        let exp = mkexp_with_modes $sloc $1 $6 in
         ($2, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
-         let_binding_mode_attrs modes)
+         let_binding_mode_attrs $1)
       }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       (* The code upstream looks like:
@@ -3127,12 +3130,6 @@ let_binding_body_no_punning:
   | mode_expr_legacy_nonempty let_ident strict_binding_modes
       { ($2, mkexp_with_modes $sloc $1 ($3 $1), None,
          let_binding_mode_attrs $1) }
-  (* The follow rule copies the above one, except that it ends with [seq_expr]
-  to avoid [fun_params] which would mess up [mode_expr] *)
-  | mode0 = mode_expr_legacy id = let_ident mode1 = mode_expr_nonempty EQUAL body = seq_expr
-      { let mode = Mode.concat mode0 mode1 in
-        (id, mkexp_with_modes $sloc mode body, None,
-         let_binding_mode_attrs mode) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
@@ -3207,7 +3204,11 @@ strict_binding_modes:
         let constraint_ : N_ary.function_constraint option =
           match $2 with
           | None -> None
-          | Some type_constraint -> Some { type_constraint; mode_annotations }
+          | Some (type_constraint, m) -> begin
+            (* CR zqian: need to support mode annotation. *)
+              if not (Mode.is_empty m) then mode_unsupported m.loc;
+              Some { type_constraint; mode_annotations }
+            end
         in
         let exp = mkfunction $1 constraint_ $4 ~loc:$sloc ~attrs:(None, []) in
         { exp with pexp_loc = { exp.pexp_loc with loc_ghost = true } }
@@ -3318,7 +3319,7 @@ fun_params:
   | TILDE label = LIDENT
      { let loc = $loc(label) in
        Some label, mkexpvar ~loc label }
-  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN %prec below_HASH
+  | TILDE LPAREN label = LIDENT ty = type_mode_constraint RPAREN %prec below_HASH
       { Some label,
         mkexp_constraint
           ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
@@ -3343,7 +3344,7 @@ reversed_labeled_tuple_body:
   x2 = labeled_tuple_element
   { let loc = $loc(l1) in
     [ x2; Some l1, mkexpvar ~loc l1] }
-| TILDE LPAREN l1 = LIDENT ty1 = type_constraint RPAREN
+| TILDE LPAREN l1 = LIDENT ty1 = type_mode_constraint RPAREN
   COMMA
   x2 = labeled_tuple_element
   { let x1 =
@@ -3364,7 +3365,7 @@ record_expr_content:
 ;
 %inline record_expr_field:
   | label = mkrhs(label_longident)
-    c = type_constraint?
+    c = type_mode_constraint?
     eo = preceded(EQUAL, expr)?
       { let constraint_loc, label, e =
           match eo with
@@ -3398,11 +3399,26 @@ record_expr_content:
     { es }
 ;
 type_constraint:
-    COLON core_type                             { N_ary.Pconstraint $2 }
-  | COLON core_type COLONGREATER core_type      { N_ary.Pcoerce (Some $2, $4) }
-  | COLONGREATER core_type                      { N_ary.Pcoerce (None, $2) }
+    COLON core_type
+    { let mode, cty = extract_modes_from_type $2 in
+      (N_ary.Pconstraint cty, mode) }
+  | COLON core_type COLONGREATER core_type
+    { let mode, cty = extract_modes_from_type $4 in
+      (N_ary.Pcoerce (Some $2, cty), mode) }
+  | COLONGREATER core_type
+    { let mode, cty = extract_modes_from_type $2 in
+      (N_ary.Pcoerce (None, cty), mode) }
   | COLON error                                 { syntax_error() }
   | COLONGREATER error                          { syntax_error() }
+;
+
+%inline type_mode_constraint:
+  | type_constraint
+    { let t, mode = $1 in
+      Some t, mode
+    }
+  | mode_expr_nonempty
+    { (None, $1) }
 ;
 
 (* the thing between the [type] and the [.] in
@@ -4365,6 +4381,7 @@ tuple_type:
     ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
     mode = mode_expr
       { ty, ltys, mode }
+;
 
 %inline labeled_tuple_typ_element :
   | atomic_type %prec STAR
