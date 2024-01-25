@@ -127,7 +127,7 @@ static caml_plat_mutex ephe_lock = CAML_PLAT_MUTEX_INITIALIZER;
 
 typedef struct {
   value header;
-  value major_cycles_completed; // must be after [header]
+  value major_cycles_completed; // must be immediately after [header]
   value slice_counter;
   value heap_words;
   value total_cycle_work;
@@ -212,7 +212,7 @@ static void init_budget_buffer(void)
     info->ephe_sweep_work = Val_long(0);
     info->cum_ephe_sweep_work = Val_long(0);
 
-    caml_budgets[i] = (value) &info->blocks_marked;
+    caml_budgets[i] = (value) &info->major_cycles_completed;
   }
 }
 
@@ -755,7 +755,7 @@ static budget_info* update_major_slice_work(intnat howmuch, collection_slice_mod
   info->initial_major_slice_work = Val_long(get_major_slice_work(mode));
 
   cum_major_slice_budget += major_slice_budget;
-  info->cum_major_slice_budget = cum_major_slice_budget;
+  info->cum_major_slice_budget = Val_long(cum_major_slice_budget);
 
   // These are populated at the end of the major slice.
   info->blocks_marked   = Val_long(0);
