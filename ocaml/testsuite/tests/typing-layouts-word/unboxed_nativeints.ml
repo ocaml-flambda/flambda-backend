@@ -9,9 +9,7 @@
    ** bytecode
    flags = "-extension layouts_beta"
    ** native
-   flags = "-extension layouts"
    ** bytecode
-   flags = "-extension layouts"
 *)
 
 (* This file contains various tests for [nativeint#].  It's not an expect test

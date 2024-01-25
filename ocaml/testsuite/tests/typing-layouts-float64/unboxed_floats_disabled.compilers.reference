@@ -1,4 +1,4 @@
-File "unboxed_floats.ml", line 59, characters 11-16:
-59 |   let pi = #3.14 in
+File "unboxed_floats.ml", line 56, characters 11-16:
+56 |   let pi = #3.14 in
                 ^^^^^
 Error: This construct requires the stable version of the extension "layouts", which is disabled and cannot be used

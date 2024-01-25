@@ -10,9 +10,7 @@
    ** bytecode
    flags = "-extension layouts_beta"
    ** native
-   flags = "-extension layouts"
    ** bytecode
-   flags = "-extension layouts"
 *)
 
 (* This file tests using external C functions with int32#. *)

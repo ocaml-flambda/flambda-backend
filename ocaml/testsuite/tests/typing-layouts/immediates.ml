@@ -10,12 +10,11 @@
    ** bytecode
      flags = "-extension layouts_beta"
    ** native
-     flags = "-extension layouts"
    ** bytecode
-     flags = "-extension layouts"
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
+     flags = "-disable-all-extensions"
      compiler_reference = "${test_source_directory}/immediates_disabled.compilers.reference"
    **** check-ocamlc.byte-output
 

@@ -1,6 +1,4 @@
-(* TEST
-   flags = "-extension layouts"
-*)
+(* TEST *)
 
 module Int64_u = Stdlib__Int64_u
 module Int32_u = Stdlib__Int32_u
