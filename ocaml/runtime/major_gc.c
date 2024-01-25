@@ -207,11 +207,6 @@ static budget_info* get_next_budget_info(void)
   return info;
 }
 
-static budget_info* get_current_budget_info(void)
-{
-  return (budget_info*) (((char*) (caml_budgets[budget_slot + 1])) - sizeof(value));
-}
-
 #define PREFETCH_BUFFER_SIZE  (1 << 8)
 #define PREFETCH_BUFFER_MIN   64 /* keep pb at least this full */
 #define PREFETCH_BUFFER_MASK  (PREFETCH_BUFFER_SIZE - 1)
@@ -599,7 +594,7 @@ static intnat get_major_slice_work(collection_slice_mode mode){
   return min2(budget, Chunk_size);
 }
 
-static void update_major_slice_work(intnat howmuch, collection_slice_mode mode) {
+static budget_info* update_major_slice_work(intnat howmuch, collection_slice_mode mode) {
   double heap_words;
   intnat alloc_work, dependent_work, extra_work, new_work;
   intnat my_alloc_count, my_dependent_count;
@@ -754,6 +749,8 @@ static void update_major_slice_work(intnat howmuch, collection_slice_mode mode) 
               atomic_load (&alloc_counter),
               dom_st->slice_target, dom_st->slice_budget
               );
+
+  return info;
 }
 
 /* Register the work done by a chunk of slice.
@@ -1607,13 +1604,14 @@ static void major_collection_slice(intnat howmuch,
   uintnat saved_ephe_cycle;
   uintnat saved_major_cycle = caml_major_cycles_completed;
   intnat budget;
+  budget_info* budget_info;
 
   int log_events = mode != Slice_opportunistic ||
                    (atomic_load_relaxed(&caml_verb_gc) & 0x40);
 
   slice_counter++;
 
-  update_major_slice_work(howmuch, mode);
+  budget_info = update_major_slice_work(howmuch, mode);
 
   /* When a full slice of major GC work is done,
      or the slice is interrupted (in mode Slice_interruptible),
@@ -1800,10 +1798,9 @@ mark_again:
               (unsigned long)(domain_state->stat_blocks_marked
                                                       - blocks_marked_before));
 
-  budget_info* info = get_current_budget_info();
-  info->sweep_work = Val_long(sweep_work);
-  info->mark_work = Val_long(mark_work);
-  info->blocks_marked = Val_long(
+  budget_info->sweep_work = Val_long(sweep_work);
+  budget_info->mark_work = Val_long(mark_work);
+  budget_info->blocks_marked = Val_long(
     (unsigned long)(domain_state->stat_blocks_marked - blocks_marked_before));
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
@@ -2076,6 +2073,7 @@ void caml_teardown_major_gc(void) {
   caml_domain_state* d = Caml_state;
 
   /* account for latest allocations */
+  slice_counter++;
   update_major_slice_work (0, Slice_uninterruptible);
   CAMLassert(!caml_addrmap_iter_ok(&d->mark_stack->compressed_stack,
                                    d->mark_stack->compressed_stack_iter));
