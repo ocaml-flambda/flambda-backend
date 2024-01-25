@@ -209,6 +209,7 @@ and block_shape = Lambda.block_shape
 
 and boxed_float = Lambda.boxed_float =
   | Pfloat64
+  | Pfloat32
 
 and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64

@@ -335,6 +335,7 @@ and array_set_kind =
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
+  | Pfloat32
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -429,7 +430,7 @@ let rec equal_value_kind x y =
              && List.length fields1 = List.length fields2
              && List.for_all2 equal_value_kind fields1 fields2)
            non_consts1 non_consts2
-  | (Pgenval | Pboxedfloatval Pfloat64 | Pboxedintval _ | Pintval | Pvariant _
+  | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
 
 let equal_layout x y =
@@ -453,7 +454,7 @@ let rec compatible_layout x y =
       && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float Pfloat64 | Punboxed_int _ | Punboxed_vector _ |
+  | (Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ |
      Punboxed_product _), _ ->
       false
 
@@ -1525,15 +1526,15 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats Pfloat64 | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _
   | Poffsetref _ -> None
-  | Pintoffloat Pfloat64 -> None
-  | Pfloatofint (Pfloat64, m) -> Some m
-  | Pnegfloat (Pfloat64, m) | Pabsfloat (Pfloat64, m)
-  | Paddfloat (Pfloat64, m) | Psubfloat (Pfloat64, m)
-  | Pmulfloat (Pfloat64, m) | Pdivfloat (Pfloat64, m) -> Some m
-  | Pfloatcomp (Pfloat64, _) | Punboxed_float_comp (Pfloat64, _) -> None
+  | Pintoffloat _ -> None
+  | Pfloatofint (_, m) -> Some m
+  | Pnegfloat (_, m) | Pabsfloat (_, m)
+  | Paddfloat (_, m) | Psubfloat (_, m)
+  | Pmulfloat (_, m) | Pdivfloat (_, m) -> Some m
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _) -> None
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
@@ -1541,9 +1542,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _)
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _)
   | Parrayrefs (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _) -> None
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _) -> None
   | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
   | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
   | Pisint _ | Pisout -> None
@@ -1586,8 +1587,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
-  | Punbox_float Pfloat64 | Punbox_int _ -> None
-  | Pbox_float (Pfloat64, m) | Pbox_int (_, m) -> Some m
+  | Punbox_float _ | Punbox_int _ -> None
+  | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
     Misc.fatal_error "Effects-related primitives are not yet supported"
   | Patomic_load _
@@ -1606,6 +1607,7 @@ let constant_layout: constant -> layout = function
   | Const_unboxed_int64 _ -> Punboxed_int Pint64
   | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
   | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
+  | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
 
 let structured_constant_layout = function
@@ -1616,7 +1618,7 @@ let structured_constant_layout = function
 let layout_of_native_repr : Primitive.native_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
-  | Unboxed_float Pfloat64 -> layout_boxed_float Pfloat64
+  | Unboxed_float bf -> layout_boxed_float bf
   | Unboxed_integer bi -> layout_boxedint bi
   | Same_as_ocaml_repr s ->
     begin match s with
@@ -1631,7 +1633,7 @@ let layout_of_native_repr : Primitive.native_repr -> _ = function
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
-  | Punboxedfloatarray_ref Pfloat64 -> layout_unboxed_float Pfloat64
+  | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
   | Pgenarray_ref _ | Paddrarray_ref -> layout_field
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
@@ -1660,7 +1662,7 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
-  | Punbox_float Pfloat64 -> Punboxed_float Pfloat64
+  | Punbox_float float_kind -> Punboxed_float float_kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
@@ -1669,9 +1671,9 @@ let primitive_result_layout (p : primitive) =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats Pfloat64 | Pcompare_bints _
-  | Poffsetint _ | Pintoffloat Pfloat64
-  | Pfloatcomp (Pfloat64, _) | Punboxed_float_comp (Pfloat64, _)
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Pintoffloat _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _
@@ -1698,7 +1700,10 @@ let primitive_result_layout (p : primitive) =
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float32 | Pbigarray_float64 -> layout_boxed_float Pfloat64
+      | Pbigarray_float32 ->
+        (* CR mslater: (float32) bigarrays *)
+        layout_boxed_float Pfloat64
+      | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16
       | Pbigarray_caml_int -> layout_int
@@ -1774,7 +1779,7 @@ let array_ref_kind mode = function
   | Pintarray -> Pintarray_ref
   | Pfloatarray -> Pfloatarray_ref mode
   | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
-  | Punboxedfloatarray Pfloat64 -> Punboxedfloatarray_ref Pfloat64
+  | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
@@ -1782,7 +1787,7 @@ let array_set_kind mode = function
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
-  | Punboxedfloatarray Pfloat64 -> Punboxedfloatarray_set Pfloat64
+  | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
 
 let is_check_enabled ~opt property =
   match property with

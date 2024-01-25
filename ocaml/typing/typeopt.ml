@@ -121,6 +121,7 @@ let classify env ty : classification =
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
            || Path.same p Predef.path_nativeint
+           || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
            || Path.same p Predef.path_int64 then Addr
       else begin
@@ -325,6 +326,8 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
     num_nodes_visited, (Pboxedfloatval Pfloat64)
+  | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
+    num_nodes_visited, (Pboxedfloatval Pfloat32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
     num_nodes_visited, (Pboxedintval Pint32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
@@ -671,7 +674,7 @@ let rec layout_union l1 l2 =
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
-  | (Ptop | Pvalue _ | Punboxed_float Pfloat64 | Punboxed_int _ |
+  | (Ptop | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
      Punboxed_vector _ | Punboxed_product _),
     _ ->
       Ptop

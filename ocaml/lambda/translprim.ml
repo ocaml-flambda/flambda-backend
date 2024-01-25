@@ -63,6 +63,7 @@ type comparison_kind =
   | Compare_generic
   | Compare_ints
   | Compare_floats
+  | Compare_float32s
   | Compare_strings
   | Compare_bytes
   | Compare_nativeints
@@ -210,6 +211,7 @@ let lookup_primitive loc poly pos p =
     | "%geint" -> Primitive ((Pintcomp Cge), 2)
     | "%incr" -> Primitive ((Poffsetref(1)), 1)
     | "%decr" -> Primitive ((Poffsetref(-1)), 1)
+    (* CR mslater: (float32) primitives *)
     | "%intoffloat" -> Primitive (Pintoffloat Pfloat64, 1)
     | "%floatofint" -> Primitive (Pfloatofint (Pfloat64, mode), 1)
     | "%negfloat" -> Primitive (Pnegfloat (Pfloat64, mode), 1)
@@ -507,8 +509,9 @@ let glb_array_type loc t1 t2 =
   match t1, t2 with
   (* Handle unboxed array kinds which can only match with themselves *)
   | Punboxedfloatarray Pfloat64, Punboxedfloatarray Pfloat64 -> Punboxedfloatarray Pfloat64
-  | Punboxedfloatarray Pfloat64, _ | _, Punboxedfloatarray Pfloat64 ->
-    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray Pfloat64)))
+  | Punboxedfloatarray Pfloat32, Punboxedfloatarray Pfloat32 -> Punboxedfloatarray Pfloat32
+  | Punboxedfloatarray kind, _ | _, Punboxedfloatarray kind ->
+    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray kind)))
   | Punboxedintarray Pint32, Punboxedintarray Pint32 -> Punboxedintarray Pint32
   | Punboxedintarray Pint64, Punboxedintarray Pint64 -> Punboxedintarray Pint64
   | Punboxedintarray Pnativeint, Punboxedintarray Pnativeint ->
@@ -530,8 +533,9 @@ let glb_array_ref_type loc t1 t2 =
   match t1, t2 with
   (* Handle unboxed array kinds which can only match with themselves *)
   | Punboxedfloatarray_ref Pfloat64, Punboxedfloatarray Pfloat64 -> t1
-  | Punboxedfloatarray_ref Pfloat64, _ | _, Punboxedfloatarray Pfloat64 ->
-    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray Pfloat64)))
+  | Punboxedfloatarray_ref Pfloat32, Punboxedfloatarray Pfloat32 -> t1
+  | Punboxedfloatarray_ref unboxed_float_kind, _ | _, Punboxedfloatarray unboxed_float_kind ->
+    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray unboxed_float_kind)))
   | Punboxedintarray_ref Pint32, Punboxedintarray Pint32 -> t1
   | Punboxedintarray_ref Pint64, Punboxedintarray Pint64 -> t1
   | Punboxedintarray_ref Pnativeint, Punboxedintarray Pnativeint -> t1
@@ -566,8 +570,9 @@ let glb_array_set_type loc t1 t2 =
   match t1, t2 with
   (* Handle unboxed array kinds which can only match with themselves *)
   | Punboxedfloatarray_set Pfloat64, Punboxedfloatarray Pfloat64 -> t1
-  | Punboxedfloatarray_set Pfloat64, _ | _, Punboxedfloatarray Pfloat64 ->
-    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray Pfloat64)))
+  | Punboxedfloatarray_set Pfloat32, Punboxedfloatarray Pfloat32 -> t1
+  | Punboxedfloatarray_set unboxed_float_kind, _ | _, Punboxedfloatarray unboxed_float_kind ->
+    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedfloatarray unboxed_float_kind)))
   | Punboxedintarray_set Pint32, Punboxedintarray Pint32 -> t1
   | Punboxedintarray_set Pint64, Punboxedintarray Pint64 -> t1
   | Punboxedintarray_set Pnativeint, Punboxedintarray Pnativeint -> t1
@@ -691,6 +696,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       Some (Comparison(comp, Compare_ints))
     end else if is_base_type env p1 Predef.path_float then begin
       Some (Comparison(comp, Compare_floats))
+    end else if is_base_type env p1 Predef.path_float32 then begin
+      Some (Comparison(comp, Compare_float32s))
     end else if is_base_type env p1 Predef.path_string then begin
       Some (Comparison(comp, Compare_strings))
     end else if is_base_type env p1 Predef.path_bytes then begin
@@ -758,6 +765,7 @@ let comparison_primitive comparison comparison_kind =
   | Equal, Compare_generic -> Pccall caml_equal
   | Equal, Compare_ints -> Pintcomp Ceq
   | Equal, Compare_floats -> Pfloatcomp (Pfloat64, CFeq)
+  | Equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFeq)
   | Equal, Compare_strings -> Pccall caml_string_equal
   | Equal, Compare_bytes -> Pccall caml_bytes_equal
   | Equal, Compare_nativeints -> Pbintcomp(Pnativeint, Ceq)
@@ -766,6 +774,7 @@ let comparison_primitive comparison comparison_kind =
   | Not_equal, Compare_generic -> Pccall caml_notequal
   | Not_equal, Compare_ints -> Pintcomp Cne
   | Not_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFneq)
+  | Not_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFneq)
   | Not_equal, Compare_strings -> Pccall caml_string_notequal
   | Not_equal, Compare_bytes -> Pccall caml_bytes_notequal
   | Not_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cne)
@@ -774,6 +783,7 @@ let comparison_primitive comparison comparison_kind =
   | Less_equal, Compare_generic -> Pccall caml_lessequal
   | Less_equal, Compare_ints -> Pintcomp Cle
   | Less_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFle)
+  | Less_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFle)
   | Less_equal, Compare_strings -> Pccall caml_string_lessequal
   | Less_equal, Compare_bytes -> Pccall caml_bytes_lessequal
   | Less_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cle)
@@ -782,6 +792,7 @@ let comparison_primitive comparison comparison_kind =
   | Less_than, Compare_generic -> Pccall caml_lessthan
   | Less_than, Compare_ints -> Pintcomp Clt
   | Less_than, Compare_floats -> Pfloatcomp (Pfloat64, CFlt)
+  | Less_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFlt)
   | Less_than, Compare_strings -> Pccall caml_string_lessthan
   | Less_than, Compare_bytes -> Pccall caml_bytes_lessthan
   | Less_than, Compare_nativeints -> Pbintcomp(Pnativeint, Clt)
@@ -790,6 +801,7 @@ let comparison_primitive comparison comparison_kind =
   | Greater_equal, Compare_generic -> Pccall caml_greaterequal
   | Greater_equal, Compare_ints -> Pintcomp Cge
   | Greater_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFge)
+  | Greater_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFge)
   | Greater_equal, Compare_strings -> Pccall caml_string_greaterequal
   | Greater_equal, Compare_bytes -> Pccall caml_bytes_greaterequal
   | Greater_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cge)
@@ -798,6 +810,7 @@ let comparison_primitive comparison comparison_kind =
   | Greater_than, Compare_generic -> Pccall caml_greaterthan
   | Greater_than, Compare_ints -> Pintcomp Cgt
   | Greater_than, Compare_floats -> Pfloatcomp (Pfloat64, CFgt)
+  | Greater_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFgt)
   | Greater_than, Compare_strings -> Pccall caml_string_greaterthan
   | Greater_than, Compare_bytes -> Pccall caml_bytes_greaterthan
   | Greater_than, Compare_nativeints -> Pbintcomp(Pnativeint, Cgt)
@@ -806,6 +819,7 @@ let comparison_primitive comparison comparison_kind =
   | Compare, Compare_generic -> Pccall caml_compare
   | Compare, Compare_ints -> Pcompare_ints
   | Compare, Compare_floats -> Pcompare_floats Pfloat64
+  | Compare, Compare_float32s -> Pcompare_floats Pfloat32
   | Compare, Compare_strings -> Pccall caml_string_compare
   | Compare, Compare_bytes -> Pccall caml_bytes_compare
   | Compare, Compare_nativeints -> Pcompare_bints Pnativeint
@@ -1089,10 +1103,10 @@ let lambda_primitive_needs_event_after = function
      may raise an exception or allocate. These are places where we may
      collect the call stack. *)
   | Pduprecord _ | Pccall _
-  | Pfloatofint (Pfloat64, _)
-  | Pnegfloat (Pfloat64, _) | Pabsfloat (Pfloat64, _)
-  | Paddfloat (Pfloat64, _) | Psubfloat (Pfloat64, _)
-  | Pmulfloat (Pfloat64, _) | Pdivfloat (Pfloat64, _)
+  | Pfloatofint (_, _)
+  | Pnegfloat (_, _) | Pabsfloat (_, _)
+  | Paddfloat (_, _) | Psubfloat (_, _)
+  | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
@@ -1120,21 +1134,21 @@ let lambda_primitive_needs_event_after = function
   | Pufloatfield _ | Psetufloatfield _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat Pfloat64
-  | Pcompare_ints | Pcompare_floats Pfloat64
-  | Pfloatcomp (Pfloat64, _) | Punboxed_float_comp (Pfloat64, _)
+  | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pcompare_ints | Pcompare_floats _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
-  | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray Pfloat64
+  | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
       | Punboxedintarray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
-  | Pobj_magic _ | Punbox_float Pfloat64 | Punbox_int _
+  | Pobj_magic _ | Punbox_float _ | Punbox_int _
   (* These don't allocate in bytecode; they're just identity functions: *)
-  | Pbox_float (Pfloat64, _) | Pbox_int _
+  | Pbox_float (_, _) | Pbox_int _
     -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

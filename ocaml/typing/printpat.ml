@@ -29,6 +29,7 @@ let pretty_const c = match c with
 | Const_char c -> Printf.sprintf "%C" c
 | Const_string (s, _, _) -> Printf.sprintf "%S" s
 | Const_float f -> Printf.sprintf "%s" f
+| Const_float32 f -> Printf.sprintf "%s" f
 | Const_unboxed_float f -> Printf.sprintf "%s" (Misc.format_as_unboxed_literal f)
 | Const_int32 i -> Printf.sprintf "%ldl" i
 | Const_int64 i -> Printf.sprintf "%LdL" i

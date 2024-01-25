@@ -609,19 +609,17 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
   | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-  | Pcompare_floats Pfloat64
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-  | Pintoffloat Pfloat64
-  | Pfloatofint (Pfloat64, _)
-  | Pnegfloat (Pfloat64, _)
-  | Pabsfloat (Pfloat64, _)
-  | Paddfloat (Pfloat64, _)
-  | Psubfloat (Pfloat64, _)
-  | Pmulfloat (Pfloat64, _)
-  | Pdivfloat (Pfloat64, _)
-  | Pfloatcomp (Pfloat64, _)
-  | Punboxed_float_comp (Pfloat64, _)
+  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
+  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pfloatofint (_, _)
+  | Pnegfloat (_, _)
+  | Pabsfloat (_, _)
+  | Paddfloat (_, _)
+  | Psubfloat (_, _)
+  | Pmulfloat (_, _)
+  | Pdivfloat (_, _)
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
   | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
@@ -668,9 +666,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
-  | Pbox_float (Pfloat64, _)
-  | Punbox_float Pfloat64
-  | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Pbox_float (_, _)
+  | Punbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
@@ -863,9 +860,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             match layout with
             | Ptop | Pbottom ->
               Misc.fatal_error "Cannot bind layout [Ptop] or [Pbottom]"
-            | Pvalue _ | Punboxed_int _
-            | Punboxed_float Pfloat64
-            | Punboxed_vector _ ->
+            | Pvalue _ | Punboxed_int _ | Punboxed_float _ | Punboxed_vector _
+              ->
               ( env,
                 [ ( id,
                     Flambda_kind.With_subkind
@@ -988,9 +984,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
-      | Pvalue _
-      | Punboxed_float Pfloat64
-      | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ ->
+      | Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
+      | Punboxed_product _ ->
         ()
       | Ptop | Pbottom ->
         Misc.fatal_errorf "Invalid result layout %a for primitive %a"
