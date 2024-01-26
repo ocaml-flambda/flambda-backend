@@ -4,7 +4,7 @@
 
 type r = string @ local -> string @ local
 [%%expect{|
-type r = local_ string -> local_ string
+type r = string@local -> string@local
 |}]
 
 let foo () =
@@ -130,7 +130,7 @@ let foo () =
   let x = ref "hello" in
   (x : _ @ local)
 [%%expect{|
-val foo : unit -> local_ string ref = <fun>
+val foo : unit -> string ref@local = <fun>
 |}]
 
 let foo () =
@@ -148,7 +148,7 @@ Error: Found a shared value where a unique value was expected
    parsing *)
 type r = local_ string @ unique -> unique_ string @ local
 [%%expect{|
-type r = local_ unique_ string -> local_ unique_ string
+type r = string@unique local -> string@unique local
 |}]
 
 let local_ x @ unique = "hello"
@@ -169,5 +169,5 @@ Error: Modality in the locality axis has already be used.
 
 type r = local_ string -> string @ local -> string @ local
 [%%expect{|
-type r = local_ string -> local_ string -> local_ string
+type r = string@local -> string@local -> string@local
 |}]

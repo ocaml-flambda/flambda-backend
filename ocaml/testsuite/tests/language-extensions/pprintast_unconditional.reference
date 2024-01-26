@@ -7,7 +7,7 @@ expression: [x for x = 1 to 10]
 
 pattern: [:_:]
 
-core_type: local_ ('a : value) -> unit
+core_type: ('a : value)@local -> unit
 
 signature: include functor F
 
@@ -24,11 +24,11 @@ top_phrase:
 class_field: initializer [x for x = 1 to 10]
 
 class_type_field:
-  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  constraint ('a : value)@local -> unit = ('a : value)@local -> unit
 
-class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+class_expr: [('a : value)@local -> unit] No.Longidents.Require.extensions
 
-class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+class_type: [('a : value)@local -> unit] No.Longidents.Require.extensions
 
 module_type: sig include functor F end
 
@@ -41,11 +41,11 @@ binding: [:_:] = [x for x = 1 to 10]
 payload: include functor F
 
 class_signature:
-  object (local_ ('a : value) -> unit)
-    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  object (('a : value)@local -> unit)
+    constraint ('a : value)@local -> unit = ('a : value)@local -> unit
   end
 
-type_declaration:  local_ ('a : value) -> unit
+type_declaration:  ('a : value)@local -> unit
 
 string_of_expression: [x for x = 1 to 10]
 
@@ -64,7 +64,7 @@ expression: [x for x = 1 to 10]
 
 pattern: [:_:]
 
-core_type: local_ ('a : value) -> unit
+core_type: ('a : value)@local -> unit
 
 signature: include functor F
 
@@ -81,11 +81,11 @@ top_phrase:
 class_field: initializer [x for x = 1 to 10]
 
 class_type_field:
-  constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  constraint ('a : value)@local -> unit = ('a : value)@local -> unit
 
-class_expr: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+class_expr: [('a : value)@local -> unit] No.Longidents.Require.extensions
 
-class_type: [local_ ('a : value) -> unit] No.Longidents.Require.extensions
+class_type: [('a : value)@local -> unit] No.Longidents.Require.extensions
 
 module_type: sig include functor F end
 
@@ -98,11 +98,11 @@ binding: [:_:] = [x for x = 1 to 10]
 payload: include functor F
 
 class_signature:
-  object (local_ ('a : value) -> unit)
-    constraint local_ ('a : value) -> unit = local_ ('a : value) -> unit
+  object (('a : value)@local -> unit)
+    constraint ('a : value)@local -> unit = ('a : value)@local -> unit
   end
 
-type_declaration:  local_ ('a : value) -> unit
+type_declaration:  ('a : value)@local -> unit
 
 string_of_expression: [x for x = 1 to 10]
 

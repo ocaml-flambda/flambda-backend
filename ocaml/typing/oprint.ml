@@ -435,6 +435,18 @@ let is_once mode =
   | Olinm_once -> true
   | _ -> false
 
+let maybe_mode mode =
+  let is_local = is_local mode in
+  let is_unique = is_unique mode in
+  let is_once = is_once mode in
+  let modes = [] in
+  let modes = if is_local then "local" :: modes else modes in
+  let modes = if is_unique then "unique" :: modes else modes in
+  let modes = if is_once then "once" :: modes else modes in
+  match modes with
+  | [] ->  None
+  | _ -> Some (String.concat " " modes)
+
 (* Labeled tuples with the first element labeled sometimes require parens. *)
 let is_initially_labeled_tuple ty =
   match ty with
@@ -461,27 +473,19 @@ let rec print_out_type_0 mode ppf =
    - Or, there is at least one mode to print.
  *)
 and print_out_type_mode ~arg mode ppf ty =
-  let is_local = is_local mode in
-  let is_unique = is_unique mode in
-  let is_once = is_once mode in
-  let parens =
-    is_initially_labeled_tuple ty
-    && (arg || is_local || is_unique || is_once)
-  in
+  let m = maybe_mode mode in
+  let parens = is_initially_labeled_tuple ty && (arg || Option.is_some m) in
   (* Print mode annotations regardless of `mode` extension,
-     just to be "correct"*)
-  if is_local then begin
-    pp_print_string ppf "local_";
-    pp_print_space ppf () end;
-  if is_unique then begin
-    pp_print_string ppf "unique_";
-    pp_print_space ppf () end;
-  if is_once then begin
-    pp_print_string ppf "once_";
-    pp_print_space ppf () end;
+     just to be "correct" *)
   if parens then
     pp_print_char ppf '(';
   print_out_type_2 mode ppf ty;
+  begin match m with
+  | None -> ()
+  | Some s ->
+    pp_print_char ppf '@';
+    pp_print_string ppf s
+  end;
   if parens then
     pp_print_char ppf ')'
 

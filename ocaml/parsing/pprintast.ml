@@ -305,17 +305,7 @@ let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
 let maybe_modes m =
-  let l =
-    List.map (fun {txt; _} ->
-      match txt with
-      | "local" -> "local_"
-      | "unique" -> "unique_"
-      | "once" -> "once_"
-      | "global" -> "global_" (* global modality *)
-      (* Other strings won't be parsed anyway *)
-      | _ -> assert false
-    ) m.txt
-  in
+  let l = List.map (fun {txt; _} -> txt) m.txt in
   match l with
   | [] -> None
   | _ -> Some (String.concat " " l)
@@ -332,7 +322,7 @@ let maybe_modes_type pty ctxt f c =
   let m, cattrs = maybe_modes_of_attrs c.ptyp_attributes in
   let c = { c with ptyp_attributes = cattrs } in
   match m with
-  | Some s -> pp f "%s %a" s (pty ctxt) c
+  | Some s -> pp f "%a%@%s" (pty ctxt) c s
   | None -> pty ctxt f c
 
 (* c ['a,'b] *)
@@ -660,7 +650,7 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
 
 and maybe_modes_pat ctxt m f p =
   match m with
-  | Some s ->  pp f "(%s %a)" s (simple_pattern ctxt) p
+  | Some s ->  pp f "(%a%@%s)" (simple_pattern ctxt) p s
   | None -> pp f "%a" (simple_pattern ctxt) p
 
 and label_exp ctxt f (l,opt,p) =
@@ -680,10 +670,11 @@ and label_exp ctxt f (l,opt,p) =
       | _ ->
           (match opt with
            | Some o ->
-               pp f "?%s:(%s%a=@;%a)"
+               pp f "?%s:(%a%s=@;%a)"
                  rest
-                 (match modes with | Some s -> s ^ " " | None -> "")
-                 (pattern1 ctxt) p (expression ctxt) o
+                 (pattern1 ctxt) p
+                 (match modes with | Some s -> "@" ^ s | None -> "")
+                 (expression ctxt) o
            | None -> pp f "?%s:%a" rest (maybe_modes_pat ctxt modes) p)
       end
   | Labelled l -> match p with
@@ -691,7 +682,7 @@ and label_exp ctxt f (l,opt,p) =
       when txt = l ->
         (match modes with
         | Some s ->
-          pp f "~(%s %s)" s l
+          pp f "~(%s%@%s)" l s
         | None ->
           pp f "~%s" l
         )
@@ -828,7 +819,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
        [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
         let modes = maybe_modes_of_payload ~loc:pexp_loc payload in
         let modes = Option.get modes in
-        pp f "@[<2>%s %a@]" modes (expression ctxt) sbody
+        pp f "@[<2>(%a : _ %@ %s)@]" (expression ctxt) sbody modes
     | Pexp_apply (e, l) ->
         begin if not (sugar_expr ctxt f x) then
             match view_fixity_of_exp e with
@@ -1586,9 +1577,10 @@ and bindings ctxt f (rf,l) =
           {x with pvb_expr = sbody}
       | _ -> x
     in
-    pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf
-      (match modes with Some s -> s ^ " " | None -> "")
-      (binding ctxt) x (item_attributes ctxt) attrs
+    pp f "@[<2>%s %a%a%s@]%a" kwd rec_flag rf
+      (binding ctxt) x
+      (match modes with Some s -> "@"^s | None -> "")
+      (item_attributes ctxt) attrs
   in
   match l with
   | [] -> ()
@@ -1795,16 +1787,16 @@ and type_def_list ctxt f (rf, exported, l) =
 and record_declaration ctxt f lbls =
   let field_modalities f modalities =
     match modalities with
-    | Some s -> pp f "%s " s
+    | Some s -> pp f "@;%@@;%s" s
     | None -> ()
   in
   let type_record_field f pld =
     let modalities, pld_attributes = maybe_modes_of_attrs pld.pld_attributes in
-    pp f "@[<2>%a%a%s:@;%a@;%a@]"
+    pp f "@[<2>%a%s:@;%a%a@;%a@]"
       mutable_flag pld.pld_mutable
-      field_modalities modalities
       pld.pld_name.txt
       (core_type ctxt) pld.pld_type
+      field_modalities modalities
       (attributes ctxt) pld_attributes
   in
   pp f "{@\n%a}"

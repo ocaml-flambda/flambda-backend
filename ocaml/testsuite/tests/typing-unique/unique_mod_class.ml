@@ -15,7 +15,7 @@ let texp_object () =
   val bar = unique_ x
   end;
 [%%expect{|
-val unique_id : unique_ 'a -> unit = <fun>
+val unique_id : 'a@unique -> unit = <fun>
 Line 8, characters 20-21:
 8 |   val bar = unique_ x
                         ^

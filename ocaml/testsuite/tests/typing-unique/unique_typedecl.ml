@@ -36,10 +36,10 @@ Lines 3-4, characters 0-68:
 3 | 'a -> unique_ 'b -> 'c -> 'd -> 'e
 4 | = 'a -> unique_ 'b -> unique_ once_ ('c -> unique_ once_ ('d -> 'e))
 Error: The type constraints are not consistent.
-       Type 'a -> unique_ 'b -> 'c -> 'd -> 'e is not compatible with type
-         'a -> unique_ 'b -> unique_ once_ ('c -> unique_ once_ ('d -> 'e))
-       Type unique_ 'b -> 'c -> 'd -> 'e is not compatible with type
-         unique_ 'b -> unique_ once_ ('c -> unique_ once_ ('d -> 'e))
+       Type 'a -> 'b@unique -> 'c -> 'd -> 'e is not compatible with type
+         'a -> 'b@unique -> ('c -> ('d -> 'e)@once unique)@once unique
+       Type 'b@unique -> 'c -> 'd -> 'e is not compatible with type
+         'b@unique -> ('c -> ('d -> 'e)@once unique)@once unique
 |}]
 
 type distinct_sarg = unit constraint unique_ int -> int = int -> int
@@ -48,7 +48,7 @@ Line 1, characters 37-68:
 1 | type distinct_sarg = unit constraint unique_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type unique_ int -> int is not compatible with type int -> int
+       Type int@unique -> int is not compatible with type int -> int
 |}]
 type distinct_sret = unit constraint int -> unique_ int = int -> int
 [%%expect{|
@@ -56,7 +56,7 @@ Line 1, characters 37-68:
 1 | type distinct_sret = unit constraint int -> unique_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type int -> unique_ int is not compatible with type int -> int
+       Type int -> int@unique is not compatible with type int -> int
 |}]
 type distinct_sarg_sret = unit constraint unique_ int -> int = unique_ int -> unique_ int
 [%%expect{|
@@ -64,6 +64,6 @@ Line 1, characters 42-89:
 1 | type distinct_sarg_sret = unit constraint unique_ int -> int = unique_ int -> unique_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type unique_ int -> int is not compatible with type
-         unique_ int -> unique_ int
+       Type int@unique -> int is not compatible with type
+         int@unique -> int@unique
 |}]
