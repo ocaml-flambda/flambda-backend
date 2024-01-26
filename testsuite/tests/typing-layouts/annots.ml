@@ -1,6 +1,5 @@
 (* TEST
    * expect
-   flags = "-extension layouts"
    * expect
    flags = "-extension layouts_beta"
 *)

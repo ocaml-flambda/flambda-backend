@@ -1,6 +1,6 @@
 (* TEST
    * bytecode
-   flags = "-g -extension layouts"
+   flags = "-g"
  *)
 
 let f1 f i = Stdlib__Float_u.to_float (f i)
