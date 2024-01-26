@@ -1757,7 +1757,15 @@ let transl_type_decl env rec_flag sdecl_list =
      jkind checks *)
   List.iter (fun (checks,loc) ->
     List.iter (fun (ty,jkind) ->
-      match Ctype.constrain_type_jkind new_env ty jkind with
+      (* The use [check_type_jkind] rather than [constrain_type_jkind] here is
+         conservative. It ensures that the delayed checks don't succeed by
+         mutating type variables from the [temp_env] in a way that won't be
+         reflected in the final type decls and may be incompatible with them.
+         An alternative would be to beef up [check_constraints] and really make
+         sure we re-check any kind constraint that could arise from translating
+         the typedecl RHSs. See Test 41 in [tests/typing-layouts/basics.ml] for
+         a subtle example. *)
+      match Ctype.check_type_jkind new_env ty jkind with
       | Ok _ -> ()
       | Error err ->
         let err = Errortrace.unification_error ~trace:[Bad_jkind (ty,err)] in

@@ -1026,7 +1026,7 @@ Line 3, characters 2-27:
 Error:
        The layout of 'a s is float64, because
          of the annotation on 'a in the declaration of the type s.
-       But the layout of 'a s must overlap with value, because
+       But the layout of 'a s must be a sublayout of value, because
          it's the type of an object field.
 |}];;
 
@@ -2339,8 +2339,14 @@ type t1 = string t2 as (_ : immediate)
 and 'a t2 = 'a
 
 [%%expect{|
-type t1 = string t2
-and 'a t2 = 'a
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 28-37.
 |}]
 
 (* This example is unfortunately rejected as a consequence of the fix for the
@@ -2351,6 +2357,12 @@ type 'a t1 = 'a t2 as (_ : immediate)
 and 'a t2 = 'a
 
 [%%expect{|
-type 'a t1 = 'a t2
-and 'a t2 = 'a
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
