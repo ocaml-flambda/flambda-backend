@@ -403,9 +403,9 @@ module Lattices_mono = struct
         -> (('a0, 'a1) Product.t, ('b0, 'b1) Product.t, 'd) morph
         (** Maps the given axis by the given morphism; identity on the other
             axes. *)
-    | Unique_to_linear : (Uniqueness.t, Linearity.t, 'l * 'r) morph
+    | Unique_to_linear : (Uniqueness_op.t, Linearity.t, 'l * 'r) morph
         (** Returns the linearity dual to the given uniqueness *)
-    | Linear_to_unique : (Linearity.t, Uniqueness.t, 'l * 'r) morph
+    | Linear_to_unique : (Linearity.t, Uniqueness_op.t, 'l * 'r) morph
         (** Returns the uniqueness dual to the given linearity *)
     (* Following is a chain of adjunction (complete and cannot extend in
        either direction) *)
