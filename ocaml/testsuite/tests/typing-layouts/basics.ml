@@ -2366,3 +2366,18 @@ Error:
        But the layout of 'a t2 must be a sublayout of immediate, because
          of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
+
+(* This one also unfortunately rejected for the same reason. *)
+type t1 = int t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 25-34.
+|}]
