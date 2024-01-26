@@ -199,6 +199,20 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pstring_load_128 _
   | Pbytes_load_128 _
   | Pbytes_set_128 _
+  | Pfloatarray_load_128 _
+  | Pfloat_array_load_128 _
+  | Pint_array_load_128 _
+  | Punboxed_float_array_load_128 _
+  | Punboxed_int32_array_load_128 _
+  | Punboxed_int64_array_load_128 _
+  | Punboxed_nativeint_array_load_128 _
+  | Pfloatarray_set_128 _
+  | Pfloat_array_set_128 _
+  | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _
+  | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

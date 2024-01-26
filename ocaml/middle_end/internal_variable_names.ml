@@ -327,6 +327,35 @@ let presume_arg = "Presume_arg"
 let preperform_arg = "Preperform_arg"
 let pdls_get_arg = "Pdls_get_arg"
 
+let pfloatarray_load_128 = "Pfloatarray_load_128"
+let pfloat_array_load_128 = "Pfloat_array_load_128"
+let pint_array_load_128 = "Pint_array_load_128"
+let punboxed_float_array_load_128 = "Punboxed_float_array_load_128"
+let punboxed_int32_array_load_128 = "Punboxed_int32_array_load_128"
+let punboxed_int64_array_load_128 = "Punboxed_int64_array_load_128"
+let punboxed_nativeint_array_load_128 = "Punboxed_nativeint_array_load_128"
+let pfloatarray_set_128 = "Pfloatarray_set_128"
+let pfloat_array_set_128 = "Pfloat_array_set_128"
+let pint_array_set_128 = "Pint_array_set_128"
+let punboxed_float_array_set_128 = "Punboxed_float_array_set_128"
+let punboxed_int32_array_set_128 = "Punboxed_int32_array_set_128"
+let punboxed_int64_array_set_128 = "Punboxed_int64_array_set_128"
+let punboxed_nativeint_array_set_128 = "Punboxed_nativeint_array_set_128"
+let pfloatarray_load_128_arg = "Pfloatarray_load_128_arg"
+let pfloat_array_load_128_arg = "Pfloat_array_load_128_arg"
+let pint_array_load_128_arg = "Pint_array_load_128_arg"
+let punboxed_float_array_load_128_arg = "Punboxed_float_array_load_128_arg"
+let punboxed_int32_array_load_128_arg = "Punboxed_int32_array_load_128_arg"
+let punboxed_int64_array_load_128_arg = "Punboxed_int64_array_load_128_arg"
+let punboxed_nativeint_array_load_128_arg = "Punboxed_nativeint_array_load_128_arg"
+let pfloatarray_set_128_arg = "Pfloatarray_set_128_arg"
+let pfloat_array_set_128_arg = "Pfloat_array_set_128_arg"
+let pint_array_set_128_arg = "Pint_array_set_128_arg"
+let punboxed_float_array_set_128_arg = "Punboxed_float_array_set_128_arg"
+let punboxed_int32_array_set_128_arg = "Punboxed_int32_array_set_128_arg"
+let punboxed_int64_array_set_128_arg = "Punboxed_int64_array_set_128_arg"
+let punboxed_nativeint_array_set_128_arg = "Punboxed_nativeint_array_set_128_arg"
+
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -482,6 +511,20 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbigstring_set_32 _ -> pbigstring_set_32
   | Pbigstring_set_64 _ -> pbigstring_set_64
   | Pbigstring_set_128 _ -> pbigstring_set_128
+  | Pfloatarray_load_128 _ -> pfloatarray_load_128
+  | Pfloat_array_load_128 _ -> pfloat_array_load_128
+  | Pint_array_load_128 _ -> pint_array_load_128
+  | Punboxed_float_array_load_128 _ -> punboxed_float_array_load_128
+  | Punboxed_int32_array_load_128 _ -> punboxed_int32_array_load_128
+  | Punboxed_int64_array_load_128 _ -> punboxed_int64_array_load_128
+  | Punboxed_nativeint_array_load_128 _ -> punboxed_nativeint_array_load_128
+  | Pfloatarray_set_128 _ -> pfloatarray_set_128
+  | Pfloat_array_set_128 _ -> pfloat_array_set_128
+  | Pint_array_set_128 _ -> pint_array_set_128
+  | Punboxed_float_array_set_128 _ -> punboxed_float_array_set_128
+  | Punboxed_int32_array_set_128 _ -> punboxed_int32_array_set_128
+  | Punboxed_int64_array_set_128 _ -> punboxed_int64_array_set_128
+  | Punboxed_nativeint_array_set_128 _ -> punboxed_nativeint_array_set_128
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer _ -> pint_as_pointer
@@ -618,6 +661,20 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbigstring_set_32 _ -> pbigstring_set_32_arg
   | Pbigstring_set_64 _ -> pbigstring_set_64_arg
   | Pbigstring_set_128 _ -> pbigstring_set_128_arg
+  | Pfloatarray_load_128 _ -> pfloatarray_load_128_arg
+  | Pfloat_array_load_128 _ -> pfloat_array_load_128_arg
+  | Pint_array_load_128 _ -> pint_array_load_128_arg
+  | Punboxed_float_array_load_128 _ -> punboxed_float_array_load_128_arg
+  | Punboxed_int32_array_load_128 _ -> punboxed_int32_array_load_128_arg
+  | Punboxed_int64_array_load_128 _ -> punboxed_int64_array_load_128_arg
+  | Punboxed_nativeint_array_load_128 _ -> punboxed_nativeint_array_load_128_arg
+  | Pfloatarray_set_128 _ -> pfloatarray_set_128_arg
+  | Pfloat_array_set_128 _ -> pfloat_array_set_128_arg
+  | Pint_array_set_128 _ -> pint_array_set_128_arg
+  | Punboxed_float_array_set_128 _ -> punboxed_float_array_set_128_arg
+  | Punboxed_int32_array_set_128 _ -> punboxed_int32_array_set_128_arg
+  | Punboxed_int64_array_set_128 _ -> punboxed_int64_array_set_128_arg
+  | Punboxed_nativeint_array_set_128 _ -> punboxed_nativeint_array_set_128_arg
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer _ -> pint_as_pointer_arg
