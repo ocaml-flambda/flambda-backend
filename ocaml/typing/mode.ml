@@ -53,7 +53,7 @@ module Product = struct
     | SAxis0 -> SAxis0
     | SAxis1 -> SAxis1
 
-  let set (type a0 a1 a b0 b1 b) :
+  let lift (type a0 a1 a b0 b1 b) :
       (a0, a1, a, b0, b1, b) saxis -> (a -> b) -> (a0, a1) t -> (b0, b1) t =
     function
     | SAxis0 -> fun f (a0, a1) -> f a0, a1
@@ -75,13 +75,13 @@ module Product = struct
     | SAxis1 -> Axis1
 
   let update (type a0 a1 a) : (a0, a1, a) axis -> a -> a0 * a1 -> a0 * a1 =
-   fun ax a t -> set (diag ax) (fun _ -> a) t
+   fun ax a t -> lift (diag ax) (fun _ -> a) t
 
-  (** Proj after set.
+  (** Proj after lift.
       - If they operate on the same axis, then provide the proof;
       - If they operate on different axis, then provide the axis that allows
-      projection without set. *)
-  let proj_set (type a0 a1 a b0 b1 b b') :
+      projection without lift. *)
+  let proj_lift (type a0 a1 a b0 b1 b b') :
       (b0, b1, b') axis ->
       (a0, a1, a, b0, b1, b) saxis ->
       ((b, b') Misc.eq, (a0, a1, b') axis) Either.t =
@@ -92,10 +92,10 @@ module Product = struct
     | SAxis0, Axis1 -> Either.right Axis1
     | SAxis1, Axis0 -> Either.right Axis0
 
-  (** Set after Set. If they operate on the same axis, then provide the saxis
-      that allows a single set operation, and the proof that they operate on the
+  (** Lift after Lift. If they operate on the same axis, then provide the saxis
+      that allows a single lift operation, and the proof that they operate on the
        same axis *)
-  let set_set (type a0 a1 a b0 b1 b b' c0 c1 c) :
+  let lift_lift (type a0 a1 a b0 b1 b b' c0 c1 c) :
       (b0, b1, b', c0, c1, c) saxis ->
       (a0, a1, a, b0, b1, b) saxis ->
       ((a0, a1, a, c0, c1, c) saxis * (b, b') Misc.eq) option =
@@ -398,7 +398,7 @@ module Lattices_mono = struct
         ('a0, 'a1, 'a) Product.axis
         -> ('a, ('a0, 'a1) Product.t, 'l * disallowed) morph
         (** Maps to minimum product except the given axis *)
-    | Set :
+    | Lift :
         ('a0, 'a1, 'a, 'b0, 'b1, 'b) Product.saxis * ('a, 'b, 'd) morph
         -> (('a0, 'a1) Product.t, ('b0, 'b1) Product.t, 'd) morph
         (** Maps the given axis by the given morphism; identity on the other
@@ -442,9 +442,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
+      | Lift (sax, f) ->
         let f = allow_left f in
-        Set (sax, f)
+        Lift (sax, f)
 
     let rec allow_right :
         type a b l r. (a, b, l * allowed) morph -> (a, b, l * r) morph =
@@ -463,9 +463,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
+      | Lift (sax, f) ->
         let f = allow_right f in
-        Set (sax, f)
+        Lift (sax, f)
 
     let rec disallow_left :
         type a b l r. (a, b, l * r) morph -> (a, b, disallowed * r) morph =
@@ -487,9 +487,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
+      | Lift (sax, f) ->
         let f = disallow_left f in
-        Set (sax, f)
+        Lift (sax, f)
 
     let rec disallow_right :
         type a b l r. (a, b, l * r) morph -> (a, b, l * disallowed) morph =
@@ -511,9 +511,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Set (sax, f) ->
+      | Lift (sax, f) ->
         let f = disallow_right f in
-        Set (sax, f)
+        Lift (sax, f)
   end)
 
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
@@ -533,7 +533,7 @@ module Lattices_mono = struct
     | Global_to_regional -> Locality
     | Regional_to_local -> Regionality
     | Regional_to_global -> Regionality
-    | Set (sax, f) ->
+    | Lift (sax, f) ->
       let dst0 = proj_obj (Product.dst sax) dst in
       let src0 = src dst0 f in
       src_obj sax src0 dst
@@ -577,7 +577,7 @@ module Lattices_mono = struct
       | Some Refl -> (
         let mid = src obj f0 in
         match eq_morph mid g0 g1 with None -> None | Some Refl -> Some Refl))
-    | Set (sax0, f0), Set (sax1, f1) -> (
+    | Lift (sax0, f0), Lift (sax1, f1) -> (
       let ax0 = Product.dst sax0 in
       let ax1 = Product.dst sax1 in
       match Product.eq_axis ax0 ax1 with
@@ -598,9 +598,9 @@ module Lattices_mono = struct
     | Proj (_, ax) -> Format.fprintf ppf "proj_%a" Product.print_axis ax
     | Max_with ax -> Format.fprintf ppf "max_with_%a" Product.print_axis ax
     | Min_with ax -> Format.fprintf ppf "min_with_%a" Product.print_axis ax
-    | Set (sax, morph) ->
+    | Lift (sax, morph) ->
       let ax = Product.src sax in
-      Format.fprintf ppf "set_%a(%a)" Product.print_axis ax
+      Format.fprintf ppf "lift_%a(%a)" Product.print_axis ax
         (print_morph (proj_obj (Product.dst sax) dst))
         morph
     | Unique_to_linear -> Format.fprintf ppf "unique_to_linear"
@@ -669,8 +669,8 @@ module Lattices_mono = struct
     | Locality_as_regionality -> locality_as_regionality, 1
     | Regional_to_global -> regional_to_global, 1
     | Global_to_regional -> global_to_regional, 1
-    | Set (sax, f) ->
-      Product.set sax (apply (proj_obj (Product.dst sax) dst) f), 1
+    | Lift (sax, f) ->
+      Product.lift sax (apply (proj_obj (Product.dst sax) dst) f), 1
 
   and apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f ->
@@ -713,10 +713,10 @@ module Lattices_mono = struct
     | Linear_to_unique, Const_max src -> Some (Const_max src)
     | Unique_to_linear, Linear_to_unique -> Some Id
     | Linear_to_unique, Unique_to_linear -> Some Id
-    | Set (sax0, f0), Set (sax1, f1) -> (
-      match Product.set_set sax0 sax1 with
+    | Lift (sax0, f0), Lift (sax1, f1) -> (
+      match Product.lift_lift sax0 sax1 with
       | Some (sax, Refl) ->
-        Some (Set (sax, compose (proj_obj (Product.dst sax0) dst) f0 f1))
+        Some (Lift (sax, compose (proj_obj (Product.dst sax0) dst) f0 f1))
       | None -> None (* the following are important: look inside compose *))
     | Compose (f0, f1), g -> (
       let mid = src dst f0 in
@@ -750,15 +750,15 @@ module Lattices_mono = struct
     | Global_to_regional, Regional_to_global -> None
     | Global_to_regional, Const_min _ -> None
     | Global_to_regional, Const_max src -> Some (Const_max src)
-    | Proj (mid, ax), Set (sax, f) -> (
+    | Proj (mid, ax), Lift (sax, f) -> (
       let src' = src mid m1 in
-      match Product.proj_set ax sax with
+      match Product.proj_lift ax sax with
       | Either.Left Refl -> Some (compose dst f (Proj (src', Product.src sax)))
       | Either.Right ax' -> Some (Proj (src', ax')))
     | Min_with _, _ -> None
     | Max_with _, _ -> None
     | _, Proj _ -> None
-    | Set _, _ -> None
+    | Lift _, _ -> None
 
   and compose :
       type a b c d.
@@ -785,9 +785,9 @@ module Lattices_mono = struct
     | Regional_to_global -> Locality_as_regionality
     | Locality_as_regionality -> Regional_to_local
     | Regional_to_local -> Local_to_regional
-    | Set (sax, f) ->
+    | Lift (sax, f) ->
       let f' = left_adjoint (proj_obj (Product.dst sax) dst) f in
-      Set (Product.flip sax, f')
+      Lift (Product.flip sax, f')
 
   and right_adjoint :
       type a b r.
@@ -808,9 +808,9 @@ module Lattices_mono = struct
     | Regional_to_local -> Locality_as_regionality
     | Locality_as_regionality -> Regional_to_global
     | Regional_to_global -> Global_to_regional
-    | Set (sax, f) ->
+    | Lift (sax, f) ->
       let f' = right_adjoint (proj_obj (Product.dst sax) dst) f in
-      Set (Product.flip sax, f')
+      Lift (Product.flip sax, f')
 end
 
 module C = Lattices_mono
@@ -1042,12 +1042,12 @@ module Comonadic_with_regionality = struct
 
   let set_regionality_max m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis0, C.Const_max Regionality))
+      (C.Lift (Product.SAxis0, C.Const_max Regionality))
       (S.Positive.disallow_left m)
 
   let set_regionality_min m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis0, C.Const_min Regionality))
+      (C.Lift (Product.SAxis0, C.Const_min Regionality))
       (S.Positive.disallow_right m)
 
   let linearity m =
@@ -1063,12 +1063,12 @@ module Comonadic_with_regionality = struct
 
   let set_linearity_max m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis1, C.Const_max Linearity))
+      (C.Lift (Product.SAxis1, C.Const_max Linearity))
       (S.Positive.disallow_left m)
 
   let set_linearity_min m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis1, C.Const_min Linearity))
+      (C.Lift (Product.SAxis1, C.Const_min Linearity))
       (S.Positive.disallow_right m)
 
   let zap_to_legacy = zap_to_floor
@@ -1131,12 +1131,12 @@ module Comonadic_with_locality = struct
 
   let set_locality_max m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis0, C.Const_max Locality))
+      (C.Lift (Product.SAxis0, C.Const_max Locality))
       (S.Positive.disallow_left m)
 
   let set_locality_min m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis0, C.Const_min Locality))
+      (C.Lift (Product.SAxis0, C.Const_min Locality))
       (S.Positive.disallow_right m)
 
   let linearity m =
@@ -1152,12 +1152,12 @@ module Comonadic_with_locality = struct
 
   let set_linearity_max m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis1, C.Const_max Linearity))
+      (C.Lift (Product.SAxis1, C.Const_max Linearity))
       (S.Positive.disallow_left m)
 
   let set_linearity_min m =
     S.Positive.via_monotone Obj.obj
-      (C.Set (Product.SAxis1, C.Const_min Linearity))
+      (C.Lift (Product.SAxis1, C.Const_min Linearity))
       (S.Positive.disallow_right m)
 
   let zap_to_legacy = zap_to_floor
@@ -1740,7 +1740,7 @@ let alloc_as_value m =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (C.Set (Product.SAxis0, C.Locality_as_regionality))
+      (C.Lift (Product.SAxis0, C.Locality_as_regionality))
       comonadic
   in
   { comonadic; monadic }
@@ -1749,7 +1749,7 @@ let alloc_to_value_l2r m =
   let { comonadic; monadic } = Alloc.disallow_right m in
   let comonadic =
     S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (C.Set (Product.SAxis0, C.Local_to_regional))
+      (C.Lift (Product.SAxis0, C.Local_to_regional))
       comonadic
   in
   { comonadic; monadic }
@@ -1759,7 +1759,7 @@ let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (C.Set (Product.SAxis0, C.Regional_to_global))
+      (C.Lift (Product.SAxis0, C.Regional_to_global))
       comonadic
   in
   { comonadic; monadic }
@@ -1768,7 +1768,7 @@ let value_to_alloc_r2l m =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (C.Set (Product.SAxis0, C.Regional_to_local))
+      (C.Lift (Product.SAxis0, C.Regional_to_local))
       comonadic
   in
   { comonadic; monadic }

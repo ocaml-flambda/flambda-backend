@@ -103,7 +103,6 @@ module Solver_mono (C : Lattices_mono) = struct
         'a * ('a, disallowed * 'r) morphvar list
         -> ('a, disallowed * 'r) mode
 
-
   (** Prints a mode variable, including the set of variables below it
       (recursively). To handle cycles, [traversed] is the set of variables that
       we have already printed and will be skipped. An example of cycle:
