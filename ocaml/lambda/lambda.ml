@@ -1558,8 +1558,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 { mode = m; _ } | Pbigstring_load_64 { mode = m; _ }
-  | Pbigstring_load_128 { mode = m; _ } -> Some m
+  | Pbigstring_load_32 { mode = m; boxed = true; _ }
+  | Pbigstring_load_64 { mode = m; boxed = true; _ }
+  | Pbigstring_load_128 { mode = m; boxed = true; _ } -> Some m
+  | Pbigstring_load_32 { boxed = false; _ }
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } -> None
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None
   | Pctconst _ -> None
