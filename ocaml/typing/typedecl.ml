@@ -1763,8 +1763,9 @@ let transl_type_decl env rec_flag sdecl_list =
          reflected in the final type decls and may be incompatible with them.
          An alternative would be to beef up [check_constraints] and really make
          sure we re-check any kind constraint that could arise from translating
-         the typedecl RHSs. See Test 41 in [tests/typing-layouts/basics.ml] for
-         a subtle example. *)
+         the typedecl RHSs, for example by looking at Typedtree instead of
+         what's just in the type environment. See Test 41 in
+         [tests/typing-layouts/basics.ml] for a subtle example. *)
       match Ctype.check_type_jkind new_env ty jkind with
       | Ok _ -> ()
       | Error err ->
