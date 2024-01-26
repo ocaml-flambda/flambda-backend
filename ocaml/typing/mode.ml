@@ -374,7 +374,10 @@ module Lattices = struct
     | Linearity, Linearity -> Some Misc.Refl
     | Comonadic_with_locality, Comonadic_with_locality -> Some Misc.Refl
     | Comonadic_with_regionality, Comonadic_with_regionality -> Some Misc.Refl
-    | _ -> None
+    | ( ( Locality | Regionality | Uniqueness_op | Linearity
+        | Comonadic_with_locality | Comonadic_with_regionality ),
+        _ ) ->
+      None
 end
 
 module Lattices_mono = struct
