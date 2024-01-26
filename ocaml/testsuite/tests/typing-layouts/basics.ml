@@ -1838,7 +1838,7 @@ Error: Layout mismatch in final type declaration consistency check.
            of the annotation on the universal variable 'a.
          But the layout of 'a must be a sublayout of immediate, because
            of the definition of t2_imm at line 1, characters 0-28.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -2342,7 +2342,7 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in delayed kind checks for mutually recursive groups.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
@@ -2351,7 +2351,7 @@ Error: Layout mismatch in delayed kind checks for mutually recursive groups.
            it instantiates an unannotated type parameter of t2, defaulted to layout value.
          But the layout of 'a t2 must be a sublayout of immediate, because
            of the annotation on the wildcard _ at line 1, characters 28-37.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -2366,7 +2366,7 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in delayed kind checks for mutually recursive groups.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
@@ -2375,7 +2375,7 @@ Error: Layout mismatch in delayed kind checks for mutually recursive groups.
            it instantiates an unannotated type parameter of t2, defaulted to layout value.
          But the layout of 'a t2/2 must be a sublayout of immediate, because
            of the annotation on the wildcard _ at line 1, characters 27-36.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -2387,7 +2387,7 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in delayed kind checks for mutually recursive groups.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
@@ -2396,6 +2396,6 @@ Error: Layout mismatch in delayed kind checks for mutually recursive groups.
            it instantiates an unannotated type parameter of t2, defaulted to layout value.
          But the layout of 'a t2/3 must be a sublayout of immediate, because
            of the annotation on the wildcard _ at line 1, characters 25-34.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]

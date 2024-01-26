@@ -2694,7 +2694,7 @@ let report_jkind_mismatch_due_to_bad_inference ppf ty violation loc =
     | Check_constraints ->
       "final type declaration consistency check"
     | Delayed_checks ->
-      "delayed kind checks for mutually recursive groups"
+      "checking consistency of mutually recursive groups"
   in
   fprintf ppf
     "@[<v>Layout mismatch in %s.@ \
@@ -2702,7 +2702,7 @@ let report_jkind_mismatch_due_to_bad_inference ppf ty violation loc =
      clever enough to propagate layouts through variables in different@ \
      declarations. It is also not clever enough to produce a good error@ \
      message, so we'll say this instead:@;<1 2>@[%a@]@ \
-     The fix will likely be to add a layout annotation on a parameter to@ \
+     A good next step is to add a layout annotation on a parameter to@ \
      the declaration where this error is reported.@]"
     loc
     (Jkind.Violation.report_with_offender
