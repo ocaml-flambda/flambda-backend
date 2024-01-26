@@ -103,6 +103,24 @@ module Solver_mono (C : Lattices_mono) = struct
         'a * ('a, disallowed * 'r) morphvar list
         -> ('a, disallowed * 'r) mode
 
+
+  (** Prints a mode variable, including the set of variables below it
+      (recursively). To handle cycles, [traversed] is the set of variables that
+      we have already printed and will be skipped. An example of cycle:
+
+      Consider a lattice containing three elements A = {0, 1, 2} with the linear
+      lattice structure: 0 < 1 < 2. Furthermore, we define a morphism
+      f : A -> A
+      f 0 = 0
+      f 1 = 2
+      f 2 = 2
+
+      Note that f has a left right, which allows us to write f on the LHS of
+      submode. Say we create a unconstrained variable [x], and invoke submode:
+      f x <= x
+      this would result in adding (f, x) into the [vlower] of [x]. That is,
+      there will be a self-loop on [x].
+      *)
   let rec print_var : type a. ?traversed:VarSet.t -> a C.obj -> _ -> a var -> _
       =
    fun ?traversed obj ppf v ->
