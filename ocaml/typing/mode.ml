@@ -31,22 +31,13 @@ module Product = struct
     | Axis1, Axis1 -> Some Refl
     | _ -> None
 
+  (* Description of which component to set in a product.
+     [SAxis0]: update the first element in [('a0, 'a1) t] to get [('b0, 'a1) t].
+     [SAxis1]: update the second element in [('a0, 'a1) t] to get [('a0, 'b1) t].
+  *)
   type ('a0, 'a1, 'a, 'b0, 'b1, 'b) saxis =
     | SAxis0 : ('a0, 'a1, 'a0, 'b0, 'a1, 'b0) saxis
     | SAxis1 : ('a0, 'a1, 'a1, 'a0, 'b1, 'b1) saxis
-
-  let rev_eq_saxis (type a0 a1 a b0 b1 b a0' a1' a') :
-      (a0, a1, a, b0, b1, b) saxis ->
-      (a0', a1', a', b0, b1, b) saxis ->
-      (a, a') Misc.eq ->
-      (a0 * a1, a0' * a1') Misc.eq option =
-   fun a b eq ->
-    match eq with
-    | Refl -> (
-      match a, b with
-      | SAxis0, SAxis0 -> Some Refl
-      | SAxis1, SAxis1 -> Some Refl
-      | _, _ -> None)
 
   let flip (type a0 a1 a b0 b1 b) :
       (a0, a1, a, b0, b1, b) saxis -> (b0, b1, b, a0, a1, a) saxis = function
@@ -59,11 +50,6 @@ module Product = struct
     | SAxis0 -> fun f (a0, a1) -> f a0, a1
     | SAxis1 -> fun f (a0, a1) -> a0, f a1
 
-  let diag (type a0 a1 a) : (a0, a1, a) axis -> (a0, a1, a, a0, a1, a) saxis =
-    function
-    | Axis0 -> SAxis0
-    | Axis1 -> SAxis1
-
   let src (type a0 a1 a b0 b1 b) :
       (a0, a1, a, b0, b1, b) saxis -> (a0, a1, a) axis = function
     | SAxis0 -> Axis0
@@ -75,7 +61,12 @@ module Product = struct
     | SAxis1 -> Axis1
 
   let update (type a0 a1 a) : (a0, a1, a) axis -> a -> a0 * a1 -> a0 * a1 =
-   fun ax a t -> lift (diag ax) (fun _ -> a) t
+    let endo (type a0 a1 a) : (a0, a1, a) axis -> (a0, a1, a, a0, a1, a) saxis =
+      function
+      | Axis0 -> SAxis0
+      | Axis1 -> SAxis1
+    in
+    fun ax a t -> lift (endo ax) (fun _ -> a) t
 
   (** Proj after lift.
       - If they operate on the same axis, then provide the proof;
@@ -588,7 +579,13 @@ module Lattices_mono = struct
         let obj = proj_obj ax0 obj in
         match eq_morph obj f0 f1 with
         | None -> None
-        | Some eq -> Product.rev_eq_saxis sax0 sax1 eq)
+        | Some eq -> (
+          match eq with
+          | Refl -> (
+            match sax0, sax1 with
+            | SAxis0, SAxis0 -> Some Refl
+            | SAxis1, SAxis1 -> Some Refl
+            | (SAxis0 | SAxis1), _ -> None)))
       | None -> None)
     | _, _ -> None
 
