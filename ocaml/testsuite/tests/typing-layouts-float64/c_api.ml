@@ -3,6 +3,8 @@
    * flambda2
    reference = "${test_source_directory}/c_api.reference"
    ** native
+   ** bytecode
+   ** native
      flags = "-extension layouts_alpha"
    ** bytecode
      flags = "-extension layouts_alpha"

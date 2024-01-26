@@ -2,6 +2,8 @@
    * flambda2
    reference = "${test_source_directory}/unboxed_floats.reference"
    ** native
+   ** bytecode
+   ** native
      flags = "-extension layouts_alpha"
    ** bytecode
      flags = "-extension layouts_alpha"
@@ -9,18 +11,22 @@
      flags = "-extension layouts_beta"
    ** bytecode
      flags = "-extension layouts_beta"
-   ** native
-     flags = "-extension layouts"
-   ** bytecode
-     flags = "-extension layouts"
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
+     flags = "-disable-all-extensions"
      compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
    **** check-ocamlc.byte-output
-
-
+   ** setup-ocamlc.byte-build-env
+     ocamlc_byte_exit_status = "2"
+   *** ocamlc.byte
+     flags = "-only-erasable-extensions"
+     compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
+   **** check-ocamlc.byte-output
 *)
+
+(* CR layouts v2.6: Layouts should be erasable and we can remove the
+   only-erasable-extensions stanza above. *)
 
 (* mshinwell: This test is now only run with flambda2, as the corresponding
    ocamltest predicate is reliable for testing whether this is an

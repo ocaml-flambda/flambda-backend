@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension layouts"
    * native
    * bytecode
 *)
