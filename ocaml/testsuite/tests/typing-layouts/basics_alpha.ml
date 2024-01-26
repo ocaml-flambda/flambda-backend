@@ -1892,3 +1892,8 @@ Error: This expression has type t_any but an expression was expected of type
 (* Test 40: unannotated type parameter defaults to layout value *)
 
 (* Doesn't need layouts_alpha. *)
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
+
+(* Doesn't need layouts_alpha. *)

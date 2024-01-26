@@ -2330,3 +2330,27 @@ Error: This expression has type t_float64
        But the layout of t_float64 must be a sublayout of value, because
          of the definition of t40 at line 1, characters 0-16.
 |}]
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
+
+(* This example must be rejected. *)
+type t1 = string t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+type t1 = string t2
+and 'a t2 = 'a
+|}]
+
+(* This example is unfortunately rejected as a consequence of the fix for the
+   above in typedecl. If we ever change that so that the below starts working,
+   make sure [t1]'s parameter is immediate! Previously this was allowed and t1's
+   parameter was just value (a bug). *)
+type 'a t1 = 'a t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+type 'a t1 = 'a t2
+and 'a t2 = 'a
+|}]
