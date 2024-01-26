@@ -208,6 +208,21 @@ type primitive =
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  (* load/set SIMD vectors in GC-managed arrays *)
+  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloatarray_set_128 of { unsafe : bool }
+  | Pfloat_array_set_128 of { unsafe : bool }
+  | Pint_array_set_128 of { unsafe : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)

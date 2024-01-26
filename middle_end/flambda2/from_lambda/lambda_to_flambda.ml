@@ -588,6 +588,20 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 false
   | Pbigstring_set_64 false
   | Pbigstring_set_128 { unsafe = false; _ }
+  | Pfloatarray_load_128 { unsafe = false; _ }
+  | Pfloat_array_load_128 { unsafe = false; _ }
+  | Pint_array_load_128 { unsafe = false; _ }
+  | Punboxed_float_array_load_128 { unsafe = false; _ }
+  | Punboxed_int32_array_load_128 { unsafe = false; _ }
+  | Punboxed_int64_array_load_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = false; _ }
+  | Pfloatarray_set_128 { unsafe = false; _ }
+  | Pfloat_array_set_128 { unsafe = false; _ }
+  | Pint_array_set_128 { unsafe = false; _ }
+  | Punboxed_float_array_set_128 { unsafe = false; _ }
+  | Punboxed_int32_array_set_128 { unsafe = false; _ }
+  | Punboxed_int64_array_set_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = false; _ }
   | Pdivbint { is_safe = Safe; _ }
   | Pmodbint { is_safe = Safe; _ }
   | Pbigarrayref (false, _, _, _)
@@ -653,6 +667,20 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
   | Pbigstring_set_128 { unsafe = true; _ }
+  | Pfloatarray_load_128 { unsafe = true; _ }
+  | Pfloat_array_load_128 { unsafe = true; _ }
+  | Pint_array_load_128 { unsafe = true; _ }
+  | Punboxed_float_array_load_128 { unsafe = true; _ }
+  | Punboxed_int32_array_load_128 { unsafe = true; _ }
+  | Punboxed_int64_array_load_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = true; _ }
+  | Pfloatarray_set_128 { unsafe = true; _ }
+  | Pfloat_array_set_128 { unsafe = true; _ }
+  | Pint_array_set_128 { unsafe = true; _ }
+  | Punboxed_float_array_set_128 { unsafe = true; _ }
+  | Punboxed_int32_array_set_128 { unsafe = true; _ }
+  | Punboxed_int64_array_set_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _

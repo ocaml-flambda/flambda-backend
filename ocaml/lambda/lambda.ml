@@ -246,6 +246,21 @@ type primitive =
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  (* load/set SIMD vectors in GC-managed arrays *)
+  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloatarray_set_128 of { unsafe : bool }
+  | Pfloat_array_set_128 of { unsafe : bool }
+  | Pint_array_set_128 of { unsafe : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -1554,13 +1569,23 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
   | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
+  | Pfloatarray_load_128 { mode = m; _ }
+  | Pfloat_array_load_128 { mode = m; _ }
+  | Pint_array_load_128 { mode = m; _ }
+  | Punboxed_float_array_load_128 { mode = m; _ }
+  | Punboxed_int32_array_load_128 { mode = m; _ }
+  | Punboxed_int64_array_load_128 { mode = m; _ }
+  | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
   | Pbigstring_load_128 { mode = m; _ } -> Some m
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None
+  | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _ -> None
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
@@ -1630,6 +1655,9 @@ let primitive_result_layout (p : primitive) =
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
@@ -1675,6 +1703,14 @@ let primitive_result_layout (p : primitive) =
       layout_boxedint Pint64
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbigstring_load_128 _ ->
       layout_boxed_vector (Pvec128 Int8x16)
+  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
+  | Punboxed_float_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Float64x2)
+  | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
+  | Punboxed_nativeint_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Int64x2)
+  | Punboxed_int32_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Int32x4)
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value

@@ -1478,6 +1478,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ bytes_like_set_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
         Bigstring bigstring index new_value ]
+  | Pfloatarray_load_128 _, _
+  | Pfloat_array_load_128 _, _
+  | Pint_array_load_128 _, _
+  | Punboxed_float_array_load_128 _, _
+  | Punboxed_int32_array_load_128 _, _
+  | Punboxed_int64_array_load_128 _, _
+  | Punboxed_nativeint_array_load_128 _, _
+  | Pfloatarray_set_128 _, _
+  | Pfloat_array_set_128 _, _
+  | Pint_array_set_128 _, _
+  | Punboxed_float_array_set_128 _, _
+  | Punboxed_int32_array_set_128 _, _
+  | Punboxed_int64_array_set_128 _, _
+  | Punboxed_nativeint_array_set_128 _, _ ->
+    (* CR mslater: implement *)
+    assert false
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int
         (Binary
