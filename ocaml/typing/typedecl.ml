@@ -37,6 +37,10 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
+type bad_jkind_inference_location =
+  | Check_constraints
+  | Delayed_checks
+
 type error =
     Repeated_parameter
   | Duplicate_constructor of string
@@ -73,7 +77,8 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
-  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_due_to_bad_inference of
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
@@ -853,9 +858,12 @@ let rec check_constraints_rec env loc visited ty =
         | Unification_failure err ->
           raise (Error(loc, Constraint_failed (env, err)))
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
-          raise (Error(loc, Jkind_mismatch_in_check_constraints (ty,
-                              (Jkind.Violation.of_ (Not_a_subjkind
-                                 (original_jkind, inferred_jkind))))))
+          let violation =
+            Jkind.Violation.of_
+              (Not_a_subjkind (original_jkind, inferred_jkind))
+          in
+          raise (Error(loc, Jkind_mismatch_due_to_bad_inference
+                            (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
       List.iter (check_constraints_rec env loc visited) args
@@ -1769,8 +1777,17 @@ let transl_type_decl env rec_flag sdecl_list =
       match Ctype.check_type_jkind new_env ty jkind with
       | Ok _ -> ()
       | Error err ->
-        let err = Errortrace.unification_error ~trace:[Bad_jkind (ty,err)] in
-        raise (Error (loc, Type_clash (new_env, err))))
+        (* This inner match is just here to detect when we're rejecting this
+           program because we're being conservative in the sense of the previous
+           comment, and issue an error admitting to it. *)
+        begin match Ctype.constrain_type_jkind new_env ty jkind with
+        | Error _ ->
+          let err = Errortrace.unification_error ~trace:[Bad_jkind (ty,err)] in
+          raise (Error (loc, Type_clash (new_env, err)))
+        | Ok _ ->
+          raise (Error (loc, Jkind_mismatch_due_to_bad_inference
+                               (ty, err, Delayed_checks)))
+        end)
       checks)
     delayed_jkind_checks;
   (* Check that all type variables are closed; this also defaults any remaining
@@ -2671,15 +2688,23 @@ module Reaching_path = struct
     pp path
 end
 
-let report_jkind_mismatch_in_check_constraints ppf ty violation =
+let report_jkind_mismatch_due_to_bad_inference ppf ty violation loc =
+  let loc =
+    match loc with
+    | Check_constraints ->
+      "final type declaration consistency check"
+    | Delayed_checks ->
+      "delayed kind checks for mutually recursive groups"
+  in
   fprintf ppf
-    "@[<v>Layout mismatch in final type declaration consistency check.@ \
+    "@[<v>Layout mismatch in %s.@ \
      This is most often caused by the fact that type inference is not@ \
      clever enough to propagate layouts through variables in different@ \
      declarations. It is also not clever enough to produce a good error@ \
      message, so we'll say this instead:@;<1 2>@[%a@]@ \
      The fix will likely be to add a layout annotation on a parameter to@ \
      the declaration where this error is reported.@]"
+    loc
     (Jkind.Violation.report_with_offender
        ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
 
@@ -2731,7 +2756,8 @@ let report_error ppf = function
       in
       begin match List.find_map get_jkind_error err.trace with
       | Some (ty, violation) ->
-        report_jkind_mismatch_in_check_constraints ppf ty violation
+        report_jkind_mismatch_due_to_bad_inference ppf ty violation
+          Check_constraints
       | None ->
       fprintf ppf "@[<v>Constraints are not satisfied in this type.@ ";
       Printtyp.report_unification_error ppf env err
@@ -2739,8 +2765,8 @@ let report_error ppf = function
         (fun ppf -> fprintf ppf "should be an instance of");
       fprintf ppf "@]"
       end
-  | Jkind_mismatch_in_check_constraints (ty, violation) ->
-      report_jkind_mismatch_in_check_constraints ppf ty violation
+  | Jkind_mismatch_due_to_bad_inference (ty, violation, loc) ->
+      report_jkind_mismatch_due_to_bad_inference ppf ty violation loc
   | Non_regular { definition; used_as; defined_as; reaching_path } ->
       let reaching_path = Reaching_path.simplify reaching_path in
       Printtyp.prepare_for_printing [used_as; defined_as];
