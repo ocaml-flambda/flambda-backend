@@ -1636,12 +1636,20 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     then Never_inline
     else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
+  let free_names_of_body = Acc.free_names acc in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       params ~body ~my_closure ~my_region ~my_depth
-      ~free_names_of_body:(Known (Acc.free_names acc))
+      ~free_names_of_body:(Known free_names_of_body)
   in
+  let result_mode = Function_decl.result_mode decl in
+  if Name_occurrences.mem_var free_names_of_body my_region
+     && Lambda.is_heap_mode result_mode
+  then
+    Misc.fatal_errorf
+      "Unexpected free my_region in code (%a) with heap result mode:\n%a"
+      Code_id.print code_id Function_params_and_body.print params_and_body;
   let acc =
     List.fold_left
       (fun acc param -> Acc.remove_var_from_free_names (BP.var param) acc)
@@ -1680,8 +1688,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~param_modes
       ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
-      ~result_arity:return ~result_types:Unknown
-      ~result_mode:(Function_decl.result_mode decl)
+      ~result_arity:return ~result_types:Unknown ~result_mode
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
