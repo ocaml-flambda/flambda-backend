@@ -1,6 +1,8 @@
 (* TEST
    * flambda2
    ** native
+   ** bytecode
+   ** native
    flags = "-extension layouts_alpha"
    ** bytecode
    flags = "-extension layouts_alpha"
@@ -8,8 +10,6 @@
    flags = "-extension layouts_beta"
    ** bytecode
    flags = "-extension layouts_beta"
-   ** native
-   ** bytecode
 *)
 
 (* This file contains various tests for [nativeint#].  It's not an expect test

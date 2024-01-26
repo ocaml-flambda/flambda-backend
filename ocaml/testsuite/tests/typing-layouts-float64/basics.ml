@@ -1,10 +1,10 @@
 (* TEST
    * flambda2
    ** expect
+   ** expect
      flags = "-extension layouts_alpha"
    ** expect
      flags = "-extension layouts_beta"
-   ** expect
 *)
 
 (* This file contains typing tests for the layout [float64].

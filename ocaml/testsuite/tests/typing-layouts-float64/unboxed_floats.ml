@@ -2,6 +2,8 @@
    * flambda2
    reference = "${test_source_directory}/unboxed_floats.reference"
    ** native
+   ** bytecode
+   ** native
      flags = "-extension layouts_alpha"
    ** bytecode
      flags = "-extension layouts_alpha"
@@ -9,8 +11,6 @@
      flags = "-extension layouts_beta"
    ** bytecode
      flags = "-extension layouts_beta"
-   ** native
-   ** bytecode
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
