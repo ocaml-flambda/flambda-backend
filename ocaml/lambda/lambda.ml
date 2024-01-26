@@ -239,13 +239,14 @@ type primitive =
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool }
-  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode }
-  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode }
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+      boxed : bool }
   | Pbigstring_set_16 of { unsafe : bool }
-  | Pbigstring_set_32 of { unsafe : bool }
-  | Pbigstring_set_64 of { unsafe : bool }
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)

@@ -581,12 +581,12 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_64 false
   | Pbytes_set_128 { unsafe = false; _ }
   | Pbigstring_load_16 { unsafe = false }
-  | Pbigstring_load_32 { unsafe = false; mode = _ }
-  | Pbigstring_load_64 { unsafe = false; mode = _ }
+  | Pbigstring_load_32 { unsafe = false; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = false; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = false; _ }
   | Pbigstring_set_16 { unsafe = false }
-  | Pbigstring_set_32 { unsafe = false }
-  | Pbigstring_set_64 { unsafe = false }
+  | Pbigstring_set_32 { unsafe = false; boxed = _ }
+  | Pbigstring_set_64 { unsafe = false; boxed = _ }
   | Pbigstring_set_128 { unsafe = false; _ }
   | Pdivbint { is_safe = Safe; _ }
   | Pmodbint { is_safe = Safe; _ }
@@ -646,12 +646,12 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_64 true
   | Pbytes_set_128 { unsafe = true; _ }
   | Pbigstring_load_16 { unsafe = true }
-  | Pbigstring_load_32 { unsafe = true; mode = _ }
-  | Pbigstring_load_64 { unsafe = true; mode = _ }
+  | Pbigstring_load_32 { unsafe = true; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = true; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = true; _ }
   | Pbigstring_set_16 { unsafe = true }
-  | Pbigstring_set_32 { unsafe = true }
-  | Pbigstring_set_64 { unsafe = true }
+  | Pbigstring_set_32 { unsafe = true; boxed = _ }
+  | Pbigstring_set_64 { unsafe = true; boxed = _ }
   | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float

@@ -404,41 +404,49 @@ let lookup_primitive loc poly pos p =
     | "%caml_bigstring_get16u" ->
       Primitive ((Pbigstring_load_16 { unsafe = true }), 2)
     | "%caml_bigstring_get32" ->
-      Primitive ((Pbigstring_load_32 { unsafe = false; mode }), 2)
+      Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get32u" ->
-      Primitive ((Pbigstring_load_32 { unsafe = true; mode }), 2)
+      Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = true }), 2)
     | "%caml_bigstring_get64" ->
-      Primitive ((Pbigstring_load_64 { unsafe = false; mode }), 2)
+      Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get64u" ->
-      Primitive ((Pbigstring_load_64 { unsafe = true; mode }), 2)
+      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = true }), 2)
     | "%caml_bigstring_getu128" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode}), 2)
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode;
+        boxed = true }), 2)
     | "%caml_bigstring_getu128u" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode}), 2)
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode;
+        boxed = true }), 2)
     | "%caml_bigstring_geta128" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode}), 2)
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode;
+        boxed = true }), 2)
     | "%caml_bigstring_geta128u" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode}), 2)
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode;
+        boxed = true }), 2)
     | "%caml_bigstring_set16" ->
       Primitive ((Pbigstring_set_16 { unsafe = false }), 3)
     | "%caml_bigstring_set16u" ->
       Primitive ((Pbigstring_set_16 { unsafe = true }), 3)
     | "%caml_bigstring_set32" ->
-      Primitive ((Pbigstring_set_32 { unsafe = false }), 3)
+      Primitive ((Pbigstring_set_32 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set32u" ->
-      Primitive ((Pbigstring_set_32 { unsafe = true }), 3)
+      Primitive ((Pbigstring_set_32 { unsafe = true; boxed = true }), 3)
     | "%caml_bigstring_set64" ->
-      Primitive ((Pbigstring_set_64 { unsafe = false }), 3)
+      Primitive ((Pbigstring_set_64 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set64u" ->
-      Primitive ((Pbigstring_set_64 { unsafe = true }), 3)
+      Primitive ((Pbigstring_set_64 { unsafe = true; boxed = true }), 3)
     | "%caml_bigstring_setu128" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false}), 3)
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false;
+        boxed = true}), 3)
     | "%caml_bigstring_setu128u" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true}), 3)
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true;
+        boxed = true}), 3)
     | "%caml_bigstring_seta128" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false}), 3)
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false;
+        boxed = true}), 3)
     | "%caml_bigstring_seta128u" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true}), 3)
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
+        boxed = true}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)

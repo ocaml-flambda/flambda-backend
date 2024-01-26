@@ -1425,41 +1425,47 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_16 { unsafe = true }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixteen Bigstring None big_str index
         ~current_region ]
-  | Pbigstring_load_32 { unsafe = true; mode }, [[big_str]; [index]] ->
+  | Pbigstring_load_32 { unsafe = true; mode; boxed = _ }, [[big_str]; [index]]
+    ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
         big_str index ~current_region ]
-  | Pbigstring_load_64 { unsafe = true; mode }, [[big_str]; [index]] ->
+  | Pbigstring_load_64 { unsafe = true; mode; boxed = _ }, [[big_str]; [index]]
+    ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
         big_str index ~current_region ]
-  | Pbigstring_load_128 { unsafe = true; aligned; mode }, [[big_str]; [index]]
-    ->
+  | ( Pbigstring_load_128 { unsafe = true; aligned; mode; boxed = _ },
+      [[big_str]; [index]] ) ->
     [ string_like_load_unsafe
         ~access_size:(One_twenty_eight { aligned })
         Bigstring (Some mode) big_str index ~current_region ]
   | Pbigstring_load_16 { unsafe = false }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bigstring None
         big_str index ~current_region ]
-  | Pbigstring_load_32 { unsafe = false; mode }, [[big_str]; [index]] ->
+  | Pbigstring_load_32 { unsafe = false; mode; boxed = _ }, [[big_str]; [index]]
+    ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
         (Some mode) big_str index ~current_region ]
-  | Pbigstring_load_64 { unsafe = false; mode }, [[big_str]; [index]] ->
+  | Pbigstring_load_64 { unsafe = false; mode; boxed = _ }, [[big_str]; [index]]
+    ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
         (Some mode) big_str index ~current_region ]
-  | Pbigstring_load_128 { unsafe = false; aligned; mode }, [[big_str]; [index]]
-    ->
+  | ( Pbigstring_load_128 { unsafe = false; aligned; mode; boxed = _ },
+      [[big_str]; [index]] ) ->
     [ string_like_load_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
         Bigstring (Some mode) big_str index ~current_region ]
   | Pbigstring_set_16 { unsafe = true }, [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixteen Bigstring bigstring index
         new_value ]
-  | Pbigstring_set_32 { unsafe = true }, [[bigstring]; [index]; [new_value]] ->
+  | ( Pbigstring_set_32 { unsafe = true; boxed = _ },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe ~access_size:Thirty_two Bigstring bigstring index
         new_value ]
-  | Pbigstring_set_64 { unsafe = true }, [[bigstring]; [index]; [new_value]] ->
+  | ( Pbigstring_set_64 { unsafe = true; boxed = _ },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe ~access_size:Sixty_four Bigstring bigstring index
         new_value ]
-  | ( Pbigstring_set_128 { unsafe = true; aligned },
+  | ( Pbigstring_set_128 { unsafe = true; aligned; boxed = _ },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_unsafe
         ~access_size:(One_twenty_eight { aligned })
@@ -1467,13 +1473,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_set_16 { unsafe = false }, [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bigstring
         bigstring index new_value ]
-  | Pbigstring_set_32 { unsafe = false }, [[bigstring]; [index]; [new_value]] ->
+  | ( Pbigstring_set_32 { unsafe = false; boxed = _ },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
         bigstring index new_value ]
-  | Pbigstring_set_64 { unsafe = false }, [[bigstring]; [index]; [new_value]] ->
+  | ( Pbigstring_set_64 { unsafe = false; boxed = _ },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
         bigstring index new_value ]
-  | ( Pbigstring_set_128 { unsafe = false; aligned },
+  | ( Pbigstring_set_128 { unsafe = false; aligned; boxed = _ },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
