@@ -145,17 +145,17 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbytes_set (Thirty_two, convert_unsafety is_unsafe)
   | Pbytes_set_64 is_unsafe ->
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
-  | Pbigstring_load_16 is_unsafe ->
+  | Pbigstring_load_16 { unsafe = is_unsafe } ->
       Pbigstring_load (Sixteen, convert_unsafety is_unsafe, Lambda.alloc_heap)
-  | Pbigstring_load_32 (is_unsafe, m) ->
+  | Pbigstring_load_32 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Thirty_two, convert_unsafety is_unsafe, m)
-  | Pbigstring_load_64 (is_unsafe, m) ->
+  | Pbigstring_load_64 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Sixty_four, convert_unsafety is_unsafe, m)
-  | Pbigstring_set_16 is_unsafe ->
+  | Pbigstring_set_16 { unsafe = is_unsafe } ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
-  | Pbigstring_set_32 is_unsafe ->
+  | Pbigstring_set_32 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Thirty_two, convert_unsafety is_unsafe)
-  | Pbigstring_set_64 is_unsafe ->
+  | Pbigstring_set_64 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
@@ -194,6 +194,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pgetpredef _
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pbigstring_load_32 _
+  | Pbigstring_set_32 _
+  | Pbigstring_load_64 _
+  | Pbigstring_set_64 _
   | Pbigstring_load_128 _
   | Pbigstring_set_128 _
   | Pstring_load_128 _
