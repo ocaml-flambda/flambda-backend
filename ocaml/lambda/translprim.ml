@@ -399,12 +399,18 @@ let lookup_primitive loc poly pos p =
       Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_bytes_setu128u" ->
       Primitive ((Pbytes_set_128 {unsafe = true}), 3)
-    | "%caml_bigstring_get16" -> Primitive ((Pbigstring_load_16(false)), 2)
-    | "%caml_bigstring_get16u" -> Primitive ((Pbigstring_load_16(true)), 2)
-    | "%caml_bigstring_get32" -> Primitive ((Pbigstring_load_32(false, mode)), 2)
-    | "%caml_bigstring_get32u" -> Primitive ((Pbigstring_load_32(true, mode)), 2)
-    | "%caml_bigstring_get64" -> Primitive ((Pbigstring_load_64(false, mode)), 2)
-    | "%caml_bigstring_get64u" -> Primitive ((Pbigstring_load_64(true, mode)), 2)
+    | "%caml_bigstring_get16" ->
+      Primitive ((Pbigstring_load_16 { unsafe = false }), 2)
+    | "%caml_bigstring_get16u" ->
+      Primitive ((Pbigstring_load_16 { unsafe = true }), 2)
+    | "%caml_bigstring_get32" ->
+      Primitive ((Pbigstring_load_32 { unsafe = false; mode }), 2)
+    | "%caml_bigstring_get32u" ->
+      Primitive ((Pbigstring_load_32 { unsafe = true; mode }), 2)
+    | "%caml_bigstring_get64" ->
+      Primitive ((Pbigstring_load_64 { unsafe = false; mode }), 2)
+    | "%caml_bigstring_get64u" ->
+      Primitive ((Pbigstring_load_64 { unsafe = true; mode }), 2)
     | "%caml_bigstring_getu128" ->
       Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode}), 2)
     | "%caml_bigstring_getu128u" ->
@@ -413,12 +419,18 @@ let lookup_primitive loc poly pos p =
       Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode}), 2)
     | "%caml_bigstring_geta128u" ->
       Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode}), 2)
-    | "%caml_bigstring_set16" -> Primitive ((Pbigstring_set_16(false)), 3)
-    | "%caml_bigstring_set16u" -> Primitive ((Pbigstring_set_16(true)), 3)
-    | "%caml_bigstring_set32" -> Primitive ((Pbigstring_set_32(false)), 3)
-    | "%caml_bigstring_set32u" -> Primitive ((Pbigstring_set_32(true)), 3)
-    | "%caml_bigstring_set64" -> Primitive ((Pbigstring_set_64(false)), 3)
-    | "%caml_bigstring_set64u" -> Primitive ((Pbigstring_set_64(true)), 3)
+    | "%caml_bigstring_set16" ->
+      Primitive ((Pbigstring_set_16 { unsafe = false }), 3)
+    | "%caml_bigstring_set16u" ->
+      Primitive ((Pbigstring_set_16 { unsafe = true }), 3)
+    | "%caml_bigstring_set32" ->
+      Primitive ((Pbigstring_set_32 { unsafe = false }), 3)
+    | "%caml_bigstring_set32u" ->
+      Primitive ((Pbigstring_set_32 { unsafe = true }), 3)
+    | "%caml_bigstring_set64" ->
+      Primitive ((Pbigstring_set_64 { unsafe = false }), 3)
+    | "%caml_bigstring_set64u" ->
+      Primitive ((Pbigstring_set_64 { unsafe = true }), 3)
     | "%caml_bigstring_setu128" ->
       Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false}), 3)
     | "%caml_bigstring_setu128u" ->

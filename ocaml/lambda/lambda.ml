@@ -238,13 +238,13 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool * alloc_mode
-  | Pbigstring_load_64 of bool * alloc_mode
+  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
-  | Pbigstring_set_16 of bool
-  | Pbigstring_set_32 of bool
-  | Pbigstring_set_64 of bool
+  | Pbigstring_set_16 of { unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool }
+  | Pbigstring_set_64 of { unsafe : bool }
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
@@ -1557,7 +1557,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
+  | Pbigstring_load_32 { mode = m; _ } | Pbigstring_load_64 { mode = m; _ }
   | Pbigstring_load_128 { mode = m; _ } -> Some m
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None

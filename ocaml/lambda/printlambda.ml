@@ -550,13 +550,13 @@ let primitive ppf = function
      fprintf ppf "bytes.unsafe_unaligned_set128"
   | Pbytes_set_128 {unsafe = false} ->
      fprintf ppf "bytes.unaligned_set128"
-  | Pbigstring_load_16(unsafe) ->
+  | Pbigstring_load_16 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
-  | Pbigstring_load_32(unsafe,m) ->
+  | Pbigstring_load_32 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get32%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get32%s" (alloc_kind m)
-  | Pbigstring_load_64(unsafe,m) ->
+  | Pbigstring_load_64 { unsafe; mode = m } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
      else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
   | Pbigstring_load_128 {unsafe = true; aligned = false; mode} ->
@@ -567,13 +567,13 @@ let primitive ppf = function
      fprintf ppf "bigarray.array1.unsafe_aligned_get128%s" (alloc_kind mode)
   | Pbigstring_load_128 {unsafe = false; aligned = true; mode} ->
      fprintf ppf "bigarray.array1.aligned_get128%s" (alloc_kind mode)
-  | Pbigstring_set_16(unsafe) ->
+  | Pbigstring_set_16 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
-  | Pbigstring_set_32(unsafe) ->
+  | Pbigstring_set_32 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set32"
      else fprintf ppf "bigarray.array1.set32"
-  | Pbigstring_set_64(unsafe) ->
+  | Pbigstring_set_64 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
   | Pbigstring_set_128 {unsafe = true; aligned = false} ->
