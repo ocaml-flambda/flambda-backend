@@ -447,6 +447,49 @@ let lookup_primitive loc poly pos p =
     | "%caml_bigstring_seta128u" ->
       Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
         boxed = true}), 3)
+    | "%caml_bigstring_get32#" ->
+      Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = false }),
+        2)
+    | "%caml_bigstring_get32u#" ->
+      Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = false }),
+        2)
+    | "%caml_bigstring_get64#" ->
+      Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = false }),
+        2)
+    | "%caml_bigstring_get64u#" ->
+      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = false }), 2)
+    | "%caml_bigstring_getu128#" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode;
+        boxed = false }), 2)
+    | "%caml_bigstring_getu128u#" ->
+      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode;
+        boxed = false }), 2)
+    | "%caml_bigstring_geta128#" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode;
+        boxed = false }), 2)
+    | "%caml_bigstring_geta128u#" ->
+      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode;
+        boxed = false }), 2)
+    | "%caml_bigstring_set32#" ->
+      Primitive ((Pbigstring_set_32 { unsafe = false; boxed = false }), 3)
+    | "%caml_bigstring_set32u#" ->
+      Primitive ((Pbigstring_set_32 { unsafe = true; boxed = false }), 3)
+    | "%caml_bigstring_set64#" ->
+      Primitive ((Pbigstring_set_64 { unsafe = false; boxed = false }), 3)
+    | "%caml_bigstring_set64u#" ->
+      Primitive ((Pbigstring_set_64 { unsafe = true; boxed = false }), 3)
+    | "%caml_bigstring_setu128#" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false;
+        boxed = false}), 3)
+    | "%caml_bigstring_setu128u#" ->
+      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true;
+        boxed = false}), 3)
+    | "%caml_bigstring_seta128#" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false;
+        boxed = false}), 3)
+    | "%caml_bigstring_seta128u#" ->
+      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
+        boxed = false}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
