@@ -388,7 +388,7 @@ Error: Layout mismatch in final type declaration consistency check.
            of the definition of void_t at line 1, characters 0-23.
          But the layout of 'a must overlap with value, because
            it instantiates an unannotated type parameter of t8_5, defaulted to layout value.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -410,7 +410,7 @@ Error: Layout mismatch in final type declaration consistency check.
            it instantiates an unannotated type parameter of t10, defaulted to layout value.
          But the layout of 'a must be a sublayout of immediate, because
            of the definition of imm_t at line 1, characters 0-27.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -430,7 +430,7 @@ Error: Layout mismatch in final type declaration consistency check.
            it is the primitive float64 type float#.
          But the layout of float# must be a sublayout of void, because
            of the annotation on the universal variable 'b.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
