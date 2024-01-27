@@ -864,7 +864,7 @@ Line 3, characters 2-24:
 Error:
        The layout of 'a s is void, because
          of the annotation on 'a in the declaration of the type s.
-       But the layout of 'a s must overlap with value, because
+       But the layout of 'a s must be a sublayout of value, because
          it's the type of an object field.
 |}];;
 
@@ -1890,5 +1890,10 @@ Error: This expression has type t_any but an expression was expected of type
 
 (****************************************************)
 (* Test 40: unannotated type parameter defaults to layout value *)
+
+(* Doesn't need layouts_alpha. *)
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
 
 (* Doesn't need layouts_alpha. *)

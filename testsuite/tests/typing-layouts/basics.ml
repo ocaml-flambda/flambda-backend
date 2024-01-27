@@ -1026,7 +1026,7 @@ Line 3, characters 2-27:
 Error:
        The layout of 'a s is float64, because
          of the annotation on 'a in the declaration of the type s.
-       But the layout of 'a s must overlap with value, because
+       But the layout of 'a s must be a sublayout of value, because
          it's the type of an object field.
 |}];;
 
@@ -1838,7 +1838,7 @@ Error: Layout mismatch in final type declaration consistency check.
            of the annotation on the universal variable 'a.
          But the layout of 'a must be a sublayout of immediate, because
            of the definition of t2_imm at line 1, characters 0-28.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -2329,4 +2329,73 @@ Error: This expression has type t_float64
          of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
          of the definition of t40 at line 1, characters 0-16.
+|}]
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
+
+(* This example must be rejected. *)
+type t1 = string t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2 is value, because
+           it instantiates an unannotated type parameter of t2, defaulted to layout value.
+         But the layout of 'a t2 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 28-37.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+(* This example is unfortunately rejected as a consequence of the fix for the
+   above in typedecl. If we ever change that so that the below starts working,
+   make sure [t1]'s parameter is immediate! Previously this was allowed and t1's
+   parameter was just value (a bug). *)
+type 'a t1 = 'a t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2/2 is value, because
+           it instantiates an unannotated type parameter of t2, defaulted to layout value.
+         But the layout of 'a t2/2 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 27-36.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+(* This one also unfortunately rejected for the same reason. *)
+type t1 = int t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a t2/3 is value, because
+           it instantiates an unannotated type parameter of t2, defaulted to layout value.
+         But the layout of 'a t2/3 must be a sublayout of immediate, because
+           of the annotation on the wildcard _ at line 1, characters 25-34.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
 |}]
