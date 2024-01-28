@@ -878,8 +878,7 @@ let has_mode_annotation annots annot =
     (fun x -> Jane_syntax.N_ary_functions.mode_annotation_equal x.txt annot)
     annots
 
-let mode_annots_none =
-  {locality = None; uniqueness = None; linearity = None}
+let mode_annots_none = (None, None, None)
 
 (* CR-someday: The [mode_annots_from_*] family of functions sweeps through
    the list of attributes multiple times. Once should be enough.
@@ -928,7 +927,7 @@ let mode_annots_from_n_ary_function_annotations annots =
     if has_mode_annotation annots Once then Some Linearity.Const.Once
     else None
   in
-  {locality; uniqueness; linearity}
+  (locality, linearity, uniqueness)
 
 let apply_mode_annots ~loc ~env ~ty_expected (locality, linearity, uniqueness) mode =
   let error axis =
@@ -4850,7 +4849,7 @@ type split_function_ty =
     expected_pat_mode: expected_pat_mode;
     expected_inner_mode: expected_mode;
     (* [alloc_mode] is the mode of [fun x_i ... x_n -> e]. *)
-    alloc_mode: Mode.Alloc.t;
+    alloc_mode: Mode.Alloc.r;
   }
 
 (** Return the updated environment (e.g. it may have a closure lock)
@@ -4871,12 +4870,13 @@ let split_function_ty
     env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
     ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
-  let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
-    if expected_mode.exact then
+    match expected_mode.exact with
+    | Some alloc_mode ->
       (* expected_mode.mode is exact *)
       alloc_mode
-    else
+    | None ->
+      let alloc_mode = value_to_alloc_r2g expected_mode.mode in
       (* expected_mode.mode is upper bound *)
       fst (Alloc.newvar_below alloc_mode)
   in
@@ -4929,8 +4929,7 @@ let split_function_ty
         let env =
           Env.add_closure_lock
             ?closure_context:expected_mode.closure_context
-            (Alloc.locality alloc_mode)
-            (Alloc.linearity alloc_mode)
+            (alloc_as_value alloc_mode).comonadic
             env
         in
         if region_locked then Env.add_region_lock env
@@ -4942,7 +4941,7 @@ let split_function_ty
       (* because ty_res always a function *)
       let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
       begin match
-        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
+        Alloc.submode (Alloc.close_over arg_mode.comonadic arg_mode.monadic) inner_alloc_mode
       with
       | Ok () -> ()
       | Error e ->
@@ -4955,10 +4954,10 @@ let split_function_ty
       | Error e ->
         raise (Error(loc_fun, env, Uncurried_function_escapes e))
       end;
-      mode_exact (Value.of_alloc inner_alloc_mode),
-      More_args {partial_mode = inner_alloc_mode}
+      mode_exact (alloc_as_value inner_alloc_mode) inner_alloc_mode,
+      More_args {partial_mode = Alloc.disallow_right inner_alloc_mode}
     else
-      let ret_value_mode = Value.of_alloc ret_mode in
+      let ret_value_mode = alloc_as_value ret_mode in
       let ret_value_mode =
         if region_locked then mode_return ret_value_mode
         else begin
@@ -4967,7 +4966,7 @@ let split_function_ty
             Locality.submode Locality.local (Alloc.locality ret_mode)
           with
           | Ok () -> mode_default ret_value_mode
-          | Error () -> raise (Error (loc_fun, env, Function_returns_local))
+          | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
         end
       in
       let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
@@ -4985,9 +4984,8 @@ let split_function_ty
     end
   in
   let arg_value_mode =
-    let arg_value_mode = Value.of_alloc arg_mode in
-    if region_locked then Value.local_to_regional arg_value_mode
-    else arg_value_mode
+    if region_locked then alloc_to_value_l2r arg_mode
+    else Value.disallow_right (alloc_as_value arg_mode)
   in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
   let type_sort ~why ty =
@@ -4998,7 +4996,8 @@ let split_function_ty
   let arg_sort = type_sort ~why:Function_argument ty_arg in
   let ret_sort = type_sort ~why:Function_result ty_ret in
   env,
-  { filtered_arrow; arg_sort; ret_sort; alloc_mode; ty_arg_mono;
+  { filtered_arrow; arg_sort; ret_sort;
+    alloc_mode = Alloc.disallow_left alloc_mode; ty_arg_mono;
     expected_inner_mode; expected_pat_mode; curry;
   }
 
@@ -5023,7 +5022,7 @@ type type_function_result =
        recursive calls to [type_function] when there are no parameters
        left.
     *)
-    fun_alloc_mode: Mode.Alloc.t option;
+    fun_alloc_mode: Mode.Alloc.r option;
     (* Information about the return of the function. None only for
        recursive calls to [type_function] when there are no parameters
        left.
@@ -5033,7 +5032,7 @@ type type_function_result =
 
 and type_function_ret_info =
   { (* The mode the function returns at. *)
-    ret_mode: Mode.Alloc.t;
+    ret_mode: Mode.Alloc.l;
     (* The sort returned by the function. *)
     ret_sort: Jkind.sort;
   }
@@ -6882,7 +6881,7 @@ and type_function
               fp_partial = partial;
               fp_newtypes = newtypes;
               fp_sort = arg_sort;
-              fp_mode = arg_mode;
+              fp_mode = Alloc.disallow_right arg_mode;
               fp_curry = curry;
               fp_loc = pparam_loc;
             };
@@ -6891,7 +6890,7 @@ and type_function
       let ret_info =
         match ret_info with
         | Some _ as x -> x
-        | None -> Some { ret_sort; ret_mode }
+        | None -> Some { ret_sort; ret_mode = Alloc.disallow_right ret_mode }
       in
       { function_ = exp_type, param :: params, body;
         newtypes = []; params_contain_gadt = contains_gadt;
@@ -7493,12 +7492,12 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                 Tfunction_cases
                   { fc_cases = cases; fc_partial = Total; fc_param = param;
                     fc_loc = cases_loc; fc_exp_extra = None;
-                    fc_attributes = []; fc_arg_mode = marg;
+                    fc_attributes = []; fc_arg_mode = Alloc.disallow_right marg;
                     fc_arg_sort = arg_sort;
                   };
-              ret_mode = mret;
+              ret_mode = Alloc.disallow_right mret;
               ret_sort;
-              alloc_mode;
+              alloc_mode = Alloc.disallow_left alloc_mode;
               region = false;
             }
         }
@@ -7708,7 +7707,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     if List.compare_length_with expected_mode.tuple_modes arity = 0 then
       expected_mode.tuple_modes
     else begin
-      let arg_mode = Value.regional_to_global expected_mode.mode in
+      let arg_mode = value_regional_to_global expected_mode.mode in
       List.init arity (fun _ -> arg_mode)
     end
   in
@@ -8225,11 +8224,13 @@ and type_function_cases_expect
         fc_loc = loc;
         fc_exp_extra = None;
         fc_attributes = [];
-        fc_arg_mode = arg_mode;
+        fc_arg_mode = Alloc.disallow_right arg_mode;
         fc_arg_sort = arg_sort;
       }
     in
-    cases, ty_fun, alloc_mode, { ret_sort; ret_mode }
+    cases, ty_fun, alloc_mode,
+      { ret_sort;
+        ret_mode = Alloc.disallow_right ret_mode }
   end
 
 (** Typecheck the body of a newtype. The "body" of a newtype may be:

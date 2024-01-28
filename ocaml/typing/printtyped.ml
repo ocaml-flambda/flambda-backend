@@ -378,8 +378,8 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
 
-and alloc_mode i ppf m =
-  line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
+and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
+  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 

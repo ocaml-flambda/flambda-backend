@@ -203,7 +203,7 @@ let function_attribute_disallowing_arity_fusion =
    this in a follow-on PR.
 *)
 let curried_function_kind
-    : (function_curry * Mode.Alloc.t) list
+    : (function_curry * Mode.Alloc.l) list
       -> return_mode:alloc_mode
       -> alloc_mode:alloc_mode
       -> curried_function_kind
@@ -218,14 +218,14 @@ let curried_function_kind
           if running_count = 0
              && is_alloc_heap return_mode
              && is_alloc_heap alloc_mode
-             && is_alloc_heap (transl_alloc_mode final_arg_mode)
+             && is_alloc_heap (transl_alloc_mode_l final_arg_mode)
           then 0
           else running_count + 1
         in
         { nlocal }
     | (Final_arg, _) :: _ -> Misc.fatal_error "Found [Final_arg] too early"
     | (More_args { partial_mode }, _) :: params ->
-        match transl_alloc_mode partial_mode with
+        match transl_alloc_mode_l partial_mode with
         | Alloc_heap when not found_local_already ->
             loop params ~return_mode ~alloc_mode
               ~running_count:0 ~found_local_already
@@ -310,7 +310,7 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         (function (Texp_poly _, _, _) -> true | _ -> false)
         exp_extra
     ->
-      begin match transl_alloc_mode method_.alloc_mode with
+      begin match transl_alloc_mode_r method_.alloc_mode with
       | Alloc_heap -> ()
       | Alloc_local ->
           (* If we support locally-allocated objects, we'll also have to
@@ -320,12 +320,14 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
       end;
       let self_param =
         { self_param
-          with fp_curry = More_args { partial_mode = Mode.Alloc.legacy }
+          with fp_curry = More_args
+            { partial_mode =
+              Mode.Alloc.disallow_right Mode.Alloc.legacy }
         }
       in
       { params = self_param :: method_.params;
         body = method_.body;
-        return_mode = transl_alloc_mode method_.ret_mode;
+        return_mode = transl_alloc_mode_l method_.ret_mode;
         return_sort = method_.ret_sort;
         region = method_.region;
       }
@@ -1260,7 +1262,7 @@ and transl_tupled_function
       (cases, partial,
        ({ pat_desc = Tpat_tuple pl } as arg_pat), arg_mode, arg_sort)
     when is_alloc_heap mode
-      && is_alloc_heap (transl_alloc_mode arg_mode)
+      && is_alloc_heap (transl_alloc_mode_l arg_mode)
       && !Clflags.native_code
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
@@ -1331,7 +1333,7 @@ and transl_curried_function ~scopes loc repr params body
                  use for optimizations. *)
               layout_of_sort fc_loc fc_arg_sort
         in
-        let arg_mode = transl_alloc_mode fc_arg_mode in
+        let arg_mode = transl_alloc_mode_l fc_arg_mode in
         let param =
           { name = fc_param;
             layout = arg_layout;
@@ -1357,7 +1359,7 @@ and transl_curried_function ~scopes loc repr params body
               expr.exp_env, Predef.type_option expr.exp_type
         in
         let arg_layout = layout arg_env fp_loc fp_sort arg_type in
-        let arg_mode = transl_alloc_mode fp_mode in
+        let arg_mode = transl_alloc_mode_l fp_mode in
         let param =
           { name = fp_param;
             layout = arg_layout;
@@ -1468,7 +1470,7 @@ and transl_curried_function ~scopes loc repr params body
 and transl_function ~in_new_scope ~scopes e params body
     ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion =
   let attrs = e.exp_attributes in
-  let mode = transl_alloc_mode alloc_mode in
+  let mode = transl_alloc_mode_r alloc_mode in
   let assume_zero_alloc =
     Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
   in
@@ -1479,7 +1481,7 @@ and transl_function ~in_new_scope ~scopes e params body
     end
     else enter_anonymous_function ~scopes ~assume_zero_alloc
   in
-  let sreturn_mode = transl_alloc_mode sreturn_mode in
+  let sreturn_mode = transl_alloc_mode_l sreturn_mode in
   let { params; body; return_sort; return_mode; region } =
     fuse_method_arity
       { params; body;
@@ -1911,7 +1913,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
              (Tfunction_cases
                 { fc_cases = [case]; fc_param = param; fc_partial = partial;
                   fc_loc = ghost_loc; fc_exp_extra = None; fc_attributes = [];
-                  fc_arg_mode = Mode.Alloc.legacy; fc_arg_sort = param_sort;
+                  fc_arg_mode = Mode.Alloc.disallow_right Mode.Alloc.legacy;
+                  fc_arg_sort = param_sort;
                 }))
     in
     let attr = function_attribute_disallowing_arity_fusion in

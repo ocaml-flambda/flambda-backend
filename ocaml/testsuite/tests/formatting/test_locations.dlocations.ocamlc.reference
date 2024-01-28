@@ -95,7 +95,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
           alloc_mode Global,Many,Shared
           []
           Tfunction_cases (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
-          alloc_mode Global, Shared, Many
+          alloc_mode Global,Many,Shared
           value
             [
               <case>
