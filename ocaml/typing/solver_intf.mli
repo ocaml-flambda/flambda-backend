@@ -172,6 +172,7 @@ module type Solver_polarized = sig
   val max : 'a obj -> ('a, 'l * 'r) mode
 
   (** Pushes the mode variable to the lowest constant possible.
+      Expensive.
       WARNING: the lattice must be finite for this to terminate.*)
   val zap_to_floor : 'a obj -> ('a, allowed * 'r) mode -> 'a
 

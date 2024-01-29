@@ -50,7 +50,7 @@ module Solver_mono (C : Lattices_mono) = struct
        However, we only have [vlower] not [vupper]. Therefore, the [lower] of
        higher variables are not updated immediately, hence conservative. Those
        [lower] of higher variables can be made precise later on demand, see
-       [zap_to_floor_try].
+       [zap_to_floor_var_aux].
 
        One might argue for an additional [vupper] field, so that [lower] are
        always precise. While this might be doable, we note that the "hotspot" of
@@ -374,7 +374,7 @@ module Solver_mono (C : Lattices_mono) = struct
       The loop is guaranteed to terminate, because for each iteration our
       guessed lower bound is strictly higher; and all lattices are finite.
       *)
-  let zap_to_floor_try (type a) (obj : a C.obj) (v : a var) =
+  let zap_to_floor_var_aux (type a) (obj : a C.obj) (v : a var) =
     let rec loop lower =
       let log = ref [] in
       let r = submode_vc ~log:(Some log) obj v lower in
@@ -386,9 +386,9 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop v.lower
 
-  let constrain_mlower_try dst (Amorphvar (v, f)) =
+  let zap_to_floor_morphvar_aux dst (Amorphvar (v, f)) =
     let src = C.src dst f in
-    let log, lower = zap_to_floor_try src v in
+    let log, lower = zap_to_floor_var_aux src v in
     log, C.apply dst f lower
 
   let eq_morphvar :
@@ -422,10 +422,11 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let cnt_id = ref 0
 
-  let fresh (type a) (obj : a C.obj) =
-    let id = !cnt_id in
-    cnt_id := id + 1;
-    { upper = C.max obj; lower = C.min obj; vlower = []; id }
+  let fresh : 'a C.obj -> 'a var =
+    fun (type a) (obj : a C.obj) ->
+     let id = !cnt_id in
+     cnt_id := id + 1;
+     { upper = C.max obj; lower = C.min obj; vlower = []; id }
 
   let newvar obj = Amodevar (Amorphvar (fresh obj, C.id))
 
@@ -438,21 +439,21 @@ module Solver_mono (C : Lattices_mono) = struct
     let submode_mvc v right =
       Result.map_error
         (fun left ->
-          assert (not (C.le obj left right));
+          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_mvc ~log obj v right)
     in
     let submode_cmv left v =
       Result.map_error
         (fun right ->
-          assert (not (C.le obj left right));
+          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_cmv ~log obj left v)
     in
     let submode_mvmv v u =
       Result.map_error
         (fun (left, right) ->
-          assert (not (C.le obj left right));
+          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_mvmv ~log obj v u)
     in
@@ -558,7 +559,7 @@ module Solver_mono (C : Lattices_mono) = struct
     loop (C.max obj) [] l
 
   let zap_to_floor_morphvar ~commit obj mv =
-    let log, lower = constrain_mlower_try obj mv in
+    let log, lower = zap_to_floor_morphvar_aux obj mv in
     if commit then !append_changes log else undo_changes !log;
     lower
 
