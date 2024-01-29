@@ -553,7 +553,9 @@ let array_vector_access_validity_condition array
     match vec_kind with
     | Pvec128 (Float64x2 | Int64x2) -> 1
     | Pvec128 Int32x4 -> 3
-    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) ->
+      (* CR mslater: replace once we have unboxed float32/int16/int8 *)
+      assert false
   in
   let width = H.Simple (Simple.const_int (Targetint_31_63.of_int width)) in
   [ H.Binary

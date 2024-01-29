@@ -158,7 +158,9 @@ let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
     match vec_kind with
     | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
     | Pvec128 Int32x4 -> 2
-    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) ->
+      (* CR mslater: replace once we have unboxed float32/int16/int8 *)
+      assert false
   in
   C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg offset) dbg) dbg
 
@@ -171,7 +173,9 @@ let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
     match vec_kind with
     | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
     | Pvec128 Int32x4 -> 2
-    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) ->
+      (* CR mslater: replace once we have unboxed float32/int16/int8 *)
+      assert false
   in
   C.unaligned_set_128 arr
     (C.lsl_int index (C.int_const dbg offset) dbg)

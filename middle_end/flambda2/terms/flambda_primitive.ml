@@ -133,6 +133,7 @@ module Array_kind = struct
           | Int8x16 ),
         ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
         | Naked_nativeints ) ) ->
+      (* CR mslater: update once we have unboxed float32/int16/int8 *)
       Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
         Lambda.print_boxed_vector v print t
 end
