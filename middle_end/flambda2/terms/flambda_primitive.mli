@@ -91,6 +91,8 @@ module Array_set_kind : sig
 
   val array_kind : t -> Array_kind.t
 
+  val init_or_assign : t -> Init_or_assign.t
+
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
 

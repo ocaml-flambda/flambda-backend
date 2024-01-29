@@ -590,33 +590,15 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
-let init_or_assign_of_array_set_kind :
-    Flambda_primitive.Array_set_kind.t -> Flambda_primitive.Init_or_assign.t =
-  function
-  | Values ia -> ia
-  | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
-    ->
-    Assignment Alloc_mode.For_assignments.heap
-
-let array_kind_of_array_set_kind :
-    Flambda_primitive.Array_set_kind.t -> Flambda_primitive.Array_kind.t =
-  function
-  | Immediates -> Immediates
-  | Values _ -> Values
-  | Naked_floats -> Naked_floats
-  | Naked_int32s -> Naked_int32s
-  | Naked_int64s -> Naked_int64s
-  | Naked_nativeints -> Naked_nativeints
-
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set ak ->
-    let ia = init_or_assign_of_array_set_kind ak in
-    let ak = array_kind_of_array_set_kind ak in
+    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
+    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
     Array_set (ak, init_or_assign env ia)
   | Array_vector_set (vk, ak) ->
-    let ia = init_or_assign_of_array_set_kind ak in
-    let ak = array_kind_of_array_set_kind ak in
+    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
+    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
     Array_vector_set (vk, ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)

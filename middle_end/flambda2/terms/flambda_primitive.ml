@@ -177,6 +177,13 @@ module Array_set_kind = struct
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
 
+  let init_or_assign t : Init_or_assign.t =
+    match t with
+    | Values ia -> ia
+    | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
+      ->
+      Assignment Alloc_mode.For_assignments.heap
+
   let element_kind t =
     match t with
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
