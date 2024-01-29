@@ -62,8 +62,8 @@ module Solver_mono (C : Lattices_mono) = struct
          - Variables that have been fully constrained will have
          [v.lower = v.upper]. Note that adding a boolean field indicating that
          won't help much.
-         - For any [v] and [u \in v.vlower], we have [u.upper <= v.upper], but not
-         necessarily [u.lower <= v.lower]. *)
+         - For any [v] and [f u \in v.vlower], we have [f u.upper <= v.upper], but not
+         necessarily [f u.lower <= v.lower]. *)
       id : int  (** For identification/printing *)
     }
 
@@ -235,7 +235,8 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodemeet (a, vs) ->
       Amodemeet (C.apply dst morph a, List.map (apply_morphvar dst morph) vs)
 
-  (** Arguments not checked; must maintain INVARIANT *)
+  (** Arguments are not checked and used directly. They must satisfy the
+      INVARIANT listed above. *)
   let update_lower (type a) ~log (obj : a C.obj) v a =
     (match log with
     | None -> ()
@@ -246,7 +247,8 @@ module Solver_mono (C : Lattices_mono) = struct
       Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
       assert false)
 
-  (** Arguments not checked, must maintain INVARIANT *)
+  (** Arguments are not checked and used directly. They must satisfy the
+      INVARIANT listed above. *)
   let update_upper (type a) ~log (obj : a C.obj) v a =
     (match log with
     | None -> ()
@@ -257,7 +259,8 @@ module Solver_mono (C : Lattices_mono) = struct
       Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
       assert false)
 
-  (** Arguments not checked, must maintain INVARIANT *)
+  (** Arguments are not checked and used directly. They must satisfy the
+      INVARIANT listed above. *)
   let set_vlower ~log v vlower =
     (match log with
     | None -> ()
@@ -309,7 +312,8 @@ module Solver_mono (C : Lattices_mono) = struct
       Ok ()
 
   (** Returns [Ok ()] if success; [Error x] if failed, and [x] is the next best
-     guess to replace the constant argument that MIGHT succeed. *)
+    (read: strictly higher) guess to replace the constant argument that MIGHT
+    succeed. *)
   let rec submode_vc :
       type a. log:_ -> a C.obj -> a var -> a -> (unit, a) Result.t =
     fun (type a) ~log (obj : a C.obj) v a' ->
@@ -404,8 +408,11 @@ module Solver_mono (C : Lattices_mono) = struct
     else if eq_morphvar dst mv mu
     then Ok ()
     else
-      (* we have f v <= g u which gives g' (f v) <= u. On the other hand, we
-         also have v <= f' (g u) *)
+      (* The call f v <= g u translates to three steps:
+         1. f v <= g u.upper
+         2. f v.lower <= g u
+         3. adding g' (f v) to the u.vlower, where g' is the left adjoint of g.
+      *)
       match submode_mvc ~log dst mv (mupper dst mu) with
       | Error a -> Error (a, mupper dst mu)
       | Ok () -> (
