@@ -560,8 +560,12 @@ let array_vector_access_validity_condition array
   let width = H.Simple (Simple.const_int (Targetint_31_63.of_int width)) in
   [ H.Binary
       ( Int_comp (Tagged_immediate, Yielding_bool (Lt Unsigned)),
-        Prim (Binary (Int_arith (I.Tagged_immediate, Add), index, width)),
-        Prim (Unary (Array_length (Array_kind array_kind), array)) ) ]
+        index,
+        Prim
+          (Binary
+             ( Int_arith (I.Tagged_immediate, Sub),
+               Prim (Unary (Array_length (Array_kind array_kind), array)),
+               width )) ) ]
 
 let check_array_vector_access ~dbg ~array vec_kind array_kind ~index primitive :
     H.expr_primitive =
@@ -1551,7 +1555,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Int32x4)
         Naked_int32s array index ]
   | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    check_float_array_optimisation_enabled "Pfloat_array_load_128";
+    check_float_array_optimisation_enabled "Pfloat_array_set_128";
     [ array_like_set_128 ~dbg ~unsafe (Pvec128 Float64x2) Naked_floats array
         index new_value ]
   | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]

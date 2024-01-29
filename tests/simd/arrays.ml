@@ -5,6 +5,13 @@ external int8x16_of_int64s : int64 -> int64 -> int8x16 = "" "vec128_of_int64s" [
 external int8x16_low_int64 : int8x16 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external int8x16_high_int64 : int8x16 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
+external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external int64x2_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
+external float64x2_low_int64 : float64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external float64x2_high_int64 : float64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
 let eq lv hv l h =
   if l <> lv then Printf.printf "%016Lx <> %016Lx\n" lv l;
   if h <> hv then Printf.printf "%016Lx <> %016Lx\n" hv h
@@ -246,5 +253,270 @@ module Bigstring = struct
         assert false
       with | Invalid_argument s when s = "index out of bounds" -> ()
     done;
+  ;;
+end
+
+module Float_arrays = struct
+
+  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+      [@@noalloc] [@@unboxed] [@@builtin]
+
+  external low_of : float -> float64x2 = "caml_vec128_unreachable" "caml_float64x2_low_of_float"
+      [@@noalloc] [@@unboxed] [@@builtin]
+
+  let f64x2 x y =
+    let x = low_of x in
+    let y = low_of y in
+    interleave_low_64 x y
+
+  external float_array_get_float64x2 : float array -> int -> float64x2 = "%caml_float_array_get128"
+  external float_array_get_float64x2_unsafe : float array -> int -> float64x2 = "%caml_float_array_get128u"
+
+  external float_array_set_float64x2 : float array -> int -> float64x2 -> unit = "%caml_float_array_set128"
+  external float_array_set_float64x2_unsafe : float array -> int -> float64x2 -> unit = "%caml_float_array_set128u"
+
+  external floatarray_get_float64x2 : floatarray -> int -> float64x2 = "%caml_floatarray_get128"
+  external floatarray_get_float64x2_unsafe : floatarray -> int -> float64x2 = "%caml_floatarray_get128u"
+
+  external floatarray_set_float64x2 : floatarray -> int -> float64x2 -> unit = "%caml_floatarray_set128"
+  external floatarray_set_float64x2_unsafe : floatarray -> int -> float64x2 -> unit = "%caml_floatarray_set128u"
+
+  (* CR mslater: unboxed array tests waiting on PR#2238
+  external unboxed_float_array_get_float64x2 : float# array -> int -> float64x2 = "%caml_unboxed_float_array_get128"
+  external unboxed_float_array_get_float64x2_unsafe : float# array -> int -> float64x2 = "%caml_unboxed_float_array_get128u"
+
+  external unboxed_float_array_set_float64x2 : float# array -> int -> float64x2 -> unit = "%caml_unboxed_float_array_set128"
+  external unboxed_float_array_set_float64x2_unsafe : float# array -> int -> float64x2 -> unit = "%caml_unboxed_float_array_set128u"
+  *)
+
+  let float_array () = [| 0.0; 1.0; 2.0; 3.0 |]
+  let floatarray () =
+    let a = Array.Floatarray.create 4 in
+    Array.Floatarray.set a 0 0.0;
+    Array.Floatarray.set a 1 1.0;
+    Array.Floatarray.set a 2 2.0;
+    Array.Floatarray.set a 3 3.0;
+    a
+
+  let () =
+    let float_array = float_array () in
+    let _01 = f64x2 0.0 1.0 in
+    let _12 = f64x2 1.0 2.0 in
+    let get = float_array_get_float64x2 float_array 0 in
+    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    let get = float_array_get_float64x2 float_array 1 in
+    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+
+    let _45 = f64x2 4.0 5.0 in
+    let _67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2 float_array 0 _45;
+    let get = float_array_get_float64x2 float_array 0 in
+    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    float_array_set_float64x2 float_array 1 _67;
+    let get = float_array_get_float64x2 float_array 1 in
+    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+       (float64x2_low_int64 get) (float64x2_high_int64 get)
+  ;;
+
+  let () =
+    let float_array = float_array () in
+    let _01 = f64x2 0.0 1.0 in
+    let _12 = f64x2 1.0 2.0 in
+    let get = float_array_get_float64x2_unsafe float_array 0 in
+    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    let get = float_array_get_float64x2_unsafe float_array 1 in
+    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+
+    let _45 = f64x2 4.0 5.0 in
+    let _67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2_unsafe float_array 0 _45;
+    let get = float_array_get_float64x2_unsafe float_array 0 in
+    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    float_array_set_float64x2_unsafe float_array 1 _67;
+    let get = float_array_get_float64x2_unsafe float_array 1 in
+    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+       (float64x2_low_int64 get) (float64x2_high_int64 get)
+  ;;
+
+  let () =
+    let float_array = float_array () in
+    let _0 = f64x2 0.0 0.0 in
+    let fail i =
+      try
+        let _ = float_array_get_float64x2 float_array i in
+        let _ = float_array_set_float64x2 float_array i _0 in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    in
+    fail (-1);
+    fail 3;
+    fail 4
+  ;;
+
+  let () =
+    let float_array = float_array () in
+    let _01 = f64x2 0.0 1.0 in
+    let _12 = f64x2 1.0 2.0 in
+    let get = float_array_get_float64x2 float_array 0 in
+    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    let get = float_array_get_float64x2 float_array 1 in
+    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+
+    let _45 = f64x2 4.0 5.0 in
+    let _67 = f64x2 6.0 7.0 in
+    float_array_set_float64x2 float_array 0 _45;
+    let get = float_array_get_float64x2 float_array 0 in
+    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    float_array_set_float64x2 float_array 1 _67;
+    let get = float_array_get_float64x2 float_array 1 in
+    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+       (float64x2_low_int64 get) (float64x2_high_int64 get)
+  ;;
+
+  let () =
+    let floatarray = floatarray () in
+    let _01 = f64x2 0.0 1.0 in
+    let _12 = f64x2 1.0 2.0 in
+    let get = floatarray_get_float64x2_unsafe floatarray 0 in
+    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    let get = floatarray_get_float64x2_unsafe floatarray 1 in
+    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+
+    let _45 = f64x2 4.0 5.0 in
+    let _67 = f64x2 6.0 7.0 in
+    floatarray_set_float64x2_unsafe floatarray 0 _45;
+    let get = floatarray_get_float64x2_unsafe floatarray 0 in
+    eq (float64x2_low_int64 _45) (float64x2_high_int64 _45)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    floatarray_set_float64x2_unsafe floatarray 1 _67;
+    let get = floatarray_get_float64x2_unsafe floatarray 1 in
+    eq (float64x2_low_int64 _67) (float64x2_high_int64 _67)
+       (float64x2_low_int64 get) (float64x2_high_int64 get)
+  ;;
+
+  let () =
+    let floatarray = floatarray () in
+    let _0 = f64x2 0.0 0.0 in
+    let fail i =
+      try
+        let _ = floatarray_get_float64x2 floatarray i in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ();
+      try
+        let _ = floatarray_set_float64x2 floatarray i _0 in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    in
+    fail (-1);
+    fail 3;
+    fail 4
+  ;;
+end
+
+module Int_arrays = struct
+
+  external int_array_get_int64x2 : int array -> int -> int64x2 = "%caml_int_array_get128"
+  external int_array_get_int64x2_unsafe : int array -> int -> int64x2 = "%caml_int_array_get128u"
+
+  external int_array_set_int64x2 : int array -> int -> int64x2 -> unit = "%caml_int_array_set128"
+  external int_array_set_int64x2_unsafe : int array -> int -> int64x2 -> unit = "%caml_int_array_set128u"
+
+  (* CR mslater: unboxed array tests waiting on PR#2238
+  external unboxed_int64_array_get_int64x2 : int64# array -> int -> int64x2 = "%caml_unboxed_int64_array_get128"
+  external unboxed_int64_array_get_int64x2_unsafe : int64# array -> int -> int64x2 = "%caml_unboxed_int64_array_get128u"
+
+  external unboxed_int64_array_set_int64x2 : int64# array -> int -> int64x2 -> unit = "%caml_unboxed_int64_array_set128"
+  external unboxed_int64_array_set_int64x2_unsafe : int64# array -> int -> int64x2 -> unit = "%caml_unboxed_int64_array_set128u"
+
+  external unboxed_nativeint_array_get_int64x2 : nativeint# array -> int -> int64x2 = "%caml_unboxed_nativeint_array_get128"
+  external unboxed_nativeint_array_get_int64x2_unsafe : nativeint# array -> int -> int64x2 = "%caml_unboxed_nativeint_array_get128u"
+
+  external unboxed_nativeint_array_set_int64x2 : nativeint# array -> int -> int64x2 -> unit = "%caml_unboxed_nativeint_array_set128"
+  external unboxed_nativeint_array_set_int64x2_unsafe : nativeint# array -> int -> int64x2 -> unit = "%caml_unboxed_nativeint_array_set128u"
+
+  external unboxed_int32_array_get_int32x4 : int32# array -> int -> int32x4 = "%caml_unboxed_int32_array_get128"
+  external unboxed_int32_array_get_int32x4_unsafe : int32# array -> int -> int32x4 = "%caml_unboxed_int32_array_get128u"
+
+  external unboxed_int32_array_set_int32x4 : int32# array -> int -> int32x4 -> unit = "%caml_unboxed_int32_array_set128"
+  external unboxed_int32_array_set_int32x4_unsafe : int32# array -> int -> int32x4 -> unit = "%caml_unboxed_int32_array_set128u"
+  *)
+
+  let i64x2 x y = int64x2_of_int64s x y
+  let tag i = Int64.(add (shift_left i 1) 1L)
+  let int_array () = [| 0; 1; 2; 3 |]
+
+  let () =
+    let int_array = int_array () in
+    let _01 = i64x2 (tag 0L) (tag 1L) in
+    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let get = int_array_get_int64x2 int_array 0 in
+    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+    let get = int_array_get_int64x2 int_array 1 in
+    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+
+    let _45 = i64x2 (tag 4L) (tag 5L) in
+    let _67 = i64x2 (tag 6L) (tag 7L) in
+    int_array_set_int64x2 int_array 0 _45;
+    let get = int_array_get_int64x2 int_array 0 in
+    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+    int_array_set_int64x2 int_array 1 _67;
+    let get = int_array_get_int64x2 int_array 1 in
+    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+       (int64x2_low_int64 get) (int64x2_high_int64 get)
+  ;;
+
+  let () =
+    let int_array = int_array () in
+    let _01 = i64x2 (tag 0L) (tag 1L) in
+    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let get = int_array_get_int64x2_unsafe int_array 0 in
+    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+    let get = int_array_get_int64x2_unsafe int_array 1 in
+    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+
+    let _45 = i64x2 (tag 4L) (tag 5L) in
+    let _67 = i64x2 (tag 6L) (tag 7L) in
+    int_array_set_int64x2 int_array 0 _45;
+    let get = int_array_get_int64x2_unsafe int_array 0 in
+    eq (int64x2_low_int64 _45) (int64x2_high_int64 _45)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+    int_array_set_int64x2 int_array 1 _67;
+    let get = int_array_get_int64x2_unsafe int_array 1 in
+    eq (int64x2_low_int64 _67) (int64x2_high_int64 _67)
+       (int64x2_low_int64 get) (int64x2_high_int64 get)
+  ;;
+
+  let () =
+    let int_array = int_array () in
+    let _0 = i64x2 (tag 0L) (tag 0L) in
+    let fail i =
+      try
+        let _ = int_array_get_int64x2 int_array i in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ();
+      try
+        let _ = int_array_set_int64x2 int_array i _0 in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    in
+    fail (-1);
+    fail 3;
+    fail 4
   ;;
 end

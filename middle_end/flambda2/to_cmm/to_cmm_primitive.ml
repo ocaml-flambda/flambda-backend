@@ -162,7 +162,9 @@ let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
       (* CR mslater: replace once we have unboxed float32/int16/int8 *)
       assert false
   in
-  C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg offset) dbg) dbg
+  C.unaligned_load_128 arr
+    (C.lsl_int (C.untag_int index dbg) (Cconst_int (offset, dbg)) dbg)
+    dbg
 
 let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
     (array_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
@@ -178,7 +180,7 @@ let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
       assert false
   in
   C.unaligned_set_128 arr
-    (C.lsl_int index (C.int_const dbg offset) dbg)
+    (C.lsl_int (C.untag_int index dbg) (Cconst_int (offset, dbg)) dbg)
     new_value dbg
 
 let addr_array_store init ~arr ~index ~new_value dbg =

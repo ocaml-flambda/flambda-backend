@@ -427,6 +427,62 @@ let lookup_primitive loc poly pos p =
       Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false}), 3)
     | "%caml_bigstring_seta128u" ->
       Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true}), 3)
+    | "%caml_float_array_get128" ->
+      Primitive ((Pfloat_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_float_array_get128u" ->
+      Primitive ((Pfloat_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_floatarray_get128" ->
+      Primitive ((Pfloatarray_load_128 {unsafe = false; mode}), 2)
+    | "%caml_floatarray_get128u" ->
+      Primitive ((Pfloatarray_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_float_array_get128" ->
+      Primitive ((Punboxed_float_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_float_array_get128u" ->
+      Primitive ((Punboxed_float_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_int_array_get128" ->
+      Primitive ((Pint_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_int_array_get128u" ->
+      Primitive ((Pint_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_int64_array_get128" ->
+      Primitive ((Punboxed_int64_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_int64_array_get128u" ->
+      Primitive ((Punboxed_int64_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_int32_array_get128" ->
+      Primitive ((Punboxed_int32_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_int32_array_get128u" ->
+      Primitive ((Punboxed_int32_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_nativeint_array_get128" ->
+      Primitive ((Punboxed_nativeint_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_nativeint_array_get128u" ->
+      Primitive ((Punboxed_nativeint_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_float_array_set128" ->
+      Primitive ((Pfloat_array_set_128 {unsafe = false}), 3)
+    | "%caml_float_array_set128u" ->
+      Primitive ((Pfloat_array_set_128 {unsafe = true}), 3)
+    | "%caml_floatarray_set128" ->
+      Primitive ((Pfloatarray_set_128 {unsafe = false}), 3)
+    | "%caml_floatarray_set128u" ->
+      Primitive ((Pfloatarray_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_float_array_set128" ->
+      Primitive ((Punboxed_float_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_float_array_set128u" ->
+      Primitive ((Punboxed_float_array_set_128 {unsafe = true}), 3)
+    | "%caml_int_array_set128" ->
+      Primitive ((Pint_array_set_128 {unsafe = false}), 3)
+    | "%caml_int_array_set128u" ->
+      Primitive ((Pint_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_int64_array_set128" ->
+      Primitive ((Punboxed_int64_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_int64_array_set128u" ->
+      Primitive ((Punboxed_int64_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_int32_array_set128" ->
+      Primitive ((Punboxed_int32_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_int32_array_set128u" ->
+      Primitive ((Punboxed_int32_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_nativeint_array_set128" ->
+      Primitive ((Punboxed_nativeint_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_nativeint_array_set128u" ->
+      Primitive ((Punboxed_nativeint_array_set_128 {unsafe = true}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
