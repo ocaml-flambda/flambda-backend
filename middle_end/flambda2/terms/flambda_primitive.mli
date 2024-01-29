@@ -54,6 +54,8 @@ module Array_kind : sig
   val element_kind : t -> Flambda_kind.With_subkind.t
 
   val for_empty_array : t -> Empty_array_kind.t
+
+  val check_vector_access_kind : t -> Lambda.boxed_vector -> unit
 end
 
 module Array_kind_for_length : sig

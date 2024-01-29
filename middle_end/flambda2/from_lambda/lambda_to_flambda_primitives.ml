@@ -110,12 +110,12 @@ let convert_block_shape (shape : L.block_shape) ~num_fields =
         num_fields shape_length;
     List.map K.With_subkind.from_lambda_value_kind shape
 
-let check_float_array_optimisation_enabled () =
+let check_float_array_optimisation_enabled name =
   if not (Flambda_features.flat_float_array ())
   then
-    Misc.fatal_error
-      "[Pgenarray] is not expected when the float array optimisation is \
-       disabled"
+    Misc.fatal_errorf
+      "[%s] is not expected when the float array optimisation is disabled" name
+      ()
 
 type converted_array_kind =
   | Array_kind of P.Array_kind.t
@@ -124,7 +124,7 @@ type converted_array_kind =
 let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   match kind with
   | Pgenarray ->
-    check_float_array_optimisation_enabled ();
+    check_float_array_optimisation_enabled "Pgenarray";
     Float_array_opt_dynamic
   | Paddrarray -> Array_kind Values
   | Pintarray -> Array_kind Immediates
@@ -248,7 +248,7 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
     converted_duplicate_array_kind =
   match kind with
   | Pgenarray ->
-    check_float_array_optimisation_enabled ();
+    check_float_array_optimisation_enabled "Pgenarray";
     Float_array_opt_dynamic
   | Paddrarray -> Duplicate_array_kind Values
   | Pintarray -> Duplicate_array_kind Immediates
@@ -546,20 +546,53 @@ let bytes_like_set_safe ~dbg ~size_int ~access_size kind bytes index new_value =
 
 (* Array vector load/store *)
 
-let array_like_load_128 ~unsafe ~mode ~current_region vec_kind array_kind array
-    index =
-  assert unsafe;
-  (* CR mslater: safety check *)
-  let wrap = box_vec128 mode ~current_region in
-  wrap
-    (Binary (Array_vector_load (vec_kind, array_kind, Mutable), array, index))
+let array_vector_access_validity_condition array
+    (vec_kind : Lambda.boxed_vector) (array_kind : P.Array_kind.t) index =
+  P.Array_kind.check_vector_access_kind array_kind vec_kind;
+  let width =
+    match vec_kind with
+    | Pvec128 (Float64x2 | Int64x2) -> 1
+    | Pvec128 Int32x4 -> 3
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+  in
+  let width = H.Simple (Simple.const_int (Targetint_31_63.of_int width)) in
+  [ H.Binary
+      ( Int_comp (Tagged_immediate, Yielding_bool (Lt Unsigned)),
+        Prim (Binary (Int_arith (I.Tagged_immediate, Add), index, width)),
+        Prim (Unary (Array_length (Array_kind array_kind), array)) ) ]
 
-let array_like_set_128 ~unsafe vec_kind array_kind array index new_value =
-  assert unsafe;
-  (* CR mslater: safety check *)
-  let wrap = unbox_vec128 in
-  H.Ternary
-    (Array_vector_set (vec_kind, array_kind), array, index, wrap new_value)
+let check_array_vector_access ~dbg ~array vec_kind array_kind ~index primitive :
+    H.expr_primitive =
+  checked_access ~primitive
+    ~conditions:
+      (array_vector_access_validity_condition array vec_kind array_kind index)
+    ~dbg
+
+let array_like_load_128 ~dbg ~unsafe ~mode ~current_region vec_kind array_kind
+    array index =
+  let primitive =
+    box_vec128 mode ~current_region
+      (H.Binary (Array_vector_load (vec_kind, array_kind, Mutable), array, index))
+  in
+  if unsafe
+  then primitive
+  else
+    check_array_vector_access ~dbg ~array vec_kind array_kind ~index primitive
+
+let array_like_set_128 ~dbg ~unsafe vec_kind array_kind array index new_value =
+  let primitive =
+    H.Ternary
+      ( Array_vector_set (vec_kind, array_kind),
+        array,
+        index,
+        unbox_vec128 new_value )
+  in
+  if unsafe
+  then primitive
+  else
+    check_array_vector_access ~dbg ~array vec_kind
+      (P.Array_set_kind.array_kind array_kind)
+      ~index primitive
 
 (* Bigarray accesses *)
 let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
@@ -1495,40 +1528,46 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ bytes_like_set_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
         Bigstring bigstring index new_value ]
+  | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    check_float_array_optimisation_enabled "Pfloat_array_load_128";
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Float64x2)
+        Naked_floats array index ]
   | Pfloatarray_load_128 { unsafe; mode }, [[array]; [index]]
-  | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]]
   | Punboxed_float_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Float64x2)
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Float64x2)
         Naked_floats array index ]
   | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Int64x2)
         Immediates array index ]
   | Punboxed_int64_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Int64x2)
         Naked_int64s array index ]
   | Punboxed_nativeint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Int64x2)
         Naked_nativeints array index ]
   | Punboxed_int32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int32x4)
+    [ array_like_load_128 ~dbg ~current_region ~unsafe ~mode (Pvec128 Int32x4)
         Naked_int32s array index ]
+  | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    check_float_array_optimisation_enabled "Pfloat_array_load_128";
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Float64x2) Naked_floats array
+        index new_value ]
   | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]
-  | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
   | Punboxed_float_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~unsafe (Pvec128 Float64x2) Naked_floats array index
-        new_value ]
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Float64x2) Naked_floats array
+        index new_value ]
   | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Immediates array index
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Int64x2) Immediates array index
         new_value ]
   | Punboxed_int64_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Naked_int64s array index
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Int64x2) Naked_int64s array index
         new_value ]
   | Punboxed_nativeint_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
     ->
-    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Naked_nativeints array index
-        new_value ]
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Int64x2) Naked_nativeints array
+        index new_value ]
   | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~unsafe (Pvec128 Int32x4) Naked_int32s array index
+    [ array_like_set_128 ~dbg ~unsafe (Pvec128 Int32x4) Naked_int32s array index
         new_value ]
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int

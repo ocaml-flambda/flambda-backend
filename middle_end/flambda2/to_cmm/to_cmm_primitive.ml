@@ -153,39 +153,29 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
 
 let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
     (array_kind : P.Array_kind.t) ~arr ~index =
-  match vec_kind, array_kind with
-  | Pvec128 Float64x2, Naked_floats
-  | Pvec128 Int64x2, (Immediates | Naked_int64s | Naked_nativeints) ->
-    C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg 3) dbg) dbg
-  | Pvec128 Int32x4, Naked_int32s ->
-    C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg 2) dbg) dbg
-  | ( Pvec128
-        ( Unknown128 | Float64x2 | Float32x4 | Int64x2 | Int32x4 | Int16x8
-        | Int8x16 ),
-      ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-      | Naked_nativeints ) ) ->
-    Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
-      Lambda.print_boxed_vector vec_kind P.Array_kind.print array_kind
+  P.Array_kind.check_vector_access_kind array_kind vec_kind;
+  let offset =
+    match vec_kind with
+    | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
+    | Pvec128 Int32x4 -> 2
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+  in
+  C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg offset) dbg) dbg
 
 let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
     (array_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
-  match vec_kind, array_kind with
-  | Pvec128 Float64x2, Naked_floats
-  | Pvec128 Int64x2, (Immediates | Naked_int64s | Naked_nativeints) ->
-    C.unaligned_set_128 arr
-      (C.lsl_int index (C.int_const dbg 3) dbg)
-      new_value dbg
-  | Pvec128 Int32x4, Naked_int32s ->
-    C.unaligned_set_128 arr
-      (C.lsl_int index (C.int_const dbg 2) dbg)
-      new_value dbg
-  | ( Pvec128
-        ( Unknown128 | Float64x2 | Float32x4 | Int64x2 | Int32x4 | Int16x8
-        | Int8x16 ),
-      ( Values _ | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-      | Naked_nativeints ) ) ->
-    Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
-      Lambda.print_boxed_vector vec_kind P.Array_set_kind.print array_kind
+  P.Array_kind.check_vector_access_kind
+    (P.Array_set_kind.array_kind array_kind)
+    vec_kind;
+  let offset =
+    match vec_kind with
+    | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
+    | Pvec128 Int32x4 -> 2
+    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) -> assert false
+  in
+  C.unaligned_set_128 arr
+    (C.lsl_int index (C.int_const dbg offset) dbg)
+    new_value dbg
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
