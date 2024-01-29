@@ -654,10 +654,7 @@ module Lattices_mono = struct
       let f', c1 = apply' dst f in
       (fun a -> a |> g' |> f'), c0 + c1
     | Id -> Fun.id, 1
-    | Proj (src, ax) -> (
-      match eq_obj dst (proj_obj ax src) with
-      | Some Refl -> Product.proj ax, 1
-      | None -> assert false)
+    | Proj (_, ax) -> Product.proj ax, 1
     | Max_with ax -> (fun a -> Product.update ax a (max dst)), 1
     | Min_with ax -> (fun a -> Product.update ax a (min dst)), 1
     | Const_min _ -> (fun _ -> min dst), 1
