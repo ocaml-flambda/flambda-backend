@@ -241,11 +241,7 @@ module Solver_mono (C : Lattices_mono) = struct
     (match log with
     | None -> ()
     | Some log -> log := Clower (v, v.lower) :: !log);
-    v.lower <- C.join obj v.lower a;
-    if not (C.le obj v.lower v.upper)
-    then (
-      Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
-      assert false)
+    v.lower <- C.join obj v.lower a
 
   (** Arguments are not checked and used directly. They must satisfy the
       INVARIANT listed above. *)
@@ -253,11 +249,7 @@ module Solver_mono (C : Lattices_mono) = struct
     (match log with
     | None -> ()
     | Some log -> log := Cupper (v, v.upper) :: !log);
-    v.upper <- C.meet obj v.upper a;
-    if not (C.le obj v.lower v.upper)
-    then (
-      Format.eprintf "range insane after update_lower: %a\n" (print_var obj) v;
-      assert false)
+    v.upper <- C.meet obj v.upper a
 
   (** Arguments are not checked and used directly. They must satisfy the
       INVARIANT listed above. *)
@@ -446,21 +438,18 @@ module Solver_mono (C : Lattices_mono) = struct
     let submode_mvc v right =
       Result.map_error
         (fun left ->
-          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_mvc ~log obj v right)
     in
     let submode_cmv left v =
       Result.map_error
         (fun right ->
-          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_cmv ~log obj left v)
     in
     let submode_mvmv v u =
       Result.map_error
         (fun (left, right) ->
-          (* assert (not (C.le obj left right)); *)
           { left; right })
         (submode_mvmv ~log obj v u)
     in
