@@ -1295,10 +1295,11 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
+  | Array_vector_load of Lambda.boxed_vector * Array_kind.t * Mutability.t
 
 let binary_primitive_eligible_for_cse p =
   match p with
-  | Array_load _ | Block_load _ -> false
+  | Array_load _ | Block_load _ | Array_vector_load _ -> false
   | String_or_bigstring_load _ -> false (* CR mshinwell: review *)
   | Bigarray_load _ -> false
   | Bigarray_get_alignment _ -> true
@@ -1330,6 +1331,7 @@ let compare_binary_primitive p1 p2 =
     | Bigarray_get_alignment _ -> 10
     | Atomic_exchange -> 11
     | Atomic_fetch_and_add -> 12
+    | Array_vector_load _ -> 13
   in
   match p1, p2 with
   | Block_load (kind1, mut1), Block_load (kind2, mut2) ->
@@ -1338,6 +1340,14 @@ let compare_binary_primitive p1 p2 =
   | Array_load (kind1, mut1), Array_load (kind2, mut2) ->
     let c = Array_kind.compare kind1 kind2 in
     if c <> 0 then c else Mutability.compare mut1 mut2
+  | Array_vector_load (vec1, kind1, mut1), Array_vector_load (vec2, kind2, mut2)
+    ->
+    let c = Lambda.compare_boxed_vector vec1 vec2 in
+    if c <> 0
+    then c
+    else
+      let c = Array_kind.compare kind1 kind2 in
+      if c <> 0 then c else Mutability.compare mut1 mut2
   | ( String_or_bigstring_load (string_like1, width1),
       String_or_bigstring_load (string_like2, width2) ) ->
     let c = Stdlib.compare string_like1 string_like2 in
@@ -1364,10 +1374,10 @@ let compare_binary_primitive p1 p2 =
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
   | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
     Int.compare align1 align2
-  | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
-      | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
-      | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
-      | Atomic_exchange | Atomic_fetch_and_add ),
+  | ( ( Block_load _ | Array_load _ | Array_vector_load _
+      | String_or_bigstring_load _ | Bigarray_load _ | Phys_equal _
+      | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _ | Float_comp _
+      | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1384,6 +1394,9 @@ let print_binary_primitive ppf p =
   | Array_load (kind, mut) ->
     fprintf ppf "@[(Array_load@ %a@ %a)@]" Array_kind.print kind
       Mutability.print mut
+  | Array_vector_load (vec, kind, mut) ->
+    fprintf ppf "@[(Array_vector_load@ %a %a@ %a)@]" Lambda.print_boxed_vector
+      vec Array_kind.print kind Mutability.print mut
   | String_or_bigstring_load (string_like, width) ->
     fprintf ppf "@[(String_load %a %a)@]" print_string_like_value string_like
       print_string_accessor_width width
@@ -1409,7 +1422,7 @@ let print_binary_primitive ppf p =
 let args_kind_of_binary_primitive p =
   match p with
   | Block_load _ -> block_kind, block_index_kind
-  | Array_load _ -> array_kind, array_index_kind
+  | Array_load _ | Array_vector_load _ -> array_kind, array_index_kind
   | String_or_bigstring_load ((String | Bytes), _) ->
     string_or_bytes_kind, string_or_bigstring_index_kind
   | String_or_bigstring_load (Bigstring, _) ->
@@ -1433,6 +1446,7 @@ let result_kind_of_binary_primitive p : result_kind =
     Singleton (Block_access_kind.element_kind_for_load block_access_kind)
   | Array_load (kind, _) ->
     Singleton (Array_kind.element_kind_for_primitive kind)
+  | Array_vector_load (Pvec128 _, _, _) -> Singleton K.naked_vec128
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
@@ -1450,6 +1464,7 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
   | Block_load (_, mut) -> reading_from_a_block mut
   | Array_load (kind, mut) -> reading_from_an_array kind mut
+  | Array_vector_load (_, kind, mut) -> reading_from_an_array kind mut
   | Bigarray_load (_, kind, _) -> reading_from_a_bigarray kind
   | String_or_bigstring_load (String, _) ->
     reading_from_a_string_or_bigstring Immutable
@@ -1476,7 +1491,7 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
 
 let binary_classify_for_printing p =
   match p with
-  | Block_load _ | Array_load _ -> Destructive
+  | Block_load _ | Array_load _ | Array_vector_load _ -> Destructive
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
   | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
@@ -1484,26 +1499,26 @@ let binary_classify_for_printing p =
 
 let free_names_binary_primitive p =
   match p with
-  | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
-  | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Block_load _ | Array_load _ | Array_vector_load _
+  | String_or_bigstring_load _ | Bigarray_load _ | Phys_equal _ | Int_arith _
+  | Int_shift _ | Int_comp _ | Float_arith _ | Float_comp _
+  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
   match p with
-  | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
-  | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Block_load _ | Array_load _ | Array_vector_load _
+  | String_or_bigstring_load _ | Bigarray_load _ | Phys_equal _ | Int_arith _
+  | Int_shift _ | Int_comp _ | Float_arith _ | Float_comp _
+  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
     p
 
 let ids_for_export_binary_primitive p =
   match p with
-  | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
-  | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Block_load _ | Array_load _ | Array_vector_load _
+  | String_or_bigstring_load _ | Bigarray_load _ | Phys_equal _ | Int_arith _
+  | Int_shift _ | Int_comp _ | Float_arith _ | Float_comp _
+  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
     Ids_for_export.empty
 
 type ternary_primitive =
@@ -1512,11 +1527,12 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
+  | Array_vector_set of Lambda.boxed_vector * Array_set_kind.t
 
 let ternary_primitive_eligible_for_cse p =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ | Atomic_compare_and_set ->
     false
 
 let compare_ternary_primitive p1 p2 =
@@ -1527,6 +1543,7 @@ let compare_ternary_primitive p1 p2 =
     | Bytes_or_bigstring_set _ -> 2
     | Bigarray_set _ -> 3
     | Atomic_compare_and_set -> 4
+    | Array_vector_set _ -> 5
   in
   match p1, p2 with
   | Block_set (kind1, init_or_assign1), Block_set (kind2, init_or_assign2) ->
@@ -1537,6 +1554,9 @@ let compare_ternary_primitive p1 p2 =
       Bytes_or_bigstring_set (kind2, width2) ) ->
     let c = Stdlib.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare width1 width2
+  | Array_vector_set (vec1, kind1), Array_vector_set (vec2, kind2) ->
+    let c = Lambda.compare_boxed_vector vec1 vec2 in
+    if c <> 0 then c else Array_kind.compare kind1 kind2
   | ( Bigarray_set (num_dims1, kind1, layout1),
       Bigarray_set (num_dims2, kind2, layout2) ) ->
     let c = Stdlib.compare num_dims1 num_dims2 in
@@ -1545,8 +1565,8 @@ let compare_ternary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
-  | ( ( Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-      | Atomic_compare_and_set ),
+  | ( ( Block_set _ | Array_set _ | Array_vector_set _
+      | Bytes_or_bigstring_set _ | Bigarray_set _ | Atomic_compare_and_set ),
       _ ) ->
     Stdlib.compare
       (ternary_primitive_numbering p1)
@@ -1561,6 +1581,9 @@ let print_ternary_primitive ppf p =
     fprintf ppf "(Block_set %a %a)" Block_access_kind.print kind
       Init_or_assign.print init
   | Array_set kind -> fprintf ppf "(Array_set %a)" Array_set_kind.print kind
+  | Array_vector_set (vec, kind) ->
+    fprintf ppf "(Array_vector_set %a %a)" Lambda.print_boxed_vector vec
+      Array_set_kind.print kind
   | Bytes_or_bigstring_set (kind, string_accessor_width) ->
     fprintf ppf "(Bytes_set %a %a)" print_bytes_like_value kind
       print_string_accessor_width string_accessor_width
@@ -1578,6 +1601,8 @@ let args_kind_of_ternary_primitive p =
       Block_access_kind.element_kind_for_set access_kind )
   | Array_set kind ->
     array_kind, array_index_kind, Array_set_kind.element_kind_for_set kind
+  | Array_vector_set (Pvec128 _, _) ->
+    array_kind, array_index_kind, K.naked_vec128
   | Bytes_or_bigstring_set (Bytes, (Eight | Sixteen)) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
@@ -1600,7 +1625,8 @@ let args_kind_of_ternary_primitive p =
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ ->
     Unit
   | Atomic_compare_and_set -> Singleton K.value
 
@@ -1609,32 +1635,33 @@ let effects_and_coeffects_of_ternary_primitive p :
   match p with
   | Block_set _ -> writing_to_a_block
   | Array_set _ -> writing_to_an_array
+  | Array_vector_set _ -> writing_to_an_array
   | Bytes_or_bigstring_set _ -> writing_to_bytes_or_bigstring
   | Bigarray_set (_, kind, _) -> writing_to_a_bigarray kind
   | Atomic_compare_and_set -> Arbitrary_effects, Has_coeffects, Strict
 
 let ternary_classify_for_printing p =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ | Atomic_compare_and_set ->
     Neither
 
 let free_names_ternary_primitive p =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ | Atomic_compare_and_set ->
     Name_occurrences.empty
 
 let apply_renaming_ternary_primitive p _ =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ | Atomic_compare_and_set ->
     p
 
 let ids_for_export_ternary_primitive p =
   match p with
-  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Block_set _ | Array_set _ | Array_vector_set _ | Bytes_or_bigstring_set _
+  | Bigarray_set _ | Atomic_compare_and_set ->
     Ids_for_export.empty
 
 type variadic_primitive =

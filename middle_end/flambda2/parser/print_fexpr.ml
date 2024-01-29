@@ -476,6 +476,10 @@ let binop ppf binop a b =
     Format.fprintf ppf "@[<2>%%array_load%a%a@ %a.(%a)@]"
       (array_kind ~space:Before) ak (mutability ~space:Before) mut simple a
       simple b
+  | Array_vector_load (vk, ak, mut) ->
+    Format.fprintf ppf "@[<2>%%array_vector_load%a%a@%a %a.(%a)@]"
+      (array_kind ~space:Before) ak (mutability ~space:Before) mut
+      Lambda.print_boxed_vector vk simple a simple b
   | Block_load (access_kind, mut) ->
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
       (mutability ~space:Before) mut block_access_kind access_kind simple a
@@ -566,6 +570,10 @@ let ternop ppf t a1 a2 a3 =
     Format.fprintf ppf "@[<2>%%array_set%a@ %a.(%a) %a %a@]"
       (array_kind ~space:Before) ak simple a1 simple a2 init_or_assign ia simple
       a3
+  | Array_vector_set (vk, ak, ia) ->
+    Format.fprintf ppf "@[<2>%%array_vector_set%a@%a %a.(%a) %a %a@]"
+      (array_kind ~space:Before) ak Lambda.print_boxed_vector vk simple a1
+      simple a2 init_or_assign ia simple a3
   | Block_set (bk, ia) ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
       bk simple a1 simple a2 init_or_assign ia simple a3

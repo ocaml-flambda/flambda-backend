@@ -366,6 +366,10 @@ val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
+val compare_boxed_vector : boxed_vector -> boxed_vector -> int
+
+val print_boxed_vector : Format.formatter -> boxed_vector -> unit
+
 val must_be_value : layout -> value_kind
 
 (* This is the layout of ocaml values used as arguments to or returned from

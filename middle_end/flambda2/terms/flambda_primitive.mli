@@ -399,6 +399,7 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
+  | Array_vector_load of Lambda.boxed_vector * Array_kind.t * Mutability.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -407,6 +408,7 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
+  | Array_vector_set of Lambda.boxed_vector * Array_set_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

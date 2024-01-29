@@ -390,6 +390,12 @@ let equal_boxed_vector_size v1 v2 =
   match v1, v2 with
   | Pvec128 _, Pvec128 _ -> true
 
+let compare_boxed_vector = Stdlib.compare
+
+let print_boxed_vector ppf t =
+  match t with
+  | Pvec128 v -> Format.pp_print_string ppf (vec128_name v)
+
 let join_vec128_types v1 v2 =
   match v1, v2 with
   | Unknown128, _ | _, Unknown128 -> Unknown128

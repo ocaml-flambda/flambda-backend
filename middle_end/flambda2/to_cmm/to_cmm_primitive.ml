@@ -151,6 +151,42 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
   | Naked_floats -> C.unboxed_float_array_ref arr index dbg
   | Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
 
+let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
+    (array_kind : P.Array_kind.t) ~arr ~index =
+  match vec_kind, array_kind with
+  | Pvec128 Float64x2, Naked_floats
+  | Pvec128 Int64x2, (Immediates | Naked_int64s | Naked_nativeints) ->
+    C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg 3) dbg) dbg
+  | Pvec128 Int32x4, Naked_int32s ->
+    C.unaligned_load_128 arr (C.lsl_int index (C.int_const dbg 2) dbg) dbg
+  | ( Pvec128
+        ( Unknown128 | Float64x2 | Float32x4 | Int64x2 | Int32x4 | Int16x8
+        | Int8x16 ),
+      ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
+      | Naked_nativeints ) ) ->
+    Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
+      Lambda.print_boxed_vector vec_kind P.Array_kind.print array_kind
+
+let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
+    (array_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
+  match vec_kind, array_kind with
+  | Pvec128 Float64x2, Naked_floats
+  | Pvec128 Int64x2, (Immediates | Naked_int64s | Naked_nativeints) ->
+    C.unaligned_set_128 arr
+      (C.lsl_int index (C.int_const dbg 3) dbg)
+      new_value dbg
+  | Pvec128 Int32x4, Naked_int32s ->
+    C.unaligned_set_128 arr
+      (C.lsl_int index (C.int_const dbg 2) dbg)
+      new_value dbg
+  | ( Pvec128
+        ( Unknown128 | Float64x2 | Float32x4 | Int64x2 | Int32x4 | Int16x8
+        | Int8x16 ),
+      ( Values _ | Immediates | Naked_floats | Naked_int32s | Naked_int64s
+      | Naked_nativeints ) ) ->
+    Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
+      Lambda.print_boxed_vector vec_kind P.Array_set_kind.print array_kind
+
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
   | Assignment Heap -> C.addr_array_set_heap arr index new_value dbg
@@ -672,6 +708,8 @@ let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
   | Array_load (kind, _mut) -> array_load ~dbg kind ~arr:x ~index:y
+  | Array_vector_load (vec_kind, array_kind, _mut) ->
+    array_vector_load ~dbg vec_kind array_kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
@@ -698,6 +736,8 @@ let ternary_primitive _env dbg f x y z =
     block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
   | Array_set array_set_kind ->
     array_set ~dbg array_set_kind ~arr:x ~index:y ~new_value:z
+  | Array_vector_set (vec_kind, array_set_kind) ->
+    array_vector_set ~dbg vec_kind array_set_kind ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->

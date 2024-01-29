@@ -544,6 +544,23 @@ let bytes_like_set_safe ~dbg ~size_int ~access_size kind bytes index new_value =
         (bytes_like_set_unsafe ~access_size Bigstring bytes index new_value)
       bytes index
 
+(* Array vector load/store *)
+
+let array_like_load_128 ~unsafe ~mode ~current_region vec_kind array_kind array
+    index =
+  assert unsafe;
+  (* CR mslater: safety check *)
+  let wrap = box_vec128 mode ~current_region in
+  wrap
+    (Binary (Array_vector_load (vec_kind, array_kind, Mutable), array, index))
+
+let array_like_set_128 ~unsafe vec_kind array_kind array index new_value =
+  assert unsafe;
+  (* CR mslater: safety check *)
+  let wrap = unbox_vec128 in
+  H.Ternary
+    (Array_vector_set (vec_kind, array_kind), array, index, wrap new_value)
+
 (* Bigarray accesses *)
 let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
   let error what =
@@ -1478,22 +1495,41 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ bytes_like_set_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
         Bigstring bigstring index new_value ]
-  | Pfloatarray_load_128 _, _
-  | Pfloat_array_load_128 _, _
-  | Pint_array_load_128 _, _
-  | Punboxed_float_array_load_128 _, _
-  | Punboxed_int32_array_load_128 _, _
-  | Punboxed_int64_array_load_128 _, _
-  | Punboxed_nativeint_array_load_128 _, _
-  | Pfloatarray_set_128 _, _
-  | Pfloat_array_set_128 _, _
-  | Pint_array_set_128 _, _
-  | Punboxed_float_array_set_128 _, _
-  | Punboxed_int32_array_set_128 _, _
-  | Punboxed_int64_array_set_128 _, _
-  | Punboxed_nativeint_array_set_128 _, _ ->
-    (* CR mslater: implement *)
-    assert false
+  | Pfloatarray_load_128 { unsafe; mode }, [[array]; [index]]
+  | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]]
+  | Punboxed_float_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Float64x2)
+        Naked_floats array index ]
+  | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+        Immediates array index ]
+  | Punboxed_int64_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+        Naked_int64s array index ]
+  | Punboxed_nativeint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int64x2)
+        Naked_nativeints array index ]
+  | Punboxed_int32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    [ array_like_load_128 ~current_region ~unsafe ~mode (Pvec128 Int32x4)
+        Naked_int32s array index ]
+  | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]
+  | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
+  | Punboxed_float_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    [ array_like_set_128 ~unsafe (Pvec128 Float64x2) Naked_floats array index
+        new_value ]
+  | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Immediates array index
+        new_value ]
+  | Punboxed_int64_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Naked_int64s array index
+        new_value ]
+  | Punboxed_nativeint_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
+    ->
+    [ array_like_set_128 ~unsafe (Pvec128 Int64x2) Naked_nativeints array index
+        new_value ]
+  | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    [ array_like_set_128 ~unsafe (Pvec128 Int32x4) Naked_int32s array index
+        new_value ]
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int
         (Binary
@@ -1570,7 +1606,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Plsrbint _ | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
       | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Punboxed_int_comp _
       | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-      | Pbigstring_load_128 _
+      | Pbigstring_load_128 _ | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
+      | Pint_array_load_128 _ | Punboxed_float_array_load_128 _
+      | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
+      | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
           ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
           | Punboxedfloatarray_ref | Punboxedintarray_ref _ )
@@ -1597,7 +1636,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | Punboxedfloatarray_set | Punboxedintarray_set _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
       | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ | Patomic_cas ),
+      | Pbigstring_set_128 _ | Pfloatarray_set_128 _ | Pfloat_array_set_128 _
+      | Pint_array_set_128 _ | Punboxed_float_array_set_128 _
+      | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+      | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
       ( []
       | [_]
       | [_; _]
