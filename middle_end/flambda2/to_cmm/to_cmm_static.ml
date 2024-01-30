@@ -127,6 +127,26 @@ let preallocate_set_of_closures (res, updates, env) ~closure_symbols
   let res = R.set_data res data in
   res, updates, env
 
+let immutable_unboxed_int_array_payload update_kind num_fields ~elts ~to_int64 =
+  let int64_of_elts =
+    List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
+  in
+  let packed_int64s =
+    match update_kind with
+    | Int32 ->
+      let rec aux acc = function
+        | [] -> List.rev acc
+        | a :: [] -> List.rev (a :: acc)
+        | a :: b :: r ->
+          let i = Int64.(add (logand a 0xffffffffL) (shift_left b 32)) in
+          aux (i :: acc) r
+      in
+      aux [] int64_of_elts
+    | Int64_or_nativeint -> int64_of_elts
+  in
+  assert (List.length packed_int64s = num_fields);
+  List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
+
 let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
     ~to_int64 ~custom_ops_symbol =
   let sym = R.symbol res symbol in
@@ -141,25 +161,9 @@ let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
       ~size:(1 (* for the custom_operations pointer *) + num_fields)
   in
   let static_fields =
-    let int64_of_elts =
-      List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
-    in
-    let packed_int64s =
-      match update_kind with
-      | Int32 ->
-        let rec aux acc = function
-          | [] -> List.rev acc
-          | a :: [] -> List.rev (a :: acc)
-          | a :: b :: r ->
-            let i = Int64.(add (logand a 0xffffffffL) (shift_left b 32)) in
-            aux (i :: acc) r
-        in
-        aux [] int64_of_elts
-      | Int64_or_nativeint -> int64_of_elts
-    in
-    assert (List.length packed_int64s = num_fields);
     C.symbol_address (Cmm.global_symbol (custom_ops_symbol ~num_elts))
-    :: List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
+    :: immutable_unboxed_int_array_payload update_kind num_fields ~elts
+         ~to_int64
   in
   let block = C.emit_block sym header static_fields in
   let env, res, updates =

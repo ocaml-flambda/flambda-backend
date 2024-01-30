@@ -3692,7 +3692,10 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
       let i =
         Cop
           ( Cor,
-            [zero_extend_32 dbg a; Cop (Clsl, [b; Cconst_int (32, dbg)], dbg)],
+            [ (* [a] is sign-extended by default. We need to change it to be
+                 zero-extended for the `or` operation to be correct. *)
+              zero_extend_32 dbg a;
+              Cop (Clsl, [b; Cconst_int (32, dbg)], dbg) ],
             dbg )
       in
       aux (i :: acc) r
