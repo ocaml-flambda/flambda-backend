@@ -437,20 +437,17 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     let submode_mvc v right =
       Result.map_error
-        (fun left ->
-          { left; right })
+        (fun left -> { left; right })
         (submode_mvc ~log obj v right)
     in
     let submode_cmv left v =
       Result.map_error
-        (fun right ->
-          { left; right })
+        (fun right -> { left; right })
         (submode_cmv ~log obj left v)
     in
     let submode_mvmv v u =
       Result.map_error
-        (fun (left, right) ->
-          { left; right })
+        (fun (left, right) -> { left; right })
         (submode_mvmv ~log obj v u)
     in
     let r =
