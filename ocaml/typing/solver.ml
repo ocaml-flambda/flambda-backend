@@ -1,3 +1,18 @@
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*                   Stephen Dolan, Jane Street, London                   *)
+(*                    Zesen Qian, Jane Street, London                     *)
+(*                                                                        *)
+(*   Copyright 2024 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
+
 open Solver_intf
 
 module Magic_allow_disallow (X : Allow_disallow) :
@@ -566,9 +581,6 @@ module Solver_mono (C : Lattices_mono) = struct
           C.join obj acc (zap_to_floor_morphvar ~commit:true obj mv))
         a mvs
 
-  (* because lower bound conservative, this check is also conservative.
-     if it returns Some, then definitely a constant.
-     if it returns None, then we don't know anything *)
   let check_const : type a l r. a C.obj -> (a, l * r) mode -> a option =
    fun obj -> function
     | Amode a -> Some a
