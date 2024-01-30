@@ -19,6 +19,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #include "caml/addrmap.h"
 #include "caml/config.h"
@@ -153,6 +154,7 @@ typedef struct {
   value cum_ephe_mark_work;
   value ephe_sweep_work;
   value cum_ephe_sweep_work;
+  value slice_duration_in_us;
 } budget_info;
 
 value* caml_budgets = NULL;
@@ -211,6 +213,7 @@ static void init_budget_buffer(void)
     info->cum_ephe_mark_work = Val_long(0);
     info->ephe_sweep_work = Val_long(0);
     info->cum_ephe_sweep_work = Val_long(0);
+    info->slice_duration_in_us = Val_long(0);
 
     caml_budgets[i] = (value) &info->major_cycles_completed;
   }
@@ -1647,6 +1650,7 @@ static void major_collection_slice(intnat howmuch,
   uintnat saved_major_cycle = caml_major_cycles_completed;
   intnat budget;
   budget_info* budget_info;
+  struct timeval start_time, end_time;
 
   int log_events = mode != Slice_opportunistic ||
                    (atomic_load_relaxed(&caml_verb_gc) & 0x40);
@@ -1669,6 +1673,11 @@ static void major_collection_slice(intnat howmuch,
 
   if (log_events) CAML_EV_BEGIN(EV_MAJOR_SLICE);
   call_timing_hook(&caml_major_slice_begin_hook);
+
+  if (gettimeofday (&start_time, NULL) != 0) {
+    start_time.tv_sec = 0;
+    start_time.tv_usec = 0;
+  }
 
   if (!domain_state->sweeping_done) {
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_SWEEP);
@@ -1833,6 +1842,11 @@ mark_again:
   call_timing_hook(&caml_major_slice_end_hook);
   if (log_events) CAML_EV_END(EV_MAJOR_SLICE);
 
+  if (gettimeofday (&end_time, NULL) != 0) {
+    end_time.tv_sec = 0;
+    end_time.tv_usec = 0;
+  }
+
   unsigned long blocks_marked =
     (unsigned long)(domain_state->stat_blocks_marked
                     - blocks_marked_before);
@@ -1862,6 +1876,10 @@ mark_again:
   budget_info->cum_ephe_mark_work   = Val_long(cum_ephe_mark_work);
   budget_info->cum_ephe_sweep_work  = Val_long(cum_ephe_sweep_work);
   budget_info->cum_blocks_marked    = Val_long(cum_blocks_marked);
+
+  budget_info->slice_duration_in_us =
+    Val_long((end_time.tv_sec - start_time.tv_sec) * 1000000
+      + (end_time.tv_usec - start_time.tv_usec));
 
   if (mode != Slice_opportunistic && is_complete_phase_sweep_ephe()) {
     saved_major_cycle = caml_major_cycles_completed;

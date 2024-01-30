@@ -585,6 +585,8 @@ module Budgets : sig
     (* ephe_sweep_work + ephe_mark_work + sweep_work + mark_work is the
        amount of the major_slice_budget that was actually spent.
     *)
+    slice_duration_in_us : int;
+    (** Duration of the major slice, in microseconds. *)
   }
 
   type t = budget_info iarray

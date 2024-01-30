@@ -200,6 +200,7 @@ module Budgets = struct
     cum_ephe_mark_work : int;
     ephe_sweep_work : int;
     cum_ephe_sweep_work : int;
+    slice_duration_in_us : int;
   }
 
   type t = budget_info iarray
