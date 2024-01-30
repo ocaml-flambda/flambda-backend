@@ -45,10 +45,13 @@ type basic_block =
     mutable cold : bool
   }
 
+type codegen_option = No_CSE
+
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;
     fun_args : Reg.t array;
+    fun_codegen_options : codegen_option list;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
     fun_fast : bool;
@@ -57,10 +60,11 @@ type t =
     fun_num_stack_slots : int array
   }
 
-let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-    ~fun_num_stack_slots =
+let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_fast
+    ~fun_contains_calls ~fun_num_stack_slots =
   { fun_name;
     fun_args;
+    fun_codegen_options;
     fun_dbg;
     entry_label = 1;
     (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests

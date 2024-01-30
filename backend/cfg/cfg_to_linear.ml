@@ -450,8 +450,9 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let layout = layout_of_block_list blocks in
   let fun_name = "_fun_start_" in
   let cfg =
-    Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false
-      ~fun_contains_calls:true ~fun_num_stack_slots:[||]
+    Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
+      ~fun_dbg:Debuginfo.none ~fun_fast:false ~fun_contains_calls:true
+      ~fun_num_stack_slots:[||]
   in
   List.iter
     (fun (block : Cfg.basic_block) ->

@@ -280,9 +280,15 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
-  ++ Profile.record ~accumulate:true "cse" CSE.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
-  ++ pass_dump_if ppf_dump dump_cse "After CSE"
+  ++  (fun fd ->
+      match !Flambda_backend_flags.cfg_cse_optimize with
+      | false ->
+        fd
+        ++ Profile.record ~accumulate:true "cse" CSE.fundecl
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
+        ++ pass_dump_if ppf_dump dump_cse "After CSE"
+     | true ->
+       fd)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
     | ((IRC | LS) as regalloc) ->
@@ -291,6 +297,12 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ (fun cfg_with_layout ->
+              match !Flambda_backend_flags.cfg_cse_optimize with
+              | false -> cfg_with_layout
+              | true ->
+                cfg_with_layout
+                ++ Profile.record ~accumulate:true "cse" CSE.cfg_with_layout)
           ++ Cfg_with_infos.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in

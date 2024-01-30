@@ -721,8 +721,12 @@ let fundecl :
     else Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let cfg =
-    Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-      ~fun_num_stack_slots
+    Cfg.create ~fun_name ~fun_args
+      ~fun_codegen_options:
+        (if List.mem Cmm.No_CSE fundecl.fun_codegen_options
+        then [Cfg.No_CSE]
+        else [])
+      ~fun_dbg ~fun_fast ~fun_contains_calls ~fun_num_stack_slots
   in
   let state =
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls

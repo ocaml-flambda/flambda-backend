@@ -69,6 +69,9 @@ type basic_block =
            trap stack. *)
   }
 
+(* Subset of Cmm.codegen_option. *)
+type codegen_option = No_CSE
+
 (** Control Flow Graph of a function. *)
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
@@ -77,6 +80,10 @@ type t = private
         (** Function arguments. When Cfg is constructed from Linear, this
             information is not needed (Linear.fundecl does not have fun_args
             field) and [fun_args] is an empty array as a dummy value. *)
+    (* CR xclerc for xclerc: should we rather have more booleans, like
+       `fun_fast` below? *)
+    fun_codegen_options : codegen_option list;
+        (** Code generation options passed from Cmm. *)
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
@@ -89,6 +96,7 @@ type t = private
 val create :
   fun_name:string ->
   fun_args:Reg.t array ->
+  fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
   fun_fast:bool ->
   fun_contains_calls:bool ->
