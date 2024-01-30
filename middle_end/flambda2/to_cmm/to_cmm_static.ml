@@ -141,11 +141,25 @@ let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
       ~size:(1 (* for the custom_operations pointer *) + num_fields)
   in
   let static_fields =
+    let int64_of_elts =
+      List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
+    in
+    let packed_int64s =
+      match update_kind with
+      | Int32 ->
+        let rec aux acc = function
+          | [] -> List.rev acc
+          | a :: [] -> List.rev (a :: acc)
+          | a :: b :: r ->
+            let i = Int64.(add (logand a 0xffffffffL) (shift_left b 32)) in
+            aux (i :: acc) r
+        in
+        aux [] int64_of_elts
+      | Int64_or_nativeint -> int64_of_elts
+    in
+    assert (List.length packed_int64s = num_fields);
     C.symbol_address (Cmm.global_symbol (custom_ops_symbol ~num_elts))
-    :: List.map
-         (Or_variable.value_map ~default:(Cmm.Cint 0n) ~f:(fun i ->
-              Cmm.Cint (Int64.to_nativeint (to_int64 i))))
-         elts
+    :: List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
   in
   let block = C.emit_block sym header static_fields in
   let env, res, updates =
@@ -243,16 +257,16 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
       ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
         if num_elts mod 2 = 0
-        then "_unboxed_int32_even_array"
-        else "_unboxed_int32_odd_array")
+        then "caml_unboxed_int32_even_array_ops"
+        else "caml_unboxed_int32_odd_array_ops")
   | Block_like symbol, Immutable_int64_array elts ->
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Fun.id ~custom_ops_symbol:(fun ~num_elts:_ ->
-        "_unboxed_int64_array")
+        "caml_unboxed_int64_array_ops")
   | Block_like symbol, Immutable_nativeint_array elts ->
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
-        "_unboxed_nativeint_array")
+        "caml_unboxed_nativeint_array_ops")
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -276,21 +290,22 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block =
       C.emit_block (R.symbol res s)
         (C.black_custom_header ~size:1)
-        [C.symbol_address (Cmm.global_symbol "_unboxed_int32_even_array")]
+        [ C.symbol_address
+            (Cmm.global_symbol "caml_unboxed_int32_even_array_ops") ]
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int64s ->
     let block =
       C.emit_block (R.symbol res s)
         (C.black_custom_header ~size:1)
-        [C.symbol_address (Cmm.global_symbol "_unboxed_int64_array")]
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_int64_array_ops")]
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_nativeints ->
     let block =
       C.emit_block (R.symbol res s)
         (C.black_custom_header ~size:1)
-        [C.symbol_address (Cmm.global_symbol "_unboxed_nativeint_array")]
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_nativeint_array_ops")]
     in
     env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
