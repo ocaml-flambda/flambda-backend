@@ -665,33 +665,36 @@ module Lattices_mono = struct
     | Locality.Local -> Regionality.Local
     | Locality.Global -> Regionality.Regional
 
-  let rec apply' : type a b d. b obj -> (a, b, d) morph -> (a -> b) * int =
-   fun dst -> function
+  let rec apply' : type a b d. int ref -> b obj -> (a, b, d) morph -> a -> b =
+   fun cnt dst ->
+    cnt := !cnt + 1;
+    function
     | Compose (f, g) ->
       let mid = src dst f in
-      let g', c0 = apply' mid g in
-      let f', c1 = apply' dst f in
-      (fun a -> a |> g' |> f'), c0 + c1
-    | Id -> Fun.id, 1
-    | Proj (_, ax) -> Product.proj ax, 1
-    | Max_with ax -> (fun a -> Product.update ax a (max dst)), 1
-    | Min_with ax -> (fun a -> Product.update ax a (min dst)), 1
-    | Const_min _ -> (fun _ -> min dst), 1
-    | Const_max _ -> (fun _ -> max dst), 1
-    | Unique_to_linear -> unique_to_linear, 1
-    | Linear_to_unique -> linear_to_unique, 1
-    | Local_to_regional -> local_to_regional, 1
-    | Regional_to_local -> regional_to_local, 1
-    | Locality_as_regionality -> locality_as_regionality, 1
-    | Regional_to_global -> regional_to_global, 1
-    | Global_to_regional -> global_to_regional, 1
+      let g' = apply' cnt mid g in
+      let f' = apply' cnt dst f in
+      fun a -> a |> g' |> f'
+    | Id -> Fun.id
+    | Proj (_, ax) -> Product.proj ax
+    | Max_with ax -> fun a -> Product.update ax a (max dst)
+    | Min_with ax -> fun a -> Product.update ax a (min dst)
+    | Const_min _ -> fun _ -> min dst
+    | Const_max _ -> fun _ -> max dst
+    | Unique_to_linear -> unique_to_linear
+    | Linear_to_unique -> linear_to_unique
+    | Local_to_regional -> local_to_regional
+    | Regional_to_local -> regional_to_local
+    | Locality_as_regionality -> locality_as_regionality
+    | Regional_to_global -> regional_to_global
+    | Global_to_regional -> global_to_regional
     | Lift (sax, f) ->
-      Product.lift sax (apply (proj_obj (Product.dst sax) dst) f), 1
+      Product.lift sax (apply' cnt (proj_obj (Product.dst sax) dst) f)
 
   and apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f ->
-    let f', c = apply' dst f in
-    if c > 4
+    let cnt = ref 0 in
+    let f' = apply' cnt dst f in
+    if !cnt > 10
     then (
       Format.eprintf
         "Morphism chain too long; contact Jane Street compiler devs with this:\n\
