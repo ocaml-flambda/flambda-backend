@@ -601,7 +601,12 @@ module Lattices_mono = struct
             | SAxis1, SAxis1 -> Some Refl
             | (SAxis0 | SAxis1), _ -> None)))
       | None -> None)
-    | _, _ -> None
+    | ( ( Id | Proj _ | Max_with _ | Min_with _ | Const_min _ | Const_max _
+        | Unique_to_linear | Linear_to_unique | Local_to_regional
+        | Locality_as_regionality | Global_to_regional | Regional_to_local
+        | Regional_to_global | Compose _ | Lift _ ),
+        _ ) ->
+      None
 
   let rec print_morph :
       type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
