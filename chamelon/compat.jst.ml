@@ -28,7 +28,7 @@ type texp_tuple_identifier = string option list * Alloc.r
 let mkTexp_tuple ?id exps =
   let labels, alloc =
     match id with
-    | None -> (List.map (fun _ -> None) exps, Alloc.legacy)
+    | None -> (List.map (fun _ -> None) exps, Alloc.disallow_left Alloc.legacy)
     | Some id -> id
   in
   let exps = List.combine labels exps in
@@ -42,7 +42,7 @@ let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
 
 type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
-  param_mode : Alloc.t;
+  param_mode : Alloc.l;
   param_curry : function_curry;
   param_newtypes : (string Location.loc * Jkind.annotation option) list;
 }
@@ -57,7 +57,7 @@ type texp_function_param = {
 }
 
 type texp_function_cases_identifier = {
-  last_arg_mode : Alloc.t;
+  last_arg_mode : Alloc.l;
   last_arg_sort : Jkind.Sort.t;
   last_arg_exp_extra : exp_extra option;
   last_arg_attributes : attributes;
@@ -81,12 +81,12 @@ type texp_function_identifier = {
   alloc_mode : Alloc.r;
   ret_sort : Jkind.sort;
   region : bool;
-  ret_mode : Alloc.t;
+  ret_mode : Alloc.l;
 }
 
 let texp_function_cases_identifier_defaults =
   {
-    last_arg_mode = Alloc.legacy;
+    last_arg_mode = Alloc.disallow_right Alloc.legacy;
     last_arg_sort = Jkind.Sort.value;
     last_arg_exp_extra = None;
     last_arg_attributes = [];
@@ -95,16 +95,16 @@ let texp_function_cases_identifier_defaults =
 let texp_function_param_identifier_defaults =
   {
     param_sort = Jkind.Sort.value;
-    param_mode = Alloc.legacy;
-    param_curry = More_args { partial_mode = Alloc.legacy };
+    param_mode = Alloc.disallow_right Alloc.legacy;
+    param_curry = More_args { partial_mode = Alloc.disallow_right Alloc.legacy };
     param_newtypes = [];
   }
 
 let texp_function_defaults =
   {
-    alloc_mode = Alloc.legacy;
+    alloc_mode = Alloc.disallow_left Alloc.legacy;
     ret_sort = Jkind.Sort.value;
-    ret_mode = Alloc.legacy;
+    ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
   }
 
