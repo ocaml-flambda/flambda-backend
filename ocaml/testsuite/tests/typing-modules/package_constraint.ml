@@ -220,3 +220,28 @@ module F :
   functor (X : sig val x : m end) ->
     sig module M : sig type t = int end type t = M.t end
 |}];;
+
+(* In cases where the package constraint involves a type variable from the
+   current ty var env, it can affect inference.  t1 below should check but not
+   t2. *)
+module type S = sig
+  type t : immediate
+end
+
+type 'a t = (module S with type t = 'a)
+
+type t1 = int t
+type t2 = string t
+[%%expect{|
+module type S = sig type t : immediate end
+type ('a : immediate) t = (module S with type t = 'a)
+type t1 = int t
+Line 8, characters 10-16:
+8 | type t2 = string t
+              ^^^^^^
+Error: This type string should be an instance of type ('a : immediate)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of t at line 5, characters 0-39.
+|}];;
