@@ -712,8 +712,20 @@ module Lattices_mono = struct
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
+    | Compose (f0, f1), g -> (
+      let mid = src dst f0 in
+      match maybe_compose mid f1 g with
+      | Some m -> Some (compose dst f0 m)
+      (* the check needed to prevent infinite loop *)
+      | None -> None)
+    | f, Compose (g0, g1) -> (
+      match maybe_compose dst f g0 with
+      | Some m -> Some (compose dst m g1)
+      | None -> None)
     | Const_min mid, f -> Some (Const_min (src mid f))
     | Const_max mid, f -> Some (Const_max (src mid f))
+    | Proj _, Const_min src -> Some (Const_min src)
+    | Proj _, Const_max src -> Some (Const_max src)
     | Proj (mid, ax0), Max_with ax1 -> (
       match Product.eq_axis ax0 ax1 with
       | None -> Some (Const_max (proj_obj ax1 mid))
@@ -722,8 +734,11 @@ module Lattices_mono = struct
       match Product.eq_axis ax0 ax1 with
       | None -> Some (Const_min (proj_obj ax1 mid))
       | Some Refl -> Some Id)
-    | Proj _, Const_min src -> Some (Const_min src)
-    | Proj _, Const_max src -> Some (Const_max src)
+    | Proj (mid, ax), Lift (sax, f) -> (
+      let src' = src mid m1 in
+      match Product.proj_lift ax sax with
+      | Either.Left Refl -> Some (compose dst f (Proj (src', Product.src sax)))
+      | Either.Right ax' -> Some (Proj (src', ax')))
     | Max_with _, Const_max src -> Some (Const_max src)
     | Min_with _, Const_min src -> Some (Const_min src)
     | Unique_to_linear, Const_min src -> Some (Const_min src)
@@ -737,16 +752,6 @@ module Lattices_mono = struct
       | Some (sax, Refl) ->
         Some (Lift (sax, compose (proj_obj (Product.dst sax0) dst) f0 f1))
       | None -> None (* the following are important: look inside compose *))
-    | Compose (f0, f1), g -> (
-      let mid = src dst f0 in
-      match maybe_compose mid f1 g with
-      | Some m -> Some (compose dst f0 m)
-      (* the check needed to prevent infinite loop *)
-      | None -> None)
-    | f, Compose (g0, g1) -> (
-      match maybe_compose dst f g0 with
-      | Some m -> Some (compose dst m g1)
-      | None -> None)
     | Regional_to_local, Local_to_regional -> Some Id
     | Regional_to_local, Global_to_regional -> Some (Const_max Locality)
     | Regional_to_local, Const_min src -> Some (Const_min src)
@@ -769,11 +774,6 @@ module Lattices_mono = struct
     | Global_to_regional, Regional_to_global -> None
     | Global_to_regional, Const_min _ -> None
     | Global_to_regional, Const_max src -> Some (Const_max src)
-    | Proj (mid, ax), Lift (sax, f) -> (
-      let src' = src mid m1 in
-      match Product.proj_lift ax sax with
-      | Either.Left Refl -> Some (compose dst f (Proj (src', Product.src sax)))
-      | Either.Right ax' -> Some (Proj (src', ax')))
     | Min_with _, _ -> None
     | Max_with _, _ -> None
     | _, Proj _ -> None
