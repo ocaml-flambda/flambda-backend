@@ -100,7 +100,10 @@ let rec cst b = function
 and scst b = function
   | ConstThis -> Buffer.add_string b "THIS BYTE"
   | ConstLabel l -> Buffer.add_string b l
-  | ConstLabelOffset (l, o) -> Buffer.add_string b l; bprintf b "+%d" o
+  | ConstLabelOffset (l, o) ->
+      Buffer.add_string b l;
+      if o > 0 then bprintf b "+%d" o
+      else if o < 0 then bprintf b "%d" o
   | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0%LxH" n
