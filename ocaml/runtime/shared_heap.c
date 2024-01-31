@@ -74,8 +74,10 @@ static struct {
   uintnat fresh_pools;
   char* next_fresh_pool;
 
-  /* Counts pools in some domain's heap, or in the global list below.
-     Does not count free or fresh pools above */
+  /* Count of all pools in use across all domains and the global lists below.
+
+     Does not include unused pools ('free' above) or freshly allocated pools
+     ('next_fresh_pool' above). */
   uintnat active_pools;
 
   /* these only contain swept memory of terminated domains*/
