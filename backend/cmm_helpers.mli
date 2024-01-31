@@ -893,9 +893,6 @@ val atomic_compare_and_set :
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
 
-(** Size in bytes of a custom ops structure. *)
-val custom_ops_size : int
-
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :

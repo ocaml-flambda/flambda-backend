@@ -891,10 +891,10 @@ let array_indexing ?typ log2size ptr ofs dbg =
    cross-compiling for 64-bit on a 32-bit host *)
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
-(* custom_ops_size_log2 must be kept in sync with runtime/caml/custom.h *)
-let custom_ops_size_log2 = 6
-
-let custom_ops_size = 1 lsl custom_ops_size_log2
+let custom_ops_size_log2 =
+  let lg = Misc.log2 Config.custom_ops_struct_size in
+  assert (1 lsl lg = Config.custom_ops_struct_size);
+  lg
 
 (* caml_unboxed_int32_array_ops refers to the first element of an array of two
    custom ops. The array index indicates the number of (invalid) tailing int32s
@@ -908,7 +908,7 @@ let custom_ops_unboxed_int32_even_array _dbg = custom_ops_unboxed_int32_array
 let custom_ops_unboxed_int32_odd_array dbg =
   Cop
     ( Caddi,
-      [custom_ops_unboxed_int32_array; Cconst_int (custom_ops_size, dbg)],
+      [custom_ops_unboxed_int32_array; Cconst_int (Config.custom_ops_struct_size, dbg)],
       dbg )
 
 let custom_ops_unboxed_int64_array =

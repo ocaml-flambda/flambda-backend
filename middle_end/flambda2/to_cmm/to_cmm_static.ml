@@ -267,7 +267,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
       ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
         ( "caml_unboxed_int32_array_ops",
-          Some (C.custom_ops_size * (num_elts mod 2)) ))
+          Some (Config.custom_ops_struct_size * (num_elts mod 2)) ))
   | Block_like symbol, Immutable_int64_array elts ->
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Fun.id ~custom_ops_symbol:(fun ~num_elts:_ ->

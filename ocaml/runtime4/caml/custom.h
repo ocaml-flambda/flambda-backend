@@ -27,7 +27,6 @@ struct custom_fixed_length {
   intnat bsize_64;
 };
 
-// sizeof(custom_operations) must be kept in sync with backend/cmm_helpers.ml
 struct custom_operations {
   char const *identifier;
   void (*finalize)(value v);
@@ -40,6 +39,7 @@ struct custom_operations {
   int (*compare_ext)(value v1, value v2);
   const struct custom_fixed_length* fixed_length;
 };
+_Static_assert(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE);
 
 #define custom_finalize_default NULL
 #define custom_compare_default NULL

@@ -235,6 +235,9 @@ val with_cmm_invariants : bool
 val reserved_header_bits : int
 (** How many bits of a block's header are reserved *)
 
+val custom_ops_struct_size : int
+(** Size in bytes of the custom operations structure. *)
+
 val flat_float_array : bool
 (** Whether the compiler and runtime automagically flatten float
     arrays *)
