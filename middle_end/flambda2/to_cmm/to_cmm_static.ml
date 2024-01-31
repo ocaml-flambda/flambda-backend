@@ -266,7 +266,6 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     assert (Arch.size_int = 8);
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
       ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
-<<<<<<< HEAD
         ( "caml_unboxed_int32_array_ops",
           Some (C.custom_ops_size * (num_elts mod 2)) ))
   | Block_like symbol, Immutable_int64_array elts ->
@@ -277,19 +276,6 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
         "caml_unboxed_nativeint_array_ops", None)
-=======
-        if num_elts mod 2 = 0
-        then "caml_unboxed_int32_even_array_ops"
-        else "caml_unboxed_int32_odd_array_ops")
-  | Block_like symbol, Immutable_int64_array elts ->
-    immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
-      ~to_int64:Fun.id ~custom_ops_symbol:(fun ~num_elts:_ ->
-        "caml_unboxed_int64_array_ops")
-  | Block_like symbol, Immutable_nativeint_array elts ->
-    immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
-      ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
-        "caml_unboxed_nativeint_array_ops")
->>>>>>> main
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -313,12 +299,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block =
       C.emit_block (R.symbol res s)
         (C.black_custom_header ~size:1)
-<<<<<<< HEAD
         [C.symbol_address (Cmm.global_symbol "caml_unboxed_int32_array_ops")]
-=======
-        [ C.symbol_address
-            (Cmm.global_symbol "caml_unboxed_int32_even_array_ops") ]
->>>>>>> main
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int64s ->
