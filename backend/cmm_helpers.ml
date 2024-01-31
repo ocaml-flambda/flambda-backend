@@ -903,13 +903,14 @@ let custom_ops_unboxed_int32_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_int32_array_ops", Debuginfo.none)
 
-let custom_ops_unboxed_int32_even_array _dbg = custom_ops_unboxed_int32_array
+let custom_ops_unboxed_int32_even_array = custom_ops_unboxed_int32_array
 
-let custom_ops_unboxed_int32_odd_array dbg =
+let custom_ops_unboxed_int32_odd_array =
   Cop
     ( Caddi,
-      [custom_ops_unboxed_int32_array; Cconst_int (Config.custom_ops_struct_size, dbg)],
-      dbg )
+      [ custom_ops_unboxed_int32_array;
+        Cconst_int (Config.custom_ops_struct_size, Debuginfo.none) ],
+      Debuginfo.none )
 
 let custom_ops_unboxed_int64_array =
   Cconst_symbol
@@ -3726,8 +3727,8 @@ let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
     (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
        the block, which are never read. *)
     match num_elts with
-    | Even -> custom_ops_unboxed_int32_even_array dbg
-    | Odd -> custom_ops_unboxed_int32_odd_array dbg
+    | Even -> custom_ops_unboxed_int32_even_array
+    | Odd -> custom_ops_unboxed_int32_odd_array
   in
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
 
