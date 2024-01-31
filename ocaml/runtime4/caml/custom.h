@@ -27,6 +27,7 @@ struct custom_fixed_length {
   intnat bsize_64;
 };
 
+// sizeof(custom_operations) must be kept in sync with backend/cmm_helpers.ml
 struct custom_operations {
   char const *identifier;
   void (*finalize)(value v);

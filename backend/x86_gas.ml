@@ -69,13 +69,14 @@ let arg b = function
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ
 
 let rec cst b = function
-  | ConstLabel _ | Const _ | ConstThis as c -> scst b c
+  | ConstLabel _ | ConstLabelOffset _ | Const _ | ConstThis as c -> scst b c
   | ConstAdd (c1, c2) -> bprintf b "%a + %a" scst c1 scst c2
   | ConstSub (c1, c2) -> bprintf b "%a - %a" scst c1 scst c2
 
 and scst b = function
   | ConstThis -> Buffer.add_string b "."
   | ConstLabel l -> Buffer.add_string b l
+  | ConstLabelOffset (l, o) -> Buffer.add_string b l; bprintf b "+%d" o
   | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0x%Lx" n

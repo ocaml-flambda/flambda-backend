@@ -423,6 +423,7 @@ let data_item ppf = function
   | Cvec128 {high; low} ->
     fprintf ppf "vec128 %s:%s" (Int64.to_string high) (Int64.to_string low)
   | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
+  | Csymbol_offset (s, o) -> fprintf ppf "addr %a:\"%s\"+%d" is_global s.sym_global s.sym_name o
   | Cstring s -> fprintf ppf "string \"%s\"" s
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n

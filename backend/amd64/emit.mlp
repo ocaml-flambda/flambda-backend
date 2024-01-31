@@ -1918,6 +1918,9 @@ let emit_item = function
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
+  | Csymbol_offset (s, o) ->
+    add_used_symbol s.sym_name;
+    D.qword (ConstLabelOffset (emit_cmm_symbol s, o))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align ~data:true n

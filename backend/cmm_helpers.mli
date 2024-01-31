@@ -815,6 +815,8 @@ val cvec128 : Cmm.vec128_bits -> data_item
 (** Static symbol. *)
 val symbol_address : symbol -> data_item
 
+val symbol_offset : symbol -> int -> data_item
+
 (** Definition for a static symbol. *)
 val define_symbol : symbol -> data_item list
 
@@ -890,6 +892,9 @@ val atomic_compare_and_set :
   expression
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
+
+(** Size in bytes of a custom ops structure. *)
+val custom_ops_size : int
 
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
