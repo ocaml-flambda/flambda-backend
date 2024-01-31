@@ -70,6 +70,16 @@ static struct {
   caml_plat_mutex lock;
   pool* free;
 
+  /* Mapped but not yet active pools */
+  uintnat fresh_pools;
+  char* next_fresh_pool;
+
+  /* Count of all pools in use across all domains and the global lists below.
+
+     Does not include unused pools ('free' above) or freshly allocated pools
+     ('next_fresh_pool' above). */
+  uintnat active_pools;
+
   /* these only contain swept memory of terminated domains*/
   struct heap_stats stats;
   pool* global_avail_pools[NUM_SIZECLASSES];
@@ -78,6 +88,9 @@ static struct {
 } pool_freelist = {
   CAML_PLAT_MUTEX_INITIALIZER,
   NULL,
+  0,
+  NULL,
+  0,
   { 0, },
   { 0, },
   { 0, },
@@ -183,24 +196,34 @@ static pool* pool_acquire(struct caml_heap_state* local) {
   pool* r;
 
   caml_plat_lock(&pool_freelist.lock);
-  if (!pool_freelist.free) {
-    void* mem = caml_mem_map(Bsize_wsize(POOL_WSIZE), 0);
+  r = pool_freelist.free;
+  if (r) {
+    pool_freelist.free = r->next;
+  } else {
+    if (pool_freelist.fresh_pools == 0) {
+      uintnat new_pools = pool_freelist.active_pools * 15 / 100;
+      if (new_pools < 8) new_pools = 8;
 
-    if (mem) {
-      CAMLassert(pool_freelist.free == NULL);
-
-      r = (pool*)mem;
-      r->next = pool_freelist.free;
+      void* mem = caml_mem_map(Bsize_wsize(POOL_WSIZE) * new_pools, 0);
+      if (mem) {
+        pool_freelist.fresh_pools = new_pools;
+        pool_freelist.next_fresh_pool = mem;
+      }
+    }
+    if (pool_freelist.fresh_pools > 0) {
+      r = (pool*)pool_freelist.next_fresh_pool;
+      pool_freelist.next_fresh_pool += Bsize_wsize(POOL_WSIZE);
+      pool_freelist.fresh_pools --;
+      r->next = NULL;
       r->owner = NULL;
-      pool_freelist.free = r;
     }
   }
-  r = pool_freelist.free;
-  if (r)
-    pool_freelist.free = r->next;
+  if (r) {
+    pool_freelist.active_pools ++;
+    CAMLassert(r->owner == NULL);
+  }
   caml_plat_unlock(&pool_freelist.lock);
 
-  if (r) CAMLassert (r->owner == NULL);
   return r;
 }
 
@@ -216,6 +239,7 @@ static void pool_release(struct caml_heap_state* local,
   caml_plat_lock(&pool_freelist.lock);
   pool->next = pool_freelist.free;
   pool_freelist.free = pool;
+  pool_freelist.active_pools--;
   caml_plat_unlock(&pool_freelist.lock);
 }
 
@@ -1244,6 +1268,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
       remaining pools have been filled up by evacuated blocks. */
 
   pool* cur_pool = evacuated_pools;
+  uintnat freed_pools = 0;
   while (cur_pool) {
     pool* next_pool = cur_pool->next;
 
@@ -1256,7 +1281,11 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
     pool_free(heap, cur_pool, cur_pool->sz);
     cur_pool = next_pool;
+    freed_pools++;
   }
+  caml_plat_lock(&pool_freelist.lock);
+  pool_freelist.active_pools -= freed_pools;
+  caml_plat_unlock(&pool_freelist.lock);
 
   CAML_EV_END(EV_COMPACT_RELEASE);
   caml_global_barrier();
