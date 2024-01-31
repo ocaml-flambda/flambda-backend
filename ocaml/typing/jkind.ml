@@ -825,10 +825,16 @@ let bits64 ~why = fresh_jkind Jkind_desc.bits64 ~why:(Bits64_creation why)
 
 (******************************)
 (*** user errors ***)
+type invalid_context_reason = Incompatible_with_erasability_requirements
+
 type error =
   | Insufficient_level of
       { jkind : Legacy.const;
         required_layouts_level : Language_extension.maturity
+      }
+  | Invalid_context of
+      { jkind : Legacy.const;
+        reason : invalid_context_reason
       }
   | Unknown_jkind of Jane_asttypes.const_jkind
   | Multiple_jkinds of
@@ -848,12 +854,19 @@ let raise ~loc err = raise (User_error (loc, err))
 *)
 (* CR layouts: When everything is stable, remove this function. *)
 let get_required_layouts_level (context : annotation_context)
-    (jkind : Legacy.const) : Language_extension.maturity =
+    (jkind : Legacy.const) :
+    (Language_extension.maturity, invalid_context_reason) Result.t =
   match context, jkind with
-  | _, (Value | Immediate | Immediate64 | Any | Float64 | Word | Bits32 | Bits64)
-    ->
-    Stable
-  | _, Void -> Alpha
+  | Type_declaration _, (Immediate | Immediate64) -> Ok Stable
+  | ( ( Type_parameter _ | Newtype_declaration _ | Constructor_type_parameter _
+      | Univar _ | Type_variable _ | Type_wildcard _
+      | With_error_message (_, _) ),
+      (Immediate | Immediate64) ) ->
+    if Language_extension.erasable_extensions_only ()
+    then Error Incompatible_with_erasability_requirements
+    else Ok Stable
+  | _, (Value | Any | Float64 | Word | Bits32 | Bits64) -> Ok Stable
+  | _, Void -> Ok Alpha
 
 (******************************)
 (* construction *)
@@ -879,12 +892,13 @@ let of_const ~why : Legacy.const -> t = function
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   match Legacy.const_of_user_written_annotation_unchecked annot with
   | None -> raise ~loc (Unknown_jkind annot)
-  | Some const ->
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
-    const
+  | Some const -> (
+    match get_required_layouts_level context const with
+    | Error reason -> raise ~loc (Invalid_context { jkind = const; reason })
+    | Ok level when not (Language_extension.is_at_least Layouts level) ->
+      raise ~loc
+        (Insufficient_level { jkind = const; required_layouts_level = level })
+    | Ok _ -> const)
 
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
@@ -1687,6 +1701,13 @@ let report_error ~loc = function
          %t@]"
         (Legacy.string_of_const jkind)
         hint)
+  | Invalid_context { jkind; reason } -> (
+    match reason with
+    | Incompatible_with_erasability_requirements ->
+      Location.errorf ~loc
+        "@[<v>Layout %s in this context can't be erased.@;\
+         This error is produced due to the use of -only-erasable-extensions.@]"
+        (Legacy.string_of_const jkind))
 
 let () =
   Location.register_error_of_exn (function

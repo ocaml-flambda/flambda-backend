@@ -89,10 +89,9 @@ let of_string extn_name : Exist.t option =
 *)
 let is_erasable : type a. a t -> bool = function
   | Local
-  | Unique ->
+  | Unique
+  | Layouts ->
       true
-  (* CR layouts v2.6: Layouts should be erasable *)
-  | Layouts
   | Comprehensions
   | Include_functor
   | Polymorphic_parameters

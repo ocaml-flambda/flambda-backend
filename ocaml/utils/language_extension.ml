@@ -121,6 +121,8 @@ module Universe : sig
     | Any
 
   val set : t -> bool
+
+  val is : t -> bool
 end = struct
   (** Which extensions can be enabled? *)
   type t =
@@ -178,6 +180,8 @@ end = struct
         ();
     universe := new_universe;
     cmp <> 0
+
+  let is u = compare u !universe = 0
 end
 
 (*****************************************)
@@ -276,6 +280,8 @@ let restrict_to_erasable_extensions () =
       := List.filter
            (fun (Pair (extn, _)) -> Universe.is_allowed extn)
            !extensions
+
+let erasable_extensions_only () = Universe.is Only_erasable
 
 let disallow_extensions () =
   ignore (Universe.set No_extensions : bool);
