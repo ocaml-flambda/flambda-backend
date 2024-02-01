@@ -527,12 +527,6 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     let is = I.Set.inter is1 is2 in
     let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
     ty, TEE.empty
-  | Is_int ty1, Is_int ty2 ->
-    let<+ ty, env_extension = meet env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
-  | Get_tag ty1, Get_tag ty2 ->
-    let<+ ty, env_extension = meet env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension
   | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
     match I.Set.elements is_int with
     | [] -> Bottom
@@ -572,7 +566,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
   | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
     (* We can't return Bottom, as it would be unsound, so we need to either do
        the actual meet with Naked_immediates, or just give up and return one of
-       the arguments. *)
+       the arguments. N.B. Also see comment in meet_and_join_new.ml *)
     Ok (t1, TEE.empty)
 
 and meet_head_of_kind_naked_float _env t1 t2 : _ Or_bottom.t =
