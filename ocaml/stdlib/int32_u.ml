@@ -17,9 +17,9 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+external to_int32 : (int32#[@unboxed]) -> (int32[@local_opt]) = "%box_int32"
 
-external of_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
+external of_int32 : (int32[@local_opt]) -> (int32#[@unboxed]) = "%unbox_int32"
 
 let[@inline always] neg x = of_int32 (Int32.neg (to_int32 x))
 

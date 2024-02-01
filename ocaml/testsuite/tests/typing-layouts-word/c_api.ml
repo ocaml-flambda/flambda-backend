@@ -15,22 +15,22 @@
 
 (* This file tests using external C functions with nativeint#. *)
 
-external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
+let to_nativeint = Stdlib__Nativeint_u.to_nativeint
 
 let print_nativeintu s f = Printf.printf "%s: %nd\n" s (to_nativeint f)
 let print_nativeint s f = Printf.printf "%s: %nd\n" s f
 
 (* Various combinations of arguments nativeint, nativeint [@unboxed], and
    nativeint# *)
-external lognot_UtoU : nativeint# -> nativeint# =
+external lognot_UtoU : (nativeint#[@unboxed]) -> (nativeint#[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
-external lognot_BtoU : nativeint -> nativeint# =
+external lognot_BtoU : nativeint -> (nativeint#[@unboxed]) =
   "lognot_bytecode" "lognot_BtoU"
-external lognot_UtoB : nativeint# -> nativeint =
+external lognot_UtoB : (nativeint#[@unboxed]) -> nativeint =
   "lognot_bytecode" "lognot_UtoB"
-external lognot_BUtoU : (nativeint[@unboxed]) -> nativeint# =
+external lognot_BUtoU : (nativeint[@unboxed]) -> (nativeint#[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
-external lognot_UtoBU : nativeint# -> (nativeint[@unboxed]) =
+external lognot_UtoBU : (nativeint#[@unboxed]) -> (nativeint[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
 
 let () =
@@ -55,8 +55,8 @@ let () =
 
 (* If there are more than 5 args, you get an array in bytecode *)
 external sum_7 :
-  nativeint# -> nativeint -> nativeint# -> nativeint ->
-  nativeint# -> nativeint -> nativeint# -> nativeint# =
+  (nativeint#[@unboxed]) -> nativeint -> (nativeint#[@unboxed]) -> nativeint ->
+  (nativeint#[@unboxed]) -> nativeint -> (nativeint#[@unboxed]) -> (nativeint#[@unboxed]) =
   "sum_7_bytecode" "sum_7_UBUBUBUtoU"
 
 let _ =

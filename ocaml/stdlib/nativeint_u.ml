@@ -17,9 +17,9 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
+external to_nativeint : (nativeint#[@unboxed]) -> (nativeint[@local_opt]) = "%box_nativeint"
 
-external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
+external of_nativeint : (nativeint[@local_opt]) -> (nativeint#[@unboxed]) =
   "%unbox_nativeint"
 
 let[@inline always] neg x = of_nativeint (Nativeint.neg (to_nativeint x))

@@ -41,10 +41,10 @@ open! Stdlib
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_nativeint : nativeint# -> (nativeint[@local_opt]) = "%box_nativeint"
+external to_nativeint : (nativeint#[@unboxed]) -> (nativeint[@local_opt]) = "%box_nativeint"
 (** Box a [nativeint#] *)
 
-external of_nativeint : (nativeint[@local_opt]) -> nativeint# =
+external of_nativeint : (nativeint[@local_opt]) -> (nativeint#[@unboxed]) =
   "%unbox_nativeint"
 (** Unbox a boxed [nativeint] *)
 

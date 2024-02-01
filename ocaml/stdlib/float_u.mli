@@ -48,10 +48,10 @@ open! Stdlib
    [infinity]) when we we support [float64]s in structures. *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_float : float# -> (float[@local_opt]) = "%box_float"
+external to_float : (float#[@unboxed]) -> (float[@local_opt]) = "%box_float"
 (** Box a [float#] *)
 
-external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+external of_float : (float[@local_opt]) -> (float#[@unboxed]) = "%unbox_float"
 (** Unbox a boxed [float] *)
 
 (* Below here, everything also appears in [Float], though most things are

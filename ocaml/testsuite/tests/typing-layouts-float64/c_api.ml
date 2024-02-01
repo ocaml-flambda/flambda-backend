@@ -20,18 +20,18 @@
 
 (* This file tests using external C functions with float#. *)
 
-external to_float : float# -> (float[@local_opt]) = "%box_float"
+let to_float = Stdlib__Float_u.to_float
 
 let print_floatu s f = Printf.printf "%s: %.2f\n" s (to_float f)
 let print_float s f = Printf.printf "%s: %.2f\n" s f
 
 (* Various combinations of arguments float, float [@unboxed], and float# *)
-external sin_U_U : float# -> float# = "sin_byte" "sin_U_U"
-external sin_B_U : float -> float# = "sin_byte" "sin_B_U"
-external sin_U_B : float# -> float = "sin_byte" "sin_U_B"
+external sin_U_U : (float#[@unboxed]) -> (float#[@unboxed]) = "sin_byte" "sin_U_U"
+external sin_B_U : float -> (float#[@unboxed]) = "sin_byte" "sin_B_U"
+external sin_U_B : (float#[@unboxed]) -> float = "sin_byte" "sin_U_B"
 
-external sin_BU_U : (float[@unboxed]) -> float# = "sin_byte" "sin_U_U"
-external sin_U_BU : float# -> (float[@unboxed]) = "sin_byte" "sin_U_U"
+external sin_BU_U : (float[@unboxed]) -> (float#[@unboxed]) = "sin_byte" "sin_U_U"
+external sin_U_BU : (float#[@unboxed]) -> (float[@unboxed]) = "sin_byte" "sin_U_U"
 
 let sin_two =
   let f = sin_U_U #2. in
@@ -56,7 +56,7 @@ let sin_six =
 (* If there are more than 5 args, you get an array in the bytecode version,
    which is fine since the floats are boxed for bytecode. *)
 external sum_7 :
-  float# -> float -> float# -> float -> float# -> float -> float# -> float# =
+  (float#[@unboxed]) -> float -> (float#[@unboxed]) -> float -> (float#[@unboxed]) -> float -> (float#[@unboxed]) -> (float#[@unboxed]) =
   "sum_7_byte" "sum_7"
 
 let sum_of_one_to_seven =

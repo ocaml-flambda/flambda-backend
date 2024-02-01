@@ -17,9 +17,9 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external to_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
+external to_int64 : (int64#[@unboxed]) -> (int64[@local_opt]) = "%box_int64"
 
-external of_int64 : (int64[@local_opt]) -> int64# = "%unbox_int64"
+external of_int64 : (int64[@local_opt]) -> (int64#[@unboxed]) = "%unbox_int64"
 
 let[@inline always] neg x = of_int64 (Int64.neg (to_int64 x))
 

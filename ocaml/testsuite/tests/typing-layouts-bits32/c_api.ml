@@ -15,22 +15,22 @@
 
 (* This file tests using external C functions with int32#. *)
 
-external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+let to_int32 = Stdlib__Int32_u.to_int32
 
 let print_int32u s f = Printf.printf "%s: %ld\n" s (to_int32 f)
 let print_int32 s f = Printf.printf "%s: %ld\n" s f
 
 (* Various combinations of arguments int32, int32 [@unboxed], and
    int32# *)
-external lognot_UtoU : int32# -> int32# =
+external lognot_UtoU : (int32#[@unboxed]) -> (int32#[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
-external lognot_BtoU : int32 -> int32# =
+external lognot_BtoU : int32 -> (int32#[@unboxed]) =
   "lognot_bytecode" "lognot_BtoU"
-external lognot_UtoB : int32# -> int32 =
+external lognot_UtoB : (int32#[@unboxed]) -> int32 =
   "lognot_bytecode" "lognot_UtoB"
-external lognot_BUtoU : (int32[@unboxed]) -> int32# =
+external lognot_BUtoU : (int32[@unboxed]) -> (int32#[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
-external lognot_UtoBU : int32# -> (int32[@unboxed]) =
+external lognot_UtoBU : (int32#[@unboxed]) -> (int32[@unboxed]) =
   "lognot_bytecode" "lognot_UtoU"
 
 let () =
@@ -55,8 +55,8 @@ let () =
 
 (* If there are more than 5 args, you get an array in bytecode *)
 external sum_7 :
-  int32# -> int32 -> int32# -> int32 ->
-  int32# -> int32 -> int32# -> int32# =
+  (int32#[@unboxed]) -> int32 -> (int32#[@unboxed]) -> int32 ->
+  (int32#[@unboxed]) -> int32 -> (int32#[@unboxed]) -> (int32#[@unboxed]) =
   "sum_7_bytecode" "sum_7_UBUBUBUtoU"
 
 let _ =

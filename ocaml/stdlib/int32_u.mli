@@ -40,10 +40,10 @@ open! Stdlib
 *)
 
 (* Unboxed-specific stuff at the top. *)
-external to_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+external to_int32 : (int32#[@unboxed]) -> (int32[@local_opt]) = "%box_int32"
 (** Box a [int32#] *)
 
-external of_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
+external of_int32 : (int32[@local_opt]) ->  (int32#[@unboxed]) = "%unbox_int32"
 (** Unbox a boxed [int32] *)
 
 (* Below here, everything also appears in [Int32], though most things are

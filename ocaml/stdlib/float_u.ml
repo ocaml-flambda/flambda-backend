@@ -18,9 +18,9 @@ open! Stdlib
 [@@@ocaml.flambda_o3]
 
 
-external to_float : float# -> (float[@local_opt]) = "%box_float"
+external to_float : (float#[@unboxed]) -> (float[@local_opt]) = "%box_float"
 
-external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+external of_float : (float[@local_opt]) -> (float#[@unboxed]) = "%unbox_float"
 
 (* CR layouts: Investigate whether it's worth making these things externals.
    Are there situations where the middle-end won't inline them and remove the

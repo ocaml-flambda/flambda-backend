@@ -500,76 +500,70 @@ val f9_3 : unit -> float# t_float64_id = <fun>
      bytecode and native code implementations,
    - if using a non-value layout in an external, you may not use the old-style
      unboxed float directive, and
-   - unboxed types can't be unboxed more.
+   - unboxed types need to have the unboxed attribute to make public release easier.
 *)
 
-external f10_1 : int -> bool -> float# = "foo";;
-[%%expect{|
-Line 1, characters 0-46:
-1 | external f10_1 : int -> bool -> float# = "foo";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The native code version of the primitive is mandatory
-       for types with non-value layouts.
-|}];;
-
-external f10_2 : t_float64 -> int = "foo";;
-[%%expect{|
-Line 1, characters 0-41:
-1 | external f10_2 : t_float64 -> int = "foo";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The native code version of the primitive is mandatory
-       for types with non-value layouts.
-|}];;
-
-external f10_3 : float -> t_float64  = "foo" "bar" "float";;
+external f10_1 : int -> bool -> (float#[@unboxed]) = "foo";;
 [%%expect{|
 Line 1, characters 0-58:
-1 | external f10_3 : float -> t_float64  = "foo" "bar" "float";;
+1 | external f10_1 : int -> bool -> (float#[@unboxed]) = "foo";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The native code version of the primitive is mandatory
+       for types with non-value layouts.
+|}];;
+
+external f10_2 : (t_float64[@unboxed]) -> int = "foo";;
+[%%expect{|
+Line 1, characters 0-53:
+1 | external f10_2 : (t_float64[@unboxed]) -> int = "foo";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The native code version of the primitive is mandatory
+       for types with non-value layouts.
+|}];;
+
+external f10_3 : float -> (t_float64[@unboxed])  = "foo" "bar" "float";;
+[%%expect{|
+Line 1, characters 0-70:
+1 | external f10_3 : float -> (t_float64[@unboxed])  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
-external f10_4 : int -> float# -> float  = "foo" "bar" "float";;
+external f10_4 : int -> (float#[@unboxed]) -> float  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-62:
-1 | external f10_4 : int -> float# -> float  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-74:
+1 | external f10_4 : int -> (float#[@unboxed]) -> float  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
-external f10_5 : float# -> bool -> string  = "foo" "bar" "float";;
+external f10_5 : (float#[@unboxed]) -> bool -> string  = "foo" "bar" "float";;
 [%%expect{|
-Line 1, characters 0-64:
-1 | external f10_5 : float# -> bool -> string  = "foo" "bar" "float";;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-76:
+1 | external f10_5 : (float#[@unboxed]) -> bool -> string  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}];;
 
-external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
+external f10_6 : float# -> bool -> string  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 18-24:
-1 | external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
-                      ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+Line 1, characters 17-23:
+1 | external f10_6 : float# -> bool -> string  = "foo" "bar";;
+                     ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration argument of layout float64
 |}];;
 
-external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
+external f10_7 : string -> float#  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 28-34:
-1 | external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
-                                ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+Line 1, characters 27-33:
+1 | external f10_7 : string -> float#  = "foo" "bar";;
+                               ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration argument of layout float64
 |}];;
 
 external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-Line 1, characters 26-32:
-1 | external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
-                              ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_8 : (float [@unboxed]) -> float# = "foo" "bar"
 |}];;
 
 (*******************************************************)
