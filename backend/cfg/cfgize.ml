@@ -722,10 +722,7 @@ let fundecl :
   in
   let cfg =
     Cfg.create ~fun_name ~fun_args
-      ~fun_codegen_options:
-        (if List.mem Cmm.No_CSE fundecl.fun_codegen_options
-        then [Cfg.No_CSE]
-        else [])
+      ~fun_codegen_options:(Cfg.of_cmm_codegen_option fun_codegen_options)
       ~fun_dbg ~fun_fast ~fun_contains_calls ~fun_num_stack_slots
   in
   let state =

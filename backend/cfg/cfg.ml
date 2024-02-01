@@ -47,6 +47,18 @@ type basic_block =
 
 type codegen_option = No_CSE
 
+let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
+ fun cmm_options ->
+  match cmm_options with
+  | [] -> []
+  | hd :: tl -> (
+    match hd with
+    | No_CSE -> No_CSE :: of_cmm_codegen_option tl
+    | Reduce_code_size | Use_linscan_regalloc
+    | Ignore_assert_all Zero_alloc
+    | Assume _ | Check _ ->
+      of_cmm_codegen_option tl)
+
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;

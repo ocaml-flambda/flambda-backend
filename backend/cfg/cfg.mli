@@ -72,6 +72,8 @@ type basic_block =
 (* Subset of Cmm.codegen_option. *)
 type codegen_option = No_CSE
 
+val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
+
 (** Control Flow Graph of a function. *)
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
