@@ -24,8 +24,8 @@ let transl_locality_mode_l locality =
   |> transl_locality_mode
 
 let transl_locality_mode_r locality =
-  (* r mode are for allocations; must already have been constrained_upper at
-     this stage *)
+  (* r mode are for allocations; [optimise_allocations] should have pushed it
+     to ceil and determined. *)
   Locality.check_const locality
   |> Option.get
   |> transl_locality_mode
