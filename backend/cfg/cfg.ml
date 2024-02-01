@@ -45,7 +45,9 @@ type basic_block =
     mutable cold : bool
   }
 
-type codegen_option = No_CSE
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
  fun cmm_options ->
@@ -54,9 +56,9 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
   | hd :: tl -> (
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
-    | Reduce_code_size | Use_linscan_regalloc
-    | Ignore_assert_all Zero_alloc
-    | Assume _ | Check _ ->
+    | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc | Ignore_assert_all Zero_alloc | Assume _ | Check _
+      ->
       of_cmm_codegen_option tl)
 
 type t =
@@ -66,14 +68,13 @@ type t =
     fun_codegen_options : codegen_option list;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
-    fun_fast : bool;
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array
   }
 
-let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_fast
-    ~fun_contains_calls ~fun_num_stack_slots =
+let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
+    ~fun_num_stack_slots =
   { fun_name;
     fun_args;
     fun_codegen_options;
@@ -82,7 +83,6 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_fast
     (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
        currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
-    fun_fast;
     fun_contains_calls;
     fun_num_stack_slots
   }

@@ -70,7 +70,9 @@ type basic_block =
   }
 
 (* Subset of Cmm.codegen_option. *)
-type codegen_option = No_CSE
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
 
@@ -87,7 +89,6 @@ type t = private
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
-    fun_fast : bool;  (** Precomputed based on cmmgen information. *)
     fun_contains_calls : bool;  (** Precomputed at selection time. *)
     fun_num_stack_slots : int array
         (** Precomputed at register allocation time *)
@@ -98,7 +99,6 @@ val create :
   fun_args:Reg.t array ->
   fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
-  fun_fast:bool ->
   fun_contains_calls:bool ->
   fun_num_stack_slots:int array ->
   t
