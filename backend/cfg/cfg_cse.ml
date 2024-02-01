@@ -143,10 +143,9 @@ class cse_generic =
               (* Are there registers that hold the results computed earlier? *)
               match find_regs_containing n1 vres with
               | Some res when not (self#is_cheap_operation op) ->
-                (* We can replace res <- op args with r <- move res, provided
-                   res are stable (non-volatile) registers. If the operation is
-                   very cheap to compute, e.g. an integer constant, don't
-                   bother. *)
+                (* We can replace the operation with a move, provided the
+                   registers are stable (non-volatile). If the operation is very
+                   cheap to compute, e.g. an integer constant, don't bother.*)
                 let n3 = set_known_regs n1 i.res vres in
                 (* This is n1 above and not n2 because the move does not destroy
                    any regs *)
