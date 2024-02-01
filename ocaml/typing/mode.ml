@@ -20,6 +20,9 @@ type nonrec allowed = allowed
 
 type nonrec disallowed = disallowed
 
+(* This module is too general and should be specialized in the future.
+   https://github.com/ocaml-flambda/flambda-backend/pull/1760#discussion_r1468531786
+*)
 module Product = struct
   type ('a0, 'a1) t = 'a0 * 'a1
 

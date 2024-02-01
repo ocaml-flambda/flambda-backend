@@ -688,6 +688,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
               (Alloc.Const.close_over arg_mode)
               (Alloc.Const.partial_apply acc_mode)
           in
+          (* Arrow types cross uniqueness axis. Therefore, when user writes an
+          A -> B -> C (to be used as constraint on something), we should make
+          (B -> C) shared. A proper way to do this is via modal kinds. *)
           let acc_mode = (loc, lin, Uniqueness.Const.Shared) in
           let ret_mode =
             match rest with
