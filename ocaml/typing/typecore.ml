@@ -9445,14 +9445,14 @@ let escaping_hint failure_reason submode_reason
   begin match failure_reason, context with
   | `Regionality _, Some Return ->
       [ Location.msg
-          "@[Hint: Cannot return local value without an@ \
+          "@[Hint: Cannot return a local value without an@ \
            \"exclave_\" annotation@]" ]
   | `Regionality _, Some Tailcall_argument ->
       [ Location.msg
-          "@[Hint: This argument cannot be local, because this is a tail call@]" ]
+          "@[Hint: This argument cannot be local, because it is an argument in a tail call@]" ]
   | `Regionality _, Some Tailcall_function ->
       [ Location.msg
-          "@[Hint: This function cannot be local, because this is a tail call@]" ]
+          "@[Hint: This function cannot be local, because it is the function in a tail call@]" ]
   | `Regionality _, Some Partial_application ->
       [ Location.msg
           "@[Hint: It is captured by a partial application@]" ]

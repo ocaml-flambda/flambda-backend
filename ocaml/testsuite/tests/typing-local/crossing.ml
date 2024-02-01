@@ -54,7 +54,7 @@ Line 2, characters 14-15:
 2 |   fun x -> f' x
                   ^
 Error: This value escapes its region
-  Hint: This argument cannot be local, because this is a tail call
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* 2. constructor argument crosses mode at construction *)
@@ -103,7 +103,7 @@ Line 2, characters 12-13:
 2 |   fun n -> (n : string)
                 ^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 (* 5. polymorphic variant arguments crosses mode on construction*)
@@ -180,7 +180,7 @@ Line 2, characters 11-14:
 2 |   fun r -> r.y
                ^^^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 (* the expected type is not considered when mode crossing the result of
@@ -217,7 +217,7 @@ Line 6, characters 6-22:
 6 |     g (local_ "world")
           ^^^^^^^^^^^^^^^^
 Error: This value escapes its region
-  Hint: This argument cannot be local, because this is a tail call
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* the result of function application crosses mode *)
@@ -246,7 +246,7 @@ Line 2, characters 28-29:
 2 |   fun () -> let x = f () in x
                                 ^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 (* constructor argument crosses modes upon pattern matching *)
@@ -279,7 +279,7 @@ Line 4, characters 21-22:
 4 |     | Bar0 (_, y) -> y
                          ^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 (* record fields crosses modes upon pattern matching *)
@@ -310,7 +310,7 @@ Line 4, characters 16-17:
 4 |     | {y; _} -> y
                     ^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 (* constraint crosses modes upon pattern matching  *)
@@ -327,7 +327,7 @@ Line 2, characters 22-23:
 2 |   fun (x : string) -> x
                           ^
 Error: This value escapes its region
-  Hint: Cannot return local value without an "exclave_" annotation
+  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 
