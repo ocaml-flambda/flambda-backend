@@ -369,7 +369,10 @@ module Solver_mono (C : Lattices_mono) = struct
       (* If [mlower] was precise, then the check
          [not (C.le obj (mlower obj mv) a)] should guarantee the following call
          to return [Ok ()]. However, [mlower] is not precise *)
-      Result.map_error (C.apply obj f) (submode_vc ~log src v a')
+      (* not using [Result.map_error] to avoid allocating closure *)
+      match submode_vc ~log src v a' with
+      | Ok () -> Ok ()
+      | Error e -> Error (C.apply obj f e)
 
   (** Zap the variable to its lower bound. Returns the [log] of the zapping, in
       case the caller are only interested in the lower bound and wants to

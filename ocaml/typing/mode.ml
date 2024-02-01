@@ -59,10 +59,6 @@ module Product = struct
     | SAxis0 -> fun f (a0, a1) -> f a0, a1
     | SAxis1 -> fun f (a0, a1) -> a0, f a1
 
-  let map (type a0 a1 b0 b1) :
-      (a0 -> b0, a1 -> b1) t -> (a0, a1) t -> (b0, b1) t =
-   fun (f0, f1) (a0, a1) -> f0 a0, f1 a1
-
   let update (type a0 a1 a) : (a0, a1, a) axis -> a -> a0 * a1 -> a0 * a1 =
     let endo (type a0 a1 a) : (a0, a1, a) axis -> (a0, a1, a, a0, a1, a) saxis =
       function
@@ -284,30 +280,37 @@ module Lattices = struct
     | Comonadic_with_locality -> Comonadic_with_locality.max
     | Comonadic_with_regionality -> Comonadic_with_regionality.max
 
-  let le : type a. a obj -> a -> a -> bool = function
-    | Locality -> Locality.le
-    | Regionality -> Regionality.le
-    | Uniqueness_op -> Uniqueness_op.le
-    | Linearity -> Linearity.le
-    | Comonadic_with_locality -> Comonadic_with_locality.le
-    | Comonadic_with_regionality -> Comonadic_with_regionality.le
+  let le : type a. a obj -> a -> a -> bool =
+   fun obj a b ->
+    match obj with
+    | Locality -> Locality.le a b
+    | Regionality -> Regionality.le a b
+    | Uniqueness_op -> Uniqueness_op.le a b
+    | Linearity -> Linearity.le a b
+    | Comonadic_with_locality -> Comonadic_with_locality.le a b
+    | Comonadic_with_regionality -> Comonadic_with_regionality.le a b
 
-  let join : type a. a obj -> a -> a -> a = function
-    | Locality -> Locality.join
-    | Regionality -> Regionality.join
-    | Uniqueness_op -> Uniqueness_op.join
-    | Linearity -> Linearity.join
-    | Comonadic_with_locality -> Comonadic_with_locality.join
-    | Comonadic_with_regionality -> Comonadic_with_regionality.join
+  let join : type a. a obj -> a -> a -> a =
+   fun obj a b ->
+    match obj with
+    | Locality -> Locality.join a b
+    | Regionality -> Regionality.join a b
+    | Uniqueness_op -> Uniqueness_op.join a b
+    | Linearity -> Linearity.join a b
+    | Comonadic_with_locality -> Comonadic_with_locality.join a b
+    | Comonadic_with_regionality -> Comonadic_with_regionality.join a b
 
-  let meet : type a. a obj -> a -> a -> a = function
-    | Locality -> Locality.meet
-    | Regionality -> Regionality.meet
-    | Uniqueness_op -> Uniqueness_op.meet
-    | Linearity -> Linearity.meet
-    | Comonadic_with_locality -> Comonadic_with_locality.meet
-    | Comonadic_with_regionality -> Comonadic_with_regionality.meet
+  let meet : type a. a obj -> a -> a -> a =
+   fun obj a b ->
+    match obj with
+    | Locality -> Locality.meet a b
+    | Regionality -> Regionality.meet a b
+    | Uniqueness_op -> Uniqueness_op.meet a b
+    | Linearity -> Linearity.meet a b
+    | Comonadic_with_locality -> Comonadic_with_locality.meet a b
+    | Comonadic_with_regionality -> Comonadic_with_regionality.meet a b
 
+  (* not hotpath, Ok to curry *)
   let print : type a. a obj -> _ -> a -> unit = function
     | Locality -> Locality.print
     | Regionality -> Regionality.print
@@ -476,7 +479,8 @@ module Lattices_mono = struct
   end)
 
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
-   fun dst -> function
+   fun dst f ->
+    match f with
     | Id -> dst
     | Proj (src, _) -> src
     | Max_with ax -> proj_obj ax dst
@@ -609,36 +613,37 @@ module Lattices_mono = struct
     | Locality.Global -> Regionality.Regional
 
   let rec apply' : type a b d. int ref -> b obj -> (a, b, d) morph -> a -> b =
-   fun cnt dst ->
+   fun cnt dst f a ->
     cnt := !cnt + 1;
-    function
+    match f with
     | Compose (f, g) ->
       let mid = src dst f in
       let g' = apply' cnt mid g in
       let f' = apply' cnt dst f in
-      fun a -> a |> g' |> f'
-    | Id -> Fun.id
-    | Proj (_, ax) -> Product.proj ax
-    | Max_with ax -> fun a -> Product.update ax a (max dst)
-    | Min_with ax -> fun a -> Product.update ax a (min dst)
-    | Const_min _ -> fun _ -> min dst
-    | Const_max _ -> fun _ -> max dst
-    | Unique_to_linear -> unique_to_linear
-    | Linear_to_unique -> linear_to_unique
-    | Local_to_regional -> local_to_regional
-    | Regional_to_local -> regional_to_local
-    | Locality_as_regionality -> locality_as_regionality
-    | Regional_to_global -> regional_to_global
-    | Global_to_regional -> global_to_regional
+      f' (g' a)
+    | Id -> a
+    | Proj (_, ax) -> Product.proj ax a
+    | Max_with ax -> Product.update ax a (max dst)
+    | Min_with ax -> Product.update ax a (min dst)
+    | Const_min _ -> min dst
+    | Const_max _ -> max dst
+    | Unique_to_linear -> unique_to_linear a
+    | Linear_to_unique -> linear_to_unique a
+    | Local_to_regional -> local_to_regional a
+    | Regional_to_local -> regional_to_local a
+    | Locality_as_regionality -> locality_as_regionality a
+    | Regional_to_global -> regional_to_global a
+    | Global_to_regional -> global_to_regional a
     | Map (f0, f1) ->
       let dst0 = proj_obj Axis0 dst in
       let dst1 = proj_obj Axis1 dst in
-      Product.map (apply' cnt dst0 f0, apply' cnt dst1 f1)
+      let a0, a1 = a in
+      apply' cnt dst0 f0 a0, apply' cnt dst1 f1 a1
 
   and apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
-   fun dst f ->
+   fun dst f a ->
     let cnt = ref 0 in
-    let f' = apply' cnt dst f in
+    let b = apply' cnt dst f a in
     if !cnt > 5
     then (
       Format.eprintf
@@ -646,7 +651,7 @@ module Lattices_mono = struct
          %a\n"
         (print_morph dst) f;
       assert false)
-    else f'
+    else b
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
