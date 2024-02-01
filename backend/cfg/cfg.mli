@@ -80,8 +80,6 @@ type t = private
         (** Function arguments. When Cfg is constructed from Linear, this
             information is not needed (Linear.fundecl does not have fun_args
             field) and [fun_args] is an empty array as a dummy value. *)
-    (* CR xclerc for xclerc: should we rather have more booleans, like
-       `fun_fast` below? *)
     fun_codegen_options : codegen_option list;
         (** Code generation options passed from Cmm. *)
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)

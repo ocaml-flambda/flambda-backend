@@ -73,5 +73,3 @@ module type S = sig
 end
 
 module Make (Op : Operation) : S with type op = Op.t
-
-val array_fold2 : ('c -> 'a -> 'b -> 'c) -> 'c -> 'a array -> 'b array -> 'c

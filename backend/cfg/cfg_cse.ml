@@ -111,10 +111,24 @@ class cse_generic =
         match i.desc with
         | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> n
         | Op (Move | Spill | Reload) ->
+          (* For moves, we associate the same value number to the result reg as
+             to the argument reg. *)
           let n1 = set_move n i.arg.(0) i.res.(0) in
           n1
-        | Op Opaque -> empty_numbering
+        | Op Opaque ->
+          (* Assume arbitrary side effects from Iopaque *)
+          empty_numbering
         | Op (Alloc _) | Op Poll ->
+          (* For allocations, we must avoid extending the live range of a
+             pseudoregister across the allocation if this pseudoreg is a derived
+             heap pointer (a pointer into the heap that does not point to the
+             beginning of a Caml block). PR#6484 is an example of this
+             situation. Such pseudoregs have type [Addr]. Pseudoregs with types
+             other than [Addr] can be kept. Moreover, allocations and polls can
+             trigger the asynchronous execution of arbitrary Caml code
+             (finalizer, signal handler, context switch), which can contain
+             non-initializing stores. Hence, all equations over mutable loads
+             must be removed. *)
           let n1 = kill_addr_regs (self#kill_loads n) in
           let n2 = set_unknown_regs n1 i.res in
           n2
@@ -184,6 +198,15 @@ class cse_generic =
             (Proc.destroyed_at_terminator terminator.desc)
         | Return | Raise _ | Tailcall_self _ | Tailcall_func _
         | Call_no_return _ | Call _ | Prim _ ->
+          (* For function calls and probes, we should at least forget: -
+             equations involving memory loads, since the callee can perform
+             arbitrary memory stores; - equations involving arithmetic
+             operations that can produce [Addr]-typed derived pointers into the
+             heap (see below for Ialloc); - mappings from hardware registers to
+             value numbers, since the callee does not preserve these registers.
+             That doesn't leave much usable information: checkbounds could be
+             kept, but won't be usable for CSE as one of their arguments is
+             always a memory load. For simplicity, we just forget everything. *)
           empty_numbering
         | Specific_can_raise _ ->
           (* CR-soon xclerc for xclerc: is it too conservative? *)
@@ -195,8 +218,12 @@ class cse_generic =
         let to_visit : (numbering * Cfg.basic_block) Queue.t =
           Queue.create ()
         in
-        (* blocks with zero or several predecessors and exception handlers start
-           with an empty numbering *)
+        (* As in CSEgen], for control structures, we set the numbering to empty
+           at every join point, but propagate the current numbering across fork
+           points. This is why blocks with zero or several predecessors and
+           exception handlers start with an empty numbering: zero predecessors
+           means we have an entry point (or dead code), and several predecessors
+           means we have an entry point. *)
         Cfg.iter_blocks cfg ~f:(fun _label block ->
             let to_add =
               block.is_trap_handler

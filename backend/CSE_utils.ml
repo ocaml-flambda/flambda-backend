@@ -54,13 +54,6 @@ module type S = sig
 
 end
 
-let array_fold2 f n a1 a2 =
-  let l = Array.length a1 in
-  assert (l = Array.length a2);
-  let n = ref n in
-  for i = 0 to l - 1 do n := f !n a1.(i) a2.(i) done;
-  !n
-
 
 module Make (Op : Operation) : S with type op = Op.t = struct
 
@@ -197,7 +190,7 @@ let set_known_reg n r v =
    without adding new equations. *)
 
 let set_known_regs n rs vs =
-  array_fold2 set_known_reg n rs vs
+  Misc.Stdlib.Array.fold_left2 set_known_reg n rs vs
 
 (* Record the effect of a move: no new equations, but the result reg
    maps to the same value number as the argument reg. *)

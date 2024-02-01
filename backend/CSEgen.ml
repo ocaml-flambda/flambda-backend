@@ -34,8 +34,8 @@ let insert_move srcs dsts i =
   | _ -> (* Parallel move: first copy srcs into tmps one by one,
             then copy tmps into dsts one by one *)
          let tmps = Reg.createv_like srcs in
-         let i1 = array_fold2 insert_single_move i tmps dsts in
-         array_fold2 insert_single_move i1 srcs tmps
+         let i1 = Misc.Stdlib.Array.fold_left2 insert_single_move i tmps dsts in
+         Misc.Stdlib.Array.fold_left2 insert_single_move i1 srcs tmps
 
 let rec split4 = function
     [] -> ([], [], [], [])
