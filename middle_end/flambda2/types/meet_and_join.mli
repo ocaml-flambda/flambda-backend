@@ -18,7 +18,7 @@ val meet :
   Type_grammar.t ->
   (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
 
-val meet_type : Typing_env.meet_type
+val meet_type : unit -> Typing_env.meet_type
 
 val meet_shape :
   Typing_env.t ->
@@ -35,6 +35,7 @@ val meet_env_extension :
   Typing_env_extension.t Or_bottom.t
 
 val join :
+  unit ->
   ?bound_name:Name.t ->
   Typing_env.Join_env.t ->
   Type_grammar.t ->
