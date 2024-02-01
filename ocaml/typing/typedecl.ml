@@ -100,6 +100,7 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
+  | No_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
 
 open Typedtree
 
@@ -2240,10 +2241,11 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
+type sort_or_poly = Sort of Jkind.Sort.const | Poly
+
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
-  match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
-  | Native_repr_attr_absent ->
+  let get_sort_or_poly () =
     begin match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     (* This only captures tvar with jkind [any] explicitly quantified within
        the declaration.
@@ -2255,18 +2257,36 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     *)
     | Tvar {jkind} when is_layout_poly
                       && Jkind.is_any jkind
-                      && get_level ty = Btype.generic_level -> Repr_poly
+                      && get_level ty = Btype.generic_level -> Poly
     | __ ->
       let sort =
         type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
       in
-      Same_as_ocaml_repr sort
+      Sort sort
+    end
+  in
+  match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
+  | Native_repr_attr_absent ->
+    begin match get_sort_or_poly () with
+    | Poly -> Repr_poly
+    | Sort Value -> Same_as_ocaml_repr Value
+    | Sort sort ->
+      raise (Error (core_type.ptyp_loc,
+              No_unboxed_attribute_on_non_value_sort sort))
     end
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
-    | None ->
-      raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
+    | None ->
+      begin match kind, get_sort_or_poly () with
+      | _, (Poly | Sort Value) | Untagged, Sort _ ->
+        raise (Error (core_type.ptyp_loc,
+                Cannot_unbox_or_untag_type kind))
+      | Unboxed, Sort sort ->
+        (* We make a special case of allowing [@unboxed] on
+           non-value sorts. *)
+        Same_as_ocaml_repr sort
+      end
     end
 
 let prim_const_mode m =
@@ -2365,7 +2385,7 @@ let unexpected_jkind_any_check prim env cty ty =
       a selected subset of primitives to have non-value
       jkinds. And for that subset, it checks to see the
       argument/return jkinds are what it expects.
-      
+
       See comment in [prim_has_valid_reprs] about what it
       could miss.
 
@@ -3131,6 +3151,10 @@ let report_error ppf = function
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@layout_poly].@]" name
+  | No_unboxed_attribute_on_non_value_sort sort ->
+      fprintf ppf "@[[%@unboxed] attribute must be added to external declaration \
+                        argument of layout %a@]"
+        (fun ppf s -> Jkind.Sort.format ppf (Jkind.Sort.of_const s)) sort
 
 let () =
   Location.register_error_of_exn
