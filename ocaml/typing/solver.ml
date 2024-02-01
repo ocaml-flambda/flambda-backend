@@ -529,6 +529,19 @@ module Solver_mono (C : Lattices_mono) = struct
         (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv))
         a mvs
 
+  (* Similar to [List.append] but dedup the result (assuming both inputs are
+     deduped) *)
+  let append_dedup obj l0 l1 =
+    let rec loop acc rest =
+      match rest with
+      | [] -> acc
+      | x :: xs ->
+        if List.exists (fun mv -> eq_morphvar obj mv x) l0
+        then loop acc xs
+        else loop (x :: acc) xs
+    in
+    loop l0 l1
+
   let join (type a r) obj l =
     let rec loop :
         a ->
@@ -545,7 +558,8 @@ module Solver_mono (C : Lattices_mono) = struct
           match disallow_right mv with
           | Amode b -> loop (C.join obj a b) mvs xs
           | Amodevar mv -> loop a (mv :: mvs) xs
-          | Amodejoin (b, mvs') -> loop (C.join obj a b) (mvs' @ mvs) xs)
+          | Amodejoin (b, mvs') ->
+            loop (C.join obj a b) (append_dedup obj mvs' mvs) xs)
     in
     loop (C.min obj) [] l
 
@@ -565,7 +579,8 @@ module Solver_mono (C : Lattices_mono) = struct
           match disallow_left mv with
           | Amode b -> loop (C.meet obj a b) mvs xs
           | Amodevar mv -> loop a (mv :: mvs) xs
-          | Amodemeet (b, mvs') -> loop (C.meet obj a b) (mvs' @ mvs) xs)
+          | Amodemeet (b, mvs') ->
+            loop (C.meet obj a b) (append_dedup obj mvs' mvs) xs)
     in
     loop (C.max obj) [] l
 
