@@ -93,7 +93,7 @@ module Cfg_desc = struct
     let cfg =
       Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
         ~fun_codegen_options:[]
-        ~fun_fast:false ~fun_contains_calls
+         ~fun_contains_calls
         ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
     in
     List.iter
