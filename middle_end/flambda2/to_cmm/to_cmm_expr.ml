@@ -1000,40 +1000,52 @@ and switch env res switch =
   | 2 -> (
     let aux = make_arm ~must_tag_discriminant env in
     let first_arm, res = aux res (Targetint_31_63.Map.min_binding arms) in
+    let res1 = res in
+    let _, first_arm_expr, _, _ = first_arm in
     let second_arm, res = aux res (Targetint_31_63.Map.max_binding arms) in
-    match first_arm, second_arm with
-    (* These switches are actually if-then-elses. On such switches,
-       transl_switch_clambda will introduce a let-binding of the scrutinee
-       before creating an if-then-else, introducing an indirection that might
-       prevent some optimizations performed by Selectgen/Emit when the condition
-       is inlined in the if-then-else. Instead we use [C.ite]. *)
-    | (0, else_, else_free_vars, else_dbg), (_, then_, then_free_vars, then_dbg)
-    | (_, then_, then_free_vars, then_dbg), (0, else_, else_free_vars, else_dbg)
-      ->
-      let free_vars =
-        Backend_var.Set.union scrutinee_free_vars
-          (Backend_var.Set.union else_free_vars then_free_vars)
-      in
-      let cmm, free_vars =
-        wrap (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_) free_vars
-      in
-      cmm, free_vars, res
-    (* Similar case to the previous but none of the arms match 0, so we have to
-       generate an equality test, and make sure it is inside the condition to
-       ensure Selectgen and Emit can take advantage of it. *)
-    | ( (x, if_x, if_x_free_vars, if_x_dbg),
-        (_, if_not, if_not_free_vars, if_not_dbg) ) ->
-      let free_vars =
-        Backend_var.Set.union scrutinee_free_vars
-          (Backend_var.Set.union if_x_free_vars if_not_free_vars)
-      in
-      let expr =
-        C.ite ~dbg
-          (C.eq ~dbg (C.int ~dbg x) scrutinee)
-          ~then_dbg:if_x_dbg ~then_:if_x ~else_dbg:if_not_dbg ~else_:if_not
-      in
-      let cmm, free_vars = wrap expr free_vars in
-      cmm, free_vars, res)
+    let _, second_arm_expr, _, _ = second_arm in
+    if Cmm_helpers.simple_and_equal_exprs first_arm_expr second_arm_expr
+    then
+      let _, cmm, free_vars, _ = first_arm in
+      let cmm, free_vars = wrap cmm free_vars in
+      cmm, free_vars, res1
+    else
+      match first_arm, second_arm with
+      (* These switches are actually if-then-elses. On such switches,
+         transl_switch_clambda will introduce a let-binding of the scrutinee
+         before creating an if-then-else, introducing an indirection that might
+         prevent some optimizations performed by Selectgen/Emit when the
+         condition is inlined in the if-then-else. Instead we use [C.ite]. *)
+      | ( (0, else_, else_free_vars, else_dbg),
+          (_, then_, then_free_vars, then_dbg) )
+      | ( (_, then_, then_free_vars, then_dbg),
+          (0, else_, else_free_vars, else_dbg) ) ->
+        let free_vars =
+          Backend_var.Set.union scrutinee_free_vars
+            (Backend_var.Set.union else_free_vars then_free_vars)
+        in
+        let cmm, free_vars =
+          wrap
+            (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_)
+            free_vars
+        in
+        cmm, free_vars, res
+      (* Similar case to the previous but none of the arms match 0, so we have
+         to generate an equality test, and make sure it is inside the condition
+         to ensure Selectgen and Emit can take advantage of it. *)
+      | ( (x, if_x, if_x_free_vars, if_x_dbg),
+          (_, if_not, if_not_free_vars, if_not_dbg) ) ->
+        let free_vars =
+          Backend_var.Set.union scrutinee_free_vars
+            (Backend_var.Set.union if_x_free_vars if_not_free_vars)
+        in
+        let expr =
+          C.ite ~dbg
+            (C.eq ~dbg (C.int ~dbg x) scrutinee)
+            ~then_dbg:if_x_dbg ~then_:if_x ~else_dbg:if_not_dbg ~else_:if_not
+        in
+        let cmm, free_vars = wrap expr free_vars in
+        cmm, free_vars, res)
   (* General case *)
   | n ->
     (* transl_switch_clambda expects an [index] array such that index.(d) is the

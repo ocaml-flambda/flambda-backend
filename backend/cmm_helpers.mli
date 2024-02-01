@@ -938,3 +938,5 @@ val unboxed_int64_or_nativeint_array_set :
   new_value:expression ->
   Debuginfo.t ->
   expression
+
+val simple_and_equal_exprs : expression -> expression -> bool

@@ -2047,19 +2047,65 @@ end
 module StoreExpForSwitch = Switch.CtxStore (struct
   type t = expression
 
-  type key = int option * int
+  type key_info =
+    | Exit of int
+    | Load of
+        { block : Backend_var.t;
+          byte_offset : int;
+          memory_chunk : memory_chunk;
+          mutability : Asttypes.mutable_flag;
+          is_atomic : bool
+        }
+
+  type key = key_info option * int
 
   type context = int
 
   let make_key index expr =
     let continuation =
-      match expr with Cexit (Lbl i, [], []) -> Some i | _ -> None
+      match expr with
+      | Cexit (Lbl i, [], []) -> Some (Exit i)
+      | Cop (Cload { memory_chunk; mutability; is_atomic }, [Cvar block], _) ->
+        Some
+          (Load { block; byte_offset = 0; memory_chunk; mutability; is_atomic })
+      | Cop
+          ( Cload { memory_chunk; mutability; is_atomic },
+            [Cop (Cadda, [Cvar block; Cconst_int (byte_offset, _)], _)],
+            _ ) ->
+        Some (Load { block; byte_offset; memory_chunk; mutability; is_atomic })
+      | _ -> None
     in
     Some (continuation, index)
 
   let compare_key (cont, index) (cont', index') =
     match cont, cont' with
-    | Some i, Some i' when i = i' -> 0
+    | Some (Exit i), Some (Exit i') when i = i' -> 0
+    (* CR mshinwell: seems like this should match [simple_and_equal_exprs] *)
+    | ( Some (Load { block; byte_offset; memory_chunk; mutability; is_atomic }),
+        Some
+          (Load
+            { block = block';
+              byte_offset = byte_offset';
+              memory_chunk = memory_chunk';
+              mutability = mutability';
+              is_atomic = is_atomic'
+            }) ) ->
+      let c = Backend_var.compare block block' in
+      if c <> 0
+      then c
+      else
+        let c = Stdlib.compare byte_offset byte_offset' in
+        if c <> 0
+        then c
+        else
+          let c = Stdlib.compare memory_chunk memory_chunk' in
+          if c <> 0
+          then c
+          else
+            let c = Stdlib.compare mutability mutability' in
+            if c <> 0 then c else Stdlib.compare is_atomic is_atomic'
+    | Some (Exit _), Some (Load _) -> -1
+    | Some (Load _), Some (Exit _) -> 1
     | _, _ -> Stdlib.compare index index'
 end)
 
@@ -3734,3 +3780,13 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+let rec simple_and_equal_exprs e1 e2 =
+  match e1, e2 with
+  | Cconst_int (n1, _), Cconst_int (n2, _) -> Int.equal n1 n2
+  | Cvar var1, Cvar var2 -> Backend_var.equal var1 var2
+  | Cop (op1, args1, _), Cop (op2, args2, _) ->
+    Stdlib.compare op1 op2 = 0
+    && List.compare_lengths args1 args2 = 0
+    && List.for_all2 simple_and_equal_exprs args1 args2
+  | _, _ -> false

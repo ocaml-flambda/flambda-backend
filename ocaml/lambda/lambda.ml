@@ -837,6 +837,7 @@ let make_key e =
         let ex = tr_rec env ex in
         let y = make_key x in
         Lmutlet (k,y,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
+    | Lprim (Pfield _, _, _) -> raise Not_simple
     | Lprim (p,es,_) ->
         Lprim (p,tr_recs env es, Loc_unknown)
     | Lswitch (e,sw,loc,kind) ->
