@@ -95,6 +95,8 @@ module D = struct
   let extrn s ptr = directive (External (s, ptr))
   let file ~file_num ~file_name = directive (File (file_num, file_name))
   let global s = directive (Global s)
+  let protected s = directive (Protected s)
+
   let hidden s = directive (Hidden s)
   let weak s = directive (Weak s)
   let indirect_symbol s = directive (Indirect_symbol s)
@@ -378,6 +380,9 @@ module I = struct
   let crc32 x y = emit (CRC32 (x, y))
 
   let pclmulqdq i x y = emit (PCLMULQDQ (i, x, y))
+
+  let lzcnt x y = emit (LZCNT (x, y))
+  let tzcnt x y = emit (TZCNT (x, y))
 
   let pext x y z = emit (PEXT (x, y, z))
   let pdep x y z = emit (PDEP (x, y, z))

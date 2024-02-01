@@ -51,6 +51,9 @@ module type Flambda_backend_options = sig
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
+
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit
@@ -67,6 +70,8 @@ module type Flambda_backend_options = sig
   val flambda2_result_types_functors_only : unit -> unit
   val flambda2_result_types_all_functions : unit -> unit
   val no_flambda2_result_types : unit -> unit
+  val flambda2_basic_meet : unit -> unit
+  val flambda2_advanced_meet : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit

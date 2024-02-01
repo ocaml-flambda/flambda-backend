@@ -288,7 +288,14 @@ let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 
 let constant_string f s = pp f "%S" s
 
-let tyvar = Printast.tyvar
+let tyvar ppf s =
+  if String.length s >= 2 && s.[1] = '\'' then
+    (* without the space, this would be parsed as
+       a character literal *)
+    Format.fprintf ppf "' %s" s
+  else
+    Format.fprintf ppf "'%s" s
+
 let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
 
 let tyvar_jkind_loc ~print_quote f (str,jkind) =
@@ -300,6 +307,7 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
   match jkind with
   | None -> pptv f str.txt
   | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
+
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
@@ -445,7 +453,19 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
       (core_type1 ctxt) aliased_type
       tyvar_option name
       jkind_annotation jkind
-  | _ -> pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
+  | Jtyp_layout (Ltyp_poly {bound_vars = []; inner_type}) ->
+    core_type ctxt f inner_type
+  | Jtyp_layout (Ltyp_poly {bound_vars; inner_type}) ->
+    let jkind_poly_var f (name, jkind_opt) =
+      match jkind_opt with
+      | Some jkind -> pp f "(%a@;:@;%a)" tyvar_loc name jkind_annotation jkind
+      | None -> tyvar_loc f name
+    in
+    pp f "@[<2>%a@;.@;%a@]"
+        (list jkind_poly_var ~sep:"@;") bound_vars
+        (core_type ctxt) inner_type
+  | Jtyp_tuple _ | Jtyp_layout (Ltyp_var _) ->
+    pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 
 and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
@@ -455,7 +475,8 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
       pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
     | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
-    | _ -> paren true (core_type_jane_syntax ctxt attrs) f x
+    | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
+      paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
   | None -> pp f "_"
@@ -2042,8 +2063,12 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   =
   match x with
-  | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
-  | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
+  | Float (x, None) ->
+    paren (first_is '-' x) (fun f -> pp f "%s") f (Misc.format_as_unboxed_literal x)
+  | Float (x, Some suffix)
+  | Integer (x, suffix) ->
+    paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
+      (Misc.format_as_unboxed_literal x, suffix)
 
 and function_param ctxt f
     ({ pparam_desc; pparam_loc = _ } :

@@ -143,6 +143,12 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val chunks_of : int -> 'a t -> 'a t t
+    (** [chunks_of n t] returns a list of nonempty lists whose
+        concatenation is equal to the original list. Every list has [n]
+        elements, except for possibly the last list, which may have fewer.
+        [chunks_of] raises if [n <= 0]. *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
@@ -186,6 +192,14 @@ module Stdlib : sig
     val exists2 : ('a -> 'b -> bool) -> 'a array -> 'b array -> bool
     (** Same as [Array.exists2] from the standard library. *)
 
+    val fold_left2 :
+      ('acc -> 'a -> 'b -> 'acc) -> 'acc -> 'a array -> 'b array -> 'acc
+    (** [fold_left2 f init [|a1; ...; an|] [|b1; ...; bn|]] is
+        [f (... (f (f init a1 b1) a2 b2) ...) an bn].
+        @raise Invalid_argument if the two arrays are determined
+        to have different lengths.
+    *)
+
     val for_alli : (int -> 'a -> bool) -> 'a array -> bool
     (** Same as [Array.for_all] from the standard library, but the
         function is applied with the index of the element as first argument,
@@ -196,6 +210,10 @@ module Stdlib : sig
     val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
+
+    val map_sharing : ('a -> 'a) -> 'a array -> 'a array
+    (** [map_sharing f a] is [map f a]. If for all elements of the array
+        [f e == e] then [map_sharing f a == a] *)
   end
 
 (** {2 Extensions to the String module} *)
@@ -406,6 +424,17 @@ val ordinal_suffix : int -> string
     an ordinal number: [1] -> ["st"], [2] -> ["nd"], [3] -> ["rd"],
     [4] -> ["th"], and so on.  Handles larger numbers (e.g., [42] -> ["nd"]) and
     the numbers 11--13 (which all get ["th"]) correctly. *)
+
+val format_as_unboxed_literal : string -> string
+(** [format_as_unboxed_literal constant_literal] converts [constant_literal] to its
+    corresponding unboxed literal by either adding "#" in front or changing
+    "-" to "-#".
+
+    Examples:
+
+      [0.1] to [#0.1]
+      [-3] to [-#3]
+      [0xa.cp-1] to [#0xa.cp-1] *)
 
 val normalise_eol : string -> string
 (** [normalise_eol s] returns a fresh copy of [s] with any '\r' characters

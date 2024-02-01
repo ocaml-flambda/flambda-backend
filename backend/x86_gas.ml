@@ -380,6 +380,8 @@ let print_instr b = function
   | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
   | PEXT (arg1, arg2, arg3) -> i3 b "pext" arg1 arg2 arg3
   | PDEP (arg1, arg2, arg3) -> i3 b "pdep" arg1 arg2 arg3
+  | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
+  | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
@@ -433,7 +435,8 @@ let print_line b = function
         bprintf b "\t.ascii\t\"%s\""
           (string_of_substring_literal i (String.length s - i) s)
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
-  | Global s -> bprintf b "\t.globl\t%s" s;
+  | Global s -> bprintf b "\t.globl\t%s" s
+  | Protected s -> bprintf b "\t.protected\t%s" s;
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
   | Weak s -> bprintf b "\t.weak\t%s" s;
   | Long n -> bprintf b "\t.long\t%a" cst n

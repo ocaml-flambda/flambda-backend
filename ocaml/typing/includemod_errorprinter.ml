@@ -617,6 +617,23 @@ let core env id x =
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Type_declarations diff ->
+      (* Jkind history doesn't offer helpful information in the case
+         of a signature mismatch. This part is here to strip it away. *)
+      let strip_jkind_history (err: Errortrace.equality_error) =
+        Errortrace.equality_error
+          ~trace:(List.map
+            (function
+              | Errortrace.Unequal_var_jkinds _ ->
+                Errortrace.Unequal_var_jkinds_with_no_history
+              | x -> x) err.trace)
+          ~subst:err.subst
+      in
+      let symptom : Includecore.type_mismatch =
+        match diff.symptom with
+        | Manifest err -> Manifest (strip_jkind_history err)
+        | Constraint err -> Constraint (strip_jkind_history err)
+        | symptom -> symptom
+      in
       Format.dprintf "@[<v>@[<hv>%s:@;<1 2>%a@ %s@;<1 2>%a@]%a%a%t@]"
         "Type declarations do not match"
         !Oprint.out_sig_item
@@ -625,7 +642,7 @@ let core env id x =
         !Oprint.out_sig_item
         (Printtyp.tree_of_type_declaration id diff.expected Trec_first)
         (Includecore.report_type_mismatch
-           "the first" "the second" "declaration" env) diff.symptom
+           "the first" "the second" "declaration" env) symptom
         show_locs (diff.got.type_loc, diff.expected.type_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Extension_constructors diff ->

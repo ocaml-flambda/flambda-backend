@@ -86,12 +86,19 @@ val bound_parameters :
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
+type update_kind =
+  | Word_val
+  | Word_int
+  | Double
+  | Thirtytwo_signed
+  | Onetwentyeight_unaligned
+
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Debuginfo.t ->
-  Cmm.memory_chunk ->
+  update_kind ->
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->

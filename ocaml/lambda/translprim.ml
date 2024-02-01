@@ -26,6 +26,7 @@ open Translmode
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
+  | Invalid_array_kind_in_glb of array_kind
 
 exception Error of Location.t * error
 
@@ -486,20 +487,35 @@ let simplify_constant_constructor = function
   | Greater_than -> false
   | Compare -> false
 
-(* The following function computes the greatest lower bound in the
-   semilattice of array kinds:
-          gen
-         /   \
-      addr   float
-       |
-      int
-   Note that the GLB is not guaranteed to exist, in which case we return
+(* The following function computes the greatest lower bound of array kinds:
+
+        gen      unboxed-float  unboxed-int32  unboxed-int64  unboxed-nativeint
+         |
+      /------\
+      |      |
+    addr  float
+      |
+    int
+   Note that the GLB is not guaranteed to exist.
+   In case of array kinds working with layout value, we return
    our first argument instead of raising a fatal error because, although
    it cannot happen in a well-typed program, (ab)use of Obj.magic can
-   probably trigger it.
+   probably trigger it. For other layouts, we raise an error.
 *)
-let glb_array_type t1 t2 =
+let glb_array_type loc t1 t2 =
+
   match t1, t2 with
+  (* Handle unboxed array kinds which can only match with themselves *)
+  | Punboxedfloatarray, Punboxedfloatarray -> Punboxedfloatarray
+  | Punboxedfloatarray, _ | _, Punboxedfloatarray ->
+    raise(Error(loc, Invalid_array_kind_in_glb Punboxedfloatarray))
+  | Punboxedintarray Pint32, Punboxedintarray Pint32 -> Punboxedintarray Pint32
+  | Punboxedintarray Pint64, Punboxedintarray Pint64 -> Punboxedintarray Pint64
+  | Punboxedintarray Pnativeint, Punboxedintarray Pnativeint ->
+    Punboxedintarray Pnativeint
+  | (Punboxedintarray _ as kind), _ | _, (Punboxedintarray _ as kind) ->
+    raise(Error(loc, Invalid_array_kind_in_glb kind))
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray, (Paddrarray | Pintarray)
   | (Paddrarray | Pintarray), Pfloatarray -> t1
@@ -510,8 +526,18 @@ let glb_array_type t1 t2 =
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
-let glb_array_ref_type t1 t2 =
+let glb_array_ref_type loc t1 t2 =
   match t1, t2 with
+  (* Handle unboxed array kinds which can only match with themselves *)
+  | Punboxedfloatarray_ref, Punboxedfloatarray -> t1
+  | Punboxedfloatarray_ref, _ | _, Punboxedfloatarray ->
+    raise(Error(loc, Invalid_array_kind_in_glb Punboxedfloatarray))
+  | Punboxedintarray_ref Pint32, Punboxedintarray Pint32 -> t1
+  | Punboxedintarray_ref Pint64, Punboxedintarray Pint64 -> t1
+  | Punboxedintarray_ref Pnativeint, Punboxedintarray Pnativeint -> t1
+  | (Punboxedintarray_ref unboxed_int_kind), _ | _, (Punboxedintarray unboxed_int_kind) ->
+    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedintarray unboxed_int_kind)))
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_ref _, (Paddrarray | Pintarray)
   | (Paddrarray_ref | Pintarray_ref), Pfloatarray -> t1
@@ -536,8 +562,18 @@ let glb_array_ref_type t1 t2 =
   (* Pfloatarray is a minimum *)
   | (Pfloatarray_ref _ as x), Pfloatarray -> x
 
-let glb_array_set_type t1 t2 =
+let glb_array_set_type loc t1 t2 =
   match t1, t2 with
+  (* Handle unboxed array kinds which can only match with themselves *)
+  | Punboxedfloatarray_set, Punboxedfloatarray -> t1
+  | Punboxedfloatarray_set, _ | _, Punboxedfloatarray ->
+    raise(Error(loc, Invalid_array_kind_in_glb Punboxedfloatarray))
+  | Punboxedintarray_set Pint32, Punboxedintarray Pint32 -> t1
+  | Punboxedintarray_set Pint64, Punboxedintarray Pint64 -> t1
+  | Punboxedintarray_set Pnativeint, Punboxedintarray Pnativeint -> t1
+  | (Punboxedintarray_set unboxed_int_kind), _ | _, (Punboxedintarray unboxed_int_kind) ->
+    raise(Error(loc, Invalid_array_kind_in_glb (Punboxedintarray unboxed_int_kind)))
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_set, (Paddrarray | Pintarray)
   | (Paddrarray_set _ | Pintarray_set), Pfloatarray -> t1
@@ -587,28 +623,28 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Pfield (n, is_int, mut), arity))
   | Primitive (Parraylength t, arity), [p] -> begin
-      let array_type = glb_array_type t (array_type_kind env p) in
+      let array_type = glb_array_type (to_location loc) t (array_type_kind env p) in
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
   | Primitive (Parrayrefu rt, arity), p1 :: _ -> begin
-      let array_ref_type = glb_array_ref_type rt (array_type_kind env p1)
+      let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1)
       in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefu array_ref_type, arity))
     end
   | Primitive (Parraysetu st, arity), p1 :: _ -> begin
-      let array_set_type = glb_array_set_type st (array_type_kind env p1) in
+      let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysetu array_set_type, arity))
     end
   | Primitive (Parrayrefs rt, arity), p1 :: _ -> begin
-      let array_ref_type = glb_array_ref_type rt (array_type_kind env p1) in
+      let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1) in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefs array_ref_type, arity))
     end
   | Primitive (Parraysets st, arity), p1 :: _ -> begin
-      let array_set_type = glb_array_set_type st (array_type_kind env p1) in
+      let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysets array_set_type, arity))
     end
@@ -915,7 +951,11 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global
+    | Prim_global, _ | Prim_poly, _ ->
+      (* We assume all primitives are compiled to have the same arity for
+         different modes and types, so just pick one of the modes in the
+         [Prim_poly] case. *)
+      Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
@@ -987,8 +1027,42 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
+     let alloc_mode = to_locality p.prim_native_repr_res in
+     let () =
+       (* CR mshinwell: Write a version of [primitive_may_allocate] that
+          works on the [prim] type. *)
+       match body with
+       | Lprim (prim, _, _) ->
+         (match Lambda.primitive_may_allocate prim with
+          | None ->
+            (* We don't check anything in this case; if the primitive doesn't
+               allocate, then after [Lambda] it will be translated to a term
+               not involving any region variables, meaning there would be
+               no concern about potentially unbound region variables. *)
+            ()
+          | Some lambda_alloc_mode ->
+            (* In this case we add a check to ensure the middle end has
+               the correct information as to whether a region was inserted
+               at this point. *)
+            match alloc_mode, lambda_alloc_mode with
+            | Alloc_heap, Alloc_heap
+            | Alloc_local, Alloc_local -> ()
+            | Alloc_local, Alloc_heap ->
+              (* This case is ok: the Lambda-derived information is more
+                 precise.  A region will be inserted, likely unused, and
+                 deleted by the middle end. *)
+              ()
+            | Alloc_heap, Alloc_local ->
+              Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
+                  (from to_locality, %a; from primitive_may_allocate, %a)"
+                Printlambda.lambda body
+                Printlambda.alloc_mode alloc_mode
+                Printlambda.alloc_mode lambda_alloc_mode
+         )
+       | _ -> ()
+     in
      let region =
-       match to_locality p.prim_native_repr_res with
+       match alloc_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -1020,8 +1094,8 @@ let lambda_primitive_needs_event_after = function
   | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
-  | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
-  | Pcompare_bints _
+  | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp _ | Punboxed_int_comp _ | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
   | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
@@ -1046,7 +1120,9 @@ let lambda_primitive_needs_event_after = function
   | Pcompare_ints | Pcompare_floats
   | Pfloatcomp _ | Punboxed_float_comp _
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
+  | Pbytessetu
+  | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray
+      | Punboxedintarray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
@@ -1106,7 +1182,10 @@ let report_error ppf = function
       fprintf ppf "Unknown builtin primitive \"%s\"" prim_name
   | Wrong_arity_builtin_primitive prim_name ->
       fprintf ppf "Wrong arity for builtin primitive \"%s\"" prim_name
-
+  | Invalid_array_kind_in_glb kind ->
+      let name = Printlambda.array_kind kind in
+      fprintf ppf "Array kind %s can only be operated on using its own primitives \
+        and those primitives can only work on %s" name name
 let () =
   Location.register_error_of_exn
     (function

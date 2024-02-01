@@ -78,6 +78,10 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
+type bad_jkind_inference_location =
+  | Check_constraints
+  | Delayed_checks
+
 type error =
     Repeated_parameter
   | Duplicate_constructor of string
@@ -114,14 +118,15 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
-  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_due_to_bad_inference of
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error

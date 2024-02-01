@@ -17,6 +17,8 @@ let[@inline] make () =
   let num_stack_slots = Array.make Proc.num_stack_slot_classes 0 in
   { stack_slots; num_stack_slots }
 
+let iter t ~f = Reg.Tbl.iter f t.stack_slots
+
 let[@inline] size_for_all_stack_classes t =
   Array.fold_left t.num_stack_slots ~f:( + ) ~init:0
 

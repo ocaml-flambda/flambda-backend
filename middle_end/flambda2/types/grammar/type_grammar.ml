@@ -186,7 +186,7 @@ and function_type =
   }
 
 and array_contents =
-  | Immutable of { fields : t list }
+  | Immutable of { fields : t array }
   | Mutable
 
 and env_extension = { equations : t Name.Map.t } [@@unboxed]
@@ -262,10 +262,12 @@ and free_names_head_of_kind_value0 ~follow_value_slots head =
         contents = Known (Immutable { fields });
         alloc_mode = _
       } ->
-    Name_occurrences.union
+    Array.fold_left
+      (fun free_names field ->
+        Name_occurrences.union free_names
+          (free_names0 ~follow_value_slots field))
       (free_names0 ~follow_value_slots length)
-      (List.map (free_names0 ~follow_value_slots) fields
-      |> Name_occurrences.union_list)
+      fields
 
 and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
   match head with
@@ -543,7 +545,7 @@ and apply_renaming_head_of_kind_value head renaming =
       } ->
     let length' = apply_renaming length renaming in
     let fields' =
-      Misc.Stdlib.List.map_sharing
+      Misc.Stdlib.Array.map_sharing
         (fun field -> apply_renaming field renaming)
         fields
     in
@@ -805,7 +807,7 @@ and print_head_of_kind_value ppf head =
       (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
-      fields
+      (Array.to_list fields)
 
 and print_head_of_kind_naked_immediate ppf head =
   match head with
@@ -995,8 +997,9 @@ and ids_for_export_head_of_kind_value head =
         contents = Known (Immutable { fields });
         alloc_mode = _
       } ->
-    Ids_for_export.union (ids_for_export length)
-      (List.map ids_for_export fields |> Ids_for_export.union_list)
+    Array.fold_left
+      (fun ids field -> Ids_for_export.union ids (ids_for_export field))
+      (ids_for_export length) fields
 
 and ids_for_export_head_of_kind_naked_immediate head =
   match head with
@@ -1602,7 +1605,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
         ~canonicalise
     in
     let fields' =
-      Misc.Stdlib.List.map_sharing
+      Misc.Stdlib.Array.map_sharing
         (remove_unused_value_slots_and_shortcut_aliases ~used_value_slots
            ~canonicalise)
         fields
@@ -2064,7 +2067,7 @@ and project_head_of_kind_value ~to_project ~expand head =
       } ->
     let length' = project_variables_out ~to_project ~expand length in
     let fields' =
-      Misc.Stdlib.List.map_sharing
+      Misc.Stdlib.Array.map_sharing
         (project_variables_out ~to_project ~expand)
         fields
     in
@@ -2980,7 +2983,7 @@ let immutable_array ~element_kind ~fields alloc_mode =
             length =
               this_tagged_immediate
                 (Targetint_31_63.of_int (List.length fields));
-            contents = Known (Immutable { fields });
+            contents = Known (Immutable { fields = Array.of_list fields });
             alloc_mode
           }))
 
@@ -3080,6 +3083,8 @@ module type Head_of_kind_naked_number_intf = sig
 
   val create_set : n_set -> t Or_bottom.t
 
+  val create_non_empty_set : n_set -> t
+
   val union : t -> t -> t
 
   val inter : t -> t -> t Or_bottom.t
@@ -3095,6 +3100,13 @@ module Head_of_kind_naked_immediate = struct
     if Targetint_31_63.Set.is_empty imms
     then Bottom
     else Ok (Naked_immediates imms)
+
+  let create_naked_immediates_non_empty imms =
+    if Targetint_31_63.Set.is_empty imms
+    then
+      Misc.fatal_error
+        "Head_of_kind_naked_immediates.create_naked_immediates_non_empty";
+    Naked_immediates imms
 
   let create_is_int ty = Is_int ty
 
@@ -3112,6 +3124,11 @@ module Make_head_of_kind_naked_number (N : Container_types.S) = struct
 
   let create_set is : _ Or_bottom.t =
     if N.Set.is_empty is then Bottom else Ok is
+
+  let create_non_empty_set is =
+    if N.Set.is_empty is
+    then Misc.fatal_error "Make_head_of_kind_naked_number.create_non_empty_set";
+    is
 
   let union = N.Set.union
 

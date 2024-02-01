@@ -1,7 +1,7 @@
 #define T TEST
 
 (* T
-files = "mainimmed.c"
+readonly_files = "mainimmed.c"
 arguments = "-I ${test_source_directory} mainimmed.c"
 * asmgen
 *)
@@ -15,8 +15,7 @@ arguments = "-I ${test_source_directory} mainimmed.c"
   (addraset r i (and x N)) (assign i (+ i 1)) \
   (addraset r i (or x N)) (assign i (+ i 1)) \
   (addraset r i (xor x N)) (assign i (+ i 1)) \
-  (addraset r i (< x N)) (assign i (+ i 1)) \
-  (checkbound i N)
+  (addraset r i (< x N)) (assign i (+ i 1))
 
 (function "testimm" ()
   (let x (load int "X")

@@ -47,6 +47,7 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
@@ -63,6 +64,7 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
@@ -80,6 +82,7 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
@@ -242,32 +245,54 @@ let invalid res ~message =
     | Some message_sym -> message_sym, res
   in
   let call_expr =
-    extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
+    extcall ~dbg ~alloc:false ~is_c_builtin:false ~effects:Arbitrary_effects
+      ~coeffects:Has_coeffects ~returns:false ~ty_args:[XInt]
       Cmm.caml_flambda2_invalid Cmm.typ_void
       [symbol ~dbg (To_cmm_result.symbol res message_sym)]
   in
   call_expr, res
 
-let make_update env res dbg (kind : Cmm.memory_chunk) ~symbol var ~index
+type update_kind =
+  | Word_val
+  | Word_int
+  | Double
+  | Thirtytwo_signed
+  | Onetwentyeight_unaligned
+
+let make_update env res dbg (kind : update_kind) ~symbol var ~index
     ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
   let cmm =
-    if Config.runtime5
-    then
-      let imm_or_ptr : Lambda.immediate_or_pointer =
+    let must_use_setfield =
+      if not Config.runtime5
+      then None
+      else
         match kind with
-        | Word_val -> Pointer
-        | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-        | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
-        | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
-          Immediate
-      in
+        | Word_val -> Some Lambda.Pointer
+        | Word_int -> Some Lambda.Immediate
+        | Thirtytwo_signed | Double | Onetwentyeight_unaligned ->
+          (* The GC never sees these fields, so we can avoid using
+             [caml_initialize]. This is important as it significantly reduces
+             the complexity of the statically-allocated inconstant unboxed int32
+             array case, which otherwise would have to use 64-bit writes. *)
+          None
+    in
+    match must_use_setfield with
+    | Some imm_or_ptr ->
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
-    else
-      let addr = field_address symbol index dbg in
-      store ~dbg kind Initialization ~addr ~new_value:cmm
+    | None ->
+      let memory_chunk : Cmm.memory_chunk =
+        match kind with
+        | Word_val -> Word_val
+        | Word_int -> Word_int
+        | Double -> Double
+        | Thirtytwo_signed -> Thirtytwo_signed
+        | Onetwentyeight_unaligned -> Onetwentyeight_unaligned
+      in
+      let addr = field_address ~memory_chunk symbol index dbg in
+      store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =
     match prev_updates with

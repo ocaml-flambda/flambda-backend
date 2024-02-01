@@ -90,7 +90,7 @@ val add :
   t ->
   canonical_element1:Simple.t ->
   canonical_element2:Simple.t ->
-  add_result
+  add_result Or_bottom.t
 
 (** [get_canonical_element] returns [None] only when the
     [min_order_within_equiv_class] cannot be satisfied. *)

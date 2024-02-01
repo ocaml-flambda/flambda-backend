@@ -24,8 +24,80 @@
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
 #include "caml/runtime_events.h"
+#include "caml/custom.h"
 
 static const mlsize_t mlsize_t_max = -1;
+
+/* Unboxed arrays */
+
+static int no_polymorphic_compare(value v1, value v2)
+{
+  caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
+}
+
+static intnat no_polymorphic_hash(value v)
+{
+  caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
+}
+
+static void unboxed_array_serialize(value v, uintnat* bsize_32,
+                                    uintnat* bsize_64)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+static uintnat unboxed_array_deserialize(void* dst)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+// Note: if polymorphic comparison and/or hashing are implemented for
+// the int32 unboxed arrays, care needs to be taken with the last word
+// when the array is of odd length -- this is not currently initialized.
+
+CAMLexport struct custom_operations caml_unboxed_int32_odd_array_ops = {
+  "_unboxed_int32_odd_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_int32_even_array_ops = {
+  "_unboxed_int32_even_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
+  "_unboxed_int64_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
+  "_unboxed_nativeint_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
 
 /* returns number of elements (either fields or floats) */
 /* [ 'a array -> int ] */
@@ -400,6 +472,41 @@ CAMLprim value caml_make_float_vect(value len)
   value some_float = Val_hp(some_float_contents);
   return caml_make_vect (len, some_float);
 #endif
+}
+
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
+  struct custom_operations* ops;
+
+  if (num_elements % 2 == 0)
+    ops = &caml_unboxed_int32_even_array_ops;
+  else
+    ops = &caml_unboxed_int32_odd_array_ops;
+
+  return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  mlsize_t num_elements = Long_val(len);
+  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
 }
 
 /* This primitive is used internally by the compiler to compile

@@ -2,9 +2,12 @@ exception E
 
 type t = { x : int; mutable y : int }
 
-(* There is a closure allocation in [f].
+(* [f] is a normal 2-ary function; full applications of [f] do not allocate
+   a closure.
 
-   Triggers
+   On old versions of the compiler, this would allocate a closure and would trigger
+   the warning:
+
    Warning 68 [match-on-mutable-state-prevent-uncurry]: This pattern depends on
    mutable state.  It prevents the remaining arguments from being uncurried, which will
    cause additional closure allocations.

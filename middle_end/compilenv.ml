@@ -49,9 +49,6 @@ let cached_checks = Checks.create ()
 
 let cache_checks c = Checks.merge c ~into:cached_checks
 
-let default_ui_export_info =
-  Cmx_format.Flambda2 None
-
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
@@ -60,7 +57,7 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info }
+    ui_export_info = None }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -75,7 +72,7 @@ let reset compilation_unit =
   current_unit.ui_force_link <- !Clflags.link_everything;
   Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
-  current_unit.ui_export_info <- default_ui_export_info
+  current_unit.ui_export_info <- None
 
 let current_unit_infos () =
   current_unit
@@ -95,10 +92,8 @@ let read_unit_info filename =
     (* This consumes the channel *)
     let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     let export_info =
-      match uir.uir_export_info with
-      | Flambda2_raw None -> Flambda2 None
-      | Flambda2_raw (Some info) ->
-        Flambda2 (Some (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections info))
+      Option.map (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections)
+        uir.uir_export_info
     in
     let ui = {
       ui_unit = uir.uir_unit;
@@ -172,7 +167,7 @@ let which_cmx_file comp_unit =
 let get_unit_export_info comp_unit =
   match get_unit_info comp_unit with
   | None -> None
-  | Some ui -> Some ui.ui_export_info
+  | Some ui -> ui.ui_export_info
 
 let get_global_info comp_unit =
   get_unit_info (which_cmx_file comp_unit)
@@ -180,7 +175,7 @@ let get_global_info comp_unit =
 let get_global_export_info id =
   match get_global_info id with
   | None -> None
-  | Some ui -> Some ui.ui_export_info
+  | Some ui -> ui.ui_export_info
 
 let cache_unit_info ui =
   cache_checks ui.ui_checks;
@@ -188,9 +183,8 @@ let cache_unit_info ui =
 
 (* Exporting cross-module information *)
 
-let flambda2_set_export_info export_info =
-  assert(Config.flambda2);
-  current_unit.ui_export_info <- Flambda2 (Some export_info)
+let set_export_info export_info =
+  current_unit.ui_export_info <- Some export_info
 
 (* Record that a currying function or application function is needed *)
 
@@ -240,10 +234,10 @@ let ensure_sharing_between_cmi_and_cmx_imports cmi_imports cmx_imports =
 let write_unit_info info filename =
   let raw_export_info, sections =
     match info.ui_export_info with
-    | Flambda2 None -> Flambda2_raw None, File_sections.empty
-    | Flambda2 (Some info) ->
+    | None -> None, File_sections.empty
+    | Some info ->
       let info, sections = Flambda2_cmx.Flambda_cmx_format.to_raw info in
-      Flambda2_raw (Some info), sections
+      Some info, sections
   in
   let serialized_sections, toc, total_length = File_sections.serialize sections in
   let raw_info = {

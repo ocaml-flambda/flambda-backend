@@ -50,6 +50,21 @@ let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
     (* CR mshinwell: There should be some kind of reification here *)
     or_variable, TE.find (DE.typing_env denv) (Name.var var) (Some kind)
 
+let rebuild_naked_number_array dacc ~bind_result_sym kind type_creator creator
+    ~fields =
+  let fields, field_tys =
+    List.map
+      (fun field -> simplify_or_variable dacc type_creator field K.naked_float)
+      fields
+    |> List.split
+  in
+  let dacc =
+    bind_result_sym
+      (T.immutable_array ~element_kind:(Ok kind) ~fields:field_tys
+         Alloc_mode.For_types.heap)
+  in
+  creator (DA.are_rebuilding_terms dacc) fields, dacc
+
 let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     ~result_sym : Rebuilt_static_const.t * DA.t =
   let bind_result_sym typ =
@@ -152,24 +167,17 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields,
       dacc )
   | Immutable_float_array fields ->
-    let fields_with_tys =
-      List.map
-        (fun field ->
-          simplify_or_variable dacc
-            (fun f -> T.this_naked_float f)
-            field K.naked_float)
-        fields
-    in
-    let fields, field_tys = List.split fields_with_tys in
-    let dacc =
-      bind_result_sym
-        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_float)
-           ~fields:field_tys Alloc_mode.For_types.heap)
-    in
-    ( Rebuilt_static_const.create_immutable_float_array
-        (DA.are_rebuilding_terms dacc)
-        fields,
-      dacc )
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_float
+      T.this_naked_float RSC.create_immutable_float_array ~fields
+  | Immutable_int32_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_int32
+      T.this_naked_int32 RSC.create_immutable_int32_array ~fields
+  | Immutable_int64_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_int64
+      T.this_naked_int64 RSC.create_immutable_int64_array ~fields
+  | Immutable_nativeint_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_nativeint
+      T.this_naked_nativeint RSC.create_immutable_nativeint_array ~fields
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map (fun field -> simplify_field_of_block dacc field) fields
@@ -177,21 +185,24 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Ok K.With_subkind.any_value)
-           ~fields:field_tys Alloc_mode.For_types.heap)
+        (T.immutable_array ~element_kind:(Ok KS.any_value) ~fields:field_tys
+           Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_value_array
         (DA.are_rebuilding_terms dacc)
         fields,
       dacc )
-  | Empty_array ->
+  | Empty_array array_kind ->
     let dacc =
       bind_result_sym
         (T.array_of_length ~element_kind:Bottom
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
            Alloc_mode.For_types.heap)
     in
-    Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc), dacc
+    ( Rebuilt_static_const.create_empty_array
+        (DA.are_rebuilding_terms dacc)
+        array_kind,
+      dacc )
   | Mutable_string { initial_value } ->
     let str_ty = T.mutable_string ~size:(String.length initial_value) in
     let dacc = bind_result_sym str_ty in

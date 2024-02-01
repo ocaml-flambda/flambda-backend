@@ -38,3 +38,5 @@ val compare : t -> t -> int
 
 (** Join two coeffects. *)
 val join : t -> t -> t
+
+val from_lambda : Primitive.coeffects -> t

@@ -211,7 +211,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
     let structure_item_of_none =
       { pstr_desc =
           Pstr_attribute
-            { attr_name = Location.mknoloc "none";
+            { attr_name = Location.mknoloc "jane.none";
               attr_payload = PStr [];
               attr_loc = Location.none
             };
@@ -278,7 +278,8 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         | _ -> raise Unexpected
 
       let is_none_structure_item = function
-        | { pstr_desc = Pstr_attribute { attr_name = { txt = "none" } } } ->
+        | { pstr_desc = Pstr_attribute { attr_name = { txt = "jane.none" } } }
+          ->
           true
         | _ -> false
 
@@ -404,6 +405,13 @@ module Mode_annotation = struct
     | Local
     | Unique
     | Once
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Local, Local -> true
+    | Unique, Unique -> true
+    | Once, Once -> true
+    | (Local | Unique | Once), _ -> false
 
   include Make_payload_protocol_of_stringable (struct
     type nonrec t = t
@@ -692,6 +700,8 @@ module N_ary_functions = struct
     | Local
     | Unique
     | Once
+
+  let mode_annotation_equal = Mode_annotation.equal
 
   type type_constraint =
     | Pconstraint of core_type

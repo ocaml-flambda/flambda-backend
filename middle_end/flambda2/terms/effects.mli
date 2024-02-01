@@ -58,3 +58,5 @@ val compare : t -> t -> int
 (** join two effects, effectively computing the maximum of the two given
     effects. *)
 val join : t -> t -> t
+
+val from_lambda : Primitive.effects -> t

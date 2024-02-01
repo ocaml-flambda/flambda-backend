@@ -54,6 +54,9 @@ type close_functions_result =
 type declare_const_result =
   | Field of Field_of_static_block.t
   | Unboxed_float of Numeric_types.Float_by_bit_pattern.t
+  | Unboxed_int32 of Numeric_types.Int32.t
+  | Unboxed_int64 of Numeric_types.Int64.t
+  | Unboxed_nativeint of Targetint_32_64.t
 
 let manufacture_symbol acc proposed_name =
   let acc, linkage_name =
@@ -124,6 +127,12 @@ let rec declare_const acc (const : Lambda.structured_constant) :
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     register_const acc (SC.boxed_nativeint (Const c)) "nativeint"
+  | Const_base (Const_unboxed_int32 c) -> acc, Unboxed_int32 c, "unboxed_int32"
+  | Const_base (Const_unboxed_int64 c) -> acc, Unboxed_int64 c, "unboxed_int64"
+  | Const_base (Const_unboxed_nativeint c) ->
+    (* CR pchambart: this should be pushed further to lambda *)
+    let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
+    acc, Unboxed_nativeint c, "unboxed_nativeint"
   | Const_immstring c -> register_const acc (SC.immutable_string c) "immstring"
   | Const_float_block c ->
     register_const acc
@@ -154,9 +163,10 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           let acc, f, _ = declare_const acc c in
           match f with
           | Field f -> acc, f
-          | Unboxed_float _ ->
+          | Unboxed_float _ | Unboxed_int32 _ | Unboxed_int64 _
+          | Unboxed_nativeint _ ->
             Misc.fatal_errorf
-              "Unboxed floats are not allowed inside of Const_block: %a"
+              "Unboxed constants are not allowed inside of Const_block: %a"
               Printlambda.structured_constant const)
         acc consts
     in
@@ -178,6 +188,21 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.naked_float f),
       name,
       Flambda_kind.With_subkind.naked_float )
+  | Unboxed_int32 i ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_int32 i),
+      name,
+      Flambda_kind.With_subkind.naked_int32 )
+  | Unboxed_int64 i ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_int64 i),
+      name,
+      Flambda_kind.With_subkind.naked_int64 )
+  | Unboxed_nativeint i ->
+    ( acc,
+      Simple.const (Reg_width_const.naked_nativeint i),
+      name,
+      Flambda_kind.With_subkind.naked_nativeint )
   | Field (Symbol s) ->
     acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
   | Field (Dynamically_computed _) ->
@@ -414,17 +439,18 @@ module Inlining = struct
 end
 
 let close_c_call acc env ~loc ~let_bound_ids_with_kinds
-    ({ prim_name;
-       prim_arity;
-       prim_alloc;
-       prim_c_builtin;
-       prim_effects = _;
-       prim_coeffects = _;
-       prim_native_name;
-       prim_native_repr_args;
-       prim_native_repr_res
-     } :
-      Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
+    (({ prim_name;
+        prim_arity;
+        prim_alloc;
+        prim_c_builtin;
+        prim_effects;
+        prim_coeffects;
+        prim_native_name;
+        prim_native_repr_args;
+        prim_native_repr_res
+      } :
+       Primitive.description) as prim_desc) ~(args : Simple.t list list)
+    exn_continuation dbg ~current_region
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let args =
     List.map
@@ -466,19 +492,24 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
              (fun var -> Named.create_simple (Simple.var var))
              let_bound_vars))
   in
+  let alloc_mode =
+    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    | None ->
+      (* This happens when stack allocation is disabled. *)
+      Alloc_mode.For_allocations.heap
+    | Some alloc_mode ->
+      Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
+  in
   let box_return_value =
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
-    | _, Unboxed_float ->
-      Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
+    | _, Unboxed_float -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
-      Some (P.Box_number (Naked_nativeint, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint32 ->
-      Some (P.Box_number (Naked_int32, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint64 ->
-      Some (P.Box_number (Naked_int64, Alloc_mode.For_allocations.heap))
+      Some (P.Box_number (Naked_nativeint, alloc_mode))
+    | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
+    | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, alloc_mode))
     | _, Unboxed_vector (Pvec128 _) ->
-      Some (P.Box_number (Naked_vec128, Alloc_mode.For_allocations.heap))
+      Some (P.Box_number (Naked_vec128, alloc_mode))
     | _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =
@@ -516,8 +547,11 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let return_arity =
     Flambda_arity.create_singletons [K.With_subkind.anything return_kind]
   in
+  let effects = Effects.from_lambda prim_effects in
+  let coeffects = Coeffects.from_lambda prim_coeffects in
   let call_kind =
-    Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
+    Call_kind.c_call ~needs_caml_c_call:prim_alloc ~is_c_builtin:prim_c_builtin
+      ~effects ~coeffects alloc_mode
   in
   let call_symbol =
     let prim_name =
@@ -719,7 +753,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_c_call acc env ~loc ~let_bound_ids_with_kinds prim ~args
-      exn_continuation dbg k
+      exn_continuation dbg ~current_region k
   | Pgetglobal cu, [] ->
     if Compilation_unit.equal cu (Env.current_unit env)
     then
@@ -764,8 +798,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
-      | Pmakearray (_, _, _mode) ->
-        register_const0 acc Static_const.empty_array "empty_array"
+      | Pmakearray (array_kind, _, _mode) ->
+        let array_kind = Empty_array_kind.of_lambda array_kind in
+        register_const0 acc (Static_const.empty_array array_kind) "empty_array"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
       | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
@@ -783,19 +818,19 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
       | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
       | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
-      | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-      | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-      | Pbytes_set_128 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
-      | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
-      | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
-      | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Punbox_float
-      | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-      | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
-      | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+      | Punboxed_int_comp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _
+      | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
+      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+      | Pbigstring_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
+      | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+      | Pmake_unboxed_product _ | Punboxed_product_field _ | Pget_header _
+      | Prunstack | Pperform | Presume | Preperform | Patomic_exchange
+      | Patomic_cas | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -1352,9 +1387,11 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             in
             Expr_with_acc.create_switch acc
               (Switch.create ~condition_dbg ~scrutinee ~arms)
-          | Some case ->
-            let acc, action = Targetint_31_63.Map.find case arms acc in
-            Expr_with_acc.create_apply_cont acc action)
+          | Some case -> (
+            match Targetint_31_63.Map.find case arms acc with
+            | acc, action -> Expr_with_acc.create_apply_cont acc action
+            | exception Not_found ->
+              Expr_with_acc.create_invalid acc Zero_switch_arms))
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
@@ -1599,12 +1636,20 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     then Never_inline
     else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
+  let free_names_of_body = Acc.free_names acc in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       params ~body ~my_closure ~my_region ~my_depth
-      ~free_names_of_body:(Known (Acc.free_names acc))
+      ~free_names_of_body:(Known free_names_of_body)
   in
+  let result_mode = Function_decl.result_mode decl in
+  if Name_occurrences.mem_var free_names_of_body my_region
+     && Lambda.is_heap_mode result_mode
+  then
+    Misc.fatal_errorf
+      "Unexpected free my_region in code (%a) with heap result mode:\n%a"
+      Code_id.print code_id Function_params_and_body.print params_and_body;
   let acc =
     List.fold_left
       (fun acc param -> Acc.remove_var_from_free_names (BP.var param) acc)
@@ -1643,8 +1688,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~param_modes
       ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
-      ~result_arity:return ~result_types:Unknown
-      ~result_mode:(Function_decl.result_mode decl)
+      ~result_arity:return ~result_types:Unknown ~result_mode
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -2116,7 +2160,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         is_opaque = false;
         stub = true;
         poll = Default_poll;
-        tmc_candidate = false
+        tmc_candidate = false;
+        may_fuse_arity = true
       }
   in
   let free_idents_of_body =

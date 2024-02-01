@@ -52,6 +52,7 @@ let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-
 let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
 type function_result_types = Never | Functors_only | All_functions
+type meet_algorithm = Basic | Advanced
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -64,6 +65,8 @@ let opt_level = ref Default
 let internal_assembler = ref false
 
 let gc_timings = ref false
+
+let symbol_visibility_protected = ref false (* -symbol-visibility-protected*)
 
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   match opt_level with
@@ -83,6 +86,7 @@ module Flambda2 = struct
     let cse_depth = 2
     let join_depth = 5
     let function_result_types = Never
+    let meet_algorithm = Basic
     let unicode = true
   end
 
@@ -94,6 +98,7 @@ module Flambda2 = struct
     cse_depth : int;
     join_depth : int;
     function_result_types : function_result_types;
+    meet_algorithm : meet_algorithm;
 
     unicode : bool;
   }
@@ -106,6 +111,7 @@ module Flambda2 = struct
     cse_depth = Default.cse_depth;
     join_depth = Default.join_depth;
     function_result_types = Default.function_result_types;
+    meet_algorithm = Default.meet_algorithm;
     unicode = Default.unicode;
   }
 
@@ -138,6 +144,7 @@ module Flambda2 = struct
   let join_depth = ref Default
   let unicode = ref Default
   let function_result_types = ref Default
+  let meet_algorithm = ref Default
 
   module Dump = struct
     type target = Nowhere | Main_dump_stream | File of Misc.filepath

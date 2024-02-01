@@ -44,16 +44,6 @@ module S = struct
 
   type prim_call_operation =
     | External of external_call_operation
-    | Alloc of
-        { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Lambda.alloc_mode
-        }
-    | Checkbound of { immediate : int option }
-    | Checkalign of
-        { bytes_pow2 : int;
-          immediate : int option
-        }
     | Probe of
         { name : string;
           handler_code_sym : string;
@@ -110,6 +100,12 @@ module S = struct
           regs : Reg.t array
         }
     | Dls_get
+    | Poll
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo;
+          mode : Lambda.alloc_mode
+        }
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)
@@ -208,7 +204,6 @@ module S = struct
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
-    | Poll_and_jump of Label.t
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

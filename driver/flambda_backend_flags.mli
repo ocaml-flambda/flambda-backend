@@ -51,6 +51,7 @@ val long_frames_threshold : int ref
 val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
+type meet_algorithm = Basic | Advanced
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -65,6 +66,8 @@ val gc_timings : bool ref
 val use_cached_generic_functions : bool ref
 val cached_generic_functions_path : string ref
 
+val symbol_visibility_protected : bool ref
+
 module Flambda2 : sig
   val debug : bool ref
 
@@ -76,6 +79,7 @@ module Flambda2 : sig
     val cse_depth : int
     val join_depth : int
     val function_result_types : function_result_types
+    val meet_algorithm : meet_algorithm
 
     val unicode : bool
   end
@@ -91,6 +95,7 @@ module Flambda2 : sig
     cse_depth : int;
     join_depth : int;
     function_result_types : function_result_types;
+    meet_algorithm : meet_algorithm;
 
     unicode : bool;
   }
@@ -98,6 +103,7 @@ module Flambda2 : sig
   val default_for_opt_level : opt_level or_default -> flags
 
   val function_result_types : function_result_types or_default ref
+  val meet_algorithm : meet_algorithm or_default ref
 
   val classic_mode : bool or_default ref
   val join_points : bool or_default ref

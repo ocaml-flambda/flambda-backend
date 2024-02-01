@@ -1,3 +1,10 @@
+; Helpers
+
+(library
+ (name simd_test_helpers)
+ (wrapped false)
+ (modules test_helpers))
+
 ; Stubs
 
 (foreign_library
@@ -12,6 +19,7 @@
 (executables
  (names basic ops arrays scalar_ops)
  (modules basic ops arrays scalar_ops)
+ (libraries simd_test_helpers)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -118,6 +126,7 @@
   consts_internal
   arrays_internal
   scalar_ops_internal)
+ (libraries simd_test_helpers)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)

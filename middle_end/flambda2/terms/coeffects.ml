@@ -39,3 +39,6 @@ let join co1 co2 =
   | Has_coeffects, Has_coeffects
   | Has_coeffects, No_coeffects ->
     Has_coeffects
+
+let from_lambda (ce : Primitive.coeffects) : t =
+  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects

@@ -1,25 +1,19 @@
 (* TEST
-   * native
+   * flambda2
+   ** native
+   ** bytecode
+   ** native
    flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_alpha"
-   * native
+   ** native
    flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_beta"
-   * setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-     flags = "-extension layouts"
-   ** ocamlc.byte
-     compiler_reference = "${test_source_directory}/unboxed_nativeints_disabled.compilers.reference"
-   *** check-ocamlc.byte-output
 *)
 
 (* This file contains various tests for [nativeint#].  It's not an expect test
    to make sure it gets tested for native code. *)
-
-(* CR layouts v2.5: When unboxed literals work, change this file to use them
-   instead of [of_nativeint] on boxed literals everywhere. *)
 
 (*****************************************)
 (* Prelude: Functions on unboxed nativeints. *)
@@ -64,22 +58,22 @@ let test1 () =
 
   (* Positive numbers *)
 
-  let three = of_nativeint 3n in
+  let three = #3n in
   print_nativeintu "Test 1, three" three;
 
-  let twice_three = three + (of_nativeint 3n) in
+  let twice_three = three + #3n in
   print_nativeintu "Test 1, twice_three" twice_three;
 
-  let thrice_three = (of_nativeint 3n) * three in
+  let thrice_three = #3n * three in
   print_nativeintu "Test 1, thrice_three" thrice_three;
 
   let twice_three_again = thrice_three - three in
   print_nativeintu "Test 1, twice_three_again" twice_three;
 
-  let three_again = twice_three_again / (of_nativeint 2n) in
+  let three_again = twice_three_again / #2n in
   print_nativeintu "Test 1, three_again" three_again;
 
-  let three_again_unsigned = twice_three_again // (of_nativeint 2n) in
+  let three_again_unsigned = twice_three_again // #2n in
   print_nativeintu "Test 1, three_again_unsigned" three_again_unsigned;
 
   let twice_three_greater_than_three = twice_three > three in
@@ -87,22 +81,22 @@ let test1 () =
     twice_three_greater_than_three;
 
   let three_with_effort =
-    ((of_nativeint 3n) + twice_three) * (of_nativeint 2n) / (of_nativeint 6n) in
+    (#3n + twice_three) * #2n / #6n in
   print_nativeintu "Test 1, three_with_effort" three_with_effort;
 
-  let seven_rem_three = (of_nativeint 7n) % three in
+  let seven_rem_three = #7n % three in
   print_nativeintu "Test 1, seven_rem_three" seven_rem_three;
 
-  let seven_rem_three_unsigned = (of_nativeint 7n) %% three in
+  let seven_rem_three_unsigned = #7n %% three in
   print_nativeintu "Test 1, seven_rem_three_unsigned" seven_rem_three_unsigned;
 
-  let forty_two_logand_three = logand (of_nativeint 42n) three in
+  let forty_two_logand_three = logand #42n three in
   print_nativeintu_bin "Test1, forty_two_logand_three (0b00101010 & 0b00000011)" forty_two_logand_three;
 
-  let forty_two_logor_three = logor (of_nativeint 42n) three in
+  let forty_two_logor_three = logor #42n three in
   print_nativeintu_bin "Test1, forty_two_logor_three (0b00101010 & 0b00000011)" forty_two_logor_three;
 
-  let forty_two_logxor_three = logxor (of_nativeint 42n) three in
+  let forty_two_logxor_three = logxor #42n three in
   print_nativeintu_bin "Test1, forty_two_logxor_three (0b00101010 & 0b00000011)" forty_two_logxor_three;
 
   let lognot_three = lognot three in
@@ -119,22 +113,22 @@ let test1 () =
 
   (* Negative numbers *)
 
-  let minus_five = of_nativeint (-5n) in
+  let minus_five = -#5n in
   print_nativeintu "Test 1, minus_five" minus_five;
 
-  let twice_minus_five = minus_five + (of_nativeint (-5n)) in
+  let twice_minus_five = minus_five + (-#5n) in
   print_nativeintu "Test 1, twice_minus_five" twice_minus_five;
 
-  let thrice_minus_five = (of_nativeint (3n)) * minus_five in
+  let thrice_minus_five = #3n * minus_five in
   print_nativeintu "Test 1, thrice_minus_five" thrice_minus_five;
 
   let twice_minus_five_again = thrice_minus_five - minus_five in
   print_nativeintu "Test 1, twice_minus_five_again" twice_minus_five;
 
-  let minus_five_again = twice_minus_five_again / (of_nativeint 2n) in
+  let minus_five_again = twice_minus_five_again / #2n in
   print_nativeintu "Test 1, minus_five_again" minus_five_again;
 
-  let minus_five_again_unsigned = twice_minus_five_again // (of_nativeint 2n) in
+  let minus_five_again_unsigned = twice_minus_five_again // #2n in
   print_nativeintu "Test 1, minus_five_again_unsigned" minus_five_again_unsigned;
 
   let minus_five_greater_than_twice_minus_five = minus_five > twice_minus_five in
@@ -142,22 +136,22 @@ let test1 () =
     minus_five_greater_than_twice_minus_five;
 
   let minus_five_with_effort =
-    ((of_nativeint (-5n)) + twice_minus_five) * (of_nativeint 2n) / (of_nativeint 6n) in
+    ((-#5n) + twice_minus_five) * #2n / #6n in
   print_nativeintu "Test 1, minus_five_with_effort" minus_five_with_effort;
 
-  let seven_rem_minus_five = (of_nativeint 7n) % minus_five in
+  let seven_rem_minus_five = #7n % minus_five in
   print_nativeintu "Test 1, seven_rem_minus_five" seven_rem_minus_five;
 
-  let seven_rem_minus_five_unsigned = (of_nativeint 7n) %% minus_five in
+  let seven_rem_minus_five_unsigned = #7n %% minus_five in
   print_nativeintu "Test 1, seven_rem_minus_five_unsigned" seven_rem_minus_five_unsigned;
 
-  let forty_two_logand_minus_five = logand (of_nativeint 42n) minus_five in
+  let forty_two_logand_minus_five = logand #42n minus_five in
   print_nativeintu_bin "Test1, forty_two_logand_minus_five (0b00101010 & 0b1...1011)" forty_two_logand_minus_five;
 
-  let forty_two_logor_minus_five = logor (of_nativeint 42n) minus_five in
+  let forty_two_logor_minus_five = logor #42n minus_five in
   print_nativeintu_bin "Test1, forty_two_logor_minus_five (0b00101010 & 0b1...1011)" forty_two_logor_minus_five;
 
-  let forty_two_logxor_minus_five = logxor (of_nativeint 42n) minus_five in
+  let forty_two_logxor_minus_five = logxor #42n minus_five in
   print_nativeintu_bin "Test1, forty_two_logxor_minus_five (0b00101010 & 0b1...1011)" forty_two_logxor_minus_five;
 
   let lognot_minus_five = lognot minus_five in
@@ -193,33 +187,33 @@ let[@inline never] twice f (x : 'a t_word) = f (f x)
 let[@inline never] compose f g (x : 'a t_word) = f (g x)
 
 let[@inline never] twice_on_three f =
-  let pi = Nativeint_u.of_nativeint 3n in
+  let pi = #3n in
   twice f pi
 
-let times_four = twice Nativeint_u.(fun x -> x * (of_nativeint 2n))
+let times_four = twice Nativeint_u.(fun x -> x * #2n)
 
 let _ =
   let open Nativeint_u in
   print_nativeintu "Test 2, add three twice"
-    (twice (fun x -> x + (of_nativeint 3n)) (of_nativeint 0n));
+    (twice (fun x -> x + #3n) #0n);
   print_nativeintu "Test 2, add three four times"
-    (twice (twice (fun x -> x + (of_nativeint 3n))) (of_nativeint 0n));
+    (twice (twice (fun x -> x + #3n)) #0n);
   print_nativeintu "Test 2, increment three twice"
-    (twice_on_three (fun x -> (of_nativeint 1n) + x));
+    (twice_on_three (fun x -> #1n + x));
   print_nativeintu "Test 2, increment three four times"
-    (twice_on_three (twice (fun x -> (of_nativeint 1n) + x)));
+    (twice_on_three (twice (fun x -> #1n + x)));
   print_nativeintu "Test 2, two times four"
-    (times_four (of_nativeint 2n));
+    (times_four #2n);
   print_nativeintu "Test 2, three times sixteen"
     (twice_on_three times_four);
   print_nativeintu "Test 2, three times sixteen again"
-    (compose times_four times_four (of_nativeint 3n));
+    (compose times_four times_four #3n);
   print_nativeintu "Test 2, three minus four"
-    (let two = twice (fun x -> x + (of_nativeint 1n)) (of_nativeint 0n) in
+    (let two = twice (fun x -> x + #1n) #0n in
      let add_two = Nativeint_u.(+) two in
      let add_two_after = compose add_two in
-     let minus_four = add_two_after (twice (fun x -> x - (of_nativeint 3n))) in
-     minus_four (of_nativeint 3n))
+     let minus_four = add_two_after (twice (fun x -> x - #3n)) in
+     minus_four #3n)
 
 (**********************************)
 (* Test 3: nativeint# in closures *)
@@ -229,7 +223,7 @@ let _ =
 let[@inline never] f3 n m steps () =
   let[@inline never] rec go k =
     if k = n
-    then Nativeint_u.of_nativeint 0n
+    then #0n
     else begin
       let acc = go (k + 1) in
       steps.(k) <- Nativeint_u.to_nativeint acc;
@@ -243,7 +237,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
   let (start_k, end_k) = x0 in
   let[@inline never] rec go k =
     if k = end_k
-    then Nativeint_u.of_nativeint 0n
+    then #0n
     else begin
       let (x2_1, x2_2) = x2 in
       let (x4_1, x4_2) = x4 in
@@ -260,7 +254,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
 let test3 () =
   (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0n) in
-  let five_times_three = f3 5 (Nativeint_u.of_nativeint 3n) steps in
+  let five_times_three = f3 5 #3n steps in
   print_nativeintu "Test 3, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 3, step %d: %nd\n") steps;
 
@@ -272,11 +266,11 @@ let test3 () =
       9 * (1 + 2 + 3 + 5 + 8) = 171
   *)
   let steps = Array.init 10 (fun _ -> 0n) in
-  let x1 = Nativeint_u.of_nativeint 1n in
-  let x3 = Nativeint_u.of_nativeint 2n in
-  let x5 = Nativeint_u.of_nativeint 3n in
-  let x7 = Nativeint_u.of_nativeint 5n in
-  let x9 = Nativeint_u.of_nativeint 8n in
+  let x1 = #1n in
+  let x3 = #2n in
+  let x5 = #3n in
+  let x7 = #5n in
+  let x9 = #8n in
 
   (* all these 8 numbers together sum to 3 *)
   let x2 = (7, 42) in
@@ -296,7 +290,7 @@ let _ = test3 ()
 let[@inline never] test4 () =
   (* Simple indirect call *)
   let[@inline never] go f =
-    Nativeint_u.to_nativeint (f (Nativeint_u.of_nativeint 1n) (Nativeint_u.of_nativeint 2n))
+    Nativeint_u.to_nativeint (f #1n #2n)
   in
   let (x1, x2) = (go Nativeint_u.(+), go Nativeint_u.(-)) in
   print_nativeintu "Test 4, 1 + 2" (Nativeint_u.of_nativeint x1);
@@ -304,7 +298,7 @@ let[@inline never] test4 () =
 
   (* partial application to nativeint# *)
   let steps = Array.init 10 (fun _ -> 0n) in
-  let f = Sys.opaque_identity (f3 5 (Nativeint_u.of_nativeint 3n)) in
+  let f = Sys.opaque_identity (f3 5 #3n) in
   let five_times_three = f steps in
   print_nativeintu "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
@@ -312,7 +306,7 @@ let[@inline never] test4 () =
   (* partial application with nativeint# remaining *)
   let steps = Array.init 10 (fun _ -> 0n) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Nativeint_u.of_nativeint 3n) steps in
+  let six_times_three = f #3n steps in
   print_nativeintu "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
 
@@ -321,14 +315,14 @@ let[@inline never] test4 () =
   let f3 = Sys.opaque_identity f3 in
 
   let steps = Array.init 10 (fun _ -> 0n) in
-  let f = Sys.opaque_identity (f3 5 (Nativeint_u.of_nativeint 3n)) in
+  let f = Sys.opaque_identity (f3 5 #3n) in
   let five_times_three = f steps in
   print_nativeintu "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps;
 
   let steps = Array.init 10 (fun _ -> 0n) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Nativeint_u.of_nativeint 3n) steps in
+  let six_times_three = f #3n steps in
   print_nativeintu "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %nd\n") steps
 
@@ -348,9 +342,9 @@ let[@inline never] f5 n m =
 let test5 () =
   let open Nativeint_u in
   let _ : unit =
-    f5 (of_nativeint 3n) (of_nativeint 2n)
+    f5 #3n #2n
       (fun n s m -> print_nativeintu s (n + m)) "Test 5, 3 + 2 + 1"
-      (of_nativeint 1n)
+      #1n
   in
   ()
 
@@ -391,20 +385,20 @@ let test6 () =
   (* (30 - 20) / 3 = 3 *)
   let o = (Sys.opaque_identity f6_1) () in
   print_nativeintu "Test 6, 3"
-    (o#f6_m1 (of_nativeint 30n) (of_nativeint 20n) (of_nativeint 3n));
+    (o#f6_m1 #30n #20n #3n);
 
   (* 4 * 8 = 32 *)
   let o = (Sys.opaque_identity f6_2) (4,7) in
-  let result = o#f6_m2 8 (of_nativeint 4n) (fun x -> x * of_nativeint 2n) in
+  let result = o#f6_m2 8 #4n (fun x -> x * #2n) in
   print_nativeintu "Test 6, 32" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2 + (-1) + 10) = -44 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in
   let result =
-    o#f6_m3 (-2) (of_nativeint 2n)
+    o#f6_m3 (-2) #2n
       (fun[@inline never] i m1 m2 n m3 ->
          (of_nativeint (Nativeint.of_int (add3 i n))) * (m1 + m2 + m3))
-      (of_nativeint (-1n)) (-12,4) (of_nativeint 10n)
+      (-#1n) (-12,4) #10n
   in
   print_nativeintu "Test 6, -44" result
 
@@ -416,7 +410,7 @@ let _ = test6 ()
 module M = struct
   open Nativeint_u
   let[@inline never] f () = assert false
-  let g () = if Sys.opaque_identity true then of_nativeint 32n else f ()
+  let g () = if Sys.opaque_identity true then #32n else f ()
 end
 
 let test7 () =

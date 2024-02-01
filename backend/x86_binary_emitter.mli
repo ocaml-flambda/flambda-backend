@@ -24,6 +24,7 @@ type symbol = {
   mutable sy_type : string option;
   mutable sy_size : int option;
   mutable sy_global : bool;
+  mutable sy_protected : bool;
   mutable sy_sec : section;
   mutable sy_pos : int option;
   mutable sy_num : int option; (* position in .symtab *)

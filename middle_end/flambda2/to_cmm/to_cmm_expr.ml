@@ -218,7 +218,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; is_c_builtin } ->
+  | Call_kind.C_call
+      { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
       match callee_simple with
@@ -259,8 +260,11 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         (Flambda_arity.unarize (Apply.args_arity apply)
         |> List.map K.With_subkind.kind)
     in
+    let effects = To_cmm_effects.transl_c_call_effects effects in
+    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
+           ~coeffects ~returns ~ty_args callee
            (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
@@ -389,7 +393,7 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
       | None -> []
       | Some (Pop { exn_handler; _ }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
-        [Cmm.Pop (Pop_specific cont)]
+        [Cmm.Pop cont]
       | Some (Push { exn_handler }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
@@ -417,7 +421,7 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | Some (Pop { exn_handler; _ }) ->
     let cont = Env.get_cmm_continuation env exn_handler in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop (Pop_specific cont)]) free_vars
+      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
@@ -682,7 +686,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
   let trywith =
-    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
   in
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =

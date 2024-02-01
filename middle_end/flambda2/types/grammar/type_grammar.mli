@@ -135,7 +135,7 @@ and function_type = private
   }
 
 and array_contents =
-  | Immutable of { fields : t list }
+  | Immutable of { fields : t array }
   | Mutable
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
@@ -619,6 +619,8 @@ module Head_of_kind_naked_immediate : sig
 
   val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
+  val create_naked_immediates_non_empty : Targetint_31_63.Set.t -> t
+
   val create_is_int : flambda_type -> t
 
   val create_get_tag : flambda_type -> t
@@ -634,6 +636,8 @@ module type Head_of_kind_naked_number_intf = sig
   val create : n -> t
 
   val create_set : n_set -> t Or_bottom.t
+
+  val create_non_empty_set : n_set -> t
 
   val union : t -> t -> t
 

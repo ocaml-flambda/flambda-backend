@@ -188,13 +188,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               returns = true;
               stack_ofs
             }
-        | Checkbound { immediate = None } -> Iintop Icheckbound
-        | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
-        | Checkalign { bytes_pow2; immediate = None } ->
-          Iintop (Icheckalign { bytes_pow2 })
-        | Checkalign { bytes_pow2; immediate = Some i } ->
-          Iintop_imm (Icheckalign { bytes_pow2 }, i)
-        | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Iprobe { name; handler_code_sym; enabled_at_init }
       in
@@ -315,8 +308,6 @@ let linearize_terminator cfg_with_layout (func : string) start
               cond_successor_labels init,
             None )
       | _ -> assert false)
-    | Poll_and_jump return_label ->
-      [L.Lop (Ipoll { return_label = Some return_label })], None
   in
   ( List.fold_left
       (fun next desc -> to_linear_instr ~like:terminator desc ~next)
@@ -340,7 +331,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
          when the label is needed for the jump table; or [Poll_and_jump], in
          which case there will always be a jump to such label. *)
       match prev_block.terminator.desc with
-      | Switch _ | Poll_and_jump _ -> true
+      | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
       | Call _ | Prim _ | Specific_can_raise _ ->

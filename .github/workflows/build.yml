@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - '*microbranch'
     tags:
       - '*'
   pull_request:
@@ -46,6 +47,12 @@ jobs:
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
+          - name: flambda2_o3_advanced_meet
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+
           - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
@@ -73,6 +80,12 @@ jobs:
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
+            check_arch: true
+
+          - name: gi
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: build_upstream_closure

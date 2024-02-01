@@ -179,6 +179,7 @@ type primitive =
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
+  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -251,6 +252,8 @@ and float_comparison =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray
+  | Punboxedintarray of unboxed_integer
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -259,6 +262,8 @@ and array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
+  | Punboxedfloatarray_ref
+  | Punboxedintarray_ref of unboxed_integer
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -267,6 +272,8 @@ and array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
+  | Punboxedfloatarray_set
+  | Punboxedintarray_set of unboxed_integer
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
@@ -296,6 +303,8 @@ and block_shape =
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_integer = boxed_integer
 
 and vec128_type =
   | Unknown128
@@ -433,10 +442,12 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type function_kind = Curried of {nlocal: int} | Tupled
+type curried_function_kind = { nlocal: int } [@@unboxed]
 (* [nlocal] determines how many arguments may be partially applied
-   before the resulting closure must be locally allocated.
-   See [lfunction] for details *)
+    before the resulting closure must be locally allocated.
+    See [lfunction] for details *)
+
+type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
@@ -468,6 +479,9 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
+  (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
+     to perform the rewrite [fun x -> fun y -> e] to [fun x y -> e] *)
+  may_fuse_arity: bool;
 }
 
 type parameter_attribute = No_attributes
@@ -751,6 +765,10 @@ val primitive_may_allocate : primitive -> alloc_mode option
       want to use this for another purpose in bytecode, it will need to be
       revised.
   *)
+
+val alloc_mode_of_primitive_description :
+  Primitive.description -> alloc_mode option
+  (** Like [primitive_may_allocate], for [external] calls. *)
 
 (***********************)
 (* For static failures *)

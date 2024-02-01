@@ -3307,7 +3307,32 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
-let type_implementation sourcefile outputprefix modulename initial_env ast =
+let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
+  (* Cms files do not store the typetree. This can be a problem for Merlin has
+    it uses attributes - which is why we manually construct a mapping from uid
+    to attributes while typing.
+    Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
+    except if it is the first element of the compilation unit structure or
+    signature. *)
+  let attr =
+    match ast with
+    | x :: _ -> f x
+    | [] -> None
+  in
+  match attr with
+  | None -> ()
+  | Some attr ->
+    Env.register_uid uid
+      ~loc:(Location.in_file sourcefile)
+      ~attributes:[ attr ]
+
+let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+      ~f:(function
+        | { pstr_desc = Pstr_attribute attr; _ }  -> Some attr
+        | _ -> None)
+
+let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
@@ -3322,10 +3347,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       let (str, sg, names, shape, finalenv) =
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
-      let shape =
-        Shape.set_uid_if_none shape
-          (Uid.of_compilation_unit_id modulename)
-      in
+      let uid = Uid.of_compilation_unit_id modulename in
+      let shape = Shape.set_uid_if_none shape uid in
+      if !Clflags.binary_annotations_cms then
+        cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
@@ -3447,9 +3472,20 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Some source_file) None
 
-let type_interface modulename env ast =
+let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+    ~f:(function
+        | { psig_desc = Psig_attribute attr; _ } -> Some attr
+        | _ -> None)
+
+
+let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+  end;
+  if !Clflags.binary_annotations_cms then begin
+    let uid = Shape.Uid.of_compilation_unit_id modulename in
+    cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
   end;
   transl_signature env ast
 
@@ -3774,8 +3810,8 @@ let report_error ~loc _env = function
         (Path.name p)
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
-        "@[Top-level module bindings must have layout value, but@ \
-         %s has layout@ %a.@]" id Jkind.Sort.format sort
+        "@[Types of top-level module bindings must have layout value, but@ \
+         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

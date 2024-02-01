@@ -49,6 +49,31 @@ let rec static_block_updates symb env res acc i = function
       in
       static_block_updates symb env res acc (i + 1) r)
 
+type maybe_int32 =
+  | Int32
+  | Int64_or_nativeint
+
+(* The index [i] is always in the units of the size of the integer concerned,
+   not units of 64-bit words. *)
+let rec static_unboxed_int_array_updates symb env res acc maybe_int32 i =
+  function
+  | [] -> env, res, acc
+  | sv :: r -> (
+    match (sv : _ Or_variable.t) with
+    | Const _ ->
+      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r
+    | Var (var, dbg) ->
+      let kind : C.update_kind =
+        match maybe_int32 with
+        | Int64_or_nativeint -> Word_int
+        | Int32 -> Thirtytwo_signed
+      in
+      let env, res, acc =
+        C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symb) var ~index:i
+          ~prev_updates:acc
+      in
+      static_unboxed_int_array_updates symb env res acc maybe_int32 (i + 1) r)
+
 let rec static_float_array_updates symb env res acc i = function
   | [] -> env, res, acc
   | sv :: r -> (
@@ -101,6 +126,50 @@ let preallocate_set_of_closures (res, updates, env) ~closure_symbols
   in
   let res = R.set_data res data in
   res, updates, env
+
+let immutable_unboxed_int_array_payload update_kind num_fields ~elts ~to_int64 =
+  let int64_of_elts =
+    List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
+  in
+  let packed_int64s =
+    match update_kind with
+    | Int32 ->
+      let rec aux acc = function
+        | [] -> List.rev acc
+        | a :: [] -> List.rev (a :: acc)
+        | a :: b :: r ->
+          let i = Int64.(add (logand a 0xffffffffL) (shift_left b 32)) in
+          aux (i :: acc) r
+      in
+      aux [] int64_of_elts
+    | Int64_or_nativeint -> int64_of_elts
+  in
+  assert (List.length packed_int64s = num_fields);
+  List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
+
+let immutable_unboxed_int_array env res updates update_kind ~symbol ~elts
+    ~to_int64 ~custom_ops_symbol =
+  let sym = R.symbol res symbol in
+  let num_elts = List.length elts in
+  let num_fields =
+    match update_kind with
+    | Int32 -> (1 + num_elts) / 2
+    | Int64_or_nativeint -> num_elts
+  in
+  let header =
+    C.black_custom_header
+      ~size:(1 (* for the custom_operations pointer *) + num_fields)
+  in
+  let static_fields =
+    C.symbol_address (Cmm.global_symbol (custom_ops_symbol ~num_elts))
+    :: immutable_unboxed_int_array_payload update_kind num_fields ~elts
+         ~to_int64
+  in
+  let block = C.emit_block sym header static_fields in
+  let env, res, updates =
+    static_unboxed_int_array_updates sym env res updates update_kind 0 elts
+  in
+  env, R.set_data res block, updates
 
 let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     (static_const : Static_const.t) =
@@ -187,6 +256,21 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let float_array = C.emit_float_array_constant sym static_fields in
     let env, res, e = static_float_array_updates sym env res updates 0 fields in
     env, R.update_data res float_array, e
+  | Block_like symbol, Immutable_int32_array elts ->
+    assert (Arch.size_int = 8);
+    immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
+      ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
+        if num_elts mod 2 = 0
+        then "caml_unboxed_int32_even_array_ops"
+        else "caml_unboxed_int32_odd_array_ops")
+  | Block_like symbol, Immutable_int64_array elts ->
+    immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
+      ~to_int64:Fun.id ~custom_ops_symbol:(fun ~num_elts:_ ->
+        "caml_unboxed_int64_array_ops")
+  | Block_like symbol, Immutable_nativeint_array elts ->
+    immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
+      ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
+        "caml_unboxed_nativeint_array_ops")
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -200,11 +284,33 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let block = C.emit_block sym header static_fields in
     let env, res, updates = static_block_updates sym env res updates 0 fields in
     env, R.set_data res block, updates
-  | Block_like s, Empty_array ->
+  | Block_like s, Empty_array Values_or_immediates_or_naked_floats ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
     let sym = R.symbol res s in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_int32s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [ C.symbol_address
+            (Cmm.global_symbol "caml_unboxed_int32_even_array_ops") ]
+    in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_int64s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_int64_array_ops")]
+    in
+    env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_nativeints ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_nativeint_array_ops")]
+    in
     env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
@@ -217,8 +323,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | ( (Code _ | Set_of_closures _),
       ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ) ) ->
+      | Immutable_int32_array _ | Immutable_int64_array _
+      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
+      | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

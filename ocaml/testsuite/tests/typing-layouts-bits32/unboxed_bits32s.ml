@@ -1,25 +1,19 @@
 (* TEST
-   * native
+   * flambda2
+   ** native
+   ** bytecode
+   ** native
    flags = "-extension layouts_alpha"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_alpha"
-   * native
+   ** native
    flags = "-extension layouts_beta"
-   * bytecode
+   ** bytecode
    flags = "-extension layouts_beta"
-   * setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-     flags = "-extension layouts"
-   ** ocamlc.byte
-     compiler_reference = "${test_source_directory}/unboxed_bits32s_disabled.compilers.reference"
-   *** check-ocamlc.byte-output
 *)
 
 (* This file contains various tests for [int32#].  It's not an expect test
    to make sure it gets tested for native code. *)
-
-(* CR layouts v2.5: When unboxed literals work, change this file to use them
-   instead of [of_int32] on boxed literals everywhere. *)
 
 (*****************************************)
 (* Prelude: Functions on unboxed int32s. *)
@@ -64,22 +58,22 @@ let test1 () =
 
   (* Positive numbers *)
 
-  let three = of_int32 3l in
+  let three = #3l in
   print_int32u "Test 1, three" three;
 
-  let twice_three = three + (of_int32 3l) in
+  let twice_three = three + #3l in
   print_int32u "Test 1, twice_three" twice_three;
 
-  let thrice_three = (of_int32 3l) * three in
+  let thrice_three = #3l * three in
   print_int32u "Test 1, thrice_three" thrice_three;
 
   let twice_three_again = thrice_three - three in
   print_int32u "Test 1, twice_three_again" twice_three;
 
-  let three_again = twice_three_again / (of_int32 2l) in
+  let three_again = twice_three_again / #2l in
   print_int32u "Test 1, three_again" three_again;
 
-  let three_again_unsigned = twice_three_again // (of_int32 2l) in
+  let three_again_unsigned = twice_three_again // #2l in
   print_int32u "Test 1, three_again_unsigned" three_again_unsigned;
 
   let twice_three_greater_than_three = twice_three > three in
@@ -87,22 +81,22 @@ let test1 () =
     twice_three_greater_than_three;
 
   let three_with_effort =
-    ((of_int32 3l) + twice_three) * (of_int32 2l) / (of_int32 6l) in
+    (#3l + twice_three) * #2l / #6l in
   print_int32u "Test 1, three_with_effort" three_with_effort;
 
-  let seven_rem_three = (of_int32 7l) % three in
+  let seven_rem_three = #7l % three in
   print_int32u "Test 1, seven_rem_three" seven_rem_three;
 
-  let seven_rem_three_unsigned = (of_int32 7l) %% three in
+  let seven_rem_three_unsigned = #7l %% three in
   print_int32u "Test 1, seven_rem_three_unsigned" seven_rem_three_unsigned;
 
-  let forty_two_logand_three = logand (of_int32 42l) three in
+  let forty_two_logand_three = logand #42l three in
   print_int32u_bin "Test1, forty_two_logand_three (0b00101010 & 0b00000011)" forty_two_logand_three;
 
-  let forty_two_logor_three = logor (of_int32 42l) three in
+  let forty_two_logor_three = logor #42l three in
   print_int32u_bin "Test1, forty_two_logor_three (0b00101010 & 0b00000011)" forty_two_logor_three;
 
-  let forty_two_logxor_three = logxor (of_int32 42l) three in
+  let forty_two_logxor_three = logxor #42l three in
   print_int32u_bin "Test1, forty_two_logxor_three (0b00101010 & 0b00000011)" forty_two_logxor_three;
 
   let lognot_three = lognot three in
@@ -119,22 +113,22 @@ let test1 () =
 
   (* Negative numbers *)
 
-  let minus_five = of_int32 (-5l) in
+  let minus_five = -#5l in
   print_int32u "Test 1, minus_five" minus_five;
 
-  let twice_minus_five = minus_five + (of_int32 (-5l)) in
+  let twice_minus_five = minus_five + (-#5l) in
   print_int32u "Test 1, twice_minus_five" twice_minus_five;
 
-  let thrice_minus_five = (of_int32 (3l)) * minus_five in
+  let thrice_minus_five = #3l * minus_five in
   print_int32u "Test 1, thrice_minus_five" thrice_minus_five;
 
   let twice_minus_five_again = thrice_minus_five - minus_five in
   print_int32u "Test 1, twice_minus_five_again" twice_minus_five;
 
-  let minus_five_again = twice_minus_five_again / (of_int32 2l) in
+  let minus_five_again = twice_minus_five_again / #2l in
   print_int32u "Test 1, minus_five_again" minus_five_again;
 
-  let minus_five_again_unsigned = twice_minus_five_again // (of_int32 2l) in
+  let minus_five_again_unsigned = twice_minus_five_again // #2l in
   print_int32u "Test 1, minus_five_again_unsigned" minus_five_again_unsigned;
 
   let minus_five_greater_than_twice_minus_five = minus_five > twice_minus_five in
@@ -142,22 +136,22 @@ let test1 () =
     minus_five_greater_than_twice_minus_five;
 
   let minus_five_with_effort =
-    ((of_int32 (-5l)) + twice_minus_five) * (of_int32 2l) / (of_int32 6l) in
+    ((-#5l) + twice_minus_five) * #2l / #6l in
   print_int32u "Test 1, minus_five_with_effort" minus_five_with_effort;
 
-  let seven_rem_minus_five = (of_int32 7l) % minus_five in
+  let seven_rem_minus_five = #7l % minus_five in
   print_int32u "Test 1, seven_rem_minus_five" seven_rem_minus_five;
 
-  let seven_rem_minus_five_unsigned = (of_int32 7l) %% minus_five in
+  let seven_rem_minus_five_unsigned = #7l %% minus_five in
   print_int32u "Test 1, seven_rem_minus_five_unsigned" seven_rem_minus_five_unsigned;
 
-  let forty_two_logand_minus_five = logand (of_int32 42l) minus_five in
+  let forty_two_logand_minus_five = logand #42l minus_five in
   print_int32u_bin "Test1, forty_two_logand_minus_five (0b00101010 & 0b1...1011)" forty_two_logand_minus_five;
 
-  let forty_two_logor_minus_five = logor (of_int32 42l) minus_five in
+  let forty_two_logor_minus_five = logor #42l minus_five in
   print_int32u_bin "Test1, forty_two_logor_minus_five (0b00101010 & 0b1...1011)" forty_two_logor_minus_five;
 
-  let forty_two_logxor_minus_five = logxor (of_int32 42l) minus_five in
+  let forty_two_logxor_minus_five = logxor #42l minus_five in
   print_int32u_bin "Test1, forty_two_logxor_minus_five (0b00101010 & 0b1...1011)" forty_two_logxor_minus_five;
 
   let lognot_minus_five = lognot minus_five in
@@ -189,33 +183,33 @@ let[@inline never] twice f (x : 'a t_bits32) = f (f x)
 let[@inline never] compose f g (x : 'a t_bits32) = f (g x)
 
 let[@inline never] twice_on_three f =
-  let pi = Int32_u.of_int32 3l in
+  let pi = #3l in
   twice f pi
 
-let times_four = twice Int32_u.(fun x -> x * (of_int32 2l))
+let times_four = twice Int32_u.(fun x -> x * #2l)
 
 let _ =
   let open Int32_u in
   print_int32u "Test 2, add three twice"
-    (twice (fun x -> x + (of_int32 3l)) (of_int32 0l));
+    (twice (fun x -> x + #3l) #0l);
   print_int32u "Test 2, add three four times"
-    (twice (twice (fun x -> x + (of_int32 3l))) (of_int32 0l));
+    (twice (twice (fun x -> x + #3l)) #0l);
   print_int32u "Test 2, increment three twice"
-    (twice_on_three (fun x -> (of_int32 1l) + x));
+    (twice_on_three (fun x -> #1l + x));
   print_int32u "Test 2, increment three four times"
-    (twice_on_three (twice (fun x -> (of_int32 1l) + x)));
+    (twice_on_three (twice (fun x -> #1l + x)));
   print_int32u "Test 2, two times four"
-    (times_four (of_int32 2l));
+    (times_four #2l);
   print_int32u "Test 2, three times sixteen"
     (twice_on_three times_four);
   print_int32u "Test 2, three times sixteen again"
-    (compose times_four times_four (of_int32 3l));
+    (compose times_four times_four #3l);
   print_int32u "Test 2, three minus four"
-    (let two = twice (fun x -> x + (of_int32 1l)) (of_int32 0l) in
+    (let two = twice (fun x -> x + #1l) #0l in
      let add_two = Int32_u.(+) two in
      let add_two_after = compose add_two in
-     let minus_four = add_two_after (twice (fun x -> x - (of_int32 3l))) in
-     minus_four (of_int32 3l))
+     let minus_four = add_two_after (twice (fun x -> x - #3l)) in
+     minus_four #3l)
 
 (**********************************)
 (* Test 3: int32# in closures *)
@@ -225,7 +219,7 @@ let _ =
 let[@inline never] f3 n m steps () =
   let[@inline never] rec go k =
     if k = n
-    then Int32_u.of_int32 0l
+    then #0l
     else begin
       let acc = go (k + 1) in
       steps.(k) <- Int32_u.to_int32 acc;
@@ -239,7 +233,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
   let (start_k, end_k) = x0 in
   let[@inline never] rec go k =
     if k = end_k
-    then Int32_u.of_int32 0l
+    then #0l
     else begin
       let (x2_1, x2_2) = x2 in
       let (x4_1, x4_2) = x4 in
@@ -256,7 +250,7 @@ let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
 let test3 () =
   (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0l) in
-  let five_times_three = f3 5 (Int32_u.of_int32 3l) steps in
+  let five_times_three = f3 5 #3l steps in
   print_int32u "Test 3, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 3, step %d: %ld\n") steps;
 
@@ -268,11 +262,11 @@ let test3 () =
       9 * (1 + 2 + 3 + 5 + 8) = 171
   *)
   let steps = Array.init 10 (fun _ -> 0l) in
-  let x1 = Int32_u.of_int32 1l in
-  let x3 = Int32_u.of_int32 2l in
-  let x5 = Int32_u.of_int32 3l in
-  let x7 = Int32_u.of_int32 5l in
-  let x9 = Int32_u.of_int32 8l in
+  let x1 = #1l in
+  let x3 = #2l in
+  let x5 = #3l in
+  let x7 = #5l in
+  let x9 = #8l in
 
   (* all these 8 numbers together sum to 3 *)
   let x2 = (7, 42) in
@@ -292,7 +286,7 @@ let _ = test3 ()
 let[@inline never] test4 () =
   (* Simple indirect call *)
   let[@inline never] go f =
-    Int32_u.to_int32 (f (Int32_u.of_int32 1l) (Int32_u.of_int32 2l))
+    Int32_u.to_int32 (f #1l #2l)
   in
   let (x1, x2) = (go Int32_u.(+), go Int32_u.(-)) in
   print_int32u "Test 4, 1 + 2" (Int32_u.of_int32 x1);
@@ -300,7 +294,7 @@ let[@inline never] test4 () =
 
   (* partial application to int32# *)
   let steps = Array.init 10 (fun _ -> 0l) in
-  let f = Sys.opaque_identity (f3 5 (Int32_u.of_int32 3l)) in
+  let f = Sys.opaque_identity (f3 5 #3l) in
   let five_times_three = f steps in
   print_int32u "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
@@ -308,7 +302,7 @@ let[@inline never] test4 () =
   (* partial application with int32# remaining *)
   let steps = Array.init 10 (fun _ -> 0l) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Int32_u.of_int32 3l) steps in
+  let six_times_three = f #3l steps in
   print_int32u "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
 
@@ -317,14 +311,14 @@ let[@inline never] test4 () =
   let f3 = Sys.opaque_identity f3 in
 
   let steps = Array.init 10 (fun _ -> 0l) in
-  let f = Sys.opaque_identity (f3 5 (Int32_u.of_int32 3l)) in
+  let f = Sys.opaque_identity (f3 5 #3l) in
   let five_times_three = f steps in
   print_int32u "Test 4, 5 * 3: " (five_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps;
 
   let steps = Array.init 10 (fun _ -> 0l) in
   let f = Sys.opaque_identity (f3 6) in
-  let six_times_three = f (Int32_u.of_int32 3l) steps in
+  let six_times_three = f #3l steps in
   print_int32u "Test 4, 6 * 3: " (six_times_three ());
   Array.iteri (Printf.printf "  Test 4, step %d: %ld\n") steps
 
@@ -344,9 +338,9 @@ let[@inline never] f5 n m =
 let test5 () =
   let open Int32_u in
   let _ : unit =
-    f5 (of_int32 3l) (of_int32 2l)
+    f5 #3l #2l
       (fun n s m -> print_int32u s (n + m)) "Test 5, 3 + 2 + 1"
-      (of_int32 1l)
+      #1l
   in
   ()
 
@@ -387,20 +381,20 @@ let test6 () =
   (* (30 - 20) / 3 = 3 *)
   let o = (Sys.opaque_identity f6_1) () in
   print_int32u "Test 6, 3"
-    (o#f6_m1 (of_int32 30l) (of_int32 20l) (of_int32 3l));
+    (o#f6_m1 #30l #20l #3l);
 
   (* 4 * 8 = 32 *)
   let o = (Sys.opaque_identity f6_2) (4,7) in
-  let result = o#f6_m2 8 (of_int32 4l) (fun x -> x * of_int32 2l) in
+  let result = o#f6_m2 8 #4l (fun x -> x * #2l) in
   print_int32u "Test 6, 32" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2 + (-1) + 10) = -44 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in
   let result =
-    o#f6_m3 (-2) (of_int32 2l)
+    o#f6_m3 (-2) #2l
       (fun[@inline never] i m1 m2 n m3 ->
          (of_int32 (Int32.of_int (add3 i n))) * (m1 + m2 + m3))
-      (of_int32 (-1l)) (-12,4) (of_int32 10l)
+      (-#1l) (-12,4) #10l
   in
   print_int32u "Test 6, -44" result
 
@@ -412,7 +406,7 @@ let _ = test6 ()
 module M = struct
   open Int32_u
   let[@inline never] f () = assert false
-  let g () = if Sys.opaque_identity true then of_int32 32l else f ()
+  let g () = if Sys.opaque_identity true then #32l else f ()
 end
 
 let test7 () =

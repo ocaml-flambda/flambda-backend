@@ -123,9 +123,10 @@ let rec declare_const t (const : Lambda.structured_constant)
   match const with
   | Const_base (Const_int c) -> (Const (Int c), Names.const_int)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
-  | Const_base (Const_unboxed_float _) ->
-    (* CR alanechang: implement unboxed float constants in flambda *)
-    Misc.fatal_error "Unboxed float constants are not supported in flambda. Consider using flambda2."
+  | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
+               | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
+    (* CR alanechang: implement unboxed constants in flambda *)
+    Misc.fatal_error "Unboxed constants are not supported in flambda. Consider using flambda2."
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       (Flambda.Allocated_const (Immutable_string s),

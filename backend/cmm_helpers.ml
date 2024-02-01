@@ -64,6 +64,7 @@ let mk_load_atomic memory_chunk =
 
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
+(* CR mshinwell: update to use NOT_MARKABLE terminology *)
 let block_header tag sz =
   Nativeint.add
     (Nativeint.shift_left (Nativeint.of_int sz) 10)
@@ -117,6 +118,12 @@ let boxedint64_local_header =
   local_block_header Obj.custom_tag (1 + (8 / size_addr))
 
 let boxedintnat_local_header = local_block_header Obj.custom_tag 2
+
+let black_custom_header ~size = black_block_header Obj.custom_tag size
+
+let custom_header ~size = block_header Obj.custom_tag size
+
+let custom_local_header ~size = local_block_header Obj.custom_tag size
 
 let caml_nativeint_ops = "caml_nativeint_ops"
 
@@ -687,7 +694,7 @@ let test_bool dbg cmm =
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
-let rec unbox_float dbg =
+let unbox_float dbg =
   map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
@@ -697,27 +704,13 @@ let rec unbox_float dbg =
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Const_float x) -> Cconst_float (x, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Double, [cmm], dbg))
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_float dbg e)
-            | e -> unbox_float dbg e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit -> Cop (mk_load_immut Double, [cmm], dbg))
-    | Ctail e -> Ctail (unbox_float dbg e)
     | cmm -> Cop (mk_load_immut Double, [cmm], dbg))
 
 (* Vectors *)
 
 let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
 
-let rec unbox_vec128 dbg =
+let unbox_vec128 dbg =
   (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
      unaligned load. *)
   map_tail ~kind:Any (function
@@ -730,21 +723,6 @@ let rec unbox_vec128 dbg =
       | Some (Const_vec128 { low; high }) ->
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_vec128 dbg e)
-            | e -> unbox_vec128 dbg e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit ->
-        Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
-    | Ctail e -> Ctail (unbox_vec128 dbg e)
     | cmm -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
 
 (* Complex *)
@@ -765,8 +743,25 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
-let field_address ptr n dbg =
-  if n = 0 then ptr else Cop (Cadda, [ptr; Cconst_int (n * size_addr, dbg)], dbg)
+let field_address ?(memory_chunk = Word_val) ptr n dbg =
+  if n = 0
+  then ptr
+  else
+    let field_size_in_bytes =
+      match memory_chunk with
+      | Byte_unsigned | Byte_signed -> 1
+      | Sixteen_unsigned | Sixteen_signed -> 2
+      | Thirtytwo_unsigned | Thirtytwo_signed -> 4
+      | Single ->
+        assert (size_float = 8);
+        (* unclear what to do if this is false *)
+        size_float / 2
+      | Word_int -> size_int
+      | Word_val -> size_addr
+      | Double -> size_float
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
+    in
+    Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
   Cop
@@ -892,6 +887,68 @@ let array_indexing ?typ log2size ptr ofs dbg =
           Cconst_int (-1 lsl (log2size - 1), dbg) ],
         dbg )
 
+(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
+   cross-compiling for 64-bit on a 32-bit host *)
+let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
+
+let custom_ops_unboxed_int32_odd_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_odd_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_int32_even_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int32_even_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_int64_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_int64_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_nativeint_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
+
+let unboxed_int32_array_length arr dbg =
+  (* A dynamic test is needed to determine if the array contains an odd or even
+     number of elements *)
+  let res =
+    bind "arr" arr (fun arr ->
+        let custom_ops_var = Backend_var.create_local "custom_ops" in
+        let num_words_var = Backend_var.create_local "num_words" in
+        Clet
+          ( VP.create num_words_var,
+            (* need to subtract so as not to count the custom_operations
+               field *)
+            sub_int (get_size arr dbg) (int ~dbg 1) dbg,
+            Clet
+              ( VP.create custom_ops_var,
+                Cop (mk_load_immut Word_int, [arr], dbg),
+                Cifthenelse
+                  ( Cop
+                      ( Ccmpa Ceq,
+                        [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
+                        dbg ),
+                    dbg,
+                    (* unboxed int32 odd *)
+                    (sub_int
+                       (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                       (int ~dbg 1))
+                      dbg,
+                    dbg,
+                    (* assumed to be unboxed int32 even *)
+                    mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
+                    dbg,
+                    Any ) ) ))
+  in
+  tag_int res dbg
+
+let unboxed_int64_or_nativeint_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int res dbg
+
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
 
@@ -967,6 +1024,88 @@ let addr_array_initialize arr ofs newval dbg =
         },
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
+
+(* low_32 x is a value which agrees with x on at least the low 32 bits *)
+let rec low_32 dbg = function
+  (* Ignore sign and zero extensions, which do not affect the low bits *)
+  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (32, _)], _); Cconst_int (32, _)], _)
+  | Cop (Cand, [x; Cconst_natint (0xFFFFFFFFn, _)], _) ->
+    low_32 dbg x
+  | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
+  | x -> x
+
+(* sign_extend_32 sign-extends values from 32 bits to the word size. *)
+let sign_extend_32 dbg e =
+  match low_32 dbg e with
+  | Cop
+      ( Cload
+          { memory_chunk = Thirtytwo_unsigned | Thirtytwo_signed;
+            mutability;
+            is_atomic
+          },
+        args,
+        dbg ) ->
+    Cop
+      ( Cload { memory_chunk = Thirtytwo_signed; mutability; is_atomic },
+        args,
+        dbg )
+  | e ->
+    Cop
+      ( Casr,
+        [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
+        dbg )
+
+let unboxed_int32_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field. We add 2 element
+               offsets not 1 since the call to [array_indexing], below, is in
+               terms of 32-bit words. Then we multiply the offset by 2 to get 4
+               since we are manipulating a tagged int. *)
+            add_int index (int ~dbg 4) dbg
+          in
+          let log2_size_addr = 2 in
+          (* N.B. The resulting value will be sign extended by the code
+             generated for a [Thirtytwo_signed] load. *)
+          Cop
+            ( mk_load_mut Thirtytwo_signed,
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
+
+let unboxed_int64_or_nativeint_array_ref arr index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          let index =
+            (* Need to skip the custom_operations field. 2 not 1 since we are
+               manipulating a tagged int. *)
+            add_int index (int ~dbg 2) dbg
+          in
+          int_array_ref arr index dbg))
+
+let unboxed_int32_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int32_array_ref]. *)
+                add_int index (int ~dbg 4) dbg
+              in
+              let log2_size_addr = 2 in
+              Cop
+                ( Cstore (Thirtytwo_signed, Assignment),
+                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  dbg ))))
+
+let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let index =
+                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
+                add_int index (int ~dbg 2) dbg
+              in
+              int_array_set arr index new_value dbg)))
 
 (* Get the field of a block given a possibly inconstant index *)
 
@@ -1311,15 +1450,6 @@ let check_64_bit_target func =
     Misc.fatal_errorf
       "Cmm helpers function %s can only be used on 64-bit targets" func
 
-(* low_32 x is a value which agrees with x on at least the low 32 bits *)
-let rec low_32 dbg = function
-  (* Ignore sign and zero extensions, which do not affect the low bits *)
-  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (32, _)], _); Cconst_int (32, _)], _)
-  | Cop (Cand, [x; Cconst_natint (0xFFFFFFFFn, _)], _) ->
-    low_32 dbg x
-  | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
-  | x -> x
-
 (* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
 (* CR gbury: Why not use Cmm.map_tail here ? It seems designed for that kind of
    thing (and covers more cases than just Clet). *)
@@ -1332,27 +1462,6 @@ let rec low_63 dbg e =
     low_63 dbg x
   | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
   | _ -> e
-
-(* sign_extend_32 sign-extends values from 32 bits to the word size. *)
-let sign_extend_32 dbg e =
-  match low_32 dbg e with
-  | Cop
-      ( Cload
-          { memory_chunk = Thirtytwo_unsigned | Thirtytwo_signed;
-            mutability;
-            is_atomic
-          },
-        args,
-        dbg ) ->
-    Cop
-      ( Cload { memory_chunk = Thirtytwo_signed; mutability; is_atomic },
-        args,
-        dbg )
-  | e ->
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
-        dbg )
 
 (* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
    just tag_int. Similarly, untag_int then sign_extend_63 should simplify to
@@ -1450,7 +1559,7 @@ let alloc_matches_boxed_int bi ~hdr ~ops =
     && String.equal sym.sym_name caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
-let rec unbox_int dbg bi =
+let unbox_int dbg bi =
   let default arg =
     let memory_chunk =
       if bi = Primitive.Pint32 then Thirtytwo_signed else Word_int
@@ -1486,20 +1595,6 @@ let rec unbox_int dbg bi =
       | Some (Const_int64 n), Primitive.Pint64 ->
         natint_const_untagged dbg (Int64.to_nativeint n)
       | _ -> default cmm)
-    | Cregion e as cmm -> (
-      (* It is valid to push unboxing inside a Cregion except when the extra
-         unboxing logic pushes a tail call out of tail position *)
-      match
-        map_tail ~kind:Any
-          (function
-            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_int dbg bi e)
-            | e -> unbox_int dbg bi e)
-          e
-      with
-      | e -> Cregion e
-      | exception Exit -> default cmm)
-    | Ctail e -> Ctail (unbox_int dbg bi e)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
@@ -2234,40 +2329,6 @@ let cache_public_method meths tag cache dbg =
                           dbg ),
                       Cvar tagged ) ) ) ) )
 
-let has_local_allocs e =
-  let rec loop ~depth = function
-    | Cregion e -> loop ~depth:(depth + 1) e
-    | Ctail e -> if depth = 0 then () else loop ~depth:(depth - 1) e
-    | Cop ((Calloc Alloc_local | Cextcall _ | Capply _), _, _) when depth = 0 ->
-      raise Exit
-    | e -> iter_shallow (loop ~depth) e
-  in
-  match loop e ~depth:0 with () -> false | exception Exit -> true
-
-let remove_region_tail e =
-  let rec has_tail ~depth = function
-    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
-      raise Exit
-    | Ctail e -> has_tail ~depth:(depth - 1) e
-    | Cregion e -> has_tail ~depth:(depth + 1) e
-    | e -> ignore (iter_shallow_tail (has_tail ~depth) e : bool)
-  in
-  let rec remove_tail ~depth = function
-    | Ctail e ->
-      if depth = 0 then e else Ctail (remove_tail ~depth:(depth - 1) e)
-    | Cop (Capply (mach, Rc_close_at_apply), args, dbg) when depth = 0 ->
-      Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion e -> Cregion (remove_tail ~depth:(depth + 1) e)
-    | e -> map_shallow_tail (remove_tail ~depth) e
-  in
-  match has_tail e ~depth:0 with
-  | () -> e
-  | exception Exit -> remove_tail e ~depth:0
-
-let region e =
-  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
-  if has_local_allocs e then Cregion e else remove_region_tail e
-
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
 
 (* Generate an application function:
@@ -2756,8 +2817,13 @@ let arraylength kind arg dbg =
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
     Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray ->
+  | Pfloatarray | Punboxedfloatarray ->
+    (* Note: we only support 64 bit targets now, so this is ok for
+       Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
+    unboxed_int64_or_nativeint_array_length arg dbg
+  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -3210,10 +3276,6 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
-(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
-   cross-compiling for 64-bit on a 32-bit host *)
-let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
-
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
@@ -3231,7 +3293,7 @@ let letin v ~defining_expr ~body =
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
   | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ | Cregion _ | Ctail _ ->
+  | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3247,8 +3309,8 @@ let sequence x y =
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
-let trywith ~dbg ~kind ~body ~exn_var ~handler () =
-  Ctrywith (body, kind, exn_var, handler, dbg, Any)
+let trywith ~dbg ~body ~exn_var ~handler_cont ~handler () =
+  Ctrywith (body, handler_cont, exn_var, handler, dbg, Any)
 
 type static_handler =
   int
@@ -3517,8 +3579,7 @@ let cmm_arith_size (e : Cmm.expression) =
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
-  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
-  | Ctail _ ->
+  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
 let transl_property : Lambda.property -> Cmm.property = function
@@ -3601,3 +3662,75 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
         },
       [atomic; old_value; new_value],
       dbg )
+
+type even_or_odd =
+  | Even
+  | Odd
+
+let make_unboxed_int32_array_payload dbg unboxed_int32_list =
+  (* CR mshinwell/gbury: potential big-endian implementations:
+   *
+   *  let i =
+   *    if big_endian
+   *    then Cop (Clsl, [a; Cconst_int (32, dbg)], dbg)
+   *    else a
+   *  in
+   *   ...
+   *  let i =
+   *    if big_endian
+   *    then Cop (Cor, [Cop (Clsl, [a; Cconst_int (32, dbg)], dbg); b], dbg)
+   *    else Cop (Cor, [a; Cop (Clsl, [b; Cconst_int (32, dbg)], dbg)], dbg)
+   *  in
+   *)
+  if Sys.big_endian
+  then
+    Misc.fatal_error "Big-endian platforms not yet supported for unboxed arrays";
+  let rec aux acc = function
+    | [] -> Even, List.rev acc
+    | a :: [] -> Odd, List.rev (a :: acc)
+    | a :: b :: r ->
+      let i =
+        Cop
+          ( Cor,
+            [ (* [a] is sign-extended by default. We need to change it to be
+                 zero-extended for the `or` operation to be correct. *)
+              zero_extend_32 dbg a;
+              Cop (Clsl, [b; Cconst_int (32, dbg)], dbg) ],
+            dbg )
+      in
+      aux (i :: acc) r
+  in
+  aux [] unboxed_int32_list
+
+let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
+  let num_elts, payload = make_unboxed_int32_array_payload dbg elements in
+  let header =
+    let size = 1 (* custom_ops field *) + List.length payload in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  let custom_ops =
+    (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
+       the block, which are never read. *)
+    match num_elts with
+    | Even -> custom_ops_unboxed_int32_even_array
+    | Odd -> custom_ops_unboxed_int32_odd_array
+  in
+  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
+
+let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
+    (mode : Lambda.alloc_mode) dbg =
+  let header =
+    let size = 1 (* custom_ops field *) + List.length elements in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
+
+let allocate_unboxed_int64_array =
+  allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_int64_array
+
+let allocate_unboxed_nativeint_array =
+  allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array

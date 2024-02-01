@@ -168,6 +168,19 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let chunks_of n l =
+      if n <= 0 then raise (Invalid_argument "chunks_of");
+      (* Invariant: List.length l = remaining *)
+      let rec aux n acc l ~remaining =
+        match remaining with
+        | 0 -> List.rev acc
+        | _ when remaining <= n -> List.rev (l :: acc)
+        | _ ->
+            let chunk, rest = split_at n l in
+            aux n (chunk :: acc) rest ~remaining:(remaining - n)
+      in
+      aux n [] l ~remaining:(List.length l)
+
     let rec is_prefix ~equal t ~of_ =
       match t, of_ with
       | [], [] -> true
@@ -220,6 +233,15 @@ module Stdlib = struct
         else loop (succ i) in
       loop 0
 
+    let fold_left2 f x a1 a2 =
+      if Array.length a1 <> Array.length a2
+      then invalid_arg "Misc.Stdlib.Array.fold_left2";
+      let r = ref x in
+      for i = 0 to Array.length a1 - 1 do
+        r := f !r (Array.unsafe_get a1 i) (Array.unsafe_get a2 i)
+      done;
+      !r
+
     let for_alli p a =
       let n = Array.length a in
       let rec loop i =
@@ -247,6 +269,17 @@ module Stdlib = struct
           false
       in
       loop 0
+
+    let map_sharing f a =
+      let same = ref true in
+      let f' x =
+        let x' = f x in
+        if x != x' then
+          same := false;
+        x'
+      in
+      let a' = (Array.map [@inlined hint]) f' a in
+      if !same then a else a'
   end
 
   module String = struct
@@ -760,6 +793,11 @@ let ordinal_suffix n =
   | 2 when not teen -> "nd"
   | 3 when not teen -> "rd"
   | _ -> "th"
+
+let format_as_unboxed_literal s =
+  if String.starts_with ~prefix:"-" s
+  then "-#" ^ (String.sub s 1 (String.length s - 1))
+  else "#" ^ s
 
 (* Color handling *)
 module Color = struct

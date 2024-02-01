@@ -35,7 +35,7 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
   value result;
   mlsize_t i;
 
-  CAMLassert (tag < 256);
+  CAMLassert (tag < Num_tags);
   CAMLassert (tag != Infix_tag);
   if (wosize <= Max_young_wosize){
     if (wosize == 0){
@@ -67,10 +67,13 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag)
 #ifdef NATIVE_CODE
 CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
 {
-  CAMLassert(tag < No_scan_tag);
+  CAMLassert (tag < Num_tags);
+  CAMLassert (tag != Infix_tag);
   caml_check_urgent_gc (Val_unit);
   value result = caml_alloc_shr (wosize, tag);
-  for (mlsize_t i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+  if (tag < No_scan_tag) {
+    for (mlsize_t i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+  }
   return result;
 }
 #endif

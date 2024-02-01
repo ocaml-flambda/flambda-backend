@@ -176,6 +176,24 @@ let mk_no_flambda2_result_types f =
       | Functors_only | All_functions -> false))
 ;;
 
+let mk_flambda2_basic_meet f =
+  "-flambda2-basic-meet", Arg.Unit f,
+  Printf.sprintf " Use a basic meet algorithm%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.meet_algorithm with
+      | Basic -> true
+      | Advanced -> false))
+;;
+
+let mk_flambda2_advanced_meet f =
+  "-flambda2-advanced-meet", Arg.Unit f,
+  Printf.sprintf " Use an advanced meet algorithm%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.meet_algorithm with
+      | Basic -> false
+      | Advanced -> true))
+;;
+
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
@@ -563,6 +581,16 @@ let set_long_frames_threshold n =
             Flambda_backend_flags.max_long_frames_threshold));
   Flambda_backend_flags.long_frames_threshold := n
 
+let mk_symbol_visibility_protected f =
+  "-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_PROTECTED on supported systems"
+;;
+
+let mk_no_symbol_visibility_protected f =
+  "-no-symbol-visibility-protected", Arg.Unit f,
+  " Emit global symbols with visibility STV_DEFAULT"
+;;
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -595,6 +623,9 @@ module type Flambda_backend_options = sig
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
+  val symbol_visibility_protected : unit -> unit
+  val no_symbol_visibility_protected : unit -> unit
+
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit
@@ -611,6 +642,8 @@ module type Flambda_backend_options = sig
   val flambda2_result_types_functors_only : unit -> unit
   val flambda2_result_types_all_functions : unit -> unit
   val no_flambda2_result_types : unit -> unit
+  val flambda2_basic_meet : unit -> unit
+  val flambda2_advanced_meet : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -699,6 +732,9 @@ struct
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
 
+    mk_symbol_visibility_protected F.symbol_visibility_protected;
+    mk_no_symbol_visibility_protected F.symbol_visibility_protected;
+
     mk_long_frames F.long_frames;
     mk_no_long_frames F.no_long_frames;
     mk_debug_long_frames_threshold F.long_frames_threshold;
@@ -719,6 +755,8 @@ struct
       F.flambda2_result_types_all_functions;
     mk_no_flambda2_result_types
       F.no_flambda2_result_types;
+    mk_flambda2_basic_meet F.flambda2_basic_meet;
+    mk_flambda2_advanced_meet F.flambda2_advanced_meet;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -857,6 +895,9 @@ module Flambda_backend_options_impl = struct
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
 
+  let symbol_visibility_protected = set' Flambda_backend_flags.symbol_visibility_protected
+  let no_symbol_visibility_protected = clear' Flambda_backend_flags.symbol_visibility_protected
+
   let long_frames =  set' Flambda_backend_flags.allow_long_frames
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
   let long_frames_threshold n = set_long_frames_threshold n
@@ -878,6 +919,10 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
   let no_flambda2_result_types () =
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
+  let flambda2_basic_meet () =
+    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Basic
+  let flambda2_advanced_meet () =
+    Flambda2.meet_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Advanced
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -1119,6 +1164,7 @@ module Extra_params = struct
       end;
       true
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
       begin match Compenv.check_int ppf name v with
@@ -1153,6 +1199,15 @@ module Extra_params = struct
       true
     | "flambda2-result-types-all-functions" ->
       Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions);
+      true
+    | "flambda2-meet-algorithm" ->
+      (match String.lowercase_ascii v with
+      | "basic" ->
+        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Basic)
+      | "advanced" ->
+        Flambda2.meet_algorithm := Flambda_backend_flags.(Set Advanced)
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow

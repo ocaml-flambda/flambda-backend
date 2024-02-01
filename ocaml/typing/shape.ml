@@ -23,8 +23,23 @@ module Uid = struct
   include Identifiable.Make(struct
     type nonrec t = t
 
-    let equal (x : t) y = x = y
-    let compare (x : t) y = compare x y
+    let compare (x : t) y =
+      match x, y with
+      | Compilation_unit s1, Compilation_unit s2 -> String.compare s1 s2
+      | Item c1, Item c2 ->
+        let c = Int.compare c1.id c2.id in
+        if c <> 0 then c else String.compare c1.comp_unit c2.comp_unit
+      | Internal, Internal -> 0
+      | Predef s1, Predef s2 -> String.compare s1 s2
+      | Compilation_unit _, (Item _ | Internal | Predef _) -> -1
+      | Item _, (Internal | Predef _) -> -1
+      | Internal, Predef _ -> -1
+      | (Item _ | Internal | Predef _), Compilation_unit _ -> 1
+      | (Internal | Predef _), Item _ -> 1
+      | Predef _, Internal -> 1
+
+    let equal x y = compare x y = 0
+
     let hash (x : t) = Hashtbl.hash x
 
     let print fmt = function
@@ -95,12 +110,30 @@ module Sig_component_kind = struct
     | Class
     | Class_type ->
         true
+
+  let rank = function
+    | Value -> 0
+    | Type -> 1
+    | Module -> 2
+    | Module_type -> 3
+    | Extension_constructor -> 4
+    | Class -> 5
+    | Class_type -> 6
+
+  let compare a b =
+    let a = rank a in
+    let b = rank b in
+    Int.compare a b
 end
 
 module Item = struct
   module T = struct
     type t = string * Sig_component_kind.t
-    let compare = compare
+
+    let compare (sa, ka) (sb, kb) =
+      let c = String.compare sa sb in
+      if c <> 0 then c
+      else (Sig_component_kind.compare ka kb)
 
     let make str ns = str, ns
 
@@ -119,6 +152,8 @@ module Item = struct
       Format.fprintf fmt "%S[%s]"
         name
         (Sig_component_kind.to_string ns)
+
+    let hash x = Hashtbl.hash x
   end
 
   include T
@@ -127,7 +162,7 @@ module Item = struct
 end
 
 type var = Ident.t
-type t = { uid: Uid.t option; desc: desc }
+type t = { hash:int; uid: Uid.t option; desc: desc }
 and desc =
   | Var of var
   | Abs of var * t
@@ -137,11 +172,41 @@ and desc =
   | Proj of t * Item.t
   | Comp_unit of string
 
+let rec equal_desc d1 d2 =
+  if d1 == d2 then true else
+  match d1, d2 with
+  | Var v1, Var v2 -> Ident.equal v1 v2
+  | Abs (v1, t1), Abs (v2, t2) ->
+    if Ident.equal v1 v2 then equal t1 t2
+    else false
+  | App (v1, t1), App (v2, t2) ->
+    if not (equal t1 t2) then false
+    else equal v1 v2
+  | Leaf, Leaf -> true
+  | Struct t1, Struct t2 ->
+    Item.Map.equal equal t1 t2
+  | Proj (t1, i1), Proj (t2, i2) ->
+    if Item.compare i1 i2 <> 0 then false
+    else equal t1 t2
+  | Comp_unit c1, Comp_unit c2 -> String.equal c1 c2
+  | Var _, (Abs _ | App _ | Struct _ | Leaf | Proj _ | Comp_unit _) -> false
+  | Abs _, (Var _ | App _ | Struct _ | Leaf | Proj _ | Comp_unit _) -> false
+  | App _, (Var _ | Abs _ | Struct _ | Leaf | Proj _ | Comp_unit _) -> false
+  | Struct _, (Var _ | Abs _ | App _ | Leaf | Proj _ | Comp_unit _) -> false
+  | Leaf, (Var _ | Abs _ | App _ | Struct _ | Proj _ | Comp_unit _) -> false
+  | Proj _, (Var _ | Abs _ | App _ | Struct _ | Leaf | Comp_unit _) -> false
+  | Comp_unit _, (Var _ | Abs _ | App _ | Struct _ | Leaf | Proj _) -> false
+
+and equal t1 t2 =
+  if t1.hash <> t2.hash then false
+  else if not (Option.equal Uid.equal t1.uid t2.uid) then false
+  else equal_desc t1.desc t2.desc
+
 let print fmt =
   let print_uid_opt =
     Format.pp_print_option (fun fmt -> Format.fprintf fmt "<%a>" Uid.print)
   in
-  let rec aux fmt { uid; desc } =
+  let rec aux fmt { uid; desc; hash = _ } =
     match desc with
     | Var id ->
         Format.fprintf fmt "%a%a" Ident.print id print_uid_opt uid
@@ -190,23 +255,36 @@ let print fmt =
   in
   Format.fprintf fmt"@[%a@]@;" aux
 
+let hash_var = 1
+let hash_abs = 2
+let hash_struct = 3
+let hash_leaf = 4
+let hash_proj = 5
+let hash_app = 6
+let hash_comp_unit = 7
+
 let fresh_var ?(name="shape-var") uid =
   let var = Ident.create_local name in
-  var, { uid = Some uid; desc = Var var }
+  var, { uid = Some uid; desc = Var var; hash = Hashtbl.hash (hash_var, uid, var) }
 
 let for_unnamed_functor_param = Ident.create_local "()"
 
 let var uid id =
-  { uid = Some uid; desc = Var id }
+  { uid = Some uid; desc = Var id; hash = Hashtbl.hash (hash_var, uid, id) }
 
 let abs ?uid var body =
-  { uid; desc = Abs (var, body) }
+  { uid; desc = Abs (var, body); hash = Hashtbl.hash (hash_abs, uid, body.hash) }
 
 let str ?uid map =
-  { uid; desc = Struct map }
+  let h = Item.Map.fold (fun key t acc ->
+    Hashtbl.hash (acc, Item.hash key, t.hash)) map 0
+  in
+  { uid; desc = Struct map; hash = Hashtbl.hash (hash_struct, uid, h)  }
 
-let leaf uid =
-  { uid = Some uid; desc = Leaf }
+let leaf' uid =
+  { uid; desc = Leaf; hash = Hashtbl.hash (hash_leaf, uid) }
+
+let leaf uid = leaf' (Some uid)
 
 let proj ?uid t item =
   match t.desc with
@@ -219,10 +297,16 @@ let proj ?uid t item =
       with Not_found -> t (* ill-typed program *)
       end
   | _ ->
-      { uid; desc = Proj (t, item) }
+      { uid; desc = Proj (t, item);
+        hash = Hashtbl.hash (hash_proj, t.hash, item) }
 
 let app ?uid f ~arg =
-      { uid; desc = App (f, arg) }
+      { uid; desc = App (f, arg); hash = Hashtbl.hash (hash_app, f.hash, uid, arg.hash) }
+
+let comp_unit ?uid s =
+      { uid; desc = Comp_unit s; hash = Hashtbl.hash (hash_comp_unit, uid, s) }
+
+let no_fuel_left ?uid s = { s with uid }
 
 let decompose_abs t =
   match t.desc with
@@ -247,7 +331,7 @@ end) = struct
     | NProj of nf * Item.t
     | NLeaf
     | NComp_unit of string
-    | NoFuelLeft of desc
+    | NoFuelLeft of t
   (* A type of normal forms for strong call-by-need evaluation.
      The normal form of an abstraction
        Abs(x, t)
@@ -279,20 +363,88 @@ end) = struct
     | Some _ -> nf
     | None -> { nf with uid }
 
-  let in_memo_table memo_table memo_key f arg =
-    match Hashtbl.find memo_table memo_key with
+  let rec equal_local_env t1 t2 =
+    Ident.Map.equal (Option.equal equal_delayed_nf) t1 t2
+
+  and equal_delayed_nf t1 t2 =
+    match t1, t2 with
+    | Thunk (l1, t1), Thunk (l2, t2) ->
+      if equal t1 t2 then equal_local_env l1 l2
+      else false
+
+  and equal_nf_desc d1 d2 =
+    match d1, d2 with
+    | NVar v1, NVar v2 -> Ident.equal v1 v2
+    | NAbs (l1, v1, t1, nf1), NAbs (l2, v2, t2, nf2) ->
+      if not (Ident.equal v1 v2) then false
+      else if not (equal t1 t2) then false
+      else if not (equal_delayed_nf nf1 nf2) then false
+      else equal_local_env l1 l2
+    | NApp (v1, t1), NApp (v2, t2) ->
+      if equal_nf v1 v2 then equal_nf t1 t2
+      else false
+    | NLeaf, NLeaf -> true
+    | NoFuelLeft d1, NoFuelLeft d2 -> equal d1 d2
+    | NStruct t1, NStruct t2 ->
+      Item.Map.equal equal_delayed_nf t1 t2
+    | NProj (t1, i1), NProj (t2, i2) ->
+      if Item.compare i1 i2 <> 0 then false
+      else equal_nf t1 t2
+    | NComp_unit c1, NComp_unit c2 -> String.equal c1 c2
+    | NVar _, (NLeaf | NApp _ | NAbs _ | NStruct _ | NProj _ | NComp_unit _ | NoFuelLeft _)
+    | NLeaf, (NVar _ | NApp _ | NAbs _ | NStruct _ | NProj _ | NComp_unit _ | NoFuelLeft _)
+    | NApp _, (NVar _ | NLeaf | NAbs _ | NStruct _ | NProj _ | NComp_unit _ | NoFuelLeft _)
+    | NAbs _, (NVar _ | NLeaf | NApp _ | NStruct _ | NProj _ | NComp_unit _ | NoFuelLeft _)
+    | NStruct _, (NVar _ | NLeaf | NApp _ | NAbs _ | NProj _ | NComp_unit _ | NoFuelLeft _)
+    | NProj _, (NVar _ | NLeaf | NApp _ | NAbs _ | NStruct _ | NComp_unit _ | NoFuelLeft _)
+    | NComp_unit _, (NVar _ | NLeaf | NApp _ | NAbs _ | NStruct _ | NProj _ | NoFuelLeft _)
+    | NoFuelLeft _, (NVar _ | NLeaf | NApp _ | NAbs _ | NStruct _ | NProj _ | NComp_unit _)
+    -> false
+
+  and equal_nf t1 t2 =
+    if not (Option.equal Uid.equal t1.uid t2.uid) then false
+    else equal_nf_desc t1.desc t2.desc
+
+  module ReduceMemoTable = Hashtbl.Make(struct
+      type nonrec t = local_env * t
+
+      let hash t = Hashtbl.hash t
+
+      let equal (env1, t1) (env2, t2) =
+        if equal t1 t2 then equal_local_env env1 env2
+        else false
+  end)
+
+  module ReadBackMemoTable = Hashtbl.Make(struct
+      type nonrec t = nf
+
+      let hash t = Hashtbl.hash t
+
+  let equal a b = equal_nf a b
+  end)
+
+  let in_reduce_memo_table memo_table memo_key f arg =
+    match ReduceMemoTable.find memo_table memo_key with
+        | res -> res
+    | exception Not_found ->
+        let res = f arg in
+        ReduceMemoTable.replace memo_table memo_key res;
+        res
+
+  let in_read_back_memo_table memo_table memo_key f arg =
+    match ReadBackMemoTable.find memo_table memo_key with
     | res -> res
     | exception Not_found ->
         let res = f arg in
-        Hashtbl.replace memo_table memo_key res;
+        ReadBackMemoTable.replace memo_table memo_key res;
         res
 
   type env = {
     fuel: int ref;
     global_env: Params.env;
     local_env: local_env;
-    reduce_memo_table: (local_env * t, nf) Hashtbl.t;
-    read_back_memo_table: (nf, t) Hashtbl.t;
+    reduce_memo_table: nf ReduceMemoTable.t;
+    read_back_memo_table: t ReadBackMemoTable.t;
   }
 
   let bind env var shape =
@@ -300,7 +452,7 @@ end) = struct
 
   let rec reduce_ env t =
     let memo_key = (env.local_env, t) in
-    in_memo_table env.reduce_memo_table memo_key (reduce__ env) t
+    in_reduce_memo_table env.reduce_memo_table memo_key (reduce__ env) t
   (* Memoization is absolutely essential for performance on this
      problem, because the normal forms we build can in some real-world
      cases contain an exponential amount of redundancy. Memoization
@@ -332,7 +484,7 @@ end) = struct
      in fact bind *distinct* identifiers x (with different stamps) and
      different identifiers y, so the environments are distinct. If two
      environments are structurally the same, they must correspond to
-     the evaluation evnrionments of two sub-terms that are under
+     the evaluation environments of two sub-terms that are under
      exactly the same scope of binders. So the two environments were
      obtained by the same term traversal, adding binders in the same
      order, giving the same balanced trees: the environments have the
@@ -345,7 +497,7 @@ end) = struct
     let force (Thunk (local_env, t)) =
       reduce { env with local_env } t in
     let return desc : nf = { uid = t.uid; desc } in
-    if !fuel < 0 then return (NoFuelLeft t.desc)
+    if !fuel < 0 then return (NoFuelLeft t)
     else
       match t.desc with
       | Comp_unit unit_name ->
@@ -409,38 +561,44 @@ end) = struct
           return (NStruct mnf)
 
   let rec read_back env (nf : nf) : t =
-    in_memo_table env.read_back_memo_table nf (read_back_ env) nf
+    in_read_back_memo_table env.read_back_memo_table nf (read_back_ env) nf
   (* The [nf] normal form we receive may contain a lot of internal
      sharing due to the use of memoization in the evaluator. We have
      to memoize here again, otherwise the sharing is lost by mapping
      over the term as a tree. *)
 
   and read_back_ env (nf : nf) : t =
-    { uid = nf.uid; desc = read_back_desc env nf.desc }
+  read_back_desc ~uid:nf.uid env nf.desc
 
-  and read_back_desc env desc =
+  and read_back_desc ~uid env desc =
     let read_back nf = read_back env nf in
     let read_back_force (Thunk (local_env, t)) =
-      read_back (reduce_ { env with local_env } t) in
-    match desc with
-    | NVar v ->
-        Var v
-    | NApp (nft, nfu) ->
-        App(read_back nft, read_back nfu)
-    | NAbs (_env, x, _t, nf) ->
-        Abs(x, read_back_force nf)
-    | NStruct nstr ->
-        Struct (Item.Map.map read_back_force nstr)
-    | NProj (nf, item) ->
-        Proj (read_back nf, item)
-    | NLeaf -> Leaf
-    | NComp_unit s -> Comp_unit s
-    | NoFuelLeft t -> t
+    read_back (reduce_ { env with local_env } t)
+  in
+  match desc with
+  | NVar v ->
+    var (Option.get uid) v
+  | NApp (nft, nfu) ->
+      let f = read_back nft in
+      let arg = read_back nfu in
+      app ?uid f ~arg
+  | NAbs (_env, x, _t, nf) ->
+    let body = read_back_force nf in
+    abs ?uid x body
+  | NStruct nstr ->
+    let map = Item.Map.map read_back_force nstr in
+    str ?uid map
+  | NProj (nf, item) ->
+      let t = read_back nf in
+      proj ?uid t item
+  | NLeaf -> leaf' uid
+  | NComp_unit s -> comp_unit ?uid s
+  | NoFuelLeft t -> no_fuel_left ?uid t
 
   let reduce global_env t =
     let fuel = ref Params.fuel in
-    let reduce_memo_table = Hashtbl.create 42 in
-    let read_back_memo_table = Hashtbl.create 42 in
+    let reduce_memo_table = ReduceMemoTable.create 42 in
+    let read_back_memo_table = ReadBackMemoTable.create 42 in
     let local_env = Ident.Map.empty in
     let env = {
       fuel;
@@ -466,9 +624,11 @@ module Local_reduce =
   end)
 
 let local_reduce shape =
-  Local_reduce.reduce () shape
+  Profile.record_call "shape.local_reduce" (fun () ->
+    Local_reduce.reduce () shape
+  )
 
-let dummy_mod = { uid = None; desc = Struct Item.Map.empty }
+let dummy_mod = str Item.Map.empty
 
 let of_path ~find_shape ~namespace =
   let rec aux : Sig_component_kind.t -> Path.t -> t = fun ns -> function
@@ -484,10 +644,9 @@ let of_path ~find_shape ~namespace =
   aux namespace
 
 let for_persistent_unit s =
-  { uid = Some (Compilation_unit s);
-    desc = Comp_unit s }
+  comp_unit ~uid:(Compilation_unit s) s
 
-let leaf_for_unpack = { uid = None; desc = Leaf }
+let leaf_for_unpack = leaf' None
 
 let set_uid_if_none t uid =
   match t.uid with

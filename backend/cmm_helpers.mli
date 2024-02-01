@@ -42,6 +42,8 @@ val black_closure_header : int -> nativeint
 (** Infix header at the given offset *)
 val infix_header : int -> nativeint
 
+val black_custom_header : size:int -> nativeint
+
 (** Closure info for a closure of given arity and distance to environment *)
 val closure_info : arity:arity -> startenv:int -> is_last:bool -> nativeint
 
@@ -147,8 +149,11 @@ val return_unit : Debuginfo.t -> expression -> expression
 val mk_load_mut : memory_chunk -> operation
 
 (** [field_address ptr n dbg] returns an expression for the address of the [n]th
-    field of the block pointed to by [ptr] *)
-val field_address : expression -> int -> Debuginfo.t -> expression
+    field of the block pointed to by [ptr].  [memory_chunk] is only used for
+    computation of the field width; it defaults to a memory chunk matching the
+    machine width. *)
+val field_address :
+  ?memory_chunk:memory_chunk -> expression -> int -> Debuginfo.t -> expression
 
 (** [get_field_gen mut ptr n dbg] returns an expression for the access to the
     [n]th field of the block pointed to by [ptr].  The [memory_chunk] used is
@@ -468,9 +473,6 @@ val send :
   Debuginfo.t ->
   expression
 
-(** Construct [Cregion e], eliding some useless regions *)
-val region : expression -> expression
-
 (** Entry point *)
 val entry_point : Compilation_unit.t list -> phrase list
 
@@ -600,9 +602,9 @@ val ite :
     caught exception in the handler. *)
 val trywith :
   dbg:Debuginfo.t ->
-  kind:trywith_kind ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
+  handler_cont:trywith_shared_label ->
   handler:expression ->
   unit ->
   expression
@@ -888,3 +890,51 @@ val atomic_compare_and_set :
   expression
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
+
+(** Allocate a block to hold an unboxed int32 array for the given number of
+    elements. *)
+val allocate_unboxed_int32_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed int64 array for the given number of
+    elements. *)
+val allocate_unboxed_int64_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed nativeint array for the given number of
+    elements. *)
+val allocate_unboxed_nativeint_array :
+  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int32 array. *)
+val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int64 or unboxed nativeint array. *)
+val unboxed_int64_or_nativeint_array_length :
+  expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int32 array (without bounds check). *)
+val unboxed_int32_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
+val unboxed_int64_or_nativeint_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Update an unboxed int32 array (without bounds check). *)
+val unboxed_int32_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(** Update an unboxed int64 or unboxed nativeint array (without bounds
+    check). *)
+val unboxed_int64_or_nativeint_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression

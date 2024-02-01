@@ -261,9 +261,9 @@ let unify_delayed_method_type loc env label ty expected_ty=
       raise(Error(loc, env, Field_type_mismatch ("method", label, trace)))
 
 let type_constraint val_env sty sty' loc =
-  let cty  = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+  let cty  = transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty in
   let ty = cty.ctyp_type in
-  let cty' = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty' in
+  let cty' = transl_simple_type ~new_var_jkind:Sort val_env ~closed:false Alloc.Const.legacy sty' in
   let ty' = cty'.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify err ->
@@ -308,7 +308,7 @@ let rec class_type_field env sign self_scope ctf =
   | Pctf_val ({txt=lab}, mut, virt, sty) ->
       mkctf_with_attrs
         (fun () ->
-          let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty = transl_simple_type ~new_var_jkind:Sort env ~closed:false Alloc.Const.legacy sty in
           let ty = cty.ctyp_type in
           begin match
             Ctype.constrain_type_jkind
@@ -343,7 +343,7 @@ let rec class_type_field env sign self_scope ctf =
                  ) :: !delayed_meth_specs;
                Tctf_method (lab, priv, virt, returned_cty)
            | _ ->
-               let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+               let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
                let ty = cty.ctyp_type in
                add_method loc env lab priv virt ty sign;
                Tctf_method (lab, priv, virt, cty))
@@ -367,7 +367,7 @@ and class_signature virt env pcsig self_scope loc =
   (* Introduce a dummy method preventing self type from being closed. *)
   Ctype.add_dummy_method env ~scope:self_scope sign;
 
-  let self_cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+  let self_cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
   let self_type = self_cty.ctyp_type in
   begin try
     Ctype.unify env self_type sign.csig_self
@@ -417,7 +417,7 @@ and class_type_aux env virt self_scope scty =
                                                    List.length styl)));
       let ctys = List.map2
         (fun sty ty ->
-          let cty' = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+          let cty' = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
           let ty' = cty'.ctyp_type in
           begin
            try Ctype.unify env ty' ty with Ctype.Unify err ->
@@ -437,7 +437,7 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      let cty = transl_simple_type env ~closed:false Alloc.Const.legacy sty in
+      let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -670,7 +670,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
         (fun () ->
            let cty =
              Ctype.with_local_level_if_principal
-               (fun () -> Typetexp.transl_simple_type val_env
+               (fun () -> Typetexp.transl_simple_type ~new_var_jkind:Any val_env
                             ~closed:false Alloc.Const.legacy styp)
                ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
            in
@@ -760,7 +760,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
       with_attrs
         (fun () ->
            let sty = Ast_helper.Typ.force_poly sty in
-           let cty = transl_simple_type val_env ~closed:false Alloc.Const.legacy sty in
+           let cty = transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty in
            let ty = cty.ctyp_type in
            add_method loc val_env label.txt priv Virtual ty sign;
            let field =
@@ -800,7 +800,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
-                   Typetexp.transl_simple_type val_env ~closed:false Alloc.Const.legacy sty
+                   Typetexp.transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty
                  in
                  cty'.ctyp_type
            in
@@ -1118,7 +1118,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
-          (fun sty -> transl_simple_type val_env ~closed:false Alloc.Const.legacy sty)
+          (fun sty -> transl_simple_type ~new_var_jkind:Any val_env ~closed:false Alloc.Const.legacy sty)
           styl
       in
       let (params, clty) =
@@ -1506,14 +1506,14 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* of optional parameters                                         *)
 
 let var_option =
-  Predef.type_option (Btype.newgenvar (Jkind.value ~why:Type_argument))
+  Predef.type_option (Btype.newgenvar Predef.option_argument_jkind)
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
@@ -1532,7 +1532,7 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_argument)
+        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
         (* CR layouts: use of value here may be relaxed when we
            relax jkinds in classes *)
       in
@@ -1544,10 +1544,12 @@ let rec approx_description ct =
 
 (*******************************)
 
-let temp_abbrev loc arity uid =
+let temp_abbrev loc id arity uid =
   let params = ref [] in
-  for _i = 1 to arity do
-    params := Ctype.newvar (Jkind.value ~why:Type_argument) :: !params
+  for i = 1 to arity do
+    params := Ctype.newvar (Jkind.value ~why:(
+      Type_argument {parent_path = Path.Pident id; position = i; arity})
+    ) :: !params
   done;
   let ty = Ctype.newobj (Ctype.newvar (Jkind.value ~why:Object)) in
   let ty_td =
@@ -1574,9 +1576,9 @@ let initial_env define_class approx
     (res, env) (cl, id, ty_id, obj_id, uid) =
   (* Temporary abbreviations *)
   let arity = List.length cl.pci_params in
-  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc arity uid in
+  let (obj_params, obj_ty, obj_td) = temp_abbrev cl.pci_loc obj_id arity uid in
   let env = Env.add_type ~check:true obj_id obj_td env in
-  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc arity uid in
+  let (cl_params, cl_ty, cl_td) = temp_abbrev cl.pci_loc ty_id arity uid in
 
   (* Temporary type for the class constructor *)
   let constr_type =
@@ -1644,7 +1646,7 @@ let class_infos define_class kind
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
             Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.value ~why:Class_argument));
+              (Ctype.newvar (Jkind.value ~why:Class_type_argument));
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))

@@ -373,7 +373,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
-  | Array_length -> Array_length
+  | Array_length ak -> Array_length ak
   | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
@@ -450,6 +450,10 @@ let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
       | Immediates, _ -> Immediates
       | Naked_floats, _ -> Naked_floats
       | Values, ia -> Values (init_or_assign env ia)
+      | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
+        Misc.fatal_error
+          "fexpr support for unboxed int32/64/nativeint arrays not yet \
+           implemented"
     in
     Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
@@ -774,7 +778,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | Immutable_value_array elements ->
           static_const
             (SC.immutable_value_array (List.map (field_of_block env) elements))
-        | Empty_array -> static_const SC.empty_array
+        | Empty_array array_kind -> static_const (SC.empty_array array_kind)
         | Mutable_string { initial_value = s } ->
           static_const (SC.mutable_string ~initial_value:s)
         | Immutable_string s -> static_const (SC.immutable_string s))
@@ -979,12 +983,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           ( Call_kind.indirect_function_call_unknown_arity alloc,
             params_arity,
             return_arity ))
-      | C_call { alloc } -> (
+      | C_call { alloc = needs_caml_c_call } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          ( Call_kind.c_call ~alloc ~is_c_builtin:false,
+          ( Call_kind.c_call ~needs_caml_c_call ~is_c_builtin:false
+              ~effects:Arbitrary_effects ~coeffects:Has_coeffects
+              Alloc_mode.For_allocations.heap,
             params_arity,
             return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->

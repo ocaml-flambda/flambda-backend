@@ -122,6 +122,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pdivbint { size; is_safe; mode } -> Pdivbint { size; is_safe; mode }
   | Pmodbint { size; is_safe; mode } -> Pmodbint { size; is_safe; mode }
   | Pbintcomp (bi, comp) -> Pbintcomp (bi, comp)
+  | Punboxed_int_comp (bi, comp) -> Punboxed_int_comp (bi, comp)
   | Pbigarrayref (safe, dims, kind, layout) ->
       Pbigarrayref (safe, dims, kind, layout)
   | Pbigarrayset (safe, dims, kind, layout) ->

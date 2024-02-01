@@ -1,5 +1,4 @@
 (* TEST
-   flags = "-extension layouts_alpha"
    * expect
 *)
 
@@ -43,7 +42,10 @@ Line 1, characters 9-15:
 1 | type t = int64# list;;
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let f (_ : int64# list) = ();;
@@ -52,7 +54,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int64# list) = ();;
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C of int64# list;;
@@ -61,7 +66,10 @@ Line 1, characters 14-20:
 1 | type t = C of int64# list;;
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 type t = C : int64# list -> t;;
@@ -70,7 +78,10 @@ Line 1, characters 13-19:
 1 | type t = C : int64# list -> t;;
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* Syntax: int64#c
@@ -89,7 +100,10 @@ Line 1, characters 9-15:
 1 | type t = int64#c;;
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : int64#c) = ();;
@@ -98,7 +112,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int64#c) = ();;
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of int64#c;;
@@ -107,7 +124,10 @@ Line 1, characters 14-20:
 1 | type t = C of int64#c;;
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : int64#c -> t;;
@@ -116,7 +136,10 @@ Line 1, characters 13-19:
 1 | type t = C : int64#c -> t;;
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: int64# c
@@ -128,7 +151,10 @@ Line 1, characters 9-15:
 1 | type t = int64# c;;
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 let f (_ : int64# c) = ();;
@@ -137,7 +163,10 @@ Line 1, characters 11-17:
 1 | let f (_ : int64# c) = ();;
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C of int64# c;;
@@ -146,7 +175,10 @@ Line 1, characters 14-20:
 1 | type t = C of int64# c;;
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 type t = C : int64# c -> t;;
@@ -155,7 +187,10 @@ Line 1, characters 13-19:
 1 | type t = C : int64# c -> t;;
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
-       int64# has layout bits64, which is not a sublayout of value.
+       The layout of int64# is bits64, because
+         it is the primitive bits64 type int64#.
+       But the layout of int64# must be a sublayout of value, because
+         it's a type argument to a class constructor.
 |}];;
 
 (* Syntax: int64 #c
