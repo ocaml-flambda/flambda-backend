@@ -8,7 +8,7 @@ File "test_assume_fail.ml", line 12, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.foo' (camlTest_assume_fail.foo'_HIDE_STAMP)
 
 File "test_assume_fail.ml", line 12, characters 33-39:
-Error: Unexpected direct call camlCamlinternalFormat.make_printf_120_401_code (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53;printf.ml:47,18--43;printf.ml:45,2--31) on a path to exceptional return
+Error: Unexpected direct call camlCamlinternalFormat.make_printf_120_408_code (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53;printf.ml:47,18--43;printf.ml:45,2--31) on a path to exceptional return
 
 File "test_assume_fail.ml", line 12, characters 33-39:
 Error: Unexpected indirect call (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53) on a path to exceptional return
