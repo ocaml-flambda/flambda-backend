@@ -248,6 +248,12 @@ class cse_generic =
               (fun successor_label ->
                 let successor_block = Cfg.get_block_exn cfg successor_label in
                 let to_add =
+                  (* This condition is defensive / redundant, but avoids
+                     thinking too hard about weird corner cases like for
+                     instance an unreachable loop. (That particular case would
+                     actually be fine since the blocks from said loop would
+                     never be visited, meaning there is no risk they would
+                     prevent the loop from terminating.) *)
                   (not (Label.Set.mem successor_label !visited))
                   && Label.Set.cardinal successor_block.predecessors = 1
                 in
@@ -259,6 +265,9 @@ class cse_generic =
                 if to_add then Queue.add (numbering, successor_block) to_visit)
               successor_labels)
         done;
+        (* The following assertion may fail if there is an unreachable loop,
+           since (as noted in the comment above), the blocks of such a loop
+           would not be visited. *)
         if debug
         then assert (Label.Set.cardinal !visited = Label.Tbl.length cfg.blocks)
 
