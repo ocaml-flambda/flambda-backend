@@ -452,9 +452,9 @@ module Solver_mono (C : Lattices_mono) = struct
     let vlower = Option.value vlower ~default:[] in
     { upper; lower; vlower; id }
 
-  let submode_try (type a r l) ~logging (obj : a C.obj)
-      (a : (a, allowed * r) mode) (b : (a, l * allowed) mode) =
-    let log = if logging then Some (ref []) else None in
+  let submode_try (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
+      (b : (a, l * allowed) mode) =
+    let log = Some (ref []) in
     let submode_cc left right =
       if C.le obj left right then Ok () else Error { left; right }
     in
@@ -515,7 +515,7 @@ module Solver_mono (C : Lattices_mono) = struct
       Error e
 
   let submode obj a b =
-    match submode_try ~logging:true obj a b with
+    match submode_try obj a b with
     | Ok log ->
       Option.iter !append_changes log;
       Ok ()
