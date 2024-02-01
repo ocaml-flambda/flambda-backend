@@ -15,11 +15,11 @@ that it can be used to build OPAM packages.
 
 Only currently tested on Linux/x86-64 and macOS/x86-64.
 
-One-time setup (you can also use 4.14.1):
+One-time setup (you can also use other 4.14.x releases):
 ```
-$ opam switch 4.14.0  # or "opam switch create 4.14.0" if you haven't got that switch already
+$ opam switch 4.14.1  # or "opam switch create 4.14.1" if you haven't got that switch already
 $ eval $(opam env)
-$ opam install dune
+$ opam install dune.3.8.1 menhir.20210419
 ```
 
 You probably then want to fork the `ocaml-flambda/flambda-backend` repo to your own Github org.
