@@ -95,6 +95,7 @@
   coloring
   comballoc
   CSE
+  CSE_utils
   CSEgen
   dataflow
   deadcode
@@ -154,6 +155,7 @@
   cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
+  cfg_cse
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks

@@ -711,7 +711,6 @@ let fundecl :
   in
   let start_label = Cmm.new_label () in
   let tailrec_label = Cmm.new_label () in
-  let fun_fast = not (List.mem Cmm.Reduce_code_size fun_codegen_options) in
   (* CR xclerc for xclerc: with the new pipeline, stacks slots are always 0 when
      Cfgize is called; we (temporarily?) always add a prologue and remove it
      after register allocation if it is not required. *)
@@ -721,8 +720,9 @@ let fundecl :
     else Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let cfg =
-    Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-      ~fun_num_stack_slots
+    Cfg.create ~fun_name ~fun_args
+      ~fun_codegen_options:(Cfg.of_cmm_codegen_option fun_codegen_options)
+      ~fun_dbg ~fun_contains_calls ~fun_num_stack_slots
   in
   let state =
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls

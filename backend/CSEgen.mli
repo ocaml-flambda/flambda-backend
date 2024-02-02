@@ -16,11 +16,7 @@
 (* Common subexpression elimination by value numbering over extended
    basic blocks. *)
 
-type op_class =
-  | Op_pure     (* pure, produce one result *)
-  | Op_load of Mach.mutable_flag  (* memory load *)
-  | Op_store of bool  (* memory store, false = init, true = assign *)
-  | Op_other   (* anything else that does not allocate nor store in memory *)
+open CSE_utils
 
 class cse_generic : object
   (* The following methods can be overridden to handle processor-specific
