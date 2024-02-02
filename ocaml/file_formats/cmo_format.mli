@@ -30,7 +30,7 @@ type compilation_unit_descr =
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
-    cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
+    cu_imports: Import_info.Intf.t array; (* Names and CRC of intfs imported *)
     cu_required_globals: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects

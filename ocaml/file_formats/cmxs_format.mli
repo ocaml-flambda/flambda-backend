@@ -22,8 +22,8 @@
 type dynunit = {
   dynu_name: Compilation_unit.t;
   dynu_crc: Digest.t;
-  dynu_imports_cmi: Import_info.t array;
-  dynu_imports_cmx: Import_info.t array;
+  dynu_imports_cmi: Import_info.Intf.t array;
+  dynu_imports_cmx: Import_info.Impl.t array;
   dynu_defines: Compilation_unit.t list;
 }
 
