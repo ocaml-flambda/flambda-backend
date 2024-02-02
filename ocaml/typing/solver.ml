@@ -412,8 +412,12 @@ module Solver_mono (C : Lattices_mono) = struct
   let eq_morphvar :
       type a l0 r0 l1 r1.
       a C.obj -> (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool =
-   fun dst (Amorphvar (v0, f0)) (Amorphvar (v1, f1)) ->
-    match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
+   fun dst (Amorphvar (v0, f0) as mv0) (Amorphvar (v1, f1) as mv1) ->
+    (* To align l0/l1, r0/r1; The existing disallow_left/right] is for [mode],
+       not [morphvar]. *)
+    if Obj.repr mv0 == Obj.repr mv1
+    then true
+    else match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
 
   let exists obj mu mvs = List.exists (fun mv -> eq_morphvar obj mv mu) mvs
 

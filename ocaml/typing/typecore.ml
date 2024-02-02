@@ -410,21 +410,21 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
     end
   | None -> ()
 
-let le_regional_right mode =
+let meet_regional mode =
   let mode = Value.disallow_left mode in
   Value.meet [mode; (Value.max_with_regionality Regionality.regional)]
 
-let le_global_right mode =
+let meet_global mode =
   (* let mode = Value.disallow_left mode in *)
   Value.meet [mode; (Value.max_with_regionality Regionality.global)]
 
-let le_unique_right mode =
+let meet_unique mode =
   Value.meet [mode; (Value.max_with_uniqueness Uniqueness.unique)]
 
-let le_many_right mode =
+let meet_many mode =
   Value.meet [mode; (Value.max_with_linearity Linearity.many)]
 
-let ge_shared_left mode =
+let join_shared mode =
   Value.join [mode; Value.min_with_uniqueness Uniqueness.shared]
 
 let value_regional_to_local mode =
@@ -444,7 +444,7 @@ let _modality_unbox_left global_flag mode =
   | Global ->
       mode
       |> Value.set_regionality_min
-      |> ge_shared_left
+      |> join_shared
       |> Value.set_linearity_min
   | Unrestricted -> mode
 
@@ -454,9 +454,9 @@ let _modality_box_right global_flag mode =
   match global_flag with
   | Global ->
       mode
-      |> le_global_right
+      |> meet_global
       |> Value.set_uniqueness_max
-      |> le_many_right
+      |> meet_many
   | Unrestricted -> mode
 
 (* Describes how a modality affects field projection. Returns the mode
@@ -467,7 +467,7 @@ let modality_unbox_left global_flag mode =
   | Global ->
       mode
       |> Value.set_regionality_min
-      |> ge_shared_left
+      |> join_shared
       |> Value.set_linearity_min
   | Unrestricted -> mode
 
@@ -477,9 +477,9 @@ let modality_box_right global_flag mode =
   match global_flag with
   | Global ->
       mode
-      |> le_global_right
+      |> meet_global
       |> Value.set_uniqueness_max
-      |> le_many_right
+      |> meet_many
   | Unrestricted -> mode
 
 let mode_default mode =
@@ -495,14 +495,14 @@ let mode_legacy = mode_default Value.legacy
 (* used when entering a function;
 mode is the mode of the function region *)
 let mode_return mode =
-  { (mode_default (le_regional_right mode)) with
+  { (mode_default (meet_regional mode)) with
     position = RTail (Regionality.disallow_left (Value.regionality mode), FTail);
     closure_context = Some Return;
   }
 
 (* used when entering a region.*)
 let mode_region mode =
-  { (mode_default (le_regional_right mode)) with
+  { (mode_default (meet_regional mode)) with
     position =
       RTail (Regionality.disallow_left (Value.regionality mode), FNontail);
     closure_context = None;
@@ -525,7 +525,7 @@ let mode_box_modality gf expected_mode =
   mode_default (modality_box_right gf expected_mode.mode)
 
 let mode_global expected_mode =
-  let mode = le_global_right expected_mode.mode in
+  let mode = meet_global expected_mode.mode in
   {expected_mode with mode}
 
 let mode_local expected_mode =
@@ -543,7 +543,7 @@ let mode_strictly_local expected_mode =
   }
 
 let mode_unique expected_mode =
-  let mode = le_unique_right expected_mode.mode in
+  let mode = meet_unique expected_mode.mode in
   { expected_mode with mode }
 
 let mode_once expected_mode =
