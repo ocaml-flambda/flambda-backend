@@ -415,8 +415,7 @@ module Solver_mono (C : Lattices_mono) = struct
    fun dst (Amorphvar (v0, f0)) (Amorphvar (v1, f1)) ->
     match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
 
-  let exists obj mu mvs =
-    if List.exists (fun mv -> eq_morphvar obj mv mu) mvs then true else false
+  let exists obj mu mvs = List.exists (fun mv -> eq_morphvar obj mv mu) mvs
 
   let submode_mvmv (type a) ~log (dst : a C.obj) (Amorphvar (v, f) as mv)
       (Amorphvar (u, g) as mu) =
@@ -539,11 +538,11 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let cons_dedup obj x xs = if exists obj x xs then xs else x :: xs
 
-  (* Similar to [List.append] but dedup the result (assuming both inputs are
+  (* Similar to [List.rev_append] but dedup the result (assuming both inputs are
      deduped) *)
-  let append_dedup obj l0 l1 =
-    let rec loop acc rest =
-      match rest with [] -> acc | x :: xs -> loop (cons_dedup obj x acc) xs
+  let rev_append_dedup obj l0 l1 =
+    let rec loop rest acc =
+      match rest with [] -> acc | x :: xs -> loop xs (cons_dedup obj x acc)
     in
     loop l0 l1
 
@@ -568,7 +567,7 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amodevar mv ->
             loop (C.join obj a (mlower obj mv)) (cons_dedup obj mv mvs) xs
           | Amodejoin (b, mvs') ->
-            loop (C.join obj a b) (append_dedup obj mvs' mvs) xs)
+            loop (C.join obj a b) (rev_append_dedup obj mvs' mvs) xs)
     in
     loop (C.min obj) [] l
 
@@ -593,7 +592,7 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amodevar mv ->
             loop (C.meet obj a (mupper obj mv)) (cons_dedup obj mv mvs) xs
           | Amodemeet (b, mvs') ->
-            loop (C.meet obj a b) (append_dedup obj mvs' mvs) xs)
+            loop (C.meet obj a b) (rev_append_dedup obj mvs' mvs) xs)
     in
     loop (C.max obj) [] l
 
@@ -677,18 +676,16 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodevar mv ->
       let u = fresh obj in
       let mu = Amorphvar (u, C.id) in
-      let mu' = Amorphvar (u, C.id) in
       assert (Result.is_ok (submode_mvmv obj ~log:None mu mv));
-      Amodevar mu', true
+      allow_left (Amodevar mu), true
     | Amodemeet (a, mvs) ->
       let u = fresh obj in
       let mu = Amorphvar (u, C.id) in
-      let mu' = Amorphvar (u, C.id) in
       assert (Result.is_ok (submode_mvc obj ~log:None mu a));
       List.iter
         (fun mv -> assert (Result.is_ok (submode_mvmv obj ~log:None mu mv)))
         mvs;
-      Amodevar mu', true
+      allow_left (Amodevar mu), true
 end
 [@@inline always]
 
