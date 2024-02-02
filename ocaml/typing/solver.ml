@@ -181,52 +181,56 @@ module Solver_mono (C : Lattices_mono) = struct
            (print_morphvar ?traversed obj))
         mvs
 
-  include Magic_allow_disallow (struct
-    type ('a, _, 'd) sided = ('a, 'd) mode constraint 'd = 'l * 'r
+  module Morphvar = Magic_allow_disallow (struct
+    type ('a, _, 'd) sided = ('a, 'd) morphvar constraint 'd = 'l * 'r
 
-    let rec allow_left : type a l r. (a, allowed * r) mode -> (a, l * r) mode =
-      function
-      | Amode c -> Amode c
-      | Amodevar mv -> Amodevar (allow_left_mv mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map allow_left_mv mvs)
-
-    and allow_left_mv :
+    let allow_left :
         type a l r. (a, allowed * r) morphvar -> (a, l * r) morphvar = function
       | Amorphvar (v, m) -> Amorphvar (v, C.allow_left m)
 
-    let rec allow_right : type a l r. (a, l * allowed) mode -> (a, l * r) mode =
-      function
-      | Amode c -> Amode c
-      | Amodevar mv -> Amodevar (allow_right_mv mv)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map allow_right_mv mvs)
-
-    and allow_right_mv :
+    let allow_right :
         type a l r. (a, l * allowed) morphvar -> (a, l * r) morphvar = function
       | Amorphvar (v, m) -> Amorphvar (v, C.allow_right m)
 
-    let rec disallow_left :
-        type a l r. (a, l * r) mode -> (a, disallowed * r) mode = function
-      | Amode c -> Amode c
-      | Amodevar mv -> Amodevar (disallow_left_mv mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map disallow_left_mv mvs)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map disallow_left_mv mvs)
-
-    and disallow_left_mv :
+    let disallow_left :
         type a l r. (a, l * r) morphvar -> (a, disallowed * r) morphvar =
       function
       | Amorphvar (v, m) -> Amorphvar (v, C.disallow_left m)
 
-    let rec disallow_right :
-        type a l r. (a, l * r) mode -> (a, l * disallowed) mode = function
-      | Amode c -> Amode c
-      | Amodevar mv -> Amodevar (disallow_right_mv mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map disallow_right_mv mvs)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map disallow_right_mv mvs)
-
-    and disallow_right_mv :
+    let disallow_right :
         type a l r. (a, l * r) morphvar -> (a, l * disallowed) morphvar =
       function
       | Amorphvar (v, m) -> Amorphvar (v, C.disallow_right m)
+  end)
+
+  include Magic_allow_disallow (struct
+    type ('a, _, 'd) sided = ('a, 'd) mode constraint 'd = 'l * 'r
+
+    let allow_left : type a l r. (a, allowed * r) mode -> (a, l * r) mode =
+      function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (Morphvar.allow_left mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.allow_left mvs)
+
+    let allow_right : type a l r. (a, l * allowed) mode -> (a, l * r) mode =
+      function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (Morphvar.allow_right mv)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.allow_right mvs)
+
+    let disallow_left : type a l r. (a, l * r) mode -> (a, disallowed * r) mode
+        = function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (Morphvar.disallow_left mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.disallow_left mvs)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.disallow_left mvs)
+
+    let disallow_right : type a l r. (a, l * r) mode -> (a, l * disallowed) mode
+        = function
+      | Amode c -> Amode c
+      | Amodevar mv -> Amodevar (Morphvar.disallow_right mv)
+      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.disallow_right mvs)
+      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.disallow_right mvs)
   end)
 
   let mlower dst (Amorphvar (var, morph)) = C.apply dst morph var.lower
@@ -415,9 +419,9 @@ module Solver_mono (C : Lattices_mono) = struct
    fun dst (Amorphvar (v0, f0) as mv0) (Amorphvar (v1, f1) as mv1) ->
     (* To align l0/l1, r0/r1; The existing disallow_left/right] is for [mode],
        not [morphvar]. *)
-    if Obj.repr mv0 == Obj.repr mv1
-    then true
-    else match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
+    Morphvar.(
+      disallow_left (disallow_right mv0) == disallow_left (disallow_right mv1))
+    || match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
 
   let exists obj mu mvs = List.exists (fun mv -> eq_morphvar obj mv mu) mvs
 
