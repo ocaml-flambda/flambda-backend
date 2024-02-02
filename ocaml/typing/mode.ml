@@ -612,14 +612,13 @@ module Lattices_mono = struct
     | Locality.Local -> Regionality.Local
     | Locality.Global -> Regionality.Regional
 
-  let rec apply' : type a b d. int ref -> b obj -> (a, b, d) morph -> a -> b =
-   fun cnt dst f a ->
-    cnt := !cnt + 1;
+  let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
+   fun dst f a ->
     match f with
     | Compose (f, g) ->
       let mid = src dst f in
-      let g' = apply' cnt mid g in
-      let f' = apply' cnt dst f in
+      let g' = apply mid g in
+      let f' = apply dst f in
       f' (g' a)
     | Id -> a
     | Proj (_, ax) -> Product.proj ax a
@@ -638,20 +637,7 @@ module Lattices_mono = struct
       let dst0 = proj_obj Axis0 dst in
       let dst1 = proj_obj Axis1 dst in
       let a0, a1 = a in
-      apply' cnt dst0 f0 a0, apply' cnt dst1 f1 a1
-
-  and apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
-   fun dst f a ->
-    let cnt = ref 0 in
-    let b = apply' cnt dst f a in
-    if !cnt > 5
-    then (
-      Format.eprintf
-        "Morphism chain too long; contact Jane Street compiler devs with this:\n\
-         %a\n"
-        (print_morph dst) f;
-      assert false)
-    else b
+      apply dst0 f0 a0, apply dst1 f1 a1
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
