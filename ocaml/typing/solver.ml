@@ -455,53 +455,54 @@ module Solver_mono (C : Lattices_mono) = struct
   let submode_try (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
       (b : (a, l * allowed) mode) =
     let log = Some (ref []) in
-    let submode_cc left right =
+    let submode_cc ~log:_ obj left right =
       if C.le obj left right then Ok () else Error { left; right }
     in
-    let submode_mvc v right =
+    let submode_mvc ~log obj v right =
       Result.map_error
         (fun left -> { left; right })
         (submode_mvc ~log obj v right)
     in
-    let submode_cmv left v =
+    let submode_cmv ~log obj left v =
       Result.map_error
         (fun right -> { left; right })
         (submode_cmv ~log obj left v)
     in
-    let submode_mvmv v u =
+    let submode_mvmv ~log obj v u =
       Result.map_error
         (fun (left, right) -> { left; right })
         (submode_mvmv ~log obj v u)
     in
     let r =
       match a, b with
-      | Amode left, Amode right -> submode_cc left right
-      | Amodevar v, Amode right -> submode_mvc v right
-      | Amode left, Amodevar v -> submode_cmv left v
-      | Amodevar v, Amodevar u -> submode_mvmv v u
+      | Amode left, Amode right -> submode_cc ~log obj left right
+      | Amodevar v, Amode right -> submode_mvc ~log obj v right
+      | Amode left, Amodevar v -> submode_cmv ~log obj left v
+      | Amodevar v, Amodevar u -> submode_mvmv ~log obj v u
       | Amode a, Amodemeet (b, mvs) ->
-        Result.bind (submode_cc a b) (fun () ->
-            find_error (fun mv -> submode_cmv a mv) mvs)
+        Result.bind (submode_cc ~log obj a b) (fun () ->
+            find_error (fun mv -> submode_cmv ~log obj a mv) mvs)
       | Amodevar mv, Amodemeet (b, mvs) ->
-        Result.bind (submode_mvc mv b) (fun () ->
-            find_error (fun mv' -> submode_mvmv mv mv') mvs)
+        Result.bind (submode_mvc ~log obj mv b) (fun () ->
+            find_error (fun mv' -> submode_mvmv ~log obj mv mv') mvs)
       | Amodejoin (a, mvs), Amode b ->
-        Result.bind (submode_cc a b) (fun () ->
-            find_error (fun mv' -> submode_mvc mv' b) mvs)
+        Result.bind (submode_cc ~log obj a b) (fun () ->
+            find_error (fun mv' -> submode_mvc ~log obj mv' b) mvs)
       | Amodejoin (a, mvs), Amodevar mv ->
-        Result.bind (submode_cmv a mv) (fun () ->
-            find_error (fun mv' -> submode_mvmv mv' mv) mvs)
+        Result.bind (submode_cmv ~log obj a mv) (fun () ->
+            find_error (fun mv' -> submode_mvmv ~log obj mv' mv) mvs)
       | Amodejoin (a, mvs), Amodemeet (b, mus) ->
         (* TODO: mabye create a intermediate variable? *)
-        Result.bind (submode_cc a b) (fun () ->
+        Result.bind (submode_cc ~log obj a b) (fun () ->
             Result.bind
-              (find_error (fun mv -> submode_mvc mv b) mvs)
+              (find_error (fun mv -> submode_mvc ~log obj mv b) mvs)
               (fun () ->
                 Result.bind
-                  (find_error (fun mu -> submode_cmv a mu) mus)
+                  (find_error (fun mu -> submode_cmv ~log obj a mu) mus)
                   (fun () ->
                     find_error
-                      (fun mu -> find_error (fun mv -> submode_mvmv mv mu) mvs)
+                      (fun mu ->
+                        find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
                       mus)))
     in
     match r with

@@ -58,9 +58,8 @@ module Product = struct
 
   let lift (type a0 a1 a b0 b1 b) :
       (a0, a1, a, b0, b1, b) saxis -> (a -> b) -> (a0, a1) t -> (b0, b1) t =
-    function
-    | SAxis0 -> fun f (a0, a1) -> f a0, a1
-    | SAxis1 -> fun f (a0, a1) -> a0, f a1
+   fun sax f (a0, a1) ->
+    match sax with SAxis0 -> f a0, a1 | SAxis1 -> a0, f a1
 
   let update (type a0 a1 a) : (a0, a1, a) axis -> a -> a0 * a1 -> a0 * a1 =
     let endo (type a0 a1 a) : (a0, a1, a) axis -> (a0, a1, a, a0, a1, a) saxis =
@@ -250,15 +249,13 @@ module Lattices = struct
 
   let proj_obj :
       type a0 a1 a. (a0, a1, a) Product.axis -> (a0, a1) Product.t obj -> a obj
-      = function
-    | Axis0 -> (
-      function
-      | Comonadic_with_locality -> Locality
-      | Comonadic_with_regionality -> Regionality)
-    | Axis1 -> (
-      function
-      | Comonadic_with_locality -> Linearity
-      | Comonadic_with_regionality -> Linearity)
+      =
+   fun ax obj ->
+    match ax, obj with
+    | Axis0, Comonadic_with_locality -> Locality
+    | Axis0, Comonadic_with_regionality -> Regionality
+    | Axis1, Comonadic_with_locality -> Linearity
+    | Axis1, Comonadic_with_regionality -> Linearity
 
   let prod_obj : type a0 a1. a0 obj -> a1 obj -> (a0, a1) Product.t obj =
    fun a0 a1 ->
@@ -740,7 +737,8 @@ module Lattices_mono = struct
   let rec left_adjoint :
       type a b l.
       b obj -> (a, b, l * allowed) morph -> (b, a, allowed * disallowed) morph =
-   fun dst -> function
+   fun dst f ->
+    match f with
     | Id -> Id
     | Proj (_, ax) -> Min_with ax
     | Max_with ax -> Proj (dst, ax)
@@ -766,7 +764,8 @@ module Lattices_mono = struct
   and right_adjoint :
       type a b r.
       b obj -> (a, b, allowed * r) morph -> (b, a, disallowed * allowed) morph =
-   fun dst -> function
+   fun dst f ->
+    match f with
     | Id -> Id
     | Proj (_, ax) -> Max_with ax
     | Min_with ax -> Proj (dst, ax)
@@ -793,9 +792,9 @@ module Lattices_mono = struct
   let lift (type a0 a1 a b0 b1 b d) :
       (a0, a1, a, b0, b1, b) Product.saxis ->
       (a, b, d) morph ->
-      ((a0, a1) Product.t, (b0, b1) Product.t, d) morph = function
-    | SAxis0 -> fun f0 -> Map (f0, Id)
-    | SAxis1 -> fun f1 -> Map (Id, f1)
+      ((a0, a1) Product.t, (b0, b1) Product.t, d) morph =
+   fun sax f ->
+    match sax, f with SAxis0, f0 -> Map (f0, Id) | SAxis1, f1 -> Map (Id, f1)
 end
 
 module C = Lattices_mono
