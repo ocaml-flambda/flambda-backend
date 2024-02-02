@@ -102,6 +102,12 @@ val is_bottom : Typing_env.t -> Type_grammar.t -> bool
 
 val is_unknown : Typing_env.t -> Type_grammar.t -> bool
 
+val reduce_is_int :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t Or_unknown_or_bottom.t
+
+val reduce_get_tag :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t Or_unknown_or_bottom.t
+
 type to_erase =
   | Everything_not_in of Typing_env.t
   | All_variables_except of Variable.Set.t

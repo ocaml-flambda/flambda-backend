@@ -790,21 +790,22 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     | Left -> Ok (Right_input, env)
     | Right -> Ok (Left_input, env)
   in
-  let meet_with_shape ~rebuild ty shape side =
+  let meet_with_shape env ~rebuild ty shape side =
     map_result ~f:rebuild
       (match side with Left -> meet env ty shape | Right -> meet env shape ty)
   in
-  let is_int_immediate ~is_int_ty ~immediates ~is_int_side =
+  let is_int_immediate env ~is_int_ty ~immediates ~is_int_side =
     let rebuild = TG.Head_of_kind_naked_immediate.create_is_int in
     match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
     | false, false -> Bottom
     | true, true -> keep_side is_int_side
     | true, false ->
-      meet_with_shape ~rebuild is_int_ty MTC.any_block is_int_side
+      meet_with_shape env ~rebuild is_int_ty MTC.any_block is_int_side
     | false, true ->
-      meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
+      meet_with_shape env ~rebuild is_int_ty MTC.any_tagged_immediate
+        is_int_side
   in
-  let get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side =
+  let get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side =
     if I.Set.is_empty immediates
     then keep_other_side get_tag_side
     else
@@ -823,7 +824,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
           MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ())
         with
         | Known shape ->
-          meet_with_shape
+          meet_with_shape env
             ~rebuild:TG.Head_of_kind_naked_immediate.create_get_tag get_tag_ty
             shape get_tag_side
         | Unknown -> keep_side get_tag_side
@@ -834,25 +835,74 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
       ~f:TG.Head_of_kind_naked_immediate.create_naked_immediates_non_empty
       (set_meet (module I.Set) env is1 is2 ~of_set:Fun.id)
   | Is_int is_int_ty, Naked_immediates immediates ->
-    is_int_immediate ~is_int_ty ~immediates ~is_int_side:Left
+    is_int_immediate env ~is_int_ty ~immediates ~is_int_side:Left
   | Naked_immediates immediates, Is_int is_int_ty ->
-    is_int_immediate ~is_int_ty ~immediates ~is_int_side:Right
+    is_int_immediate env ~is_int_ty ~immediates ~is_int_side:Right
   | Get_tag get_tag_ty, Naked_immediates immediates ->
-    get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Left
+    get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:Left
   | Naked_immediates immediates, Get_tag get_tag_ty ->
-    get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Right
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
-    (* CR mshinwell: introduce improved handling for
-     *   Is_int meet Is_int
-     *   Get_tag meet Get_tag
-     * i.e. a better fix for PR1515, at which point we might also be able
-     * to consider improving:
-     *   Is_int meet Get_tag
-     * and vice-versa. *)
-    (* We can't return Bottom, as it would be unsound, so we need to either do
-       the actual meet with Naked_immediates, or just give up and return one of
-       the arguments. *)
-    Ok (Left_input, env)
+    get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:Right
+  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> (
+    (* There are several difficulties here. The first one is that we would like
+       to refine the underlying variant types. For instance, a meet between
+       [Get_tag b] and [Is_int v] should remove from [b] all tags except 0 and
+       1, and remove the cases for [v] that are not allowed given the tags of
+       [b]. This is solved by the reduce and refine algorithm implemented below.
+
+       The second difficulty is that we would like to return a type that is
+       precise: if this meet removes all possible values except one, we want an
+       alias to this remaining constant instead of the original type. This is
+       not implemented.
+
+       Finally, there is a design limitation: by representing [Get_tag] and
+       [Is_int] relations using equations on the immediate variable, we lose the
+       ability to represent that a variable may be linked to more than one
+       value. So no matter how complicated the algorithm is here, we will lose
+       at least one of the relations given as input. We would need to change the
+       way we represent these relations to solve that issue. (Extensions on
+       immediates would work, but might be expensive; subsuming all the current
+       cases into a record with an immediate set plus a set of relations might
+       be more realistic.) *)
+    let reduce env (t : TG.head_of_kind_naked_immediate) =
+      match t with
+      | Naked_immediates imms ->
+        (* unreachable, but that would be the correct output *)
+        Or_unknown_or_bottom.Ok imms
+      | Is_int ty -> Expand_head.reduce_is_int env ty
+      | Get_tag ty -> Expand_head.reduce_get_tag env ty
+    in
+    let refine env (t : TG.head_of_kind_naked_immediate) ~immediates side =
+      match t with
+      | Naked_immediates _ -> (* unreachable *) assert false
+      | Is_int is_int_ty ->
+        is_int_immediate env ~is_int_ty ~immediates ~is_int_side:side
+      | Get_tag get_tag_ty ->
+        get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:side
+    in
+    let refine_t1_env : _ Or_bottom.t =
+      match reduce env t2 with
+      | Bottom -> Bottom
+      | Unknown -> Ok env
+      | Ok immediates -> (
+        match refine env t1 ~immediates Left with
+        | Bottom -> Bottom
+        | Ok (_, env) -> Ok env)
+    in
+    match refine_t1_env with
+    | Bottom -> Bottom
+    | Ok env -> (
+      let refine_t2_env : _ Or_bottom.t =
+        match reduce env t1 with
+        | Bottom -> Bottom
+        | Unknown -> Ok env
+        | Ok immediates -> (
+          match refine env t2 ~immediates Right with
+          | Bottom -> Bottom
+          | Ok (_, env) -> Ok env)
+      in
+      match refine_t2_env with
+      | Bottom -> Bottom
+      | Ok env -> Ok (Both_inputs, env)))
 
 and meet_head_of_kind_naked_float32 env t1 t2 =
   set_meet
