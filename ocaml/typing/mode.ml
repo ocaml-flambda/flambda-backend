@@ -808,6 +808,7 @@ let equate_from_submode submode m0 m1 =
     match submode m1 m0 with
     | Error e -> Error (Right_le_left, e)
     | Ok () -> Ok ())
+  [@@inline]
 
 module Common (Obj : Obj) = struct
   open Obj
@@ -869,6 +870,7 @@ module Common (Obj : Obj) = struct
 
   let check_const m = Solver.check_const obj m
 end
+[@@inline]
 
 module Locality = struct
   module Const = C.Locality

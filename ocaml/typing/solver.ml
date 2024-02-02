@@ -35,6 +35,7 @@ module Magic_allow_disallow (X : Allow_disallow) :
       type a b l r. (a, b, allowed * r) sided -> (a, b, l * r) sided =
     Obj.magic
 end
+[@@inline]
 
 type 'a error =
   { left : 'a;
@@ -689,6 +690,7 @@ module Solver_mono (C : Lattices_mono) = struct
         mvs;
       Amodevar mu', true
 end
+[@@inline always]
 
 module Solvers_polarized (C : Lattices_mono) = struct
   module S = Solver_mono (C)
@@ -836,3 +838,4 @@ module Solvers_polarized (C : Lattices_mono) = struct
       | Negative mode -> Negative.via_monotone obj morph mode
   end
 end
+[@@inline always]
