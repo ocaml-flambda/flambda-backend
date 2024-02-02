@@ -468,7 +468,8 @@ end = struct
     in
     let print_comballoc (w : Witness.t) =
       match Witness.get_alloc_dbginfo w.kind with
-      | None | Some [] | Some [_] -> "", []
+      | None -> " may allocate", []
+      | Some [] | Some [_] -> "", []
       | Some alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
@@ -501,8 +502,8 @@ end = struct
         else " on a path to " ^ component
       in
       let pp ppf () =
-        Format.fprintf ppf "Unexpected %a%a%s%s" Witness.print_kind w.kind
-          pp_inlined_dbg w.dbg component_msg comballoc_msg
+        Format.fprintf ppf "%a%s%s%a" Witness.print_kind w.kind component_msg
+          comballoc_msg pp_inlined_dbg w.dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
