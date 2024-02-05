@@ -575,8 +575,6 @@ and lambda_event_kind =
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    arg_block_field : int option;       (* Unnamed field with argument block
-                                           (see [arg_descr]) *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -797,13 +795,3 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val is_check_enabled : opt:bool -> property -> bool
-
-(* Info for a compilation unit that implements a parameter (i.e., is an argument
-   for that parameter) *)
-
-type arg_descr =
-  { arg_param: Compilation_unit.Name.t; (* The parameter implemented *)
-    arg_block_field: int; }             (* The index of an unnamed field
-                                           containing the block to use as the
-                                           argument value (may be a supertype of
-                                           the whole compilation unit's type) *)

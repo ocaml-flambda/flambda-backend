@@ -674,7 +674,6 @@ and lambda_event_kind =
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    arg_block_field : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }
 
@@ -1717,7 +1716,3 @@ let is_check_enabled ~opt property =
     | Check_all -> true
     | Check_default -> not opt
     | Check_opt_only -> opt
-
-type arg_descr =
-  { arg_param: Compilation_unit.Name.t;
-    arg_block_field: int; }

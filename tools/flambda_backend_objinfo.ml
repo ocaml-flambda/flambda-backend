@@ -161,18 +161,11 @@ let print_cms_infos cms =
   printf "Source file: %s\n"
     (match cms.cms_sourcefile with None -> "(none)" | Some f -> f)
 
-let print_general_infos print_name name crc defines arg_descr runtime_params
-    iter_cmi iter_cmx =
+let print_general_infos print_name name crc defines iter_cmi iter_cmx =
   printf "Name: %a\n" print_name name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
   List.iter print_name_line defines;
-  let () =
-    match (arg_descr : Lambda.arg_descr option) with
-    | None -> ()
-    | Some {arg_param; arg_block_field = _} ->
-      printf "Parameter implemented: %a\n" Compilation_unit.Name.output arg_param
-  in
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
@@ -229,7 +222,6 @@ let print_generic_fns gfns =
 
 let print_cmx_infos (uir, sections, crc) =
   print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
-    uir.uir_arg_descr uir.uir_runtime_params
     (fun f -> Array.iter f uir.uir_imports_cmi)
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
@@ -279,7 +271,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   lib.lib_units
   |> List.iter (fun u ->
          print_general_infos Compilation_unit.output u.li_name u.li_crc
-           u.li_defines None [||]
+           u.li_defines
            (fun f ->
              B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
            (fun f ->
@@ -290,7 +282,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
       print_general_infos Compilation_unit.output ui.dynu_name ui.dynu_crc
-        ui.dynu_defines None [||]
+        ui.dynu_defines
         (fun f -> Array.iter f ui.dynu_imports_cmi)
         (fun f -> Array.iter f ui.dynu_imports_cmx))
     header.dynu_units
