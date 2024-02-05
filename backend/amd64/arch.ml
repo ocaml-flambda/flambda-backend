@@ -60,10 +60,9 @@ module Extension = struct
     | BMI2 -> "Haswell+"
 
   let enabled_by_default = function
-    | POPCNT | PREFETCHW
     | SSE3 | SSSE3 | SSE4_1 | SSE4_2
-    | CLMUL | BMI | BMI2 -> true
-    | PREFETCHWT1 -> false
+    | POPCNT | CLMUL | BMI | BMI2 -> true
+    | PREFETCHW | PREFETCHWT1 -> false
 
   let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; BMI; BMI2 ]
   let config = ref (Set.filter enabled_by_default all)
