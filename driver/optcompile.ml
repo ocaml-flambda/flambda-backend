@@ -38,12 +38,12 @@ let compile i typed ~transl_style ~unix ~pipeline =
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
-   (fun (program : Lambda.program) ->
+   (fun program ->
       let code = Simplif.simplify_lambda program.Lambda.code in
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
-      |> (fun (program : Lambda.program) ->
+      |> (fun program ->
            Asmgen.compile_implementation
              unix
              ~pipeline
@@ -51,8 +51,7 @@ let compile i typed ~transl_style ~unix ~pipeline =
              ~prefixname:i.output_prefix
              ~ppf_dump:i.ppf_dump
              program);
-           Compilenv.save_unit_info (cmx i)
-             ~arg_block_field:program.arg_block_field)
+           Compilenv.save_unit_info (cmx i))
 
 type flambda2 =
   ppf_dump:Format.formatter ->
@@ -70,16 +69,9 @@ let emit unix i =
 
 let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
-  let backend info ({ structure; coercion; secondary_iface; _ }
-                    : Typedtree.implementation) =
+  let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
     Compilenv.reset info.module_name;
-    let secondary_coercion =
-      match secondary_iface with
-      | Some { si_coercion_from_primary; si_signature = _ } ->
-        Some si_coercion_from_primary
-      | None -> None
-    in
-    let typed = structure, coercion, secondary_coercion in
+    let typed = structure, coercion in
     let transl_style : Translmod.compilation_unit_style =
       if Config.flambda || Config.flambda2 then Plain_block
       else Set_individual_fields

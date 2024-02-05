@@ -19,8 +19,7 @@ open Cmo_format
 open Instruct
 
 val to_file: out_channel -> Compilation_unit.t -> string ->
-  required_globals:Compilation_unit.Set.t -> arg_block_field:int option ->
-  instruction list -> unit
+  required_globals:Compilation_unit.Set.t -> instruction list -> unit
         (* Arguments:
              channel on output file
              name of compilation unit implemented
