@@ -81,13 +81,6 @@ let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
-  let () =
-   match cu.cu_runtime_params with
-   | [||] -> ()
-   | params ->
-     print_string "Runtime parameters:\n";
-     Array.iter print_global_line params
-  in
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
@@ -170,13 +163,6 @@ let print_general_infos print_name name crc defines iter_cmi iter_cmx =
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
   iter_cmx print_impl_import;
-  let () =
-    match runtime_params with
-    | [||] -> ()
-    | _ ->
-      printf "Runtime parameters:\n";
-      Array.iter print_global_line runtime_params
-  in
   ()
 
 let print_global_table table =
