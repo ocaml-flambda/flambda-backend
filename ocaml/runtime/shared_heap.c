@@ -494,6 +494,8 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
   if (!a) return 0;
   *plist = a->next;
 
+  int single_domain = caml_domain_alone();
+
   {
     header_t* p = POOL_FIRST_BLOCK(a, sz);
     header_t* end = POOL_END(a);
@@ -502,7 +504,10 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
     struct heap_stats* s = &local->stats;
 
     while (p + wh <= end) {
-      header_t hd = (header_t)atomic_load_relaxed((atomic_uintnat*)p);
+      header_t hd =
+        single_domain
+        ? *p
+        : (header_t)atomic_load_relaxed((atomic_uintnat*)p);
       if (hd == 0) {
         /* already on freelist */
         all_used = 0;
@@ -513,7 +518,8 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
           if (final_fun != NULL) final_fun(Val_hp(p));
         }
         /* add to freelist */
-        atomic_store_relaxed((atomic_uintnat*)p, 0);
+        if (single_domain) *p = 0;
+        else atomic_store_relaxed((atomic_uintnat*)p, 0);
         p[1] = (value)a->next_obj;
         CAMLassert(Is_block((value)p));
 #ifdef DEBUG
