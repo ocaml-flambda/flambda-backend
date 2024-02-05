@@ -468,32 +468,22 @@ and print_out_type_mode ~arg mode ppf ty =
     is_initially_labeled_tuple ty
     && (arg || is_local || is_unique || is_once)
   in
-  if (not is_local || Language_extension.is_enabled Local) &&
-     (not is_unique || Language_extension.is_enabled Unique) &&
-     (not is_once || Language_extension.is_enabled Unique)
-  (* this branch does not need attributes at all *)
-  then begin
-    if is_local then begin
-      pp_print_string ppf "local_";
-      pp_print_space ppf () end;
-    if is_unique then begin
-      pp_print_string ppf "unique_";
-      pp_print_space ppf () end;
-    if is_once then begin
-      pp_print_string ppf "once_";
-      pp_print_space ppf () end;
-    if parens then
-      pp_print_char ppf '(';
-    print_out_type_2 mode ppf ty;
-    if parens then
-      pp_print_char ppf ')' end
-  else
-    (* otherwise we would rather print everything in attributes
-       even if extensions are enabled *)
-    let ty = if is_unique then Otyp_attribute (ty, {oattr_name="unique"}) else ty in
-    let ty = if is_local then Otyp_attribute (ty, {oattr_name="local"}) else ty in
-    let ty = if is_once then Otyp_attribute (ty, {oattr_name="once"}) else ty in
-    print_out_type ppf ty
+  (* Print mode annotations regardless of `mode` extension,
+     just to be "correct"*)
+  if is_local then begin
+    pp_print_string ppf "local_";
+    pp_print_space ppf () end;
+  if is_unique then begin
+    pp_print_string ppf "unique_";
+    pp_print_space ppf () end;
+  if is_once then begin
+    pp_print_string ppf "once_";
+    pp_print_space ppf () end;
+  if parens then
+    pp_print_char ppf '(';
+  print_out_type_2 mode ppf ty;
+  if parens then
+    pp_print_char ppf ')'
 
 and print_out_type_1 mode ppf =
   function
@@ -625,20 +615,14 @@ and print_typargs ppf =
       pp_close_box ppf ();
       pp_print_space ppf ()
 and print_out_label ppf (name, mut_or_gbl, arg) =
-  if Language_extension.is_enabled Local then
-    let flag =
-      match mut_or_gbl with
-      | Ogom_mutable -> "mutable "
-      | Ogom_global -> "global_ "
-      | Ogom_immutable -> ""
-    in
-    fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
-  else
+  (* Print modalities regardless of `mode` extension *)
+  let flag =
     match mut_or_gbl with
-    | Ogom_mutable -> fprintf ppf "@[mutable %s :@ %a@];" name print_out_type arg
-    | Ogom_immutable -> fprintf ppf "@[%s :@ %a@];" name print_out_type arg
-    | Ogom_global -> fprintf ppf "@[%s :@ %a@];" name print_out_type
-                       (Otyp_attribute (arg, {oattr_name="global"}))
+    | Ogom_mutable -> "mutable "
+    | Ogom_global -> "global_ "
+    | Ogom_immutable -> ""
+  in
+  fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
 
 let out_label = ref print_out_label
 
@@ -975,16 +959,12 @@ and print_out_type_decl kwd ppf td =
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
-  let locals_enabled = Language_extension.is_enabled Local in
   match gf with
   | Ogf_global ->
-    if locals_enabled then begin
+      (* Printing modalities regardless of `mode` extension *)
       pp_print_string ppf "global_";
       pp_print_space ppf ();
       print_simple_out_type ppf ty
-    end else begin
-      print_out_type ppf (Otyp_attribute (ty, {oattr_name="global"}))
-    end
   | Ogf_unrestricted ->
     print_simple_out_type ppf ty
 

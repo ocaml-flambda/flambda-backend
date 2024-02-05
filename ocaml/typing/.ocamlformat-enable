@@ -8,3 +8,5 @@ mode.mli
 solver_intf.mli
 solver.ml
 solver.mli
+typemexp.mli
+typemexp.ml
