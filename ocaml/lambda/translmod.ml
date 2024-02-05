@@ -1539,10 +1539,7 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
-  Translprim.clear_used_primitives ()
-
-let transl_store_structure_gen
-      ~scopes module_name ({ str_items = str }, restr, restr2) topl =
+  Translprim.clear_used_primitives ();
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1561,26 +1558,7 @@ let transl_store_structure_gen
   transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
-let transl_store_implementation_as_functor
-      ~scopes ~runtime_params module_id impl =
-  (* CR lmaurer: This can actually do better than fall back to
-     [transl_implementation_module], now that [transl_store_gen] isn't
-     hard-coded to set the fields of a global. *)
-  let code, i, arg_block_field =
-    transl_implementation_module ~scopes ~runtime_params module_id impl
-  in
-  let body_id = Ident.create_local "*unit-body*" in
-  i,
-  Llet (Strict, Pvalue Pgenval, body_id, code,
-        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
-                         [Lprim(Pgetglobal module_id, [], Loc_unknown);
-                          Lvar body_id],
-                         Loc_unknown),
-                   lambda_unit)),
-  arg_block_field
-
 let transl_store_phrases module_name str =
-  transl_store_gen_init ();
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in

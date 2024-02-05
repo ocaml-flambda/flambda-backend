@@ -205,7 +205,6 @@ let build_package_cmx members cmxfile =
       ui_imports_cmx =
           (filter(Asmlink.extract_crc_implementations()))
           |> Array.of_list;
-      ui_runtime_params = []; (* open modules not supported with packs *)
       ui_curry_fun =
           union(List.map (fun info -> info.ui_curry_fun) units);
       ui_apply_fun =

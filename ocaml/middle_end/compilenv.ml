@@ -85,7 +85,6 @@ let current_unit =
     ui_defines = [];
     ui_imports_cmi = [| |];
     ui_imports_cmx = [| |];
-    ui_runtime_params = [];
     ui_curry_fun = [];
     ui_apply_fun = [];
     ui_send_fun = [];
@@ -101,7 +100,6 @@ let reset compilation_unit =
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [| |];
   current_unit.ui_imports_cmx <- [| |];
-  current_unit.ui_runtime_params <- [];
   current_unit.ui_curry_fun <- [];
   current_unit.ui_apply_fun <- [];
   current_unit.ui_send_fun <- [];
