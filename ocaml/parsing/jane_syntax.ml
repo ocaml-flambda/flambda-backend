@@ -400,35 +400,59 @@ end = struct
   end
 end
 
-module Mode_annotation = struct
-  type t =
-    | Local
-    | Unique
-    | Once
+module Mode_expr = struct
+  type t = string Location.loc list Location.loc
 
-  let equal t1 t2 =
-    match t1, t2 with
-    | Local, Local -> true
-    | Unique, Unique -> true
-    | Once, Once -> true
-    | (Local | Unique | Once), _ -> false
+  let empty = Location.mknoloc []
 
-  include Make_payload_protocol_of_stringable (struct
-    type nonrec t = t
+  let singleton mode loc = Location.mkloc [Location.mkloc mode loc] loc
+
+  let is_empty { txt; _ } = match txt with [] -> true | _ -> false
+
+  let embedded_name = Embedded_name.of_feature (Language_extension Mode) []
+
+  let embedded_name_str = Embedded_name.to_string embedded_name
+
+  module Payload_protocol_of_mode = Make_payload_protocol_of_stringable (struct
+    type t = string
 
     let indefinite_article_and_name = "a", "mode"
 
-    let to_string = function
-      | Local -> "local"
-      | Unique -> "unique"
-      | Once -> "once"
+    let to_string s = s
 
-    let of_string = function
-      | "local" -> Some Local
-      | "unique" -> Some Unique
-      | "once" -> Some Once
-      | _ -> None
+    let of_string s = Some s
   end)
+
+  let payload_of { txt; _ } =
+    Payload_protocol_of_mode.Encode.list_as_payload txt
+
+  let of_payload ~loc payload =
+    let l = Payload_protocol_of_mode.Decode.list_from_payload ~loc payload in
+    Location.mkloc l loc
+
+  let partition_attrs attrs =
+    List.partition
+      (fun { attr_name; _ } -> attr_name.txt = embedded_name_str)
+      attrs
+
+  let of_attr { attr_payload; attr_loc; _ } =
+    of_payload ~loc:attr_loc attr_payload
+
+  let of_attrs attrs =
+    let attrs, rest = partition_attrs attrs in
+    let mode =
+      match attrs with
+      | [] -> empty
+      | [attr] -> of_attr attr
+      | _ -> assert false
+    in
+    mode, rest
+
+  let attr_of modes =
+    let attr_name = Location.mknoloc embedded_name_str in
+    let attr_loc = modes.loc in
+    let attr_payload = payload_of modes in
+    { attr_name; attr_loc; attr_payload }
 end
 
 (** List and array comprehensions *)
@@ -696,19 +720,12 @@ module N_ary_functions = struct
       pparam_loc : Location.t
     }
 
-  type mode_annotation = Mode_annotation.t =
-    | Local
-    | Unique
-    | Once
-
-  let mode_annotation_equal = Mode_annotation.equal
-
   type type_constraint =
     | Pconstraint of core_type
     | Pcoerce of core_type option * core_type
 
   type function_constraint =
-    { mode_annotations : mode_annotation loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 
@@ -727,7 +744,7 @@ module N_ary_functions = struct
     type t =
       | Top_level
       | Fun_then of after_fun
-      | Mode_constraint of mode_annotation loc list
+      | Mode_constraint of Mode_expr.t
       | Jkind_annotation of const_jkind loc
 
     (* We return an [of_suffix_result] from [of_suffix] rather than having
@@ -751,8 +768,8 @@ module N_ary_functions = struct
       | Top_level -> [], None
       | Fun_then Cases -> ["cases"], None
       | Fun_then Constraint_then_cases -> ["constraint"; "cases"], None
-      | Mode_constraint mode_annotation ->
-        let payload = Mode_annotation.Encode.list_as_payload mode_annotation in
+      | Mode_constraint modes ->
+        let payload = Mode_expr.payload_of modes in
         ["mode_constraint"], Some payload
       | Jkind_annotation jkind_annotation ->
         let payload = Jkind_annotation.Encode.as_payload jkind_annotation in
@@ -766,18 +783,8 @@ module N_ary_functions = struct
       | ["mode_constraint"] ->
         Payload
           (fun payload ~loc ->
-            let mode_annotations =
-              Mode_annotation.Decode.list_from_payload payload ~loc
-            in
-            List.iter
-              (fun mode_annotation ->
-                assert_extension_enabled ~loc
-                  (match (mode_annotation.txt : mode_annotation) with
-                  | Local -> Local
-                  | Unique | Once -> Unique)
-                  ())
-              mode_annotations;
-            Mode_constraint mode_annotations)
+            let modes = Mode_expr.of_payload payload ~loc in
+            Mode_constraint modes)
       | ["jkind_annotation"] ->
         Payload
           (fun payload ~loc ->
@@ -915,10 +922,10 @@ module N_ary_functions = struct
     | Pexp_function cases -> cases
     | _ -> Desugaring_error.raise expr (Expected_function_cases arity_attribute)
 
-  let constraint_modes expr : mode_annotation loc list =
+  let constraint_modes expr : Mode_expr.t =
     match expand_n_ary_expr expr with
     | Some (Mode_constraint modes, _) -> modes
-    | _ -> []
+    | _ -> Mode_expr.empty
 
   let check_constraint expr =
     match expr.pexp_desc with
@@ -1146,8 +1153,8 @@ module N_ary_functions = struct
                 | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
               in
-              match mode_annotations with
-              | _ :: _ as mode_annotations ->
+              match mode_annotations.txt with
+              | _ :: _ ->
                 n_ary_function_expr (Mode_constraint mode_annotations)
                   constrained_body
               | [] -> constrained_body)

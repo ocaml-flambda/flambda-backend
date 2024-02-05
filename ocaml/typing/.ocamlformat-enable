@@ -4,3 +4,5 @@ mode.ml
 mode.mli
 uniqueness_analysis.ml
 uniqueness_analysis.mli
+typemexp.mli
+typemexp.ml

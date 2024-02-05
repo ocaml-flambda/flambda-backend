@@ -90,7 +90,7 @@
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
-   typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
+   typemexp typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
@@ -309,6 +309,7 @@
     (cms_format.mli as compiler-libs/cms_format.mli)
     (untypeast.mli as compiler-libs/untypeast.mli)
     (includemod.mli as compiler-libs/includemod.mli)
+    (typemexp.mli as compiler-libs/typemexp.mli)
     (typetexp.mli as compiler-libs/typetexp.mli)
     (printpat.mli as compiler-libs/printpat.mli)
     (parmatch.mli as compiler-libs/parmatch.mli)

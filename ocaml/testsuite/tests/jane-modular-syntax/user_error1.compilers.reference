@@ -1,5 +1,5 @@
-File "user_error1.ml", line 21, characters 44-67:
+File "user_error1.ml", line 21, characters 39-41:
 21 | let _malformed_extension_has_payload = () [@jane.erasable.something "no payloads"];;
-                                                 ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Modular syntax attributes are not allowed to have a payload,
-       but "jane.erasable.something" does
+                                            ^^
+Error: Unknown extension "something" referenced via
+       a [@jane.erasable.something] attribute
