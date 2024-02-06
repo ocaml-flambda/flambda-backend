@@ -298,20 +298,25 @@ module Solver_mono (C : Lattices_mono) = struct
       type a l.
       log:_ -> a C.obj -> a -> (a, l * allowed) morphvar -> (unit, a) Result.t =
    fun ~log obj a (Amorphvar (v, f) as mv) ->
-    (* Want a <= f v, therefore f' a <= v. Ideally the two are equivalent.
-       However, [f v] could have been implicitly injected into a larger lattice,
-       which means [a] could be outside of [f]'s co-domain, which is also [f']'s
-       domain - so applying [f'] to [a] could be invalid.
+    (* Want a <= f v, therefore f' a <= v, where f' is the left adjoint of f.
+       Ideally the two are equivalent. However, [f v] could have been implicitly
+       injected from a smaller lattice to the current larger lattice, where also
+       lives [a]. That means [a] could be outside of [f]'s co-domain, which is
+       also [f']'s domain - so applying [f'] to [a] could be invalid.
 
-       The following (seemingly redundant) several lines prevents that:
-       - If a <= (f v).lower, immediately succeed
-       - If not (a <= (f v).upper), immediately fail
-       - Note that at this point, we still can't ensure that a >= (f v).lower.
-         (We don't assume total ordering for generality.)
-        Therefore, we set a = join a (f v).lower. This operation has no effect
-        in terms of submoding, but we have now ensured that a is within the
-        range of f v, and thus a is within the co-domain of f, and thus it's
-        safe to apply f' to a. *)
+       Note that we don't request the co-domain of [f] from [Lattices_mono] for
+       simplicity. Instead, note that we need to check [a] against [f v] anyway,
+       and the bound of the latter is a subset of the co-domain of [f].
+       Therefore, once we make sure [a] is within the bound of [f v], we are
+       free to apply [f'] to [a].
+
+       - If [a <= (f v).lower], immediately succeed
+       - If not [a <= (f v).upper], immediately fail
+       - Note that at this point, we still can't ensure that [a >= (f v).lower].
+         (We don't assume linear ordering, for best generality)
+        Therefore, we set [a] to [join a (f v).lower], and have now ensured that
+        [a] is within the range of [f v], and thus the co-domain of [f], and
+        thus it's safe to apply [f'] to [a]. *)
     let mlower = mlower obj mv in
     let mupper = mupper obj mv in
     if C.le obj a mlower
