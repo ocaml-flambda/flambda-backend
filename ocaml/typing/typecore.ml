@@ -340,19 +340,22 @@ type expected_mode =
   { position : position_in_region;
     closure_context : Env.closure_context option;
 
-    (* the upper bound, hence r (right) *)
     mode : Value.r;
+    (** The upper bound, hence r (right) *)
 
-    (* in some scnearios, we want to restrict the alloc mode exactly. *)
     exact : Alloc.lr option;
+    (** In some scnearios, restricing the upper bound is not sufficient.
+      For example, when defining a function [fun a -> fun b -> e]. If the outer
+      function is [local], the inner function must be made [local] as well. See
+      [type_function] for more details *)
 
-    (* Indicates that the expression was directly annotated with [local], which
+    strictly_local : bool;
+    (** Indicates that the expression was directly annotated with [local], which
     should force any allocations to be on the stack. If [true] the [mode] field
     must be greater than [local]. *)
-    strictly_local : bool;
 
     tuple_modes : Value.r list;
-    (* for t in tuple_modes, t <= regional_to_global mode *)
+    (** For t in tuple_modes, t <= regional_to_global mode *)
   }
 
 type position_and_mode = {
@@ -4937,8 +4940,10 @@ let split_function_ty
   in
   let expected_inner_mode, curry =
     if not is_final_val_param then
-      (* no need to check mode crossing in this case*)
-      (* because ty_res always a function *)
+      (* no need to check mode crossing in this case because ty_res always a
+      function *)
+      (* [inner_alloc_mode] will be precisely the allocation mode of the inner
+      function *)
       let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
       begin match
         Alloc.submode (Alloc.close_over arg_mode.comonadic arg_mode.monadic) inner_alloc_mode
