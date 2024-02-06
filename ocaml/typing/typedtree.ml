@@ -118,6 +118,12 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind * unique_use
@@ -198,6 +204,7 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool; }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.t }
@@ -592,6 +599,7 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_src_pos
 
 and package_type = {
   pack_path : Path.t;

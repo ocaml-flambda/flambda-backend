@@ -75,15 +75,36 @@ type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
+<<<<<<< HEAD
 (* should be empty if all the jkind annotations are missing *)
 type out_vars_jkinds = (string * out_jkind option) list
 
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+(** This definition avoids a cyclic dependency between Outcometree and Types. *)
+type arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 type out_type =
   | Otyp_abstract
   | Otyp_open
+<<<<<<< HEAD
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
   | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
   | Otyp_class of out_ident * out_type list
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+  | Otyp_alias of out_type * string
+  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_class of bool * out_ident * out_type list
+=======
+  | Otyp_alias of out_type * string
+  | Otyp_arrow of arg_label * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_class of bool * out_ident * out_type list
+>>>>>>> 431cec26 (Start of implicit-source-positions)
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
@@ -132,7 +153,7 @@ and out_alloc_mode =
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
-  | Octy_arrow of string * out_type * out_class_type
+  | Octy_arrow of arg_label * out_type * out_class_type
   | Octy_signature of out_type option * out_class_sig_item list
 and out_class_sig_item =
   | Ocsg_constraint of out_type * out_type

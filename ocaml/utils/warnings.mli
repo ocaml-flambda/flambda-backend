@@ -113,7 +113,12 @@ type t =
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
+<<<<<<< HEAD
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+  | Unerasable_position_argument            (* 189 *)
+>>>>>>> 431cec26 (Start of implicit-source-positions)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
 

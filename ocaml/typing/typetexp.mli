@@ -59,6 +59,7 @@ end
 
 val valid_tyvar_name : string -> bool
 
+<<<<<<< HEAD
 (* Note about [new_var_jkind]
 
    This is exposed as an option because the same initialization doesn't work in all
@@ -81,6 +82,30 @@ val valid_tyvar_name : string -> bool
    constrain the type parameters to representable jkinds unnecessarily while maintaining
    the most amount of backwards compatibility. It is for this reason, the left hand side
    of a constraint is typed using [Any] while the right hand side uses [Sort]. *)
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+(** [transl_label lbl ty] produces a Typedtree argument label for an argument
+    with label [lbl] and type [ty].
+
+    Position arguments ([lbl:[%src_pos] -> ...]) are parsed as
+    {{!Parsetree.arg_label.Labelled}[Labelled l]}. This function converts them
+    to {{!Types.arg_label.Position}[Position l]} when the type is of the form
+    [[%src_pos]]. *)
+val transl_label :
+        Parsetree.arg_label -> Parsetree.core_type option -> Types.arg_label
+
+(** Produces a Typedtree argument label, as well as the pattern corresponding
+    to the argument. [transl_label lbl pat] is equal to:
+
+    - [Position l, P] when [lbl] is {{!Parsetree.arg_label.Labelled}[Labelled l]}
+      and [pat] represents [(P : [%src_pos])]
+    - [transl_label lbl None, pat] otherwise.
+  *)
+val transl_label_from_pat :
+        Parsetree.arg_label -> Parsetree.pattern
+        -> Types.arg_label * Parsetree.pattern
+
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 val transl_simple_type:
         Env.t -> new_var_jkind:jkind_initialization_choice
         -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
@@ -145,9 +170,16 @@ type error =
   | Non_value of
       {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
   | Non_sort of
+<<<<<<< HEAD
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+=======
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+  | Invalid_label_for_src_pos of Parsetree.arg_label
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 exception Error of Location.t * Env.t * error
 

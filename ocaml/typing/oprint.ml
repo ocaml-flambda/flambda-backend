@@ -499,8 +499,16 @@ and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
-      if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
-      print_out_arg am ppf ty1;
+      let print_type () = print_out_arg am ppf ty1 in
+      (match lab with
+      | Nolabel -> print_type ()
+      | Labelled l ->
+          pp_print_string ppf l; pp_print_char ppf ':'; print_type ()
+      | Position l ->
+          pp_print_string ppf l;
+          pp_print_string ppf ":[%src_pos]"
+      | Optional l ->
+          pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_string ppf " ->";
       pp_print_space ppf ();
       let mode =
@@ -686,8 +694,25 @@ let rec print_out_class_type ppf =
       in
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
+<<<<<<< HEAD
       fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
         (print_out_type_2 default_mode) ty print_out_class_type cty
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
+        (print_out_type_2 Oam_global) ty print_out_class_type cty
+=======
+      let print_type = print_out_type_2 Oam_global in
+      let label, print_type = match lab with
+        | Nolabel -> "", print_type
+        | Labelled l -> l ^ ":", print_type
+        | Position l -> l ^ ":", fun ppf _ -> pp_print_string ppf "[%src_pos]"
+        | Optional l -> "?" ^ l ^ ":", print_type
+      in
+      fprintf ppf "@[%s%a ->@ %a@]"
+        label
+        print_type ty
+        print_out_class_type cty
+>>>>>>> 431cec26 (Start of implicit-source-positions)
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function

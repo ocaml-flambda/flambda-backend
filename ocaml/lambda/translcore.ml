@@ -1020,6 +1020,16 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     let l = transl_exp ~scopes sort e in
     if Config.stack_allocation then Lexclave l
     else l
+  | Texp_src_pos ->
+      let pos = e.exp_loc.loc_start in
+      let cl =
+        [ Const_base (Const_string (pos.pos_fname, e.exp_loc, None))
+        ; Const_base (Const_int pos.pos_lnum)
+        ; Const_base (Const_int pos.pos_bol)
+        ; Const_base (Const_int pos.pos_cnum)
+        ]
+      in
+      Lconst(Const_block(0, cl))
 
 and pure_module m =
   match m.mod_desc with

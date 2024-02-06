@@ -201,7 +201,7 @@ end
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
   match get_desc ty with
-  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_omittable lbl) -> Some (l, r)
   | _ -> None
 
 let extract_last_arrow ty =
@@ -254,6 +254,7 @@ let match_simple_printer_type desc ~is_old_style =
       else Some (Printer.Simple ty_arg)
 
 
+<<<<<<< HEAD
 let match_generic_printer_type desc ty_path params =
   let make_printer_type = Topprinters.printer_type_new in
   match
@@ -278,6 +279,69 @@ let match_generic_printer_type desc ty_path params =
       if Ctype.all_distinct_vars !toplevel_env args
       then Some ()
       else None
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+let match_generic_printer_type desc path args printer_type =
+  Ctype.begin_def();
+  let args = List.map
+               (fun _ -> Ctype.newvar
+                           (Layout.value ~why:Debug_printer_argument))
+               args in
+  let ty_target = Ctype.newty (Tconstr (path, args, ref Mnil)) in
+  let ty_args =
+    List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
+  let ty_expected =
+    List.fold_right
+      (fun ty_arg ty ->
+         let arrow_desc =
+           Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global
+         in
+         Ctype.newty
+           (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))
+      ty_args (Ctype.newconstr printer_type [ty_target]) in
+  begin try
+    Ctype.unify !toplevel_env
+      ty_expected
+      (Ctype.instance desc.val_type);
+  with Ctype.Unify _ ->
+    raise Bad_printing_function
+  end;
+  Ctype.end_def();
+  Ctype.generalize ty_expected;
+  if not (Ctype.all_distinct_vars !toplevel_env args) then
+    raise Bad_printing_function;
+  (ty_expected, Some (path, ty_args))
+=======
+let match_generic_printer_type desc path args printer_type =
+  Ctype.begin_def();
+  let args = List.map
+               (fun _ -> Ctype.newvar
+                           (Layout.value ~why:Debug_printer_argument))
+               args in
+  let ty_target = Ctype.newty (Tconstr (path, args, ref Mnil)) in
+  let ty_args =
+    List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
+  let ty_expected =
+    List.fold_right
+      (fun ty_arg ty ->
+         let arrow_desc =
+           Nolabel,Alloc_mode.global,Alloc_mode.global
+         in
+         Ctype.newty
+           (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))
+      ty_args (Ctype.newconstr printer_type [ty_target]) in
+  begin try
+    Ctype.unify !toplevel_env
+      ty_expected
+      (Ctype.instance desc.val_type);
+  with Ctype.Unify _ ->
+    raise Bad_printing_function
+  end;
+  Ctype.end_def();
+  Ctype.generalize ty_expected;
+  if not (Ctype.all_distinct_vars !toplevel_env args) then
+    raise Bad_printing_function;
+  (ty_expected, Some (path, ty_args))
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let match_printer_type desc =
   match match_simple_printer_type desc ~is_old_style:false with

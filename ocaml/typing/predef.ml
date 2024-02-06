@@ -46,6 +46,7 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+<<<<<<< HEAD
 and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
@@ -57,6 +58,10 @@ and ident_int32x4 = ident_create "int32x4"
 and ident_int64x2 = ident_create "int64x2"
 and ident_float32x4 = ident_create "float32x4"
 and ident_float64x2 = ident_create "float64x2"
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+and ident_lexing_position = ident_create "lexing_position"
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -76,6 +81,7 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+<<<<<<< HEAD
 and path_unboxed_float = Pident ident_unboxed_float
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
@@ -87,6 +93,10 @@ and path_int32x4 = Pident ident_int32x4
 and path_int64x2 = Pident ident_int64x2
 and path_float32x4 = Pident ident_float32x4
 and path_float64x2 = Pident ident_float64x2
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+and path_lexing_position = Pident ident_lexing_position
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -107,6 +117,7 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+<<<<<<< HEAD
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
 and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
@@ -119,6 +130,10 @@ and type_int32x4 = newgenty (Tconstr(path_int32x4, [], ref Mnil))
 and type_int64x2 = newgenty (Tconstr(path_int64x2, [], ref Mnil))
 and type_float32x4 = newgenty (Tconstr(path_float32x4, [], ref Mnil))
 and type_float64x2 = newgenty (Tconstr(path_float64x2, [], ref Mnil))
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -317,8 +332,44 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
+<<<<<<< HEAD
            [| [| |]; [| option_argument_jkind |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+           [| [| |]; [| Layout.value ~why:Type_argument |] |])
+       ~layout:(Layout.value ~why:Boxed_variant)
+=======
+           [| [| |]; [| Layout.value ~why:Type_argument |] |])
+       ~layout:(Layout.value ~why:Boxed_variant)
+  |> add_type ident_lexing_position 
+       ~kind:(
+         let lbl (field, field_type, layout) = 
+           let id = Ident.create_predef field in 
+             {
+               ld_id=id;
+               ld_mutable=Immutable;
+               ld_global=Unrestricted;
+               ld_type=field_type;
+               ld_layout=layout;
+               ld_loc=Location.none;
+               ld_attributes=[];
+               ld_uid=Uid.of_predef_id id;
+             }
+         in
+         let immediate = Layout.value ~why:(Primitive ident_int) in 
+         let labels = List.map lbl [
+           ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
+           ("pos_lnum", type_int, immediate); 
+           ("pos_bol", type_int, immediate); 
+           ("pos_cnum", type_int, immediate) ] 
+         in 
+         Type_record (
+           labels, 
+           (Record_boxed (List.map (fun label -> label.ld_layout) labels |> Array.of_list))
+         )
+       )
+       ~layout:(Layout.value ~why:Boxed_record)
+>>>>>>> 431cec26 (Start of implicit-source-positions)
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))

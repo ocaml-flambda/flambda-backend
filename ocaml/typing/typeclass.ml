@@ -437,7 +437,16 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
+<<<<<<< HEAD
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      let cty = transl_simple_type env ~closed:false Global sty in
+=======
+    (* CR src_pos: Implement Position arguments for classes, and pass a
+       reasonable type to translate the label below *)
+      let l = transl_label l None in
+      let cty = transl_simple_type env ~closed:false Global sty in
+>>>>>>> 431cec26 (Start of implicit-source-positions)
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -1207,7 +1216,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
+<<<<<<< HEAD
       if Typecore.has_poly_constraint spat then
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      if has_poly_constraint spat then
+=======
+      (* CR src_pos: Implement Position arguments for classes, and pass a
+         reasonable type to translate the label below *)
+      let l = transl_label l None in
+      if has_poly_constraint spat then
+>>>>>>> 431cec26 (Start of implicit-source-positions)
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       let (pat, pv, val_env', met_env) =
         Ctype.with_local_level_if_principal
@@ -1247,11 +1265,25 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.check_partial val_env pat.pat_type pat.pat_loc
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
+<<<<<<< HEAD
       let val_env' = Env.add_escape_lock Class val_env' in
       let val_env' = Env.add_share_lock Class val_env' in
       let cl =
         Ctype.with_raised_nongen_level
           (fun () -> class_expr cl_num val_env' met_env virt self_scope scl') in
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      let val_env' = Env.add_lock Alloc_mode.global val_env' in
+      Ctype.raise_nongen_level ();
+      let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
+      Ctype.end_def ();
+=======
+      let val_env' = Env.add_lock Alloc_mode.global val_env' in
+      Ctype.raise_nongen_level ();
+      let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
+      Ctype.end_def ();
+      (* CR src_pos: The below should probably become is_omittable once
+         classes involve Position arguments *)
+>>>>>>> 431cec26 (Start of implicit-source-positions)
       if Btype.is_optional l && not_nolabel_function cl.cl_type then
         Location.prerr_warning pat.pat_loc
           Warnings.Unerasable_optional_argument;
@@ -1280,7 +1312,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         !Clflags.classic ||
         let labels = nonopt_labels [] cl.cl_type in
         List.length labels = List.length sargs &&
-        List.for_all (fun (l,_) -> l = Nolabel) sargs &&
+        List.for_all (fun (l,_) -> l = Parsetree.Nolabel) sargs &&
         List.exists (fun l -> l <> Nolabel) labels &&
         begin
           Location.prerr_warning
@@ -1377,6 +1409,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let (args, cty) =
         let (_, ty_fun0) = Ctype.instance_class [] cl.cl_type in
+        (* CR src_pos: Implement Position arguments for classes, and pass a
+           reasonable type to translate the labels below *)
+        let sargs = List.map (fun (label, e) -> transl_label label None, e) sargs in
         type_args [] [] cl.cl_type ty_fun0 sargs
       in
       rc {cl_desc = Tcl_apply (cl, args);
@@ -1511,6 +1546,9 @@ let var_option =
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
+      (* CR src_pos: Implement Position arguments for classes, and pass a
+         reasonable type to translate the labels below *)
+      let l = transl_label l None in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Jkind.value ~why:Class_term_argument)
@@ -1530,6 +1568,9 @@ let rec approx_declaration cl =
 let rec approx_description ct =
   match ct.pcty_desc with
     Pcty_arrow (l, _, ct) ->
+      (* CR src_pos: Implement Position arguments for classes, and pass a
+         reasonable type to translate the labels below *)
+      let l = transl_label l None in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Jkind.value ~why:Class_term_argument)

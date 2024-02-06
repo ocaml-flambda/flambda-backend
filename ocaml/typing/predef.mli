@@ -35,6 +35,7 @@ val type_int64: type_expr
 val type_lazy_t: type_expr -> type_expr
 val type_extension_constructor:type_expr
 val type_floatarray:type_expr
+<<<<<<< HEAD
 val type_unboxed_float:type_expr
 val type_unboxed_nativeint:type_expr
 val type_unboxed_int32:type_expr
@@ -46,6 +47,10 @@ val type_int32x4: type_expr
 val type_int64x2: type_expr
 val type_float32x4: type_expr
 val type_float64x2: type_expr
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+val type_lexing_position:type_expr
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 val path_int: Path.t
 val path_char: Path.t
@@ -65,6 +70,7 @@ val path_int64: Path.t
 val path_lazy_t: Path.t
 val path_extension_constructor: Path.t
 val path_floatarray: Path.t
+<<<<<<< HEAD
 val path_unboxed_float: Path.t
 
 val path_int8x16: Path.t
@@ -73,6 +79,10 @@ val path_int32x4: Path.t
 val path_int64x2: Path.t
 val path_float32x4: Path.t
 val path_float64x2: Path.t
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+val path_lexing_position: Path.t
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t

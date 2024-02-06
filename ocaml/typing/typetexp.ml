@@ -88,9 +88,16 @@ type error =
   | Non_value of
       {vloc : value_loc; typ : type_expr; err : Jkind.Violation.t}
   | Non_sort of
+<<<<<<< HEAD
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+=======
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+  | Invalid_label_for_src_pos of Parsetree.arg_label
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -634,10 +641,43 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+<<<<<<< HEAD
 let enrich_with_attributes attrs annotation_context =
   match Builtin_attributes.error_message_attr attrs with
   | Some msg -> Jkind.With_error_message (msg, annotation_context)
   | None -> annotation_context
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+let rec transl_type env policy mode styp =
+  Builtin_attributes.warning_scope styp.ptyp_attributes
+    (fun () -> transl_type_aux env policy mode styp)
+=======
+let transl_label (label : Parsetree.arg_label)
+    (arg_opt : Parsetree.core_type option) =
+  match label, arg_opt with
+  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _}
+      -> Position l
+  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _} as arg)
+      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
+  | Labelled l, _ -> Labelled l
+  | Optional l, _ -> Optional l
+  | Nolabel, _ -> Nolabel
+
+let transl_label_from_pat (label : Parsetree.arg_label)
+    (pat : Parsetree.pattern) =
+  let label, inner_pat = match pat with
+  | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
+      (* If the argument is a constraint, translate the label using the
+          type information. Otherwise, it can't be a Position argument, so
+          we don't care about the argument type *)
+      transl_label label (Some ty), inner_pat
+  | _ -> transl_label label None, pat
+  in
+  label, if Btype.is_position label then inner_pat else pat
+
+let rec transl_type env policy mode styp =
+  Builtin_attributes.warning_scope styp.ptyp_attributes
+    (fun () -> transl_type_aux env policy mode styp)
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let jkind_of_annotation annotation_context attrs jkind =
   Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
@@ -682,6 +722,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
+<<<<<<< HEAD
           let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
           let acc_mode =
             Alloc.Const.join
@@ -692,6 +733,20 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             Alloc.Const.join acc_mode
               (Alloc.Const.min_with_uniqueness Uniqueness.Const.Shared)
           in
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+          let arg_cty = transl_type env policy arg_mode arg in
+          let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
+=======
+          let l = transl_label l (Some arg) in
+          let arg_cty =
+            if Btype.is_position l then
+              (* CR src_pos: Consider bundling argument types into arg_labels, so there
+                 is no need to create this redundant type *)
+              ctyp Ttyp_src_pos (newconstr Predef.path_lexing_position [])
+            else transl_type env policy arg_mode arg
+          in
+          let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
+>>>>>>> 431cec26 (Start of implicit-source-positions)
           let ret_mode =
             match rest with
             | [] -> ret_mode
@@ -1527,6 +1582,7 @@ let report_error env ppf = function
     fprintf ppf "@[%s types must have a representable layout.@ %a@]"
       s (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+<<<<<<< HEAD
   | Bad_jkind_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Jkind.Violation.report_with_offender
@@ -1534,6 +1590,15 @@ let report_error env ppf = function
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+=======
+  | Invalid_label_for_src_pos arg_label ->
+      fprintf ppf "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ -> assert false )
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
 let () =
   Location.register_error_of_exn

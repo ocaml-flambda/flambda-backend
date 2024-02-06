@@ -44,6 +44,12 @@ and type_desc =
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
+and arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 and arrow_desc =
   arg_label * Mode.Alloc.t * Mode.Alloc.t
 

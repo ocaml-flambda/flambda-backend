@@ -208,6 +208,7 @@ and exp_extra =
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
 
+<<<<<<< HEAD
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
     propagate jkind information inward during compilation.  This
@@ -215,6 +216,47 @@ and exp_extra =
     of a type of a subexpression is not determined by the jkind of the
     type of the expression containing it.  For example, to the left of
     a semicolon, or in value_bindings.
+||||||| parent of 431cec26 (Start of implicit-source-positions)
+and fun_curry_state =
+  | More_args of { partial_mode : Types.alloc_mode }
+        (** [partial_mode] is the mode of the resulting closure
+            if this function is partially applied *)
+  | Final_arg of { partial_mode : Types.alloc_mode }
+        (** [partial_mode] is relevant for the final arg only
+            because of an optimisation that Simplif does to merge
+            functions, which might result in this arg no longer being
+            final *)
+
+(** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
+    requires layout information.  Our approach is to propagate layout
+    information inward during compilation.  This requires us to annotate places
+    in the typed tree where the layout of a subexpression is not determined by
+    the layout of the expression containing it.  For example, to the left of a
+    semicolon, or in value_bindings.
+=======
+and fun_curry_state =
+  | More_args of { partial_mode : Types.alloc_mode }
+        (** [partial_mode] is the mode of the resulting closure
+            if this function is partially applied *)
+  | Final_arg of { partial_mode : Types.alloc_mode }
+        (** [partial_mode] is relevant for the final arg only
+            because of an optimisation that Simplif does to merge
+            functions, which might result in this arg no longer being
+            final *)
+
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
+(** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
+    requires layout information.  Our approach is to propagate layout
+    information inward during compilation.  This requires us to annotate places
+    in the typed tree where the layout of a subexpression is not determined by
+    the layout of the expression containing it.  For example, to the left of a
+    semicolon, or in value_bindings.
+>>>>>>> 431cec26 (Start of implicit-source-positions)
 
     CR layouts v1.5: Some of these were mainly needed for void (e.g., left of a
     semicolon).  If we redo how void is compiled, perhaps we can drop those.  On
@@ -381,6 +423,10 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
+    (* A source position value which has been automatically inferred, either
+       as a result of [%src_pos] occuring in an expression, or omission of a
+       Position argument in function application *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.t }
@@ -817,6 +863,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_src_pos
+      (** [Ttyp_src_pos] represents the type of the value of a Position
+          argument ([lbl:[%src_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;
