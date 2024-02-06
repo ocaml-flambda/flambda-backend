@@ -55,26 +55,23 @@ static uintnat unboxed_array_deserialize(void* dst)
 // the int32 unboxed arrays, care needs to be taken with the last word
 // when the array is of odd length -- this is not currently initialized.
 
-CAMLexport struct custom_operations caml_unboxed_int32_odd_array_ops = {
-  "_unboxed_int32_odd_array",
-  custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
-  custom_compare_ext_default,
-  custom_fixed_length_default
-};
-
-CAMLexport struct custom_operations caml_unboxed_int32_even_array_ops = {
-  "_unboxed_int32_even_array",
-  custom_finalize_default,
-  no_polymorphic_compare,
-  no_polymorphic_hash,
-  unboxed_array_serialize,
-  unboxed_array_deserialize,
-  custom_compare_ext_default,
-  custom_fixed_length_default
+CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
+  { "_unboxed_int32_even_array",
+    custom_finalize_default,
+    no_polymorphic_compare,
+    no_polymorphic_hash,
+    unboxed_array_serialize,
+    unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+  { "_unboxed_int32_odd_array",
+    custom_finalize_default,
+    no_polymorphic_compare,
+    no_polymorphic_hash,
+    unboxed_array_serialize,
+    unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
 };
 
 CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
@@ -481,14 +478,9 @@ CAMLprim value caml_make_unboxed_int32_vect(value len)
   mlsize_t num_elements = Long_val(len);
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = (num_elements + 1) / 2;
-  struct custom_operations* ops;
 
-  if (num_elements % 2 == 0)
-    ops = &caml_unboxed_int32_even_array_ops;
-  else
-    ops = &caml_unboxed_int32_odd_array_ops;
-
-  return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
+  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
 }
 
 CAMLprim value caml_make_unboxed_int64_vect(value len)

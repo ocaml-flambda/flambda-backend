@@ -46,6 +46,7 @@ type constant =
   | Const of int64
   | ConstThis
   | ConstLabel of string
+  | ConstLabelOffset of string * int
   | ConstAdd of constant * constant
   | ConstSub of constant * constant
 

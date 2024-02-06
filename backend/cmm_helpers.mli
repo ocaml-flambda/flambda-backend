@@ -815,6 +815,8 @@ val cvec128 : Cmm.vec128_bits -> data_item
 (** Static symbol. *)
 val symbol_address : symbol -> data_item
 
+val symbol_offset : symbol -> int -> data_item
+
 (** Definition for a static symbol. *)
 val define_symbol : symbol -> data_item list
 

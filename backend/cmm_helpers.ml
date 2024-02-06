@@ -891,13 +891,26 @@ let array_indexing ?typ log2size ptr ofs dbg =
    cross-compiling for 64-bit on a 32-bit host *)
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
-let custom_ops_unboxed_int32_odd_array =
-  Cconst_symbol
-    (Cmm.global_symbol "caml_unboxed_int32_odd_array_ops", Debuginfo.none)
+let custom_ops_size_log2 =
+  let lg = Misc.log2 Config.custom_ops_struct_size in
+  assert (1 lsl lg = Config.custom_ops_struct_size);
+  lg
 
-let custom_ops_unboxed_int32_even_array =
+(* caml_unboxed_int32_array_ops refers to the first element of an array of two
+   custom ops. The array index indicates the number of (invalid) tailing int32s
+   (0 or 1). *)
+let custom_ops_unboxed_int32_array =
   Cconst_symbol
-    (Cmm.global_symbol "caml_unboxed_int32_even_array_ops", Debuginfo.none)
+    (Cmm.global_symbol "caml_unboxed_int32_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_int32_even_array = custom_ops_unboxed_int32_array
+
+let custom_ops_unboxed_int32_odd_array =
+  Cop
+    ( Caddi,
+      [ custom_ops_unboxed_int32_array;
+        Cconst_int (Config.custom_ops_struct_size, Debuginfo.none) ],
+      Debuginfo.none )
 
 let custom_ops_unboxed_int64_array =
   Cconst_symbol
@@ -908,36 +921,34 @@ let custom_ops_unboxed_nativeint_array =
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
 let unboxed_int32_array_length arr dbg =
-  (* A dynamic test is needed to determine if the array contains an odd or even
-     number of elements *)
+  (* Checking custom_ops is needed to determine if the array contains an odd or
+     even number of elements *)
   let res =
     bind "arr" arr (fun arr ->
         let custom_ops_var = Backend_var.create_local "custom_ops" in
+        let custom_ops_index_var =
+          Backend_var.create_local "custom_ops_index"
+        in
         let num_words_var = Backend_var.create_local "num_words" in
         Clet
           ( VP.create num_words_var,
-            (* need to subtract so as not to count the custom_operations
-               field *)
+            (* subtract custom_operations word *)
             sub_int (get_size arr dbg) (int ~dbg 1) dbg,
             Clet
               ( VP.create custom_ops_var,
                 Cop (mk_load_immut Word_int, [arr], dbg),
-                Cifthenelse
-                  ( Cop
-                      ( Ccmpa Ceq,
-                        [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
-                        dbg ),
-                    dbg,
-                    (* unboxed int32 odd *)
-                    (sub_int
-                       (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
-                       (int ~dbg 1))
+                Clet
+                  ( VP.create custom_ops_index_var,
+                    (* compute index into custom ops array *)
+                    lsr_int
+                      (sub_int (Cvar custom_ops_var)
+                         custom_ops_unboxed_int32_array dbg)
+                      (int ~dbg custom_ops_size_log2)
                       dbg,
-                    dbg,
-                    (* assumed to be unboxed int32 even *)
-                    mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
-                    dbg,
-                    Any ) ) ))
+                    (* subtract index from length in int32s *)
+                    sub_int
+                      (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                      (Cvar custom_ops_index_var) dbg ) ) ))
   in
   tag_int res dbg
 
@@ -3541,6 +3552,8 @@ let cfloat f = Cmm.Cdouble f
 let cvec128 bits = Cmm.Cvec128 bits
 
 let symbol_address s = Cmm.Csymbol_address s
+
+let symbol_offset s o = Cmm.Csymbol_offset (s, o)
 
 let define_symbol symbol = [Cdefine_symbol symbol]
 
