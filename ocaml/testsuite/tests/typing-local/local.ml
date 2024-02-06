@@ -637,7 +637,6 @@ Line 2, characters 11-25:
 2 |   fun f -> f ~foo:"hello"
                ^^^^^^^^^^^^^^
 Error: This value escapes its region
-  Hint: Cannot return a local value without an "exclave_" annotation
   Hint: This is a partial application
         Adding 1 more argument will make the value non-local
 |}]
@@ -951,7 +950,6 @@ Line 2, characters 24-25:
 2 |   use_locally (fun x -> x) 42
                             ^
 Error: This value escapes its region
-  Hint: Cannot return a local value without an "exclave_" annotation
 |}]
 
 let leak_ref =

@@ -9440,10 +9440,13 @@ let report_type_expected_explanation expl ppf =
   | Error_message_attr msg ->
       fprintf ppf "@\n@[%s@]" msg
 
-let escaping_hint failure_reason submode_reason
+let escaping_hint (failure_reason : Value.error) submode_reason
       (context : Env.closure_context option) =
   begin match failure_reason, context with
-  | `Regionality _, Some Return ->
+  | `Regionality {left=Local; right=Regional}, Some Return ->
+      (* Only hint to use exclave_, when the user wants to return local, but
+         expected mode is regional. If the expected mode is as strict as
+         global, then exclave_ won't solve the problem. *)
       [ Location.msg
           "@[Hint: Cannot return a local value without an@ \
            \"exclave_\" annotation@]" ]
