@@ -308,7 +308,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                 cfg_with_layout
                 ++ Profile.record ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
                 ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
-                ++ Profile.record ~accumulate:true "cse" CSE.cfg_with_layout
+                ++ Profile.record ~accumulate:true "cfg_cse" CSE.cfg_with_layout
                 ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse)
           ++ Cfg_with_infos.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
