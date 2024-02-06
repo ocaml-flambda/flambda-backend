@@ -42,6 +42,8 @@ type _ pass =
   | Mach_sel : Mach.fundecl pass
   | Mach_split : Mach.fundecl pass
   | Linear : Linear.fundecl pass
+  | Cfg_combine : Cfg_with_layout.t pass
+  | Cfg_cse : Cfg_with_layout.t pass
   | Cfg : Cfg_with_layout.t pass
   | Cmm : Cmm.phrase list pass
 
