@@ -279,7 +279,14 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ Profile.record ~accumulate:true "checkmach"
        (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
-  ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
+  ++ pass_dump_if ppf_dump dump_combine "Before allocation combining"
+  ++ (fun fd ->
+      match register_allocator fd with
+      | Upstream ->
+        Profile.record ~accumulate:true "comballoc" Comballoc.fundecl fd
+      | GI | IRC | LS ->
+        (* Will happen after `Cfgize`. *)
+        fd)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++  (fun fd ->
@@ -299,6 +306,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Profile.record ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_cse_optimize with
               | false -> cfg_with_layout
