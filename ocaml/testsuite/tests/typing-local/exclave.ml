@@ -220,5 +220,6 @@ let f : local_ string -> string =
 Line 2, characters 11-21:
 2 |   fun x -> exclave_ s
                ^^^^^^^^^^
-Error: Exclave expressions are always local, but this one was expected otherwise.
+Error: This expression was expected to be not local, but is an exclave expression,
+       which must be local.
 |}]

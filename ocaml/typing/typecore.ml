@@ -10103,7 +10103,8 @@ let report_error ~loc env = function
         "Exclave expression should only be in tail position of the current region"
   | Exclave_returns_not_local ->
       Location.errorf ~loc
-        "Exclave expressions are always local, but this one was expected otherwise."
+        "This expression was expected to be not local, but is an exclave expression,@ \
+         which must be local."
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"
