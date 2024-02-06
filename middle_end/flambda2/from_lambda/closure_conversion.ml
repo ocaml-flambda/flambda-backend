@@ -1397,23 +1397,27 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let variables_for_unboxing (k : Function_decl.unboxing_kind) =
+let variables_for_unboxing boxed_variable_name (k : Function_decl.unboxing_kind)
+    =
   match k with
-  | Multiple_values kinds ->
+  | Fields_of_block_with_tag_zero kinds ->
     List.mapi
-      (fun i kind -> Variable.create ("field_" ^ Int.to_string i), kind)
+      (fun i kind ->
+        ( Variable.create (boxed_variable_name ^ "_field_" ^ Int.to_string i),
+          kind ))
       kinds
   | Unboxed_number bn ->
-    [ ( Variable.create "unboxed_number",
+    [ ( Variable.create (boxed_variable_name ^ "_unboxed"),
         Flambda_kind.With_subkind.naked_of_boxable_number bn ) ]
   | Unboxed_float_record num_fields ->
     List.init num_fields (fun i ->
-        ( Variable.create ("floatfield_" ^ Int.to_string i),
+        ( Variable.create
+            (boxed_variable_name ^ "_floatfield_" ^ Int.to_string i),
           Flambda_kind.With_subkind.naked_float ))
 
 let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
   match k with
-  | Multiple_values kinds ->
+  | Fields_of_block_with_tag_zero kinds ->
     let block_access_kind : P.Block_access_kind.t =
       Values
         { tag = Known Tag.Scannable.zero;
@@ -1439,7 +1443,7 @@ let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
 let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
     unboxed_variables : Flambda_primitive.t =
   match k with
-  | Multiple_values kinds ->
+  | Fields_of_block_with_tag_zero kinds ->
     Flambda_primitive.Variadic
       ( Make_block (Values (Tag.Scannable.zero, kinds), Immutable, alloc_mode),
         Simple.vars unboxed_variables )
@@ -1447,7 +1451,10 @@ let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
     let unboxed_variable =
       match unboxed_variables with
       | [var] -> var
-      | [] | _ :: _ :: _ -> assert false
+      | [] | _ :: _ :: _ ->
+        Misc.fatal_error
+          "boxing_primitive: Unboxed_number should correspond to a single \
+           variable"
     in
     Flambda_primitive.Unary
       (Box_number (bn, alloc_mode), Simple.var unboxed_variable)
@@ -1719,7 +1726,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
           | None ->
             param :: main_code_params, param_mode :: main_code_param_modes, body
           | Some k ->
-            let vars_with_kinds = variables_for_unboxing k in
+            let boxed_variable_name =
+              Variable.name (Bound_parameter.var param)
+            in
+            let vars_with_kinds =
+              variables_for_unboxing boxed_variable_name k
+            in
             let body acc =
               let acc, body = body acc in
               let alloc_mode =
@@ -1762,7 +1774,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
           let acc, body = body acc in
           acc, body, return, return_continuation
         | Some k ->
-          let vars_with_kinds = variables_for_unboxing k in
+          let vars_with_kinds = variables_for_unboxing "result" k in
           let unboxed_return_continuation =
             Continuation.create ~sort:Return ~name:"unboxed_return" ()
           in
@@ -1920,8 +1932,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~free_names_of_params_and_body:(Acc.free_names acc)
       ~params_arity:params_arity_main_code ~param_modes:main_code_param_modes
       ~first_complex_local_param:first_complex_local_param_main_code
-      ~result_arity:result_arity_main_code ~result_types:Unknown
-      ~result_mode
+      ~result_arity:result_arity_main_code ~result_types:Unknown ~result_mode
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -1973,7 +1984,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
               Bound_parameter.kind param :: args_arity,
               body_wrapper )
           | Some k ->
-            let vars_with_kinds = variables_for_unboxing k in
+            let boxed_variable_name =
+              Variable.name (Bound_parameter.var param)
+            in
+            let vars_with_kinds =
+              variables_for_unboxing boxed_variable_name k
+            in
             let new_wrapper body free_names_of_body =
               let body, free_names_of_body =
                 body_wrapper body free_names_of_body

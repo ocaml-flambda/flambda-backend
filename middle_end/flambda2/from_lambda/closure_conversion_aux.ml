@@ -742,7 +742,7 @@ module Function_decls = struct
       }
 
     type unboxing_kind =
-      | Multiple_values of Flambda_kind.With_subkind.t list
+      | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
       | Unboxed_number of Flambda_kind.Boxable_number.t
       | Unboxed_float_record of int
 
