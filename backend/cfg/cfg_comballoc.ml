@@ -157,7 +157,6 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
               { other_allocation_instr with
                 desc = Cfg.Op (Intop_imm (Mach.Iadd, -other_allocation.bytes));
                 arg = [| prev_res0 |];
-                res = [| res0 |]
               };
             ( size + other_allocation.bytes,
               other_allocation.dbginfo @ dbginfos,
