@@ -1493,7 +1493,9 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
     | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
     | Punboxed_product _ ->
-      (* CR ncourant: warn *)
+      Location.prerr_warning
+        (Debuginfo.Scoped_location.to_location loc)
+        Warnings.Unboxing_impossible;
       None
   in
   let params_arity =
