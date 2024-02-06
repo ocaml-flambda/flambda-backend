@@ -70,7 +70,8 @@ let find_compatible_allocations :
     | Some cell -> (
       let instr = DLL.value cell in
       let return () =
-        { allocations = List.rev allocations; next_cell = Some cell } in
+        { allocations = List.rev allocations; next_cell = Some cell }
+      in
       match instr.desc with
       | Op (Alloc { bytes; dbginfo; mode }) ->
         let is_compatible =
@@ -93,8 +94,8 @@ let find_compatible_allocations :
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
       | Reloadretaddr | Poptrap | Prologue | Pushtrap _ ->
-        (* CR-soon xclerc for xclerc: is it too conservative?
-           (note: only the `Pushtrap` case may be too conservative) *)
+        (* CR-soon xclerc for xclerc: is it too conservative? (note: only the
+           `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
       | Op
           ( Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
@@ -158,7 +159,7 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
             DLL.set_value other_allocation.cell
               { other_allocation_instr with
                 desc = Cfg.Op (Intop_imm (Mach.Iadd, -other_allocation.bytes));
-                arg = [| prev_res0 |];
+                arg = [| prev_res0 |]
               };
             ( size + other_allocation.bytes,
               other_allocation.dbginfo @ dbginfos,
