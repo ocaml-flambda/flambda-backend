@@ -7389,9 +7389,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     Some (safe_expect, lv) ->
       (* apply optional arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
+      let exp_mode, _ = Value.newvar_below mode.mode in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
-          (fun () -> type_exp env mode sarg)
+          (fun () -> type_exp env {mode with mode = Value.disallow_left exp_mode} sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
@@ -7428,8 +7429,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       if args = [] then texp else begin
       (* In this case, we're allocating a new closure, so [sarg] needs
          to be valid at [mode_subcomponent mode], not just [mode] *)
-      let exp_mode, _ = Value.newvar_below mode.mode in
-      let alloc_mode = register_allocation_value_mode exp_mode in
+      let alloc_mode = register_allocation mode in
       submode ~loc:sarg.pexp_loc ~env ~reason:Other
         exp_mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
@@ -7456,7 +7456,6 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
-      Value.submode_exn eta_mode (Value.max_with_regionality Regionality.regional);
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test

@@ -717,7 +717,10 @@ val no_eta : local_ (unit -> int) -> unit -> int = <fun>
 
 let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
 [%%expect{|
-val eta : local_ (?a:bool -> unit -> int) -> unit -> int = <fun>
+Line 1, characters 47-48:
+1 | let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
+                                                   ^
+Error: This value escapes its region
 |}]
 
 let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
