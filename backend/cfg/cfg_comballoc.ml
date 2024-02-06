@@ -69,6 +69,8 @@ let find_compatible_allocations :
     | None -> { allocations = List.rev allocations; next_cell = None }
     | Some cell -> (
       let instr = DLL.value cell in
+      let return () =
+        { allocations = List.rev allocations; next_cell = Some cell } in
       match instr.desc with
       | Op (Alloc { bytes; dbginfo; mode }) ->
         let is_compatible =
@@ -86,13 +88,13 @@ let find_compatible_allocations :
         else { allocations = List.rev allocations; next_cell = Some cell }
       | Op (Begin_region | End_region) -> (
         match curr_mode with
-        | Lambda.Alloc_local ->
-          { allocations = List.rev allocations; next_cell = Some cell }
+        | Lambda.Alloc_local -> return ()
         | Lambda.Alloc_heap ->
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
-      | Op Poll -> { allocations = List.rev allocations; next_cell = Some cell }
+      | Op Poll -> return ()
       | Reloadretaddr | Poptrap | Prologue | Pushtrap _ ->
-        (* CR-soon xclerc for xclerc: is it too conservative? *)
+        (* CR-soon xclerc for xclerc: is it too conservative?
+           (note: only the `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
       | Op
           ( Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
