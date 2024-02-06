@@ -1463,6 +1463,368 @@ let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
       ( Make_block (Naked_floats, Immutable, alloc_mode),
         Simple.vars unboxed_variables )
 
+let compute_body_of_unboxed_function acc my_region my_closure params param_modes
+    function_slot compute_body return return_continuation unboxed_params
+    unboxed_return unboxed_function_slot =
+  let rec box_params params param_modes params_unboxing body =
+    match params, param_modes, params_unboxing with
+    | [], [], [] -> [], [], body
+    | ( param :: params,
+        param_mode :: param_modes,
+        param_unboxing :: params_unboxing ) -> (
+      let main_code_params, main_code_param_modes, body =
+        box_params params param_modes params_unboxing body
+      in
+      match (param_unboxing : Function_decl.unboxing_kind option) with
+      | None ->
+        param :: main_code_params, param_mode :: main_code_param_modes, body
+      | Some k ->
+        let boxed_variable_name = Variable.name (Bound_parameter.var param) in
+        let vars_with_kinds = variables_for_unboxing boxed_variable_name k in
+        let body acc =
+          let acc, body = body acc in
+          let alloc_mode =
+            Alloc_mode.For_allocations.from_lambda ~current_region:my_region
+              (Alloc_mode.For_types.to_lambda param_mode)
+          in
+          Let_with_acc.create acc
+            (Bound_pattern.singleton
+               (Bound_var.create (Bound_parameter.var param) Name_mode.normal))
+            (Named.create_prim
+               (boxing_primitive k alloc_mode (List.map fst vars_with_kinds))
+               Debuginfo.none)
+            ~body
+        in
+        ( List.map
+            (fun (var, kind) -> Bound_parameter.create var kind)
+            vars_with_kinds
+          @ main_code_params,
+          (* CR ncourant: is this correct in the presence of records with global
+             fields? *)
+          List.map (fun _ -> param_mode) vars_with_kinds @ main_code_param_modes,
+          body ))
+    | ([] | _ :: _), _, _ ->
+      Misc.fatal_error
+        "Parameters and unboxed parameters do not have the same length@."
+  in
+  let main_code_params, main_code_param_modes, body =
+    box_params
+      (Bound_parameters.to_list params)
+      param_modes unboxed_params compute_body
+  in
+  let acc, unboxed_body, result_arity_main_code, unboxed_return_continuation =
+    match unboxed_return with
+    | None ->
+      let acc, body = body acc in
+      acc, body, return, return_continuation
+    | Some k ->
+      let vars_with_kinds = variables_for_unboxing "result" k in
+      let unboxed_return_continuation =
+        Continuation.create ~sort:Return ~name:"unboxed_return" ()
+      in
+      let boxed_variable = Variable.create "boxed_result" in
+      let return =
+        match Flambda_arity.unarized_components return with
+        | [return] -> return
+        | [] | _ :: _ :: _ ->
+          Misc.fatal_error
+            "Expected a single return for the boxed code of function with \
+             unboxed return@."
+      in
+      let handler_params =
+        Bound_parameters.create [Bound_parameter.create boxed_variable return]
+      in
+      let handler acc =
+        let acc, apply_cont =
+          Apply_cont_with_acc.create acc unboxed_return_continuation
+            ~args:
+              (List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds)
+            ~dbg:Debuginfo.none
+        in
+        let acc, apply_cont = Expr_with_acc.create_apply_cont acc apply_cont in
+        let (acc, expr), _ =
+          List.fold_left
+            (fun ((acc, expr), i) (var, _kind) ->
+              ( Let_with_acc.create acc
+                  (Bound_pattern.singleton
+                     (Bound_var.create var Name_mode.normal))
+                  (Named.create_prim
+                     (unboxing_primitive k boxed_variable i)
+                     Debuginfo.none)
+                  ~body:expr,
+                Targetint_31_63.(add one i) ))
+            ((acc, apply_cont), Targetint_31_63.zero)
+            vars_with_kinds
+        in
+        acc, expr
+      in
+      let acc, unboxed_body =
+        Let_cont_with_acc.build_non_recursive acc return_continuation
+          ~handler_params ~handler ~body ~is_exn_handler:false ~is_cold:false
+      in
+      ( acc,
+        unboxed_body,
+        Flambda_arity.create_singletons
+          (List.map (fun (_, kind) -> kind) vars_with_kinds),
+        unboxed_return_continuation )
+  in
+  let my_unboxed_closure = Variable.create "my_unboxed_closure" in
+  let acc, unboxed_body =
+    Let_with_acc.create acc
+      (Bound_pattern.singleton (Bound_var.create my_closure Name_mode.normal))
+      (Named.create_prim
+         (Flambda_primitive.Unary
+            ( Project_function_slot
+                { move_from = unboxed_function_slot; move_to = function_slot },
+              Simple.var my_unboxed_closure ))
+         Debuginfo.none)
+      ~body:unboxed_body
+  in
+  ( acc,
+    unboxed_body,
+    Bound_parameters.create main_code_params,
+    main_code_param_modes,
+    false,
+    (* first_complex_local_param = 0, but function should never be partially
+       applied anyway *)
+    0,
+    result_arity_main_code,
+    unboxed_return_continuation,
+    my_unboxed_closure )
+
+let make_unboxed_function_wrapper acc function_slot params params_arity
+    param_modes return result_arity_main_code code_id main_code_id decl loc
+    external_env recursive cost_metrics dbg is_tupled inlining_decision
+    absolute_history relative_history main_code by_function_slot
+    function_code_ids unboxed_function_slot unboxed_params unboxed_return =
+  (* The outside caller gave us the function slot and code ID meant for the
+     boxed function, which will be a wrapper. So in this branch everything
+     starting with 'main_' refers to the version with unboxed return/params. *)
+  let main_function_slot = unboxed_function_slot in
+  let main_name = Function_slot.name unboxed_function_slot in
+  let main_closure = Variable.create main_name in
+  let return_continuation = Continuation.create () in
+  let exn_continuation = Continuation.create () in
+  let my_closure = Variable.create "my_closure" in
+  let my_region = Variable.create "my_region" in
+  let my_depth = Variable.create "my_depth" in
+  let rec unbox_params params params_unboxing =
+    match params, params_unboxing with
+    | [], [] -> [], [], fun body free_names_of_body -> body, free_names_of_body
+    | [], _ :: _ | _ :: _, [] ->
+      Misc.fatal_error "params and params_unboxing do not have the same length"
+    | param :: params, param_unboxing :: params_unboxing -> (
+      let args, args_arity, body_wrapper =
+        unbox_params params params_unboxing
+      in
+      match param_unboxing with
+      | None ->
+        ( Bound_parameter.simple param :: args,
+          Bound_parameter.kind param :: args_arity,
+          body_wrapper )
+      | Some k ->
+        let boxed_variable_name = Variable.name (Bound_parameter.var param) in
+        let vars_with_kinds = variables_for_unboxing boxed_variable_name k in
+        let new_wrapper body free_names_of_body =
+          let body, free_names_of_body = body_wrapper body free_names_of_body in
+          let body, free_names_of_body, _ =
+            List.fold_left
+              (fun (body, free_names_of_body, i) (var, _kind) ->
+                let named =
+                  Named.create_prim
+                    (unboxing_primitive k (Bound_parameter.var param) i)
+                    Debuginfo.none
+                in
+                ( Expr.create_let
+                    (Let_expr.create
+                       (Bound_pattern.singleton
+                          (Bound_var.create var Name_mode.normal))
+                       named ~body
+                       ~free_names_of_body:(Known free_names_of_body)),
+                  Name_occurrences.union (Named.free_names named)
+                    (Name_occurrences.remove_var free_names_of_body ~var),
+                  Targetint_31_63.(add one i) ))
+              (body, free_names_of_body, Targetint_31_63.zero)
+              vars_with_kinds
+          in
+          body, free_names_of_body
+        in
+        ( List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds @ args,
+          List.map (fun (_var, kind) -> kind) vars_with_kinds @ args_arity,
+          new_wrapper ))
+  in
+  let args, args_arity, body_wrapper =
+    unbox_params (Bound_parameters.to_list params) unboxed_params
+  in
+  let make_body cont =
+    let main_application =
+      Apply_expr.create
+        ~callee:(Some (Simple.var main_closure))
+        ~continuation:(Return cont)
+        (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
+        ~args
+        ~args_arity:(Flambda_arity.create_singletons args_arity)
+        ~return_arity:result_arity_main_code
+        ~call_kind:
+          (Call_kind.direct_function_call main_code_id
+             (Alloc_mode.For_allocations.from_lambda
+                (Function_decl.result_mode decl)
+                ~current_region:my_region))
+        Debuginfo.none ~inlined:Inlined_attribute.Default_inlined
+        ~inlining_state:(Inlining_state.default ~round:0)
+        ~probe:None ~position:Normal
+        ~relative_history:(Env.relative_history_from_scoped ~loc external_env)
+    in
+    let projection =
+      Named.create_prim
+        (Flambda_primitive.Unary
+           ( Project_function_slot
+               { move_from = function_slot; move_to = main_function_slot },
+             Simple.var my_closure ))
+        Debuginfo.none
+    in
+    let body =
+      Expr.create_let
+        (Let_expr.create
+           (Bound_pattern.singleton
+              (Bound_var.create main_closure Name_mode.normal))
+           projection
+           ~body:(Expr.create_apply main_application)
+           ~free_names_of_body:(Known (Apply_expr.free_names main_application)))
+    in
+    let free_names_of_body =
+      Name_occurrences.union
+        (Named.free_names projection)
+        (Name_occurrences.remove_var
+           (Apply_expr.free_names main_application)
+           ~var:main_closure)
+    in
+    body_wrapper body free_names_of_body
+  in
+  let make_return_wrapper box_result =
+    let cont = Continuation.create () in
+    let body, free_names_of_body = make_body cont in
+    let handler, free_names_of_handler =
+      let unboxed_returns =
+        Bound_parameters.create
+          (List.map
+             (fun kind ->
+               let var = Variable.create "unboxed_return" in
+               Bound_parameter.create var kind)
+             (Flambda_arity.unarized_components result_arity_main_code))
+      in
+      let handler, free_names_of_handler =
+        let boxed_return = Variable.create "boxed_return" in
+        let return_apply_cont =
+          Apply_cont.create return_continuation
+            ~args:[Simple.var boxed_return]
+            ~dbg:Debuginfo.none
+        in
+        let box_result_named =
+          Named.create_prim
+            (box_result (Bound_parameters.vars unboxed_returns))
+            Debuginfo.none
+        in
+        ( Expr.create_let
+            (Let_expr.create
+               (Bound_pattern.singleton
+                  (Bound_var.create boxed_return Name_mode.normal))
+               box_result_named
+               ~body:(Expr.create_apply_cont return_apply_cont)
+               ~free_names_of_body:
+                 (Known (Apply_cont.free_names return_apply_cont))),
+          Name_occurrences.union
+            (Named.free_names box_result_named)
+            (Name_occurrences.remove_var
+               (Apply_cont.free_names return_apply_cont)
+               ~var:boxed_return) )
+      in
+      ( Continuation_handler.create unboxed_returns ~handler
+          ~free_names_of_handler:(Known free_names_of_handler)
+          ~is_exn_handler:false ~is_cold:false,
+        List.fold_left
+          (fun free_names param ->
+            Name_occurrences.remove_var free_names
+              ~var:(Bound_parameter.var param))
+          free_names_of_handler
+          (Bound_parameters.to_list unboxed_returns) )
+    in
+    ( Let_cont_expr.create_non_recursive cont handler ~body
+        ~free_names_of_body:(Known free_names_of_body),
+      Name_occurrences.union free_names_of_handler
+        (Name_occurrences.remove_continuation free_names_of_body
+           ~continuation:cont) )
+  in
+  let alloc_mode =
+    Alloc_mode.For_allocations.from_lambda
+      (Function_decl.result_mode decl)
+      ~current_region:my_region
+  in
+  let body, free_names_of_body =
+    match unboxed_return with
+    | None -> make_body return_continuation
+    | Some k -> make_return_wrapper (boxing_primitive k alloc_mode)
+  in
+  let wrapper_params_and_body =
+    Function_params_and_body.create ~return_continuation ~exn_continuation
+      params ~body ~free_names_of_body:(Known free_names_of_body) ~my_closure
+      ~my_region ~my_depth
+  in
+  let free_names_of_params_and_body =
+    Name_occurrences.remove_continuation ~continuation:return_continuation
+      (Name_occurrences.remove_continuation ~continuation:exn_continuation
+         (Name_occurrences.remove_var ~var:my_closure
+            (Name_occurrences.remove_var ~var:my_region
+               (Name_occurrences.remove_var ~var:my_depth
+                  (List.fold_left
+                     (fun free_names param ->
+                       Name_occurrences.remove_var free_names
+                         ~var:(Bound_parameter.var param))
+                     free_names_of_body
+                     (Bound_parameters.to_list params))))))
+  in
+  let wrapper_code =
+    Code.create code_id ~params_and_body:wrapper_params_and_body
+      ~free_names_of_params_and_body ~params_arity ~param_modes
+      ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
+      ~result_arity:return ~result_types:Unknown
+      ~result_mode:(Function_decl.result_mode decl)
+      ~contains_no_escaping_local_allocs:
+        (match Function_decl.result_mode decl with
+        | Alloc_heap -> true
+        | Alloc_local -> true)
+      ~stub:true ~inline:Inline_attribute.Default_inline
+      ~poll_attribute:
+        (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
+      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~is_a_functor:(Function_decl.is_a_functor decl)
+      ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
+      ~inlining_arguments:(Inlining_arguments.create ~round:0)
+      ~dbg ~is_tupled ~is_my_closure_used:true ~inlining_decision
+      ~absolute_history ~relative_history ~loopify:Never_loopify
+  in
+  let main_approx =
+    let code = Code_or_metadata.create main_code in
+    let meta = Code_or_metadata.remember_only_metadata code in
+    if Flambda_features.classic_mode ()
+    then (
+      Inlining_report.record_decision_at_function_definition ~absolute_history
+        ~code_metadata:(Code_or_metadata.code_metadata meta)
+        ~pass:After_closure_conversion
+        ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
+        inlining_decision;
+      if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
+      then code
+      else meta)
+    else meta
+  in
+  (* The wrapper doesn't contain any set of closures *)
+  let slot_offsets = Slot_offsets.empty in
+  ( wrapper_code,
+    Function_slot.Map.add main_function_slot main_approx by_function_slot,
+    (main_function_slot, main_code_id) :: function_code_ids,
+    Acc.add_code ~code_id:main_code_id ~code:main_code ~slot_offsets acc )
+
 let close_one_function acc ~code_id ~external_env ~by_function_slot
     ~function_code_ids decl ~has_lifted_closure ~value_slots_from_idents
     ~function_slots_from_idents ~approx_map function_declarations =
@@ -1713,149 +2075,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
         my_closure )
     | Unboxed_calling_convention
         (unboxed_params, unboxed_return, unboxed_function_slot) ->
-      let rec box_params params param_modes params_unboxing body =
-        match params, param_modes, params_unboxing with
-        | [], [], [] -> [], [], body
-        | ( param :: params,
-            param_mode :: param_modes,
-            param_unboxing :: params_unboxing ) -> (
-          let main_code_params, main_code_param_modes, body =
-            box_params params param_modes params_unboxing body
-          in
-          match (param_unboxing : Function_decl.unboxing_kind option) with
-          | None ->
-            param :: main_code_params, param_mode :: main_code_param_modes, body
-          | Some k ->
-            let boxed_variable_name =
-              Variable.name (Bound_parameter.var param)
-            in
-            let vars_with_kinds =
-              variables_for_unboxing boxed_variable_name k
-            in
-            let body acc =
-              let acc, body = body acc in
-              let alloc_mode =
-                Alloc_mode.For_allocations.from_lambda ~current_region:my_region
-                  (Alloc_mode.For_types.to_lambda param_mode)
-              in
-              Let_with_acc.create acc
-                (Bound_pattern.singleton
-                   (Bound_var.create
-                      (Bound_parameter.var param)
-                      Name_mode.normal))
-                (Named.create_prim
-                   (boxing_primitive k alloc_mode
-                      (List.map fst vars_with_kinds))
-                   Debuginfo.none)
-                ~body
-            in
-            ( List.map
-                (fun (var, kind) -> Bound_parameter.create var kind)
-                vars_with_kinds
-              @ main_code_params,
-              (* CR ncourant: is this correct in the presence of records with
-                 global fields? *)
-              List.map (fun _ -> param_mode) vars_with_kinds
-              @ main_code_param_modes,
-              body ))
-        | ([] | _ :: _), _, _ ->
-          Misc.fatal_error
-            "Parameters and unboxed parameters do not have the same length@."
-      in
-      let main_code_params, main_code_param_modes, body =
-        box_params
-          (Bound_parameters.to_list params)
-          param_modes unboxed_params compute_body
-      in
-      let acc, unboxed_body, result_arity_main_code, unboxed_return_continuation
-          =
-        match unboxed_return with
-        | None ->
-          let acc, body = body acc in
-          acc, body, return, return_continuation
-        | Some k ->
-          let vars_with_kinds = variables_for_unboxing "result" k in
-          let unboxed_return_continuation =
-            Continuation.create ~sort:Return ~name:"unboxed_return" ()
-          in
-          let boxed_variable = Variable.create "boxed_result" in
-          let return =
-            match Flambda_arity.unarized_components return with
-            | [return] -> return
-            | [] | _ :: _ :: _ ->
-              Misc.fatal_error
-                "Expected a single return for the boxed code of function with \
-                 unboxed return@."
-          in
-          let handler_params =
-            Bound_parameters.create
-              [Bound_parameter.create boxed_variable return]
-          in
-          let handler acc =
-            let acc, apply_cont =
-              Apply_cont_with_acc.create acc unboxed_return_continuation
-                ~args:
-                  (List.map
-                     (fun (var, _kind) -> Simple.var var)
-                     vars_with_kinds)
-                ~dbg:Debuginfo.none
-            in
-            let acc, apply_cont =
-              Expr_with_acc.create_apply_cont acc apply_cont
-            in
-            let (acc, expr), _ =
-              List.fold_left
-                (fun ((acc, expr), i) (var, _kind) ->
-                  ( Let_with_acc.create acc
-                      (Bound_pattern.singleton
-                         (Bound_var.create var Name_mode.normal))
-                      (Named.create_prim
-                         (unboxing_primitive k boxed_variable i)
-                         Debuginfo.none)
-                      ~body:expr,
-                    Targetint_31_63.(add one i) ))
-                ((acc, apply_cont), Targetint_31_63.zero)
-                vars_with_kinds
-            in
-            acc, expr
-          in
-          let acc, unboxed_body =
-            Let_cont_with_acc.build_non_recursive acc return_continuation
-              ~handler_params ~handler ~body ~is_exn_handler:false
-              ~is_cold:false
-          in
-          ( acc,
-            unboxed_body,
-            Flambda_arity.create_singletons
-              (List.map (fun (_, kind) -> kind) vars_with_kinds),
-            unboxed_return_continuation )
-      in
-      let my_unboxed_closure = Variable.create "my_unboxed_closure" in
-      let acc, unboxed_body =
-        Let_with_acc.create acc
-          (Bound_pattern.singleton
-             (Bound_var.create my_closure Name_mode.normal))
-          (Named.create_prim
-             (Flambda_primitive.Unary
-                ( Project_function_slot
-                    { move_from = unboxed_function_slot;
-                      move_to = function_slot
-                    },
-                  Simple.var my_unboxed_closure ))
-             Debuginfo.none)
-          ~body:unboxed_body
-      in
-      ( acc,
-        unboxed_body,
-        Bound_parameters.create main_code_params,
-        main_code_param_modes,
-        false,
-        (* first_complex_local_param = 0, but function should never be partially
-           applied anyway *)
-        0,
-        result_arity_main_code,
-        unboxed_return_continuation,
-        my_unboxed_closure )
+      compute_body_of_unboxed_function acc my_region my_closure params
+        param_modes function_slot compute_body return return_continuation
+        unboxed_params unboxed_return unboxed_function_slot
   in
   let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
@@ -1955,250 +2177,11 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       main_code, by_function_slot, function_code_ids, acc
     | Unboxed_calling_convention
         (unboxed_params, unboxed_return, unboxed_function_slot) ->
-      (* The outside caller gave us the function slot and code ID meant for the
-         boxed function, which will be a wrapper. So in this branch everything
-         starting with 'main_' refers to the version with unboxed
-         return/params. *)
-      let main_function_slot = unboxed_function_slot in
-      let main_name = Function_slot.name unboxed_function_slot in
-      let main_closure = Variable.create main_name in
-      let return_continuation = Continuation.create () in
-      let exn_continuation = Continuation.create () in
-      let my_closure = Variable.create "my_closure" in
-      let my_region = Variable.create "my_region" in
-      let my_depth = Variable.create "my_depth" in
-      let rec unbox_params params params_unboxing =
-        match params, params_unboxing with
-        | [], [] ->
-          [], [], fun body free_names_of_body -> body, free_names_of_body
-        | [], _ :: _ | _ :: _, [] ->
-          Misc.fatal_error
-            "params and params_unboxing do not have the same length"
-        | param :: params, param_unboxing :: params_unboxing -> (
-          let args, args_arity, body_wrapper =
-            unbox_params params params_unboxing
-          in
-          match param_unboxing with
-          | None ->
-            ( Bound_parameter.simple param :: args,
-              Bound_parameter.kind param :: args_arity,
-              body_wrapper )
-          | Some k ->
-            let boxed_variable_name =
-              Variable.name (Bound_parameter.var param)
-            in
-            let vars_with_kinds =
-              variables_for_unboxing boxed_variable_name k
-            in
-            let new_wrapper body free_names_of_body =
-              let body, free_names_of_body =
-                body_wrapper body free_names_of_body
-              in
-              let body, free_names_of_body, _ =
-                List.fold_left
-                  (fun (body, free_names_of_body, i) (var, _kind) ->
-                    let named =
-                      Named.create_prim
-                        (unboxing_primitive k (Bound_parameter.var param) i)
-                        Debuginfo.none
-                    in
-                    ( Expr.create_let
-                        (Let_expr.create
-                           (Bound_pattern.singleton
-                              (Bound_var.create var Name_mode.normal))
-                           named ~body
-                           ~free_names_of_body:(Known free_names_of_body)),
-                      Name_occurrences.union (Named.free_names named)
-                        (Name_occurrences.remove_var free_names_of_body ~var),
-                      Targetint_31_63.(add one i) ))
-                  (body, free_names_of_body, Targetint_31_63.zero)
-                  vars_with_kinds
-              in
-              body, free_names_of_body
-            in
-            ( List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds
-              @ args,
-              List.map (fun (_var, kind) -> kind) vars_with_kinds @ args_arity,
-              new_wrapper ))
-      in
-      let args, args_arity, body_wrapper =
-        unbox_params (Bound_parameters.to_list params) unboxed_params
-      in
-      let make_body cont =
-        let main_application =
-          Apply_expr.create
-            ~callee:(Some (Simple.var main_closure))
-            ~continuation:(Return cont)
-            (Exn_continuation.create ~exn_handler:exn_continuation
-               ~extra_args:[])
-            ~args
-            ~args_arity:(Flambda_arity.create_singletons args_arity)
-            ~return_arity:result_arity_main_code
-            ~call_kind:
-              (Call_kind.direct_function_call main_code_id
-                 (Alloc_mode.For_allocations.from_lambda
-                    (Function_decl.result_mode decl)
-                    ~current_region:my_region))
-            Debuginfo.none ~inlined:Inlined_attribute.Default_inlined
-            ~inlining_state:(Inlining_state.default ~round:0)
-            ~probe:None ~position:Normal
-            ~relative_history:
-              (Env.relative_history_from_scoped ~loc external_env)
-        in
-        let projection =
-          Named.create_prim
-            (Flambda_primitive.Unary
-               ( Project_function_slot
-                   { move_from = function_slot; move_to = main_function_slot },
-                 Simple.var my_closure ))
-            Debuginfo.none
-        in
-        let body =
-          Expr.create_let
-            (Let_expr.create
-               (Bound_pattern.singleton
-                  (Bound_var.create main_closure Name_mode.normal))
-               projection
-               ~body:(Expr.create_apply main_application)
-               ~free_names_of_body:
-                 (Known (Apply_expr.free_names main_application)))
-        in
-        let free_names_of_body =
-          Name_occurrences.union
-            (Named.free_names projection)
-            (Name_occurrences.remove_var
-               (Apply_expr.free_names main_application)
-               ~var:main_closure)
-        in
-        body_wrapper body free_names_of_body
-      in
-      let make_return_wrapper box_result =
-        let cont = Continuation.create () in
-        let body, free_names_of_body = make_body cont in
-        let handler, free_names_of_handler =
-          let unboxed_returns =
-            Bound_parameters.create
-              (List.map
-                 (fun kind ->
-                   let var = Variable.create "unboxed_return" in
-                   Bound_parameter.create var kind)
-                 (Flambda_arity.unarized_components result_arity_main_code))
-          in
-          let handler, free_names_of_handler =
-            let boxed_return = Variable.create "boxed_return" in
-            let return_apply_cont =
-              Apply_cont.create return_continuation
-                ~args:[Simple.var boxed_return]
-                ~dbg:Debuginfo.none
-            in
-            let box_result_named =
-              Named.create_prim
-                (box_result (Bound_parameters.vars unboxed_returns))
-                Debuginfo.none
-            in
-            ( Expr.create_let
-                (Let_expr.create
-                   (Bound_pattern.singleton
-                      (Bound_var.create boxed_return Name_mode.normal))
-                   box_result_named
-                   ~body:(Expr.create_apply_cont return_apply_cont)
-                   ~free_names_of_body:
-                     (Known (Apply_cont.free_names return_apply_cont))),
-              Name_occurrences.union
-                (Named.free_names box_result_named)
-                (Name_occurrences.remove_var
-                   (Apply_cont.free_names return_apply_cont)
-                   ~var:boxed_return) )
-          in
-          ( Continuation_handler.create unboxed_returns ~handler
-              ~free_names_of_handler:(Known free_names_of_handler)
-              ~is_exn_handler:false ~is_cold:false,
-            List.fold_left
-              (fun free_names param ->
-                Name_occurrences.remove_var free_names
-                  ~var:(Bound_parameter.var param))
-              free_names_of_handler
-              (Bound_parameters.to_list unboxed_returns) )
-        in
-        ( Let_cont_expr.create_non_recursive cont handler ~body
-            ~free_names_of_body:(Known free_names_of_body),
-          Name_occurrences.union free_names_of_handler
-            (Name_occurrences.remove_continuation free_names_of_body
-               ~continuation:cont) )
-      in
-      let alloc_mode =
-        Alloc_mode.For_allocations.from_lambda
-          (Function_decl.result_mode decl)
-          ~current_region:my_region
-      in
-      let body, free_names_of_body =
-        match unboxed_return with
-        | None -> make_body return_continuation
-        | Some k -> make_return_wrapper (boxing_primitive k alloc_mode)
-      in
-      let wrapper_params_and_body =
-        Function_params_and_body.create ~return_continuation ~exn_continuation
-          params ~body ~free_names_of_body:(Known free_names_of_body)
-          ~my_closure ~my_region ~my_depth
-      in
-      let free_names_of_params_and_body =
-        Name_occurrences.remove_continuation ~continuation:return_continuation
-          (Name_occurrences.remove_continuation ~continuation:exn_continuation
-             (Name_occurrences.remove_var ~var:my_closure
-                (Name_occurrences.remove_var ~var:my_region
-                   (Name_occurrences.remove_var ~var:my_depth
-                      (List.fold_left
-                         (fun free_names param ->
-                           Name_occurrences.remove_var free_names
-                             ~var:(Bound_parameter.var param))
-                         free_names_of_body
-                         (Bound_parameters.to_list params))))))
-      in
-      let wrapper_code =
-        Code.create code_id ~params_and_body:wrapper_params_and_body
-          ~free_names_of_params_and_body ~params_arity ~param_modes
-          ~first_complex_local_param:
-            (Function_decl.first_complex_local_param decl)
-          ~result_arity:return ~result_types:Unknown
-          ~result_mode:(Function_decl.result_mode decl)
-          ~contains_no_escaping_local_allocs:
-            (match Function_decl.result_mode decl with
-            | Alloc_heap -> true
-            | Alloc_local -> true)
-          ~stub:true ~inline:Inline_attribute.Default_inline
-          ~poll_attribute:
-            (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-          ~check:
-            (Check_attribute.from_lambda (Function_decl.check_attribute decl))
-          ~is_a_functor:(Function_decl.is_a_functor decl)
-          ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
-          ~inlining_arguments:(Inlining_arguments.create ~round:0)
-          ~dbg ~is_tupled ~is_my_closure_used:true ~inlining_decision
-          ~absolute_history ~relative_history ~loopify:Never_loopify
-      in
-      let main_approx =
-        let code = Code_or_metadata.create main_code in
-        let meta = Code_or_metadata.remember_only_metadata code in
-        if Flambda_features.classic_mode ()
-        then (
-          Inlining_report.record_decision_at_function_definition
-            ~absolute_history
-            ~code_metadata:(Code_or_metadata.code_metadata meta)
-            ~pass:After_closure_conversion
-            ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
-            inlining_decision;
-          if Function_decl_inlining_decision_type.must_be_inlined
-               inlining_decision
-          then code
-          else meta)
-        else meta
-      in
-      (* The wrapper doesn't contain any set of closures *)
-      let slot_offsets = Slot_offsets.empty in
-      ( wrapper_code,
-        Function_slot.Map.add main_function_slot main_approx by_function_slot,
-        (main_function_slot, main_code_id) :: function_code_ids,
-        Acc.add_code ~code_id:main_code_id ~code:main_code ~slot_offsets acc )
+      make_unboxed_function_wrapper acc function_slot params params_arity
+        param_modes return result_arity_main_code code_id main_code_id decl loc
+        external_env recursive cost_metrics dbg is_tupled inlining_decision
+        absolute_history relative_history main_code by_function_slot
+        function_code_ids unboxed_function_slot unboxed_params unboxed_return
   in
   let approx =
     let code = Code_or_metadata.create code in
