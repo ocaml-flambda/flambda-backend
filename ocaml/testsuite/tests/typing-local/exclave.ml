@@ -213,3 +213,12 @@ Line 3, characters 4-19:
 Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}]
+
+let f : local_ string -> string =
+  fun x -> exclave_ s
+[%%expect{|
+Line 2, characters 11-21:
+2 |   fun x -> exclave_ s
+               ^^^^^^^^^^
+Error: Exclave expressions are always local, but this one was expected otherwise.
+|}]
