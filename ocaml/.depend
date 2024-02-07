@@ -880,6 +880,7 @@ typing/env.cmi : \
     typing/types.cmi \
     typing/subst.cmi \
     typing/shape.cmi \
+    typing/persistent_env.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/mode.cmi \

@@ -151,7 +151,6 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type pers_struct = {
-  ps_name_info: pers_name;
   ps_binding: binding;
 }
 
@@ -742,9 +741,7 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_name_info = pers_name;
-             ps_binding = binding;
-           } in
+  let ps = { ps_binding = binding; } in
   if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
