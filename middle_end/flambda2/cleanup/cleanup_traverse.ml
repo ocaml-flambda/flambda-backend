@@ -383,7 +383,8 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   Function_slot.Lmap.iter
     (fun _function_slot name ->
       Dacc.record_deps ~denv (Code_id_or_name.name name) deps dacc)
-    names_and_function_slots
+    names_and_function_slots;
+  dacc
 
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
@@ -653,8 +654,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                bound_vars
         in
         record_set_of_closures_deps ~denv names_and_function_slots
-          set_of_closures dacc;
-        dacc
+          set_of_closures dacc
       | Static_consts group ->
         (* TODO kind *)
         let bound_static =
@@ -673,8 +673,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               Function_slot.Lmap.map Name.symbol closure_symbols
             in
             record_set_of_closures_deps ~denv names_and_function_slots
-              set_of_closures dacc;
-            dacc)
+              set_of_closures dacc)
           ~block_like:(fun dacc symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
