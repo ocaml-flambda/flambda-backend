@@ -20,7 +20,7 @@ module Field = struct
   end
 
   module Container = Container_types.Make (M)
-  module Set = Container.Set
+  (* module Set = Container.Set *)
   module Map = Container.Map
 end
 
