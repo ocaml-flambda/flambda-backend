@@ -39,8 +39,7 @@ struct custom_operations {
   int (*compare_ext)(value v1, value v2);
   const struct custom_fixed_length* fixed_length;
 };
-_Static_assert(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE, 
-               "Unexpected CUSTOM_OPS_STRUCT_SIZE");
+CAML_STATIC_ASSERT(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE);
 
 #define custom_finalize_default NULL
 #define custom_compare_default NULL
