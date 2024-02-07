@@ -23,7 +23,7 @@ readonly_files = "\
   main.ml main.mli main.reference \
   monoid.mli \
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
-  monoid_utils.ml monoid_utils.mli \
+  monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
   test_direct_access.ml test_direct_access.reference \

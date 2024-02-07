@@ -23,7 +23,7 @@ readonly_files = "\
   main.ml main.mli main.reference \
   monoid.mli \
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
-  monoid_utils.ml monoid_utils.mli \
+  monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
   test_direct_access.ml test_direct_access.reference \
@@ -74,6 +74,7 @@ all_modules = "\
 "
 ******* run
 output = "test_direct_access.output"
+exit_status = "0"
 ******** check-program-output
 reference = "test_direct_access.reference"
 *** ocamlc.byte
@@ -101,6 +102,17 @@ compiler_output = "bad_ref_indirect.output"
 ocamlc_byte_exit_status = "2"
 *********** check-ocamlc.byte-output
 compiler_reference = "bad_ref_indirect.reference"
+********** ocamlc.byte
+program = "${test_build_directory}/monoid_utils_as_program.bc"
+module = ""
+all_modules = "\
+   monoid_utils.cmo \
+"
+*********** run
+output = "monoid_utils_as_program.output"
+exit_status = "2"
+************ check-program-output
+reference = "monoid_utils_as_program.reference"
 ********** ocamlc.byte
 flags = "-parameter List_element"
 module = "bad_instance_arg_name_not_found.ml"
@@ -206,6 +218,7 @@ all_modules = "\
 "
 ******* run
 output = "test_direct_access.output"
+exit_status = "0"
 ******** check-program-output
 reference = "test_direct_access.reference"
 *** ocamlopt.byte
@@ -233,6 +246,17 @@ compiler_output = "bad_ref_indirect.output"
 ocamlopt_byte_exit_status = "2"
 *********** check-ocamlopt.byte-output
 compiler_reference = "bad_ref_indirect.reference"
+********** ocamlopt.byte
+program = "${test_build_directory}/monoid_utils_as_program.exe"
+module = ""
+all_modules = "\
+   monoid_utils.cmx \
+"
+*********** run
+output = "monoid_utils_as_program.output"
+exit_status = "2"
+************ check-program-output
+reference = "monoid_utils_as_program.reference"
 ********** ocamlopt.byte
 flags = "-parameter List_element"
 module = "bad_instance_arg_name_not_found.ml"

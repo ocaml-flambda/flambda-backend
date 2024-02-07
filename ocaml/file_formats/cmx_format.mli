@@ -45,19 +45,10 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_arg_descr: Lambda.arg_descr option;
-                                          (* If this is an argument unit, the
-                                             parameter it implements *)
     mutable ui_imports_cmi: Import_info.t array;
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t array;
                                           (* Infos imported *)
-    mutable ui_runtime_params: Global.Name.t list;
-                                          (* Implementation imports which are
-                                             bound as parameters at runtime,
-                                             including source-level parameters
-                                             as well as implementation imports
-                                             with unbound parameters *)
     mutable ui_curry_fun:
       (Lambda.function_kind * machtype list * machtype) list;
                                           (* Currying functions needed *)
