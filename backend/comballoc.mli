@@ -15,4 +15,6 @@
 
 (* Combine heap allocations occurring in the same basic block *)
 
+val dump_alloc_info : fun_name:string -> Debuginfo.alloc_dbginfo -> unit
+
 val fundecl: Mach.fundecl -> Mach.fundecl

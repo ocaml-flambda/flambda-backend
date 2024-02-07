@@ -51,6 +51,9 @@ let mk_regalloc_validate f =
 let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
+let mk_dcomballoc_path f =
+  "-dcomballoc-path", Arg.String f, " Set the directory to dump comballoc debug info"
+
 let mk_cfg_peephole_optimize f =
   "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
 
@@ -612,6 +615,8 @@ module type Flambda_backend_options = sig
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
 
+  val dcomballoc_path : string -> unit
+
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
@@ -723,6 +728,8 @@ struct
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
+
+    mk_dcomballoc_path F.dcomballoc_path;
 
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
@@ -864,6 +871,8 @@ module Flambda_backend_options_impl = struct
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
+
+  let dcomballoc_path x = Flambda_backend_flags.dump_comballoc_path := x
 
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
@@ -1154,6 +1163,7 @@ module Extra_params = struct
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
+    | "dump-comballoc-path" -> set_string Flambda_backend_flags.dump_comballoc_path
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
