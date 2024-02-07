@@ -24,7 +24,7 @@ readonly_files = "\
   main.ml main.mli main.reference main-ocamlobjinfo.reference \
   monoid.mli \
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
-  monoid_utils.ml monoid_utils.mli \
+  monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
   run.ml \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \

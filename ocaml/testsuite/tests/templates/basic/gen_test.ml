@@ -128,10 +128,13 @@ let tree_for_mode mode =
       "all_modules", all_modules
     ])
   in
-  let link_and_run ?flags main modules =
+  let link_and_run ?flags ?(exit_status = 0) main modules =
     Seq [
       link ?flags main modules;
-      Act ("run", [ "output", !%"%s.output" main ]);
+      Act ("run", [
+        "output", !%"%s.output" main;
+        "exit_status", !%"%d" exit_status;
+      ]);
       Act ("check-program-output", [ "reference", !%"%s.reference" main ]);
     ]
   in
@@ -178,6 +181,7 @@ let tree_for_mode mode =
       ~flags:"-parameter List_element -as-argument-for Monoid";
     compile "monoid_utils.mli monoid_utils.ml" ~flags:"-parameter Monoid";
     compile_bad_ml "bad_ref_indirect" ~flags:"";
+    Branch (link_and_run ~exit_status:2 "monoid_utils_as_program" ["monoid_utils"]);
     compile_bad_ml "bad_instance_arg_name_not_found"
       ~flags:"-parameter List_element";
     compile_bad_ml "bad_instance_arg_value_not_arg"
