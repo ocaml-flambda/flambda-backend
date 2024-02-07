@@ -106,14 +106,6 @@ module Dacc : sig
 
   val kinds : t -> Flambda_kind.t Name.Map.t
 
-  val let_ : t -> t
-
-  val let_cont : t -> t
-
-  val let_rec_cont : t -> t
-
-  val func : t -> t
-
   (* val let_dep : denv:denv -> Bound_pattern.t -> Deps.Dep.t -> t -> t *)
 
   val record_dep : denv:denv -> Name.t -> Deps.Dep.t -> t -> unit
@@ -126,7 +118,7 @@ module Dacc : sig
 
   val func_param_dep : denv:denv -> Bound_parameter.t -> Variable.t -> t -> unit
 
-  val root : Variable.t -> t -> t
+  val root : Variable.t -> t -> unit
 
   val used : denv:denv -> Simple.t -> t -> unit
 
@@ -147,8 +139,6 @@ module Dacc : sig
 
   val code_deps : t -> code_dep Code_id.Map.t
 
-  val pp : Format.formatter -> t -> unit
-
   val deps : t -> Deps.graph
 
   (* val todo : unit -> t *)
@@ -156,28 +146,16 @@ module Dacc : sig
   (* val todo' : t -> t *)
 end = struct
   type t =
-    { let_ : int;
-      let_cont : int;
-      let_rec_cont : int;
-      func : int;
-      code : code_dep Code_id.Map.t;
+    { code : code_dep Code_id.Map.t;
       apply_deps : apply_dep list;
       deps : Deps.graph;
       kinds : Flambda_kind.t Name.Map.t
     }
 
-  let pp ppf t =
-    Format.fprintf ppf "let : %i@ let_cont : %i@ let_rec_cont : %i@ func : %i"
-      t.let_ t.let_cont t.let_rec_cont t.func
-
   let code_deps t = t.code
 
   let empty () =
-    { let_ = 0;
-      let_cont = 0;
-      let_rec_cont = 0;
-      func = 0;
-      code = Code_id.Map.empty;
+    { code = Code_id.Map.empty;
       apply_deps = [];
       deps =
         { toplevel_graph = Deps.create ();
@@ -222,14 +200,6 @@ end = struct
     { t with code = Code_id.Map.add code_id dep t.code }
 
   let find_code t code_id = Code_id.Map.find code_id t.code
-
-  let let_ t = { t with let_ = t.let_ + 1 }
-
-  let let_cont t = { t with let_cont = t.let_cont + 1 }
-
-  let let_rec_cont t = { t with let_rec_cont = t.let_rec_cont + 1 }
-
-  let func t = { t with func = t.func + 1 }
 
   let cur_deps_from_code_id code_id t =
     match code_id with
@@ -278,8 +248,7 @@ end = struct
       ~arg:(Name.var arg)
 
   let root v t =
-    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v);
-    t
+    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
@@ -520,7 +489,6 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     match let_cont with
     | Non_recursive
         { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
-      let dacc = Dacc.let_cont dacc in
       Flambda.Non_recursive_let_cont_handler.pattern_match handler
         ~f:(fun cont ~body ->
           let cont_handler =
@@ -544,7 +512,6 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               in
               traverse denv dacc body))
     | Recursive handlers -> begin
-      let dacc = Dacc.let_rec_cont dacc in
       (* Warning non tail rec on traverse_cont_handler, probably OK *)
       Flambda.Recursive_let_cont_handlers.pattern_match handlers
         ~f:(fun ~invariant_params ~body handlers ->
@@ -625,7 +592,6 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       Flambda.Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
           bound_pattern, body)
     in
-    let dacc = Dacc.let_ dacc in
     let defining_expr = Flambda.Let_expr.defining_expr let_expr in
     let known_field_of_block field block =
       Simple.pattern_match field
@@ -931,7 +897,6 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
 
 and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
     rev_code * dacc =
-  let dacc = Dacc.func dacc in
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -1030,8 +995,8 @@ let run (unit : Flambda_unit.t) =
     Profile.record_call ~accumulate:false "down" (fun () ->
         let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
         let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
-        let dacc = Dacc.root dummy_toplevel_return dacc in
-        let dacc = Dacc.root dummy_toplevel_exn dacc in
+        Dacc.root dummy_toplevel_return dacc;
+        Dacc.root dummy_toplevel_exn dacc;
         let conts =
           Continuation.Map.of_list
             [ ( Flambda_unit.return_continuation unit,
@@ -1042,7 +1007,6 @@ let run (unit : Flambda_unit.t) =
           { parent = Up; conts; current_code_id = None }
           dacc (Flambda_unit.body unit))
   in
-  if do_print then Format.printf "DACC %a@." Dacc.pp dacc;
   let deps = Dacc.deps dacc in
   let kinds = Dacc.kinds dacc in
   let () = if do_print then Dot.print_dep (Dacc.code_deps dacc, deps) in
