@@ -81,8 +81,6 @@ open! Cleanup_traverse
 
 type rev_expr = Cleanup_traverse.rev_expr
 
-module Deps = Cleanup_deps
-
 let all_code = ref Code_id.Map.empty
 
 let deleted_code = ref Code_id.Map.empty

@@ -116,19 +116,19 @@ module Dacc : sig
 
   (* val let_dep : denv:denv -> Bound_pattern.t -> Deps.Dep.t -> t -> t *)
 
-  val record_dep : denv:denv -> Name.t -> Deps.Dep.t -> t -> t
+  val record_dep : denv:denv -> Name.t -> Deps.Dep.t -> t -> unit
 
-  val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> t
+  val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> unit
 
-  val record_deps : denv:denv -> Code_id_or_name.t -> Deps.DepSet.t -> t -> t
+  val record_deps : denv:denv -> Code_id_or_name.t -> Deps.DepSet.t -> t -> unit
 
-  val cont_dep : denv:denv -> Variable.t -> Simple.t -> t -> t
+  val cont_dep : denv:denv -> Variable.t -> Simple.t -> t -> unit
 
-  val func_param_dep : denv:denv -> Bound_parameter.t -> Variable.t -> t -> t
+  val func_param_dep : denv:denv -> Bound_parameter.t -> Variable.t -> t -> unit
 
   val root : Variable.t -> t -> t
 
-  val used : denv:denv -> Simple.t -> t -> t
+  val used : denv:denv -> Simple.t -> t -> unit
 
   val used_code_id : Code_id.t -> t -> t
 
@@ -258,29 +258,24 @@ end = struct
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
-    Deps.add_dep (cur_deps ~denv t) name dep;
-    t
+    Deps.add_dep (cur_deps ~denv t) name dep
 
   let record_dep' ~denv code_id_or_name dep t =
-    Deps.add_dep (cur_deps ~denv t) code_id_or_name dep;
-    t
+    Deps.add_dep (cur_deps ~denv t) code_id_or_name dep
 
   let record_deps ~denv code_id_or_name deps t =
-    Deps.add_deps (cur_deps ~denv t) code_id_or_name deps;
-    t
+    Deps.add_deps (cur_deps ~denv t) code_id_or_name deps
 
   let cont_dep ~denv pat dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
         Deps.add_cont_dep (cur_deps ~denv t) pat name)
-      ~const:(fun _ -> ());
-    t
+      ~const:(fun _ -> ())
 
   let func_param_dep ~denv param arg t =
     Deps.add_func_param (cur_deps ~denv t)
       ~param:(Bound_parameter.var param)
-      ~arg:(Name.var arg);
-    t
+      ~arg:(Name.var arg)
 
   let root v t =
     Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v);
@@ -290,8 +285,7 @@ end = struct
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
         Deps.add_use (cur_deps ~denv t) (Code_id_or_name.name name))
-      ~const:(fun _ -> ());
-    t
+      ~const:(fun _ -> ())
 
   let used_code_id code_id t =
     Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id);
@@ -345,9 +339,9 @@ let apply_cont_deps denv dacc apply_cont =
   let args = Apply_cont_expr.args apply_cont in
   let params = Continuation.Map.find cont denv.conts in
   let (Normal params) = params in
-  List.fold_left2
-    (fun dacc param dep -> Dacc.cont_dep ~denv param dep dacc)
-    dacc params args
+  List.iter2
+    (fun param dep -> Dacc.cont_dep ~denv param dep dacc)
+    params args
 
 let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
@@ -359,7 +353,7 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
   let code_dep = { return; my_closure; exn; params } in
-  let dacc =
+  let () =
     (* TODO finer grain to only leak the full results when the function
        escapes *)
     let deps =
@@ -368,10 +362,10 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
            (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
            return
     in
-    List.fold_left
-      (fun dacc dep ->
+    List.iter
+      (fun dep ->
         Dacc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep dacc)
-      dacc deps
+      deps
   in
   Dacc.add_code code_id code_dep dacc
 
@@ -388,11 +382,12 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           (Function_slot.Map.find function_slot funs
             : Function_declarations.code_id_in_function_declaration)
         in
-        if is_required_at_runtime
-        then
-          let code_id = Code_id_or_name.code_id code_id in
-          Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc
-        else acc)
+        (if is_required_at_runtime
+         then
+           let code_id = Code_id_or_name.code_id code_id in
+           Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc);
+        acc
+      )
       names_and_function_slots dacc
   in
   let deps =
@@ -416,10 +411,10 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           set)
       names_and_function_slots deps
   in
-  Function_slot.Lmap.fold
-    (fun _function_slot name dacc ->
+  Function_slot.Lmap.iter
+    (fun _function_slot name ->
       Dacc.record_deps ~denv (Code_id_or_name.name name) deps dacc)
-    names_and_function_slots dacc
+    names_and_function_slots
 
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
@@ -428,41 +423,40 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     { expr; holed_expr = denv.parent }, dacc
   | Switch switch ->
     let expr = Switch switch in
-    let dacc =
-      let dacc = Dacc.used ~denv (Switch_expr.scrutinee switch) dacc in
-      Targetint_31_63.Map.fold
-        (fun _ apply_cont dacc -> apply_cont_deps denv dacc apply_cont)
-        (Switch_expr.arms switch) dacc
+    let () =
+      Dacc.used ~denv (Switch_expr.scrutinee switch) dacc;
+      Targetint_31_63.Map.iter
+        (fun _ apply_cont -> apply_cont_deps denv dacc apply_cont)
+        (Switch_expr.arms switch)
     in
     { expr; holed_expr = denv.parent }, dacc
   | Apply_cont apply_cont ->
     let expr = Apply_cont apply_cont in
-    let dacc = apply_cont_deps denv dacc apply_cont in
+    apply_cont_deps denv dacc apply_cont;
     { expr; holed_expr = denv.parent }, dacc
   | Apply apply -> begin
     let default_dacc dacc =
       (* TODO regions? *)
-      let dacc =
-        List.fold_left
-          (fun dacc arg -> Dacc.used ~denv arg dacc)
-          dacc (Apply_expr.args apply)
+      let () =
+        List.iter
+          (fun arg -> Dacc.used ~denv arg dacc)
+          (Apply_expr.args apply)
       in
-      let dacc =
+      let () =
         match Apply_expr.callee apply with
-        | None -> dacc
+        | None -> ()
         | Some callee -> Dacc.used ~denv callee dacc
       in
-      let dacc =
-        List.fold_left
-          (fun dacc (arg, _) -> Dacc.used ~denv arg dacc)
-          dacc
+      let () =
+        List.iter
+          (fun (arg, _) -> Dacc.used ~denv arg dacc)
           (Exn_continuation.extra_args (Apply_expr.exn_continuation apply))
       in
-      let dacc =
+      let () =
         match Apply_expr.call_kind apply with
-        | Function _ -> dacc
+        | Function _ -> ()
         | Method { obj; kind = _; alloc_mode = _ } -> Dacc.used ~denv obj dacc
-        | C_call _ -> dacc
+        | C_call _ -> ()
       in
       dacc
     in
@@ -480,7 +474,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               match Continuation.Map.find cont denv.conts with
               | Normal params -> Some params)
           in
-          let dacc, exn_arg =
+          let exn_arg =
             let exn = Apply_expr.exn_continuation apply in
             let extra_args = Exn_continuation.extra_args exn in
             let (Normal exn_params) =
@@ -491,13 +485,13 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             match exn_params with
             | [] -> assert false
             | exn_param :: extra_params ->
-              let dacc =
-                List.fold_left2
-                  (fun dacc param (arg, _kind) ->
+              let () =
+                List.iter2
+                  (fun param (arg, _kind) ->
                     Dacc.cont_dep ~denv param arg dacc)
-                  dacc extra_params extra_args
+                  extra_params extra_args
               in
-              dacc, exn_param
+              exn_param
           in
           let apply_dep =
             { apply_in_func = denv.current_code_id;
@@ -654,21 +648,21 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               | _ -> assert false))
     in
     let records dacc deps =
-      List.fold_left
-        (fun dacc (name, dep) -> Dacc.record_dep ~denv name dep dacc)
-        dacc deps
+      List.iter
+        (fun (name, dep) -> Dacc.record_dep ~denv name dep dacc)
+        deps
     in
-    let default_bp dacc dep : Dacc.t =
+    let default_bp dacc dep =
       let bound_to = Bound_pattern.free_names bound_pattern in
       Name_occurrences.fold_names bound_to
-        ~f:(fun dacc bound_to -> Dacc.record_dep ~denv bound_to dep dacc)
-        ~init:dacc
+        ~f:(fun () bound_to -> Dacc.record_dep ~denv bound_to dep dacc)
+        ~init:()
     in
-    let default_bps dacc dep : Dacc.t = List.fold_left default_bp dacc dep in
-    let default dacc : Dacc.t =
+    let default_bps dacc dep = List.iter (default_bp dacc) dep in
+    let default dacc =
       Name_occurrences.fold_names
-        ~f:(fun dacc free_name -> default_bp dacc (Deps.Dep.Use free_name))
-        ~init:dacc
+        ~f:(fun () free_name -> default_bp dacc (Deps.Dep.Use free_name))
+        ~init:()
         (Flambda.Named.free_names defining_expr)
     in
     let dacc : Dacc.t =
@@ -693,7 +687,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                bound_vars
         in
         record_set_of_closures_deps ~denv names_and_function_slots
-          set_of_closures dacc
+          set_of_closures dacc;
+        dacc
       | Static_consts group ->
         (* TODO kind *)
         let bound_static =
@@ -712,7 +707,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               Function_slot.Lmap.map Name.symbol closure_symbols
             in
             record_set_of_closures_deps ~denv names_and_function_slots
-              set_of_closures dacc)
+              set_of_closures dacc;
+            dacc)
           ~block_like:(fun dacc symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
@@ -735,7 +731,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                          )
                          :: !acc)
                 fields;
-              records dacc !acc
+              records dacc !acc;
+              dacc
             | Set_of_closures _ -> assert false
             | _ -> dacc)
       | Prim (prim, _dbg) -> begin
@@ -759,7 +756,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                        :: !acc)
                 ~const:(fun _ -> ()))
             fields;
-          default_bps dacc !acc
+          default_bps dacc !acc;
+          dacc
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->
           let block =
             Simple.pattern_match block
@@ -767,7 +765,8 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               ~const:(fun _ -> assert false)
           in
           let dep = Deps.Dep.Field (Function_slot move_to, block) in
-          default_bp dacc dep
+          default_bp dacc dep;
+          dacc
         | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
           let block =
             Simple.pattern_match block
@@ -775,16 +774,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               ~const:(fun _ -> assert false)
           in
           let dep = Deps.Dep.Field (Value_slot value_slot, block) in
-          default_bp dacc dep
+          default_bp dacc dep;
+          dacc
         | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
           (* Loads from mutable blocks are tracked here. This is ok as long as
              store are properly tracked also. This is a flow insensitive
              dependency analysis: this might produce surprising results
              sometimes *)
-          match known_field_of_block field block with
+          (match known_field_of_block field block with
           | None -> default dacc
           | Some (field, block) ->
-            default_bp dacc (Deps.Dep.Field (Block field, block))
+            default_bp dacc (Deps.Dep.Field (Block field, block)));
+          dacc
         end
         (*        | Ternary
          *           (Block_set (_access_kind, _init_or_assign), block, field, value) ->
@@ -843,17 +844,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
          *           records dacc (value_dep @ effect_dep)
          *         end *)
         | prim ->
-          let dacc =
+          let () =
             match Flambda_primitive.effects_and_coeffects prim with
             | Arbitrary_effects, _, _ ->
               let bound_to = Bound_pattern.free_names bound_pattern in
               Name_occurrences.fold_names bound_to
-                ~f:(fun dacc bound_to ->
+                ~f:(fun () bound_to ->
                   Dacc.used ~denv (Simple.name bound_to) dacc)
-                ~init:dacc
-            | _ -> dacc
+                ~init:()
+            | _ -> ()
           in
-          default dacc
+          default dacc;
+          dacc
       end
       | Simple s ->
         (* TODO kind *)
@@ -866,10 +868,12 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         in
         Simple.pattern_match s
           ~name:(fun name ~coercion:_ -> default_bp dacc (Deps.Dep.Alias name))
-          ~const:(fun _ -> default dacc)
+          ~const:(fun _ -> default dacc);
+        dacc
       | Rec_info _ ->
         (* TODO kind *)
-        default dacc
+        default dacc;
+        dacc
     in
     let (named, dacc) : rev_named * dacc =
       match defining_expr with
@@ -970,14 +974,13 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
       let dacc = Dacc.kind (Name.var my_closure) Flambda_kind.value dacc in
       let dacc = Dacc.kind (Name.var my_region) Flambda_kind.region dacc in
       let dacc = Dacc.kind (Name.var my_depth) Flambda_kind.rec_info dacc in
-      let dacc =
-        List.fold_left2
-          (fun dacc param arg -> Dacc.func_param_dep ~denv param arg dacc)
-          dacc
+      let () =
+        List.iter2
+          (fun param arg -> Dacc.func_param_dep ~denv param arg dacc)
           (Bound_parameters.to_list params)
           code_dep.params
       in
-      let dacc =
+      let () =
         Dacc.record_dep ~denv (Name.var my_closure)
           (Alias (Name.var code_dep.my_closure))
           dacc
