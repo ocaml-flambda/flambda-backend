@@ -417,6 +417,19 @@ val f : unit -> int64# M_any.t = <fun>
 val f : unit -> int32# M_any.t = <fun>
 |}]
 
+
+(* doesn't work when the type constructor puts a constraint on ['a] *)
+external[@rep_poly] id : ('a : any). 'a list -> 'a list = "%identity"
+
+[%%expect{|
+Line 1, characters 25-55:
+1 | external[@rep_poly] id : ('a : any). 'a list -> 'a list = "%identity"
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have layout any.
+       But it was inferred to have layout value, because
+         the type argument of list has layout value.
+|}]
+
 (* Test this when sorts can be inside unboxed records *)
 (* type ('a : any) r = {field: 'a} [@@unboxed]
 external[@rep_poly] id : ('a : any). 'a M_any.t r -> 'a M_any.t r = "%identity"
