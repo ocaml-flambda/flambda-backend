@@ -31,6 +31,7 @@ type unsafe_component =
   | Unsafe_functor
   | Unsafe_non_function
   | Unsafe_typext
+  | Unsafe_non_value_arg
 
 type unsafe_info =
   | Unsafe of { reason:unsafe_component; loc:Location.t; subid:Ident.t }
@@ -163,6 +164,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         stub = true; }
              ~loc
              ~mode:alloc_heap
+             ~ret_mode:alloc_heap
              ~region:true
              ~body:(apply_coercion
                    loc Strict cc_res
@@ -330,8 +332,17 @@ let init_shape id modl =
     | Sig_value(subid, {val_kind=Val_reg; val_type=ty; val_loc=loc},_) :: rem ->
         let init_v =
           match get_desc (Ctype.expand_head env ty) with
-            Tarrow(_,_,_,_) ->
-              const_int 0 (* camlinternalMod.Function *)
+            Tarrow(_,ty_arg,_,_) -> begin
+              (* CR layouts: We should allow any representable layout here. It
+                 will require reworking [camlinternalMod.init_mod]. *)
+              let jkind = Jkind.value ~why:Recmod_fun_arg in
+              let ty_arg = Ctype.correct_levels ty_arg in
+              match Ctype.check_type_jkind env ty_arg jkind with
+              | Ok _ -> const_int 0 (* camlinternalMod.Function *)
+              | Error _ ->
+                let unsafe = Unsafe {reason=Unsafe_non_value_arg; loc; subid} in
+                raise (Initialization_failure unsafe)
+            end
           | Tconstr(p, _, _) when Path.same p Predef.path_lazy_t ->
               const_int 1 (* camlinternalMod.Lazy *)
           | _ ->
@@ -596,12 +607,14 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       poll = Default_poll;
       loop = Never_loop;
       is_a_functor = true;
+      is_opaque = false;
       check = Ignore_assert_all Zero_alloc;
       stub = false;
       tmc_candidate = false;
     }
     ~loc
     ~mode:alloc_heap
+    ~ret_mode:alloc_heap
     ~region:true
     ~body
 
@@ -980,6 +993,7 @@ let add_parameters lam params =
     ~loc:Loc_unknown
     ~body:lam
     ~mode:alloc_heap
+    ~ret_mode:alloc_heap
     ~region:true
 
 let transl_implementation_module
@@ -2122,6 +2136,9 @@ let explanation_submsg (id, unsafe_info) =
       | Unsafe_typext ->
           print "Module %s defines an unsafe extension constructor, %s ."
       | Unsafe_non_function -> print "Module %s defines an unsafe value, %s ."
+      | Unsafe_non_value_arg ->
+        print "Module %s defines a function whose first argument \
+               is not a value, %s ."
 
 let report_error loc = function
   | Circular_dependency cycle ->

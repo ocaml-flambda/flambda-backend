@@ -270,17 +270,21 @@ static void safe_output_value(struct channel *chan, value val)
   struct caml_exception_context exception_ctx =
     {&raise_buf, CAML_LOCAL_ROOTS, &raise_exn_bucket};
   struct caml_exception_context* saved_external_raise;
+  struct caml_exception_context* saved_external_raise_async;
 
   /* Catch exceptions raised by [caml_output_val] */
   saved_external_raise = Caml_state->external_raise;
+  saved_external_raise_async = Caml_state->external_raise_async;
   if (sigsetjmp(raise_buf.buf, 0) == 0) {
     Caml_state->external_raise = &exception_ctx;
+    Caml_state->external_raise_async = &exception_ctx;
     caml_output_val(chan, val, marshal_flags);
   } else {
     /* Send wrong magic number, will cause [caml_input_value] to fail */
     caml_really_putblock(chan, "\000\000\000\000", 4);
   }
   Caml_state->external_raise = saved_external_raise;
+  Caml_state->external_raise_async = saved_external_raise_async;
 }
 
 static void save_instruction(code_t pc)

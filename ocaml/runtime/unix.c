@@ -43,9 +43,8 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
-#ifdef HAS_POSIX_MONOTONIC_CLOCK
 #include <time.h>
-#elif HAS_MACH_ABSOLUTE_TIME
+#ifdef HAS_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
 #endif
 #ifdef HAS_DIRENT
@@ -476,6 +475,35 @@ int caml_num_rows_fd(int fd)
 #endif
 }
 
+void caml_print_timestamp(FILE* channel, int formatted)
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  if (!formatted) {
+    fprintf(channel, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
+  } else {
+    struct tm tm;
+    char tz[64] = "Z";
+    localtime_r(&tv.tv_sec, &tm);
+    if (tm.tm_gmtoff != 0) {
+      long tzhour = tm.tm_gmtoff / 60 / 60;
+      long tzmin = (tm.tm_gmtoff / 60) % 60;
+      if (tzmin < 0) {tzmin += 60; tzhour--;}
+      sprintf(tz, "%+03ld:%02ld", tzhour, tzmin);
+    }
+    fprintf(channel,
+            "[%04d-%02d-%02d %02d:%02d:%02d.%06d%s] ",
+            1900 + tm.tm_year,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec,
+            (int)tv.tv_usec,
+            tz);
+  }
+}
+
 void caml_init_os_params(void)
 {
   caml_plat_mmap_alignment = caml_plat_pagesize = sysconf(_SC_PAGESIZE);
@@ -484,37 +512,15 @@ void caml_init_os_params(void)
 
 #ifndef __CYGWIN__
 
-/* Standard Unix implementation: reserve with mmap (and trim to alignment) with
-   commit done using mmap as well. */
-
-Caml_inline void safe_munmap(uintnat addr, uintnat size)
+void *caml_plat_mem_map(uintnat size, int reserve_only)
 {
-  if (size > 0) {
-    caml_gc_message(0x1000, "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                            " bytes at %" ARCH_INTNAT_PRINTF_FORMAT "x"
-                            " for heaps\n", size, addr);
-    munmap((void*)addr, size);
-  }
-}
-
-void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
-{
-  uintnat alloc_sz = size + alignment;
-  uintnat base, aligned_start, aligned_end;
+  uintnat alloc_sz = size;
   void* mem;
 
   mem = mmap(0, alloc_sz, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mem == MAP_FAILED)
     return 0;
-
-  /* trim to an aligned region */
-  base = (uintnat)mem;
-  aligned_start = (base + alignment - 1) & ~(alignment - 1);
-  aligned_end = aligned_start + size;
-  safe_munmap(base, aligned_start - base);
-  safe_munmap(aligned_end, (base + alloc_sz) - aligned_end);
-  mem = (void*)aligned_start;
 
   return mem;
 }
@@ -537,12 +543,9 @@ static void* map_fixed(void* mem, uintnat size, int prot)
    done using mprotect, since Cygwin's mmap doesn't implement the required
    functions for committing using mmap. */
 
-void *caml_plat_mem_map(uintnat size, uintnat alignment, int reserve_only)
+void *caml_plat_mem_map(uintnat size, int reserve_only)
 {
   void* mem;
-
-  if (alignment > caml_plat_mmap_alignment)
-    caml_fatal_error("Cannot align memory to %lx on this platform", alignment);
 
   mem = mmap(0, size, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

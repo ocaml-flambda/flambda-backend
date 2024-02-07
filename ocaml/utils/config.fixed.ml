@@ -77,3 +77,5 @@ let ar_supports_response_files = true
 
 (* mshinwell: at present always use runtime4 for bootstrap *)
 let runtime5 = false
+(* This setting is only for bootstrap, does not affect dune-built compilers: *)
+let naked_pointers = false

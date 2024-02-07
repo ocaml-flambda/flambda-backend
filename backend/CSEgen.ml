@@ -238,8 +238,12 @@ method class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
-  | Iload { mutability = Mutable } -> Op_load Mutable
-  | Iload { mutability = Immutable } -> Op_load Immutable
+  | Iload { mutability; is_atomic } ->
+    (* #12173: disable CSE for atomic loads. *)
+    if is_atomic then Op_other
+    else Op_load (match mutability with
+      | Mutable -> Mutable
+      | Immutable -> Immutable)
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
   | Iintop(Icheckbound|Icheckalign _) -> Op_checkbound

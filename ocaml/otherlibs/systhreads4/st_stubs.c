@@ -13,10 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-// CR ocaml 5 runtime: We will need to pull in changes from the same file in
-// [tip-5] tag in ocaml-jst. We're considering this file to be part of the
-// runtime.
-
 #define CAML_INTERNALS
 
 #define CAML_NAME_SPACE
@@ -186,7 +182,12 @@ struct caml_locking_scheme caml_default_locking_scheme =
     default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
 
-static void acquire_runtime_lock()
+CAMLexport struct caml_locking_scheme *caml_get_default_locking_scheme(void)
+{
+  return &caml_default_locking_scheme;
+}
+
+static void acquire_runtime_lock(void)
 {
   struct caml_locking_scheme* s;
 
@@ -205,7 +206,7 @@ static void acquire_runtime_lock()
   }
 }
 
-static void release_runtime_lock()
+static void release_runtime_lock(void)
 {
   /* There is no tricky case here like in acquire, as only the holder
      of the lock can change it. (Here, that's us) */
@@ -255,8 +256,6 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
 
 CAMLexport void caml_thread_save_runtime_state(void)
 {
-  if (Caml_state->_in_minor_collection)
-    caml_fatal_error("Thread switch from inside minor GC");
 #ifdef NATIVE_CODE
   curr_thread->top_of_stack = Caml_state->_top_of_stack;
   curr_thread->bottom_of_stack = Caml_state->_bottom_of_stack;
@@ -533,12 +532,42 @@ static void caml_thread_reinitialize(void)
   }
 }
 
+/* Installation of hooks for OCaml 5 stdlib compatibility.
+   See runtime4/domain.{c,h}.
+   Another approach would have been to use weak symbols, to override
+   dummy implementations in domain.c, but unfortunately that doesn't work
+   with the bytecode interpreter.
+ */
+
+value caml_mutex_new(value unit);
+value caml_mutex_lock(value wrapper);
+value caml_mutex_unlock(value wrapper);
+value caml_mutex_try_lock(value wrapper);
+value caml_condition_new(value unit);
+value caml_condition_wait(value wcond, value wmut);
+value caml_condition_signal(value wrapper);
+value caml_condition_broadcast(value wrapper);
+
+static void install_ocaml_5_compatibility_hooks(void)
+{
+  caml_hook_mutex_new = &caml_mutex_new;
+  caml_hook_mutex_lock = &caml_mutex_lock;
+  caml_hook_mutex_try_lock = &caml_mutex_try_lock;
+  caml_hook_mutex_unlock = &caml_mutex_unlock;
+  caml_hook_condition_new = &caml_condition_new;
+  caml_hook_condition_wait = &caml_condition_wait;
+  caml_hook_condition_signal = &caml_condition_signal;
+  caml_hook_condition_broadcast = &caml_condition_broadcast;
+}
+
 /* Initialize the thread machinery */
 
 CAMLprim value caml_thread_initialize(value unit)   /* ML */
 {
   /* Protect against repeated initialization (PR#3532) */
   if (curr_thread != NULL) return Val_unit;
+  /* OCaml 5 compatibility */
+  install_ocaml_5_compatibility_hooks();
   /* OS-specific initialization */
   st_initialize();
   /* Initialize and acquire the master lock */
@@ -586,7 +615,7 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
 }
 
 /* Start tick thread, if not already running */
-static st_retcode start_tick_thread()
+static st_retcode start_tick_thread(void)
 {
   st_retcode err;
   if (caml_tick_thread_running) return 0;
@@ -596,7 +625,7 @@ static st_retcode start_tick_thread()
 }
 
 /* Stop tick thread, if currently running */
-static void stop_tick_thread()
+static void stop_tick_thread(void)
 {
   if (!caml_tick_thread_running) return;
   caml_tick_thread_stop = 1;
