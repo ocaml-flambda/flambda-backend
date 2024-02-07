@@ -893,8 +893,7 @@ typing/env.cmi : \
     utils/global.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
-    parsing/asttypes.cmi \
-    typing/address.cmi
+    parsing/asttypes.cmi
 typing/envaux.cmo : \
     typing/subst.cmi \
     typing/printtyp.cmi \
