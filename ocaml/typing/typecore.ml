@@ -5305,6 +5305,8 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun _ ->
+      (* XXX jrodriguez: This one is weird for similar reasons... Will need to think more
+         when the parser/tests/other parts start compiling again... *)
       Misc.fatal_error "non-Jane-Syntax [Pexp_fun] made it to typechecking"
   | Pexp_function _ ->
       Misc.fatal_error "non-Jane-Syntax [Pexp_function] made it to typechecking"

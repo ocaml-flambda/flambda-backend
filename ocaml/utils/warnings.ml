@@ -292,9 +292,7 @@ let descriptions = [
   { number = 16;
     names = ["unerasable-optional-argument"];
     description = "Unerasable optional argument.";
-    since = None };
-  { number = 17;
-    names = ["undeclared-virtual-method"];
+    since = None }; { number = 17; names = ["undeclared-virtual-method"];
     description = "Undeclared virtual method.";
     since = None };
   { number = 18;
