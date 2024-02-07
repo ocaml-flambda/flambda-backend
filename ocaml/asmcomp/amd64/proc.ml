@@ -238,11 +238,7 @@ let win64_float_external_arguments =
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
-(* BACKPORT BEGIN
-  and ofs = ref 0 in
-*)
-  and ofs = ref 32 in
-(* BACKPORT END *)
+  and ofs = ref (if Config.runtime5 then 0 else 32) in
   for i = 0 to Array.length arg - 1 do
     match arg.(i) with
     | Val | Int | Addr as ty ->
@@ -293,8 +289,7 @@ let stack_ptr_dwarf_register_number = 7
 
 (* Registers destroyed by operations *)
 
-(* BACKPORT BEGIN
-let destroyed_at_c_call =
+let destroyed_at_c_call5 =
   (* C calling conventions preserve rbx, but it is clobbered
      by the code sequence used for C calls in emit.mlp, so it
      is marked as destroyed. *)
@@ -309,8 +304,8 @@ let destroyed_at_c_call =
       [0;1;2;3;4;5;6;7;10;11;
        100;101;102;103;104;105;106;107;
        108;109;110;111;112;113;114;115])
-*)
-let destroyed_at_c_call =
+
+let destroyed_at_c_call4 =
   if win64 then
     (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
     Array.of_list(List.map phys_reg
@@ -322,7 +317,9 @@ let destroyed_at_c_call =
       [0;2;3;4;5;6;7;10;11;
        100;101;102;103;104;105;106;107;
        108;109;110;111;112;113;114;115])
-(* BACKPORT END *)
+
+let destroyed_at_c_call =
+  if Config.runtime5 then destroyed_at_c_call5 else destroyed_at_c_call4
 
 let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then

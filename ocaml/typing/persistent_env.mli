@@ -97,12 +97,17 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Global.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
+type address =
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
+  | Adot of address * int
+
 type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
-  -> address:Address.t
+  -> address:address
   -> flags:Cmi_format.pers_flags list
   -> 'a
 

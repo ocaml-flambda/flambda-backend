@@ -13643,6 +13643,13 @@ esac
 
 otherlibraries="dynlink"
 lib_dynlink=true
+
+if test x"$enable_runtime5" = x"yes"
+then :
+  otherlibraries = "$otherlibraries runtime_events"
+   lib_runtime_events = true
+fi
+
 if test x"$enable_unix_lib" != "xno"
 then :
   enable_unix_lib=yes
@@ -19288,11 +19295,10 @@ esac
 
 ## Activate the systhread library
 
-if [ x"$enable_runtime5" = x"yes" ]; then
+if test x"$enable_runtime5" = x"yes"
+then :
   runtime_suffix=
-  # CR ocaml 5 runtime: forward port locals
-  enable_stack_allocation="no"
-else
+else $as_nop
   runtime_suffix=4
 fi
 

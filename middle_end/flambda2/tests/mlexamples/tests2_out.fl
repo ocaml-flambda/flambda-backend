@@ -16,7 +16,6 @@ and code rec loopify(never) size(21) newer_version_of(f_0)
           ($camlTests2__f_1 ~ depth my_depth -> succ my_depth
            : _ -> imm tagged)
             (Psubint)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Paddint = 1 + apply_result in

@@ -27,6 +27,7 @@
 #define caml_young_alloc_start Caml_state->young_start
 #define caml_young_alloc_end Caml_state->young_end
 #define caml_minor_heap_wsz Caml_state->minor_heap_wsz
+#define caml_in_minor_collection Caml_state->in_minor_collection
 
 
 #define CAML_TABLE_STRUCT(t) { \

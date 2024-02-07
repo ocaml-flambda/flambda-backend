@@ -16,7 +16,6 @@ and code rec loopify(never) size(23) newer_version_of(fact_0)
           ($camlUnroll__fact_1 ~ depth my_depth -> succ my_depth
            : _ -> imm tagged)
             (Psubint)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Pmulint = n * apply_result in
@@ -25,7 +24,6 @@ in
 apply direct(fact_0_1) inlining_state(depth(40))
   ($camlUnroll__fact_1 ~ depth unroll 1 3 -> unroll 0 4 : _ -> imm tagged)
     (2)
-    &toplevel
     -> k * error
   where k (apply_result : imm tagged) =
     let Pmulint = 3 * apply_result in

@@ -21,8 +21,10 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-(* CR ocaml 5 runtime: domain-local-storage assumes single-domain,
-   i.e. calling split will never be necessary. *)
+(* CR ocaml 5 domains: domain-local-storage assumes single-domain,
+   i.e. calling split will never be necessary.
+   For multi-domain support we'll need the upstream 5.x implementation.
+*)
 
 module DLS = struct
 
@@ -72,7 +74,42 @@ module DLS = struct
     else Obj.magic v
 end
 
-(* CR ocaml 5 runtime: domains not supported on 4.x
+(******** Callbacks **********)
+
+(* first spawn, domain startup and at exit functionality *)
+let first_domain_spawned = Atomic.make false
+
+let first_spawn_function = ref (fun () -> ())
+
+let before_first_spawn f =
+  if Atomic.get first_domain_spawned then
+    raise (Invalid_argument "first domain already spawned")
+  else begin
+    let old_f = !first_spawn_function in
+    let new_f () = old_f (); f () in
+    first_spawn_function := new_f
+  end
+
+let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
+
+let at_exit f =
+  let old_exit : unit -> unit = DLS.get at_exit_key in
+  let new_exit () =
+    (* The domain termination callbacks ([at_exit]) are run in
+       last-in-first-out (LIFO) order in order to be symmetric with the domain
+       creation callbacks ([at_each_spawn]) which run in first-in-fisrt-out
+       (FIFO) order. *)
+    f (); old_exit ()
+  in
+  DLS.set at_exit_key new_exit
+
+let do_at_exit () =
+  let f : unit -> unit = DLS.get at_exit_key in
+  f ()
+
+let _ = Stdlib.do_domain_local_at_exit := do_at_exit
+
+(* CR ocaml 5 domains: use this code
 
 module Raw = struct
   (* Low-level primitives provided by the runtime *)
@@ -197,21 +234,7 @@ let self () = Raw.self ()
 
 let is_main_domain () = (self () :> int) = 0
 
-(******** Callbacks **********)
-
-(* first spawn, domain startup and at exit functionality *)
-let first_domain_spawned = Atomic.make false
-
-let first_spawn_function = ref (fun () -> ())
-
-let before_first_spawn f =
-  if Atomic.get first_domain_spawned then
-    raise (Invalid_argument "first domain already spawned")
-  else begin
-    let old_f = !first_spawn_function in
-    let new_f () = old_f (); f () in
-    first_spawn_function := new_f
-  end
+(******* Creation and Termination ********)
 
 let do_before_first_spawn () =
   if not (Atomic.get first_domain_spawned) then begin
@@ -220,27 +243,6 @@ let do_before_first_spawn () =
     (* Release the old function *)
     first_spawn_function := (fun () -> ())
   end
-
-let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
-
-let at_exit f =
-  let old_exit : unit -> unit = DLS.get at_exit_key in
-  let new_exit () =
-    (* The domain termination callbacks ([at_exit]) are run in
-       last-in-first-out (LIFO) order in order to be symmetric with the domain
-       creation callbacks ([at_each_spawn]) which run in first-in-fisrt-out
-       (FIFO) order. *)
-    f (); old_exit ()
-  in
-  DLS.set at_exit_key new_exit
-
-let do_at_exit () =
-  let f : unit -> unit = DLS.get at_exit_key in
-  f ()
-
-let _ = Stdlib.do_domain_local_at_exit := do_at_exit
-
-(******* Creation and Termination ********)
 
 let spawn f =
   do_before_first_spawn ();

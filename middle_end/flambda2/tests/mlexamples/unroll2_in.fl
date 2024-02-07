@@ -10,22 +10,16 @@ let code rec loopify(never) size(23)
     where k3 =
       let Paddint = x + 1 in
       apply direct(foo_0)
-        my_closure ~ depth my_depth -> next_depth
-          (Paddint)
-          &my_region
-          -> k * k1
+        my_closure ~ depth my_depth -> next_depth (Paddint) -> k * k1
     where k2 =
       let Psubint = x - 1 in
       apply direct(foo_0)
-        my_closure ~ depth my_depth -> next_depth
-          (Psubint)
-          &my_region
-          -> k * k1
+        my_closure ~ depth my_depth -> next_depth (Psubint) -> k * k1
 in
 let code size(5)
       bar_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
   let foo = %project_value_slot bar.foo my_closure in
-  apply direct(foo_0) unroll(2) foo (x) &my_region -> k * k1
+  apply direct(foo_0) unroll(2) foo (x) -> k * k1
 in
 (let foo = closure foo_0 @foo in
  let bar = closure bar_1 @bar with { foo = foo } in

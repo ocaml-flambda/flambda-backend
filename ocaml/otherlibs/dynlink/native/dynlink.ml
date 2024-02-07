@@ -16,6 +16,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Dynamic loading of .cmx files *)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Dynlink_compilerlibs
@@ -41,6 +43,8 @@ module Native = struct
   (* mshinwell: We need something better than caml_sys_exit *)
   external ndl_open : string -> bool -> handle * Cmxs_format.dynheader
     = "caml_sys_exit" "caml_natdynlink_open"
+  external ndl_register : handle -> string array -> unit
+    = "caml_sys_exit" "caml_natdynlink_register"
   external ndl_run : handle -> string -> unit
     = "caml_sys_exit" "caml_natdynlink_run"
   external ndl_getmap : unit -> global_map list
@@ -103,13 +107,40 @@ module Native = struct
       init
       (ndl_getmap ())
 
+  let run_shared_startup handle =
+    ndl_run handle "caml_shared_startup"
+
+  let run _lock handle ~unit_header ~priv:_ =
+    List.iter (fun cu ->
+        try ndl_run handle cu
+        with exn ->
+          Printexc.raise_with_backtrace
+            (DT.Error (Library's_module_initializers_failed exn))
+            (Printexc.get_raw_backtrace ()))
+      (Unit_header.defined_symbols unit_header)
+
   exception Register_dyn_global_duplicate
   let () =
     Callback.register "Register_dyn_global_duplicate"
       Register_dyn_global_duplicate
 
-  let ndl_run handle cu ~filename ~priv =
-    try ndl_run handle cu
+  let load ~filename ~priv =
+    let handle, header =
+      try ndl_open filename (not priv)
+      with exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
+    in
+    if header.dynu_magic <> Config.cmxs_magic_number then begin
+      raise (DT.Error (Not_a_bytecode_file filename))
+    end;
+    handle, header.dynu_units
+
+  let register handle dynu_units ~priv ~filename =
+    let syms =
+      "caml_shared_startup" ::
+      List.concat_map Unit_header.defined_symbols dynu_units
+    in
+    try
+      ndl_register handle (Array.of_list syms)
     with
     | Register_dyn_global_duplicate ->
       if not priv then
@@ -124,23 +155,6 @@ module Native = struct
       Printexc.raise_with_backtrace
         (DT.Error (Library's_module_initializers_failed exn))
         (Printexc.get_raw_backtrace ())
-
-  let run_shared_startup handle ~filename ~priv =
-    ndl_run handle "caml_shared_startup" ~filename ~priv
-
-  let run handle ~filename ~unit_header ~priv =
-    List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
-      (Unit_header.defined_symbols unit_header)
-
-  let load ~filename ~priv =
-    let handle, header =
-      try ndl_open filename (not priv)
-      with exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
-    in
-    if header.dynu_magic <> Config.cmxs_magic_number then begin
-      raise (DT.Error (Not_a_bytecode_file filename))
-    end;
-    handle, header.dynu_units
 
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
     match ndl_loadsym bytecode_or_asm_symbol with

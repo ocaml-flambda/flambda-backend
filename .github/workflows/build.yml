@@ -13,28 +13,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: closure
-            config: --enable-middle-end=closure
-            os: ubuntu-latest
-            build_ocamlparam: ''
-            check_arch: true
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
-
-          - name: flambda1
-            config: --enable-middle-end=flambda
-            os: ubuntu-latest
-            build_ocamlparam: ''
-
-          - name: flambda1_frame_pointers
-            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
-            os: ubuntu-latest
-            build_ocamlparam: ''
-
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            expected_fail: true
+
+          - name: flambda2_debug_runtime5
+            config: --enable-middle-end=flambda2 --enable-runtime5
+            os: ubuntu-latest
+            build_ocamlparam: ''
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2

@@ -1,7 +1,7 @@
 (* TEST
    ocamlrunparam += ",s=512"
    * skip
-   reason = "OCaml 5 only"
+   reason = "CR ocaml 5 effects: re-enable this test"
    ** native
 *)
 
