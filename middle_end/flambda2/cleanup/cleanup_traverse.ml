@@ -122,9 +122,9 @@ module Dacc : sig
 
   val used : denv:denv -> Simple.t -> t -> unit
 
-  val used_code_id : Code_id.t -> t -> t
+  val used_code_id : Code_id.t -> t -> unit
 
-  val called : denv:denv -> Code_id.t -> t -> t
+  val called : denv:denv -> Code_id.t -> t -> unit
 
   (* val opaque_let_dependency : *)
   (*   denv:denv -> Bound_pattern.t -> Name_occurrences.t -> t -> t *)
@@ -257,12 +257,10 @@ end = struct
       ~const:(fun _ -> ())
 
   let used_code_id code_id t =
-    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id);
-    t
+    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id)
 
   let called ~denv code_id t =
-    Deps.add_called (cur_deps ~denv t) code_id;
-    t
+    Deps.add_called (cur_deps ~denv t) code_id
 
   let add_apply apply t = { t with apply_deps = apply :: t.apply_deps }
 
@@ -475,7 +473,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           let dacc = Dacc.add_apply apply_dep dacc in
           (* TODO regions? *)
           (* TODO record function use *)
-          let dacc = Dacc.called ~denv code_id dacc in
+          Dacc.called ~denv code_id dacc;
           dacc
         else default_dacc dacc
       | Function
@@ -909,7 +907,7 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
     | Assume { property = Zero_alloc; _ } -> false
     | Check { property = Zero_alloc; _ } -> true
   in
-  let dacc = if never_delete then Dacc.used_code_id code_id dacc else dacc in
+  if never_delete then Dacc.used_code_id code_id dacc;
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
         ~return_continuation
