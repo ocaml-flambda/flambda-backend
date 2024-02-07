@@ -1019,7 +1019,7 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
-let do_print = false
+let do_print = Cleanup_deps.do_print
 
 let run (unit : Flambda_unit.t) =
   let dacc = Dacc.empty () in
