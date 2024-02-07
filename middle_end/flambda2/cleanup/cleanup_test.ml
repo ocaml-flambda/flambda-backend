@@ -90,7 +90,7 @@ type apply_cont =
   }
 
 type tail_expr =
-  | Raw of Flambda.Expr.t
+  | Invalid of Flambda.Expr.t
   | Apply_cont of Apply_cont_expr.t
   | Switch of Switch_expr.t
   | Apply of Apply_expr.t
@@ -155,7 +155,6 @@ and cont_handler =
 and rev_expr =
   { expr : tail_expr;
     holed_expr : rev_expr_holed;
-    free_names : Name_occurrences.t
   }
 
 module Deps = Cleanup_deps
@@ -680,8 +679,8 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
 let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
   match Flambda.Expr.descr expr with
   | Invalid _ ->
-    let expr = Raw expr in
-    ( { expr; holed_expr = denv.parent; free_names = Name_occurrences.empty },
+    let expr = Invalid expr in
+    ( { expr; holed_expr = denv.parent },
       dacc )
   | Switch switch ->
     let expr = Switch switch in
@@ -692,16 +691,14 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         (Switch_expr.arms switch) dacc
     in
     ( { expr;
-        holed_expr = denv.parent;
-        free_names = Flambda.Switch.free_names switch
+        holed_expr = denv.parent
       },
       dacc )
   | Apply_cont apply_cont ->
     let expr = Apply_cont apply_cont in
     let dacc = apply_cont_deps denv dacc apply_cont in
     ( { expr;
-        holed_expr = denv.parent;
-        free_names = Flambda.Apply_cont.free_names apply_cont
+        holed_expr = denv.parent
       },
       dacc )
   | Apply apply -> begin
@@ -782,8 +779,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
     in
     let expr = Apply apply in
     ( { expr;
-        holed_expr = denv.parent;
-        free_names = Flambda.Apply.free_names apply
+        holed_expr = denv.parent
       },
       dacc )
   end
@@ -1442,13 +1438,13 @@ let rewrite_apply_cont_expr kinds uses ac =
 
 let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     (rev_expr : rev_expr) : RE.t =
-  let { expr; holed_expr; free_names } = rev_expr in
-  let expr =
+  let { expr; holed_expr } = rev_expr in
+  let expr, free_names =
     match expr with
-    | Raw expr -> expr
+    | Invalid expr -> expr, Name_occurrences.empty
     | Apply_cont ac ->
       let ac = rewrite_apply_cont_expr kinds uses ac in
-      Flambda.Expr.create_apply_cont ac
+      Flambda.Expr.create_apply_cont ac, Apply_cont_expr.free_names ac
     | Switch switch ->
       let switch =
         Switch_expr.create
@@ -1457,7 +1453,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~scrutinee:(rewrite_simple kinds uses (Switch_expr.scrutinee switch))
           ~arms:(Targetint_31_63.Map.map (rewrite_apply_cont_expr kinds uses) (Switch_expr.arms switch))
       in
-      Flambda.Expr.create_switch switch
+      Flambda.Expr.create_switch switch, Switch_expr.free_names switch
     | Apply apply ->
       (* TODO rewrite other simples *)
       let call_kind =
@@ -1485,7 +1481,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
           ~position:(Apply_expr.position apply)
           ~relative_history:(Apply_expr.relative_history apply)
       in
-      Flambda.Expr.create_apply apply
+      Flambda.Expr.create_apply apply, Apply_expr.free_names apply
   in
   rebuild_holed kinds uses holed_expr (RE.from_expr ~expr ~free_names)
 
