@@ -106,14 +106,8 @@ val f : (?x:int -> unit -> int) -> int = <fun>
 Line 1, characters 46-47:
 1 | let f g = ignore (g : ?x:int -> unit -> int); g ();;
                                                   ^
-<<<<<<< HEAD
-Warning 19 [non-principal-labels]: eliminated optional argument without principality.
-
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-Warning 19 [non-principal-labels]: eliminated optional argument without principality.
-=======
 Warning 19 [non-principal-labels]: eliminated omittable argument without principality.
->>>>>>> 431cec26 (Start of implicit-source-positions)
+
 val f : (?x:int -> unit -> int) -> int = <fun>
 |}];;
 

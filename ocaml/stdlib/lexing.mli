@@ -20,7 +20,7 @@ open! Stdlib
 
 (** {1 Positions} *)
 
-type position (* CR src_pos: restore! = lexing_position *) = {
+type position = lexing_position = {
   pos_fname : string;
   pos_lnum : int;
   pos_bol : int;

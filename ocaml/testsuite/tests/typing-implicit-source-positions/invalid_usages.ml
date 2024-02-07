@@ -46,7 +46,7 @@ Line 1, characters 14-15:
                   ^
 Error: This expression has type src_pos:[%src_pos] -> unit -> unit
        but an expression was expected of type
-         src_pos:Lexing.position -> unit -> 'a
+         src_pos:Lexing.position -> (unit -> 'a)
 |}]
 
 let h ?(src_pos:[%src_pos]) () = ()

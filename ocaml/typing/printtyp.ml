@@ -1229,7 +1229,6 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-<<<<<<< HEAD
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
@@ -1270,15 +1269,12 @@ let alias_nongen_row mode px ty =
           add_alias_proxy px
     | _ -> ()
 
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-=======
 let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Nolabel -> Nolabel
   | Labelled l -> Labelled l
   | Optional l -> Optional l
   | Position l -> Position l
 
->>>>>>> 431cec26 (Start of implicit-source-positions)
 let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then

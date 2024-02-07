@@ -144,7 +144,7 @@ let arg_label i ppf = function
   | Nolabel -> line i ppf "Nolabel\n"
   | Optional s -> line i ppf "Optional \"%s\"\n" s
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
-<<<<<<< HEAD
+  | Position s -> line i ppf "Position \"%s\"\n" s
 
 let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
@@ -162,10 +162,6 @@ let typevar_jkind ~print_quote ppf (v, l) =
 let tuple_component_label i ppf = function
   | None -> line i ppf "Label: None\n"
   | Some s -> line i ppf "Label: Some \"%s\"\n" s
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-=======
-  | Position s -> line i ppf "Position \"%s\"\n" s
->>>>>>> 431cec26 (Start of implicit-source-positions)
 ;;
 
 let typevars ppf vs =
