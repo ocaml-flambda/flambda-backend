@@ -226,8 +226,8 @@ let f : (_ : immediate) -> (_ : value) = fun _ -> assert false
 let g : (_ : value) -> (_ : immediate) = fun _ -> assert false
 
 [%%expect {|
-val f : 'b ('a : immediate). 'a -> 'b = <fun>
-val g : ('b : immediate) 'a. 'a -> 'b = <fun>
+val f : ('a : immediate) 'b. 'a -> 'b = <fun>
+val g : 'a ('b : immediate). 'a -> 'b = <fun>
 |}]
 
 (********************************************)
@@ -551,13 +551,13 @@ val f : ('a : immediate). 'a -> 'a = <fun>
 let f = fun x y (type (a : immediate)) (z : a) -> z
 
 [%%expect{|
-val f : ('a : immediate) 'c 'b. 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 
 let f = fun x y (type a : immediate) (z : a) -> z
 
 [%%expect{|
-val f : ('a : immediate) 'c 'b. 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)
@@ -574,7 +574,7 @@ exception E : ('a : immediate) ('b : any). 'b t2_any * 'a list -> exn
 
 [%%expect{|
 type (_ : any) t2_any
-exception E : ('a : immediate) ('b : any). 'b t2_any * 'a list -> exn
+exception E : ('b : any) ('a : immediate). 'b t2_any * 'a list -> exn
 |}]
 
 

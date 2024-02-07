@@ -1,4 +1,5 @@
 File "fail12.ml", line 5, characters 47-57:
-Error: Annotation check for zero_alloc failed on function Fail12.Inner.bar.(fun) (camlFail12__anon_fn[fail12.ml:5,40--70]_HIDE_STAMP)
+Error: Annotation check for zero_alloc failed on function Fail12.Inner.bar.(fun) (camlFail12.anon_fn[fail12.ml:5,40--70]_HIDE_STAMP)
+
 File "fail12.ml", line 5, characters 64-69:
-  allocate 24 bytes
+Error: Unexpected allocation of 24 bytes

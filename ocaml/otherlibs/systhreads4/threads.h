@@ -88,7 +88,8 @@ struct caml_locking_scheme {
   void (*yield)(void*);
 };
 
-extern struct caml_locking_scheme caml_default_locking_scheme;
+CAMLextern_libthreads
+struct caml_locking_scheme *caml_get_default_locking_scheme(void);
 
 /* Switch to a new runtime locking scheme.
 

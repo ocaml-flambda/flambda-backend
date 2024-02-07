@@ -17,7 +17,6 @@ let code rec size(22)
       apply direct(odd_1)
         (odd ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 and code rec size(22)
       odd_1 (n : imm tagged)
@@ -37,15 +36,12 @@ and code rec size(22)
       apply direct(even_0)
         (even ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 in
 (let even = closure even_0 @even and odd = closure odd_1 @odd in
- apply direct(even_0) unroll(4)
-   (even : _ -> imm tagged) (3) &toplevel -> k1 * error
+ apply direct(even_0) unroll(4) (even : _ -> imm tagged) (3) -> k1 * error
    where k1 (three_is_even : imm tagged) =
-     (apply direct(odd_1) unroll(2)
-        (odd : _ -> imm tagged) (4) &toplevel -> k1 * error
+     (apply direct(odd_1) unroll(2) (odd : _ -> imm tagged) (4) -> k1 * error
         where k1 (four_is_odd : imm tagged) =
           let Pmakeblock = %Block 0 (even, odd, three_is_even, four_is_odd)
           in
@@ -74,7 +70,6 @@ let code rec loopify(never) size(18) newer_version_of(even_0)
         ($camlUnroll3__odd_3 ~ depth my_depth -> succ my_depth
          : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 and code rec loopify(never) size(18) newer_version_of(odd_1)
       odd_1_1 (n : imm tagged)
@@ -91,7 +86,6 @@ and code rec loopify(never) size(18) newer_version_of(odd_1)
         ($camlUnroll3__even_2 ~ depth my_depth -> succ my_depth
          : _ -> imm tagged)
           (Psubint)
-          &my_region
           -> k * k1
 and $camlUnroll3__even_2 =
   closure even_0_1 @even
@@ -101,7 +95,6 @@ in
 apply direct(odd_1_1) inlining_state(depth(20))
   ($camlUnroll3__odd_3 ~ depth unroll 1 1 -> unroll 0 2 : _ -> imm tagged)
     (2)
-    &toplevel
     -> k * error
   where k (four_is_odd : imm tagged) =
     let $camlUnroll3 =

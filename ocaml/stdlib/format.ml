@@ -1027,8 +1027,6 @@ and err_formatter = formatter_of_out_channel Stdlib.stderr
 and str_formatter = formatter_of_buffer stdbuf
 
 (* Initialise domain local state *)
-(* CR ocaml 5 runtime:
-   BACKPORT BEGIN
 module DLS = Domain.DLS
 
 let stdbuf_key = DLS.new_key pp_make_buffer
@@ -1075,16 +1073,6 @@ let err_formatter_key = DLS.new_key (fun () ->
   Domain.at_exit (pp_print_flush ppf);
   ppf)
 let _ = DLS.set err_formatter_key err_formatter
-*)
-let std_formatter_key = std_formatter
-let err_formatter_key = err_formatter
-let str_formatter_key = str_formatter
-let stdbuf_key = stdbuf
-
-module DLS = struct
-  let get = Fun.id
-end
-(* BACKPORT END *)
 
 let get_std_formatter () = DLS.get std_formatter_key
 let get_err_formatter () = DLS.get err_formatter_key
@@ -1107,8 +1095,6 @@ let flush_str_formatter () =
   let str_formatter = DLS.get str_formatter_key in
   flush_buffer_formatter stdbuf str_formatter
 
-(* CR ocaml 5 runtime:
-   BACKPORT
 let make_synchronized_formatter output flush =
   DLS.new_key (fun () ->
     let buf = Buffer.create pp_buffer_size in
@@ -1122,7 +1108,6 @@ let make_synchronized_formatter output flush =
 
 let synchronized_formatter_of_out_channel oc =
   make_synchronized_formatter (output_substring oc) (fun () -> flush oc)
-*)
 
 (*
   Symbolic pretty-printing
@@ -1493,8 +1478,6 @@ let flush_standard_formatters () =
 
 let () = at_exit flush_standard_formatters
 
-(* CR ocaml 5 runtime:
-   BACKPORT
 let () = Domain.before_first_spawn (fun () ->
   flush_standard_formatters ();
   let fs = pp_get_formatter_out_functions std_formatter () in
@@ -1507,4 +1490,3 @@ let () = Domain.before_first_spawn (fun () ->
     {fs with out_string = buffered_out_string err_buf_key;
              out_flush = buffered_out_flush Stdlib.stderr err_buf_key};
 )
-*)

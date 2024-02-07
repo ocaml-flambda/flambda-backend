@@ -26,13 +26,17 @@ module Impl = struct
     | Unknown_argument (* The import is a parameter module *)
     | Known of CU.t
 
-  let and_crc_of_import_info info =
-    match Import_info.Intf.crc info with
-    | None -> None
-    | Some crc ->
-        match Import_info.Intf.impl info with
-        | None -> Some (Unknown_argument, crc)
-        | Some cu -> Some (Known cu, crc)
+  module With_crc = struct
+    type nonrec t = t * Digest.t
+
+    let of_import_info info : t option =
+      match Import_info.Intf.crc info with
+      | None -> None
+      | Some crc ->
+          match Import_info.Intf.impl info with
+          | None -> Some (Unknown_argument, crc)
+          | Some cu -> Some (Known cu, crc)
+  end
 end
 module Consistbl = Consistbl.Make (CU.Name) (Impl)
 
@@ -104,7 +108,6 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type pers_struct = {
-  ps_import: import;
   ps_binding: binding;
 }
 
@@ -202,11 +205,11 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    match Impl.and_crc_of_import_info import_info with
+    match Impl.With_crc.of_import_info import_info with
     | None -> ()
-    | Some (unit, crc) ->
+    | Some (impl, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name unit crc source
+        Consistbl.check crc_units name impl crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv imp =
@@ -330,16 +333,18 @@ let acknowledge_import penv ~check modname pers_sig =
     | Parameter -> None, Impl.Unknown_argument
   in
   let {imports;} = penv in
-  let import = { imp_is_param = is_param;
-                 imp_params = params;
-                 imp_arg_for = arg_for;
-                 imp_impl = impl;
-                 imp_sign = sign;
-                 imp_filename = filename;
-                 imp_visibility = visibility;
-                 imp_crcs = crcs;
-                 imp_flags = flags;
-               } in
+  let import =
+    { imp_is_param = is_param;
+      imp_params = params;
+      imp_arg_for = arg_for;
+      imp_impl = impl;
+      imp_sign = sign;
+      imp_filename = filename;
+      imp_visibility = visibility;
+      imp_crcs = crcs;
+      imp_flags = flags;
+    }
+  in
   if check then check_consistency penv import;
   Hashtbl.add imports modname (Found import);
   import
@@ -392,12 +397,17 @@ let make_binding _penv modname (impl : Impl.t) : binding =
   | Unknown_argument ->
       Local (Ident.create_local_binding_for_global modname)
 
+type address =
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
+  | Adot of address * int
+
 type 'a sig_reader =
   Subst.Lazy.signature
   -> Global.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
-  -> address:Address.t
+  -> address:address
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
@@ -408,7 +418,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   let flags = import.imp_flags in
   check_for_unset_parameters penv modname import;
   let binding = make_binding penv modname impl in
-  let address : Address.t =
+  let address : address =
     match binding with
     | Local id -> Alocal id
     | Static unit -> Aunit unit
@@ -428,15 +438,13 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_import = import;
-             ps_binding = binding;
-           } in
+  let ps = { ps_binding = binding; } in
   if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
        but it's not a parameter to this module. *)
     let modname = CU.Name.of_head_of_global_name modname in
-    let filename = ps.ps_import.imp_filename in
+    let filename = import.imp_filename in
     raise (Error (Illegal_import_of_parameter (modname, filename)))
   end;
   Hashtbl.add persistent_structures modname (ps, pm);

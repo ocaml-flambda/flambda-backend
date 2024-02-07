@@ -16,7 +16,6 @@ let code rec size(24)
         apply direct(f_0)
           (my_closure ~ depth my_depth -> next_depth : _ -> imm tagged)
             (Psubint)
-            &my_region
             -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Paddint = 1 + apply_result in
@@ -24,8 +23,7 @@ let code rec size(24)
 in
 (let `region` = %begin_region in
  (let f = closure f_0 @f in
-  apply direct(f_0) unroll(10)
-    (f : _ -> imm tagged) (3) &`region` -> k2 * error)
+  apply direct(f_0) unroll(10) (f : _ -> imm tagged) (3) -> k2 * error)
    where k2 (region_return : imm tagged) =
      let `unit` = %end_region `region` in
      cont k1 (region_return))

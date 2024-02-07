@@ -11,11 +11,11 @@ let code rec size(29)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      apply inlined(hint) k (1) &my_region -> k * k1
+      apply inlined(hint) k (1) -> k * k1
     where k2 =
       let Psubint = n - 1 in
       apply direct(odd_2)
-        odd ~ depth my_depth -> next_depth (Psubint) &my_region -> k * k1
+        odd ~ depth my_depth -> next_depth (Psubint) -> k * k1
 and code rec size(29)
       odd_2 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
@@ -28,11 +28,11 @@ and code rec size(29)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      apply inlined(hint) k (0) &my_region -> k * k1
+      apply inlined(hint) k (0) -> k * k1
     where k2 =
       let Psubint = n - 1 in
       apply direct(even_1)
-        even ~ depth my_depth -> next_depth (Psubint) &my_region -> k * k1
+        even ~ depth my_depth -> next_depth (Psubint) -> k * k1
 in
 let code inline(always) size(87)
       parity_is_0 (p : imm tagged, n : imm tagged, k)
@@ -47,9 +47,9 @@ let code inline(always) size(87)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      apply direct(odd_2) unroll(4) odd (n) &my_region -> k * k1
+      apply direct(odd_2) unroll(4) odd (n) -> k * k1
     where k2 =
-      apply direct(even_1) unroll(3) even (n) &my_region -> k * k1
+      apply direct(even_1) unroll(3) even (n) -> k * k1
 in
 let code inline(always) size(1)
       k_3 (b) my_closure my_region my_depth -> k * k1 =
@@ -58,10 +58,10 @@ in
 (let parity_is = closure parity_is_0 @parity_is in
  let k = closure k_3 @k in
  apply direct(parity_is_0)
-   (parity_is : _ -> imm tagged) (0, 1, k) &toplevel -> k1 * error
+   (parity_is : _ -> imm tagged) (0, 1, k) -> k1 * error
    where k1 (one_is_even : imm tagged) =
      (apply direct(parity_is_0)
-        (parity_is : _ -> imm tagged) (1, 4, k) &toplevel -> k1 * error
+        (parity_is : _ -> imm tagged) (1, 4, k) -> k1 * error
         where k1 (four_is_odd : imm tagged) =
           let Pmakeblock = %Block 0 (parity_is, k, one_is_even, four_is_odd)
           in

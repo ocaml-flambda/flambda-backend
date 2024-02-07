@@ -72,6 +72,7 @@ COMPILERLIBS_INTFS=\
 
 # .ml files from compilerlibs that have corresponding .mli files.
 COMPILERLIBS_SOURCES=\
+  utils/runtimetags.ml \
   utils/binutils.ml \
   utils/config.ml \
   utils/build_path_prefix_map.ml \
@@ -117,12 +118,12 @@ COMPILERLIBS_SOURCES=\
   typing/jkind.ml \
   typing/primitive.ml \
   typing/types.ml \
+  typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \
   typing/predef.ml \
   typing/datarepr.ml \
   file_formats/cmi_format.ml \
-  typing/address.ml \
   typing/persistent_env.ml \
   typing/env.ml \
   lambda/debuginfo.ml \

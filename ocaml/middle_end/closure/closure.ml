@@ -16,7 +16,6 @@
 (* Introduction of closures, uncurrying, recognition of direct calls *)
 
 open Misc
-open Asttypes
 open Primitive
 open Lambda
 open Switch
@@ -1028,6 +1027,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base (Const_string (s, _, _)) ->
             str (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
+        | Const_base(Const_unboxed_float _) ->
+            (* CR alanechang: implement unboxed float constants in closure *)
+            Misc.fatal_error "Unboxed float constants are not supported in closure. Consider using flambda2."
         | Const_base(Const_int32 x) -> str (Uconst_int32 x)
         | Const_base(Const_int64 x) -> str (Uconst_int64 x)
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)
@@ -1143,6 +1145,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               })
              ~loc
              ~mode:new_clos_mode
+             ~ret_mode
+             (* CR ncourant: this is incorrect, but the mode will not be used for anything *)
              ~region:fundesc.fun_region
              ~attr:default_function_attribute)
         in
@@ -1493,8 +1497,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (List.map
          (function
            | (id, Lfunction{kind; params; return; body; attr;
-                            loc; mode; region}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
+                            loc; mode; ret_mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )

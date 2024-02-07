@@ -103,9 +103,12 @@ extern char_os *caml_secure_getenv(char_os const *var);
    cannot be determined, return -1. */
 extern int caml_num_rows_fd(int fd);
 
+/* Print a timestamp for verbose GC logs */
+extern void caml_print_timestamp(FILE* channel, int formatted);
+
 /* Memory management platform-specific operations */
 
-void *caml_plat_mem_map(uintnat, uintnat, int);
+void *caml_plat_mem_map(uintnat, int);
 void *caml_plat_mem_commit(void *, uintnat);
 void caml_plat_mem_decommit(void *, uintnat);
 void caml_plat_mem_unmap(void *, uintnat);

@@ -37,8 +37,11 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region of { try_region_parent : Ident.t option }
-    | End_region of Ident.t
+    | Begin_region of { is_try_region : bool }
+    | End_region of
+        { is_try_region : bool;
+          region : Ident.t
+        }
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
     | Prim of
@@ -332,6 +335,7 @@ module Function_decls : sig
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
       first_complex_local_param:int ->
+      result_mode:Lambda.alloc_mode ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -365,6 +369,8 @@ module Function_decls : sig
 
     val is_a_functor : t -> bool
 
+    val is_opaque : t -> bool
+
     val check_attribute : t -> Lambda.check_attribute
 
     val stub : t -> bool
@@ -376,6 +382,8 @@ module Function_decls : sig
     val closure_alloc_mode : t -> Lambda.alloc_mode
 
     val first_complex_local_param : t -> int
+
+    val result_mode : t -> Lambda.alloc_mode
 
     val contains_no_escaping_local_allocs : t -> bool
 

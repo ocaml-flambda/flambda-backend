@@ -23,7 +23,7 @@
      callback.c weak.c
    finalise.c stacks.c dynlink.c backtrace_byt.c backtrace.c
      afl.c
-   bigarray.c eventlog.c misc.c)
+   bigarray.c prng.c eventlog.c misc.c domain.c)
  (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
 
 (rule

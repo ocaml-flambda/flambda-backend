@@ -556,27 +556,11 @@ let ( ^^ ) (Format (fmt1, str1)) (Format (fmt2, str2)) =
 external sys_exit : int -> 'a = "caml_sys_exit"
 
 (* for at_exit *)
-(* BACKPORT BEGIN
 type 'a atomic_t
 external atomic_make : 'a -> 'a atomic_t = "%makemutable"
 external atomic_get : 'a atomic_t -> 'a = "%atomic_load"
 external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool
   = "%atomic_cas"
-*)
-type 'a t = {mutable v: 'a}
-
-let atomic_make v = {v}
-let atomic_get r = r.v
-let[@inline never] atomic_compare_and_set r seen v =
-  (* BEGIN ATOMIC *)
-  let cur = r.v in
-  if cur == seen then (
-    r.v <- v;
-    (* END ATOMIC *)
-    true
-  ) else
-    false
-(* BACKPORT END *)
 
 let exit_function = atomic_make flush_all
 
@@ -621,13 +605,10 @@ module BytesLabels    = BytesLabels
 module Callback       = Callback
 module Char           = Char
 module Complex        = Complex
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Condition      = Condition
-*)
 module Digest         = Digest
 module Domain         = Domain
-(* CR ocaml 5 runtime:
+(* CR ocaml 5 effects:
    BACKPORT
 module Effect         = Effect
 *)
@@ -650,10 +631,7 @@ module ListLabels     = ListLabels
 module Map            = Map
 module Marshal        = Marshal
 module MoreLabels     = MoreLabels
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Mutex          = Mutex
-*)
 module Nativeint      = Nativeint
 module Obj            = Obj
 module Oo             = Oo
@@ -666,10 +644,7 @@ module Queue          = Queue
 module Random         = Random
 module Result         = Result
 module Scanf          = Scanf
-(* CR ocaml 5 runtime:
-   BACKPORT
 module Semaphore      = Semaphore
-*)
 module Seq            = Seq
 module Set            = Set
 module Stack          = Stack

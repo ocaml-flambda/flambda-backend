@@ -21,6 +21,17 @@
 #include <caml/sys.h>
 #include "unixsupport.h"
 
+#ifdef CAML_RUNTIME_5
+
+CAMLprim value caml_unix_error_message(value err)
+{
+  char buf[1024];
+  int errnum = caml_unix_code_of_unix_error(err);
+  return caml_copy_string(caml_strerror(errnum, buf, sizeof(buf)));
+}
+
+#else
+
 CAMLprim value caml_unix_error_message(value err)
 {
   char buf[1024];
@@ -32,3 +43,5 @@ CAMLprim value caml_unix_error_message(value err)
     */
     buf);
 }
+
+#endif

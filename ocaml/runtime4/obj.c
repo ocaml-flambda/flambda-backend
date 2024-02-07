@@ -30,17 +30,22 @@
 #include "caml/prims.h"
 #include "caml/signals.h"
 
-CAMLprim value caml_obj_tag(value arg)
+static int obj_tag (value arg)
 {
   if (Is_long (arg)){
-    return Val_int (1000);   /* int_tag */
+    return 1000;   /* int_tag */
   }else if ((long) arg & (sizeof (value) - 1)){
-    return Val_int (1002);   /* unaligned_tag */
+    return 1002;   /* unaligned_tag */
   }else if (Is_in_value_area (arg)){
-    return Val_int(Tag_val(arg));
+    return Tag_val(arg);
   }else{
-    return Val_int (1001);   /* out_of_heap_tag */
+    return 1001;   /* out_of_heap_tag */
   }
+}
+
+CAMLprim value caml_obj_tag(value arg)
+{
+  return Val_int (obj_tag(arg));
 }
 
 CAMLprim value caml_obj_set_tag (value arg, value new_tag)
@@ -236,11 +241,9 @@ CAMLprim value caml_obj_add_offset (value v, value offset)
   return v + (unsigned long) Int32_val (offset);
 }
 
-/* The following function is used in stdlib/lazy.ml.
-   It is not written in OCaml because it must be atomic with respect
-   to the GC.
- */
-
+/* The following functions are used to support lazy values. They are not
+ * written in OCaml in order to ensure atomicity guarantees with respect to the
+ * GC. */
 CAMLprim value caml_lazy_make_forward (value v)
 {
   CAMLparam1 (v);
@@ -249,6 +252,53 @@ CAMLprim value caml_lazy_make_forward (value v)
   res = caml_alloc_small (1, Forward_tag);
   Field (res, 0) = v;
   CAMLreturn (res);
+}
+
+static int obj_update_tag (value blk, int old_tag, int new_tag)
+{
+  header_t hd;
+  tag_t tag;
+
+  hd = Hd_val(blk);
+  tag = Tag_hd(hd);
+
+  if (tag != old_tag) return 0;
+  Unsafe_store_tag_val(blk, new_tag);
+  return 1;
+}
+
+CAMLprim value caml_lazy_reset_to_lazy (value v)
+{
+  CAMLassert (Tag_val(v) == Forcing_tag);
+
+  obj_update_tag (v, Forcing_tag, Lazy_tag);
+  return Val_unit;
+}
+
+CAMLprim value caml_lazy_update_to_forward (value v)
+{
+  CAMLassert (Tag_val(v) == Forcing_tag);
+
+  obj_update_tag (v, Forcing_tag, Forward_tag);
+  return Val_unit;
+}
+
+CAMLprim value caml_lazy_read_result (value v)
+{
+  if (obj_tag(v) == Forward_tag)
+    return Field(v,0);
+  return v;
+}
+
+CAMLprim value caml_lazy_update_to_forcing (value v)
+{
+  if (Is_block(v) && /* Needed to ensure that we don't attempt to update the
+                        header of a integer value */
+      obj_update_tag (v, Lazy_tag, Forcing_tag)) {
+    return Val_int(0);
+  } else {
+    return Val_int(1);
+  }
 }
 
 /* For mlvalues.h and camlinternalOO.ml
