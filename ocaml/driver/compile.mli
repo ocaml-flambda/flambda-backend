@@ -26,12 +26,12 @@ val implementation:
 val to_bytecode :
   Compile_common.info ->
   Typedtree.implementation ->
-  Instruct.instruction list * Compilation_unit.Set.t * int option
+  Instruct.instruction list * Compilation_unit.Set.t
 (** [to_bytecode info typed] takes a typechecked implementation
     and returns its bytecode.
 *)
 
 val emit_bytecode :
-  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t * int option ->
+  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t ->
     unit
 (** [emit_bytecode bytecode] output the bytecode executable. *)

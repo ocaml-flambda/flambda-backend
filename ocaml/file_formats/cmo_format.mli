@@ -30,14 +30,7 @@ type compilation_unit_descr =
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
-    cu_arg_descr: Lambda.arg_descr option;
-                                        (* If this is an argument unit, the
-                                           parameter it implements *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
-    cu_runtime_params : Global.Name.t array;
-                                        (* Parameters and imports which must be
-                                           passed as parameters to the module
-                                           functor *)
     cu_required_globals: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects
