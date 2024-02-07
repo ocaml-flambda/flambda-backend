@@ -46,7 +46,7 @@ type mode =
    typechecking, all [Prim_poly] modes on a given primitive application
    will be instantiated either all to [Local] or all to [Global] *)
 
-type ('repr_t) description_gen = private
+type 'repr_t description_gen = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
