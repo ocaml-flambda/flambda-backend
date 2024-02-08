@@ -133,9 +133,8 @@ let find_compatible_allocations :
     - the "first" allocation is made bigger to account for all allocations;
     - the other allocations are replaced with a reference to the result of the
       previous allocation, with a different offset. *)
-let rec combine : fun_name:string -> max_instr_id:int ref -> cell option -> unit
-    =
- fun ~fun_name ~max_instr_id cell ->
+let rec combine : max_instr_id:int ref -> cell option -> unit =
+ fun ~max_instr_id cell ->
   let first_allocation = find_next_allocation cell in
   match first_allocation with
   | None -> ()
@@ -168,15 +167,13 @@ let rec combine : fun_name:string -> max_instr_id:int ref -> cell option -> unit
       in
       (* Then, change the size of the first allocation so that it is the sum of
          all allocations, and update the debug info. *)
-      let dbginfo = dbginfo_of_other_allocations @ dbginfo in
-      Comballoc.dump_alloc_info ~fun_name dbginfo;
       DLL.set_value cell
         { first_allocation_instr with
           desc =
             Cfg.Op
               (Alloc
                  { bytes = bytes + total_size_of_other_allocations;
-                   dbginfo;
+                   dbginfo = dbginfo_of_other_allocations @ dbginfo;
                    mode
                  })
         };
@@ -188,12 +185,12 @@ let rec combine : fun_name:string -> max_instr_id:int ref -> cell option -> unit
           res = [| first_allocation_res0 |];
           id = !max_instr_id
         });
-    combine ~fun_name ~max_instr_id compatible_allocs.next_cell
+    combine ~max_instr_id compatible_allocs.next_cell
 
 let run : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let max_instr_id = ref (max_instr_id cfg) in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      combine ~fun_name:cfg.fun_name ~max_instr_id (DLL.hd_cell block.body));
+      combine ~max_instr_id (DLL.hd_cell block.body));
   cfg_with_layout

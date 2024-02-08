@@ -21,8 +21,6 @@ let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
-let dump_comballoc_path = ref ""        (* -dcomballoc-path *)
-
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
 let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
