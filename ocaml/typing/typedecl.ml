@@ -2275,17 +2275,17 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr ~is_lay
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
-    parse_native_repr_attributes env t ty rmode ~global_repr ~is_layout_poly
+     parse_native_repr_attributes env t ty rmode ~global_repr ~is_layout_poly
   | _ ->
-    let rmode =
-      if Builtin_attributes.has_local_opt core_type.ptyp_attributes
-      then Prim_poly
-      else rmode
-    in
-    let repr_res =
-      make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why:External_result
-    in
-    ([], (rmode, repr_res))
+     let rmode =
+       if Builtin_attributes.has_local_opt core_type.ptyp_attributes
+       then Prim_poly
+       else rmode
+     in
+     let repr_res =
+       make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why:External_result
+     in
+     ([], (rmode, repr_res))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
