@@ -17,34 +17,37 @@
 
 #include "mlvalues.h"
 
-#define CAML_ARCH_POPCNT \
+#define CAML_REQUIRE_ARCH_POPCNT \
     CAMLweakdef intnat caml_arch_popcnt;
 
-#define CAML_ARCH_PREFETCHW \
+#define CAML_REQUIRE_ARCH_PREFETCHW \
     CAMLweakdef intnat caml_arch_prefetchw;
 
-#define CAML_ARCH_PREFETCHWT1 \
+#define CAML_REQUIRE_ARCH_PREFETCHWT1 \
     CAMLweakdef intnat caml_arch_prefetchwt1;
 
-#define CAML_ARCH_SSE3 \
+#define CAML_REQUIRE_ARCH_SSE3 \
     CAMLweakdef intnat caml_arch_sse3;
 
-#define CAML_ARCH_SSSE3 \
+#define CAML_REQUIRE_ARCH_SSSE3 \
     CAMLweakdef intnat caml_arch_ssse3;
 
-#define CAML_ARCH_SSE4_1 \
+#define CAML_REQUIRE_ARCH_SSE4_1 \
     CAMLweakdef intnat caml_arch_sse4_1;
 
-#define CAML_ARCH_SSE4_2 \
+#define CAML_REQUIRE_ARCH_SSE4_2 \
     CAMLweakdef intnat caml_arch_sse4_2;
 
-#define CAML_ARCH_CLMUL \
+#define CAML_REQUIRE_ARCH_CLMUL \
     CAMLweakdef intnat caml_arch_clmul;
 
-#define CAML_ARCH_BMI \
+#define CAML_REQUIRE_ARCH_LZCNT \
+    CAMLweakdef intnat caml_arch_lzcnt;
+
+#define CAML_REQUIRE_ARCH_BMI \
     CAMLweakdef intnat caml_arch_bmi;
 
-#define CAML_ARCH_BMI2 \
+#define CAML_REQUIRE_ARCH_BMI2 \
     CAMLweakdef intnat caml_arch_bmi2;
 
 CAMLextern void caml_assert_arch_extensions(void);

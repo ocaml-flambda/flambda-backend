@@ -47,6 +47,7 @@ CAMLweakdef extern intnat caml_arch_ssse3;
 CAMLweakdef extern intnat caml_arch_sse4_1;
 CAMLweakdef extern intnat caml_arch_sse4_2;
 CAMLweakdef extern intnat caml_arch_clmul;
+CAMLweakdef extern intnat caml_arch_lzcnt;
 CAMLweakdef extern intnat caml_arch_bmi;
 CAMLweakdef extern intnat caml_arch_bmi2;
 
@@ -134,8 +135,7 @@ CAMLexport void caml_assert_arch_extensions(void) {
             caml_fatal_error("Binary compiled with -fprefetchw, but this CPU lacks support.");
         }
     }
-    if(&caml_arch_bmi) {
-        // We check both the LZCNT and BMI bits
+    if(&caml_arch_lzcnt) {
         if(!(info[2] & LZCNT_BIT)) {
             caml_fatal_error("Binary compiled with -fbmi, but this CPU lacks support.");
         }
