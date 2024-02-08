@@ -1998,6 +1998,7 @@ let rec estimate_type_jkind env ty =
       if tvariant_not_immediate row
       then Jkind (value ~why:Polymorphic_variant)
       else Jkind (immediate ~why:Immediate_polymorphic_variant)
+  | Tvar { jkind } when get_level ty = generic_level -> Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (value ~why:Arrow)
   | Ttuple _ -> Jkind (value ~why:Tuple)
