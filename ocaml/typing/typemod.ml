@@ -346,6 +346,12 @@ let path_is_strict_prefix =
        Ident.same ident1 ident2
        && list_is_strict_prefix l1 ~prefix:l2
 
+let rec instance_name ({ head; args } : Jane_syntax.Instances.instance) =
+  let args =
+    List.map (fun (name, value) -> instance_name name, instance_name value) args
+  in
+  Global.Name.create head args
+
 let iterator_with_env env =
   let env = ref (lazy env) in
   let super = Btype.type_iterators in
@@ -2454,7 +2460,7 @@ and type_module_extension_aux ~alias sttn env smod
       : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
-      let glob = Global.Name.of_syntax glob in
+      let glob = instance_name glob in
       let path =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
