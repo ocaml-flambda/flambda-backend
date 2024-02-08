@@ -2454,6 +2454,7 @@ and type_module_extension_aux ~alias sttn env smod
       : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
+      let glob = Global.Name.of_syntax glob in
       let path =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
