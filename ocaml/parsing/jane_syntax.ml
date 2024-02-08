@@ -1743,7 +1743,7 @@ module Layouts = struct
 end
 
 module Instances = struct
-  type instance = Global.Name.t = private
+  type instance =
     { head : string;
       args : (instance * instance) list
     }
@@ -1791,8 +1791,9 @@ module Instances = struct
   let rec instance_of_module_expr mexpr =
     match gather_args mexpr with
     | Pmod_ident i, args ->
+      let head = head_of_ident i in
       let args = List.map instances_of_arg_pair args in
-      Global.Name.create (head_of_ident i) args
+      { head; args }
     | _ -> failwith "Malformed instance identifier"
 
   and instances_of_arg_pair (n, v) =

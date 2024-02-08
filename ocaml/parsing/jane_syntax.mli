@@ -404,7 +404,12 @@ module Layouts : sig
 end
 
 module Instances : sig
-  type instance = Global.Name.t
+  (** The name of an instance module. Re-exported as [Global.Name.t] in the
+      flambda-backend compiler. *)
+  type instance =
+    { head : string;
+      args : (instance * instance) list
+    }
 
   type module_expr = Imod_instance of instance
 

@@ -2486,7 +2486,7 @@ and type_module_extension_aux ~alias sttn env smod
   | Emod_instance (Imod_instance glob) ->
       ignore (alias, sttn, env, smod);
       Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
-        Global.Name.print glob
+        Global.Name.print (glob |> Global.Name.of_syntax)
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
