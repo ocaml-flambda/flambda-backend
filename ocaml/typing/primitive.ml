@@ -145,9 +145,9 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
                                           "ocaml.only_generative_effects"]
       valdecl.pval_attributes
   in
-  let is_lambda_prim = String.length name > 0 && name.[0] = '%' in
+  let is_builtin_prim = String.length name > 0 && name.[0] = '%' in
   let prim_is_layout_representation_polymorphic =
-    match is_lambda_prim, is_layout_poly with
+    match is_builtin_prim, is_layout_poly with
     | false, true ->  raise (Error (valdecl.pval_loc,
                         Invalid_representation_polymorphic_attribute))
     | _, b -> b
@@ -201,7 +201,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
                          No_native_primitive_with_repr_attribute))
          | Bad_layout ->
            (* Built-in primitives don't need a native version. *)
-           if not is_lambda_prim then
+           if not is_builtin_prim then
              raise (Error (valdecl.pval_loc,
                            No_native_primitive_with_non_value)))
       (native_repr_res :: native_repr_args);
