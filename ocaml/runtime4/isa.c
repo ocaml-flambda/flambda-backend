@@ -18,7 +18,7 @@
 #include "caml/mlvalues.h"
 #include "caml/isa.h"
 
-uintnat caml_skip_arch_extension_check;
+uintnat caml_skip_arch_extension_check = 0;
 
 // Weak symbols are only supported in ELF
 
@@ -137,7 +137,7 @@ CAMLexport void caml_assert_arch_extensions(void) {
     }
     if(&caml_arch_lzcnt) {
         if(!(info[2] & LZCNT_BIT)) {
-            caml_fatal_error("Binary compiled with -fbmi, but this CPU lacks support.");
+            caml_fatal_error("Binary compiled with -flzcnt, but this CPU lacks support.");
         }
     }
 
