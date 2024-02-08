@@ -155,8 +155,7 @@ end = struct
 
   let kinds t = t.kinds
 
-  let kind name k t =
-    t.kinds <- Name.Map.add name k t.kinds
+  let kind name k t = t.kinds <- Name.Map.add name k t.kinds
 
   let bound_parameter_kind (bp : Bound_parameter.t) t =
     let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind bp) in
@@ -186,8 +185,7 @@ end = struct
     in
     t.kinds <- Name.Map.add name kind t.kinds
 
-  let add_code code_id dep t =
-    t.code <- Code_id.Map.add code_id dep t.code
+  let add_code code_id dep t = t.code <- Code_id.Map.add code_id dep t.code
 
   let find_code t code_id = Code_id.Map.find code_id t.code
 
@@ -225,8 +223,7 @@ end = struct
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg)
 
-  let root v t =
-    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
+  let root v t = Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
@@ -237,11 +234,9 @@ end = struct
   let used_code_id code_id t =
     Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id)
 
-  let called ~denv code_id t =
-    Deps.add_called (cur_deps ~denv t) code_id
+  let called ~denv code_id t = Deps.add_called (cur_deps ~denv t) code_id
 
-  let add_apply apply t =
-    t.apply_deps <- apply :: t.apply_deps
+  let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
   let deps t =
     List.iter
@@ -285,9 +280,7 @@ let apply_cont_deps denv acc apply_cont =
   let args = Apply_cont_expr.args apply_cont in
   let params = Continuation.Map.find cont denv.conts in
   let (Normal params) = params in
-  List.iter2
-    (fun param dep -> Acc.cont_dep ~denv param dep acc)
-    params args
+  List.iter2 (fun param dep -> Acc.cont_dep ~denv param dep acc) params args
 
 let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let return = [Variable.create "function_return"] in
@@ -328,11 +321,10 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
           (Function_slot.Map.find function_slot funs
             : Function_declarations.code_id_in_function_declaration)
         in
-        (if is_required_at_runtime
-         then
-           let code_id = Code_id_or_name.code_id code_id in
-           Acc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
-      )
+        if is_required_at_runtime
+        then
+          let code_id = Code_id_or_name.code_id code_id in
+          Acc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
       names_and_function_slots
   in
   let deps =
@@ -360,6 +352,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     (fun _function_slot name ->
       Acc.record_deps ~denv (Code_id_or_name.name name) deps acc)
     names_and_function_slots
+
 let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
   match Flambda.Expr.descr expr with
   | Invalid { message } ->
@@ -382,9 +375,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
     let default_acc acc =
       (* TODO regions? *)
       let () =
-        List.iter
-          (fun arg -> Acc.used ~denv arg acc)
-          (Apply_expr.args apply)
+        List.iter (fun arg -> Acc.used ~denv arg acc) (Apply_expr.args apply)
       in
       let () =
         match Apply_expr.callee apply with
@@ -410,7 +401,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         (* TODO think about wether we should propagate that cross module.
            Probably not *)
         if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
-        then
+        then (
           let return_args =
             match Apply_expr.continuation apply with
             | Never_returns -> None
@@ -431,8 +422,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
             | exn_param :: extra_params ->
               let () =
                 List.iter2
-                  (fun param (arg, _kind) ->
-                    Acc.cont_dep ~denv param arg acc)
+                  (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
                   extra_params extra_args
               in
               exn_param
@@ -449,7 +439,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           Acc.add_apply apply_dep acc;
           (* TODO regions? *)
           (* TODO record function use *)
-          Acc.called ~denv code_id acc
+          Acc.called ~denv code_id acc)
         else default_acc acc
       | Function
           { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
@@ -522,8 +512,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           in
           let handlers =
             Continuation.Map.fold
-              (fun cont (cont_handler, bound_parameters, handler)
-                   handlers ->
+              (fun cont (cont_handler, bound_parameters, handler) handlers ->
                 let is_exn_handler =
                   Flambda.Continuation_handler.is_exn_handler cont_handler
                 in
@@ -542,8 +531,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                   { bound_parameters; expr; is_exn_handler; is_cold }
                 in
                 Continuation.Map.add cont handler handlers)
-              handlers
-              (Continuation.Map.empty)
+              handlers Continuation.Map.empty
           in
           let denv =
             { parent =
@@ -582,9 +570,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                 Some (i, block)
               | _ -> assert false))
     in
-    let record acc name dep =
-      Acc.record_dep ~denv name dep acc
-    in
+    let record acc name dep = Acc.record_dep ~denv name dep acc in
     let default_bp acc dep =
       let bound_to = Bound_pattern.free_names bound_pattern in
       Name_occurrences.fold_names bound_to
@@ -648,13 +634,12 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                   match field with
                   | Symbol s ->
                     record acc name
-                        (Deps.Dep.Block
-                          (Deps.Block i, Code_id_or_name.symbol s))                         
+                      (Deps.Dep.Block (Deps.Block i, Code_id_or_name.symbol s))
                   | Tagged_immediate _ -> ()
                   | Dynamically_computed (v, _) ->
                     record acc name
-                           (Deps.Dep.Block (Deps.Block i, Code_id_or_name.var v)))
-                fields;
+                      (Deps.Dep.Block (Deps.Block i, Code_id_or_name.var v)))
+                fields
             | Set_of_closures _ -> assert false
             | _ -> ())
       | Prim (prim, _dbg) -> begin
@@ -673,7 +658,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
               Simple.pattern_match field
                 ~name:(fun name ~coercion:_ ->
                   default_bp acc
-                   (Deps.Dep.Block (Deps.Block i, Code_id_or_name.name name)))
+                    (Deps.Dep.Block (Deps.Block i, Code_id_or_name.name name)))
                 ~const:(fun _ -> ()))
             fields
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -697,10 +682,10 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
              store are properly tracked also. This is a flow insensitive
              dependency analysis: this might produce surprising results
              sometimes *)
-          (match known_field_of_block field block with
+          match known_field_of_block field block with
           | None -> default acc
           | Some (field, block) ->
-            default_bp acc (Deps.Dep.Field (Block field, block)))
+            default_bp acc (Deps.Dep.Field (Block field, block))
         end
         | prim ->
           let () =
@@ -747,24 +732,24 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
         in
         let () =
           Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:() ~code:(fun () -> prepare_code ~denv acc)
+            bound_static ~init:()
+            ~code:(fun () -> prepare_code ~denv acc)
             ~deleted_code:(fun _ _ -> ())
             ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
             ~block_like:(fun _ _ _ -> ())
         in
         let rev_group =
           Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:([])
-            ~code:(fun (rev_group) code_id code ->
+            bound_static ~init:[]
+            ~code:(fun rev_group code_id code ->
               let code = traverse_code acc code_id code in
               Code code :: rev_group)
-            ~deleted_code:(fun (rev_group) _ ->
-              Deleted_code :: rev_group)
-            ~set_of_closures:(fun
-                (rev_group) ~closure_symbols:_ set_of_closures ->
+            ~deleted_code:(fun rev_group _ -> Deleted_code :: rev_group)
+            ~set_of_closures:
+              (fun rev_group ~closure_symbols:_ set_of_closures ->
               let static_const = Static_const.set_of_closures set_of_closures in
               Static_const static_const :: rev_group)
-            ~block_like:(fun (rev_group) _symbol static_const ->
+            ~block_like:(fun rev_group _symbol static_const ->
               (* TODO: register make block deps *)
               Static_const static_const :: rev_group)
         in
@@ -785,8 +770,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
       }
       acc body
 
-and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) :
-    rev_code =
+and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -803,16 +787,16 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) :
   if never_delete then Acc.used_code_id code_id acc;
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
-        ~return_continuation
-        ~exn_continuation
-        params
-        ~body
-        ~my_closure
-        ~is_my_closure_used:_
-        ~my_region
-        ~my_depth
-        ~free_names_of_body:_
-      ->
+         ~return_continuation
+         ~exn_continuation
+         params
+         ~body
+         ~my_closure
+         ~is_my_closure_used:_
+         ~my_region
+         ~my_depth
+         ~free_names_of_body:_
+       ->
       let code_dep = Acc.find_code acc code_id in
       let conts =
         Continuation.Map.of_list
