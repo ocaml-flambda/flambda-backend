@@ -2011,6 +2011,7 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
+  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;
@@ -2020,7 +2021,6 @@ let begin_assembly unix =
   cfi_startproc ();
   I.jmp (rel_plt (Cmm.global_symbol "caml_call_gc"));
   cfi_endproc ();
-  Extension.emit_symbols ();
 
   ()
 
