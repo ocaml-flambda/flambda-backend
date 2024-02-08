@@ -96,7 +96,7 @@ type denv =
 module Dacc : sig
   type t
 
-  val empty : unit -> t
+  val create : unit -> t
 
   val kind : Name.t -> Flambda_kind.t -> t -> unit
 
@@ -154,7 +154,7 @@ end = struct
 
   let code_deps t = t.code
 
-  let empty () =
+  let create () =
     { code = Code_id.Map.empty;
       apply_deps = [];
       deps =
@@ -339,7 +339,7 @@ let prepare_code ~denv dacc (code_id : Code_id.t) (code : Code.t) =
   Dacc.add_code code_id code_dep dacc
 
 let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-    dacc =
+    dacc : unit =
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
@@ -383,14 +383,12 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   Function_slot.Lmap.iter
     (fun _function_slot name ->
       Dacc.record_deps ~denv (Code_id_or_name.name name) deps dacc)
-    names_and_function_slots;
-  dacc
-
-let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
+    names_and_function_slots
+let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) : rev_expr =
   match Flambda.Expr.descr expr with
   | Invalid { message } ->
     let expr = Invalid { message } in
-    { expr; holed_expr = denv.parent }, dacc
+    { expr; holed_expr = denv.parent }
   | Switch switch ->
     let expr = Switch switch in
     let () =
@@ -399,11 +397,11 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         (fun _ apply_cont -> apply_cont_deps denv dacc apply_cont)
         (Switch_expr.arms switch)
     in
-    { expr; holed_expr = denv.parent }, dacc
+    { expr; holed_expr = denv.parent }
   | Apply_cont apply_cont ->
     let expr = Apply_cont apply_cont in
     apply_cont_deps denv dacc apply_cont;
-    { expr; holed_expr = denv.parent }, dacc
+    { expr; holed_expr = denv.parent }
   | Apply apply -> begin
     let default_dacc dacc =
       (* TODO regions? *)
@@ -484,7 +482,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         default_dacc dacc
     in
     let expr = Apply apply in
-    { expr; holed_expr = denv.parent }, dacc
+    { expr; holed_expr = denv.parent }
   end
   | Let_cont let_cont -> begin
     match let_cont with
@@ -560,7 +558,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                 let is_cold =
                   Flambda.Continuation_handler.is_cold cont_handler
                 in
-                let expr, dacc =
+                let expr =
                   traverse
                     { parent = Up;
                       conts;
@@ -630,7 +628,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         ~init:()
         (Flambda.Named.free_names defining_expr)
     in
-    let dacc : Dacc.t =
+    let () =
       match defining_expr with
       | Set_of_closures set_of_closures ->
         (* TODO kind *)
@@ -661,18 +659,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           | Singleton _ | Set_of_closures _ -> assert false
         in
         Flambda.Static_const_group.match_against_bound_static group bound_static
-          ~init:dacc
-          ~code:(fun dacc _code_id _code ->
+          ~init:()
+          ~code:(fun () _code_id _code ->
             (* TODO: (is there anything to do here ? *)
-            dacc)
-          ~deleted_code:(fun dacc _ -> dacc)
-          ~set_of_closures:(fun dacc ~closure_symbols set_of_closures ->
+            ())
+          ~deleted_code:(fun () _ -> ())
+          ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
             let names_and_function_slots =
               Function_slot.Lmap.map Name.symbol closure_symbols
             in
             record_set_of_closures_deps ~denv names_and_function_slots
               set_of_closures dacc)
-          ~block_like:(fun dacc symbol static_const ->
+          ~block_like:(fun () symbol static_const ->
             let name = Name.symbol symbol in
             match[@ocaml.warning "-4"] static_const with
             | Block (_, _, fields) | Immutable_value_array fields ->
@@ -694,10 +692,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                          )
                          :: !acc)
                 fields;
-              records dacc !acc;
-              dacc
+              records dacc !acc
             | Set_of_closures _ -> assert false
-            | _ -> dacc)
+            | _ -> ())
       | Prim (prim, _dbg) -> begin
         let () =
           let kind = Flambda_primitive.result_kind' prim in
@@ -719,8 +716,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                        :: !acc)
                 ~const:(fun _ -> ()))
             fields;
-          default_bps dacc !acc;
-          dacc
+          default_bps dacc !acc
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->
           let block =
             Simple.pattern_match block
@@ -728,8 +724,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               ~const:(fun _ -> assert false)
           in
           let dep = Deps.Dep.Field (Function_slot move_to, block) in
-          default_bp dacc dep;
-          dacc
+          default_bp dacc dep
         | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
           let block =
             Simple.pattern_match block
@@ -737,8 +732,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               ~const:(fun _ -> assert false)
           in
           let dep = Deps.Dep.Field (Value_slot value_slot, block) in
-          default_bp dacc dep;
-          dacc
+          default_bp dacc dep
         | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
           (* Loads from mutable blocks are tracked here. This is ok as long as
              store are properly tracked also. This is a flow insensitive
@@ -747,8 +741,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           (match known_field_of_block field block with
           | None -> default dacc
           | Some (field, block) ->
-            default_bp dacc (Deps.Dep.Field (Block field, block)));
-          dacc
+            default_bp dacc (Deps.Dep.Field (Block field, block)))
         end
         (*        | Ternary
          *           (Block_set (_access_kind, _init_or_assign), block, field, value) ->
@@ -817,8 +810,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
                 ~init:()
             | _ -> ()
           in
-          default dacc;
-          dacc
+          default dacc
       end
       | Simple s ->
         (* TODO kind *)
@@ -831,21 +823,19 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
         in
         Simple.pattern_match s
           ~name:(fun name ~coercion:_ -> default_bp dacc (Deps.Dep.Alias name))
-          ~const:(fun _ -> default dacc);
-        dacc
+          ~const:(fun _ -> default dacc)
       | Rec_info _ ->
         (* TODO kind *)
-        default dacc;
-        dacc
+        default dacc
     in
-    let (named, dacc) : rev_named * dacc =
+    let named : rev_named =
       match defining_expr with
       | Set_of_closures set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
         let value_slots = Set_of_closures.value_slots set_of_closures in
         let alloc_mode = Set_of_closures.alloc_mode set_of_closures in
         let set_of_closures = { function_decls; value_slots; alloc_mode } in
-        Set_of_closures set_of_closures, dacc
+        Set_of_closures set_of_closures
       | Static_consts group ->
         let bound_static =
           match bound_pattern with
@@ -859,28 +849,28 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
             ~block_like:(fun _ _ _ -> ())
         in
-        let dacc, rev_group =
+        let rev_group =
           Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:(dacc, [])
-            ~code:(fun (dacc, rev_group) code_id code ->
-              let code, dacc = traverse_code dacc code_id code in
-              dacc, Code code :: rev_group)
-            ~deleted_code:(fun (dacc, rev_group) _ ->
-              dacc, Deleted_code :: rev_group)
+            bound_static ~init:([])
+            ~code:(fun (rev_group) code_id code ->
+              let code = traverse_code dacc code_id code in
+              Code code :: rev_group)
+            ~deleted_code:(fun (rev_group) _ ->
+              Deleted_code :: rev_group)
             ~set_of_closures:(fun
-                (dacc, rev_group) ~closure_symbols:_ set_of_closures ->
+                (rev_group) ~closure_symbols:_ set_of_closures ->
               let static_const = Static_const.set_of_closures set_of_closures in
-              dacc, Static_const static_const :: rev_group)
-            ~block_like:(fun (dacc, rev_group) _symbol static_const ->
+              Static_const static_const :: rev_group)
+            ~block_like:(fun (rev_group) _symbol static_const ->
               (* TODO: register make block deps *)
-              dacc, Static_const static_const :: rev_group)
+              Static_const static_const :: rev_group)
         in
         let group = List.rev rev_group in
-        Static_consts group, dacc
+        Static_consts group
       (* TODO set_of_closures in Static_consts *)
-      | Prim _ -> Named defining_expr, dacc
-      | Simple _ -> Named defining_expr, dacc
-      | Rec_info _ as defining_expr -> Named defining_expr, dacc
+      | Prim _ -> Named defining_expr
+      | Simple _ -> Named defining_expr
+      | Rec_info _ as defining_expr -> Named defining_expr
     in
     let let_acc =
       Let { bound_pattern; defining_expr = named; parent = denv.parent }
@@ -893,7 +883,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       dacc body
 
 and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
-    rev_code * dacc =
+    rev_code =
   let params_and_body = Code.params_and_body code in
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
@@ -946,7 +936,7 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
           (Alias (Name.var code_dep.my_closure))
           dacc
       in
-      let body, dacc = traverse denv dacc body in
+      let body = traverse denv dacc body in
       let params_and_body =
         { return_continuation;
           exn_continuation;
@@ -957,7 +947,7 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
           my_depth
         }
       in
-      { params_and_body; code_metadata; free_names_of_params_and_body }, dacc)
+      { params_and_body; code_metadata; free_names_of_params_and_body })
 
 and traverse_cont_handler :
     type a.
@@ -978,15 +968,15 @@ and traverse_cont_handler :
           (fun bp -> Dacc.bound_parameter_kind bp dacc)
           (Bound_parameters.to_list bound_parameters)
       in
-      let expr, dacc = traverse denv dacc handler in
+      let expr = traverse denv dacc handler in
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler dacc)
 
 let do_print = Cleanup_deps.do_print
 
 let run (unit : Flambda_unit.t) =
-  let dacc = Dacc.empty () in
-  let holed, dacc =
+  let dacc = Dacc.create () in
+  let holed =
     Profile.record_call ~accumulate:false "down" (fun () ->
         let dummy_toplevel_return = Variable.create "dummy_toplevel_return" in
         let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
