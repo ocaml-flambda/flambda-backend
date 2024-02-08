@@ -61,8 +61,8 @@ CAMLweakdef extern intnat caml_arch_bmi2;
 
 // CPUID with EAX = 0x80000001, result in ECX
 
-#define ABM_BIT             (1 << 5)
-#define _3DNOWPREFFETCH_BIT (1 << 8)
+#define LZCNT_BIT     (1 << 5)
+#define PREFETCHW_BIT (1 << 8)
 
 // CPUID with EAX = 7, ECX = 0, result in EBX
 
@@ -130,13 +130,13 @@ CAMLexport void caml_assert_arch_extensions(void) {
     caml_cpuid(info, 0x80000001, 0);
 
     if(&caml_arch_prefetchw) {
-        if(!(info[2] & _3DNOWPREFFETCH_BIT)) {
+        if(!(info[2] & PREFETCHW_BIT)) {
             caml_fatal_error("Binary compiled with -fprefetchw, but this CPU lacks support.");
         }
     }
     if(&caml_arch_bmi) {
-        // We check both the ABM and BMI bits
-        if(!(info[2] & ABM_BIT)) {
+        // We check both the LZCNT and BMI bits
+        if(!(info[2] & LZCNT_BIT)) {
             caml_fatal_error("Binary compiled with -fbmi, but this CPU lacks support.");
         }
     }
