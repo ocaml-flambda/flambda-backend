@@ -328,6 +328,9 @@ module M :
 (*************************)
 (* Not allowed in C stub *)
 
+(* Also means [No_native_primitive_with_non_value] errors
+   get shadowed when using the attribute. *)
+
 external[@rep_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
 [%%expect{|
 Line 1, characters 0-62:
@@ -384,6 +387,15 @@ Line 1, characters 37-39:
 1 | external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
                                          ^^
 Error: Don't know how to untag this type. Only int can be untagged.
+|}]
+
+external[@rep_poly] id : ('a : any). 'a -> 'a =
+  "%identity" "%identity" "float"
+[%%expect{|
+Lines 1-2, characters 0-33:
+1 | external[@rep_poly] id : ('a : any). 'a -> 'a =
+2 |   "%identity" "%identity" "float"
+Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}]
 
 (*************************************)
