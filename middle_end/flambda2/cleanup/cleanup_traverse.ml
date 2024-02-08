@@ -98,11 +98,11 @@ module Dacc : sig
 
   val empty : unit -> t
 
-  val kind : Name.t -> Flambda_kind.t -> t -> t
+  val kind : Name.t -> Flambda_kind.t -> t -> unit
 
-  val bound_parameter_kind : Bound_parameter.t -> t -> t
+  val bound_parameter_kind : Bound_parameter.t -> t -> unit
 
-  val alias_kind : Name.t -> Simple.t -> t -> t
+  val alias_kind : Name.t -> Simple.t -> t -> unit
 
   val kinds : t -> Flambda_kind.t Name.Map.t
 
@@ -149,7 +149,7 @@ end = struct
     { code : code_dep Code_id.Map.t;
       apply_deps : apply_dep list;
       deps : Deps.graph;
-      kinds : Flambda_kind.t Name.Map.t
+      kinds : Flambda_kind.t Name.Map.t ref
     }
 
   let code_deps t = t.code
@@ -161,17 +161,18 @@ end = struct
         { toplevel_graph = Deps.create ();
           function_graphs = Hashtbl.create 100
         };
-      kinds = Name.Map.empty
+      kinds = ref Name.Map.empty
     }
 
-  let kinds t = t.kinds
+  let kinds t = !(t.kinds)
 
-  let kind name k t = { t with kinds = Name.Map.add name k t.kinds }
+  let kind name k t =
+    t.kinds := Name.Map.add name k !(t.kinds)
 
   let bound_parameter_kind (bp : Bound_parameter.t) t =
     let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind bp) in
     let name = Name.var (Bound_parameter.var bp) in
-    { t with kinds = Name.Map.add name kind t.kinds }
+    t.kinds := Name.Map.add name kind !(t.kinds)
 
   let alias_kind name simple t =
     let kind =
@@ -181,7 +182,7 @@ end = struct
           if Name.is_symbol name
           then Flambda_kind.value
           else
-            match Name.Map.find_opt name t.kinds with
+            match Name.Map.find_opt name !(t.kinds) with
             | Some k -> k
             | None -> Misc.fatal_errorf "Unbound name %a" Name.print name)
         ~const:(fun const ->
@@ -194,7 +195,7 @@ end = struct
           | Naked_nativeint _ -> Flambda_kind.naked_nativeint
           | Naked_vec128 _ -> Flambda_kind.naked_vec128)
     in
-    { t with kinds = Name.Map.add name kind t.kinds }
+    t.kinds := Name.Map.add name kind !(t.kinds)
 
   let add_code code_id dep t =
     { t with code = Code_id.Map.add code_id dep t.code }
@@ -344,7 +345,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   let dacc =
     Function_slot.Lmap.fold
       (fun function_slot name acc ->
-        let acc = Dacc.kind name Flambda_kind.value acc in
+        Dacc.kind name Flambda_kind.value acc;
         let ({ code_id; is_required_at_runtime }) =
           (Function_slot.Map.find function_slot funs
             : Function_declarations.code_id_in_function_declaration)
@@ -533,20 +534,18 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           in
           let dacc =
             (* Record kinds of bound parameters *)
-            let dacc =
-              List.fold_left
-                (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
-                dacc
+            let () =
+              List.iter
+                (fun bp -> Dacc.bound_parameter_kind bp dacc)
                 (Bound_parameters.to_list invariant_params)
             in
-            let dacc =
-              Continuation.Map.fold
-                (fun _ (_, bp, _) dacc ->
-                  List.fold_left
-                    (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
-                    dacc
+            let () =
+              Continuation.Map.iter
+                (fun _ (_, bp, _) ->
+                  List.iter
+                    (fun bp -> Dacc.bound_parameter_kind bp dacc)
                     (Bound_parameters.to_list bp))
-                handlers dacc
+                handlers
             in
             dacc
           in
@@ -699,7 +698,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
             | Set_of_closures _ -> assert false
             | _ -> dacc)
       | Prim (prim, _dbg) -> begin
-        let dacc =
+        let () =
           let kind = Flambda_primitive.result_kind' prim in
           let name =
             Name.var @@ Bound_var.var
@@ -822,7 +821,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
       end
       | Simple s ->
         (* TODO kind *)
-        let dacc =
+        let () =
           let name =
             Name.var @@ Bound_var.var
             @@ Bound_pattern.must_be_singleton bound_pattern
@@ -927,15 +926,14 @@ and traverse_code (dacc : dacc) (code_id : Code_id.t) (code : Code.t) :
             exn_continuation, Normal [code_dep.exn] ]
       in
       let denv = { parent = Up; conts; current_code_id = Some code_id } in
-      let dacc =
-        List.fold_left
-          (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
-          dacc
+      let () =
+        List.iter
+          (fun bp -> Dacc.bound_parameter_kind bp dacc)
           (Bound_parameters.to_list params)
       in
-      let dacc = Dacc.kind (Name.var my_closure) Flambda_kind.value dacc in
-      let dacc = Dacc.kind (Name.var my_region) Flambda_kind.region dacc in
-      let dacc = Dacc.kind (Name.var my_depth) Flambda_kind.rec_info dacc in
+      Dacc.kind (Name.var my_closure) Flambda_kind.value dacc;
+      Dacc.kind (Name.var my_region) Flambda_kind.region dacc;
+      Dacc.kind (Name.var my_depth) Flambda_kind.rec_info dacc;
       let () =
         List.iter2
           (fun param arg -> Dacc.func_param_dep ~denv param arg dacc)
@@ -974,10 +972,9 @@ and traverse_cont_handler :
   let is_cold = Flambda.Continuation_handler.is_cold cont_handler in
   Flambda.Continuation_handler.pattern_match cont_handler
     ~f:(fun bound_parameters ~handler ->
-      let dacc =
-        List.fold_left
-          (fun dacc bp -> Dacc.bound_parameter_kind bp dacc)
-          dacc
+      let () =
+        List.iter
+          (fun bp -> Dacc.bound_parameter_kind bp dacc)
           (Bound_parameters.to_list bound_parameters)
       in
       let expr, dacc = traverse denv dacc handler in
