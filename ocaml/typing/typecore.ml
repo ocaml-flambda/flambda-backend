@@ -418,7 +418,6 @@ let meet_regional mode =
   Value.meet [mode; (Value.max_with_regionality Regionality.regional)]
 
 let meet_global mode =
-  (* let mode = Value.disallow_left mode in *)
   Value.meet [mode; (Value.max_with_regionality Regionality.global)]
 
 let meet_unique mode =

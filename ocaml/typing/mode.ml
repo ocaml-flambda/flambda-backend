@@ -319,9 +319,9 @@ module Lattices = struct
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
 
-  (* CR zqian: Do we know that the following is guaranteed to be optimized into
-     %equal? *)
-  let eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
+  (** Expensive but correct version. Not used. We instead use [eq_obj]. For
+      soundness, we must ensure this correct version is _just_ %equal. *)
+  let _eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
    fun a b ->
     match a, b with
     | Locality, Locality -> Some Misc.Refl
@@ -334,6 +334,10 @@ module Lattices = struct
         | Comonadic_with_locality | Comonadic_with_regionality ),
         _ ) ->
       None
+
+  let eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
+   fun a b ->
+    if Obj.repr a = Obj.repr b then Some (Obj.magic Misc.Refl) else None
 end
 
 module Lattices_mono = struct
@@ -503,15 +507,15 @@ module Lattices_mono = struct
       let src1 = src dst1 f1 in
       prod_obj src0 src1
 
-  let rec eq_morph :
+  (** Expensive but correct version. Not used. We instead use [eq_morph].
+      For soundness, we must ensure this correct version is _just_ %equal. *)
+  let rec _eq_morph :
       type a0 l0 r0 a1 b l1 r1.
       b obj ->
       (a0, b, l0 * r0) morph ->
       (a1, b, l1 * r1) morph ->
       (a0, a1) Misc.eq option =
    fun obj f0 f1 ->
-    (* The following looks slow, but note that %equal would also be slow
-       (recursive on [Compose]) *)
     match f0, f1 with
     | Id, Id -> Some Refl
     | Proj (src0, ax0), Proj (src1, ax1) -> (
@@ -554,6 +558,15 @@ module Lattices_mono = struct
         | Regional_to_global | Compose _ | Map _ ),
         _ ) ->
       None
+
+  and eq_morph :
+      type a0 l0 r0 a1 b l1 r1.
+      b obj ->
+      (a0, b, l0 * r0) morph ->
+      (a1, b, l1 * r1) morph ->
+      (a0, a1) Misc.eq option =
+   fun _ f0 f1 ->
+    if Obj.repr f0 = Obj.repr f1 then Some (Obj.magic Misc.Refl) else None
 
   let rec print_morph :
       type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =

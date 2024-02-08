@@ -40,10 +40,6 @@ module type Allow_disallow = sig
   val allow_left : ('a, 'b, allowed * 'r) sided -> ('a, 'b, 'l * 'r) sided
 end
 
-module type Allow_disallow_arg = sig
-  type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
-end
-
 (** A collection of lattices, indexed by [obj]; *)
 module type Lattices = sig
   (** Lattice identifers, indexed by ['a] the carrier type of that lattice *)
@@ -265,6 +261,10 @@ module type S = sig
       right : 'a
     }
 
+  (** Takes a slow but type-correct [Allow_disallow] module and returns the
+      magic version, which is faster.
+      NOTE: for this to be sound, the functions in the original module must be
+      identity functions (up to runtime representation). *)
   module Magic_allow_disallow (X : Allow_disallow) :
     Allow_disallow with type ('a, 'b, 'd) sided = ('a, 'b, 'd) X.sided
 
