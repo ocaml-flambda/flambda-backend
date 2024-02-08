@@ -673,7 +673,8 @@ runtime4_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   roots_nat \
   startup_nat \
-  signals_nat
+  signals_nat \
+  isa
 
 # Runtime system source files (v5)
 
@@ -744,7 +745,8 @@ runtime_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   frame_descriptors \
   startup_nat \
-  signals_nat
+  signals_nat \
+  isa
 
 # The runtime system
 

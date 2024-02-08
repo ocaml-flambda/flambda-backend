@@ -40,6 +40,7 @@
 #include "caml/stack.h"
 #include "caml/startup_aux.h"
 #include "caml/sys.h"
+#include "caml/isa.h"
 #ifdef HAS_UI
 #include "caml/ui.h"
 #endif
@@ -108,6 +109,8 @@ value caml_startup_common(char_os **argv, int pooling)
   char_os * exe_name, * proc_self_exe;
   char tos;
   value res;
+
+  caml_assert_arch_extensions();
 
   /* Initialize the domain */
   caml_init_domain();

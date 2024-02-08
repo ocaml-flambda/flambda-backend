@@ -17,8 +17,6 @@
 (* Machine-specific command-line options *)
 
 module Extension : sig
-  (* CR-soon mslater: cpuid support should be checked at startup *)
-
   type t =
     | POPCNT
     | PREFETCHW
@@ -35,6 +33,7 @@ module Extension : sig
     | BMI2
 
   val enabled : t -> bool
+  val available : unit -> t list
 end
 
 val trap_notes : bool ref

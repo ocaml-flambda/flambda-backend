@@ -922,6 +922,39 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+(* ISA Extension Checking *)
+
+module Extension = struct
+  module E = Arch.Extension
+
+  let symbol : E.t -> string = function
+    | POPCNT -> "caml_arch_popcnt"
+    | PREFETCHW -> "caml_arch_prefetchw"
+    | PREFETCHWT1 -> "caml_arch_prefetchwt1"
+    | SSE3 -> "caml_arch_sse3"
+    | SSSE3 -> "caml_arch_ssse3"
+    | SSE4_1 -> "caml_arch_sse4_1"
+    | SSE4_2 -> "caml_arch_sse4_2"
+    | CLMUL -> "caml_arch_clmul"
+    | BMI -> "caml_arch_bmi"
+    | BMI2 -> "caml_arch_bmi2"
+
+  let is_nasm_or_masm () =
+    match system with
+    | S_macosx | S_win32 | S_win64 -> true
+    | _ -> false
+
+  let emit_symbols () =
+    if not (is_nasm_or_masm ()) then
+    List.iter (fun ext ->
+      let name = symbol ext in
+      D.label name;
+      D.weak name
+    ) (E.available ())
+end
+
+(* Emit Code *)
+
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let src, dst = match op, size with
   | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
@@ -1965,6 +1998,9 @@ let begin_assembly unix =
     D.extrn "caml_ml_array_bound_error" NEAR;
     D.extrn "caml_raise_exn" NEAR;
   end;
+
+  D.data ();
+  Extension.emit_symbols ();
 
   if !Clflags.dlcode || Arch.win64 then begin
     (* from amd64.S; could emit these constants on demand *)

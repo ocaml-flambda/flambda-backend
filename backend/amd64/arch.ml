@@ -85,6 +85,8 @@ module Extension = struct
       (n t, Arg.Unit (fun () -> config := Set.remove t !config),
         Printf.sprintf "Disable %s instructions (%s)%s" (name t) (generation t) nd) :: acc)
     all []
+
+    let available () = Set.fold (fun t acc -> t :: acc) !config []
 end
 
 (* Emit elf notes with trap handling information. *)

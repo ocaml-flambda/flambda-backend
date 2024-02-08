@@ -37,12 +37,9 @@ end)
 type t =
   { mutable global_symbols : Symbol_entry.t list;
     mutable global_num_symbols : int;
-    mutable weak_symbols : Symbol_entry.t list;
-    mutable weak_num_symbols : int;
     mutable local_symbols : Symbol_entry.t list;
     mutable local_num_symbols : int;
     global_symbols_tbl : int String.Tbl.t;
-    weak_symbols_tbl : int String.Tbl.t;
     local_symbols_tbl : int String.Tbl.t;
     labels_tbl : (X86_binary_emitter.symbol * Symbol_entry.t) String.Tbl.t;
     section_symbol_tbl : int IntTbl.t
@@ -52,9 +49,6 @@ let create () =
   { global_symbols = [];
     global_num_symbols = 0;
     global_symbols_tbl = String.Tbl.create 100;
-    weak_symbols = [];
-    weak_num_symbols = 0;
-    weak_symbols_tbl = String.Tbl.create 100;
     local_symbols = [];
     local_num_symbols = 0;
     local_symbols_tbl = String.Tbl.create 100;
@@ -82,12 +76,6 @@ let add_symbol t symbol =
       t.global_num_symbols;
     t.global_num_symbols <- t.global_num_symbols + 1;
     t.global_symbols <- symbol :: t.global_symbols
-  | Weak ->
-    String.Tbl.add t.weak_symbols_tbl
-      (Symbol_entry.get_name_str symbol)
-      t.weak_num_symbols;
-    t.weak_num_symbols <- t.weak_num_symbols + 1;
-    t.weak_symbols <- symbol :: t.weak_symbols
 
 let add_label t label symbol =
   String.Tbl.add t.labels_tbl label.sy_name (label, symbol)
@@ -102,15 +90,9 @@ let get_label_idx t name =
 let get_symbol_idx_opt t name =
   match String.Tbl.find_opt t.global_symbols_tbl name with
   | Some idx -> Some (t.local_num_symbols + idx + 1)
-  | None ->
-    begin match String.Tbl.find_opt t.weak_symbols_tbl name with
-    | Some idx -> Some (t.local_num_symbols + t.global_num_symbols + idx + 1)
-    | None ->
-      String.Tbl.find_opt t.local_symbols_tbl name |> Option.map succ
-    end
+  | None -> String.Tbl.find_opt t.local_symbols_tbl name |> Option.map succ
 
-let num_symbols t =
-  t.local_num_symbols + t.global_num_symbols + t.weak_num_symbols + 1
+let num_symbols t = t.local_num_symbols + t.global_num_symbols + 1
 
 let num_locals t = t.local_num_symbols + 1
 
@@ -141,4 +123,4 @@ let write t sh_offset buf =
     (fun i symbol ->
       let idx = ((i + 1) * 24) + Int64.to_int sh_offset in
       Symbol_entry.write symbol (Compiler_owee.Owee_buf.cursor buf ~at:idx))
-    (List.rev t.local_symbols @ List.rev t.global_symbols @ List.rev t.weak_symbols)
+    (List.rev t.local_symbols @ List.rev t.global_symbols)

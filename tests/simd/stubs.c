@@ -1,8 +1,11 @@
 
 #include <caml/memory.h>
 #include <caml/simd.h>
+#include <caml/isa.h>
 #include <smmintrin.h>
 #include <assert.h>
+
+CAML_ARCH_SSE4_2;
 
 int64_t vec128_low_int64(__m128i v)
 {

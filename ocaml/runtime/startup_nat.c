@@ -38,6 +38,7 @@
 #include "caml/stack.h"
 #include "caml/startup_aux.h"
 #include "caml/sys.h"
+#include "caml/isa.h"
 
 extern int caml_parser_trace;
 extern char caml_system__code_begin, caml_system__code_end;
@@ -89,6 +90,8 @@ value caml_startup_common(char_os **argv, int pooling)
 {
   char_os * exe_name, * proc_self_exe;
   value res;
+
+  caml_assert_arch_extensions();
 
   /* Determine options */
   caml_parse_ocamlrunparam();

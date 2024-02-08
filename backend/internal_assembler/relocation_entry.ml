@@ -49,7 +49,7 @@ let get_reloc_info ~relocation_type ~addend name symbol_table string_table =
       | Some i -> i
       | None ->
         Symbol_table.make_undef_symbol symbol_table name string_table;
-        Symbol_table.get_symbol_idx_opt symbol_table name |> Option.get
+        Symbol_table.num_symbols symbol_table - 1
     in
     relocation_type, symbol, addend
 
