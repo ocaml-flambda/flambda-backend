@@ -355,7 +355,7 @@ and ('a : any) t4
    moved to [basics_beta.ml]. *)
 
 type ('a : void) void5 = Void5  of 'a
-type ('a : any) any5 = Any5 of 'a
+type 'a any5 = Any5 of 'a
 
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
@@ -377,14 +377,16 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-Line 2, characters 23-33:
-2 | type ('a : any) any5 = Any5 of 'a
-                           ^^^^^^^^^^
-Error: Constructor argument types must have a representable layout.
-       The layout of 'a is any, because
-         of the annotation on 'a in the declaration of the type any5.
-       But the layout of 'a must be representable, because
-         it's the type of a constructor field.
+type 'a any5 = Any5 of 'a
+Line 5, characters 15-22:
+5 |   | Void5 x -> Void5 x
+                   ^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       The layout of 'a is void, because
+         of the definition of void5 at line 1, characters 0-37.
+       But the layout of 'a must be a sublayout of value, because
+         it has to be value for the V1 safety check.
 |}];;
 
 (* disallowed attempts to use f5 and Void5 on non-voids *)
@@ -402,10 +404,15 @@ Error: This type int should be an instance of type ('a : void)
 
 let h5' (x : int any5) = Void5 x
 [%%expect{|
-Line 1, characters 17-21:
+Line 1, characters 31-32:
 1 | let h5' (x : int any5) = Void5 x
-                     ^^^^
-Error: Unbound type constructor any5
+                                   ^
+Error: This expression has type int any5
+       but an expression was expected of type ('a : void)
+       The layout of int any5 is value, because
+         of the definition of any5 at line 2, characters 0-25.
+       But the layout of int any5 must be a sublayout of void, because
+         of the definition of void5 at line 1, characters 0-37.
 |}];;
 
 (* disallowed - tries to return void *)
