@@ -1629,8 +1629,8 @@ let instance_prim_repr (desc : Primitive.description) ty =
   For_copy.with_scope (fun copy_scope ->
     let rec inner ty =
       let level = get_level ty in
-      (* only change type vars on generic_level to avoid modifying ones captured
-        from an outer scope *)
+      (* only change type vars on generic_level to avoid
+         modifying ones captured from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
         | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
