@@ -2260,7 +2260,8 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
-let rec parse_native_repr_attributes env core_type ty rmode ~global_repr ~is_layout_poly =
+let rec parse_native_repr_attributes env core_type ty rmode
+        ~global_repr ~is_layout_poly =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
   with
@@ -2270,7 +2271,9 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr ~is_lay
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
     let repr_arg =
-      make_native_repr env ct1 t1 ~global_repr ~is_layout_poly ~why:External_argument
+      make_native_repr
+        env ct1 t1 ~global_repr
+        ~is_layout_poly ~why:External_argument
     in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
@@ -2279,7 +2282,8 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr ~is_lay
     in
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2
-        (prim_const_mode (Mode.Alloc.locality mret)) ~global_repr ~is_layout_poly
+        (prim_const_mode (Mode.Alloc.locality mret))
+        ~global_repr ~is_layout_poly
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
@@ -2291,7 +2295,9 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr ~is_lay
        else rmode
      in
      let repr_res =
-       make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why:External_result
+       make_native_repr
+        env core_type ty ~global_repr
+        ~is_layout_poly ~why:External_result
      in
      ([], (rmode, repr_res))
 
@@ -2336,7 +2342,8 @@ let error_if_jkind_any_occurs_unexpectly prim env cty ty =
       (Ctype.free_variables ty)
   in
   if not has_any then ()
-  else raise(Error(cty.ctyp_loc, Unexpected_jkind_any_in_primitive(prim.prim_name)))
+  else raise(Error
+              (cty.ctyp_loc,Unexpected_jkind_any_in_primitive(prim.prim_name)))
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -3061,8 +3068,9 @@ let report_error ppf = function
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
   | Unexpected_jkind_any_in_primitive(name) ->
-      fprintf ppf "@[The primitive [%s] doesn't work well with type variables of@ \
-                    layout any. Consider using [@@rep_poly].@]" name
+      fprintf ppf
+        "@[The primitive [%s] doesn't work well with type variables of@ \
+           layout any. Consider using [@@rep_poly].@]" name
 
 let () =
   Location.register_error_of_exn

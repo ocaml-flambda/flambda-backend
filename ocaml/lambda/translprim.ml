@@ -153,9 +153,9 @@ let extern_repr_of_native_repr:
 
 let sort_of_native_repr ~poly_sort repr =
   match extern_repr_of_native_repr ~poly_sort repr with
-| Same_as_ocaml_repr s -> s
-| (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
-     Unboxed_vector _) ->
+  | Same_as_ocaml_repr s -> s
+  | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+      Unboxed_vector _) ->
     Jkind.Sort.Value
 
 let to_lambda_prim prim ~poly_sort =
@@ -182,7 +182,9 @@ let to_lambda_prim prim ~poly_sort =
 
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
-  let arg_modes = List.map (to_modify_mode ~poly:poly_mode) p.prim_native_repr_args in
+  let arg_modes =
+    List.map (to_modify_mode ~poly:poly_mode) p.prim_native_repr_args
+  in
   let get_first_arg_mode () =
     match arg_modes with
     | mode :: _ -> mode
@@ -1017,10 +1019,12 @@ let check_primitive_arity loc p =
       Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
-  (* By a similar assumption, the sort shouldn't change the arity. So it's ok
-     to lie here. *)
+  (* By a similar assumption, the sort shouldn't change the arity.
+     So it's ok to lie here. *)
   let sort = Some (Jkind.Sort.of_const Value) in
-  let prim = lookup_primitive loc ~poly_mode:mode ~poly_sort:sort Rc_normal p in
+  let prim =
+    lookup_primitive loc ~poly_mode:mode ~poly_sort:sort Rc_normal p
+  in
   let ok =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
@@ -1213,7 +1217,8 @@ let primitive_needs_event_after = function
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
 
-let transl_primitive_application loc p env ty ~poly_mode ~poly_sort path exp args arg_exps pos =
+let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
+    path exp args arg_exps pos =
   let prim =
     lookup_primitive_and_mark_used
       (to_location loc) ~poly_mode ~poly_sort pos p env (Some path)
