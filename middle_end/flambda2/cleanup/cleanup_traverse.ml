@@ -131,9 +131,9 @@ module Dacc : sig
 
   (* val let_field : denv:denv -> Bound_pattern.t -> Deps.field -> Name.t -> t -> t *)
 
-  val add_apply : apply_dep -> t -> t
+  val add_apply : apply_dep -> t -> unit
 
-  val add_code : Code_id.t -> code_dep -> t -> t
+  val add_code : Code_id.t -> code_dep -> t -> unit
 
   val find_code : t -> Code_id.t -> code_dep
 
@@ -146,17 +146,17 @@ module Dacc : sig
   (* val todo' : t -> t *)
 end = struct
   type t =
-    { code : code_dep Code_id.Map.t;
-      apply_deps : apply_dep list;
+    { code : code_dep Code_id.Map.t ref;
+      apply_deps : apply_dep list ref;
       deps : Deps.graph;
       kinds : Flambda_kind.t Name.Map.t ref
     }
 
-  let code_deps t = t.code
+  let code_deps t = !(t.code)
 
   let empty () =
-    { code = Code_id.Map.empty;
-      apply_deps = [];
+    { code = ref Code_id.Map.empty;
+      apply_deps = ref [];
       deps =
         { toplevel_graph = Deps.create ();
           function_graphs = Hashtbl.create 100
@@ -198,9 +198,9 @@ end = struct
     t.kinds := Name.Map.add name kind !(t.kinds)
 
   let add_code code_id dep t =
-    { t with code = Code_id.Map.add code_id dep t.code }
+    t.code := Code_id.Map.add code_id dep !(t.code)
 
-  let find_code t code_id = Code_id.Map.find code_id t.code
+  let find_code t code_id = Code_id.Map.find code_id !(t.code)
 
   let cur_deps_from_code_id code_id t =
     match code_id with
@@ -263,7 +263,8 @@ end = struct
   let called ~denv code_id t =
     Deps.add_called (cur_deps ~denv t) code_id
 
-  let add_apply apply t = { t with apply_deps = apply :: t.apply_deps }
+  let add_apply apply t =
+    t.apply_deps := apply :: !(t.apply_deps)
 
   let deps t =
     List.iter
@@ -296,7 +297,7 @@ end = struct
             (fun arg param -> Deps.add_cont_dep deps param (Name.var arg))
             code_dep.return apply_return);
         Deps.add_cont_dep deps apply_exn (Name.var code_dep.exn))
-      t.apply_deps;
+      !(t.apply_deps);
     t.deps
 end
 
@@ -471,7 +472,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
               apply_exn = exn_arg
             }
           in
-          let dacc = Dacc.add_apply apply_dep dacc in
+          Dacc.add_apply apply_dep dacc;
           (* TODO regions? *)
           (* TODO record function use *)
           Dacc.called ~denv code_id dacc;
@@ -851,12 +852,12 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) =
           | Static b -> b
           | Singleton _ | Set_of_closures _ -> assert false
         in
-        let dacc =
+        let () =
           Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:dacc ~code:(prepare_code ~denv)
-            ~deleted_code:(fun dacc _ -> dacc)
-            ~set_of_closures:(fun dacc ~closure_symbols:_ _ -> dacc)
-            ~block_like:(fun dacc _ _ -> dacc)
+            bound_static ~init:() ~code:(fun () -> prepare_code ~denv dacc)
+            ~deleted_code:(fun _ _ -> ())
+            ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
+            ~block_like:(fun _ _ _ -> ())
         in
         let dacc, rev_group =
           Flambda.Static_const_group.match_against_bound_static group
