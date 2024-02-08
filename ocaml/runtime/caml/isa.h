@@ -17,39 +17,6 @@
 
 #include "mlvalues.h"
 
-#define CAML_REQUIRE_ARCH_POPCNT \
-    CAMLweakdef intnat caml_arch_popcnt;
-
-#define CAML_REQUIRE_ARCH_PREFETCHW \
-    CAMLweakdef intnat caml_arch_prefetchw;
-
-#define CAML_REQUIRE_ARCH_PREFETCHWT1 \
-    CAMLweakdef intnat caml_arch_prefetchwt1;
-
-#define CAML_REQUIRE_ARCH_SSE3 \
-    CAMLweakdef intnat caml_arch_sse3;
-
-#define CAML_REQUIRE_ARCH_SSSE3 \
-    CAMLweakdef intnat caml_arch_ssse3;
-
-#define CAML_REQUIRE_ARCH_SSE4_1 \
-    CAMLweakdef intnat caml_arch_sse4_1;
-
-#define CAML_REQUIRE_ARCH_SSE4_2 \
-    CAMLweakdef intnat caml_arch_sse4_2;
-
-#define CAML_REQUIRE_ARCH_CLMUL \
-    CAMLweakdef intnat caml_arch_clmul;
-
-#define CAML_REQUIRE_ARCH_LZCNT \
-    CAMLweakdef intnat caml_arch_lzcnt;
-
-#define CAML_REQUIRE_ARCH_BMI \
-    CAMLweakdef intnat caml_arch_bmi;
-
-#define CAML_REQUIRE_ARCH_BMI2 \
-    CAMLweakdef intnat caml_arch_bmi2;
-
 CAMLextern void caml_assert_arch_extensions(void);
 
 #ifdef CAML_INTERNALS
