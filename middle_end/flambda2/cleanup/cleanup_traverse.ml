@@ -146,33 +146,33 @@ module Dacc : sig
   (* val todo' : t -> t *)
 end = struct
   type t =
-    { code : code_dep Code_id.Map.t ref;
-      apply_deps : apply_dep list ref;
+    { mutable code : code_dep Code_id.Map.t;
+      mutable apply_deps : apply_dep list;
       deps : Deps.graph;
-      kinds : Flambda_kind.t Name.Map.t ref
+      mutable kinds : Flambda_kind.t Name.Map.t
     }
 
-  let code_deps t = !(t.code)
+  let code_deps t = t.code
 
   let empty () =
-    { code = ref Code_id.Map.empty;
-      apply_deps = ref [];
+    { code = Code_id.Map.empty;
+      apply_deps = [];
       deps =
         { toplevel_graph = Deps.create ();
           function_graphs = Hashtbl.create 100
         };
-      kinds = ref Name.Map.empty
+      kinds = Name.Map.empty
     }
 
-  let kinds t = !(t.kinds)
+  let kinds t = t.kinds
 
   let kind name k t =
-    t.kinds := Name.Map.add name k !(t.kinds)
+    t.kinds <- Name.Map.add name k t.kinds
 
   let bound_parameter_kind (bp : Bound_parameter.t) t =
     let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind bp) in
     let name = Name.var (Bound_parameter.var bp) in
-    t.kinds := Name.Map.add name kind !(t.kinds)
+    t.kinds <- Name.Map.add name kind t.kinds
 
   let alias_kind name simple t =
     let kind =
@@ -182,7 +182,7 @@ end = struct
           if Name.is_symbol name
           then Flambda_kind.value
           else
-            match Name.Map.find_opt name !(t.kinds) with
+            match Name.Map.find_opt name t.kinds with
             | Some k -> k
             | None -> Misc.fatal_errorf "Unbound name %a" Name.print name)
         ~const:(fun const ->
@@ -195,12 +195,12 @@ end = struct
           | Naked_nativeint _ -> Flambda_kind.naked_nativeint
           | Naked_vec128 _ -> Flambda_kind.naked_vec128)
     in
-    t.kinds := Name.Map.add name kind !(t.kinds)
+    t.kinds <- Name.Map.add name kind t.kinds
 
   let add_code code_id dep t =
-    t.code := Code_id.Map.add code_id dep !(t.code)
+    t.code <- Code_id.Map.add code_id dep t.code
 
-  let find_code t code_id = Code_id.Map.find code_id !(t.code)
+  let find_code t code_id = Code_id.Map.find code_id t.code
 
   let cur_deps_from_code_id code_id t =
     match code_id with
@@ -264,7 +264,7 @@ end = struct
     Deps.add_called (cur_deps ~denv t) code_id
 
   let add_apply apply t =
-    t.apply_deps := apply :: !(t.apply_deps)
+    t.apply_deps <- apply :: t.apply_deps
 
   let deps t =
     List.iter
@@ -297,7 +297,7 @@ end = struct
             (fun arg param -> Deps.add_cont_dep deps param (Name.var arg))
             code_dep.return apply_return);
         Deps.add_cont_dep deps apply_exn (Name.var code_dep.exn))
-      !(t.apply_deps);
+      t.apply_deps;
     t.deps
 end
 
