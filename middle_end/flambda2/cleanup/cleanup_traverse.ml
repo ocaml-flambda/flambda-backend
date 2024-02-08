@@ -106,8 +106,6 @@ module Dacc : sig
 
   val kinds : t -> Flambda_kind.t Name.Map.t
 
-  (* val let_dep : denv:denv -> Bound_pattern.t -> Deps.Dep.t -> t -> t *)
-
   val record_dep : denv:denv -> Name.t -> Deps.Dep.t -> t -> unit
 
   val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> unit
@@ -126,11 +124,6 @@ module Dacc : sig
 
   val called : denv:denv -> Code_id.t -> t -> unit
 
-  (* val opaque_let_dependency : *)
-  (*   denv:denv -> Bound_pattern.t -> Name_occurrences.t -> t -> t *)
-
-  (* val let_field : denv:denv -> Bound_pattern.t -> Deps.field -> Name.t -> t -> t *)
-
   val add_apply : apply_dep -> t -> unit
 
   val add_code : Code_id.t -> code_dep -> t -> unit
@@ -140,10 +133,6 @@ module Dacc : sig
   val code_deps : t -> code_dep Code_id.Map.t
 
   val deps : t -> Deps.graph
-
-  (* val todo : unit -> t *)
-
-  (* val todo' : t -> t *)
 end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
@@ -214,18 +203,6 @@ end = struct
       | Some deps -> deps)
 
   let cur_deps ~denv t = cur_deps_from_code_id denv.current_code_id t
-
-  (* let opaque_let_dependency ~denv pat fv t = *)
-  (*   Deps.add_opaque_let_dependency (cur_deps ~denv t) pat fv; *)
-  (*   t *)
-
-  (* let let_field ~denv pat field name t = *)
-  (*   Deps.add_let_field (cur_deps ~denv t) pat field name; *)
-  (*   t *)
-
-  (* let let_dep ~denv pat dep t = *)
-  (*   Deps.add_let_dep (cur_deps ~denv t) pat dep; *)
-  (*   t *)
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
