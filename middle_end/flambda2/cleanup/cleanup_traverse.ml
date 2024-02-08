@@ -320,10 +320,10 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
-  let dacc =
-    Function_slot.Lmap.fold
-      (fun function_slot name acc ->
-        Dacc.kind name Flambda_kind.value acc;
+  let () =
+    Function_slot.Lmap.iter
+      (fun function_slot name ->
+        Dacc.kind name Flambda_kind.value dacc;
         let ({ code_id; is_required_at_runtime }) =
           (Function_slot.Map.find function_slot funs
             : Function_declarations.code_id_in_function_declaration)
@@ -331,10 +331,9 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         (if is_required_at_runtime
          then
            let code_id = Code_id_or_name.code_id code_id in
-           Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) acc);
-        acc
+           Dacc.record_dep ~denv name (Deps.Dep.Contains code_id) dacc)
       )
-      names_and_function_slots dacc
+      names_and_function_slots
   in
   let deps =
     Value_slot.Map.fold
@@ -507,27 +506,24 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) : rev_expr 
                   conts)
               handlers denv.conts
           in
-          let dacc =
-            (* Record kinds of bound parameters *)
-            let () =
-              List.iter
-                (fun bp -> Dacc.bound_parameter_kind bp dacc)
-                (Bound_parameters.to_list invariant_params)
-            in
-            let () =
-              Continuation.Map.iter
-                (fun _ (_, bp, _) ->
-                  List.iter
-                    (fun bp -> Dacc.bound_parameter_kind bp dacc)
-                    (Bound_parameters.to_list bp))
-                handlers
-            in
-            dacc
+          (* Record kinds of bound parameters *)
+          let () =
+            List.iter
+              (fun bp -> Dacc.bound_parameter_kind bp dacc)
+              (Bound_parameters.to_list invariant_params)
           in
-          let dacc, handlers =
+          let () =
+            Continuation.Map.iter
+              (fun _ (_, bp, _) ->
+                List.iter
+                  (fun bp -> Dacc.bound_parameter_kind bp dacc)
+                  (Bound_parameters.to_list bp))
+              handlers
+          in
+          let handlers =
             Continuation.Map.fold
               (fun cont (cont_handler, bound_parameters, handler)
-                   (dacc, handlers) ->
+                   handlers ->
                 let is_exn_handler =
                   Flambda.Continuation_handler.is_exn_handler cont_handler
                 in
@@ -545,9 +541,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) : rev_expr 
                 let handler =
                   { bound_parameters; expr; is_exn_handler; is_cold }
                 in
-                dacc, Continuation.Map.add cont handler handlers)
+                Continuation.Map.add cont handler handlers)
               handlers
-              (dacc, Continuation.Map.empty)
+              (Continuation.Map.empty)
           in
           let denv =
             { parent =
