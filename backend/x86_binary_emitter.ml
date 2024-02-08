@@ -192,6 +192,7 @@ let eval_const b current_pos cst =
     | Const n -> Rint n
     | ConstThis -> Rabs ("", 0L)
     | ConstLabel lbl -> Rabs (lbl, 0L)
+    | ConstLabelOffset (lbl, o) -> Rabs (lbl, Int64.of_int o)
     | ConstSub (c1, c2) -> (
         let c1 = eval c1 and c2 = eval c2 in
         match (c1, c2) with
