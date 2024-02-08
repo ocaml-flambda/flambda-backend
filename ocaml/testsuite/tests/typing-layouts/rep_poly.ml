@@ -234,16 +234,23 @@ Error: Signature mismatch:
 (********************)
 (* Variable capture *)
 
+module type S = sig
+  type t
+  val f : 'a -> t -> 'a
+end
+
 let f (type a : any) () =
   let module M = struct
-    external[@rep_poly] id : ('a : any). 'a -> a -> 'a = "%apply"
+    type t = a
+    external[@rep_poly] f : ('a : any). 'a -> a -> 'a = "%apply"
   end in
-  M
+  (module M : S with type t = a)
 
 [%%expect{|
-Line 3, characters 47-48:
-3 |     external[@rep_poly] id : ('a : any). 'a -> a -> 'a = "%apply"
-                                                   ^
+module type S = sig type t val f : 'a -> t -> 'a end
+Line 9, characters 46-47:
+9 |     external[@rep_poly] f : ('a : any). 'a -> a -> 'a = "%apply"
+                                                  ^
 Error: Types in an external must have a representable layout.
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
@@ -253,14 +260,15 @@ Error: Types in an external must have a representable layout.
 
 let f (type a : any) () =
   let module M = struct
-    external[@rep_poly] id : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
+    type t = a
+    external[@rep_poly] f : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
   end in
-  M
+  (module M : S with type t = a)
 
 [%%expect{|
-Line 3, characters 47-59:
-3 |     external[@rep_poly] id : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
-                                                   ^^^^^^^^^^^^
+Line 4, characters 46-58:
+4 |     external[@rep_poly] f : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
+                                                  ^^^^^^^^^^^^
 Error: Types in an external must have a representable layout.
        The layout of a/2 t_with_any is any, because
          of the annotation on the abstract type declaration for a.
@@ -270,14 +278,15 @@ Error: Types in an external must have a representable layout.
 
 let f (type a : any) () =
   let module M = struct
-    external[@rep_poly] id : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
+    type t = a
+    external[@rep_poly] f : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
   end in
-  M
+  (module M : S with type t = a)
 
 [%%expect{|
-Line 3, characters 47-56:
-3 |     external[@rep_poly] id : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
-                                                   ^^^^^^^^^
+Line 4, characters 46-55:
+4 |     external[@rep_poly] f : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
+                                                  ^^^^^^^^^
 Error: Types in an external must have a representable layout.
        The layout of a/3 M_any.t is any, because
          of the annotation on the abstract type declaration for a.
