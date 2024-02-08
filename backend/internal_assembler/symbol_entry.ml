@@ -36,6 +36,7 @@ type t =
 type bind =
   | Local
   | Global
+  | Weak
 
 type symbol_type =
   | NoType
@@ -88,10 +89,15 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
     | Some s -> failwith ("Unknown symbol type" ^ s)
     | None -> 0
   in
-  let global = Bool.to_int symbol.sy_global in
+  let locality =
+    match symbol.sy_locality with
+    | Sy_local -> 0
+    | Sy_global -> 1
+    | Sy_weak -> 2
+  in
   let symbol_entry =
     { st_name = String_table.current_length string_table;
-      st_info = (global lsl 4) lor bind;
+      st_info = (locality lsl 4) lor bind;
       st_other = if symbol.sy_protected then 3 else 0;
       st_shndx =
         Section_table.get_sec_idx sections
@@ -112,6 +118,7 @@ let get_bind t =
   match t.st_info lsr 4 with
   | 0 -> Local
   | 1 -> Global
+  | 2 -> Weak
   | _ -> failwith "Invalid bind"
 
 let get_type t =
