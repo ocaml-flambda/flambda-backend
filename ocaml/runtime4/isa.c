@@ -14,8 +14,6 @@
 
 #define CAML_INTERNALS
 
-#include "caml/misc.h"
-#include "caml/mlvalues.h"
 #include "caml/isa.h"
 
 uintnat caml_skip_arch_extension_check = 0;
