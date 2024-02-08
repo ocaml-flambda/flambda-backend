@@ -1550,7 +1550,7 @@ let emit_instr fallthrough i =
          previous experience with similar things, but maybe the change
          should be left for later.
          mshinwell: The current situation is fine for now. *)
-      if Arch.Extension.enabled BMI then begin
+      if Arch.Extension.enabled LZCNT then begin
         I.lzcnt (arg i 0) (res i 0)
       end else if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
