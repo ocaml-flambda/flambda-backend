@@ -424,22 +424,6 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 (* Describes how a modality affects field projection. Returns the mode
    of the projection given the mode of the record. *)
-let _modality_unbox_left global_flag mode =
-  match global_flag with
-  | Global ->
-      mode |> Value.to_global |> Value.to_shared |> Value.to_many
-  | Unrestricted -> mode
-
-(* Describes how a modality affects record construction. Gives the
-   expected mode of the field given the expected mode of the record. *)
-let _modality_box_right global_flag mode =
-  match global_flag with
-  | Global ->
-      mode |> Value.to_global |> Value.to_shared |> Value.to_many
-  | Unrestricted -> mode
-
-(* Describes how a modality affects field projection. Returns the mode
-   of the projection given the mode of the record. *)
 let modality_unbox_left global_flag mode =
   match global_flag with
   | Global ->
