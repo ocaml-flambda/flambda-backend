@@ -406,8 +406,7 @@ end
 module Instances : sig
   type instance = Global.Name.t
 
-  type module_expr =
-    | Imod_instance of instance
+  type module_expr = Imod_instance of instance
 
   val module_expr_of : loc:Location.t -> module_expr -> Parsetree.module_expr
 end
@@ -596,8 +595,7 @@ end
 
 (** Novel syntax in module expressions *)
 module Module_expr : sig
-  type t =
-    | Emod_instance of Instances.module_expr
+  type t = Emod_instance of Instances.module_expr
 
   include AST with type t := t and type ast := Parsetree.module_expr
 end
