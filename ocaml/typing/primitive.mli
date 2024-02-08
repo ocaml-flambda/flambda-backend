@@ -46,7 +46,7 @@ type mode =
    typechecking, all [Prim_poly] modes on a given primitive application
    will be instantiated either all to [Local] or all to [Global] *)
 
-type 'repr_t description_gen = private
+type 'repr description_gen = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
@@ -59,8 +59,8 @@ type 'repr_t description_gen = private
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * 'repr_t) list;
-    prim_native_repr_res: mode * 'repr_t;
+    prim_native_repr_args: (mode * 'repr) list;
+    prim_native_repr_res: mode * 'repr;
     prim_is_layout_representation_polymorphic: bool }
 
 type description = native_repr description_gen
