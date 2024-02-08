@@ -17,9 +17,8 @@
 
 #include "mlvalues.h"
 
-CAMLextern void caml_assert_arch_extensions(void);
-
 #ifdef CAML_INTERNALS
+CAMLextern void caml_assert_arch_extensions(void);
 extern uintnat caml_skip_arch_extension_check;
 #endif
 

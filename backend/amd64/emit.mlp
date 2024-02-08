@@ -937,7 +937,7 @@ module Extension = struct
     | _ -> false
 
   let emit_symbols () =
-    if not (is_nasm_or_masm ()) then
+    if !arch_check_symbols && not (is_nasm_or_masm ()) then
     List.iter (fun ext ->
       let name = symbol ext in
       D.label name;

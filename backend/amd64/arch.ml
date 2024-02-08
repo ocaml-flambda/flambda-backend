@@ -92,6 +92,9 @@ end
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
 
+(* Emit extension symbols for CPUID startup check  *)
+let arch_check_symbols = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -102,7 +105,11 @@ let command_line_options =
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information"
+      " Do not emit .note.ocaml_eh section with trap handling information";
+    "-farch-check", Arg.Set arch_check_symbols,
+      " Emit ISA extension symbols for CPUID check (default)";
+    "-fno-arch-check", Arg.Clear arch_check_symbols,
+      " Do not emit ISA extension symbols for CPUID check";
   ] @ Extension.args
 
 let assert_simd_enabled () =
