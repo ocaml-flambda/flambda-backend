@@ -293,9 +293,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
       | true ->
         (* Will happen after `Cfgize`. *)
         (match register_allocator fd with
-         | Upstream -> ()
+         | Upstream ->
+           fatal_error "-cfg-cse-optimize should only be used with a CFG register allocator"
          | GI | IRC | LS ->
-           fatal_error "-cfg-cse-optimize should only be used with a CFG register allocator");
+           ());
         fd)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
