@@ -49,4 +49,8 @@
 
 CAMLextern void caml_assert_arch_extensions(void);
 
+#ifdef CAML_INTERNALS
+extern uintnat caml_skip_arch_extension_check;
+#endif
+
 #endif /* CAML_ISA_H */

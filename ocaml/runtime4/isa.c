@@ -18,9 +18,11 @@
 #include "caml/mlvalues.h"
 #include "caml/isa.h"
 
+uintnat caml_skip_arch_extension_check = 0;
+
 // Weak symbols are only supported in ELF
 
-#if (defined __x86_64__ || defined _M_X64) && defined __ELF__
+#if defined __x86_64__ && defined __ELF__
 
 // Must be kept in sync with amd64/emit.mlp
 
@@ -86,6 +88,8 @@ static void caml_cpuid(int info[4], int eax, int ecx) {
 }
 
 CAMLexport void caml_assert_arch_extensions(void) {
+
+    if(caml_skip_arch_extension_check) return;
 
     int info[4];
     caml_cpuid(info, 1, 0);

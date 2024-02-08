@@ -32,6 +32,8 @@ module Extension : sig
              That means code using LZCNT/TZCNT will silently produce wrong results. *)
     | BMI2
 
+  val name : t -> string
+
   val enabled : t -> bool
   val available : unit -> t list
 end

@@ -25,7 +25,7 @@ BYTECODE_C_SOURCES := $(addsuffix .c, \
   signals_byt printexc backtrace_byt backtrace compare ints eventlog prng \
   floats simd str array io extern intern hash sys meta parsing gc_ctrl md5 obj \
   lexing callback debugger weak compact finalise custom dynlink \
-  afl $(UNIX_OR_WIN32) bigarray main memprof domain \
+  afl $(UNIX_OR_WIN32) bigarray main memprof domain isa \
   skiplist codefrag)
 
 NATIVE_C_SOURCES := $(addsuffix .c, \

@@ -91,10 +91,9 @@ value caml_startup_common(char_os **argv, int pooling)
   char_os * exe_name, * proc_self_exe;
   value res;
 
-  caml_assert_arch_extensions();
-
   /* Determine options */
   caml_parse_ocamlrunparam();
+  caml_assert_arch_extensions();
 
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that

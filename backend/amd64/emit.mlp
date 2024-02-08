@@ -928,7 +928,8 @@ module Extension = struct
   module E = Arch.Extension
 
   (* Keep in sync with [isa.c] in the runtime. *)
-  let symbol : E.t -> string = fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
+  let symbol : E.t -> string =
+    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
 
   let is_nasm_or_masm () =
     match system with
@@ -1990,9 +1991,6 @@ let begin_assembly unix =
     D.extrn "caml_raise_exn" NEAR;
   end;
 
-  D.data ();
-  Extension.emit_symbols ();
-
   if !Clflags.dlcode || Arch.win64 then begin
     (* from amd64.S; could emit these constants on demand *)
     begin match system with
@@ -2022,6 +2020,7 @@ let begin_assembly unix =
   cfi_startproc ();
   I.jmp (rel_plt (Cmm.global_symbol "caml_call_gc"));
   cfi_endproc ();
+  Extension.emit_symbols ();
 
   ()
 
