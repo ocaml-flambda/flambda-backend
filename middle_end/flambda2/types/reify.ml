@@ -358,26 +358,10 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
        *         function_types_with_value_slots Value_slot.Map.empty
        *     in
        *     Lift_set_of_closures { function_slot; function_types; value_slots } *)
-    | Naked_immediate (Ok (Naked_immediates imms)) -> (
-      match Targetint_31_63.Set.get_singleton imms with
-      | None -> try_canonical_simple ()
-      | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
-    | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
-      match Provers.meet_is_int_variant_only env scrutinee_ty with
-      | Known_result true -> Simple Simple.untagged_const_true
-      | Known_result false -> Simple Simple.untagged_const_false
-      | Need_meet -> try_canonical_simple ()
-      | Invalid -> Invalid)
-    | Naked_immediate (Ok (Get_tag block_ty)) -> (
-      match Provers.prove_get_tag env block_ty with
-      | Proved tags -> (
-        let is =
-          Tag.Set.fold
-            (fun tag is ->
-              Targetint_31_63.Set.add (Tag.to_targetint_31_63 tag) is)
-            tags Targetint_31_63.Set.empty
-        in
-        match Targetint_31_63.Set.get_singleton is with
+    | Naked_immediate _ -> (
+      match Provers.prove_naked_immediates env t with
+      | Proved imms -> (
+        match Targetint_31_63.Set.get_singleton imms with
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
       | Unknown -> try_canonical_simple ())
@@ -541,7 +525,6 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
                %a@ in env:@ %a"
               Flambda_kind.print kind TG.print t TE.print env)))
     | Value Bottom
-    | Naked_immediate Bottom
     | Naked_float32 Bottom
     | Naked_float Bottom
     | Naked_int32 Bottom
@@ -553,7 +536,6 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       Invalid
     | Value Unknown
     | Value (Ok (String _))
-    | Naked_immediate Unknown
     | Naked_float32 Unknown
     | Naked_float Unknown
     | Naked_int32 Unknown

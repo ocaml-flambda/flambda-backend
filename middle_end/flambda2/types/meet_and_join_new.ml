@@ -85,6 +85,16 @@ let set_meet (type a b) (module S : Container_types_intf.Set with type t = a)
     let s = S.inter s1 s2 in
     if S.is_empty s then Bottom else Ok (New_result (of_set s), env)
 
+(* This function is used for sets of constraints, where a meet between two sets
+   translates to the union of the sets *)
+let reverse_set_meet (type a) (module S : Set.S with type t = a) env (s1 : a)
+    (s2 : a) : a meet_result =
+  match S.subset s1 s2, S.subset s2 s1 with
+  | true, true -> Ok (Both_inputs, env)
+  | true, false -> Ok (Right_input, env)
+  | false, true -> Ok (Left_input, env)
+  | false, false -> Ok (New_result (S.union s1 s2), env)
+
 type ('key, 'data, 'mapping) fold2 =
   { fold2 :
       'acc.
@@ -335,10 +345,6 @@ let meet_code_id (env : TE.t) (code_id1 : Code_id.t) (code_id2 : Code_id.t) :
       else if Code_id.equal code_id code_id2
       then Ok (Right_input, env)
       else Ok (New_result code_id, env)
-
-type meet_keep_side =
-  | Left
-  | Right
 
 (* type meet_expanded_head_result =
  *   | Left_head_unchanged
@@ -780,129 +786,46 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
     TG.head_of_kind_naked_immediate meet_result =
   let module I = Targetint_31_63 in
-  let keep_side side : _ meet_result =
-    match side with
-    | Left -> Ok (Left_input, env)
-    | Right -> Ok (Right_input, env)
+  (* First compute the result type *)
+  let meet_immediates =
+    meet_unknown
+      (set_meet (module I.Set) ~of_set:Fun.id)
+      ~contents_is_bottom:I.Set.is_empty
   in
-  let keep_other_side side : _ meet_result =
-    match side with
-    | Left -> Ok (Right_input, env)
-    | Right -> Ok (Left_input, env)
+  let meet_relations = reverse_set_meet (module TG.RelationSet) in
+  let result =
+    combine_results2 env ~meet_a:meet_immediates ~meet_b:meet_relations
+      ~left_a:t1.immediates ~right_a:t2.immediates ~left_b:t1.relations
+      ~right_b:t2.relations ~rebuild:(fun immediates relations ->
+        TG.Head_of_kind_naked_immediate.create ~immediates ~relations)
   in
-  let meet_with_shape env ~rebuild ty shape side =
-    map_result ~f:rebuild
-      (match side with Left -> meet env ty shape | Right -> meet env shape ty)
-  in
-  let is_int_immediate env ~is_int_ty ~immediates ~is_int_side =
-    let rebuild = TG.Head_of_kind_naked_immediate.create_is_int in
-    match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
-    | false, false -> Bottom
-    | true, true -> keep_side is_int_side
-    | true, false ->
-      meet_with_shape env ~rebuild is_int_ty MTC.any_block is_int_side
-    | false, true ->
-      meet_with_shape env ~rebuild is_int_ty MTC.any_tagged_immediate
-        is_int_side
-  in
-  let get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side =
-    if I.Set.is_empty immediates
-    then keep_other_side get_tag_side
-    else
-      let tags =
-        I.Set.fold
-          (fun tag tags ->
-            match Tag.create_from_targetint tag with
-            | Some tag -> Tag.Set.add tag tags
-            | None -> tags (* No blocks exist with this tag *))
-          immediates Tag.Set.empty
-      in
-      if Tag.Set.is_empty tags
-      then Bottom
-      else
-        match
-          MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ())
-        with
-        | Known shape ->
-          meet_with_shape env
-            ~rebuild:TG.Head_of_kind_naked_immediate.create_get_tag get_tag_ty
-            shape get_tag_side
-        | Unknown -> keep_side get_tag_side
-  in
-  match t1, t2 with
-  | Naked_immediates is1, Naked_immediates is2 ->
-    map_result
-      ~f:TG.Head_of_kind_naked_immediate.create_naked_immediates_non_empty
-      (set_meet (module I.Set) env is1 is2 ~of_set:Fun.id)
-  | Is_int is_int_ty, Naked_immediates immediates ->
-    is_int_immediate env ~is_int_ty ~immediates ~is_int_side:Left
-  | Naked_immediates immediates, Is_int is_int_ty ->
-    is_int_immediate env ~is_int_ty ~immediates ~is_int_side:Right
-  | Get_tag get_tag_ty, Naked_immediates immediates ->
-    get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:Left
-  | Naked_immediates immediates, Get_tag get_tag_ty ->
-    get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:Right
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> (
-    (* There are several difficulties here. The first one is that we would like
-       to refine the underlying variant types. For instance, a meet between
-       [Get_tag b] and [Is_int v] should remove from [b] all tags except 0 and
-       1, and remove the cases for [v] that are not allowed given the tags of
-       [b]. This is solved by the reduce and refine algorithm implemented below.
-
-       The second difficulty is that we would like to return a type that is
-       precise: if this meet removes all possible values except one, we want an
-       alias to this remaining constant instead of the original type. This is
-       not implemented.
-
-       Finally, there is a design limitation: by representing [Get_tag] and
-       [Is_int] relations using equations on the immediate variable, we lose the
-       ability to represent that a variable may be linked to more than one
-       value. So no matter how complicated the algorithm is here, we will lose
-       at least one of the relations given as input. We would need to change the
-       way we represent these relations to solve that issue. (Extensions on
-       immediates would work, but might be expensive; subsuming all the current
-       cases into a record with an immediate set plus a set of relations might
-       be more realistic.) *)
-    let reduce env (t : TG.head_of_kind_naked_immediate) =
-      match t with
-      | Naked_immediates imms ->
-        (* unreachable, but that would be the correct output *)
-        Or_unknown_or_bottom.Ok imms
-      | Is_int ty -> Expand_head.reduce_is_int env ty
-      | Get_tag ty -> Expand_head.reduce_get_tag env ty
-    in
-    let refine env (t : TG.head_of_kind_naked_immediate) ~immediates side =
-      match t with
-      | Naked_immediates _ -> (* unreachable *) assert false
-      | Is_int is_int_ty ->
-        is_int_immediate env ~is_int_ty ~immediates ~is_int_side:side
-      | Get_tag get_tag_ty ->
-        get_tag_immediate env ~get_tag_ty ~immediates ~get_tag_side:side
-    in
-    let refine_t1_env : _ Or_bottom.t =
-      match reduce env t2 with
-      | Bottom -> Bottom
-      | Unknown -> Ok env
-      | Ok immediates -> (
-        match refine env t1 ~immediates Left with
+  (* Now, use the relations to do some reduction *)
+  match result with
+  | Bottom -> result
+  | Ok (new_value, _env) -> (
+    (* Note: the env is not discarded, [result] itself is returned directly or
+       passed to the fold function *)
+    match extract_value new_value t1 t2 with
+    | { immediates = Unknown; relations = _ } ->
+      (* No reduction to do *)
+      result
+    | { immediates = Known is; relations } ->
+      (* Update the result by reduction, following the relations *)
+      let reduce relation (result : _ meet_result) : _ meet_result =
+        match result with
         | Bottom -> Bottom
-        | Ok (_, env) -> Ok env)
-    in
-    match refine_t1_env with
-    | Bottom -> Bottom
-    | Ok env -> (
-      let refine_t2_env : _ Or_bottom.t =
-        match reduce env t1 with
-        | Bottom -> Bottom
-        | Unknown -> Ok env
-        | Ok immediates -> (
-          match refine env t2 ~immediates Right with
+        | Ok (r, env) -> (
+          match MTC.shape_of_relation is relation with
           | Bottom -> Bottom
-          | Ok (_, env) -> Ok env)
+          | Unknown -> result
+          | Ok (name, shape) -> (
+            match meet env (TE.find env name (Some K.value)) shape with
+            | Bottom -> Bottom
+            | Ok (_, env) ->
+              (* We do not need the result of the meet, only the environment. *)
+              Ok (r, env)))
       in
-      match refine_t2_env with
-      | Bottom -> Bottom
-      | Ok env -> Ok (Both_inputs, env)))
+      TG.RelationSet.fold reduce relations result)
 
 and meet_head_of_kind_naked_float32 env t1 t2 =
   set_meet
@@ -1589,51 +1512,21 @@ and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
   | Known _, Unknown | Unknown, Known _ | Known _, Known _ ->
     Known (blocks, imms)
 
-and join_head_of_kind_naked_immediate env
+and join_head_of_kind_naked_immediate _env
     (head1 : TG.Head_of_kind_naked_immediate.t)
     (head2 : TG.Head_of_kind_naked_immediate.t) :
     TG.Head_of_kind_naked_immediate.t Or_unknown.t =
   let module I = Targetint_31_63 in
-  match head1, head2 with
-  | Naked_immediates is1, Naked_immediates is2 -> (
-    assert (not (Targetint_31_63.Set.is_empty is1));
-    assert (not (Targetint_31_63.Set.is_empty is2));
-    let is = I.Set.union is1 is2 in
-    let head = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
-    match head with
-    | Ok head -> Known head
-    | Bottom ->
-      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
-  | Is_int ty1, Is_int ty2 ->
-    let>+ ty = join env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_is_int ty
-  | Get_tag ty1, Get_tag ty2 ->
-    let>+ ty = join env ty1 ty2 in
-    TG.Head_of_kind_naked_immediate.create_get_tag ty
-  (* From now on: Irregular cases *)
-  (* CR vlaviron: There could be improvements based on reduction (trying to
-     reduce the is_int and get_tag cases to naked_immediate sets, then joining
-     those) but this looks unlikely to be useful and could end up begin quite
-     expensive. *)
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
-    if I.Set.is_empty is_int
-    then Known (TG.Head_of_kind_naked_immediate.create_is_int ty)
-    else
-      (* Slightly better than Unknown *)
-      let head =
-        TG.Head_of_kind_naked_immediate.create_naked_immediates
-          (I.Set.add I.zero (I.Set.add I.one is_int))
-      in
-      match head with
-      | Ok head -> Known head
-      | Bottom ->
-        Misc.fatal_error
-          "Did not expect [Bottom] from [create_naked_immediates]")
-  | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
-    if I.Set.is_empty tags
-    then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
-    else Unknown
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+  let immediates : _ Or_unknown.t =
+    match head1.immediates, head2.immediates with
+    | Unknown, _ | _, Unknown -> Unknown
+    | Known is1, Known is2 -> Known (I.Set.union is1 is2)
+  in
+  let relations = TG.RelationSet.inter head1.relations head2.relations in
+  match immediates with
+  | Unknown when TG.RelationSet.is_empty relations -> Unknown
+  | Known _ | Unknown ->
+    Known (TG.Head_of_kind_naked_immediate.create ~immediates ~relations)
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float32.union t1 t2)

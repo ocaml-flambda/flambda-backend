@@ -88,7 +88,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let denv = DE.define_variable denv tag_v K.naked_immediate in
     let denv =
       DE.add_equation_on_variable denv tag.param
-        (T.get_tag_for_block ~block:(Simple.var param_var))
+        (T.get_tag_for_block ~block:(Name.var param_var))
     in
     let get_tag_prim =
       P.Eligible_for_cse.create_get_tag ~block:(Name.var param_var)
@@ -103,7 +103,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
         let denv = DE.define_variable denv is_int_v K.naked_immediate in
         let denv =
           DE.add_equation_on_variable denv is_int.param
-            (T.is_int_for_scrutinee ~scrutinee:(Simple.var param_var))
+            (T.is_int_for_scrutinee ~scrutinee:(Name.var param_var))
         in
         let is_int_prim =
           P.Eligible_for_cse.create_is_int ~variant_only:true

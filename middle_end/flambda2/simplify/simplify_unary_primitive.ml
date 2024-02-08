@@ -207,7 +207,14 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
   then
     simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
       ~result_var ~make_shape:(fun scrutinee ->
-        T.is_int_for_scrutinee ~scrutinee)
+        Simple.pattern_match scrutinee
+          ~name:(fun scrutinee ~coercion:_ -> T.is_int_for_scrutinee ~scrutinee)
+          ~const:(fun const ->
+            match Reg_width_const.is_tagged_immediate const with
+            | Some _ -> T.this_naked_immediate Targetint_31_63.bool_true
+            | None ->
+              (* All other constants are not valid values *)
+              T.bottom K.naked_immediate))
   else
     match T.prove_is_int (DA.typing_env dacc) scrutinee_ty with
     | Proved b ->
@@ -220,7 +227,12 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
 let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
   simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
-    ~result_var ~make_shape:(fun block -> T.get_tag_for_block ~block)
+    ~result_var ~make_shape:(fun block ->
+      Simple.pattern_match block
+        ~name:(fun block ~coercion:_ -> T.get_tag_for_block ~block)
+        ~const:(fun _ ->
+          (* No constant is a valid block *)
+          T.bottom K.naked_immediate))
 
 let simplify_array_length _array_kind dacc ~original_term ~arg:_
     ~arg_ty:array_ty ~result_var =

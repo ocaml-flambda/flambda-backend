@@ -264,13 +264,19 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
            anyway. *)
         match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
         | Unary (Is_int { variant_only = true }, scrutinee) ->
-          Name.Map.add (Name.var var)
-            (T.is_int_for_scrutinee ~scrutinee)
-            extra_equations
+          Simple.pattern_match scrutinee
+            ~name:(fun scrutinee ~coercion:_ ->
+              Name.Map.add (Name.var var)
+                (T.is_int_for_scrutinee ~scrutinee)
+                extra_equations)
+            ~const:(fun _ -> extra_equations)
         | Unary (Get_tag, block) ->
-          Name.Map.add (Name.var var)
-            (T.get_tag_for_block ~block)
-            extra_equations
+          Simple.pattern_match block
+            ~name:(fun block ~coercion:_ ->
+              Name.Map.add (Name.var var)
+                (T.get_tag_for_block ~block)
+                extra_equations)
+            ~const:(fun _ -> extra_equations)
         | _ -> extra_equations
       in
       let allowed =

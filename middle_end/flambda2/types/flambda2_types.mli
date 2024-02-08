@@ -451,9 +451,9 @@ val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t
 
-val is_int_for_scrutinee : scrutinee:Simple.t -> t
+val is_int_for_scrutinee : scrutinee:Name.t -> t
 
-val get_tag_for_block : block:Simple.t -> t
+val get_tag_for_block : block:Name.t -> t
 
 val any_block : t
 

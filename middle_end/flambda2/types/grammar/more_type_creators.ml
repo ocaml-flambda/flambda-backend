@@ -371,3 +371,27 @@ let unknown_types_from_arity arity =
   List.map
     (unknown_with_subkind ?alloc_mode:None)
     (Flambda_arity.unarized_components arity)
+
+let shape_of_relation immediates (rel : TG.relation) : _ Or_unknown_or_bottom.t
+    =
+  let module I = Targetint_31_63 in
+  match rel with
+  | Is_int name -> (
+    match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
+    | true, true -> Unknown
+    | false, false -> Bottom
+    | true, false -> Ok (name, any_block)
+    | false, true -> Ok (name, any_tagged_immediate))
+  | Get_tag name -> (
+    let tags =
+      I.Set.fold
+        (fun tag tags ->
+          match Tag.create_from_targetint tag with
+          | Some tag -> Tag.Set.add tag tags
+          | None -> tags
+          (* No blocks exist with this tag *))
+        immediates Tag.Set.empty
+    in
+    match blocks_with_these_tags tags (Alloc_mode.For_types.unknown ()) with
+    | Known shape -> Ok (name, shape)
+    | Unknown -> Unknown)

@@ -169,3 +169,8 @@ val unknown_with_subkind :
 (** For each of the kinds in an arity, create an "unknown" type. *)
 val unknown_types_from_arity :
   [`Unarized] Flambda_arity.t -> Type_grammar.t list
+
+val shape_of_relation :
+  Targetint_31_63.Set.t ->
+  Type_grammar.relation ->
+  (Name.t * Type_grammar.t) Or_unknown_or_bottom.t
