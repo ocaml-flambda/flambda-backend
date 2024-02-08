@@ -15,7 +15,7 @@
 #ifndef CAML_ISA_H
 #define CAML_ISA_H
 
-#include "mlvalues.h"
+#include "misc.h"
 
 #ifdef CAML_INTERNALS
 CAMLextern void caml_assert_arch_extensions(void);
