@@ -10,6 +10,8 @@ module Name : sig
 
   val create : string -> (t * t) list -> t
 
+  val of_syntax : Jane_syntax.Instances.instance -> t
+
   val to_string : t -> string
 end
 

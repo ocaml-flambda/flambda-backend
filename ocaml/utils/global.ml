@@ -13,6 +13,8 @@ module Name : sig
 
   val unsafe_create_unchecked : string -> (t * t) list -> t
 
+  val of_syntax : Jane_syntax.Instances.instance -> t
+
   val to_string : t -> string
 
   include Identifiable.S with type t := t
@@ -68,6 +70,12 @@ end = struct
     t
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let rec of_syntax ({ head; args } : Jane_syntax.Instances.instance) =
+    let args =
+      List.map (fun (name, value) -> of_syntax name, of_syntax value) args
+    in
+    create head args
 
   let to_string = print |> Misc.to_string_of_print
 end

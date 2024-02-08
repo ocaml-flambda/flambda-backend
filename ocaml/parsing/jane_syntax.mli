@@ -404,10 +404,14 @@ module Layouts : sig
 end
 
 module Instances : sig
-  type instance = Global.Name.t
+  (** The name of an instance module. Re-exported as [Global.Name.t] in the
+      flambda-backend compiler. *)
+  type instance =
+    { head : string;
+      args : (instance * instance) list
+    }
 
-  type module_expr =
-    | Imod_instance of instance
+  type module_expr = Imod_instance of instance
 
   val module_expr_of : loc:Location.t -> module_expr -> Parsetree.module_expr
 end
@@ -596,8 +600,7 @@ end
 
 (** Novel syntax in module expressions *)
 module Module_expr : sig
-  type t =
-    | Emod_instance of Instances.module_expr
+  type t = Emod_instance of Instances.module_expr
 
   include AST with type t := t and type ast := Parsetree.module_expr
 end
