@@ -95,6 +95,8 @@ let is_untagged = function
   | _, Unboxed_integer _
   | _, Repr_poly -> false
 
+(* Same as [List.init n (fun _ -> x)]. Keeping this function here
+   to be close to upstream.  *)
 let rec make_prim_repr_args arity x =
   if arity = 0 then
     []
