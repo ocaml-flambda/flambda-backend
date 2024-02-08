@@ -426,9 +426,9 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) : rev_expr 
         | Method { obj; kind = _; alloc_mode = _ } -> Dacc.used ~denv obj dacc
         | C_call _ -> ()
       in
-      dacc
+      ()
     in
-    let dacc =
+    let () =
       match Apply_expr.call_kind apply with
       | Function { function_call = Direct code_id; _ } ->
         (* TODO think about wether we should propagate that cross module.
@@ -473,8 +473,7 @@ let rec traverse (denv : denv) (dacc : dacc) (expr : Flambda.Expr.t) : rev_expr 
           Dacc.add_apply apply_dep dacc;
           (* TODO regions? *)
           (* TODO record function use *)
-          Dacc.called ~denv code_id dacc;
-          dacc
+          Dacc.called ~denv code_id dacc
         else default_dacc dacc
       | Function
           { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
