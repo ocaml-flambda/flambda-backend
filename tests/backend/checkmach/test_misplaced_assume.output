@@ -5,4 +5,4 @@ File "test_misplaced_assume.ml", line 5, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_misplaced_assume.foo (camlTest_misplaced_assume.foo_HIDE_STAMP)
 
 File "test_misplaced_assume.ml", line 6, characters 2-31:
-Error: direct tailcall camlTest_misplaced_assume.bar_HIDE_STAMP may allocate
+Error: called function may allocate (direct tailcall camlTest_misplaced_assume.bar_HIDE_STAMP)
