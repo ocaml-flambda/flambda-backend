@@ -133,8 +133,8 @@ module Mode_expr : sig
   (** Checks if the given mode expression is empty. *)
   val is_empty : t -> bool
 
-  (** Partitions a list of attributes into two lists: those with mode expressions
-      , and those don't. *)
+  (** Partitions a list of attributes into two lists: those with mode
+      expressions, and those without. *)
   val partition_attrs :
     Parsetree.attributes -> Parsetree.attributes * Parsetree.attributes
 
@@ -142,8 +142,8 @@ module Mode_expr : sig
   val attr_of : t -> Parsetree.attribute
 
   (** Given a list of attributes, extracts mode expressions and returns the rest
-      of attributes. Raises if mode expressions are found in multiple attributes.
-         *)
+      of attributes. Raises if mode expressions are found in multiple
+      attributes. *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
   (** Encodes a mode expression into a [payload]. *)

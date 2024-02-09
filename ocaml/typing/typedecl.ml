@@ -356,8 +356,9 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          let gbl =
            match mut with
            | Mutable -> Mode.Global_flag.Global
-           | Immutable -> Typemexp.transl_global_flags
-              (Jane_syntax.Mode_expr.of_attrs attrs |> fst)
+           | Immutable ->
+               let modes, _rest = Jane_syntax.Mode_expr.of_attrs attrs in
+               Typemexp.transl_global_flags modes
          in
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
@@ -387,8 +388,10 @@ let transl_labels ~new_var_jkind env univars closed lbls =
 let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = Typemexp.transl_global_flags
-      (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
+    let gf =
+      let modes, _rest = Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes in
+      Typemexp.transl_global_flags modes
+    in
     (cty, gf)
   in
   let tyl_gfl = List.map mk tyl in
