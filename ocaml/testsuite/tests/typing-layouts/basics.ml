@@ -1829,7 +1829,7 @@ external foo44 : ('a : any). 'a -> unit = "foo44";;
 Line 1, characters 29-31:
 1 | external foo44 : ('a : any). 'a -> unit = "foo44";;
                                  ^^
-Error: External types must have a representable layout.
+Error: Types in an external must have a representable layout.
        The layout of 'a is any, because
          of the annotation on the universal variable 'a.
        But the layout of 'a must be representable, because
@@ -1842,7 +1842,7 @@ external foo55 : ('a : any). unit -> 'a = "foo55";;
 Line 1, characters 37-39:
 1 | external foo55 : ('a : any). unit -> 'a = "foo55";;
                                          ^^
-Error: External types must have a representable layout.
+Error: Types in an external must have a representable layout.
        The layout of 'a is any, because
          of the annotation on the universal variable 'a.
        But the layout of 'a must be representable, because
