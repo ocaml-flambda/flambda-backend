@@ -96,10 +96,8 @@ let () =
 
   print_test_expected_output ~cutoff:0 ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
-  (* Closure does not optimize the function away, so the unchecked attribute
-     warning is only with flambda and flambda2. *)
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None
-    ~exit_code:0 "test_attr_unused";
+    ~exit_code:2 "test_attr_unused";
   (* Checks that the warning is printed and compilation is successful. *)
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None
     ~exit_code:0 "t6";
@@ -107,10 +105,9 @@ let () =
   print_test "t7.ml";
   (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
   print_test "test_stub_dep.ml test_stub.ml";
-  (* flambda2 generates an indirect call but we don't yet have a way to exclude it
-     without excluding closure. *)
-  print_test "t1.ml";
-  (* closure does not delete dead functions *)
+  (* generates an indirect call. *)
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "t1";
+  (* deleting dead functions works *)
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail22";
