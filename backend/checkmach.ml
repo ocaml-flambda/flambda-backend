@@ -76,14 +76,6 @@ module Witness = struct
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe %s handler %s" name handler_code_sym
 
-  let get_alloc_dbginfo kind =
-    match kind with
-    | Alloc { bytes = _; dbginfo } -> Some dbginfo
-    | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
-    | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
-      ->
-      None
-
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
 end
@@ -466,11 +458,10 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
-    let print_comballoc (w : Witness.t) =
-      match Witness.get_alloc_dbginfo w.kind with
-      | None -> " may allocate", []
-      | Some [] | Some [_] -> "", []
-      | Some alloc_dbginfo ->
+    let print_comballoc dbg =
+      match dbg with
+      | [] | [_] -> "", []
+      | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
            checkmach is before comballoc. In the future, this may be done in the
@@ -495,15 +486,31 @@ end = struct
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
       let loc = Debuginfo.to_location w.dbg in
-      let comballoc_msg, sub = print_comballoc w in
       let component_msg =
         if String.equal "" component
         then component
         else " on a path to " ^ component
       in
+      let print_main_msg, sub =
+        match w.kind with
+        | Alloc { bytes = _; dbginfo } ->
+          let comballoc_msg, sub = print_comballoc dbginfo in
+          ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
+              comballoc_msg,
+            sub )
+        | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
+        | Missing_summary _ | Forward_call _ | Extcall _ ->
+          ( Format.dprintf "called function may allocate%s (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+        | Arch_specific | Probe _ ->
+          ( Format.dprintf "expression may allocate%s@ (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+      in
       let pp ppf () =
-        Format.fprintf ppf "%a%s%s%a" Witness.print_kind w.kind component_msg
-          comballoc_msg pp_inlined_dbg w.dbg
+        print_main_msg ppf;
+        pp_inlined_dbg ppf w.dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
