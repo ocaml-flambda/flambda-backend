@@ -2961,12 +2961,12 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
-      | Cstr_tuple -> "Constructor argument"
-      | Record -> "Record element"
-      | Unboxed_record -> "Unboxed record element"
-      | External -> "External"
+      | Cstr_tuple -> "Constructor argument types"
+      | Record -> "Record element types"
+      | Unboxed_record -> "Unboxed record element types"
+      | External -> "Types in an external"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ %a@]" s
+    fprintf ppf "@[%s must have a representable layout.@ %a@]" s
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->

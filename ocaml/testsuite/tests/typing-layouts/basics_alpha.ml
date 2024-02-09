@@ -355,7 +355,6 @@ and ('a : any) t4
    moved to [basics_beta.ml]. *)
 
 type ('a : void) void5 = Void5  of 'a
-type ('a : any) any5 = Any5 of 'a
 
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
@@ -377,9 +376,8 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-type 'a any5 = Any5 of 'a
-Line 5, characters 15-22:
-5 |   | Void5 x -> Void5 x
+Line 4, characters 15-22:
+4 |   | Void5 x -> Void5 x
                    ^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
@@ -402,16 +400,16 @@ Error: This type int should be an instance of type ('a : void)
          of the definition of void5 at line 1, characters 0-37.
 |}];;
 
-let h5' (x : int any5) = Void5 x
+let h5' (x : int) = Void5 x
 [%%expect{|
-Line 1, characters 31-32:
-1 | let h5' (x : int any5) = Void5 x
-                                   ^
-Error: This expression has type int any5
-       but an expression was expected of type ('a : void)
-       The layout of int any5 is value, because
-         of the definition of any5 at line 2, characters 0-33.
-       But the layout of int any5 must be a sublayout of void, because
+Line 1, characters 26-27:
+1 | let h5' (x : int) = Void5 x
+                              ^
+Error: This expression has type int but an expression was expected of type
+         ('a : void)
+       The layout of int is immediate, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of void, because
          of the definition of void5 at line 1, characters 0-37.
 |}];;
 
