@@ -1443,6 +1443,22 @@ module Value = struct
         Linearity.Const.join l1 r1,
         Uniqueness.Const.join l2 r2 )
   end
+
+  module List = struct
+    type nonrec 'd t = 'd t list
+
+    include Magic_allow_disallow (struct
+      type (_, _, 'd) sided = 'd t constraint 'd = 'l * 'r
+
+      let allow_left l = List.map allow_left l
+
+      let allow_right l = List.map allow_right l
+
+      let disallow_left l = List.map disallow_left l
+
+      let disallow_right l = List.map disallow_right l
+    end)
+  end
 end
 
 module Alloc = struct

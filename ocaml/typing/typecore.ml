@@ -572,7 +572,7 @@ let mode_trywith expected_mode =
   { expected_mode with position = RNontail }
 
 let mode_tuple mode tuple_modes =
-  let tuple_modes = List.map Value.disallow_left tuple_modes in
+  let tuple_modes = Value.List.disallow_left tuple_modes in
   { (mode_default mode) with
     tuple_modes }
 
@@ -634,7 +634,7 @@ let simple_pat_mode mode =
 
 let tuple_pat_mode mode tuple_modes =
   let mode = Value.disallow_right mode in
-  let tuple_modes = List.map Value.disallow_right tuple_modes in
+  let tuple_modes = Value.List.disallow_right tuple_modes in
   { mode; tuple_modes }
 
 let allocations : Alloc.r list ref = Local_store.s_ref []
@@ -5515,7 +5515,7 @@ and type_expect_
           simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
           let modes = List.init arity (fun _ -> Value.newvar ()) in
-          let mode, _ = Value.newvar_above (Value.join (List.map Value.disallow_right modes)) in
+          let mode, _ = Value.newvar_above (Value.join (Value.List.disallow_right modes)) in
           let mode = value_regional_to_local mode in
           tuple_pat_mode mode modes, mode_tuple mode modes
       in

@@ -236,6 +236,11 @@ module type S = sig
          and type error := error
          and type 'd t := 'd t
 
+    module List : sig
+      (* No new types exposed to avoid too many type names *)
+      include Allow_disallow with type (_, _, 'd) sided = 'd t list
+    end
+
     (* some overriding *)
     val print :
       ?raw:bool ->
