@@ -26,6 +26,7 @@ module Extension = struct
       | SSE4_1
       | SSE4_2
       | CLMUL
+      | LZCNT
       | BMI
       | BMI2
 
@@ -44,6 +45,7 @@ module Extension = struct
     | SSE4_1 -> "SSE41"
     | SSE4_2 -> "SSE42"
     | CLMUL -> "CLMUL"
+    | LZCNT -> "LZCNT"
     | BMI -> "BMI"
     | BMI2 -> "BMI2"
 
@@ -56,15 +58,16 @@ module Extension = struct
     | SSE4_1 -> "Penryn+"
     | SSE4_2 -> "Nehalem+"
     | CLMUL -> "Westmere+"
+    | LZCNT -> "Haswell+"
     | BMI -> "Haswell+"
     | BMI2 -> "Haswell+"
 
   let enabled_by_default = function
     | SSE3 | SSSE3 | SSE4_1 | SSE4_2
-    | POPCNT | CLMUL | BMI | BMI2 -> true
+    | POPCNT | CLMUL | LZCNT | BMI | BMI2 -> true
     | PREFETCHW | PREFETCHWT1 -> false
 
-  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; BMI; BMI2 ]
+  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; LZCNT; BMI; BMI2 ]
   let config = ref (Set.filter enabled_by_default all)
 
   let enabled t = Set.mem t !config
