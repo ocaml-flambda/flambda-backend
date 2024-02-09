@@ -473,10 +473,23 @@
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
 
 (rule
+ (enabled_if (= %{context_name} "main"))
+ (targets t1.output.corrected)
+ (deps (:ml t1.ml) filter.sh)
+ (action
+   (with-outputs-to t1.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps t1.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+ (deps t1.output t1.output.corrected)
+ (action (diff t1.output t1.output.corrected)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
