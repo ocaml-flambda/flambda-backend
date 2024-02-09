@@ -404,7 +404,7 @@ module Layouts : sig
 end
 
 module Instances : sig
-  (** The name of an instance module. Re-exported as [Global.Name.t] in the
+  (** The name of an instance module. Gets converted to [Global.Name.t] in the
       flambda-backend compiler. *)
   type instance =
     { head : string;

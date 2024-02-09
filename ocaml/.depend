@@ -500,7 +500,6 @@ parsing/jane_syntax.cmo : \
     utils/language_extension.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/jane_asttypes.cmi \
-    utils/global.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/jane_syntax.cmi
@@ -514,7 +513,6 @@ parsing/jane_syntax.cmx : \
     utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/jane_asttypes.cmx \
-    utils/global.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/jane_syntax.cmi
@@ -523,7 +521,6 @@ parsing/jane_syntax.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/jane_asttypes.cmi \
-    utils/global.cmi \
     parsing/docstrings.cmi \
     parsing/asttypes.cmi
 parsing/jane_syntax_parsing.cmo : \
@@ -2558,7 +2555,6 @@ bytecomp/emitcode.cmo : \
     parsing/location.cmi \
     lambda/lambda.cmi \
     bytecomp/instruct.cmi \
-    utils/global.cmi \
     typing/env.cmi \
     utils/config.cmi \
     utils/compilation_unit.cmi \
@@ -2576,7 +2572,6 @@ bytecomp/emitcode.cmx : \
     parsing/location.cmx \
     lambda/lambda.cmx \
     bytecomp/instruct.cmx \
-    utils/global.cmx \
     typing/env.cmx \
     utils/config.cmx \
     utils/compilation_unit.cmx \
@@ -3992,7 +3987,6 @@ lambda/lambda.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
@@ -4009,7 +4003,6 @@ lambda/lambda.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
     utils/config.cmx \
@@ -4025,7 +4018,6 @@ lambda/lambda.cmi : \
     typing/path.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/compilation_unit.cmi \
@@ -4580,10 +4572,8 @@ file_formats/cmi_format.cmi : \
     utils/global.cmi \
     utils/compilation_unit.cmi
 file_formats/cmo_format.cmi : \
-    lambda/lambda.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/compilation_unit.cmi
 file_formats/cms_format.cmo : \
     typing/shape.cmi \
@@ -4657,7 +4647,6 @@ file_formats/cmt_format.cmi : \
 file_formats/cmx_format.cmi : \
     lambda/lambda.cmi \
     utils/import_info.cmi \
-    utils/global.cmi \
     middle_end/flambda/export_info.cmi \
     utils/compilation_unit.cmi \
     middle_end/clambda.cmi
