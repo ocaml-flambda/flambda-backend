@@ -102,10 +102,14 @@ end
 
 module Mode_expr : sig
   (** [Mode_expr] appears in several places:
-  - let local_ x = ...
-  - local_ exp
-  - local string -> string
-  - {global_ x : int}
+
+   * let-bindings: {v let <mode_expr> x = ... v}
+   * expressions: {v <mode_expr> expr v}
+   * lhs or rhs of arrow: {v <mode_expr> string -> <mode_expr> string v}
+   * record fields: {v { <mode_expr> x : int } v}
+
+  <mode_expr> is a possibly-empty space-separated list of mode identifiers, for
+  example {v local_ v} or {v local_ unique_ v}.
 
   Note that in the first two cases, axes other than locality are not specified;
   in the second case, other axes are defaulted to legacy. In the last case, we

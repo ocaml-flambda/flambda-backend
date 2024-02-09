@@ -31,7 +31,7 @@ open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
 module N_ary = Jane_syntax.N_ary_functions
-module Mode = Jane_syntax.Mode_expr
+module Mode_expr = Jane_syntax.Mode_expr
 
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
@@ -154,38 +154,38 @@ let mk_attr ~loc name payload =
 result from native syntax which is only parsed at proper places that are
 guaranteed to be used. *)
 let mkexp_with_modes ?(ghost=false) loc modes exp =
-  if Mode.is_empty modes then exp
+  if Mode_expr.is_empty modes then exp
   else
   let loc =
     if ghost then ghost_loc loc else make_loc loc
   in
-  let payload = Mode.payload_of modes in
+  let payload = Mode_expr.payload_of modes in
   let ext =
     (* Use the loc of the annotation as the loc of the extension node *)
     Exp.extension ~loc:modes.loc (
-      Location.mknoloc Mode.embedded_name_str,
+      Location.mknoloc Mode_expr.embedded_name_str,
       payload
     )
   in
   Exp.apply ~loc ext [Nolabel, exp]
 
 let mkpat_with_modes modes pat =
-  if Mode.is_empty modes then pat
+  if Mode_expr.is_empty modes then pat
   else
-  let attr = Mode.attr_of modes in
+  let attr = Mode_expr.attr_of modes in
   {pat with
    ppat_attributes = attr :: pat.ppat_attributes}
 
 let mktyp_with_modes modes typ =
-  if Mode.is_empty modes then typ
+  if Mode_expr.is_empty modes then typ
   else
-  let attr = Mode.attr_of modes in
+  let attr = Mode_expr.attr_of modes in
   {typ with
    ptyp_attributes = attr :: typ.ptyp_attributes}
 
 let let_binding_mode_attrs modes =
-  if Mode.is_empty modes then []
-  else [Mode.attr_of modes]
+  if Mode_expr.is_empty modes then []
+  else [Mode_expr.attr_of modes]
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -213,17 +213,17 @@ let maybe_curry_typ typ loc =
   | _ -> typ
 
 let mkld_modality modalities ld =
-  if Mode.is_empty modalities
+  if Mode_expr.is_empty modalities
   then ld
   else
-  let attr = Mode.attr_of modalities in
+  let attr = Mode_expr.attr_of modalities in
   { ld with pld_attributes = attr :: ld.pld_attributes }
 
 let mkcty_modality modalities cty =
-  if Mode.is_empty modalities
+  if Mode_expr.is_empty modalities
   then cty
   else
-  let attr = Mode.attr_of modalities in
+  let attr = Mode_expr.attr_of modalities in
   { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
 
 (* TODO define an abstraction boundary between locations-as-pairs
@@ -2707,7 +2707,7 @@ fun_expr:
           Option.map
             (fun x : N_ary.function_constraint ->
               { type_constraint = Pconstraint x
-              ; mode_annotations = Mode.empty
+              ; mode_annotations = Mode_expr.empty
               })
           $4
         in
@@ -2741,7 +2741,7 @@ fun_expr:
 /* END AVOID */
   | mode_legacy seq_expr
      { let {txt; loc} = $1 in
-       mkexp_with_modes $sloc (Mode.singleton txt loc) $2 }
+       mkexp_with_modes $sloc (Mode_expr.singleton txt loc) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2877,7 +2877,7 @@ comprehension_clause_binding:
   | attributes mode_legacy pattern IN expr
       { let {txt; loc} = $2 in
         let expr =
-          mkexp_with_modes $sloc (Mode.singleton txt loc) $5
+          mkexp_with_modes $sloc (Mode_expr.singleton txt loc) $5
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3
@@ -3187,7 +3187,7 @@ strict_binding_modes:
 ;
 %inline strict_binding:
   strict_binding_modes
-    {$1 Mode.empty}
+    {$1 Mode_expr.empty}
 ;
 fun_body:
   | FUNCTION ext_attributes match_cases
@@ -4267,7 +4267,7 @@ strict_function_or_labeled_tuple_type:
       {mkloc $1 (make_loc $sloc)}
 ;
 %inline mode_expr_legacy:
-   | { Mode.empty }
+   | { Mode_expr.empty }
    | mode_expr_legacy_nonempty {$1}
 ;
 %inline param_type:
@@ -4699,15 +4699,15 @@ mutable_flag:
 ;
 mutable_or_global_flag:
     /* empty */
-    { Immutable, Mode.empty }
+    { Immutable, Mode_expr.empty }
   | MUTABLE
-    { Mutable, Mode.empty }
+    { Mutable, Mode_expr.empty }
   | GLOBAL
-    { Immutable, Mode.singleton "global" (make_loc $sloc) }
+    { Immutable, Mode_expr.singleton "global" (make_loc $sloc) }
 ;
 %inline global_flag:
-           { Mode.empty }
-  | GLOBAL { Mode.singleton "global" (make_loc $sloc) }
+           { Mode_expr.empty }
+  | GLOBAL { Mode_expr.singleton "global" (make_loc $sloc) }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

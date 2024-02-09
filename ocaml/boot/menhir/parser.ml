@@ -256,7 +256,7 @@ open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
 module N_ary = Jane_syntax.N_ary_functions
-module Mode = Jane_syntax.Mode_expr
+module Mode_expr = Jane_syntax.Mode_expr
 
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
@@ -379,38 +379,38 @@ let mk_attr ~loc name payload =
 result from native syntax which is only parsed at proper places that are
 guaranteed to be used. *)
 let mkexp_with_modes ?(ghost=false) loc modes exp =
-  if Mode.is_empty modes then exp
+  if Mode_expr.is_empty modes then exp
   else
   let loc =
     if ghost then ghost_loc loc else make_loc loc
   in
-  let payload = Mode.payload_of modes in
+  let payload = Mode_expr.payload_of modes in
   let ext =
     (* Use the loc of the annotation as the loc of the extension node *)
     Exp.extension ~loc:modes.loc (
-      Location.mknoloc Mode.embedded_name_str,
+      Location.mknoloc Mode_expr.embedded_name_str,
       payload
     )
   in
   Exp.apply ~loc ext [Nolabel, exp]
 
 let mkpat_with_modes modes pat =
-  if Mode.is_empty modes then pat
+  if Mode_expr.is_empty modes then pat
   else
-  let attr = Mode.attr_of modes in
+  let attr = Mode_expr.attr_of modes in
   {pat with
    ppat_attributes = attr :: pat.ppat_attributes}
 
 let mktyp_with_modes modes typ =
-  if Mode.is_empty modes then typ
+  if Mode_expr.is_empty modes then typ
   else
-  let attr = Mode.attr_of modes in
+  let attr = Mode_expr.attr_of modes in
   {typ with
    ptyp_attributes = attr :: typ.ptyp_attributes}
 
 let let_binding_mode_attrs modes =
-  if Mode.is_empty modes then []
-  else [Mode.attr_of modes]
+  if Mode_expr.is_empty modes then []
+  else [Mode_expr.attr_of modes]
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -438,17 +438,17 @@ let maybe_curry_typ typ loc =
   | _ -> typ
 
 let mkld_modality modalities ld =
-  if Mode.is_empty modalities
+  if Mode_expr.is_empty modalities
   then ld
   else
-  let attr = Mode.attr_of modalities in
+  let attr = Mode_expr.attr_of modalities in
   { ld with pld_attributes = attr :: ld.pld_attributes }
 
 let mkcty_modality modalities cty =
-  if Mode.is_empty modalities
+  if Mode_expr.is_empty modalities
   then cty
   else
-  let attr = Mode.attr_of modalities in
+  let attr = Mode_expr.attr_of modalities in
   { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
 
 (* TODO define an abstraction boundary between locations-as-pairs
@@ -7851,7 +7851,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -8016,7 +8016,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -8115,7 +8115,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -8280,7 +8280,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -8379,7 +8379,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -8544,7 +8544,7 @@ module Tables = struct
 # 2878 "parsing/parser.mly"
       ( let {txt; loc} = _2 in
         let expr =
-          mkexp_with_modes _sloc (Mode.singleton txt loc) _5
+          mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _5
         in
         Jane_syntax.Comprehensions.
           { pattern    = _3
@@ -9741,7 +9741,7 @@ module Tables = struct
               let x =
                 let gbl = 
 # 4709 "parsing/parser.mly"
-           ( Mode.empty )
+           ( Mode_expr.empty )
 # 9746 "parsing/parser.ml"
                  in
                 
@@ -9812,7 +9812,7 @@ module Tables = struct
                   let _sloc = (_symbolstartpos, _endpos) in
                   
 # 4710 "parsing/parser.mly"
-           ( Mode.singleton "global" (make_loc _sloc) )
+           ( Mode_expr.singleton "global" (make_loc _sloc) )
 # 9817 "parsing/parser.ml"
                   
                 in
@@ -9887,7 +9887,7 @@ module Tables = struct
               let x =
                 let gbl = 
 # 4709 "parsing/parser.mly"
-           ( Mode.empty )
+           ( Mode_expr.empty )
 # 9892 "parsing/parser.ml"
                  in
                 
@@ -9972,7 +9972,7 @@ module Tables = struct
                   let _sloc = (_symbolstartpos, _endpos) in
                   
 # 4710 "parsing/parser.mly"
-           ( Mode.singleton "global" (make_loc _sloc) )
+           ( Mode_expr.singleton "global" (make_loc _sloc) )
 # 9977 "parsing/parser.ml"
                   
                 in
@@ -13673,7 +13673,7 @@ module Tables = struct
           Option.map
             (fun x : N_ary.function_constraint ->
               { type_constraint = Pconstraint x
-              ; mode_annotations = Mode.empty
+              ; mode_annotations = Mode_expr.empty
               })
           _4
         in
@@ -21941,7 +21941,7 @@ module Tables = struct
         
 # 2743 "parsing/parser.mly"
      ( let {txt; loc} = _1 in
-       mkexp_with_modes _sloc (Mode.singleton txt loc) _2 )
+       mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _2 )
 # 21946 "parsing/parser.ml"
          in
         {
@@ -21987,7 +21987,7 @@ module Tables = struct
         
 # 2743 "parsing/parser.mly"
      ( let {txt; loc} = _1 in
-       mkexp_with_modes _sloc (Mode.singleton txt loc) _2 )
+       mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _2 )
 # 21992 "parsing/parser.ml"
          in
         {
@@ -22033,7 +22033,7 @@ module Tables = struct
         
 # 2743 "parsing/parser.mly"
      ( let {txt; loc} = _1 in
-       mkexp_with_modes _sloc (Mode.singleton txt loc) _2 )
+       mkexp_with_modes _sloc (Mode_expr.singleton txt loc) _2 )
 # 22038 "parsing/parser.ml"
          in
         {
@@ -24092,7 +24092,7 @@ module Tables = struct
        (string)
 # 24094 "parsing/parser.ml"
         ) = Obj.magic _1_inlined1 in
-        let _1 : (Asttypes.mutable_flag * Mode.t) = Obj.magic _1 in
+        let _1 : (Asttypes.mutable_flag * Mode_expr.t) = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_inlined3_ in
@@ -24206,7 +24206,7 @@ module Tables = struct
        (string)
 # 24208 "parsing/parser.ml"
         ) = Obj.magic _1_inlined1 in
-        let _1 : (Asttypes.mutable_flag * Mode.t) = Obj.magic _1 in
+        let _1 : (Asttypes.mutable_flag * Mode_expr.t) = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_inlined4_ in
@@ -24908,7 +24908,7 @@ module Tables = struct
         in
         let _3 = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 24913 "parsing/parser.ml"
          in
         
@@ -25121,7 +25121,7 @@ module Tables = struct
         in
         let _3 = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 25126 "parsing/parser.ml"
          in
         
@@ -25298,7 +25298,7 @@ module Tables = struct
         let _endpos = _endpos__5_ in
         let _v : (Asttypes.arg_label * Parsetree.expression option * Parsetree.pattern) = let _3 = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 25303 "parsing/parser.ml"
          in
         
@@ -29491,7 +29491,7 @@ module Tables = struct
           let _1 = _1_inlined1 in
           
 # 3190 "parsing/parser.mly"
-    (_1 Mode.empty)
+    (_1 Mode_expr.empty)
 # 29496 "parsing/parser.ml"
           
         in
@@ -29565,7 +29565,7 @@ module Tables = struct
         let _startpos__2_ = _startpos__1_ in
         let _1 = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 29570 "parsing/parser.ml"
          in
         let (_endpos__1_, _startpos__1_) = (_endpos__0_, _endpos__0_) in
@@ -29791,7 +29791,7 @@ module Tables = struct
         let _startpos__2_ = _startpos__1_ in
         let _1 = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 29796 "parsing/parser.ml"
          in
         let (_endpos__1_, _startpos__1_) = (_endpos__0_, _endpos__0_) in
@@ -30802,7 +30802,7 @@ module Tables = struct
           let _1 = _1_inlined1 in
           
 # 3190 "parsing/parser.mly"
-    (_1 Mode.empty)
+    (_1 Mode_expr.empty)
 # 30807 "parsing/parser.ml"
           
         in
@@ -34094,7 +34094,7 @@ module Tables = struct
           let _1 = _1_inlined2 in
           
 # 3190 "parsing/parser.mly"
-    (_1 Mode.empty)
+    (_1 Mode_expr.empty)
 # 34099 "parsing/parser.ml"
           
         in
@@ -34190,7 +34190,7 @@ module Tables = struct
           let _1 = _1_inlined3 in
           
 # 3190 "parsing/parser.mly"
-    (_1 Mode.empty)
+    (_1 Mode_expr.empty)
 # 34195 "parsing/parser.ml"
           
         in
@@ -37759,9 +37759,9 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _endpos = _startpos in
-        let _v : (Asttypes.mutable_flag * Mode.t) = 
+        let _v : (Asttypes.mutable_flag * Mode_expr.t) = 
 # 4702 "parsing/parser.mly"
-    ( Immutable, Mode.empty )
+    ( Immutable, Mode_expr.empty )
 # 37766 "parsing/parser.ml"
          in
         {
@@ -37784,9 +37784,9 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
-        let _v : (Asttypes.mutable_flag * Mode.t) = 
+        let _v : (Asttypes.mutable_flag * Mode_expr.t) = 
 # 4704 "parsing/parser.mly"
-    ( Mutable, Mode.empty )
+    ( Mutable, Mode_expr.empty )
 # 37791 "parsing/parser.ml"
          in
         {
@@ -37809,12 +37809,12 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__1_ in
-        let _v : (Asttypes.mutable_flag * Mode.t) = let _endpos = _endpos__1_ in
+        let _v : (Asttypes.mutable_flag * Mode_expr.t) = let _endpos = _endpos__1_ in
         let _symbolstartpos = _startpos__1_ in
         let _sloc = (_symbolstartpos, _endpos) in
         
 # 4706 "parsing/parser.mly"
-    ( Immutable, Mode.singleton "global" (make_loc _sloc) )
+    ( Immutable, Mode_expr.singleton "global" (make_loc _sloc) )
 # 37819 "parsing/parser.ml"
          in
         {
@@ -51968,7 +51968,7 @@ module Tables = struct
           let x =
             let gbl = 
 # 4709 "parsing/parser.mly"
-           ( Mode.empty )
+           ( Mode_expr.empty )
 # 51973 "parsing/parser.ml"
              in
             
@@ -52025,7 +52025,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 4710 "parsing/parser.mly"
-           ( Mode.singleton "global" (make_loc _sloc) )
+           ( Mode_expr.singleton "global" (make_loc _sloc) )
 # 52030 "parsing/parser.ml"
               
             in
@@ -52086,7 +52086,7 @@ module Tables = struct
           let x =
             let gbl = 
 # 4709 "parsing/parser.mly"
-           ( Mode.empty )
+           ( Mode_expr.empty )
 # 52091 "parsing/parser.ml"
              in
             
@@ -52157,7 +52157,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 4710 "parsing/parser.mly"
-           ( Mode.singleton "global" (make_loc _sloc) )
+           ( Mode_expr.singleton "global" (make_loc _sloc) )
 # 52162 "parsing/parser.ml"
               
             in
@@ -67415,7 +67415,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 67420 "parsing/parser.ml"
              in
             let label =
@@ -67509,7 +67509,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 67514 "parsing/parser.ml"
              in
             let label =
@@ -67975,7 +67975,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 67980 "parsing/parser.ml"
              in
             let label =
@@ -68080,7 +68080,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 68085 "parsing/parser.ml"
              in
             let label =
@@ -68550,7 +68550,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 68555 "parsing/parser.ml"
              in
             let label = 
@@ -68630,7 +68630,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 68635 "parsing/parser.ml"
              in
             let label = 
@@ -68998,7 +68998,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69003 "parsing/parser.ml"
              in
             let domain =
@@ -69055,7 +69055,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69060 "parsing/parser.ml"
              in
             let label =
@@ -69244,7 +69244,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69249 "parsing/parser.ml"
              in
             let label =
@@ -69328,7 +69328,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69333 "parsing/parser.ml"
              in
             let domain =
@@ -69346,7 +69346,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69351 "parsing/parser.ml"
              in
             let label =
@@ -69467,7 +69467,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69472 "parsing/parser.ml"
              in
             let label =
@@ -69586,7 +69586,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69591 "parsing/parser.ml"
              in
             let domain =
@@ -69956,7 +69956,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 69961 "parsing/parser.ml"
              in
             let domain =
@@ -70250,7 +70250,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70255 "parsing/parser.ml"
              in
             let domain =
@@ -70307,7 +70307,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70312 "parsing/parser.ml"
              in
             let label =
@@ -70507,7 +70507,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70512 "parsing/parser.ml"
              in
             let label =
@@ -70602,7 +70602,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70607 "parsing/parser.ml"
              in
             let domain =
@@ -70620,7 +70620,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70625 "parsing/parser.ml"
              in
             let label =
@@ -70752,7 +70752,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70757 "parsing/parser.ml"
              in
             let label =
@@ -70882,7 +70882,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 70887 "parsing/parser.ml"
              in
             let domain =
@@ -71274,7 +71274,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71279 "parsing/parser.ml"
              in
             let domain =
@@ -71561,7 +71561,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71566 "parsing/parser.ml"
              in
             let domain =
@@ -71618,7 +71618,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71623 "parsing/parser.ml"
              in
             let label = 
@@ -71793,7 +71793,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71798 "parsing/parser.ml"
              in
             let label = 
@@ -71863,7 +71863,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71868 "parsing/parser.ml"
              in
             let domain =
@@ -71881,7 +71881,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71886 "parsing/parser.ml"
              in
             let label = 
@@ -71988,7 +71988,7 @@ module Tables = struct
             in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 71993 "parsing/parser.ml"
              in
             let label = 
@@ -72093,7 +72093,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 72098 "parsing/parser.ml"
              in
             let domain =
@@ -72435,7 +72435,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 72440 "parsing/parser.ml"
              in
             let domain =
@@ -72714,7 +72714,7 @@ module Tables = struct
             let (_endpos_tuple_, _startpos_tuple_) = (_endpos_xs_, _startpos_ty_) in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 72719 "parsing/parser.ml"
              in
             let _loc_tuple_ = (_startpos_tuple_, _endpos_tuple_) in
@@ -72953,7 +72953,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 72958 "parsing/parser.ml"
              in
             let tuple =
@@ -72978,7 +72978,7 @@ module Tables = struct
             let (_endpos_tuple_, _startpos_tuple_) = (_endpos_xs_, _startpos_ty_) in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 72983 "parsing/parser.ml"
              in
             let _loc_tuple_ = (_startpos_tuple_, _endpos_tuple_) in
@@ -73125,7 +73125,7 @@ module Tables = struct
             let (_endpos_tuple_, _startpos_tuple_) = (_endpos_xs_, _startpos_ty_) in
             let arg_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 73130 "parsing/parser.ml"
              in
             let _loc_tuple_ = (_startpos_tuple_, _endpos_tuple_) in
@@ -73235,7 +73235,7 @@ module Tables = struct
           let _1 =
             let ret_modes = 
 # 4270 "parsing/parser.mly"
-     ( Mode.empty )
+     ( Mode_expr.empty )
 # 73240 "parsing/parser.ml"
              in
             let tuple =
