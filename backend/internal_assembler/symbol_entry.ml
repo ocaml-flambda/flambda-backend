@@ -78,7 +78,7 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
     string_table =
   let value = Option.value ~default:0 symbol.sy_pos in
   let size = Option.value ~default:0 symbol.sy_size in
-  let bind =
+  let st_type =
     match symbol.sy_type with
     (* CR mcollins - modify types to avoid string comparisons *)
     | Some "@function" -> 2
@@ -89,15 +89,15 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
     | Some s -> failwith ("Unknown symbol type" ^ s)
     | None -> 0
   in
-  let locality =
-    match symbol.sy_locality with
+  let st_binding =
+    match symbol.sy_binding with
     | Sy_local -> 0
     | Sy_global -> 1
     | Sy_weak -> 2
   in
   let symbol_entry =
     { st_name = String_table.current_length string_table;
-      st_info = (locality lsl 4) lor bind;
+      st_info = (st_binding lsl 4) lor st_type;
       st_other = if symbol.sy_protected then 3 else 0;
       st_shndx =
         Section_table.get_sec_idx sections

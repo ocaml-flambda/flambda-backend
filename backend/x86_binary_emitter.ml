@@ -64,13 +64,13 @@ module Relocation = struct
   type t = { offset_from_section_beginning : int; kind : Kind.t }
 end
 
-type symbol_locality = Sy_local | Sy_global | Sy_weak
+type symbol_binding = Sy_local | Sy_global | Sy_weak
 
 type symbol = {
   sy_name : string;
   mutable sy_type : string option;
   mutable sy_size : int option;
-  mutable sy_locality : symbol_locality;
+  mutable sy_binding : symbol_binding;
   mutable sy_protected : bool;
   mutable sy_sec : section;
   mutable sy_pos : int option;
@@ -114,7 +114,7 @@ let get_symbol b s =
         sy_type = None;
         sy_size = None;
         sy_pos = None;
-        sy_locality = Sy_local;
+        sy_binding = Sy_local;
         sy_protected = false;
         sy_num = None;
         sy_sec = b.sec;
@@ -2063,8 +2063,8 @@ let assemble_line b loc ins =
         assemble_instr b loc instr;
         incr loc
     | Comment _ -> ()
-    | Global sym -> (get_symbol b sym).sy_locality <- Sy_global
-    | Weak sym -> (get_symbol b sym).sy_locality <- Sy_weak
+    | Global sym -> (get_symbol b sym).sy_binding <- Sy_global
+    | Weak sym -> (get_symbol b sym).sy_binding <- Sy_weak
     | Protected sym -> (get_symbol b sym).sy_protected <- true
     | Quad (Const n) -> buf_int64L b n
     | Quad cst ->
