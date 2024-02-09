@@ -730,3 +730,22 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_attr_check_none.output test_attr_check_none.output.corrected)
  (action (diff test_attr_check_none.output test_attr_check_none.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail24.output.corrected)
+ (deps (:ml fail24.ml) filter.sh)
+ (action
+   (with-outputs-to fail24.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail24.output fail24.output.corrected)
+ (action (diff fail24.output fail24.output.corrected)))
