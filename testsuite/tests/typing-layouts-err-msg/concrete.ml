@@ -135,7 +135,7 @@ external eq : t_any -> 'a -> bool = "%equal"
 Line 1, characters 14-19:
 1 | external eq : t_any -> 'a -> bool = "%equal"
                   ^^^^^
-Error: External types must have a representable layout.
+Error: Types in an external must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
@@ -149,7 +149,7 @@ external eq : 'a -> 'a -> t_any = "%equal"
 Line 1, characters 26-31:
 1 | external eq : 'a -> 'a -> t_any = "%equal"
                               ^^^^^
-Error: External types must have a representable layout.
+Error: Types in an external must have a representable layout.
        The layout of t_any is any, because
          of the definition of t_any at line 1, characters 0-16.
        But the layout of t_any must be representable, because
