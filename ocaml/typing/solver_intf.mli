@@ -165,7 +165,13 @@ module type Solver_polarized = sig
   type 'd polarized constraint 'd = 'l * 'r
 
   (** A mode with carrier type ['a] and left/right status ['d] derived from the
-     morphism it contains. See comments for [morph] for the format of ['d] *)
+     morphism it contains. See comments for [morph] for the format of ['d].
+
+      A [mode] that is [allowed] on the left means it can appear as the lower
+      mode in a [submode] call. This is useful for a mode that is inferred of an
+      expression.  On the other hand, a [mode] that is [allowed] on the right
+      means it can appear as the upper mode in a [submode] call. This is useful
+      for a mode that is *expected* as the mode of an expression.  *)
   type ('a, 'd) mode constraint 'd = 'l * 'r
 
   (** The mode type for the opposite polarity. *)
