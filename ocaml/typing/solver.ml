@@ -37,6 +37,18 @@ module Magic_allow_disallow (X : Allow_disallow) :
 end
 [@@inline]
 
+module Magic_equal (X : Equal) :
+  Equal with type ('a, 'b, 'c) t = ('a, 'b, 'c) X.t = struct
+  type ('a, 'b, 'd) t = ('a, 'b, 'd) X.t
+
+  let equal :
+      type a0 a1 b l0 l1 r0 r1.
+      (a0, b, l0 * r0) t -> (a1, b, l1 * r1) t -> (a0, a1) Misc.eq option =
+   fun x0 x1 ->
+    if Obj.repr x0 = Obj.repr x1 then Some (Obj.magic Misc.Refl) else None
+end
+[@@inline]
+
 type 'a error =
   { left : 'a;
     right : 'a

@@ -319,25 +319,25 @@ module Lattices = struct
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
 
-  (** Expensive but correct version. Not used. We instead use [eq_obj]. For
-      soundness, we must ensure this correct version is _just_ %equal. *)
-  let _eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
-   fun a b ->
-    match a, b with
-    | Locality, Locality -> Some Misc.Refl
-    | Regionality, Regionality -> Some Misc.Refl
-    | Uniqueness_op, Uniqueness_op -> Some Misc.Refl
-    | Linearity, Linearity -> Some Misc.Refl
-    | Comonadic_with_locality, Comonadic_with_locality -> Some Misc.Refl
-    | Comonadic_with_regionality, Comonadic_with_regionality -> Some Misc.Refl
-    | ( ( Locality | Regionality | Uniqueness_op | Linearity
-        | Comonadic_with_locality | Comonadic_with_regionality ),
-        _ ) ->
-      None
+  module Equal_obj = Magic_equal (struct
+    type ('a, _, 'd) t = 'a obj constraint 'd = 'l * 'r
 
-  let eq_obj : type a b. a obj -> b obj -> (a, b) Misc.eq option =
-   fun a b ->
-    if Obj.repr a = Obj.repr b then Some (Obj.magic Misc.Refl) else None
+    let equal : type a b. a obj -> b obj -> (a, b) Misc.eq option =
+     fun a b ->
+      match a, b with
+      | Locality, Locality -> Some Misc.Refl
+      | Regionality, Regionality -> Some Misc.Refl
+      | Uniqueness_op, Uniqueness_op -> Some Misc.Refl
+      | Linearity, Linearity -> Some Misc.Refl
+      | Comonadic_with_locality, Comonadic_with_locality -> Some Misc.Refl
+      | Comonadic_with_regionality, Comonadic_with_regionality -> Some Misc.Refl
+      | ( ( Locality | Regionality | Uniqueness_op | Linearity
+          | Comonadic_with_locality | Comonadic_with_regionality ),
+          _ ) ->
+        None
+  end)
+
+  let eq_obj = Equal_obj.equal
 end
 
 module Lattices_mono = struct
@@ -507,61 +507,61 @@ module Lattices_mono = struct
       let src1 = src dst1 f1 in
       prod_obj src0 src1
 
-  (** Expensive but correct version. Not used. We instead use [eq_morph].
-      For soundness, we must ensure this correct version is _just_ %equal. *)
-  let rec _eq_morph :
-      type a0 l0 r0 a1 b l1 r1.
-      (a0, b, l0 * r0) morph ->
-      (a1, b, l1 * r1) morph ->
-      (a0, a1) Misc.eq option =
-   fun f0 f1 ->
-    match f0, f1 with
-    | Id, Id -> Some Refl
-    | Proj (src0, ax0), Proj (src1, ax1) -> (
-      match eq_obj src0 src1 with
-      | Some Refl -> (
-        match Product.eq_axis ax0 ax1 with
-        | None -> None
-        | Some Refl -> Some Refl)
-      | None -> None)
-    | Max_with ax0, Max_with ax1 -> (
-      match Product.eq_axis ax0 ax1 with Some Refl -> Some Refl | None -> None)
-    | Min_with ax0, Min_with ax1 -> (
-      match Product.eq_axis ax0 ax1 with Some Refl -> Some Refl | None -> None)
-    | Const_min src0, Const_min src1 -> (
-      match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
-    | Const_max src0, Const_max src1 -> (
-      match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
-    | Unique_to_linear, Unique_to_linear -> Some Refl
-    | Linear_to_unique, Linear_to_unique -> Some Refl
-    | Local_to_regional, Local_to_regional -> Some Refl
-    | Locality_as_regionality, Locality_as_regionality -> Some Refl
-    | Global_to_regional, Global_to_regional -> Some Refl
-    | Regional_to_local, Regional_to_local -> Some Refl
-    | Regional_to_global, Regional_to_global -> Some Refl
-    | Compose (f0, g0), Compose (f1, g1) -> (
-      match eq_morph f0 f1 with
-      | None -> None
-      | Some Refl -> (
-        match eq_morph g0 g1 with None -> None | Some Refl -> Some Refl))
-    | Map (f0, f1), Map (g0, g1) -> (
-      match eq_morph f0 g0, eq_morph f1 g1 with
-      | Some Refl, Some Refl -> Some Refl
-      | _, _ -> None)
-    | ( ( Id | Proj _ | Max_with _ | Min_with _ | Const_min _ | Const_max _
-        | Unique_to_linear | Linear_to_unique | Local_to_regional
-        | Locality_as_regionality | Global_to_regional | Regional_to_local
-        | Regional_to_global | Compose _ | Map _ ),
-        _ ) ->
-      None
+  module Equal_morph = Magic_equal (struct
+    type ('a, 'b, 'd) t = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
 
-  and eq_morph :
-      type a0 l0 r0 a1 b l1 r1.
-      (a0, b, l0 * r0) morph ->
-      (a1, b, l1 * r1) morph ->
-      (a0, a1) Misc.eq option =
-   fun f0 f1 ->
-    if Obj.repr f0 = Obj.repr f1 then Some (Obj.magic Misc.Refl) else None
+    let rec equal :
+        type a0 l0 r0 a1 b l1 r1.
+        (a0, b, l0 * r0) morph ->
+        (a1, b, l1 * r1) morph ->
+        (a0, a1) Misc.eq option =
+     fun f0 f1 ->
+      match f0, f1 with
+      | Id, Id -> Some Refl
+      | Proj (src0, ax0), Proj (src1, ax1) -> (
+        match eq_obj src0 src1 with
+        | Some Refl -> (
+          match Product.eq_axis ax0 ax1 with
+          | None -> None
+          | Some Refl -> Some Refl)
+        | None -> None)
+      | Max_with ax0, Max_with ax1 -> (
+        match Product.eq_axis ax0 ax1 with
+        | Some Refl -> Some Refl
+        | None -> None)
+      | Min_with ax0, Min_with ax1 -> (
+        match Product.eq_axis ax0 ax1 with
+        | Some Refl -> Some Refl
+        | None -> None)
+      | Const_min src0, Const_min src1 -> (
+        match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
+      | Const_max src0, Const_max src1 -> (
+        match eq_obj src0 src1 with Some Refl -> Some Refl | None -> None)
+      | Unique_to_linear, Unique_to_linear -> Some Refl
+      | Linear_to_unique, Linear_to_unique -> Some Refl
+      | Local_to_regional, Local_to_regional -> Some Refl
+      | Locality_as_regionality, Locality_as_regionality -> Some Refl
+      | Global_to_regional, Global_to_regional -> Some Refl
+      | Regional_to_local, Regional_to_local -> Some Refl
+      | Regional_to_global, Regional_to_global -> Some Refl
+      | Compose (f0, g0), Compose (f1, g1) -> (
+        match equal f0 f1 with
+        | None -> None
+        | Some Refl -> (
+          match equal g0 g1 with None -> None | Some Refl -> Some Refl))
+      | Map (f0, f1), Map (g0, g1) -> (
+        match equal f0 g0, equal f1 g1 with
+        | Some Refl, Some Refl -> Some Refl
+        | _, _ -> None)
+      | ( ( Id | Proj _ | Max_with _ | Min_with _ | Const_min _ | Const_max _
+          | Unique_to_linear | Linear_to_unique | Local_to_regional
+          | Locality_as_regionality | Global_to_regional | Regional_to_local
+          | Regional_to_global | Compose _ | Map _ ),
+          _ ) ->
+        None
+  end)
+
+  let eq_morph = Equal_morph.equal
 
   let rec print_morph :
       type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
