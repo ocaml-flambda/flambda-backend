@@ -128,9 +128,12 @@ module type Lattices_mono = sig
 
   (** Checks if two morphisms are equal. If so, returns [Some Refl].
     Used for deduplication only; it is fine (but not recommended) to return
-   [None] for equal morphisms *)
+   [None] for equal morphisms.
+
+    While a [morph] must be acompanied by a destination [obj] to uniquely
+    identify a morphism, two [morph] sharing the same destination can be
+    compared on their own. *)
   val eq_morph :
-    'b obj ->
     ('a0, 'b, 'l0 * 'r0) morph ->
     ('a1, 'b, 'l1 * 'r1) morph ->
     ('a0, 'a1) Misc.eq option

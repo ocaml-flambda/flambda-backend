@@ -511,11 +511,10 @@ module Lattices_mono = struct
       For soundness, we must ensure this correct version is _just_ %equal. *)
   let rec _eq_morph :
       type a0 l0 r0 a1 b l1 r1.
-      b obj ->
       (a0, b, l0 * r0) morph ->
       (a1, b, l1 * r1) morph ->
       (a0, a1) Misc.eq option =
-   fun obj f0 f1 ->
+   fun f0 f1 ->
     match f0, f1 with
     | Id, Id -> Some Refl
     | Proj (src0, ax0), Proj (src1, ax1) -> (
@@ -541,15 +540,12 @@ module Lattices_mono = struct
     | Regional_to_local, Regional_to_local -> Some Refl
     | Regional_to_global, Regional_to_global -> Some Refl
     | Compose (f0, g0), Compose (f1, g1) -> (
-      match eq_morph obj f0 f1 with
+      match eq_morph f0 f1 with
       | None -> None
       | Some Refl -> (
-        let mid = src obj f0 in
-        match eq_morph mid g0 g1 with None -> None | Some Refl -> Some Refl))
+        match eq_morph g0 g1 with None -> None | Some Refl -> Some Refl))
     | Map (f0, f1), Map (g0, g1) -> (
-      let obj0 = proj_obj Axis0 obj in
-      let obj1 = proj_obj Axis1 obj in
-      match eq_morph obj0 f0 g0, eq_morph obj1 f1 g1 with
+      match eq_morph f0 g0, eq_morph f1 g1 with
       | Some Refl, Some Refl -> Some Refl
       | _, _ -> None)
     | ( ( Id | Proj _ | Max_with _ | Min_with _ | Const_min _ | Const_max _
@@ -561,11 +557,10 @@ module Lattices_mono = struct
 
   and eq_morph :
       type a0 l0 r0 a1 b l1 r1.
-      b obj ->
       (a0, b, l0 * r0) morph ->
       (a1, b, l1 * r1) morph ->
       (a0, a1) Misc.eq option =
-   fun _ f0 f1 ->
+   fun f0 f1 ->
     if Obj.repr f0 = Obj.repr f1 then Some (Obj.magic Misc.Refl) else None
 
   let rec print_morph :
