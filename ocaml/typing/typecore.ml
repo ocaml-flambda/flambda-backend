@@ -580,6 +580,11 @@ let mode_exact mode exact =
   { (mode_default mode) with
     exact = Some exact }
 
+(** Takes [marg:Alloc.lr] extracted from the arrow type and returns the real
+mode of argument, after taking into consideration partial application and
+tail-call. Returns [expected_mode] and [Value.lr] which are backed by the same
+mode variable. We encode extra position information in the former. We need the
+latter to the both left and right mode because of how it will be used. *)
 let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   let vmode , _ = Value.newvar_below (alloc_as_value marg) in
   if partial_app then mode_default vmode, vmode
