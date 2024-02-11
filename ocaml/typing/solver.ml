@@ -310,11 +310,12 @@ module Solver_mono (C : Lattices_mono) = struct
       type a l.
       log:_ -> a C.obj -> a -> (a, l * allowed) morphvar -> (unit, a) Result.t =
    fun ~log obj a (Amorphvar (v, f) as mv) ->
-    (* Want a <= f v, therefore f' a <= v, where f' is the left adjoint of f.
-       Ideally the two are equivalent. However, [f v] could have been implicitly
-       injected from a smaller lattice to the current larger lattice, where also
-       lives [a]. That means [a] could be outside of [f]'s co-domain, which is
-       also [f']'s domain - so applying [f'] to [a] could be invalid.
+    (* Requested [a <= f v], therefore [f' a <= v], where [f'] is the left
+       adjoint of [f]. We should just apply [f'] to [a] and use that to
+       constrain [v].
+
+       However, we aim to support a wider of notion of adjunction, where [f' a]
+       is well-defined only if [a] falls in [f]'s codomain.
 
        Note that we don't request the co-domain of [f] from [Lattices_mono] for
        simplicity. Instead, note that we need to check [a] against [f v] anyway,
@@ -325,7 +326,7 @@ module Solver_mono (C : Lattices_mono) = struct
        - If [a <= (f v).lower], immediately succeed
        - If not [a <= (f v).upper], immediately fail
        - Note that at this point, we still can't ensure that [a >= (f v).lower].
-         (We don't assume linear ordering, for best generality)
+         (We don't assume total ordering, for best generality)
         Therefore, we set [a] to [join a (f v).lower], and have now ensured that
         [a] is within the range of [f v], and thus the co-domain of [f], and
         thus it's safe to apply [f'] to [a]. *)

@@ -122,6 +122,18 @@ module type Lattices_mono = sig
      allowed * r". But ocaml doesn't like existentials, and this weaker version
      is good enough for us *)
 
+  (* Usual notion of adjunction f -| g :
+      [f x <= y] iff [x <= g y].
+
+     Our solver accepts a wider notion of adjunction and allows [f] and [g] to
+     be partial. They need to satisfy:
+     - If [f x <= y] and [y] is within [f]'s codomain, then [g] is well-defined
+     on [y] and [x <= g y].
+     - If not [f x <= y], we don't require anything about [g] on [y].
+     - If [y] is out of [f]'s codomain, we don't require anything about [g] on [y].
+
+     Similar in the other direction from [g] to [f]. *)
+
   (** Give left adjoint of a morphism  *)
   val left_adjoint :
     'b obj -> ('a, 'b, 'l * allowed) morph -> ('b, 'a, left_only) morph
