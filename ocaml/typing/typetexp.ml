@@ -706,7 +706,6 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
-          (* XXX jrodirguez: unsure about this resolution... *)
           let l = transl_label l (Some arg) in
           let arg_cty =
             if Btype.is_position l then
