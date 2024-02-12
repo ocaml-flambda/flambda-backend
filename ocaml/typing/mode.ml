@@ -1698,7 +1698,7 @@ module Alloc = struct
         Linearity.Const.join l1 r1,
         Uniqueness.Const.join l2 r2 )
 
-    (** constrain uncurried function ret_mode from arg_mode *)
+    (** See [Alloc.close_over] for explanation. *)
     let close_over (locality, linearity, uniqueness) =
       let locality' = locality in
       (* uniqueness of the returned function is not constrained *)
@@ -1712,7 +1712,7 @@ module Alloc = struct
       in
       locality', linearity', uniqueness'
 
-    (** constrain uncurried function ret_mode from the mode of the whole function *)
+    (** See [Alloc.partial_apply] for explanation. *)
     let partial_apply (locality, linearity, _) =
       let locality' = locality in
       let uniqueness' = Uniqueness.Const.min in
@@ -1720,16 +1720,29 @@ module Alloc = struct
       locality', linearity', uniqueness'
   end
 
+  (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
+    C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
+    give the lower bound mode of [B -> C]. *)
   let close_over comonadic monadic =
+    (* If [A] is [local], [B -> C] containining a pointer to [A] must
+       be [local] too. *)
     let locality = min_with_locality (Comonadic.locality comonadic) in
-    (* uniqueness of the returned function is not constrained *)
+    (* [B -> C] is arrow type and thus crosses uniqueness *)
+    (* If [A] is [once], [B -> C] containing a pointer to [A] must be [once] too
+    *)
     let linearity0 = min_with_linearity (Comonadic.linearity comonadic) in
+    (* Moreover, if [A] is [unique], [B -> C] must be [once]. *)
     let linearity1 =
       min_with_linearity (unique_to_linear (Monadic.uniqueness monadic))
     in
     join [locality; linearity0; linearity1]
 
-  let partial_apply alloc_mode = set_uniqueness_min alloc_mode
+  (** Similar to above, but we are given the mode of [A -> B -> C], and need to
+      give the lower bound mode of [B -> C]. *)
+  let partial_apply alloc_mode =
+    (* [B -> C] should be always higher than [A -> B -> C] except the uniqueness
+       axis where it's not constrained *)
+    set_uniqueness_min alloc_mode
 end
 
 let alloc_as_value m =

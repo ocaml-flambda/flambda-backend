@@ -316,10 +316,10 @@ module type S = sig
           with type t =
             Locality.Const.t * Linearity.Const.t * Uniqueness.Const.t
 
-      (** Returns the lower bound needed for a closure in relation to argument *)
+      (** Similar to [Alloc.close_over] but for constants *)
       val close_over : t -> t
 
-      (** Returns the lower bound needed for a closure in relation to the outer function *)
+      (** Similar to [Alloc.partial_apply] but for constants *)
       val partial_apply : t -> t
     end
 
@@ -383,10 +383,14 @@ module type S = sig
 
     val zap_to_legacy : lr -> Const.t
 
-    (** Returns the lower bound needed for a closure in relation to argument *)
+    (* The following two are about the scenario where we partially apply a
+       function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
+       three are constrained. *)
+
+    (** Returns the lower bound needed for [B -> C] in relation to [A] *)
     val close_over : (allowed * 'r) Comonadic.t -> ('l * allowed) Monadic.t -> l
 
-    (** Returns the lower bound needed for a closure in relation to the outer function *)
+    (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
     val partial_apply : (allowed * 'r) t -> l
   end
 
