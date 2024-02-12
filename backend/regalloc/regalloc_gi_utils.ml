@@ -135,7 +135,7 @@ module Spilling_heuristics = struct
     | Hierarchical_uses
     | Random_for_testing
 
-  let all = [Flat_uses; Hierarchical_uses]
+  let all = [Flat_uses; Hierarchical_uses; Random_for_testing]
 
   let to_string = function
     | Flat_uses -> "flat_uses"
