@@ -885,13 +885,13 @@ let has_mode_annotation annots annot =
     (fun x -> Jane_syntax.N_ary_functions.mode_annotation_equal x.txt annot)
     annots
 
-let mode_annots_none = (None, None, None)
+let mode_annots_none = Alloc.Const.Option.none
 
 (* CR-someday: The [mode_annots_from_*] family of functions sweeps through
    the list of attributes multiple times. Once should be enough.
 *)
 
-let mode_annots_from_pat_attrs sp =
+let mode_annots_from_pat_attrs sp : Alloc.Const.Option.t =
   let locality =
     if has_local_attr_pat sp then Some Locality.Const.Local
     else None
@@ -902,15 +902,9 @@ let mode_annots_from_pat_attrs sp =
     if has_once_attr_pat sp then Some Linearity.Const.Once
     else None
   in
-  (locality, linearity, uniqueness)
+  {locality; linearity; uniqueness}
 
-let mode_annots_or_default (locality, linearity, uniqueness) ~default:(locality', linearity', uniqueness') =
-  let locality = Option.value locality ~default:locality' in
-  let uniqueness = Option.value uniqueness ~default:uniqueness' in
-  let linearity = Option.value linearity ~default:linearity' in
-  (locality, linearity, uniqueness)
-
-let mode_annots_from_exp_attrs exp =
+let mode_annots_from_exp_attrs exp : Alloc.Const.Option.t =
   let locality =
     if has_local_attr_exp exp then Some Locality.Const.Local
     else None
@@ -921,9 +915,9 @@ let mode_annots_from_exp_attrs exp =
     if has_once_attr_exp exp then Some Linearity.Const.Once
     else None
   in
-  (locality, linearity, uniqueness)
+  {locality; linearity; uniqueness}
 
-let mode_annots_from_n_ary_function_annotations annots =
+let mode_annots_from_n_ary_function_annotations annots : Alloc.Const.Option.t =
   let locality =
      if has_mode_annotation annots Local then Some Locality.Const.Local
      else None
@@ -934,9 +928,9 @@ let mode_annots_from_n_ary_function_annotations annots =
     if has_mode_annotation annots Once then Some Linearity.Const.Once
     else None
   in
-  (locality, linearity, uniqueness)
+  {locality; linearity; uniqueness}
 
-let apply_mode_annots ~loc ~env ~ty_expected (locality, linearity, uniqueness) mode =
+let apply_mode_annots ~loc ~env ~ty_expected (m : Alloc.Const.Option.t) mode =
   let error axis =
     raise (Error(loc, env, Param_mode_mismatch (ty_expected, axis)))
   in
@@ -944,17 +938,17 @@ let apply_mode_annots ~loc ~env ~ty_expected (locality, linearity, uniqueness) m
     match Locality.equate (Locality.of_const locality) (Alloc.locality mode) with
     | Ok () -> ()
     | Error (s, e) -> error (s, `Locality e)
-    ) locality;
+    ) m.locality;
   Option.iter (fun uniqueness ->
     match Uniqueness.equate (Uniqueness.of_const uniqueness) (Alloc.uniqueness mode) with
     | Ok () -> ()
     | Error (s, e) -> error (s, `Uniqueness e)
-    ) uniqueness;
+    ) m.uniqueness;
   Option.iter (fun linearity ->
     match Linearity.equate (Linearity.of_const linearity) (Alloc.linearity mode) with
     | Ok () -> ()
     | Error (s, e) -> error (s, `Linearity e)
-    ) linearity
+    ) m.linearity
 
 (* Typing of patterns *)
 
@@ -2855,7 +2849,7 @@ and type_pat_aux
       let cty, ty, expected_ty' =
         let mode_annots = mode_annots_from_pat_attrs sp in
         let type_modes =
-          mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+          Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
         in
         solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
       in
@@ -4167,7 +4161,7 @@ let type_pattern_approx env spat ty_expected =
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
       let mode_annots = mode_annots_from_pat_attrs spat in
       let arg_type_mode =
-        mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+        Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
       in
       let ty_pat =
         Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
@@ -6508,7 +6502,7 @@ and type_coerce
     constraint_arg
   in
   let type_mode =
-    mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+    Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
   in
   match sty with
   | None ->
@@ -6585,7 +6579,7 @@ and type_constraint env sty mode_annots =
   let cty =
     with_local_level begin fun () ->
       let type_mode =
-        mode_annots_or_default mode_annots ~default:Alloc.Const.legacy
+        Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
       in
       Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
     end

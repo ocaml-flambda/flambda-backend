@@ -1552,28 +1552,6 @@ module Alloc = struct
       (Monadic.print ?raw ?verbose ())
       monadic
 
-  let zap_to_floor { comonadic; monadic } =
-    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
-    | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
-
-  let zap_to_ceil { comonadic; monadic } =
-    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
-    | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
-
-  let zap_to_legacy { comonadic; monadic } =
-    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
-    | uniqueness, (locality, linearity) -> locality, linearity, uniqueness
-
-  let check_const { comonadic; monadic } =
-    let locality, linearity = Comonadic.check_const comonadic in
-    let uniqueness = Monadic.check_const monadic in
-    locality, linearity, uniqueness
-
-  let of_const (locality, linearity, uniqueness) =
-    let comonadic = Comonadic.of_const (locality, linearity) in
-    let monadic = Monadic.of_const uniqueness in
-    { comonadic; monadic }
-
   let legacy =
     let comonadic = Comonadic.legacy in
     let monadic = Monadic.legacy in
@@ -1671,54 +1649,116 @@ module Alloc = struct
     { comonadic; monadic }
 
   module Const = struct
-    type t = Locality.Const.t * Linearity.Const.t * Uniqueness.Const.t
+    type ('loc, 'lin, 'uni) modes =
+      { locality : 'loc;
+        linearity : 'lin;
+        uniqueness : 'uni
+      }
 
-    let min = Locality.Const.min, Linearity.Const.min, Uniqueness.Const.min
+    type t = (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
-    let max = Locality.Const.max, Linearity.Const.max, Uniqueness.Const.max
+    let of_const { locality; linearity; uniqueness } =
+      let comonadic = Comonadic.of_const (locality, linearity) in
+      let monadic = Monadic.of_const uniqueness in
+      { comonadic; monadic }
 
-    let le (locality0, linearity0, uniqueness0)
-        (locality1, linearity1, uniqueness1) =
-      Locality.Const.le locality0 locality1
-      && Uniqueness.Const.le uniqueness0 uniqueness1
-      && Linearity.Const.le linearity0 linearity1
+    let min =
+      let locality = Locality.Const.min in
+      let linearity = Linearity.Const.min in
+      let uniqueness = Uniqueness.Const.min in
+      { locality; linearity; uniqueness }
+
+    let max =
+      let locality = Locality.Const.max in
+      let linearity = Linearity.Const.max in
+      let uniqueness = Uniqueness.Const.max in
+      { locality; linearity; uniqueness }
+
+    let le m0 m1 =
+      Locality.Const.le m0.locality m1.locality
+      && Uniqueness.Const.le m0.uniqueness m1.uniqueness
+      && Linearity.Const.le m0.linearity m1.linearity
 
     let print ppf m = print () ppf (of_const m)
 
     let legacy =
-      Locality.Const.legacy, Linearity.Const.legacy, Uniqueness.Const.legacy
+      let locality = Locality.Const.legacy in
+      let linearity = Linearity.Const.legacy in
+      let uniqueness = Uniqueness.Const.legacy in
+      { locality; linearity; uniqueness }
 
-    let meet (l0, l1, l2) (r0, r1, r2) =
-      ( Locality.Const.meet l0 r0,
-        Linearity.Const.meet l1 r1,
-        Uniqueness.Const.meet l2 r2 )
+    let meet m0 m1 =
+      let locality = Locality.Const.meet m0.locality m1.locality in
+      let linearity = Linearity.Const.meet m0.linearity m1.linearity in
+      let uniqueness = Uniqueness.Const.meet m0.uniqueness m1.uniqueness in
+      { locality; linearity; uniqueness }
 
-    let join (l0, l1, l2) (r0, r1, r2) =
-      ( Locality.Const.join l0 r0,
-        Linearity.Const.join l1 r1,
-        Uniqueness.Const.join l2 r2 )
+    let join m0 m1 =
+      let locality = Locality.Const.join m0.locality m1.locality in
+      let linearity = Linearity.Const.join m0.linearity m1.linearity in
+      let uniqueness = Uniqueness.Const.join m0.uniqueness m1.uniqueness in
+      { locality; linearity; uniqueness }
+
+    module Option = struct
+      type some = t
+
+      type t =
+        ( Locality.Const.t option,
+          Linearity.Const.t option,
+          Uniqueness.Const.t option )
+        modes
+
+      let none = { locality = None; uniqueness = None; linearity = None }
+
+      let value opt ~default =
+        let locality = Option.value opt.locality ~default:default.locality in
+        let uniqueness =
+          Option.value opt.uniqueness ~default:default.uniqueness
+        in
+        let linearity = Option.value opt.linearity ~default:default.linearity in
+        { locality; uniqueness; linearity }
+    end
 
     (** See [Alloc.close_over] for explanation. *)
-    let close_over (locality, linearity, uniqueness) =
-      let locality' = locality in
+    let close_over m =
+      let locality = m.locality in
       (* uniqueness of the returned function is not constrained *)
-      let uniqueness' = Uniqueness.Const.min in
-      let linearity' =
-        Linearity.Const.join linearity
+      let uniqueness = Uniqueness.Const.min in
+      let linearity =
+        Linearity.Const.join m.linearity
           (* In addition, unique argument make the returning function once.
              In other words, if argument <= unique, returning function >= once.
              That is, returning function >= (dual of argument) *)
-          (Const.unique_to_linear uniqueness)
+          (Const.unique_to_linear m.uniqueness)
       in
-      locality', linearity', uniqueness'
+      { locality; linearity; uniqueness }
 
     (** See [Alloc.partial_apply] for explanation. *)
-    let partial_apply (locality, linearity, _) =
-      let locality' = locality in
-      let uniqueness' = Uniqueness.Const.min in
-      let linearity' = linearity in
-      locality', linearity', uniqueness'
+    let partial_apply m =
+      let locality = m.locality in
+      let uniqueness = Uniqueness.Const.min in
+      let linearity = m.linearity in
+      { locality; linearity; uniqueness }
   end
+
+  let of_const = Const.of_const
+
+  let zap_to_floor { comonadic; monadic } : Const.t =
+    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
+    | uniqueness, (locality, linearity) -> { locality; linearity; uniqueness }
+
+  let zap_to_ceil { comonadic; monadic } : Const.t =
+    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
+    | uniqueness, (locality, linearity) -> { locality; linearity; uniqueness }
+
+  let zap_to_legacy { comonadic; monadic } : Const.t =
+    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
+    | uniqueness, (locality, linearity) -> { locality; linearity; uniqueness }
+
+  let check_const { comonadic; monadic } : Const.Option.t =
+    let locality, linearity = Comonadic.check_const comonadic in
+    let uniqueness = Monadic.check_const monadic in
+    { locality; linearity; uniqueness }
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
     C]. [comonadic] and [monadic] constutute the mode of [A], and we need to

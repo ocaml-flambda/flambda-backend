@@ -311,10 +311,30 @@ module type S = sig
     end
 
     module Const : sig
+      type ('loc, 'lin, 'uni) modes =
+        { locality : 'loc;
+          linearity : 'lin;
+          uniqueness : 'uni
+        }
+
       include
         Lattice
           with type t =
-            Locality.Const.t * Linearity.Const.t * Uniqueness.Const.t
+            (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+      module Option : sig
+        type some = t
+
+        type t =
+          ( Locality.Const.t option,
+            Linearity.Const.t option,
+            Uniqueness.Const.t option )
+          modes
+
+        val none : t
+
+        val value : t -> default:some -> some
+      end
 
       (** Similar to [Alloc.close_over] but for constants *)
       val close_over : t -> t
@@ -345,11 +365,7 @@ module type S = sig
       ('l * 'r) t ->
       unit
 
-    val check_const :
-      ('l * 'r) t ->
-      Locality.Const.t option
-      * Linearity.Const.t option
-      * Uniqueness.Const.t option
+    val check_const : ('l * 'r) t -> Const.Option.t
 
     val locality : ('l * 'r) t -> ('l * 'r) Locality.t
 

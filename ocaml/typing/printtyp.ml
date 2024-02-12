@@ -1241,7 +1241,9 @@ let out_jkind_option_of_jkind jkind =
     else None
 
 let tree_of_mode mode =
-  let (locality, linearity, uniqueness) = Alloc.check_const mode in
+  let {locality; linearity; uniqueness} : Alloc.Const.Option.t
+    = Alloc.check_const mode
+  in
   let oam_locality =
     match locality with
     | Some Global -> Olm_global
