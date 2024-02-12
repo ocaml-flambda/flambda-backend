@@ -97,8 +97,6 @@ let is_untagged = function
 
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
-(* Same as [List.init n (fun _ -> x)]. Keeping this function here
-   to be close to upstream.  *)
 let rec make_prim_repr_args arity x =
   if arity = 0 then
     []
