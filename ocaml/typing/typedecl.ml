@@ -2241,6 +2241,14 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
     begin match get_desc (Ctype.get_unboxed_type_approximation env ty) with
+    (* This only captures tvar with jkind [any] explicitly quantified within
+       the declaration.
+
+       This is truth since [transl_type_scheme] promises that:
+       - non-explicitly quantified tvars get sort jkinds
+       - can't reference tvars from outer scopes ([TyVarEnv] gets
+         reset before transl)
+    *)
     | Tvar {jkind} when is_layout_poly
                       && Jkind.is_any jkind
                       && get_level ty = Btype.generic_level -> Repr_poly
