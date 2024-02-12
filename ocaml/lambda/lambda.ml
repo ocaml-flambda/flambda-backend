@@ -1869,4 +1869,4 @@ let simple_prim_on_values ~name ~arity ~alloc =
       (Primitive.make_prim_repr_args arity
         (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
     ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
-    ~is_layout_representation_polymorphic:false
+    ~is_layout_poly:false

@@ -26,7 +26,12 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc =
+  | Cstr_tuple
+  | Record
+  | Unboxed_record
+  | External
+  | External_with_layout_poly
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -2219,10 +2224,14 @@ let error_if_has_deep_native_repr_attributes core_type =
    However, there can be jkind [any] present with something like:
     [external f : ('a : any). 'a -> 'a = "%identity"]
    In such cases, we raise an expection. *)
-let type_sort_external ~why env loc typ =
+let type_sort_external ~is_layout_poly ~why env loc typ =
   match Ctype.type_sort ~why env typ with
   | Ok s -> Jkind.Sort.get_default_value s
-  | Error err -> raise (Error (loc,Jkind_sort {kloc = External; typ; err}))
+  | Error err ->
+    let kloc =
+      if is_layout_poly then External_with_layout_poly else External
+    in
+    raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
@@ -2241,7 +2250,9 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
                       && Jkind.is_any jkind
                       && get_level ty = Btype.generic_level -> Repr_poly
     | __ ->
-      let sort = type_sort_external ~why env core_type.ptyp_loc ty in
+      let sort =
+        type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
+      in
       Same_as_ocaml_repr sort
     end
   | Native_repr_attr_present kind ->
@@ -2322,7 +2333,7 @@ let check_unboxable env loc ty =
 
 let unexpected_jkind_any_check prim env cty ty =
   if Primitive.prim_can_contain_jkind_any prim ||
-     prim.prim_is_representation_poly then ()
+     prim.prim_is_layout_poly then ()
   else
   let has_any =
     List.exists
@@ -2383,7 +2394,7 @@ let non_value_arg_or_res_check prim cty =
 
       For this reason, we have [unexpected_jkind_any_check].
       It's here to point out these type of mistakes early and
-      suggest the use of [@rep_poly].
+      suggest the use of [@layout_poly].
 
    An exception would be raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =
@@ -2420,7 +2431,7 @@ let transl_value_decl env loc valdecl =
       in
       let is_layout_poly =
         Attr_helper.has_no_payload_attribute
-          ["rep_poly"; "ocaml.rep_poly"]
+          ["layout_poly"; "ocaml.layout_poly"]
           valdecl.pval_attributes
       in
       let native_repr_args, native_repr_res =
@@ -3056,8 +3067,17 @@ let report_error ppf = function
       | Record -> "Record element types"
       | Unboxed_record -> "Unboxed record element types"
       | External -> "Types in an external"
+      | External_with_layout_poly -> "Types in an external"
     in
-    fprintf ppf "@[%s must have a representable layout.@ %a@]" s
+    let extra =
+      match kloc with
+      | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
+      | External_with_layout_poly -> dprintf
+        "@ (variables with layout 'any' are made representable@ \
+          by [@@layout_poly])"
+    in
+    fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
+      extra
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
@@ -3072,7 +3092,7 @@ let report_error ppf = function
       | Cstr_tuple -> "Variants"
       | Record -> "Records"
       | Unboxed_record -> "Unboxed records"
-      | External -> assert false
+      | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
@@ -3114,7 +3134,7 @@ let report_error ppf = function
   | Unexpected_jkind_any_in_primitive(name) ->
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
-           layout any. Consider using [@@rep_poly].@]" name
+           layout any. Consider using [@@layout_poly].@]" name
   | Non_value_arg_or_res_in_primitive(name) ->
       fprintf ppf
         "@[The primitive [%s] doesn't yet support argument/return types@ \

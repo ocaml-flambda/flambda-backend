@@ -52,7 +52,7 @@ type 'repr description_gen =
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * 'repr) list;
     prim_native_repr_res: mode * 'repr;
-    prim_is_representation_poly: bool }
+    prim_is_layout_poly: bool }
 
 type description = native_repr description_gen
 
@@ -105,7 +105,7 @@ let rec make_prim_repr_args arity x =
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res
-      ~is_layout_representation_polymorphic =
+      ~is_layout_poly =
   {prim_name = name;
    prim_arity = List.length native_repr_args;
    prim_alloc = alloc;
@@ -115,7 +115,7 @@ let make ~name ~alloc ~c_builtin ~effects ~coeffects
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_representation_poly = is_layout_representation_polymorphic }
+   prim_is_layout_poly = is_layout_poly }
 
 let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly =
   let arity = List.length native_repr_args in
@@ -148,7 +148,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
       valdecl.pval_attributes
   in
   let is_builtin_prim = is_builtin_prim_name name in
-  let prim_is_representation_poly =
+  let prim_is_layout_poly =
     match is_builtin_prim, is_layout_poly with
     | false, true ->  raise (Error (valdecl.pval_loc,
                         Invalid_representation_polymorphic_attribute))
@@ -227,7 +227,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_representation_poly }
+   prim_is_layout_poly }
 
 open Outcometree
 
@@ -255,7 +255,7 @@ let oattr_no_effects = { oattr_name = "no_effects" }
 let oattr_only_generative_effects = { oattr_name = "only_generative_effects" }
 let oattr_no_coeffects = { oattr_name = "no_coeffects" }
 let oattr_local_opt = { oattr_name = "local_opt" }
-let oattr_rep_poly = { oattr_name = "rep_poly" }
+let oattr_layout_poly = { oattr_name = "layout_poly" }
 
 let print p osig_val_decl =
   let prims =
@@ -289,8 +289,8 @@ let print p osig_val_decl =
       attrs
   in
   let attrs =
-    if p.prim_is_representation_poly then
-      oattr_rep_poly :: attrs
+    if p.prim_is_layout_poly then
+      oattr_layout_poly :: attrs
     else
       attrs
   in
@@ -464,7 +464,7 @@ let report_error ppf err =
     Format.fprintf ppf "Cannot use [%@%@no_generative_effects] \
                         in conjunction with [%@%@noalloc]."
   | Invalid_representation_polymorphic_attribute ->
-    Format.fprintf ppf "Attribute [%@rep_poly] can only be used \
+    Format.fprintf ppf "Attribute [%@layout_poly] can only be used \
                         on built-in primitives."
 
 let () =
