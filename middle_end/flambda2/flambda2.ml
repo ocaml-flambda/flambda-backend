@@ -137,31 +137,31 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
       match mode, close_program_metadata with
       | Classic, Classic (code, reachable_names, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
-        then
-          let output_prefix = prefixname ^ ".cps_conv" in
-          let inlining_tree =
-            Inlining_report.output_then_forget_decisions ~output_prefix
-          in
-          Compiler_hooks.execute Inlining_tree inlining_tree);
+         then
+           let output_prefix = prefixname ^ ".cps_conv" in
+           let inlining_tree =
+             Inlining_report.output_then_forget_decisions ~output_prefix
+           in
+           Compiler_hooks.execute Inlining_tree inlining_tree);
         raw_flambda, offsets, reachable_names, cmx, code
       | Normal, Normal ->
         let round = 0 in
-        let { Simplify.unit = flambda;
-              exported_offsets;
-              cmx;
+        let { Simplify.free_names;
+              final_typing_env;
               all_code;
-              reachable_names
+              slot_offsets;
+              unit = flambda
             } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
               Simplify.run ~cmx_loader ~round ~code_slot_offsets raw_flambda)
         in
         (if Flambda_features.inlining_report ()
-        then
-          let output_prefix = Printf.sprintf "%s.%d" prefixname round in
-          let inlining_tree =
-            Inlining_report.output_then_forget_decisions ~output_prefix
-          in
-          Compiler_hooks.execute Inlining_tree inlining_tree);
+         then
+           let output_prefix = Printf.sprintf "%s.%d" prefixname round in
+           let inlining_tree =
+             Inlining_report.output_then_forget_decisions ~output_prefix
+           in
+           Compiler_hooks.execute Inlining_tree inlining_tree);
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
@@ -177,6 +177,16 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
             print_flexpect "cleanup" ppf ~raw_flambda flambda;
             flambda, all_code
         in
+        let { Simplify.unit = flambda;
+              exported_offsets;
+              cmx;
+              all_code;
+              reachable_names
+            } =
+          Simplify.build_simplify_result flambda ~free_names ~final_typing_env
+            ~all_code slot_offsets
+        in
+        Compiler_hooks.execute Cleaned_flambda2 flambda;
         flambda, exported_offsets, reachable_names, cmx, all_code
     in
     (match cmx with
