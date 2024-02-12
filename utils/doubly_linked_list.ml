@@ -1,7 +1,7 @@
 type 'a node =
   | Empty
   | Node of
-      { value : 'a;
+      { mutable value : 'a;
         mutable prev : 'a node;
         mutable next : 'a node
       }
@@ -71,6 +71,13 @@ let value cell =
     (* internal invariant: cell's nodes are not empty *)
     assert false
   | Node node -> node.value
+
+let set_value cell v =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node node -> node.value <- v
 
 let prev cell =
   match cell.node with
