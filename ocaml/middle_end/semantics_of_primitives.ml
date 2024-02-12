@@ -60,7 +60,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pasrint
   | Pintcomp _
   | Punboxed_int_comp _ -> No_effects, No_coeffects
-  | Pcompare_ints | Pcompare_floats Pfloat64 | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }
   | Pmodbint { is_safe = Unsafe }
@@ -74,18 +74,18 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       Arbitrary_effects, No_coeffects
   | Poffsetint _ -> No_effects, No_coeffects
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
-  | Punbox_float Pfloat64 | Punbox_int _
-  | Pintoffloat Pfloat64
-  | Pfloatcomp (Pfloat64, _)
-  | Punboxed_float_comp (Pfloat64, _) -> No_effects, No_coeffects
-  | Pbox_float (Pfloat64, m) | Pbox_int (_, m)
-  | Pfloatofint (Pfloat64, m)
-  | Pnegfloat (Pfloat64, m)
-  | Pabsfloat (Pfloat64, m)
-  | Paddfloat (Pfloat64, m)
-  | Psubfloat (Pfloat64, m)
-  | Pmulfloat (Pfloat64, m)
-  | Pdivfloat (Pfloat64, m) -> No_effects, coeffects_of m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> No_effects, No_coeffects
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> No_effects, coeffects_of m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> No_effects, No_coeffects
   | Pisint
@@ -211,22 +211,22 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Plsrint
   | Pasrint
   | Pintcomp _ -> false
-  | Pcompare_ints | Pcompare_floats Pfloat64 | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> false
   | Poffsetint _ -> false
   | Poffsetref _ -> false
-  | Punbox_float Pfloat64 | Punbox_int _
-  | Pintoffloat Pfloat64
-  | Pfloatcomp (Pfloat64, _)
-  | Punboxed_float_comp (Pfloat64, _) -> false
-  | Pbox_float (Pfloat64, m) | Pbox_int (_, m)
-  | Pfloatofint (Pfloat64, m)
-  | Pnegfloat (Pfloat64, m)
-  | Pabsfloat (Pfloat64, m)
-  | Paddfloat (Pfloat64, m)
-  | Psubfloat (Pfloat64, m)
-  | Pmulfloat (Pfloat64, m)
-  | Pdivfloat (Pfloat64, m) -> is_local_alloc m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> false
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> is_local_alloc m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> false
   | Pisint

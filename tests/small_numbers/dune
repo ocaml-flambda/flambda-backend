@@ -1,0 +1,24 @@
+(executables
+ (names basic)
+ (modules basic)
+ (ocamlopt_flags
+  (:standard -extension small_numbers)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets basic.out)
+ (deps basic.exe)
+ (action
+  (progn
+   (with-outputs-to
+    basic.out
+    (run ./basic.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (action
+  (progn
+   (diff empty.expected basic.out))))

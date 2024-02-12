@@ -714,6 +714,9 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
     | Dynamic_size, Punboxedfloatarray Pfloat64 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
+    | (Fixed_size | Dynamic_size), Punboxedfloatarray Pfloat32 ->
+        (* CR mslater: (float32) array support *)
+        assert false
     | Dynamic_size, Punboxedintarray Pint32 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
     | Dynamic_size, Punboxedintarray Pint64 ->
@@ -811,6 +814,9 @@ let body
     | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray Pfloat64
     | Punboxedintarray _ ->
         set_element_in_bounds body
+    | Punboxedfloatarray Pfloat32 ->
+      (* CR mslater: (float32) array support *)
+      assert false
   in
   Lsequence(
     set_element_known_kind_in_bounds,
@@ -821,7 +827,7 @@ let comprehension
       { comp_body; comp_clauses } =
   (match array_kind with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
-  | Punboxedfloatarray Pfloat64 | Punboxedintarray _ ->
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
     if not !Clflags.native_code then
       Misc.fatal_errorf
         "Array comprehensions for kind %s are not allowed in bytecode"

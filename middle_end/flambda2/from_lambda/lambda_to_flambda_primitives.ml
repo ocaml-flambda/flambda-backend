@@ -129,6 +129,9 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Paddrarray -> Array_kind Values
   | Pintarray -> Array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 -> Array_kind Naked_floats
+  | Punboxedfloatarray Pfloat32 ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
   | Punboxedintarray Pnativeint -> Array_kind Naked_nativeints
@@ -169,6 +172,9 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Pintarray_ref -> Array_ref_kind Immediates
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
   | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
+  | Punboxedfloatarray_ref Pfloat32 ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
   | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
@@ -224,6 +230,9 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Pintarray_set -> Array_set_kind Immediates
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
   | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
+  | Punboxedfloatarray_set Pfloat32 ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
   | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
@@ -254,6 +263,9 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
   | Pintarray -> Duplicate_array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     Duplicate_array_kind (Naked_floats { length = None })
+  | Punboxedfloatarray Pfloat32 ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Punboxedintarray Pint32 ->
     Duplicate_array_kind (Naked_int32s { length = None })
   | Punboxedintarray Pint64 ->
@@ -847,7 +859,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       let args =
         match lambda_array_kind with
         | Pgenarray | Paddrarray | Pintarray
-        | Punboxedfloatarray Pfloat64
+        | Punboxedfloatarray (Pfloat64 | Pfloat32)
         | Punboxedintarray (Pint32 | Pint64 | Pnativeint) ->
           args
         | Pfloatarray -> List.map unbox_float args
@@ -980,6 +992,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Naked_float,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
+  | Pintoffloat Pfloat32, _
+  | Pfloatofint (Pfloat32, _), _
+  | Pnegfloat (Pfloat32, _), _
+  | Pabsfloat (Pfloat32, _), _
+  | Paddfloat (Pfloat32, _), _
+  | Psubfloat (Pfloat32, _), _
+  | Pmulfloat (Pfloat32, _), _
+  | Pdivfloat (Pfloat32, _), _
+  | Pfloatcomp (Pfloat32, _), _
+  | Punbox_float Pfloat32, _
+  | Pbox_float (Pfloat32, _), _
+  | Pcompare_floats Pfloat32, _
+  | Punboxed_float_comp (Pfloat32, _), _ ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in
     [Unary (Unbox_number kind, arg)]
@@ -1568,15 +1595,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbigstring_load_128 _
       | Parrayrefu
           ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-          | Punboxedfloatarray_ref Pfloat64
-          | Punboxedintarray_ref _ )
+          | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ )
       | Parrayrefs
           ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-          | Punboxedfloatarray_ref Pfloat64
-          | Punboxedintarray_ref _ )
-      | Pcompare_ints
-      | Pcompare_floats Pfloat64
-      | Pcompare_bints _ | Patomic_exchange | Patomic_fetch_add ),
+          | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ )
+      | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
+      | Patomic_fetch_add ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -1589,12 +1613,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | ( ( Psetfield_computed _ | Pbytessetu | Pbytessets
       | Parraysetu
           ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-          | Punboxedfloatarray_set Pfloat64
-          | Punboxedintarray_set _ )
+          | Punboxedfloatarray_set _ | Punboxedintarray_set _ )
       | Parraysets
           ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-          | Punboxedfloatarray_set Pfloat64
-          | Punboxedintarray_set _ )
+          | Punboxedfloatarray_set _ | Punboxedintarray_set _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
       | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
       | Pbigstring_set_128 _ | Patomic_cas ),

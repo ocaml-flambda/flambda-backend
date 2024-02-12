@@ -887,24 +887,24 @@ let rec choice ctx t =
     | Plslint | Plsrint | Pasrint
     | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
-    | Pintoffloat Pfloat64 | Pfloatofint (Pfloat64, _)
-    | Pnegfloat (Pfloat64, _) | Pabsfloat (Pfloat64, _)
-    | Paddfloat (Pfloat64, _) | Psubfloat (Pfloat64, _)
-    | Pmulfloat (Pfloat64, _) | Pdivfloat (Pfloat64, _)
-    | Pfloatcomp (Pfloat64, _) | Punboxed_float_comp (Pfloat64, _)
+    | Pintoffloat _ | Pfloatofint (_, _)
+    | Pnegfloat (_, _) | Pabsfloat (_, _)
+    | Paddfloat (_, _) | Psubfloat (_, _)
+    | Pmulfloat (_, _) | Pdivfloat (_, _)
+    | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
     | Pisint _ | Pisout
     | Pignore
-    | Pcompare_ints | Pcompare_floats Pfloat64 | Pcompare_bints _
+    | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
 
     (* we don't handle effect or DLS primitives *)
     | Prunstack | Pperform | Presume | Preperform | Pdls_get
 
     (* we don't handle atomic primitives *)
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
-    | Punbox_float Pfloat64 | Pbox_float (Pfloat64, _)
+    | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)

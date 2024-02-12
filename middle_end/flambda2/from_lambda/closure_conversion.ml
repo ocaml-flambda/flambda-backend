@@ -119,6 +119,9 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
+  | Const_base (Const_float32 _c) ->
+    (* CR mslater: (float32) middle end support *)
+    assert false
   | Const_base (Const_int32 c) ->
     register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
@@ -504,6 +507,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
     | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
+    | _, Unboxed_float Pfloat32 ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
@@ -532,6 +538,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           (from_lambda_values_and_unboxed_numbers_only
              (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
+    | Unboxed_float Pfloat32 ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
@@ -621,6 +630,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
           | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
+          | _, Unboxed_float Pfloat32 ->
+            (* CR mslater: (float32) middle end support *)
+            assert false
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
@@ -808,18 +820,17 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
       | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats Pfloat64
-      | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat Pfloat64
-      | Pfloatofint (Pfloat64, _)
-      | Pnegfloat (Pfloat64, _)
-      | Pabsfloat (Pfloat64, _)
-      | Paddfloat (Pfloat64, _)
-      | Psubfloat (Pfloat64, _)
-      | Pmulfloat (Pfloat64, _)
-      | Pdivfloat (Pfloat64, _)
-      | Pfloatcomp (Pfloat64, _)
-      | Punboxed_float_comp (Pfloat64, _)
+      | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat _
+      | Pfloatofint (_, _)
+      | Pnegfloat (_, _)
+      | Pabsfloat (_, _)
+      | Paddfloat (_, _)
+      | Psubfloat (_, _)
+      | Pmulfloat (_, _)
+      | Pdivfloat (_, _)
+      | Pfloatcomp (_, _)
+      | Punboxed_float_comp (_, _)
       | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu
       | Pbytessetu | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _
       | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _
@@ -835,9 +846,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
       | Pbigstring_set_64 _ | Pbigstring_set_128 _ | Pctconst _ | Pbswap16
       | Pbbswap _ | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _
-      | Pobj_dup | Pobj_magic _
-      | Punbox_float Pfloat64
-      | Pbox_float (Pfloat64, _)
+      | Pobj_dup | Pobj_magic _ | Punbox_float _
+      | Pbox_float (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas

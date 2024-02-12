@@ -23,6 +23,7 @@ let boxed_integer_name = function
 
 let boxed_float_name = function
   | Lambda.Pfloat64 -> "float"
+  | Lambda.Pfloat32 -> "float32"
 
 let boxed_integer_mark name = function
   | Lambda.Pnativeint -> Printf.sprintf "Nativeint.%s" name
@@ -60,6 +61,7 @@ let print_unboxed_integer name ppf bi m =
 let boxed_float_mark name bf m =
   match bf with
   | Lambda.Pfloat64 -> Printf.sprintf "Float.%s%s" name (alloc_kind m)
+  | Lambda.Pfloat32 -> Printf.sprintf "Float32.%s%s" name (alloc_kind m)
 
 let print_boxed_float name ppf bf m =
   fprintf ppf "%s" (boxed_float_mark name bf m);;
@@ -67,6 +69,7 @@ let print_boxed_float name ppf bf m =
 let unboxed_float_mark name bf m =
   match bf with
   | Lambda.Pfloat64 -> Printf.sprintf "Float_u.%s%s" name (alloc_kind m)
+  | Lambda.Pfloat32 -> Printf.sprintf "Float32_u.%s%s" name (alloc_kind m)
 
 let print_unboxed_float name ppf bf m =
   fprintf ppf "%s" (unboxed_float_mark name bf m);;
@@ -79,6 +82,7 @@ let array_kind array_kind =
   | Pintarray -> "int"
   | Pfloatarray -> "float"
   | Punboxedfloatarray Pfloat64 -> "unboxed_float"
+  | Punboxedfloatarray Pfloat32 -> "unboxed_float32"
   | Punboxedintarray Pint32 -> "unboxed_int32"
   | Punboxedintarray Pint64 -> "unboxed_int64"
   | Punboxedintarray Pnativeint -> "unboxed_nativeint"
@@ -95,6 +99,7 @@ let pp_array_ref_kind ppf k =
   | Pintarray_ref -> fprintf ppf "int"
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
   | Punboxedfloatarray_ref Pfloat64 -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_ref Pfloat32 -> fprintf ppf "unboxed_float32"
   | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -111,6 +116,7 @@ let pp_array_set_kind ppf k =
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
   | Punboxedfloatarray_set Pfloat64 -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_set Pfloat32 -> fprintf ppf "unboxed_float32"
   | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
