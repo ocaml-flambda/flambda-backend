@@ -3770,7 +3770,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              in
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
-             let mode_closed_args = List.map (fun m -> Alloc.close_over m.comonadic m.monadic) closed_args in
+             let mode_closed_args = List.map Alloc.close_over closed_args in
              let mode_partial_fun = Alloc.partial_apply mode_fun in
              let mode_closure, _ =
                Alloc.newvar_above (Alloc.join
@@ -4944,7 +4944,7 @@ let split_function_ty
       function *)
       let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
       begin match
-        Alloc.submode (Alloc.close_over arg_mode.comonadic arg_mode.monadic) inner_alloc_mode
+        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
       with
       | Ok () -> ()
       | Error e ->

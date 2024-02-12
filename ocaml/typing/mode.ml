@@ -1763,7 +1763,7 @@ module Alloc = struct
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
     C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
     give the lower bound mode of [B -> C]. *)
-  let close_over comonadic monadic =
+  let close_over { comonadic; monadic } =
     (* If [A] is [local], [B -> C] containining a pointer to [A] must
        be [local] too. *)
     let locality = min_with_locality (Comonadic.locality comonadic) in

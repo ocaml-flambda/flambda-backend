@@ -1595,7 +1595,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
-        Alloc.close_over marg.comonadic marg.monadic;
+        Alloc.close_over marg;
         Alloc.partial_apply macc
        ]
      in
