@@ -1578,29 +1578,30 @@ let prim_mode mvar = function
     | Some mvar -> mvar
     | None -> assert false
 
+(** Returns a new mode variable whose locality is the given locality, while
+    all other axes are from the given [m]. This function is too specific to be
+    put in [mode.ml] *)
+let with_locality locality m =
+  let m' = Alloc.newvar () in
+  Locality.equate_exn (Alloc.locality m') locality;
+  Alloc.submode_exn m' (Alloc.set_locality_max m);
+  Alloc.submode_exn (Alloc.set_locality_min m) m';
+  m'
+
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
-      let marg' = Alloc.newvar () in
-      Locality.equate_exn (Alloc.locality marg') (prim_mode (Some mvar) l);
-      Alloc.submode_exn marg' (Alloc.set_locality_max marg);
-      Alloc.submode_exn (Alloc.set_locality_min marg) marg';
-      let marg = marg' in
+     let marg = with_locality  (prim_mode (Some mvar) l) marg in
      let macc =
-       Alloc.join [Alloc.disallow_right mret;
-         Alloc.close_over marg.comonadic marg.monadic;
-         Alloc.partial_apply macc
+       Alloc.join [
+        Alloc.disallow_right mret;
+        Alloc.close_over marg.comonadic marg.monadic;
+        Alloc.partial_apply macc
        ]
      in
      let mret =
        match locals with
-       | [] -> begin
-          let mret' = Alloc.newvar () in
-          Alloc.submode_exn mret' (Alloc.set_locality_max mret);
-          Alloc.submode_exn (Alloc.set_locality_min mret) mret';
-          Locality.equate_exn (Alloc.locality mret') finalret;
-          mret'
-       end
+       | [] -> with_locality finalret mret
        | _ :: _ ->
           let mret', _ = Alloc.newvar_above macc in (* curried arrow *)
           mret'
