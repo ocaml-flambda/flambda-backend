@@ -95,6 +95,8 @@ let is_untagged = function
   | _, Unboxed_integer _
   | _, Repr_poly -> false
 
+let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
+
 (* Same as [List.init n (fun _ -> x)]. Keeping this function here
    to be close to upstream.  *)
 let rec make_prim_repr_args arity x =
@@ -147,7 +149,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
                                           "ocaml.only_generative_effects"]
       valdecl.pval_attributes
   in
-  let is_builtin_prim = String.length name > 0 && name.[0] = '%' in
+  let is_builtin_prim = is_builtin_prim_name name in
   let prim_is_layout_representation_polymorphic =
     match is_builtin_prim, is_layout_poly with
     | false, true ->  raise (Error (valdecl.pval_loc,
@@ -400,6 +402,43 @@ let equal_coeffects cf1 cf2 =
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
+
+let prim_can_have_non_value_arg_or_res prim =
+  match prim.prim_name with
+  | "%identity"
+  | "%ignore"
+  | "%revapply"
+  | "%apply"
+  | "%array_safe_get"
+  | "%array_safe_set"
+  | "%array_unsafe_get"
+  | "%array_unsafe_set"
+  | "%opaque"
+  | "%send"
+  | "%sendself"
+  | "%sendcache"
+  | "%obj_magic"
+  | "%unbox_float"
+  | "%box_float"
+  | "%unbox_nativeint"
+  | "%box_nativeint"
+  | "%unbox_int32"
+  | "%box_int32"
+  | "%unbox_int64"
+  | "%box_int64" -> true
+  | name when is_builtin_prim_name name -> false
+  | _ ->
+    (* make no assumptions about external c primitives *)
+    true
+
+let prim_can_contain_jkind_any prim =
+  match prim.prim_name with
+  | "%array_length"
+  | "%array_safe_get"
+  | "%array_safe_set"
+  | "%array_unsafe_get"
+  | "%array_unsafe_set" -> false
+  | _ -> true
 
 let report_error ppf err =
   match err with

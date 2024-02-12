@@ -90,9 +90,14 @@ end = struct
   external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
 end
 
+let g1 () = S.id #1.0
+let g2 () = S.id "abc"
+
 [%%expect{|
 module S :
   sig external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly] end
+val g1 : unit -> float# = <fun>
+val g2 : unit -> string = <fun>
 |}]
 
 (* together with local_opt *)
@@ -102,12 +107,17 @@ end = struct
   external[@rep_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
 end
 
+let g1 () = S.id #1.0
+let g2 () = S.id "abc"
+
 [%%expect{|
 module S :
   sig
     external id : ('a : any). ('a [@local_opt]) -> ('a [@local_opt])
       = "%identity" [@@rep_poly]
   end
+val g1 : unit -> float# = <fun>
+val g2 : unit -> string = <fun>
 |}]
 
 
@@ -490,4 +500,26 @@ let id' x = id x
 [%%expect{|
 external id : ('a : any). 'a t -> int = "%identity"
 val id' : ('a : any). 'a t -> int = <fun>
+|}]
+
+
+(***************************************************************)
+(* Some primitives can't have rep_poly or any non-value jkinds *)
+
+external[@rep_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
+[%%expect{|
+Line 1, characters 26-46:
+1 | external[@rep_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
+                              ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%obj_dup] doesn't yet support argument/return types
+       with non-value layouts.
+|}]
+
+external dup : float# -> float# = "%obj_dup"
+[%%expect{|
+Line 1, characters 15-31:
+1 | external dup : float# -> float# = "%obj_dup"
+                   ^^^^^^^^^^^^^^^^
+Error: The primitive [%obj_dup] doesn't yet support argument/return types
+       with non-value layouts.
 |}]
