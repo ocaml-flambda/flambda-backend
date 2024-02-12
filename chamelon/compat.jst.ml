@@ -7,6 +7,7 @@ let dummy_value_mode = Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
+  let label = Typetexp.transl_label label None in
   Tarrow ((label, Alloc.legacy, Alloc.legacy), t1, t2, comm)
 
 type texp_ident_identifier = ident_kind * unique_use
@@ -19,6 +20,29 @@ type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
 
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
+  (* XXX jrodri for goldfirere: Question! I am unsure if my approach for fixing
+     this subdirectory is sane. It seems like chamelon needs to run on both a "JST" version
+     and an "upstream" version. The JST version changes Typedtree with a new arg_label,
+     while the upstream version still does not have this new arg_label type.
+
+     jrodri: My first approach was to make this entire subdirectory use
+     [Typedtree.arg_label] which made `make minimizer` build fine, but
+     sadly made `make minimizer-upstream` fail. I then made the mli's keep
+     using [Asttypes.arg_label], and only perform the conversion here in
+     [compat.jst.ml] like in the diff below; however, I think this sadly means
+     that - since I always send in None/don't have access to the [core_type]/the
+     original AST pattern with the [(... : [%src_pos])] constraint, I may not
+     be able to retrieve things here...
+
+     jrodriguez: In the context of chamelon, is the below segment correct?
+     jrodriguez: Should my approach for fixing the [make minimizer] <-> [make
+     minimizer-upstream] compatibility relationship be different? (e.g. maybe changing the
+     dune.upstream/dune.jst files to be aware of the Typedtree change?/something else?)
+     Thanks!
+  *)
+  let args =
+    List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
+  in
   Texp_apply (exp, args, pos, mode)
 
 type texp_tuple_identifier = string option list * Alloc.t
@@ -119,6 +143,7 @@ let mkTexp_function ?(id = texp_function_defaults)
                  param_identifier = id;
                  optional_default;
                } ->
+            let arg_label = Typetexp.transl_label arg_label None in
             {
               fp_arg_label = arg_label;
               fp_kind =
@@ -189,11 +214,18 @@ type matched_expression_desc =
       expression * computation case list * partial * texp_match_identifier
   | O of expression_desc
 
+let untype_label = function
+  | Typedtree.Position l | Labelled l -> Asttypes.Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
+
 let view_texp (e : expression_desc) =
   match e with
   | Texp_ident (path, longident, vd, ident_kind, uu) ->
       Texp_ident (path, longident, vd, (ident_kind, uu))
-  | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
+  | Texp_apply (exp, args, pos, mode) ->
+      let args = List.map (fun (label, x) -> (untype_label label, x)) args in
+      Texp_apply (exp, args, (pos, mode))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
   | Texp_tuple (args, mode) ->
@@ -210,7 +242,7 @@ let view_texp (e : expression_desc) =
               | Tparam_pat pattern -> (pattern, None)
             in
             {
-              arg_label = param.fp_arg_label;
+              arg_label = untype_label param.fp_arg_label;
               param = param.fp_param;
               partial = param.fp_partial;
               pattern;
