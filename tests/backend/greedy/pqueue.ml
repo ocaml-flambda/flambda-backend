@@ -55,7 +55,8 @@ module Test (I : Order with type t = int) = struct
             else if Q.is_empty q then assert (M.is_empty !m)
             else deq q m
         done;
-        while not (Q.is_empty q) do deq q m done
+        while not (Q.is_empty q) do deq q m done;
+        assert (M.is_empty !m)
     ;;
 end
 
