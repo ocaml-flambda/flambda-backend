@@ -249,58 +249,58 @@ module type S = sig
   val f : 'a -> t -> 'a
 end
 
-let f (type a : any) () =
+let f (type a1 : any) () =
   let module M = struct
-    type t = a
-    external[@rep_poly] f : ('a : any). 'a -> a -> 'a = "%apply"
+    type t = a1
+    external[@rep_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
 module type S = sig type t val f : 'a -> t -> 'a end
-Line 9, characters 46-47:
-9 |     external[@rep_poly] f : ('a : any). 'a -> a -> 'a = "%apply"
-                                                  ^
+Line 9, characters 46-48:
+9 |     external[@rep_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
+                                                  ^^
 Error: Types in an external must have a representable layout.
-       The layout of a is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a must be representable, because
+       The layout of a1 is any, because
+         of the annotation on the abstract type declaration for a1.
+       But the layout of a1 must be representable, because
          it's the type of an argument in an external declaration.
 |}]
 
-let f (type a : any) () =
+let f (type a2 : any) () =
   let module M = struct
-    type t = a
-    external[@rep_poly] f : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
+    type t = a2
+    external[@rep_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
-Line 4, characters 46-58:
-4 |     external[@rep_poly] f : ('a : any). 'a -> a t_with_any -> 'a = "%apply"
-                                                  ^^^^^^^^^^^^
+Line 4, characters 46-59:
+4 |     external[@rep_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
+                                                  ^^^^^^^^^^^^^
 Error: Types in an external must have a representable layout.
-       The layout of a/2 t_with_any is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a/2 t_with_any must be representable, because
+       The layout of a2 t_with_any is any, because
+         of the annotation on the abstract type declaration for a2.
+       But the layout of a2 t_with_any must be representable, because
          it's the type of an argument in an external declaration.
 |}]
 
-let f (type a : any) () =
+let f (type a3 : any) () =
   let module M = struct
-    type t = a
-    external[@rep_poly] f : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
+    type t = a3
+    external[@rep_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
-Line 4, characters 46-55:
-4 |     external[@rep_poly] f : ('a : any). 'a -> a M_any.t -> 'a = "%apply"
-                                                  ^^^^^^^^^
+Line 4, characters 46-56:
+4 |     external[@rep_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
+                                                  ^^^^^^^^^^
 Error: Types in an external must have a representable layout.
-       The layout of a/3 M_any.t is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a/3 M_any.t must be representable, because
+       The layout of a3 M_any.t is any, because
+         of the annotation on the abstract type declaration for a3.
+       But the layout of a3 M_any.t must be representable, because
          it's the type of an argument in an external declaration.
 |}]
 
