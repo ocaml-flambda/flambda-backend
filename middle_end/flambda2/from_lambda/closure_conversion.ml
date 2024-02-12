@@ -459,8 +459,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   if prim_is_layout_poly
   then
     Misc.fatal_errorf
-      "close_c_call: C call primitive %s can't be layout polymorphic."
-      prim_name;
+      "close_c_call: C call primitive %s can't be layout polymorphic." prim_name;
   let args =
     List.map
       (function

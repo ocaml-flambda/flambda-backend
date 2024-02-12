@@ -1092,8 +1092,8 @@ end = struct
     | Layout_poly_in_external ->
       fprintf ppf
         "it's the layout polymorphic type in an external declaration@ \
-        ([@@layout_poly] forces all variables of layout 'any' to be@ \
-        representable at call sites)"
+         ([@@layout_poly] forces all variables of layout 'any' to be@ \
+         representable at call sites)"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
