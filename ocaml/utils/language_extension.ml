@@ -197,7 +197,8 @@ let default_extensions : extn_pair list =
     Pair (Include_functor, ());
     Pair (Polymorphic_parameters, ());
     Pair (Immutable_arrays, ());
-    Pair (Labeled_tuples, ()) ]
+    Pair (Labeled_tuples, ());
+    Pair (Layouts, Stable) ]
 
 let extensions : extn_pair list ref = ref default_extensions
 

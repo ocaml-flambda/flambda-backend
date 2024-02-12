@@ -1,6 +1,5 @@
 (* TEST
    * expect
-   flags = "-extension layouts"
    * expect
    flags = "-extension layouts_beta"
 *)
@@ -359,7 +358,7 @@ Error: Layout mismatch in final type declaration consistency check.
            of the annotation on the universal variable 'a.
          But the layout of 'a must be a sublayout of immediate, because
            of the definition of t_imm at line 1, characters 0-27.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 (* CR layouts v1.5: the location on that message is wrong. But it's hard

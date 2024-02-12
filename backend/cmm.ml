@@ -324,6 +324,7 @@ type data_item =
   | Cdouble of float
   | Cvec128 of vec128_bits
   | Csymbol_address of symbol
+  | Csymbol_offset of symbol * int
   | Cstring of string
   | Cskip of int
   | Calign of int

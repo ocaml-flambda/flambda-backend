@@ -57,6 +57,12 @@ let mk_cfg_peephole_optimize f =
 let mk_no_cfg_peephole_optimize f =
   "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
 
+let mk_cfg_cse_optimize f =
+  "-cfg-cse-optimize", Arg.Unit f, " Apply CSE optimizations to CFG"
+
+let mk_no_cfg_cse_optimize f =
+  "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -609,6 +615,9 @@ module type Flambda_backend_options = sig
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
+  val cfg_cse_optimize : unit -> unit
+  val no_cfg_cse_optimize : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -717,6 +726,9 @@ struct
 
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
+
+    mk_cfg_cse_optimize F.cfg_cse_optimize;
+    mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -855,6 +867,9 @@ module Flambda_backend_options_impl = struct
 
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
+
+  let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
+  let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -1140,6 +1155,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
+    | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
