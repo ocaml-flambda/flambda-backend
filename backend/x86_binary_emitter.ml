@@ -64,11 +64,13 @@ module Relocation = struct
   type t = { offset_from_section_beginning : int; kind : Kind.t }
 end
 
+type symbol_binding = Sy_local | Sy_global | Sy_weak
+
 type symbol = {
   sy_name : string;
   mutable sy_type : string option;
   mutable sy_size : int option;
-  mutable sy_global : bool;
+  mutable sy_binding : symbol_binding;
   mutable sy_protected : bool;
   mutable sy_sec : section;
   mutable sy_pos : int option;
@@ -112,7 +114,7 @@ let get_symbol b s =
         sy_type = None;
         sy_size = None;
         sy_pos = None;
-        sy_global = false;
+        sy_binding = Sy_local;
         sy_protected = false;
         sy_num = None;
         sy_sec = b.sec;
@@ -190,6 +192,7 @@ let eval_const b current_pos cst =
     | Const n -> Rint n
     | ConstThis -> Rabs ("", 0L)
     | ConstLabel lbl -> Rabs (lbl, 0L)
+    | ConstLabelOffset (lbl, o) -> Rabs (lbl, Int64.of_int o)
     | ConstSub (c1, c2) -> (
         let c1 = eval c1 and c2 = eval c2 in
         match (c1, c2) with
@@ -2060,7 +2063,8 @@ let assemble_line b loc ins =
         assemble_instr b loc instr;
         incr loc
     | Comment _ -> ()
-    | Global sym -> (get_symbol b sym).sy_global <- true
+    | Global sym -> (get_symbol b sym).sy_binding <- Sy_global
+    | Weak sym -> (get_symbol b sym).sy_binding <- Sy_weak
     | Protected sym -> (get_symbol b sym).sy_protected <- true
     | Quad (Const n) -> buf_int64L b n
     | Quad cst ->
@@ -2136,7 +2140,7 @@ let assemble_line b loc ins =
         for _ = 1 to n do
           buf_int8 b 0
         done
-    | Hidden _ | Weak _ | NewLine -> ()
+    | Hidden _ | NewLine -> ()
     | Reloc { name = R_X86_64_PLT32;
               expr = ConstSub (ConstLabel wrap_label, Const 4L);
               offset = ConstSub (ConstThis, Const 4L);

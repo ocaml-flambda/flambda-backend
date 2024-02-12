@@ -1,8 +1,8 @@
 (* TEST
-   flags = "-extension layouts -strict-sequence"
+   flags = "-strict-sequence"
    * expect
 *)
-(* CR layouts: Using [-extension layouts] here is not backward-compatible.
+(* CR layouts: Using layout annotations here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.
 *)
 

@@ -1,10 +1,9 @@
 (* TEST
    * expect
+   * expect
    flags = "-extension layouts_alpha"
    * expect
    flags = "-extension layouts_beta"
-   * expect
-   flags = "-extension layouts"
 *)
 
 (* This file contains typing tests for the layout [bits32].
@@ -301,7 +300,7 @@ Line 1, characters 31-45:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_bits32_id is bits32, because
          of the definition of t_bits32_id at line 2, characters 0-35.
-       But the layout of type 'a t_bits32_id must overlap with value, because
+       But the layout of type 'a t_bits32_id must be a sublayout of value, because
          it's the type of something stored in a module structure.
 |}];;
 

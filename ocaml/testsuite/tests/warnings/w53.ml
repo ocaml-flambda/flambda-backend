@@ -436,6 +436,9 @@ module type TestErrorMessageSig = sig
   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
     "x" "y"
   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+
+  val f : int ->
+    (int as ('a:value)[@error_message ""][@error_message ""]) (* reject second *)
 end
 
 module TestErrorMessageStruct = struct
@@ -446,4 +449,7 @@ module TestErrorMessageStruct = struct
   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
     "x" "y"
   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+
+  let f1 v: ((_ : value)[@error_message ""][@error_message ""]) = v (* reject second *)
+  let f2 v: (('a : value)[@error_message ""][@error_message ""]) = v (* reject second *)
 end

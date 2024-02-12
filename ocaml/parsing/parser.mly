@@ -992,7 +992,8 @@ let unboxed_int sloc int_loc sign (n, m) =
       Constant.unboxed ~loc:int_loc (Integer (with_sign sign n, m))
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
-        expecting int_loc "unboxed integer literal with type-specifying suffix"
+        raise
+          Syntaxerr.(Error(Missing_unboxed_literal_suffix (make_loc int_loc)))
       else
         not_expecting sloc "line number directive"
 

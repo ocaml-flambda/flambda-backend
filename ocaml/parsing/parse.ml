@@ -147,6 +147,9 @@ let prepare_error err =
        @{<hint>Hint@}: Mutable sequences of bytes are available in \
        the Bytes module.\n\
        @{<hint>Hint@}: Did you mean to use 'Bytes.set'?"
+  | Missing_unboxed_literal_suffix loc ->
+    Location.errorf ~loc
+      "Syntax error: Unboxed integer literals require width suffixes."
 
 let () =
   Location.register_error_of_exn

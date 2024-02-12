@@ -1078,7 +1078,10 @@ let emit_instr i =
           `	bl	{emit_symbol "caml_raise_exn"}\n`;
           `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
         | Lambda.Raise_reraise ->
-          `	bl	{emit_symbol "caml_reraise_exn"}\n`;
+          if Config.runtime5 then
+            `	bl	{emit_symbol "caml_reraise_exn"}\n`
+          else
+            `	bl	{emit_symbol "caml_raise_exn"}\n`;
           `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
         | Lambda.Raise_notrace ->
           `	mov	sp, {emit_reg reg_trap_ptr}\n`;
@@ -1197,6 +1200,7 @@ let emit_item = function
     (* CR mslater: (SIMD) arm64 *)
     Misc.fatal_error "128-bit vectors not supported on this architecture"
   | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
+  | Csymbol_offset (s, o) -> `	.quad	{emit_symbol s.sym_name}+{emit_int o}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`

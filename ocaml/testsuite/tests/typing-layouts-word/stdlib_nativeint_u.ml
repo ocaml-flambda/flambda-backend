@@ -1,6 +1,4 @@
-(* TEST
-   flags = "-extension layouts"
-*)
+(* TEST *)
 
 module Nativeint_u = Stdlib__Nativeint_u
 module Int32_u = Stdlib__Int32_u

@@ -958,32 +958,47 @@ File "w53.ml", line 438, characters 39-52:
                                              ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 442, characters 21-34:
-442 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
+File "w53.ml", line 441, characters 43-56:
+441 |     (int as ('a:value)[@error_message ""][@error_message ""]) (* reject second *)
+                                                 ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+
+File "w53.ml", line 445, characters 21-34:
+445 |   type 'a t1 = 'a [@@error_message ""] (* rejected *)
                            ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 443, characters 19-32:
-443 |   type s1 = Foo1 [@error_message ""] (* rejected *)
+File "w53.ml", line 446, characters 19-32:
+446 |   type s1 = Foo1 [@error_message ""] (* rejected *)
                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 444, characters 22-35:
-444 |   let x : int = 42 [@@error_message ""] (* rejected *)
+File "w53.ml", line 447, characters 22-35:
+447 |   let x : int = 42 [@@error_message ""] (* rejected *)
                             ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 446, characters 22-35:
-446 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 449, characters 22-35:
+449 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                             ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 446, characters 51-64:
-446 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
+File "w53.ml", line 449, characters 51-64:
+449 |   external y : (int [@error_message ""]) -> (int [@error_message ""]) = (* rejected *)
                                                          ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
 
-File "w53.ml", line 448, characters 39-52:
-448 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
+File "w53.ml", line 451, characters 39-52:
+451 |   external z : int -> int = "x" "y" [@@error_message ""] (* rejected *)
                                              ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+
+File "w53.ml", line 453, characters 45-58:
+453 |   let f1 v: ((_ : value)[@error_message ""][@error_message ""]) = v (* reject second *)
+                                                   ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+
+File "w53.ml", line 454, characters 46-59:
+454 |   let f2 v: (('a : value)[@error_message ""][@error_message ""]) = v (* reject second *)
+                                                    ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context

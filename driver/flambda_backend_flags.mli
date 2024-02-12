@@ -24,6 +24,8 @@ val regalloc_validate : bool ref
 
 val cfg_peephole_optimize: bool ref
 
+val cfg_cse_optimize: bool ref
+
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
 

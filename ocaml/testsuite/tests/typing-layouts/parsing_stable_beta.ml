@@ -1,6 +1,5 @@
 (* TEST
    * toplevel
-   flags = "-extension layouts"
    compiler_reference = "${test_source_directory}/parsing_stable.compilers.reference"
    * toplevel
    flags = "-extension layouts_beta"

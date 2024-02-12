@@ -429,7 +429,7 @@ let run cfg_with_layout =
     fun_args = Reg.set_of_array cfg.fun_args;
     fun_body = !next.insn;
     fun_tailrec_entry_point_label = !tailrec_label;
-    fun_fast = cfg.fun_fast;
+    fun_fast = not (List.mem Cfg.Reduce_code_size cfg.fun_codegen_options);
     fun_dbg = cfg.fun_dbg;
     fun_contains_calls;
     fun_num_stack_slots;
@@ -450,8 +450,8 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let layout = layout_of_block_list blocks in
   let fun_name = "_fun_start_" in
   let cfg =
-    Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false
-      ~fun_contains_calls:true ~fun_num_stack_slots:[||]
+    Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
+      ~fun_dbg:Debuginfo.none ~fun_contains_calls:true ~fun_num_stack_slots:[||]
   in
   List.iter
     (fun (block : Cfg.basic_block) ->

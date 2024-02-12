@@ -23,6 +23,8 @@ let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
+let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 

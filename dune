@@ -95,6 +95,7 @@
   coloring
   comballoc
   CSE
+  CSE_utils
   CSEgen
   dataflow
   deadcode
@@ -148,12 +149,14 @@
   cfg_to_linear
   cfg_with_layout
   cfg_with_infos
+  cfg_comballoc
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
   cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
+  cfg_cse
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks

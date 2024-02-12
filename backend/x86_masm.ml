@@ -93,13 +93,17 @@ let arg b = function
   | Mem addr -> arg_mem b addr
 
 let rec cst b = function
-  | ConstLabel _ | Const _ | ConstThis as c -> scst b c
+  | ConstLabel _ | ConstLabelOffset _  | Const _ | ConstThis as c -> scst b c
   | ConstAdd (c1, c2) -> bprintf b "%a + %a" scst c1 scst c2
   | ConstSub (c1, c2) -> bprintf b "%a - %a" scst c1 scst c2
 
 and scst b = function
   | ConstThis -> Buffer.add_string b "THIS BYTE"
   | ConstLabel l -> Buffer.add_string b l
+  | ConstLabelOffset (l, o) ->
+      Buffer.add_string b l;
+      if o > 0 then bprintf b "+%d" o
+      else if o < 0 then bprintf b "%d" o
   | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0%LxH" n
