@@ -31,10 +31,10 @@ module Test (I : Order with type t = int) = struct
 
     let check_top q m =
         if Q.is_empty q then assert (M.is_empty !m)
-        else let Q.{ priority = qi; data = qd } = Q.get q in
-        let mi, mds = M.max_binding !m in
-        assert (qi = mi);
-        assert (M.mem qd mds)
+        else (let Q.{ priority = qi; data = qd } = Q.get q in
+              let mi, mds = M.max_binding !m in
+              assert (qi = mi);
+              assert (M.mem qd mds))
 
     let enq q m =
         let i = Random.int 100 in
