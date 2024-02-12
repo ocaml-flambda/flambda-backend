@@ -178,7 +178,7 @@ let to_lambda_prim prim ~poly_sort =
     ~native_repr_args
     ~native_repr_res
     ~is_layout_representation_polymorphic:
-      prim.prim_is_layout_representation_polymorphic
+      prim.prim_is_representation_poly
 
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in

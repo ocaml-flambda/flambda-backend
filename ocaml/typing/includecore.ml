@@ -66,8 +66,8 @@ let primitive_descriptions pd1 pd2 =
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
   else if not
-    (Bool.equal pd1.prim_is_layout_representation_polymorphic
-                pd2.prim_is_layout_representation_polymorphic) then
+    (Bool.equal pd1.prim_is_representation_poly
+                pd2.prim_is_representation_poly) then
     Some Repr_poly_attr
   else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin

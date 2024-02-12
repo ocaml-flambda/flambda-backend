@@ -52,7 +52,7 @@ type 'repr description_gen =
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: (mode * 'repr) list;
     prim_native_repr_res: mode * 'repr;
-    prim_is_layout_representation_polymorphic: bool }
+    prim_is_representation_poly: bool }
 
 type description = native_repr description_gen
 
@@ -115,7 +115,7 @@ let make ~name ~alloc ~c_builtin ~effects ~coeffects
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_layout_representation_polymorphic = is_layout_representation_polymorphic }
+   prim_is_representation_poly = is_layout_representation_polymorphic }
 
 let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly =
   let arity = List.length native_repr_args in
@@ -148,7 +148,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
       valdecl.pval_attributes
   in
   let is_builtin_prim = is_builtin_prim_name name in
-  let prim_is_layout_representation_polymorphic =
+  let prim_is_representation_poly =
     match is_builtin_prim, is_layout_poly with
     | false, true ->  raise (Error (valdecl.pval_loc,
                         Invalid_representation_polymorphic_attribute))
@@ -227,7 +227,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res;
-   prim_is_layout_representation_polymorphic }
+   prim_is_representation_poly }
 
 open Outcometree
 
@@ -289,7 +289,7 @@ let print p osig_val_decl =
       attrs
   in
   let attrs =
-    if p.prim_is_layout_representation_polymorphic then
+    if p.prim_is_representation_poly then
       oattr_rep_poly :: attrs
     else
       attrs

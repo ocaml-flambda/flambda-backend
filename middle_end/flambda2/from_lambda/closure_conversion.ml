@@ -451,12 +451,12 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         prim_native_name;
         prim_native_repr_args;
         prim_native_repr_res;
-        prim_is_layout_representation_polymorphic
+        prim_is_representation_poly
       } :
        Lambda.external_call_description) as prim_desc)
     ~(args : Simple.t list list) exn_continuation dbg ~current_region
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
-  if prim_is_layout_representation_polymorphic
+  if prim_is_representation_poly
   then
     Misc.fatal_errorf
       "close_c_call: C call primitive %s can't be representation polymorphic."
