@@ -2226,11 +2226,7 @@ let error_if_has_deep_native_repr_attributes core_type =
 
    However, there can be jkind [any] present with something like:
     [external f : ('a : any). 'a -> 'a = "%identity"]
-   The current [type_sort_external] implementation will force ['a] to jkind [value]
-   and not produce an error. It will get typed as:
-    [external f : 'a -> 'a = "%identity"]
-
-   Should consider revisiting this decision. *)
+   In such cases, we raise an expection. *)
 let type_sort_external ~why env loc typ =
   match Ctype.type_sort ~why env typ with
   | Ok s -> Jkind.Sort.get_default_value s
