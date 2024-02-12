@@ -523,3 +523,28 @@ Line 1, characters 15-31:
 Error: The primitive [%obj_dup] doesn't yet support argument/return types
        with non-value layouts.
 |}]
+
+(**********************************************************)
+(* Non-explicitly quantify tvars don't work with rep_poly *)
+
+type ('a : any) t = 'a
+
+external[@rep_poly] id : 'a t -> 'a t = "%identity"
+
+(* should fail as ['a] will get defaulted to [value] above without explicit
+   quantification *)
+let idf : ('a : float64). 'a -> 'a = id
+[%%expect{|
+type ('a : any) t = 'a
+external id : 'a t -> 'a t = "%identity" [@@rep_poly]
+Line 7, characters 37-39:
+7 | let idf : ('a : float64). 'a -> 'a = id
+                                         ^^
+Error: This expression has type 'b t -> 'b t
+       but an expression was expected of type 'a -> 'a
+       Type 'b t = 'b is not compatible with type 'a
+       The layout of 'a t is value, because
+         of the definition of id at line 3, characters 0-51.
+       But the layout of 'a t must overlap with float64, because
+         of the annotation on the universal variable 'a.
+|}]
