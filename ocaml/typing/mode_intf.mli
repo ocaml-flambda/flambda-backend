@@ -404,7 +404,9 @@ module type S = sig
        three are constrained. *)
 
     (** Returns the lower bound needed for [B -> C] in relation to [A] *)
-    val close_over : lr -> l
+    val close_over :
+      (('l * allowed) Monadic.t, (allowed * 'r) Comonadic.t) monadic_comonadic ->
+      l
 
     (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
     val partial_apply : (allowed * 'r) t -> l
