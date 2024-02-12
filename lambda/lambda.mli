@@ -133,16 +133,22 @@ type primitive =
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
   (* Comparisons that return int (not bool like above) for ordering *)
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
+  | Pcompare_ints
+  | Pcompare_floats of boxed_float
+  | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint of alloc_mode
-  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
-  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
-  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
-  | Pfloatcomp of float_comparison
-  | Punboxed_float_comp of float_comparison
+  | Pintoffloat of boxed_float
+  | Pfloatofint of boxed_float * alloc_mode
+  | Pnegfloat of boxed_float * alloc_mode
+  | Pabsfloat of boxed_float * alloc_mode
+  | Paddfloat of boxed_float * alloc_mode
+  | Psubfloat of boxed_float * alloc_mode
+  | Pmulfloat of boxed_float * alloc_mode
+  | Pdivfloat of boxed_float * alloc_mode
+  | Pfloatcomp of boxed_float * float_comparison
+  | Punboxed_float_comp of boxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -227,8 +233,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_float
-  | Pbox_float of alloc_mode
+  | Punbox_float of boxed_float
+  | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   (* Jane Street extensions *)
@@ -252,7 +258,7 @@ and float_comparison =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray
+  | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
 
 (** When accessing a flat float array, we need to know the mode which we should
@@ -262,7 +268,7 @@ and array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
-  | Punboxedfloatarray_ref
+  | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
 
 (** When updating an array that might contain pointers, we need to know what
@@ -272,11 +278,14 @@ and array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
-  | Punboxedfloatarray_set
+  | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
 
 and value_kind =
-    Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pgenval
+  | Pintval
+  | Pboxedfloatval of boxed_float
+  | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
       non_consts : (int * value_kind list) list;
@@ -292,7 +301,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float
+  | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
   | Punboxed_product of layout list
@@ -301,8 +310,13 @@ and layout =
 and block_shape =
   value_kind list option
 
+and boxed_float = Primitive.boxed_float =
+  | Pfloat64
+
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_float = boxed_float
 
 and unboxed_integer = boxed_integer
 
@@ -346,6 +360,8 @@ val equal_value_kind : value_kind -> value_kind -> bool
 val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
+
+val equal_boxed_float : boxed_float -> boxed_float -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
@@ -625,8 +641,8 @@ val layout_module : layout
 val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
-val layout_boxed_float : layout
-val layout_unboxed_float : layout
+val layout_boxed_float : boxed_float -> layout
+val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a block *)

@@ -526,7 +526,7 @@ let array_mode exp = match Typeopt.array_kind exp with
   | Lambda.Paddrarray | Lambda.Pintarray ->
     (* non-generic, non-float arrays act as constructors *)
     Guard
-  | Lambda.Punboxedfloatarray | Lambda.Punboxedintarray _ ->
+  | Lambda.Punboxedfloatarray Pfloat64 | Lambda.Punboxedintarray _ ->
     Guard
 
 (* Expression judgment:

@@ -697,7 +697,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Fixed_size, (Pintarray | Paddrarray) ->
         Immutable StrictOpt,
         make_vect ~loc ~length:array_size.var ~init:(int 0)
-    | Fixed_size, (Pfloatarray | Punboxedfloatarray) ->
+    | Fixed_size, (Pfloatarray | Punboxedfloatarray Pfloat64) ->
         (* The representations of these two are the same, it's only
            accesses that differ. *)
         Immutable StrictOpt, make_float_vect ~loc array_size.var
@@ -712,7 +712,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
-    | Dynamic_size, Punboxedfloatarray ->
+    | Dynamic_size, Punboxedfloatarray Pfloat64 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
     | Dynamic_size, Punboxedintarray Pint32 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
@@ -808,7 +808,7 @@ let body
                Lassign(array.id, make_array),
                set_element_in_bounds elt.var,
                (Pvalue Pintval) (* [unit] is immediate *)))
-    | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray
+    | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray Pfloat64
     | Punboxedintarray _ ->
         set_element_in_bounds body
   in
@@ -821,7 +821,7 @@ let comprehension
       { comp_body; comp_clauses } =
   (match array_kind with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
-  | Punboxedfloatarray | Punboxedintarray _ ->
+  | Punboxedfloatarray Pfloat64 | Punboxedintarray _ ->
     if not !Clflags.native_code then
       Misc.fatal_errorf
         "Array comprehensions for kind %s are not allowed in bytecode"

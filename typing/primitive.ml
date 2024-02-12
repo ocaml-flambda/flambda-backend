@@ -22,11 +22,13 @@ type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
 
+type boxed_float = Pfloat64
+
 type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
-  | Unboxed_float
+  | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
@@ -66,7 +68,7 @@ type value_check = Bad_attribute | Bad_layout | Ok_value
 let check_ocaml_value = function
   | _, Same_as_ocaml_repr Value -> Ok_value
   | _, Same_as_ocaml_repr _ -> Bad_layout
-  | _, Unboxed_float
+  | _, Unboxed_float Pfloat64
   | _, Unboxed_vector _
   | _, Unboxed_integer _
   | _, Untagged_int -> Bad_attribute
@@ -74,14 +76,14 @@ let check_ocaml_value = function
 let is_unboxed = function
   | _, Same_as_ocaml_repr _
   | _, Untagged_int -> false
-  | _, Unboxed_float
+  | _, Unboxed_float Pfloat64
   | _, Unboxed_vector _
   | _, Unboxed_integer _ -> true
 
 let is_untagged = function
   | _, Untagged_int -> true
   | _, Same_as_ocaml_repr _
-  | _, Unboxed_float
+  | _, Unboxed_float Pfloat64
   | _, Unboxed_vector _
   | _, Unboxed_integer _ -> false
 
@@ -204,8 +206,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_native_repr_args arity (Prim_global, Unboxed_float),
-       (Prim_global, Unboxed_float))
+      (make_native_repr_args arity (Prim_global, Unboxed_float Pfloat64),
+       (Prim_global, Unboxed_float Pfloat64))
     else
       (native_repr_args, native_repr_res)
   in
@@ -284,7 +286,7 @@ let print p osig_val_decl =
     @
     (match repr with
      | Same_as_ocaml_repr _ -> []
-     | Unboxed_float
+     | Unboxed_float Pfloat64
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
      | Untagged_int -> if all_untagged then [] else [oattr_untagged])
@@ -323,6 +325,10 @@ let equal_boxed_integer bi1 bi2 =
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
 
+let equal_boxed_float f1 f2 =
+  match f1, f2 with
+  | Pfloat64, Pfloat64 -> true
+
 let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
@@ -333,19 +339,24 @@ let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
-  | Unboxed_float, Unboxed_float -> true
-  | Unboxed_float,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
+    (Unboxed_float Pfloat64 | Unboxed_integer _ | Untagged_int |
+     Unboxed_vector _) -> false
+  | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
+  | Unboxed_float Pfloat64,
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int |
+     Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_integer _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float Pfloat64 | Untagged_int |
+     Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_vector _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float Pfloat64 | Untagged_int |
+     Unboxed_vector _) -> false
   | Untagged_int, Untagged_int -> true
   | Untagged_int,
-    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _ | Unboxed_vector _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float Pfloat64 | Unboxed_integer _ |
+     Unboxed_vector _) -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -369,7 +380,9 @@ let native_name_is_external p =
 
 let sort_of_native_repr = function
   | Same_as_ocaml_repr s -> s
-  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Jkind.Sort.Value
+  | (Unboxed_float Pfloat64 | Unboxed_integer _ | Untagged_int |
+     Unboxed_vector _) ->
+    Jkind.Sort.Value
 
 let report_error ppf err =
   match err with

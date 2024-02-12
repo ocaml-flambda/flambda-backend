@@ -2870,13 +2870,13 @@ let combine_constant value_kind loc arg cst partial ctx def
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
     | Const_float _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
-          (Pfloatcomp CFlt) arg
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
+          (Pfloatcomp (Pfloat64, CFlt)) arg
           const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_float_comp CFneq)
-          (Punboxed_float_comp CFlt)
+          (Punboxed_float_comp (Pfloat64, CFneq))
+          (Punboxed_float_comp (Pfloat64, CFlt))
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
