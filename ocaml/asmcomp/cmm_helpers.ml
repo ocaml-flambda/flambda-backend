@@ -928,13 +928,14 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
     | Pvalue Pintval -> typ_tagged_int
     | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Pvalue _ -> typ_val
     | Punboxed_product _ -> failwith "TODO"
 end
@@ -2509,7 +2510,7 @@ let arraylength kind arg dbg =
       Cop(Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedfloatarray | Punboxedintarray _ ->
+  | Punboxedfloatarray Pfloat64 | Punboxedintarray _ ->
       Misc.fatal_errorf "Unboxed arrays not supported"
 
 let bbswap bi arg dbg =
@@ -2701,7 +2702,7 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
       int_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode ->
       float_array_ref mode arg1 arg2 dbg
-  | Punboxedfloatarray_ref | Punboxedintarray_ref _ ->
+  | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _ ->
       Misc.fatal_errorf "Unboxed arrays not supported"
 
 let arrayref_safe rkind arg1 arg2 dbg =
@@ -2756,7 +2757,7 @@ let arrayref_safe rkind arg1 arg2 dbg =
                 (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
-  | Punboxedfloatarray_ref | Punboxedintarray_ref _ ->
+  | Punboxedfloatarray_ref Pfloat64 | Punboxedintarray_ref _ ->
       Misc.fatal_errorf "Unboxed arrays not supported"
 
 type ternary_primitive =
@@ -2808,7 +2809,7 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
       int_array_set arg1 arg2 arg3 dbg
   | Pfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
-  | Punboxedfloatarray_set | Punboxedintarray_set _ ->
+  | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _ ->
       Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
@@ -2873,7 +2874,7 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           float_array_set arr idx newval dbg))))
-  | Punboxedfloatarray_set | Punboxedintarray_set _ ->
+  | Punboxedfloatarray_set Pfloat64 | Punboxedintarray_set _ ->
       Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
@@ -3205,12 +3206,14 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
+  | Ptop | Pbottom | Punboxed_float Pfloat64
+  | Punboxed_int _ | Punboxed_product _ -> Any
   | Pvalue (Pboxedvectorval _)
   | Punboxed_vector _ ->
-    Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    Misc.fatal_error
+      "SIMD vectors are not supported in the upstream compiler build."
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l

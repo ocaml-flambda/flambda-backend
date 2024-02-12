@@ -60,7 +60,7 @@ let array_kind = function
   | Paddrarray -> "addr"
   | Pintarray -> "int"
   | Pfloatarray -> "float"
-  | Punboxedfloatarray -> "unboxed_float"
+  | Punboxedfloatarray Pfloat64 -> "unboxed_float"
   | Punboxedintarray Pint32 -> "unboxed_int32"
   | Punboxedintarray Pint64 -> "unboxed_int64"
   | Punboxedintarray Pnativeint -> "unboxed_nativeint"
@@ -75,7 +75,7 @@ let array_ref_kind ppf k =
   | Paddrarray_ref -> fprintf ppf "addr"
   | Pintarray_ref -> fprintf ppf "int"
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
-  | Punboxedfloatarray_ref -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_ref Pfloat64 -> fprintf ppf "unboxed_float"
   | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -90,7 +90,7 @@ let array_set_kind ppf k =
   | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
   | Pintarray_set -> fprintf ppf "int"
   | Pfloatarray_set -> fprintf ppf "float"
-  | Punboxedfloatarray_set -> fprintf ppf "unboxed_float"
+  | Punboxedfloatarray_set Pfloat64 -> fprintf ppf "unboxed_float"
   | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -109,6 +109,9 @@ let boxed_integer_name = function
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
+let boxed_float_name = function
+  | Pfloat64 -> "float"
+
 let variant_kind print_contents ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -126,7 +129,7 @@ let variant_kind print_contents ppf ~consts ~non_consts =
 let rec value_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf "[int]"
-  | Pfloatval -> fprintf ppf "[float]"
+  | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
@@ -136,7 +139,7 @@ let rec value_kind ppf = function
 and value_kind' ppf = function
   | Pgenval -> fprintf ppf "*"
   | Pintval -> fprintf ppf "[int]"
-  | Pfloatval -> fprintf ppf "[float]"
+  | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
@@ -148,7 +151,7 @@ let rec layout is_top ppf layout_ =
   | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
-  | Punboxed_float -> fprintf ppf "[unboxed_float]"
+  | Punboxed_float bf -> fprintf ppf "[unboxed_%s]" (boxed_float_name bf)
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
   | Punboxed_product layouts ->
@@ -164,7 +167,8 @@ let return_kind ppf (mode, kind) =
   | Pvalue Pgenval when is_heap_mode mode -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
   | Pvalue Pintval -> fprintf ppf ": int@ "
-  | Pvalue Pfloatval -> fprintf ppf ": %sfloat@ " smode
+  | Pvalue (Pboxedfloatval bf) ->
+     fprintf ppf ": %s%s@ " smode (boxed_float_name bf)
   | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
@@ -172,7 +176,7 @@ let return_kind ppf (mode, kind) =
     fprintf ppf ": %s%s@ " smode (vec128_name v)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
-  | Punboxed_float -> fprintf ppf ": unboxed_float@ "
+  | Punboxed_float bf -> fprintf ppf ": unboxed_%s@ " (boxed_float_name bf)
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
   | Punboxed_product _ -> fprintf ppf ": %a" layout kind
@@ -182,7 +186,7 @@ let return_kind ppf (mode, kind) =
 let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
   | Pintval -> pp_print_string ppf "int"
-  | Pfloatval -> pp_print_string ppf "float"
+  | Pboxedfloatval bf -> pp_print_string ppf (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> pp_print_string ppf (vec128_name v)
@@ -224,6 +228,20 @@ let unboxed_integer_mark name bi m =
 
 let print_unboxed_integer name ppf bi m =
   fprintf ppf "%s" (unboxed_integer_mark name bi m);;
+
+let boxed_float_mark name bf m =
+  match bf with
+  | Pfloat64 -> Printf.sprintf "Float.%s%s" name (alloc_kind m)
+
+let print_boxed_float name ppf bf m =
+  fprintf ppf "%s" (boxed_float_mark name bf m);;
+
+let unboxed_float_mark name bf m =
+  match bf with
+  | Pfloat64 -> Printf.sprintf "Float_u.%s%s" name (alloc_kind m)
+
+let print_unboxed_float name ppf bf m =
+  fprintf ppf "%s" (unboxed_float_mark name bf m);;
 
 let print_bigarray name unsafe kind ppf layout =
   fprintf ppf "Bigarray.%s[%s,%s]"
@@ -274,17 +292,17 @@ let integer_comparison ppf = function
   | Cgt -> fprintf ppf ">"
   | Cge -> fprintf ppf ">="
 
-let float_comparison ppf = function
-  | CFeq -> fprintf ppf "==."
-  | CFneq -> fprintf ppf "!=."
-  | CFlt -> fprintf ppf "<."
-  | CFnlt -> fprintf ppf "!<."
-  | CFle -> fprintf ppf "<=."
-  | CFnle -> fprintf ppf "!<=."
-  | CFgt -> fprintf ppf ">."
-  | CFngt -> fprintf ppf "!>."
-  | CFge -> fprintf ppf ">=."
-  | CFnge -> fprintf ppf "!>=."
+let float_comparison = function
+  | CFeq -> "=="
+  | CFneq -> "!="
+  | CFlt -> "<"
+  | CFnlt -> "!<"
+  | CFle -> "<="
+  | CFnle -> "!<="
+  | CFgt -> ">"
+  | CFngt -> "!>"
+  | CFge -> ">="
+  | CFnge -> "!>="
 
 let field_read_semantics ppf sem =
   match sem with
@@ -419,20 +437,23 @@ let primitive ppf = function
   | Pasrint -> fprintf ppf "asr"
   | Pintcomp(cmp) -> integer_comparison ppf cmp
   | Pcompare_ints -> fprintf ppf "compare_ints"
-  | Pcompare_floats -> fprintf ppf "compare_floats"
+  | Pcompare_floats bf -> fprintf ppf "compare_floats %s" (boxed_float_name bf)
   | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
-  | Pintoffloat -> fprintf ppf "int_of_float"
-  | Pfloatofint m -> fprintf ppf "float_of_int%s" (alloc_kind m)
-  | Pnegfloat m -> fprintf ppf "~.%s" (alloc_kind m)
-  | Pabsfloat m -> fprintf ppf "abs.%s" (alloc_kind m)
-  | Paddfloat m -> fprintf ppf "+.%s" (alloc_kind m)
-  | Psubfloat m -> fprintf ppf "-.%s" (alloc_kind m)
-  | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
-  | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
-  | Pfloatcomp(cmp) -> float_comparison ppf cmp
-  | Punboxed_float_comp(cmp) -> fprintf ppf "%a (unboxed)" float_comparison cmp
+  | Pintoffloat bf -> fprintf ppf "int_of_%s" (boxed_float_name bf)
+  | Pfloatofint (bf,m) ->
+      fprintf ppf "%s_of_int%s" (boxed_float_name bf) (alloc_kind m)
+  | Pabsfloat (bf,m) -> print_boxed_float "abs" ppf bf m
+  | Pnegfloat (bf,m) -> print_boxed_float "neg" ppf bf m
+  | Paddfloat (bf,m) -> print_boxed_float "add" ppf bf m
+  | Psubfloat (bf,m) -> print_boxed_float "sub" ppf bf m
+  | Pmulfloat (bf,m) -> print_boxed_float "mul" ppf bf m
+  | Pdivfloat (bf,m) -> print_boxed_float "div" ppf bf m
+  | Pfloatcomp (bf,cmp) ->
+      print_boxed_float (float_comparison cmp) ppf bf alloc_heap
+  | Punboxed_float_comp (bf,cmp) ->
+      print_unboxed_float (float_comparison cmp) ppf bf alloc_heap
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
   | Pstringrefs -> fprintf ppf "string.get"
@@ -599,8 +620,9 @@ let primitive ppf = function
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic _ -> fprintf ppf "obj_magic"
-  | Punbox_float -> fprintf ppf "unbox_float"
-  | Pbox_float m -> fprintf ppf "box_float%s" (alloc_kind m)
+  | Punbox_float bf -> fprintf ppf "unbox_%s" (boxed_float_name bf)
+  | Pbox_float (bf,m) ->
+      fprintf ppf "box_%s%s" (boxed_float_name bf) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
   | Pbox_int (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_integer_name bi) (alloc_kind m)
@@ -649,20 +671,20 @@ let name_of_primitive = function
   | Pasrint -> "Pasrint"
   | Pintcomp _ -> "Pintcomp"
   | Pcompare_ints -> "Pcompare_ints"
-  | Pcompare_floats -> "Pcompare_floats"
+  | Pcompare_floats Pfloat64 -> "Pcompare_floats"
   | Pcompare_bints _ -> "Pcompare"
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
-  | Pintoffloat -> "Pintoffloat"
-  | Pfloatofint _ -> "Pfloatofint"
-  | Pnegfloat _ -> "Pnegfloat"
-  | Pabsfloat _ -> "Pabsfloat"
-  | Paddfloat _ -> "Paddfloat"
-  | Psubfloat _ -> "Psubfloat"
-  | Pmulfloat _ -> "Pmulfloat"
-  | Pdivfloat _ -> "Pdivfloat"
-  | Pfloatcomp _ -> "Pfloatcomp"
-  | Punboxed_float_comp _ -> "Punboxed_float_comp"
+  | Pintoffloat Pfloat64 -> "Pintoffloat"
+  | Pfloatofint (Pfloat64, _) -> "Pfloatofint"
+  | Pnegfloat (Pfloat64, _) -> "Pnegfloat"
+  | Pabsfloat (Pfloat64, _) -> "Pabsfloat"
+  | Paddfloat (Pfloat64, _) -> "Paddfloat"
+  | Psubfloat (Pfloat64, _) -> "Psubfloat"
+  | Pmulfloat (Pfloat64, _) -> "Pmulfloat"
+  | Pdivfloat (Pfloat64, _) -> "Pdivfloat"
+  | Pfloatcomp (Pfloat64, _) -> "Pfloatcomp"
+  | Punboxed_float_comp (Pfloat64, _) -> "Punboxed_float_comp"
   | Pstringlength -> "Pstringlength"
   | Pstringrefu -> "Pstringrefu"
   | Pstringrefs -> "Pstringrefs"
@@ -740,8 +762,8 @@ let name_of_primitive = function
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic _ -> "Pobj_magic"
-  | Punbox_float -> "Punbox_float"
-  | Pbox_float _ -> "Pbox_float"
+  | Punbox_float Pfloat64 -> "Punbox_float"
+  | Pbox_float (Pfloat64, _) -> "Pbox_float"
   | Punbox_int _ -> "Punbox_int"
   | Pbox_int _ -> "Pbox_int"
   | Parray_of_iarray -> "Parray_of_iarray"

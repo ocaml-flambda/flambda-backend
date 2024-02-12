@@ -272,22 +272,26 @@ let transform_primitive env (prim : L.primitive) args loc =
     Misc.fatal_errorf "Pmakeblock with wrong or non-scannable block tag %d" tag
   | Pmakefloatblock (_mut, _mode), args when List.length args < 1 ->
     Misc.fatal_errorf "Pmakefloatblock must have at least one argument"
-  | Pfloatcomp CFnlt, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFlt, args, loc)], loc)
-  | Pfloatcomp CFngt, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFgt, args, loc)], loc)
-  | Pfloatcomp CFnle, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
-  | Pfloatcomp CFnge, args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
-  | Punboxed_float_comp CFnlt, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFlt, args, loc)], loc)
-  | Punboxed_float_comp CFngt, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFgt, args, loc)], loc)
-  | Punboxed_float_comp CFnle, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFle, args, loc)], loc)
-  | Punboxed_float_comp CFnge, args ->
-    Primitive (L.Pnot, [L.Lprim (Punboxed_float_comp CFge, args, loc)], loc)
+  | Pfloatcomp (bf, CFnlt), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFlt), args, loc)], loc)
+  | Pfloatcomp (bf, CFngt), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFgt), args, loc)], loc)
+  | Pfloatcomp (bf, CFnle), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFle), args, loc)], loc)
+  | Pfloatcomp (bf, CFnge), args ->
+    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFge), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnlt), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFlt), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFngt), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFgt), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnle), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFle), args, loc)], loc)
+  | Punboxed_float_comp (bf, CFnge), args ->
+    Primitive
+      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFge), args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
@@ -605,14 +609,23 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
   | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
-  | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Punboxed_float_comp _ | Pstringlength
-  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
-  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
-  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-  | Psubbint _ | Pmulbint _
+  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats Pfloat64
+  | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat Pfloat64
+  | Pfloatofint (Pfloat64, _)
+  | Pnegfloat (Pfloat64, _)
+  | Pabsfloat (Pfloat64, _)
+  | Paddfloat (Pfloat64, _)
+  | Psubfloat (Pfloat64, _)
+  | Pmulfloat (Pfloat64, _)
+  | Pdivfloat (Pfloat64, _)
+  | Pfloatcomp (Pfloat64, _)
+  | Punboxed_float_comp (Pfloat64, _)
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
+  | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -654,7 +667,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_64 true
   | Pbigstring_set_128 { unsafe = true; _ }
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
+  | Pbox_float (Pfloat64, _)
+  | Punbox_float Pfloat64
   | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
@@ -848,7 +863,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             match layout with
             | Ptop | Pbottom ->
               Misc.fatal_error "Cannot bind layout [Ptop] or [Pbottom]"
-            | Pvalue _ | Punboxed_int _ | Punboxed_float | Punboxed_vector _ ->
+            | Pvalue _ | Punboxed_int _
+            | Punboxed_float Pfloat64
+            | Punboxed_vector _ ->
               ( env,
                 [ ( id,
                     Flambda_kind.With_subkind
@@ -971,8 +988,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
-      | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _
-      | Punboxed_product _ ->
+      | Pvalue _
+      | Punboxed_float Pfloat64
+      | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _ ->
         ()
       | Ptop | Pbottom ->
         Misc.fatal_errorf "Invalid result layout %a for primitive %a"
