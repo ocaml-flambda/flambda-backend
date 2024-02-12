@@ -1613,7 +1613,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      ty
 
 (* This function makes a copy of [ty] if [desc] is marked
-   [prim_is_layout_representation_polymorphic] AND at least one
+   [prim_is_representation_poly] AND at least one
    generic type variable with jkind [any] is present. The function
    returns [ty] unchanged otherwise.
 
@@ -1633,7 +1633,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
    it being the type of an external declaration. However, the code
    is written without relaying this assumption. *)
 let instance_prim_repr (desc : Primitive.description) ty =
-  if not desc.prim_is_layout_representation_polymorphic
+  if not desc.prim_is_representation_poly
   then ty, None
   else
   let new_sort_and_jkind = ref None in

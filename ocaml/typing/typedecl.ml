@@ -2326,7 +2326,7 @@ let check_unboxable env loc ty =
 
 let unexpected_jkind_any_check prim env cty ty =
   if Primitive.prim_can_contain_jkind_any prim ||
-     prim.prim_is_layout_representation_polymorphic then ()
+     prim.prim_is_representation_poly then ()
   else
   let has_any =
     List.exists
