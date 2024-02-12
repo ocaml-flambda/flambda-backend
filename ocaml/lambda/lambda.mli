@@ -250,6 +250,8 @@ type primitive =
   (* Fetching domain-local state *)
   | Pdls_get
 
+(** This is the same as [Primitive.native_repr] but with [Repr_poly]
+    compiled away. *)
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
   | Unboxed_float of boxed_float
