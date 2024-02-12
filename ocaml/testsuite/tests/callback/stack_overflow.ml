@@ -1,8 +1,7 @@
 (* TEST
    include unix
    modules = "stack_overflow_.c"
-   * skip
-     reason = "CR ocaml 5 effects: re-enable this test"
+   * runtime5
    ** libunix
    *** bytecode
    *** native

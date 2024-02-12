@@ -1,7 +1,6 @@
 (* TEST
    ocamlrunparam += ",s=512"
-   * skip
-   reason = "CR ocaml 5 effects: re-enable this test"
+   * runtime5
    ** native
 *)
 
