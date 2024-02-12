@@ -99,9 +99,7 @@ module Selection_heuristics = struct
     | Worst_fit -> "worst_fit"
     | Random_for_testing -> "random"
 
-  let not_random = function
-    | Random_for_testing -> false
-    | _ -> true
+  let not_random = function Random_for_testing -> false | _ -> true
 
   let random =
     let all = List.filter all ~f:not_random in
@@ -597,7 +595,7 @@ module Hardware_registers = struct
     Array.init Proc.num_register_classes ~f:(fun reg_class ->
         let num_hardware_regs = Proc.num_available_registers.(reg_class) in
         let num_available_regs =
-          match (Lazy.force gi_limit_regs) with
+          match Lazy.force gi_limit_regs with
           | None -> num_hardware_regs
           | Some l -> Int.min l num_hardware_regs
         in
@@ -757,7 +755,8 @@ module Hardware_registers = struct
         | Selection_heuristics.Worst_fit ->
           if gi_debug
           then
-            log ~indent:3 "trying to find an available register with 'worst-fit'";
+            log ~indent:3
+              "trying to find an available register with 'worst-fit'";
           find_using_length t reg interval ~better:( < )
       in
       select (Lazy.force Selection_heuristics.value)
