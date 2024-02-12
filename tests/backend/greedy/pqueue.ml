@@ -29,21 +29,27 @@ module Test (I : Order with type t = int) = struct
                                                    | Some 1 -> None
                                                    | Some j -> Some (j - 1)) ds)) map
 
+    let check_top q m =
+        if Q.is_empty q then assert (M.is_empty !m)
+        else let Q.{ priority = qi; data = qd } = Q.get q in
+        let mi, mds = M.max_binding !m in
+        assert (qi = mi);
+        assert (M.mem qd mds)
+
     let enq q m =
         let i = Random.int 100 in
         let d = Random.int 1_000 in
         Q.add q ~priority:i ~data:d;
-        m := enq !m i d
+        m := enq !m i d;
+        check_top q m
 
     let deq q m =
         let Q.{ priority = qi; data = qd } = Q.get q in
         let Q.{ priority = qi'; data = qd' } = Q.get_and_remove q in
         assert (qi = qi');
         assert (qd = qd');
-        let mi, mds = M.max_binding !m in
-        assert (qi = mi);
-        assert (M.mem qd mds);
-        m := deq !m qi qd
+        m := deq !m qi qd;
+        check_top q m
 
     let () =
         Random.init 42;
