@@ -109,6 +109,16 @@ val equal_coeffects : coeffects -> coeffects -> bool
     compiler itself. *)
 val native_name_is_external : description -> bool
 
+(** Check if a primitive can have argument/return types of
+    non-value sort. This check is done based on the primitive
+    name. *)
+val prim_can_have_non_value_arg_or_res : description -> bool
+
+(** Check if a primitive can have jkind [any] within it's type
+    declaration. Returns [false] for built-in primitives that inspect
+    the layout of type parameters (%array_length for example). *)
+val prim_can_contain_jkind_any : description -> bool
+
 type error =
   | Old_style_float_with_native_repr_attribute
   | Old_style_float_with_non_value

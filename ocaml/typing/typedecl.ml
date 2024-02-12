@@ -95,6 +95,7 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
+  | Non_value_arg_or_res_in_primitive of string
 
 open Typedtree
 
@@ -2315,18 +2316,9 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
-let prim_expecting_any prim =
-  match prim.prim_name with
-  | "%array_length"
-  | "%array_safe_get"
-  | "%array_safe_set"
-  | "%array_unsafe_get"
-  | "%array_unsafe_set" -> false
-  | _ -> true
-
-let error_if_jkind_any_occurs_unexpectly prim env cty ty =
-  if prim.prim_is_layout_representation_polymorphic then ()
-  else if prim_expecting_any prim then ()
+let unexpected_jkind_any_check prim env cty ty =
+  if Primitive.prim_can_contain_jkind_any prim ||
+     prim.prim_is_layout_representation_polymorphic then ()
   else
   let has_any =
     List.exists
@@ -2334,8 +2326,65 @@ let error_if_jkind_any_occurs_unexpectly prim env cty ty =
       (Ctype.free_variables ty)
   in
   if not has_any then ()
-  else raise(Error
-              (cty.ctyp_loc,Unexpected_jkind_any_in_primitive(prim.prim_name)))
+  else
+    raise(Error (cty.ctyp_loc,
+            Unexpected_jkind_any_in_primitive(prim.prim_name)))
+
+let non_value_arg_or_res_check prim cty =
+  if Primitive.prim_can_have_non_value_arg_or_res prim
+  then ()
+  else
+  let contains_non_value_jkind =
+    (prim.prim_native_repr_res :: prim.prim_native_repr_args)
+    |> List.map snd
+    |> List.exists (function
+      | Same_as_ocaml_repr Value | Unboxed_float _
+      | Unboxed_integer _
+      | Untagged_int | Unboxed_vector _ -> false
+      | Same_as_ocaml_repr _ | Repr_poly -> true)
+  in
+  if not contains_non_value_jkind then ()
+  else
+    raise(Error (cty.ctyp_loc,
+            Non_value_arg_or_res_in_primitive(prim.prim_name)))
+
+(* Note regarding jkind checks on external declarations
+
+   There are currently three checks in place:
+
+   1. The argument/return types of an external can't have
+      jkind [any]. This is enforced by [type_sort_external].
+
+   2. Only a selected subset of built-in primitives can have
+      argument/return types with non-value jkinds. Checked by
+      [non_value_arg_or_res_check].
+
+   3. Built-in primitives that inspect the jkind of type
+      parameters cannot have type variables with jkind [any]
+      anywhere within its type.
+
+      This check is here to prevent someone from writing:
+
+      [external len : ('a : any). 'a array -> int = "%array_length"]
+
+      If this is accepted, [len] will behave as expected most
+      of the time until someone writes:
+
+      [let f x = len x]
+
+      [x] here will have jkind [any] and the array kind function
+      in [typeopt] will fail, producing a bad error message that
+      doesn't point to the source of the mistake which is, in
+      fact, the external declaration.
+
+      For this reason, we have [unexpected_jkind_any_check].
+      It's here to point out these type of mistakes early and
+      suggest the use of [@rep_poly].
+
+   An exception would be raised if any of these checks fails. *)
+let error_if_containing_unexpected_jkind prim env cty ty =
+  non_value_arg_or_res_check prim cty;
+  unexpected_jkind_any_check prim env cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -2380,7 +2429,7 @@ let transl_value_decl env loc valdecl =
           ~native_repr_res
           ~is_layout_poly
       in
-      error_if_jkind_any_occurs_unexpectly prim env cty ty;
+      error_if_containing_unexpected_jkind prim env cty ty;
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
         raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));
@@ -3062,6 +3111,10 @@ let report_error ppf = function
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@rep_poly].@]" name
+  | Non_value_arg_or_res_in_primitive(name) ->
+      fprintf ppf
+        "@[The primitive [%s] doesn't yet support argument/return types@ \
+            with non-value layouts.@]" name
 
 let () =
   Location.register_error_of_exn
