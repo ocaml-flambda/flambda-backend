@@ -410,20 +410,20 @@ let of_primitive : Lambda.primitive -> string = function
   | Pasrint -> pasrint
   | Pintcomp _ -> pintcomp
   | Pcompare_ints -> pcompare_ints
-  | Pcompare_floats Pfloat64 -> pcompare_floats
+  | Pcompare_floats _ -> pcompare_floats
   | Pcompare_bints _ -> pcompare_bints
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
-  | Pintoffloat Pfloat64 -> pintoffloat
-  | Pfloatofint (Pfloat64, _) -> pfloatofint
-  | Pnegfloat (Pfloat64, _) -> pnegfloat
-  | Pabsfloat (Pfloat64, _) -> pabsfloat
-  | Paddfloat (Pfloat64, _) -> paddfloat
-  | Psubfloat (Pfloat64, _) -> psubfloat
-  | Pmulfloat (Pfloat64, _) -> pmulfloat
-  | Pdivfloat (Pfloat64, _) -> pdivfloat
-  | Pfloatcomp (Pfloat64, _) -> pfloatcomp
-  | Punboxed_float_comp (Pfloat64, _) -> punboxed_float_comp
+  | Pintoffloat _ -> pintoffloat
+  | Pfloatofint (_, _) -> pfloatofint
+  | Pnegfloat (_, _) -> pnegfloat
+  | Pabsfloat (_, _) -> pabsfloat
+  | Paddfloat (_, _) -> paddfloat
+  | Psubfloat (_, _) -> psubfloat
+  | Pmulfloat (_, _) -> pmulfloat
+  | Pdivfloat (_, _) -> pdivfloat
+  | Pfloatcomp (_, _) -> pfloatcomp
+  | Punboxed_float_comp (_, _) -> punboxed_float_comp
   | Pstringlength -> pstringlength
   | Pstringrefu -> pstringrefu
   | Pstringrefs -> pstringrefs
@@ -489,8 +489,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled
   | Pobj_dup -> pobj_dup
   | Pobj_magic _ -> pobj_magic
-  | Punbox_float Pfloat64 -> punbox_float
-  | Pbox_float (Pfloat64, _) -> pbox_float
+  | Punbox_float _ -> punbox_float
+  | Pbox_float (_, _) -> pbox_float
   | Punbox_int _ -> punbox_int
   | Pbox_int _ -> pbox_int
   | Parray_of_iarray -> parray_of_iarray
@@ -546,20 +546,20 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pasrint -> pasrint_arg
   | Pintcomp _ -> pintcomp_arg
   | Pcompare_ints -> pcompare_ints_arg
-  | Pcompare_floats Pfloat64 -> pcompare_floats_arg
+  | Pcompare_floats _ -> pcompare_floats_arg
   | Pcompare_bints _ -> pcompare_bints_arg
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
-  | Pintoffloat Pfloat64 -> pintoffloat_arg
-  | Pfloatofint (Pfloat64, _) -> pfloatofint_arg
-  | Pnegfloat (Pfloat64, _) -> pnegfloat_arg
-  | Pabsfloat (Pfloat64, _) -> pabsfloat_arg
-  | Paddfloat (Pfloat64, _) -> paddfloat_arg
-  | Psubfloat (Pfloat64, _) -> psubfloat_arg
-  | Pmulfloat (Pfloat64, _) -> pmulfloat_arg
-  | Pdivfloat (Pfloat64, _) -> pdivfloat_arg
-  | Pfloatcomp (Pfloat64, _) -> pfloatcomp_arg
-  | Punboxed_float_comp (Pfloat64, _) -> punboxed_float_comp_arg
+  | Pintoffloat _ -> pintoffloat_arg
+  | Pfloatofint (_, _) -> pfloatofint_arg
+  | Pnegfloat (_, _) -> pnegfloat_arg
+  | Pabsfloat (_, _) -> pabsfloat_arg
+  | Paddfloat (_, _) -> paddfloat_arg
+  | Psubfloat (_, _) -> psubfloat_arg
+  | Pmulfloat (_, _) -> pmulfloat_arg
+  | Pdivfloat (_, _) -> pdivfloat_arg
+  | Pfloatcomp (_, _) -> pfloatcomp_arg
+  | Punboxed_float_comp (_, _) -> punboxed_float_comp_arg
   | Pstringlength -> pstringlength_arg
   | Pstringrefu -> pstringrefu_arg
   | Pstringrefs -> pstringrefs_arg
@@ -625,8 +625,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
   | Pobj_dup -> pobj_dup_arg
   | Pobj_magic _ -> pobj_magic_arg
-  | Punbox_float Pfloat64 -> punbox_float_arg
-  | Pbox_float (Pfloat64, _) -> pbox_float_arg
+  | Punbox_float _ -> punbox_float_arg
+  | Pbox_float (_, _) -> pbox_float_arg
   | Punbox_int _ -> punbox_int_arg
   | Pbox_int _ -> pbox_int_arg
   | Parray_of_iarray -> parray_of_iarray_arg

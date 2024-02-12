@@ -61,11 +61,11 @@ let is_gc_ignorable kind =
   match kind with
   | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
   | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
-  | Punboxed_float Pfloat64 -> true
+  | Punboxed_float _ -> true
   | Punboxed_int _ -> true
   | Punboxed_vector _ -> true
   | Pvalue Pintval -> true
-  | Pvalue (Pgenval | Pboxedfloatval Pfloat64 | Pboxedintval _ | Pvariant _ |
+  | Pvalue (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pvariant _ |
             Parrayval _ | Pboxedvectorval _) -> false
   | Punboxed_product _ -> Misc.fatal_error "TODO"
 
@@ -1027,6 +1027,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base (Const_string (s, _, _)) ->
             str (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
+        | Const_base(Const_float32 _x) ->
+          (* CR mslater: (float32) middle end support *)
+          assert false
         | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
                      | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
             (* CR alanechang: implement unboxed constants in closure *)

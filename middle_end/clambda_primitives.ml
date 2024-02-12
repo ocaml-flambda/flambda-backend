@@ -205,6 +205,7 @@ and block_shape = Lambda.block_shape
 
 and boxed_float = Lambda.boxed_float =
   | Pfloat64
+  | Pfloat32
 
 and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -256,13 +257,14 @@ let result_layout (p : primitive) =
   | Pmakeufloatblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed -> Lambda.layout_field
-  | Pfloatfield _ | Pfloatofint (Pfloat64, _)
-  | Pnegfloat (Pfloat64, _) | Pabsfloat (Pfloat64, _)
-  | Paddfloat (Pfloat64, _) | Psubfloat (Pfloat64, _)
-  | Pmulfloat (Pfloat64, _) | Pdivfloat (Pfloat64, _)
-  | Pbox_float (Pfloat64, _) -> Lambda.layout_boxed_float Pfloat64
+  | Pfloatfield _ -> Lambda.layout_boxed_float Pfloat64
+  | Pfloatofint (bf, _)
+  | Pnegfloat (bf, _) | Pabsfloat (bf, _)
+  | Paddfloat (bf, _) | Psubfloat (bf, _)
+  | Pmulfloat (bf, _) | Pdivfloat (bf, _)
+  | Pbox_float (bf, _) -> Lambda.layout_boxed_float bf
   | Pufloatfield _ -> Punboxed_float Pfloat64
-  | Punbox_float Pfloat64 -> Punboxed_float Pfloat64
+  | Punbox_float bf -> Punboxed_float bf
   | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_native_repr repr_res
   | Praise _ -> Lambda.layout_bottom
   | Psequor | Psequand | Pnot
@@ -271,9 +273,9 @@ let result_layout (p : primitive) =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats Pfloat64| Pcompare_bints _
-  | Poffsetint _ | Pintoffloat Pfloat64
-  | Pfloatcomp (Pfloat64, _) | Punboxed_float_comp (Pfloat64, _)
+  | Pcompare_ints | Pcompare_floats _| Pcompare_bints _
+  | Poffsetint _ | Pintoffloat _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint | Pisout | Pintofbint _
