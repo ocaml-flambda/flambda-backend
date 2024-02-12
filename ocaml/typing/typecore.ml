@@ -7465,6 +7465,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
+      Regionality.submode_exn (Value.regionality eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test
