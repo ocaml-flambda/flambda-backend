@@ -68,6 +68,7 @@ let priority_heuristics : Reg.t -> Interval.t -> int =
  fun _reg itv ->
   match Lazy.force Priority_heuristics.value with
   | Priority_heuristics.Interval_length -> Interval.length itv
+  | Priority_heuristics.Random_for_testing -> Priority_heuristics.random ()
 
 let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
     Hardware_registers.t * prio_queue =
@@ -126,6 +127,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     match Lazy.force Spilling_heuristics.value with
     | Flat_uses -> true
     | Hierarchical_uses -> false
+    | Random_for_testing -> Spilling_heuristics.random ()
   in
   update_spill_cost cfg_with_infos ~flat ();
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->

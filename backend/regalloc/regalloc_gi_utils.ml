@@ -5,12 +5,19 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let gi_debug = true
 
+let gi_rng = Random.State.make [| 4; 6; 2 |]
+
 let bool_of_param param_name =
   bool_of_param ~guard:(gi_debug, "gi_debug") param_name
 
 let gi_verbose : bool Lazy.t = bool_of_param "GI_VERBOSE"
 
 let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
+
+external int_of_string : string -> int = "caml_int_of_string"
+
+let gi_limit_regs : int option Lazy.t =
+  lazy (find_param_value "GI_LIMIT_REGS" |> Option.map int_of_string)
 
 let log_function =
   lazy (make_log_function ~verbose:(Lazy.force gi_verbose) ~label:"gi")
@@ -43,11 +50,17 @@ let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
 
 (* CR xclerc for xclerc: add more heuristics *)
 module Priority_heuristics = struct
-  type t = Interval_length
+  type t =
+    | Interval_length
+    | Random_for_testing
 
-  let all = [Interval_length]
+  let all = [Interval_length; Random_for_testing]
 
-  let to_string = function Interval_length -> "interval_length"
+  let to_string = function
+    | Interval_length -> "interval_length"
+    | Random_for_testing -> "random"
+
+  let random () = Random.State.int gi_rng 10_000
 
   let value =
     let available_heuristics () =
@@ -64,6 +77,7 @@ module Priority_heuristics = struct
       | Some id -> (
         match String.lowercase_ascii id with
         | "interval_length" | "interval-length" -> Interval_length
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -75,13 +89,24 @@ module Selection_heuristics = struct
     | First_available
     | Best_fit
     | Worst_fit
+    | Random_for_testing
 
-  let all = [First_available; Best_fit; Worst_fit]
+  let all = [First_available; Best_fit; Worst_fit; Random_for_testing]
 
   let to_string = function
     | First_available -> "first_available"
     | Best_fit -> "best_fit"
     | Worst_fit -> "worst_fit"
+    | Random_for_testing -> "random"
+
+  let not_random = function
+    | Random_for_testing -> false
+    | _ -> true
+
+  let random =
+    let all = List.filter all ~f:not_random in
+    let len = List.length all in
+    fun () -> List.nth all (Random.State.int gi_rng len)
 
   let value =
     let available_heuristics () =
@@ -100,6 +125,7 @@ module Selection_heuristics = struct
         | "first_available" | "first-available" -> First_available
         | "best_fit" | "best-fit" -> Best_fit
         | "worst_fit" | "worst-fit" -> Worst_fit
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -109,12 +135,16 @@ module Spilling_heuristics = struct
   type t =
     | Flat_uses
     | Hierarchical_uses
+    | Random_for_testing
 
   let all = [Flat_uses; Hierarchical_uses]
 
   let to_string = function
     | Flat_uses -> "flat_uses"
     | Hierarchical_uses -> "hierarchical_uses"
+    | Random_for_testing -> "random"
+
+  let random () = Random.State.bool gi_rng
 
   let value =
     let available_heuristics () =
@@ -132,6 +162,7 @@ module Spilling_heuristics = struct
         match String.lowercase_ascii id with
         | "flat_uses" | "flat-uses" -> Flat_uses
         | "hierarchical_uses" | "hierarchical-uses" -> Hierarchical_uses
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -564,10 +595,13 @@ module Hardware_registers = struct
 
   let make () =
     Array.init Proc.num_register_classes ~f:(fun reg_class ->
-        let num_available_registers =
-          Proc.num_available_registers.(reg_class)
+        let num_hardware_regs = Proc.num_available_registers.(reg_class) in
+        let num_available_regs =
+          match (Lazy.force gi_limit_regs) with
+          | None -> num_hardware_regs
+          | Some l -> Int.min l num_hardware_regs
         in
-        Array.init num_available_registers ~f:(fun reg_index_in_class ->
+        Array.init num_available_regs ~f:(fun reg_index_in_class ->
             let location =
               Hardware_register.make_location ~reg_class ~reg_index_in_class
             in
@@ -705,23 +739,28 @@ module Hardware_registers = struct
   let find_available : t -> Reg.t -> Interval.t -> available =
    fun t reg interval ->
     let with_no_overlap =
-      match Lazy.force Selection_heuristics.value with
-      | Selection_heuristics.First_available ->
-        if gi_debug
-        then
-          log ~indent:3
-            "trying to find an available register with 'first-available'";
-        find_first t reg interval
-      | Selection_heuristics.Best_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'best-fit'";
-        find_using_length t reg interval ~better:( > )
-      | Selection_heuristics.Worst_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'worst-fit'";
-        find_using_length t reg interval ~better:( < )
+      let rec select heuristic =
+        match heuristic with
+        | Selection_heuristics.Random_for_testing ->
+          select (Selection_heuristics.random ())
+        | Selection_heuristics.First_available ->
+          if gi_debug
+          then
+            log ~indent:3
+              "trying to find an available register with 'first-available'";
+          find_first t reg interval
+        | Selection_heuristics.Best_fit ->
+          if gi_debug
+          then
+            log ~indent:3 "trying to find an available register with 'best-fit'";
+          find_using_length t reg interval ~better:( > )
+        | Selection_heuristics.Worst_fit ->
+          if gi_debug
+          then
+            log ~indent:3 "trying to find an available register with 'worst-fit'";
+          find_using_length t reg interval ~better:( < )
+      in
+      select (Lazy.force Selection_heuristics.value)
     in
     match with_no_overlap with
     | Some hardware_reg -> For_assignment { hardware_reg }
