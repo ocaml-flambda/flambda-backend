@@ -329,6 +329,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | Upstream -> assert false
         end
         ++ Cfg_with_infos.cfg_with_layout
+        ++ Cfg_available_regs.run
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
           (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness, otherwise

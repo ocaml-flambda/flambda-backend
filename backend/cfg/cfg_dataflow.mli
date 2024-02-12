@@ -51,6 +51,7 @@ module type Forward_S = sig
     Cfg.t ->
     ?max_iteration:int ->
     init:domain ->
+    handlers_are_entry_points:bool ->
     unit ->
     (domain Label.Tbl.t, unit) result
 end
