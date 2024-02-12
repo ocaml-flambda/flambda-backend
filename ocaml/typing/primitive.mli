@@ -67,6 +67,9 @@ type description = native_repr description_gen
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
+(** [make_prim_repr_args n x] is the same as [List.init n (fun _ -> x)].
+    Keeping this function here to be close to upstream. It's
+    intended for use with [make]. *)
 val make_prim_repr_args : int -> 'a -> 'a list
 
 val make
