@@ -21,11 +21,11 @@ type ('a : any) t_with_any = 'a
 module M_any : sig type ('a : any) t = private 'a end
 |}]
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 
 let f () = id (assert false : t_any)
 [%%expect{|
-external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
 Line 3, characters 14-36:
 3 | let f () = id (assert false : t_any)
                   ^^^^^^^^^^^^^^^^^^^^^^
@@ -34,15 +34,17 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 3, characters 0-16.
        But the layout of t_any must be representable, because
-         it's the representation polymorphic type in an external declaration.
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
 |}]
 
 type ('a : any) t
-external[@rep_poly] id : ('a : any). 'a t -> 'a t = "%identity"
+external[@layout_poly] id : ('a : any). 'a t -> 'a t = "%identity"
 let f () = id (assert false : t_any t)
 [%%expect{|
 type ('a : any) t
-external id : ('a : any). 'a t -> 'a t = "%identity" [@@rep_poly]
+external id : ('a : any). 'a t -> 'a t = "%identity" [@@layout_poly]
 Line 3, characters 14-38:
 3 | let f () = id (assert false : t_any t)
                   ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -51,15 +53,17 @@ Error: This expression has type t_any t
        The layout of t_any is any, because
          of the definition of t_any at line 3, characters 0-16.
        But the layout of t_any must be representable, because
-         it's the representation polymorphic type in an external declaration.
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
 |}]
 
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 (* This works *)
 let () = Format.printf "%f %s\n" (F.to_float (id #1.)) (id "abc"); Format.print_flush ()
 [%%expect{|
-external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
 1.000000 abc
 |}]
 
@@ -85,9 +89,9 @@ Error: This expression has type string but an expression was expected of type
 
 (* External in both *)
 module S : sig
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end = struct
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end
 
 let g1 () = S.id #1.0
@@ -95,16 +99,16 @@ let g2 () = S.id "abc"
 
 [%%expect{|
 module S :
-  sig external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly] end
+  sig external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] end
 val g1 : unit -> float# = <fun>
 val g2 : unit -> string = <fun>
 |}]
 
 (* together with local_opt *)
 module S : sig
-  external[@rep_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
+  external[@layout_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
 end = struct
-  external[@rep_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
+  external[@layout_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
 end
 
 let g1 () = S.id #1.0
@@ -114,7 +118,7 @@ let g2 () = S.id "abc"
 module S :
   sig
     external id : ('a : any). ('a [@local_opt]) -> ('a [@local_opt])
-      = "%identity" [@@rep_poly]
+      = "%identity" [@@layout_poly]
   end
 val g1 : unit -> float# = <fun>
 val g2 : unit -> string = <fun>
@@ -124,7 +128,7 @@ val g2 : unit -> string = <fun>
 module S : sig
   external id : ('a : any). 'a -> 'a = "%identity"
 end = struct
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end
 
 [%%expect{|
@@ -139,7 +143,7 @@ Error: Types in an external must have a representable layout.
 |}]
 
 module S : sig
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end = struct
   external id : ('a : any). 'a -> 'a = "%identity"
 end
@@ -160,7 +164,7 @@ Error: Types in an external must have a representable layout.
 module S : sig
   val id : ('a : float64). 'a -> 'a
 end = struct
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end
 
 let () = Format.printf "%f\n" (F.to_float (S.id #1.)); Format.print_flush ()
@@ -188,36 +192,38 @@ Error: This expression has type string but an expression was expected of type
 module S : sig
   val id : ('a : any). 'a -> 'a
 end = struct
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end
 
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+4 |   external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 5 | end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+           external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
          end
        is not included in
          sig val id : ('a : any). 'a -> 'a end
        Values do not match:
-         external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+         external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
        is not included in
          val id : ('a : any). 'a -> 'a
        The type 'a -> 'a is not compatible with the type 'b -> 'b
        The layout of 'a is any, because
          of the definition of id at line 2, characters 2-31.
        But the layout of 'a must be representable, because
-         it's the representation polymorphic type in an external declaration.
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
 |}]
 
 
 (* External in sig *)
 module S : sig
-  external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
 end = struct
   let id: ('a : any). 'a -> 'a = assert false
 end
@@ -232,12 +238,12 @@ Error: Signature mismatch:
          sig val id : ('a : any). 'a -> 'a end
        is not included in
          sig
-           external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+           external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
          end
        Values do not match:
          val id : ('a : any). 'a -> 'a
        is not included in
-         external id : ('a : any). 'a -> 'a = "%identity" [@@rep_poly]
+         external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
        The implementation is not a primitive.
 |}]
 
@@ -252,16 +258,18 @@ end
 let f (type a1 : any) () =
   let module M = struct
     type t = a1
-    external[@rep_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
+    external[@layout_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
 module type S = sig type t val f : 'a -> t -> 'a end
-Line 9, characters 46-48:
-9 |     external[@rep_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
-                                                  ^^
-Error: Types in an external must have a representable layout.
+Line 9, characters 49-51:
+9 |     external[@layout_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
+                                                     ^^
+Error: Types in an external must have a representable layout
+       (variables with layout 'any' are made representable
+       by [@layout_poly]).
        The layout of a1 is any, because
          of the annotation on the abstract type declaration for a1.
        But the layout of a1 must be representable, because
@@ -271,15 +279,17 @@ Error: Types in an external must have a representable layout.
 let f (type a2 : any) () =
   let module M = struct
     type t = a2
-    external[@rep_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
+    external[@layout_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
-Line 4, characters 46-59:
-4 |     external[@rep_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
-                                                  ^^^^^^^^^^^^^
-Error: Types in an external must have a representable layout.
+Line 4, characters 49-62:
+4 |     external[@layout_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
+                                                     ^^^^^^^^^^^^^
+Error: Types in an external must have a representable layout
+       (variables with layout 'any' are made representable
+       by [@layout_poly]).
        The layout of a2 t_with_any is any, because
          of the annotation on the abstract type declaration for a2.
        But the layout of a2 t_with_any must be representable, because
@@ -289,15 +299,17 @@ Error: Types in an external must have a representable layout.
 let f (type a3 : any) () =
   let module M = struct
     type t = a3
-    external[@rep_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
+    external[@layout_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
   end in
   (module M : S with type t = a)
 
 [%%expect{|
-Line 4, characters 46-56:
-4 |     external[@rep_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
-                                                  ^^^^^^^^^^
-Error: Types in an external must have a representable layout.
+Line 4, characters 49-59:
+4 |     external[@layout_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
+                                                     ^^^^^^^^^^
+Error: Types in an external must have a representable layout
+       (variables with layout 'any' are made representable
+       by [@layout_poly]).
        The layout of a3 M_any.t is any, because
          of the annotation on the abstract type declaration for a3.
        But the layout of a3 M_any.t must be representable, because
@@ -310,14 +322,16 @@ Error: Types in an external must have a representable layout.
 module M (A : sig
   type t: any
 end) = struct
-  external[@rep_poly] id : ('a : any). 'a -> A.t -> 'a = "%apply"
+  external[@layout_poly] id : ('a : any). 'a -> A.t -> 'a = "%apply"
 end
 
 [%%expect{|
-Line 4, characters 45-48:
-4 |   external[@rep_poly] id : ('a : any). 'a -> A.t -> 'a = "%apply"
-                                                 ^^^
-Error: Types in an external must have a representable layout.
+Line 4, characters 48-51:
+4 |   external[@layout_poly] id : ('a : any). 'a -> A.t -> 'a = "%apply"
+                                                    ^^^
+Error: Types in an external must have a representable layout
+       (variables with layout 'any' are made representable
+       by [@layout_poly]).
        The layout of A.t is any, because
          of the definition of t at line 2, characters 2-13.
        But the layout of A.t must be representable, because
@@ -327,7 +341,7 @@ Error: Types in an external must have a representable layout.
 module M (A : sig
   type ('a: any) t = private 'a
 end) = struct
-  external[@rep_poly] id : ('a : any). 'a A.t -> 'a = "%identity"
+  external[@layout_poly] id : ('a : any). 'a A.t -> 'a = "%identity"
   let f1 (): float# = id (assert false : float# A.t)
   let f2 (): int64# = id (assert false : int64# A.t)
   let f3 (): int32# = id (assert false : int32# A.t)
@@ -337,7 +351,7 @@ end
 module M :
   functor (A : sig type ('a : any) t = private 'a end) ->
     sig
-      external id : ('a : any). 'a A.t -> 'a = "%identity" [@@rep_poly]
+      external id : ('a : any). 'a A.t -> 'a = "%identity" [@@layout_poly]
       val f1 : unit -> float#
       val f2 : unit -> int64#
       val f3 : unit -> int32#
@@ -350,30 +364,30 @@ module M :
 (* Also means [No_native_primitive_with_non_value] errors
    get shadowed when using the attribute. *)
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
+external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
 [%%expect{|
-Line 1, characters 0-62:
-1 | external[@rep_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Attribute [@rep_poly] can only be used on built-in primitives.
+Line 1, characters 0-65:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Attribute [@layout_poly] can only be used on built-in primitives.
 |}]
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
+external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
 [%%expect{|
-Line 1, characters 0-77:
-1 | external[@rep_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Attribute [@rep_poly] can only be used on built-in primitives.
+Line 1, characters 0-80:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Attribute [@layout_poly] can only be used on built-in primitives.
 |}]
 
 (***********************************)
 (* All type vars get the same sort *)
 
-external[@rep_poly] id : ('a : any) ('b : any). 'a -> 'b = "%identity"
+external[@layout_poly] id : ('a : any) ('b : any). 'a -> 'b = "%identity"
 let f (x: float#): int64# = id x
 
 [%%expect{|
-external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@rep_poly]
+external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@layout_poly]
 Line 2, characters 28-32:
 2 | let f (x: float#): int64# = id x
                                 ^^^^
@@ -382,37 +396,39 @@ Error: This expression has type ('a : float64)
        The layout of int64# is bits64, because
          it is the primitive bits64 type int64#.
        But the layout of int64# must be a sublayout of float64, because
-         it's the representation polymorphic type in an external declaration, defaulted to layout float64.
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites), defaulted to layout float64.
 |}]
 (* CR layouts v2.9: the default part is not quite correct *)
 
 (*************************************)
 (* Interaction with other attributes *)
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
 
 [%%expect{|
-Line 1, characters 37-39:
-1 | external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
-                                         ^^
+Line 1, characters 40-42:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+                                            ^^
 Error: Don't know how to unbox this type.
        Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}]
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
 
 [%%expect{|
-Line 1, characters 37-39:
-1 | external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
-                                         ^^
+Line 1, characters 40-42:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
+                                            ^^
 Error: Don't know how to untag this type. Only int can be untagged.
 |}]
 
-external[@rep_poly] id : ('a : any). 'a -> 'a =
+external[@layout_poly] id : ('a : any). 'a -> 'a =
   "%identity" "%identity" "float"
 [%%expect{|
 Lines 1-2, characters 0-33:
-1 | external[@rep_poly] id : ('a : any). 'a -> 'a =
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a =
 2 |   "%identity" "%identity" "float"
 Error: Cannot use "float" in conjunction with types of non-value layouts.
 |}]
@@ -420,7 +436,7 @@ Error: Cannot use "float" in conjunction with types of non-value layouts.
 (*************************************)
 (* Type var in nested in other types *)
 
-external[@rep_poly] id : ('a : any). 'a t_with_any -> 'a t_with_any = "%identity"
+external[@layout_poly] id : ('a : any). 'a t_with_any -> 'a t_with_any = "%identity"
 
 let f (x: float#): float# = id x
 let f (x: int64#): int64# = id x
@@ -428,21 +444,22 @@ let f (x: int32#): int32# = id x
 
 [%%expect{|
 external id : ('a : any). 'a t_with_any -> 'a t_with_any = "%identity"
-  [@@rep_poly]
+  [@@layout_poly]
 val f : float# -> float# = <fun>
 val f : int64# -> int64# = <fun>
 val f : int32# -> int32# = <fun>
 |}]
 
 
-external[@rep_poly] id : ('a : any). 'a M_any.t -> 'a M_any.t = "%identity"
+external[@layout_poly] id : ('a : any). 'a M_any.t -> 'a M_any.t = "%identity"
 
 let f (): float# M_any.t = id (assert false : float# M_any.t)
 let f (): int64# M_any.t = id (assert false : int64# M_any.t)
 let f (): int32# M_any.t = id (assert false : int32# M_any.t)
 
 [%%expect{|
-external id : ('a : any). 'a M_any.t -> 'a M_any.t = "%identity" [@@rep_poly]
+external id : ('a : any). 'a M_any.t -> 'a M_any.t = "%identity"
+  [@@layout_poly]
 val f : unit -> float# M_any.t = <fun>
 val f : unit -> int64# M_any.t = <fun>
 val f : unit -> int32# M_any.t = <fun>
@@ -450,12 +467,12 @@ val f : unit -> int32# M_any.t = <fun>
 
 
 (* doesn't work when the type constructor puts a constraint on ['a] *)
-external[@rep_poly] id : ('a : any). 'a list -> 'a list = "%identity"
+external[@layout_poly] id : ('a : any). 'a list -> 'a list = "%identity"
 
 [%%expect{|
-Line 1, characters 25-55:
-1 | external[@rep_poly] id : ('a : any). 'a list -> 'a list = "%identity"
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 28-58:
+1 | external[@layout_poly] id : ('a : any). 'a list -> 'a list = "%identity"
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The universal type variable 'a was declared to have layout any.
        But it was inferred to have layout value, because
          the type argument of list has layout value.
@@ -463,7 +480,7 @@ Error: The universal type variable 'a was declared to have layout any.
 
 (* Test this when sorts can be inside unboxed records *)
 (* type ('a : any) r = {field: 'a} [@@unboxed]
-external[@rep_poly] id : ('a : any). 'a M_any.t r -> 'a M_any.t r = "%identity"
+external[@layout_poly] id : ('a : any). 'a M_any.t r -> 'a M_any.t r = "%identity"
 
 let f (): float# M_any.t r = id (assert false : float# M_any.t r)
 let f (): int64# M_any.t r = id (assert false : int64# M_any.t r)
@@ -471,7 +488,7 @@ let f (): int32# M_any.t r = id (assert false : int32# M_any.t r) *)
 
 
 (********************************************)
-(* Some primitives require rep_poly to work *)
+(* Some primitives require layout_poly to work *)
 
 type ('a : any) t
 external id : ('a : any). 'a t -> int = "%array_length"
@@ -483,14 +500,14 @@ Line 2, characters 14-37:
 2 | external id : ('a : any). 'a t -> int = "%array_length"
                   ^^^^^^^^^^^^^^^^^^^^^^^
 Error: The primitive [%array_length] doesn't work well with type variables of
-       layout any. Consider using [@rep_poly].
+       layout any. Consider using [@layout_poly].
 |}]
 
-external[@rep_poly] id : ('a : any). 'a t -> int = "%array_length"
+external[@layout_poly] id : ('a : any). 'a t -> int = "%array_length"
 let id' x = id x
 
 [%%expect{|
-external id : ('a : any). 'a t -> int = "%array_length" [@@rep_poly]
+external id : ('a : any). 'a t -> int = "%array_length" [@@layout_poly]
 val id' : 'a t -> int = <fun>
 |}]
 
@@ -504,13 +521,13 @@ val id' : ('a : any). 'a t -> int = <fun>
 
 
 (***************************************************************)
-(* Some primitives can't have rep_poly or any non-value jkinds *)
+(* Some primitives can't have layout_poly or any non-value jkinds *)
 
-external[@rep_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
+external[@layout_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
 [%%expect{|
-Line 1, characters 26-46:
-1 | external[@rep_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
-                              ^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 29-49:
+1 | external[@layout_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
+                                 ^^^^^^^^^^^^^^^^^^^^
 Error: The primitive [%obj_dup] doesn't yet support argument/return types
        with non-value layouts.
 |}]
@@ -525,18 +542,18 @@ Error: The primitive [%obj_dup] doesn't yet support argument/return types
 |}]
 
 (**********************************************************)
-(* Non-explicitly quantify tvars don't work with rep_poly *)
+(* Non-explicitly quantify tvars don't work with layout_poly *)
 
 type ('a : any) t = 'a
 
-external[@rep_poly] id : 'a t -> 'a t = "%identity"
+external[@layout_poly] id : 'a t -> 'a t = "%identity"
 
 (* should fail as ['a] will get defaulted to [value] above without explicit
    quantification *)
 let idf : ('a : float64). 'a -> 'a = id
 [%%expect{|
 type ('a : any) t = 'a
-external id : 'a t -> 'a t = "%identity" [@@rep_poly]
+external id : 'a t -> 'a t = "%identity" [@@layout_poly]
 Line 7, characters 37-39:
 7 | let idf : ('a : float64). 'a -> 'a = id
                                          ^^
@@ -544,7 +561,7 @@ Error: This expression has type 'b t -> 'b t
        but an expression was expected of type 'a -> 'a
        Type 'b t = 'b is not compatible with type 'a
        The layout of 'a t is value, because
-         of the definition of id at line 3, characters 0-51.
+         of the definition of id at line 3, characters 0-54.
        But the layout of 'a t must overlap with float64, because
          of the annotation on the universal variable 'a.
 |}]

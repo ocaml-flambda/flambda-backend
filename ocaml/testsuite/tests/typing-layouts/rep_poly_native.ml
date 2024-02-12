@@ -6,11 +6,11 @@
 *)
 
 
-external[@rep_poly] id : ('a : any). 'a -> 'a = "%identity"
-external[@rep_poly] opaque : ('a : any). 'a -> 'a = "%opaque"
-external[@rep_poly] magic : ('a : any) ('b : any). 'a -> 'b = "%obj_magic"
-external[@rep_poly] apply : ('a : any) ('b : any). ('a -> 'b) -> 'a -> 'b = "%apply"
-external[@rep_poly] revapply : ('a : any) ('b : any). 'a -> ('a -> 'b) -> 'b = "%revapply"
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
+external[@layout_poly] opaque : ('a : any). 'a -> 'a = "%opaque"
+external[@layout_poly] magic : ('a : any) ('b : any). 'a -> 'b = "%obj_magic"
+external[@layout_poly] apply : ('a : any) ('b : any). ('a -> 'b) -> 'a -> 'b = "%apply"
+external[@layout_poly] revapply : ('a : any) ('b : any). 'a -> ('a -> 'b) -> 'b = "%revapply"
 
 type t_any : any
 module N = Stdlib__Nativeint_u

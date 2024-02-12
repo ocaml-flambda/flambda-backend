@@ -1613,7 +1613,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      ty
 
 (* This function makes a copy of [ty] if [desc] is marked
-   [prim_is_representation_poly] AND at least one
+   [prim_is_layout_poly] AND at least one
    generic type variable with jkind [any] is present. The function
    returns [ty] unchanged otherwise.
 
@@ -1633,7 +1633,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
    it being the type of an external declaration. However, the code
    is written without relaying this assumption. *)
 let instance_prim_repr (desc : Primitive.description) ty =
-  if not desc.prim_is_representation_poly
+  if not desc.prim_is_layout_poly
   then ty, None
   else
   let new_sort_and_jkind = ref None in
@@ -1642,7 +1642,9 @@ let instance_prim_repr (desc : Primitive.description) ty =
     | Some (_, jkind) ->
       jkind
     | None ->
-      let jkind, sort = Jkind.of_new_sort_var ~why:Repr_poly_in_external in
+      let jkind, sort =
+        Jkind.of_new_sort_var ~why:Layout_poly_in_external
+      in
       new_sort_and_jkind := Some (sort, jkind);
       jkind
   in
@@ -1671,7 +1673,7 @@ let instance_prim_repr (desc : Primitive.description) ty =
       (* We don't want to lower the type vars from generic_level due to
          usages in [includecore.ml]. This means an extra [instance] call
          is needed in [type_ident], but we only hit it if it's
-         representation polymorphic. *)
+         layout polymorphic. *)
       generic_instance ty, Some sort
     | None -> ty, None)
 

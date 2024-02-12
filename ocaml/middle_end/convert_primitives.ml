@@ -179,7 +179,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~native_name:"caml_obj_dup"
       ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
       ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value)
-      ~is_layout_representation_polymorphic:false)
+      ~is_layout_poly:false)
   | Punbox_float bf -> Punbox_float bf
   | Pbox_float (bf,m) -> Pbox_float (bf,m)
   | Punbox_int bi -> Punbox_int bi

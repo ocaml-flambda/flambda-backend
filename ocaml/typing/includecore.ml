@@ -34,7 +34,7 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
-  | Repr_poly_attr
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
@@ -66,9 +66,9 @@ let primitive_descriptions pd1 pd2 =
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
   else if not
-    (Bool.equal pd1.prim_is_representation_poly
-                pd2.prim_is_representation_poly) then
-    Some Repr_poly_attr
+    (Bool.equal pd1.prim_is_layout_poly
+                pd2.prim_is_layout_poly) then
+    Some Layout_poly_attr
   else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin
   else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
@@ -287,8 +287,8 @@ let report_primitive_mismatch first second ppf err =
   | Argument_repr n ->
       pr "The two primitives' %d%s arguments have different representations"
         n (Misc.ordinal_suffix n)
-  | Repr_poly_attr ->
-      pr "The two primitives have different [@@rep_poly] attributes"
+  | Layout_poly_attr ->
+      pr "The two primitives have different [@@layout_poly] attributes"
 
 let report_value_mismatch first second env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
