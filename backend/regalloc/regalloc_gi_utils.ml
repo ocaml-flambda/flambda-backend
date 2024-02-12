@@ -593,13 +593,10 @@ module Hardware_registers = struct
 
   let make () =
     Array.init Proc.num_register_classes ~f:(fun reg_class ->
-        let num_hardware_regs = Proc.num_available_registers.(reg_class) in
-        let num_available_regs =
-          match Lazy.force gi_limit_regs with
-          | None -> num_hardware_regs
-          | Some l -> Int.min l num_hardware_regs
+        let num_available_registers =
+          Proc.num_available_registers.(reg_class)
         in
-        Array.init num_available_regs ~f:(fun reg_index_in_class ->
+        Array.init num_available_registers ~f:(fun reg_index_in_class ->
             let location =
               Hardware_register.make_location ~reg_class ~reg_index_in_class
             in
@@ -619,15 +616,38 @@ module Hardware_registers = struct
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
+  (* Modified Stdlib.Array.find_opt *)
+  let find_opt a ~f ~limit =
+    let n = Int.min (Array.length a) limit in
+    let rec loop i =
+      if i = n
+      then None
+      else
+        let x = Array.unsafe_get a i in
+        if f x then Some x else loop (succ i)
+    in
+    loop 0
+
+  (* Modified Stdlib.Array.fold_left *)
+  let fold_left a ~f ~init ~limit =
+    let n = Int.min (Array.length a) limit in
+    let r = ref init in
+    for i = 0 to n - 1 do
+      r := f !r (Array.unsafe_get a i)
+    done;
+    !r
+
+  let limit = Lazy.map (Option.value ~default:Int.max_int) gi_limit_regs
+
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    Array.find_opt t.(Proc.register_class of_reg) ~f
+    find_opt t.(Proc.register_class of_reg) ~f ~limit:(Lazy.force limit)
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
+    fold_left t.(Proc.register_class of_reg) ~f ~init ~limit:(Lazy.force limit)
 
   let actual_cost (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
@@ -737,29 +757,30 @@ module Hardware_registers = struct
   let find_available : t -> Reg.t -> Interval.t -> available =
    fun t reg interval ->
     let with_no_overlap =
-      let rec select heuristic =
-        match heuristic with
+      let heuristic =
+        match Lazy.force Selection_heuristics.value with
         | Selection_heuristics.Random_for_testing ->
-          select (Selection_heuristics.random ())
-        | Selection_heuristics.First_available ->
-          if gi_debug
-          then
-            log ~indent:3
-              "trying to find an available register with 'first-available'";
-          find_first t reg interval
-        | Selection_heuristics.Best_fit ->
-          if gi_debug
-          then
-            log ~indent:3 "trying to find an available register with 'best-fit'";
-          find_using_length t reg interval ~better:( > )
-        | Selection_heuristics.Worst_fit ->
-          if gi_debug
-          then
-            log ~indent:3
-              "trying to find an available register with 'worst-fit'";
-          find_using_length t reg interval ~better:( < )
+          Selection_heuristics.random ()
+        | heuristic -> heuristic
       in
-      select (Lazy.force Selection_heuristics.value)
+      match heuristic with
+      | Selection_heuristics.Random_for_testing -> assert false
+      | Selection_heuristics.First_available ->
+        if gi_debug
+        then
+          log ~indent:3
+            "trying to find an available register with 'first-available'";
+        find_first t reg interval
+      | Selection_heuristics.Best_fit ->
+        if gi_debug
+        then
+          log ~indent:3 "trying to find an available register with 'best-fit'";
+        find_using_length t reg interval ~better:( > )
+      | Selection_heuristics.Worst_fit ->
+        if gi_debug
+        then
+          log ~indent:3 "trying to find an available register with 'worst-fit'";
+        find_using_length t reg interval ~better:( < )
     in
     match with_no_overlap with
     | Some hardware_reg -> For_assignment { hardware_reg }
