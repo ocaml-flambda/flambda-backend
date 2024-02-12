@@ -1612,6 +1612,26 @@ let rec instance_prim_locals locals mvar macc finalret ty =
   | [], _ ->
      ty
 
+(* This function makes a copy of [ty] if [desc] is marked
+   [prim_is_layout_representation_polymorphic] AND at least one
+   generic type variable with jkind [any] is present. The function
+   returns [ty] unchanged otherwise.
+
+   When making the copy, all generic type variables with jkind
+   [any] will be modified to have a sort var jkind. The same sort
+   var will be used for all such rewrites.
+
+   The copy should also have the same level information as [ty].
+   This is done in three steps:
+   1. Change [ty] directly within a copy scope to have the sort var
+      in place of jkind [any].
+   2. Call [generic_instance] on this modified [ty] to make the actual
+      copy we return (non-generic & generic levels should be preserved).
+   3. Exit the copy scope thus restoring [ty] to its original state.
+
+   No non-generic type variables should be present in [ty] due to
+   it being the type of an external declaration. However, the code
+   is written without relaying this assumption. *)
 let instance_prim_repr (desc : Primitive.description) ty =
   if not desc.prim_is_layout_representation_polymorphic
   then ty, None
