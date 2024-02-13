@@ -95,6 +95,9 @@ let trap_notes = ref true
 (* Emit extension symbols for CPUID startup check  *)
 let arch_check_symbols = ref true
 
+(* Limit hardware registers available for allocation *)
+let limit_regalloc = ref Int.max_int
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -110,6 +113,8 @@ let command_line_options =
       " Emit ISA extension symbols for CPUID check (default)";
     "-fno-arch-check", Arg.Clear arch_check_symbols,
       " Do not emit ISA extension symbols for CPUID check";
+    "-flimit-regalloc", Arg.Set_int limit_regalloc,
+      " Maximum number of hardware registers available for allocation";
   ] @ Extension.args
 
 let assert_simd_enabled () =

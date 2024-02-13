@@ -24,6 +24,8 @@ val macosx : bool
 
 val command_line_options : (string * Arg.spec * string) list
 
+val limit_regalloc : int ref
+
 (* Addressing modes *)
 
 type addressing_mode =

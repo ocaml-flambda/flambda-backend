@@ -587,15 +587,38 @@ module Hardware_registers = struct
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
+  (* Modified Stdlib.Array.find_opt *)
+  let find_opt a ~f ~limit =
+    let n = Int.min (Array.length a) limit in
+    let rec loop i =
+      if i = n
+      then None
+      else
+        let x = Array.unsafe_get a i in
+        if f x then Some x else loop (succ i)
+    in
+    loop 0
+
+  (* Modified Stdlib.Array.fold_left *)
+  let fold_left a ~f ~init ~limit =
+    let n = Int.min (Array.length a) limit in
+    let r = ref init in
+    for i = 0 to n - 1 do
+      r := f !r (Array.unsafe_get a i)
+    done;
+    !r
+
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    Array.find_opt t.(Proc.register_class of_reg) ~f
+    find_opt t.(Proc.register_class of_reg) ~f ~limit:!Arch.limit_regalloc
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
+    fold_left
+      t.(Proc.register_class of_reg)
+      ~f ~init ~limit:!Arch.limit_regalloc
 
   let actual_cost (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg

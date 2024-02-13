@@ -25,6 +25,8 @@ let macosx = (Config.system = "macosx")
 
 let command_line_options = []
 
+let limit_regalloc = ref Int.max_int
+
 (* Addressing modes *)
 
 type addressing_mode =
