@@ -96,7 +96,7 @@ let trap_notes = ref true
 let arch_check_symbols = ref true
 
 (* Limit hardware registers available for allocation *)
-let limit_regalloc = ref 6
+let limit_regalloc = ref 7
 
 (* Machine-specific command-line options *)
 
