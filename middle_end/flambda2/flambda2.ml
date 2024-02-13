@@ -165,17 +165,18 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
-        let flambda, all_code =
+        let flambda, free_names, all_code, slot_offsets =
           match Sys.getenv_opt "CLEANUP" with
-          | Some ("no" | "NO" | "n" | "N") -> flambda, all_code
+          | Some ("no" | "NO" | "n" | "N") ->
+            flambda, free_names, all_code, slot_offsets
           | _ ->
-            let flambda, all_code =
+            let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "cleanup" (fun () ->
                   Flambda2_cleanup.Cleanup_test.run ~cmx_loader flambda)
             in
             print_flambda "cleanup" ppf flambda;
             print_flexpect "cleanup" ppf ~raw_flambda flambda;
-            flambda, all_code
+            flambda, free_names, all_code, slot_offsets
         in
         let { Simplify.unit = flambda;
               exported_offsets;

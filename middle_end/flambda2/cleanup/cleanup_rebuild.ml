@@ -81,6 +81,8 @@ open! Cleanup_traverse
 
 type rev_expr = Cleanup_traverse.rev_expr
 
+let all_slot_offsets = ref Slot_offsets.empty
+
 let all_code = ref Code_id.Map.empty
 
 let deleted_code = ref Code_id.Map.empty
@@ -152,11 +154,19 @@ let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) 
 let rewrite_static_const kinds uses (sc : Static_const.t) =
   match sc with
   | Static_const.Set_of_closures sc ->
-    Static_const.set_of_closures
-      (Set_of_closures.create
-         ~value_slots:(Value_slot.Map.map (rewrite_simple kinds uses) (Set_of_closures.value_slots sc))
-         (Set_of_closures.alloc_mode sc)
-         (Set_of_closures.function_decls sc))
+    let set_of_closures =
+      Set_of_closures.create
+        ~value_slots:
+          (Value_slot.Map.map
+             (rewrite_simple kinds uses)
+             (Set_of_closures.value_slots sc))
+        (Set_of_closures.alloc_mode sc)
+        (Set_of_closures.function_decls sc)
+    in
+    all_slot_offsets
+      := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom:false
+           set_of_closures;
+    Static_const.set_of_closures set_of_closures
   | Static_const.Block (tag, mut, fields) ->
     let fields = List.map (rewrite_field_of_static_block kinds uses) fields in
     Static_const.block tag mut fields
@@ -372,9 +382,18 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
             let bound = match let_.bound_pattern with
                 Set_of_closures s -> s | Static _ | Singleton _ -> assert false
             in
-
-            let set_of_closures = rewrite_set_of_closures bound uses value_slots alloc_mode function_decls in
-            let_.bound_pattern, Flambda.Named.create_set_of_closures set_of_closures
+            let set_of_closures =
+              rewrite_set_of_closures bound uses value_slots alloc_mode
+                function_decls
+            in
+            let is_phantom =
+              Name_mode.is_phantom @@ Bound_pattern.name_mode let_.bound_pattern
+            in
+            all_slot_offsets
+              := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom
+                   set_of_closures;
+            ( let_.bound_pattern,
+              Flambda.Named.create_set_of_closures set_of_closures )
         in
         let defining_expr = rewrite_named kinds uses defining_expr in
         RE.create_let bp defining_expr ~body:hole
@@ -416,6 +435,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     rebuild_holed kinds uses parent let_cont_expr
 
 let rebuild kinds solved_dep holed =
+  all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
   (* Not really used: to remove *)
   deleted_code := Code_id.Map.empty;
@@ -423,4 +443,4 @@ let rebuild kinds solved_dep holed =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds solved_dep holed)
   in
-  rebuilt_expr.expr, !all_code
+  rebuilt_expr.expr, rebuilt_expr.free_names, !all_code, !all_slot_offsets
