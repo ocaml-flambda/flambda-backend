@@ -226,7 +226,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let set_of_closures =
       let decl =
         Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
@@ -279,7 +279,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
-            let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+            let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
                 ~closure_bound_var ~kind ~mode ~region
@@ -699,7 +699,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
     let closure_bound_var = Variable.rename let_bound_var in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
         ~params ~body ~attr ~loc ~return_layout:return

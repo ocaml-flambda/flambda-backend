@@ -53,6 +53,8 @@ let is_loop_attribute =
 let is_opaque_attribute =
   [ ["opaque"; "ocaml.opaque"], true ]
 
+let is_unboxed_attribute =
+  [ ["unboxed"; "ocaml.unboxed"], true ]
 
 let find_attribute ?mark_used p attributes =
   let inline_attribute =
@@ -586,6 +588,21 @@ let add_opaque_attribute expr loc attributes =
       end
   | _ -> expr
 
+let add_unbox_return_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+      let attr = find_attribute is_unboxed_attribute attributes in
+      begin match attr with
+      | None -> expr
+      | Some _ ->
+          if funct.attr.unbox_return then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "unboxed");
+          let attr = { funct.attr with unbox_return = true } in
+          lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
@@ -646,6 +663,9 @@ let add_function_attributes lam loc attr =
   let lam =
     add_tmc_attribute lam loc attr
   in
+  let lam =
+    add_unbox_return_attribute lam loc attr
+  in
   (* last because poll and opaque overrides inline and local *)
   let lam =
     add_poll_attribute lam loc attr
@@ -654,3 +674,10 @@ let add_function_attributes lam loc attr =
     add_opaque_attribute lam loc attr
   in
   lam
+
+let transl_param_attributes pat =
+      let attrs = pat.pat_attributes in
+      let unbox_param =
+        Option.is_some (find_attribute is_unboxed_attribute attrs)
+      in
+      { unbox_param }

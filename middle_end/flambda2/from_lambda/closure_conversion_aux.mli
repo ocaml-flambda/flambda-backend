@@ -248,7 +248,8 @@ module Acc : sig
   val add_shareable_constant :
     symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
-  val add_code : code_id:Code_id.t -> code:Code.t -> t -> t
+  val add_code :
+    code_id:Code_id.t -> code:Code.t -> ?slot_offsets:Slot_offsets.t -> t -> t
 
   val add_free_names : Name_occurrences.t -> t -> t
 
@@ -315,6 +316,16 @@ end
     one declaration is when processing "let rec".) *)
 module Function_decls : sig
   module Function_decl : sig
+    type unboxing_kind =
+      | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
+      | Unboxed_number of Flambda_kind.Boxable_number.t
+      | Unboxed_float_record of int
+
+    type calling_convention =
+      | Normal_calling_convention
+      | Unboxed_calling_convention of
+          unboxing_kind option list * unboxing_kind option * Function_slot.t
+
     type t
 
     type param =
@@ -332,6 +343,7 @@ module Function_decls : sig
       params_arity:[`Complex] Flambda_arity.t ->
       removed_params:Ident.Set.t ->
       return:[`Unarized] Flambda_arity.t ->
+      calling_convention:calling_convention ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -357,6 +369,8 @@ module Function_decls : sig
     val params_arity : t -> [`Complex] Flambda_arity.t
 
     val return : t -> [`Unarized] Flambda_arity.t
+
+    val calling_convention : t -> calling_convention
 
     val return_continuation : t -> Continuation.t
 

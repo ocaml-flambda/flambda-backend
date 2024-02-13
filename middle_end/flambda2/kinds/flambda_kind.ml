@@ -548,6 +548,22 @@ module With_subkind = struct
     | Naked_nativeint -> naked_nativeint
     | Naked_vec128 -> naked_vec128
 
+  let naked_of_boxable_number (boxable_number : Boxable_number.t) =
+    match boxable_number with
+    | Naked_float -> naked_float
+    | Naked_int32 -> naked_int32
+    | Naked_int64 -> naked_int64
+    | Naked_nativeint -> naked_nativeint
+    | Naked_vec128 -> naked_vec128
+
+  let boxed_of_boxable_number (boxable_number : Boxable_number.t) =
+    match boxable_number with
+    | Naked_float -> boxed_float
+    | Naked_int32 -> boxed_int32
+    | Naked_int64 -> boxed_int64
+    | Naked_nativeint -> boxed_nativeint
+    | Naked_vec128 -> boxed_vec128
+
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     match vk with
     | Pgenval -> any_value
