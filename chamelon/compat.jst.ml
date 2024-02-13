@@ -20,7 +20,7 @@ type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
 
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
-  (* XXX jrodri for goldfirere: Question! I am unsure if my approach for fixing
+  (* XXX jrodri: Question! I am unsure if my approach for fixing
      this subdirectory is sane. It seems like chamelon needs to run on both a "JST" version
      and an "upstream" version. The JST version changes Typedtree with a new arg_label,
      while the upstream version still does not have this new arg_label type.
