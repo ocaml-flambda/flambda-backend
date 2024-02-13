@@ -738,7 +738,9 @@ end = struct
          (Function_slot.get_compilation_unit function_slot)
     then (
       let size =
-        let code_metadata = get_code_metadata code_id in
+        match get_code_metadata code_id with
+        | exception Not_found -> 2
+        | code_metadata ->
         let module CM = Code_metadata in
         let is_tupled = CM.is_tupled code_metadata in
         let params_arity = CM.params_arity code_metadata in
