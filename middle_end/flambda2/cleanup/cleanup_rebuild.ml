@@ -228,7 +228,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode function_
             let open Function_declarations in
             let function_decls =
               Function_declarations.create
-                (Function_slot.Lmap.mapi (fun slot { code_id ; is_required_at_runtime } -> { code_id ; is_required_at_runtime = is_required_at_runtime && slot_is_used (Function_slot slot) })
+                (Function_slot.Lmap.mapi (fun slot code_id -> if slot_is_used (Function_slot slot)  then code_id else Deleted)
                 (Function_declarations.funs_in_order function_decls))
                in
             (* TODO remove unused function slots as well *)

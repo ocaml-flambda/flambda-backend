@@ -23,10 +23,7 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 
-type code_id_in_function_declaration = {
-  code_id : Code_id.t ;
-  is_required_at_runtime : bool ;
-}
+type code_id_in_function_declaration = Deleted | Code_id of Code_id.t
 
 val empty : t
 

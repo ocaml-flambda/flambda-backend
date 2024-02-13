@@ -631,7 +631,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     in
     let function_decls =
       Function_declarations.create
-        (Function_slot.Lmap.singleton wrapper_function_slot ({ code_id ; is_required_at_runtime = true }  : Function_declarations.code_id_in_function_declaration))
+        (Function_slot.Lmap.singleton wrapper_function_slot (Code_id code_id : Function_declarations.code_id_in_function_declaration))
     in
     let value_slots =
       List.filter_map

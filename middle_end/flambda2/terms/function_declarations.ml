@@ -14,10 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type code_id_in_function_declaration = {
-  code_id : Code_id.t ;
-  is_required_at_runtime : bool ;
-}
+type code_id_in_function_declaration =
+  | Deleted
+  | Code_id of Code_id.t
 
 type t =
   { funs : code_id_in_function_declaration Function_slot.Map.t;
@@ -44,15 +43,16 @@ let find ({ funs; _ } : t) function_slot =
 let [@ocamlformat "disable"] print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Function_slot.Lmap.print
-       (fun ppf { code_id ; is_required_at_runtime } -> Format.fprintf ppf "%a%s" Code_id.print code_id (if is_required_at_runtime then "" else "[deleted]")))
+       (fun ppf -> function Deleted -> Format.fprintf ppf "[deleted]" | Code_id code_id -> Format.fprintf ppf "%a" Code_id.print code_id))
     in_order
 
 let free_names { funs; _ } =
   Function_slot.Map.fold
-    (fun function_slot { code_id ; is_required_at_runtime = _ } syms ->
+    (fun function_slot code_id syms ->
        let syms =         (Name_occurrences.add_function_slot_in_declaration syms function_slot
                              Name_mode.normal)
        in
+       match code_id with Deleted -> syms | Code_id code_id ->
       Name_occurrences.add_code_id syms
         code_id Name_mode.normal)
     funs Name_occurrences.empty
@@ -63,19 +63,28 @@ let free_names { funs; _ } =
 let apply_renaming ({ in_order; _ } as t) renaming =
   let in_order' =
     Function_slot.Lmap.map_sharing
-      (fun ({ code_id ; is_required_at_runtime } as t)-> let code_id' = Renaming.apply_code_id renaming code_id in if code_id == code_id' then t else { code_id = code_id' ; is_required_at_runtime })
+      (fun t->
+         match t with Deleted -> Deleted | Code_id code_id ->
+         let code_id' = Renaming.apply_code_id renaming code_id in if code_id == code_id' then t else Code_id code_id')
       in_order
   in
   if in_order == in_order' then t else create in_order'
 
 let ids_for_export { funs; _ } =
   Function_slot.Map.fold
-    (fun _function_slot { code_id ; is_required_at_runtime = _ } ids ->
+    (fun _function_slot code_id ids ->
+       match code_id with Deleted -> ids | Code_id code_id ->
        Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
 let compare { funs = funs1; _ } { funs = funs2; _ } =
-  Function_slot.Map.compare (fun { code_id = code_id1 ; is_required_at_runtime = is_required_at_runtime1 } { code_id = code_id2 ; is_required_at_runtime = is_required_at_runtime2 } -> let c = Code_id.compare code_id1 code_id2 in if c = 0 then Bool.compare is_required_at_runtime1 is_required_at_runtime2 else c) funs1 funs2
+  Function_slot.Map.compare (fun code_id1 code_id2 ->
+      match code_id1, code_id2 with
+      | Deleted, Deleted -> 0
+      | Deleted, Code_id _ -> -1
+      | Code_id _, Deleted -> 1
+      | Code_id code_id1, Code_id code_id2 -> Code_id.compare code_id1 code_id2)
+    funs1 funs2
 
 let filter t ~f =
   let funs = Function_slot.Map.filter f t.funs in

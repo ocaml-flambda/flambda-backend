@@ -509,7 +509,7 @@ let set_of_closures env fun_decls value_slots alloc =
       function_slot, code_id
     in
     List.map translate_fun_decl fun_decls
-    |> Function_slot.Lmap.of_list |> Function_slot.Lmap.map (fun code_id -> ({ code_id ; is_required_at_runtime = true } : Function_declarations.code_id_in_function_declaration))|> Function_declarations.create
+    |> Function_slot.Lmap.of_list |> Function_slot.Lmap.map (fun code_id -> (Code_id code_id : Function_declarations.code_id_in_function_declaration))|> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
   let value_slots : Simple.t Value_slot.Map.t =

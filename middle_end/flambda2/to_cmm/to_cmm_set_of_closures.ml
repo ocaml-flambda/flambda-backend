@@ -191,7 +191,7 @@ end = struct
         Ece.pure,
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
-        let { code_id; is_required_at_runtime } = (Function_slot.Map.find function_slot decls  : Function_declarations.code_id_in_function_declaration) in
+        let code_id = (Function_slot.Map.find function_slot decls  : Function_declarations.code_id_in_function_declaration) in
         let acc =
           match for_static_sets with
           | None -> acc
@@ -201,7 +201,8 @@ end = struct
             in
             List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
         in
-        if is_required_at_runtime then
+        match code_id with
+        | Code_id code_id ->
       let code_symbol = R.symbol_of_code_id res code_id in
       let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
@@ -251,8 +252,8 @@ end = struct
           env,
           res,
           Ece.pure,
-          updates )
-        else
+          updates ) ; ; ;
+      | Deleted ->
           let closure_info = C.closure_info' ~arity:(Curried { nlocal = 0 }, (if size = 2 then [()] else [(); ()])) ~startenv:(startenv - slot_offset) ~is_last:last_function_slot in
           let acc = match size with
             | 2 -> P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
@@ -458,7 +459,7 @@ let debuginfo_for_set_of_closures env set =
   let code_ids_in_set =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
-    |> List.filter_map (fun ({ code_id; is_required_at_runtime }  : Function_declarations.code_id_in_function_declaration) -> if is_required_at_runtime then Some code_id else None)
+    |> List.filter_map (fun (code_id  : Function_declarations.code_id_in_function_declaration) -> match code_id with Deleted -> None | Code_id code_id -> Some code_id)
   in
   let dbg =
     List.map
