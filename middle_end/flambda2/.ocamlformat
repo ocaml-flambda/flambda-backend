@@ -13,4 +13,5 @@ space-around-lists=false
 space-around-variants=false
 type-decl=sparse
 wrap-comments=true
+exp-grouping=preserve
 version=0.24.1

@@ -352,7 +352,12 @@ let static_const_or_code env r ~updates (bound_static : Bound_static.Pattern.t)
       (* Nothing needs doing here as we've already added the code to the
          environment. *)
       env, r, updates
-    | Code _, Deleted_code -> env, r, updates
+    | Code code_id, Deleted_code ->
+      (* Temp hack: make keep code_id alive *)
+      let symbol = R.symbol_of_code_id r code_id in
+      (* Format.eprintf "CODE_ID = %a SYMBOL = %a@." Code_id.print code_id Printcmm.symbol symbol; *)
+      let data = C.emit_int64_constant symbol Int64.zero in
+      env, R.update_data r data, updates
     | Code _, Static_const static_const ->
       Misc.fatal_errorf "Only code can be bound by [Code] bindings:@ %a@ =@ %a"
         Bound_static.Pattern.print bound_static SC.print static_const

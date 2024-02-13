@@ -1934,7 +1934,7 @@ let close_functions acc external_env ~current_region function_declarations =
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
-  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list in
+  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list |> Function_slot.Lmap.map (fun code_id -> (Code_id code_id : Function_declarations.code_id_in_function_declaration)) in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold

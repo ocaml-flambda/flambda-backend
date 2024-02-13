@@ -70,7 +70,10 @@ let set_of_closures ~find_code_characteristics set_of_closures =
   in
   let cost_metrics, num_words =
     Function_slot.Map.fold
-      (fun _ code_id (metrics, num_words) ->
+      (fun _ (code_id : Function_declarations.code_id_in_function_declaration) (metrics, num_words) ->
+         match code_id with
+         | Deleted -> (metrics, num_words)
+         | Code_id code_id ->
         let { cost_metrics; params_arity } =
           find_code_characteristics code_id
         in

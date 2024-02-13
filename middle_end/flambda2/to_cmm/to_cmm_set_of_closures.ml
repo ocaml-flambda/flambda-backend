@@ -110,7 +110,7 @@ module Make_layout_filler (P : sig
 end) : sig
   val fill_layout :
     for_static_sets option ->
-    Code_id.t Function_slot.Map.t ->
+    Function_declarations.code_id_in_function_declaration Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
     Simple.t Value_slot.Map.t ->
@@ -181,8 +181,28 @@ end = struct
         res,
         eff,
         updates )
+    | Dummy_function_slot { last_function_slot } ->
+      let closure_info = C.closure_info' ~arity:(Curried { nlocal = 0 }, [()]) ~startenv:(startenv - slot_offset) ~is_last:last_function_slot in
+      ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
+        Backend_var.Set.empty,
+        slot_offset + 2,
+        env,
+        res,
+        Ece.pure,
+        updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
-      let code_id = Function_slot.Map.find function_slot decls in
+        let code_id = (Function_slot.Map.find function_slot decls  : Function_declarations.code_id_in_function_declaration) in
+        let acc =
+          match for_static_sets with
+          | None -> acc
+          | Some { closure_symbols; _ } ->
+            let function_symbol =
+              Function_slot.Map.find function_slot closure_symbols
+            in
+            List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
+        in
+        match code_id with
+        | Code_id code_id ->
       let code_symbol = R.symbol_of_code_id res code_id in
       let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
@@ -190,15 +210,6 @@ end = struct
       let closure_info =
         C.closure_info' ~arity:(kind, params_ty)
           ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
-      in
-      let acc =
-        match for_static_sets with
-        | None -> acc
-        | Some { closure_symbols; _ } ->
-          let function_symbol =
-            Function_slot.Map.find function_slot closure_symbols
-          in
-          List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
@@ -241,7 +252,16 @@ end = struct
           env,
           res,
           Ece.pure,
-          updates ))
+          updates ) ; ; ;
+      | Deleted ->
+          let closure_info = C.closure_info' ~arity:(Curried { nlocal = 0 }, (if size = 2 then [()] else [(); ()])) ~startenv:(startenv - slot_offset) ~is_last:last_function_slot in
+          let acc = match size with
+            | 2 -> P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+            | 3 -> P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+            | _ -> assert false
+          in
+          (acc, Backend_var.Set.empty, slot_offset + size, env, res, Ece.pure, updates)
+      )
 
   let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
       effs acc updates ~free_vars ~starting_offset slots =
@@ -439,6 +459,7 @@ let debuginfo_for_set_of_closures env set =
   let code_ids_in_set =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
+    |> List.filter_map (fun (code_id  : Function_declarations.code_id_in_function_declaration) -> match code_id with Deleted -> None | Code_id code_id -> Some code_id)
   in
   let dbg =
     List.map
@@ -463,7 +484,7 @@ let let_static_set_of_closures0 env res closure_symbols
         (fun (offset, (layout_slot : Slot_offsets.Layout.slot)) ->
           match layout_slot with
           | Function_slot { function_slot; _ } -> Some (offset, function_slot)
-          | Infix_header | Value_slot _ -> None)
+          | Infix_header | Value_slot _ | Dummy_function_slot _ -> None)
         layout.slots
     with
     | Some (function_slot_offset, function_slot) -> (
