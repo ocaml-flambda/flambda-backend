@@ -1487,7 +1487,10 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
               field_kinds))
     | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
       when tag = Obj.double_array_tag ->
-      assert (List.for_all (fun kind -> kind = Lambda.(Pboxedfloatval Pfloat64)) field_kinds);
+      assert (
+        List.for_all
+          (fun kind -> kind = Lambda.(Pboxedfloatval Pfloat64))
+          field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
     | Pvalue (Pboxedfloatval Pfloat32) ->
