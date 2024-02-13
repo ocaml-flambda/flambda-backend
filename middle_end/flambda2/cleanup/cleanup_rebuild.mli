@@ -4,4 +4,6 @@ val rebuild :
   Dep_solver.result ->
   Cleanup_traverse.rev_expr ->
   Flambda.Expr.t *
-  Code.t Code_id.Map.t
+  Name_occurrences.t *
+  Code.t Code_id.Map.t *
+  Slot_offsets.t
