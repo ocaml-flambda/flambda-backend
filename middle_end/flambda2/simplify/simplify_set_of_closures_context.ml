@@ -109,7 +109,10 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
         let function_decls = Set_of_closures.function_decls set_of_closures in
         let all_function_slots_in_set =
           Function_slot.Map.mapi
-            (fun function_slot ({ code_id = old_code_id ; _ } : Function_declarations.code_id_in_function_declaration) ->
+            (fun function_slot (old_code_id : Function_declarations.code_id_in_function_declaration) ->
+               match old_code_id with
+               | Deleted -> Or_unknown_or_bottom.Unknown
+               | Code_id old_code_id ->
               let code_or_metadata = DE.find_code_exn denv old_code_id in
               let new_code_id =
                 (* The types of the functions involved should reference the
@@ -206,7 +209,10 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
     (fun old_to_new_code_ids_all_sets set_of_closures ->
       let function_decls = Set_of_closures.function_decls set_of_closures in
       Function_slot.Map.fold
-        (fun _ ({ code_id = old_code_id ; _ } : Function_declarations.code_id_in_function_declaration) old_to_new_code_ids ->
+        (fun _ (old_code_id : Function_declarations.code_id_in_function_declaration) old_to_new_code_ids ->
+           match old_code_id with
+           | Deleted -> old_to_new_code_ids
+           | Code_id old_code_id ->
           let code =
             try DE.find_code_exn denv old_code_id
             with Not_found ->

@@ -317,12 +317,13 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     Function_slot.Lmap.iter
       (fun function_slot name ->
         Acc.kind name Flambda_kind.value acc;
-        let ({ code_id; is_required_at_runtime }) =
+        let code_id =
           (Function_slot.Map.find function_slot funs
             : Function_declarations.code_id_in_function_declaration)
         in
-        if is_required_at_runtime
-        then
+        match code_id with
+        | Deleted -> ()
+        | Code_id code_id ->
           let code_id = Code_id_or_name.code_id code_id in
           Acc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
       names_and_function_slots

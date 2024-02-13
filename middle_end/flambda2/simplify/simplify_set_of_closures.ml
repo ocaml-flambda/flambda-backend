@@ -539,7 +539,10 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
         all_function_decls_in_set ) =
     Function_slot.Lmap.fold_left_map
       (fun (result_code_ids_to_never_delete_this_set, fun_types, outer_dacc)
-           function_slot ({ code_id = old_code_id; is_required_at_runtime = _ } : Function_declarations.code_id_in_function_declaration) ->
+           function_slot (old_code_id : Function_declarations.code_id_in_function_declaration) ->
+           match old_code_id with
+           | Deleted -> (result_code_ids_to_never_delete_this_set, fun_types, outer_dacc), Function_declarations.Deleted
+           | Code_id old_code_id ->
         let code_id, outer_dacc, code_ids_to_never_delete_this_set =
           simplify_function context ~outer_dacc function_slot old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
@@ -559,13 +562,13 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
           Code_id.Set.union code_ids_to_never_delete_this_set
             result_code_ids_to_never_delete_this_set
         in
-        (code_ids_to_never_delete_this_set, fun_types, outer_dacc), ({ code_id ; is_required_at_runtime = true } : Function_declarations.code_id_in_function_declaration))
+        (code_ids_to_never_delete_this_set, fun_types, outer_dacc), (Code_id code_id : Function_declarations.code_id_in_function_declaration))
       (Code_id.Set.empty, Function_slot.Map.empty, outer_dacc)
       all_function_decls_in_set
   in
   let code_ids_to_remember_this_set =
     Function_slot.Lmap.fold
-      (fun _function_slot (code_id : Function_declarations.code_id_in_function_declaration) code_ids -> Code_id.Set.add code_id.code_id code_ids)
+      (fun _function_slot (code_id : Function_declarations.code_id_in_function_declaration) code_ids -> match code_id with Deleted -> code_ids | Code_id code_id -> Code_id.Set.add code_id code_ids)
       all_function_decls_in_set Code_id.Set.empty
   in
   let dacc =
