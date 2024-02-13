@@ -499,9 +499,12 @@ type function_attribute = {
   (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
      to perform the rewrite [fun x -> fun y -> e] to [fun x y -> e] *)
   may_fuse_arity: bool;
+  unbox_return: bool;
 }
 
-type parameter_attribute = No_attributes
+type parameter_attribute = {
+  unbox_param: bool;
+}
 
 type lparam = {
   name : Ident.t;

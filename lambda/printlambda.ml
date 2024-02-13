@@ -885,21 +885,23 @@ let rec lam ppf = function
         | Curried {nlocal} ->
             fprintf ppf "@ {nlocal = %d}" nlocal;
             List.iter (fun (p : Lambda.lparam) ->
-                (* Make sure we change this once there are attributes *)
-                let No_attributes = p.attributes in
-                fprintf ppf "@ %a%s%a"
-                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
+                let { unbox_param } = p.attributes in
+                fprintf ppf "@ %a%s%a%s"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout
+                  (if unbox_param then "[@unboxed]" else "")
+              ) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
             List.iter
               (fun (p : Lambda.lparam) ->
-                 (* Make sure we change this once there are attributes *)
-                 let No_attributes = p.attributes in
+                 let { unbox_param } = p.attributes in
                  if !first then first := false else fprintf ppf ",@ ";
                  Ident.print ppf p.name;
                  Format.fprintf ppf "%s" (alloc_kind p.mode);
-                 layout ppf p.layout)
+                 layout ppf p.layout;
+                 if unbox_param then Format.fprintf ppf "[@unboxed]"
+              )
               params;
             fprintf ppf ")" in
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
