@@ -249,22 +249,43 @@ let outgoing ofs =
   else Domainstate (ofs + size_domainstate_args)
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
+let ocaml_arg_regs =
+  (* caml_callbacks assume the first four parameters are registers, and
+     we need at least one free register that's not a parameter. *)
+  if !Arch.limit_regalloc < 5
+  then Misc.fatal_error "At least five hardware registers are required.";
+  Int.min (!Arch.limit_regalloc - 1) 10
+
+let first_int_arg = 0
+let last_int_arg = first_int_arg + ocaml_arg_regs - 1
+
+let first_float_arg = 100
+let last_float_arg = first_float_arg + ocaml_arg_regs - 1
+
 let loc_arguments arg =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) arg
+  calling_conventions first_int_arg last_int_arg
+                      first_float_arg last_float_arg
+                      outgoing (- size_domainstate_args) arg
 let loc_parameters arg =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) arg
+    calling_conventions first_int_arg last_int_arg
+                        first_float_arg last_float_arg
+                        incoming (- size_domainstate_args) arg
   in
   loc
 
 let loc_results_call res =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) res
+  calling_conventions first_int_arg last_int_arg
+                      first_float_arg last_float_arg
+                      outgoing (- size_domainstate_args) res
 let loc_results_return res =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) res
+    calling_conventions first_int_arg last_int_arg
+                        first_float_arg last_float_arg
+                        incoming (- size_domainstate_args) res
   in loc
 
-let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
+let max_arguments_for_tailcalls = ocaml_arg_regs (* in regs *) + 64 (* in domain state *)
 
 (* C calling conventions under Unix:
      first integer args in rdi, rsi, rdx, rcx, r8, r9

@@ -427,10 +427,7 @@ end = struct
       (Cfg_with_layout.cfg cfg).Cfg.blocks;
     t
 
-  let create cfg =
-    match !Flambda_backend_flags.regalloc_validate with
-    | false -> None
-    | true -> Some (do_create cfg)
+  let create cfg = Some (do_create cfg)
 
   let verify_reg_array ~context ~reg_arr ~loc_arr =
     if Array.length reg_arr <> Array.length loc_arr

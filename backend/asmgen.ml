@@ -254,7 +254,7 @@ type register_allocator =
 let default_allocator = Upstream
 
 let register_allocator fd : register_allocator =
-  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
+  match "gi" with
   | "cfg" -> if should_use_linscan fd then LS else IRC
   | "gi" -> GI
   | "irc" -> IRC

@@ -5,6 +5,8 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let gi_debug = true
 
+let gi_rng = Random.State.make [| 4; 6; 2 |]
+
 let bool_of_param param_name =
   bool_of_param ~guard:(gi_debug, "gi_debug") param_name
 
@@ -43,30 +45,19 @@ let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
 
 (* CR xclerc for xclerc: add more heuristics *)
 module Priority_heuristics = struct
-  type t = Interval_length
+  type t =
+    | Interval_length
+    | Random_for_testing
 
-  let all = [Interval_length]
+  let all = [Interval_length; Random_for_testing]
 
-  let to_string = function Interval_length -> "interval_length"
+  let to_string = function
+    | Interval_length -> "interval_length"
+    | Random_for_testing -> "random"
 
-  let value =
-    let available_heuristics () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "GI_PRIORITY_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_PRIORITY_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "interval_length" | "interval-length" -> Interval_length
-        | _ ->
-          fatal "unknown heuristics %S (possible values: %s)" id
-            (available_heuristics ())))
+  let random () = Random.State.int gi_rng 10_000
+
+  let value = lazy Random_for_testing
 end
 
 (* CR xclerc for xclerc: add more heuristics *)
@@ -75,66 +66,44 @@ module Selection_heuristics = struct
     | First_available
     | Best_fit
     | Worst_fit
+    | Random_for_testing
 
-  let all = [First_available; Best_fit; Worst_fit]
+  let all = [First_available; Best_fit; Worst_fit; Random_for_testing]
 
   let to_string = function
     | First_available -> "first_available"
     | Best_fit -> "best_fit"
     | Worst_fit -> "worst_fit"
+    | Random_for_testing -> "random"
 
-  let value =
-    let available_heuristics () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "GI_SELECTION_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_SELECTION_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "first_available" | "first-available" -> First_available
-        | "best_fit" | "best-fit" -> Best_fit
-        | "worst_fit" | "worst-fit" -> Worst_fit
-        | _ ->
-          fatal "unknown heuristics %S (possible values: %s)" id
-            (available_heuristics ())))
+  let include_in_random = function
+    | Random_for_testing | Worst_fit -> false
+    | _ -> true
+
+  let random =
+    let all = List.filter all ~f:include_in_random in
+    let len = List.length all in
+    fun () -> List.nth all (Random.State.int gi_rng len)
+
+  let value = lazy Random_for_testing
 end
 
 module Spilling_heuristics = struct
   type t =
     | Flat_uses
     | Hierarchical_uses
+    | Random_for_testing
 
-  let all = [Flat_uses; Hierarchical_uses]
+  let all = [Flat_uses; Hierarchical_uses; Random_for_testing]
 
   let to_string = function
     | Flat_uses -> "flat_uses"
     | Hierarchical_uses -> "hierarchical_uses"
+    | Random_for_testing -> "random"
 
-  let value =
-    let available_heuristics () =
-      String.concat ", "
-        (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
-    in
-    lazy
-      (match find_param_value "GI_SPILLING_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_SPILLING_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "flat_uses" | "flat-uses" -> Flat_uses
-        | "hierarchical_uses" | "hierarchical-uses" -> Hierarchical_uses
-        | _ ->
-          fatal "unknown heuristics %S (possible values: %s)" id
-            (available_heuristics ())))
+  let random () = Random.State.bool gi_rng
+
+  let value = lazy Random_for_testing
 end
 
 (* CR xclerc for xclerc: reuse `{Map,Set}.OrderedType`? *)
@@ -587,15 +556,38 @@ module Hardware_registers = struct
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
+  (* Modified Stdlib.Array.find_opt *)
+  let find_opt a ~f ~limit =
+    let n = Int.min (Array.length a) limit in
+    let rec loop i =
+      if i = n
+      then None
+      else
+        let x = Array.unsafe_get a i in
+        if f x then Some x else loop (succ i)
+    in
+    loop 0
+
+  (* Modified Stdlib.Array.fold_left *)
+  let fold_left a ~f ~init ~limit =
+    let n = Int.min (Array.length a) limit in
+    let r = ref init in
+    for i = 0 to n - 1 do
+      r := f !r (Array.unsafe_get a i)
+    done;
+    !r
+
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    Array.find_opt t.(Proc.register_class of_reg) ~f
+    find_opt t.(Proc.register_class of_reg) ~f ~limit:!Arch.limit_regalloc
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
+    fold_left
+      t.(Proc.register_class of_reg)
+      ~f ~init ~limit:!Arch.limit_regalloc
 
   let actual_cost (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
@@ -705,7 +697,14 @@ module Hardware_registers = struct
   let find_available : t -> Reg.t -> Interval.t -> available =
    fun t reg interval ->
     let with_no_overlap =
-      match Lazy.force Selection_heuristics.value with
+      let heuristic =
+        match Lazy.force Selection_heuristics.value with
+        | Selection_heuristics.Random_for_testing ->
+          Selection_heuristics.random ()
+        | heuristic -> heuristic
+      in
+      match heuristic with
+      | Selection_heuristics.Random_for_testing -> assert false
       | Selection_heuristics.First_available ->
         if gi_debug
         then
