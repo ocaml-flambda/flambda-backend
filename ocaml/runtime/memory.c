@@ -362,7 +362,7 @@ CAMLexport void caml_modify_local (value obj, intnat i, value val)
        some cases where it has been, in safe contexts where only immediate
        values are involved. */
     CAMLassert(caml_is_stack(obj)
-      || (!Is_block(val) && !Is_block(Field(obj, i)));
+      || (!Is_block(val) && !Is_block(Field(obj, i))));
     Field(obj, i) = val;
   } else {
     caml_modify(&Field(obj, i), val);
