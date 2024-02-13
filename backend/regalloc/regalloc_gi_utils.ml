@@ -94,10 +94,12 @@ module Selection_heuristics = struct
     | Worst_fit -> "worst_fit"
     | Random_for_testing -> "random"
 
-  let not_random = function Random_for_testing -> false | _ -> true
+  let include_in_random = function
+    | Random_for_testing | Worst_fit -> false
+    | _ -> true
 
   let random =
-    let all = List.filter all ~f:not_random in
+    let all = List.filter all ~f:include_in_random in
     let len = List.length all in
     fun () -> List.nth all (Random.State.int gi_rng len)
 
