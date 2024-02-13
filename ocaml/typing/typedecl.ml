@@ -1231,11 +1231,14 @@ let update_decl_jkind env dpath decl =
 let update_decls_jkind_reason decls =
   List.map
     (fun (id, decl) ->
-       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
-       let update_generalized ty = Ctype.update_generalized_ty_jkind_reason ty reason in
+       let update_generalized =
+        Ctype.check_and_update_generalized_ty_jkind
+          ~name:id ~loc:decl.type_loc
+       in
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
+       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
        let new_decl = {decl with type_jkind =
                                    Jkind.(update_reason decl.type_jkind reason)} in
        (id, new_decl)
@@ -2361,8 +2364,7 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
-  let reason = Jkind.Generalized (Some id, loc) in
-  Ctype.update_generalized_ty_jkind_reason ty reason;
+  Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc ty;
   let desc =
     {
      val_id = id;

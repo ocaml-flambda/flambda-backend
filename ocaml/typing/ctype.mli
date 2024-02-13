@@ -555,7 +555,12 @@ val check_type_jkind :
 val constrain_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 
-(* Update the jkind reason of all generalized type vars inside the given [type_expr]
+(* This function should get called after a type is generalized.
+
+   It does two thing:
+
+   1. Update the jkind reason of all generalized type vars inside the
+      given [type_expr]
 
    Consider some code like
 
@@ -575,8 +580,26 @@ val constrain_type_jkind :
    is more well suited for discovering properties of well-typed definitions. Instead,
    once a definition is done being type-checked -- that is, once it is generalized --
    we update the histories of all of its types' jkinds to just refer to the definition
-   itself. *)
-val update_generalized_ty_jkind_reason : type_expr -> Jkind.creation_reason -> unit
+   itself.
+
+   2. Performs an upstream-compatibility check around immediacy if
+      [Language_extension.erasable_extensions_only ()] is [true].
+
+   The check makes sure no generalized type variable can have jkind
+   [immediate] or [immediate64]. An exception would be raised when
+   the check fails.
+
+   This prevents code such as:
+
+   {|
+     let f (x : (_ : immediate)) = x;;
+   |}
+
+   which doesn't have an equivalent representation upstream.
+
+   *)
+val check_and_update_generalized_ty_jkind :
+  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)
