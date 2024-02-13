@@ -14,11 +14,6 @@ let gi_verbose : bool Lazy.t = bool_of_param "GI_VERBOSE"
 
 let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
 
-external int_of_string : string -> int = "caml_int_of_string"
-
-let gi_limit_regs : int option Lazy.t =
-  lazy (find_param_value "GI_LIMIT_REGS" |> Option.map int_of_string)
-
 let log_function =
   lazy (make_log_function ~verbose:(Lazy.force gi_verbose) ~label:"gi")
 
@@ -616,38 +611,15 @@ module Hardware_registers = struct
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
-  (* Modified Stdlib.Array.find_opt *)
-  let find_opt a ~f ~limit =
-    let n = Int.min (Array.length a) limit in
-    let rec loop i =
-      if i = n
-      then None
-      else
-        let x = Array.unsafe_get a i in
-        if f x then Some x else loop (succ i)
-    in
-    loop 0
-
-  (* Modified Stdlib.Array.fold_left *)
-  let fold_left a ~f ~init ~limit =
-    let n = Int.min (Array.length a) limit in
-    let r = ref init in
-    for i = 0 to n - 1 do
-      r := f !r (Array.unsafe_get a i)
-    done;
-    !r
-
-  let limit = Lazy.map (Option.value ~default:Int.max_int) gi_limit_regs
-
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    find_opt t.(Proc.register_class of_reg) ~f ~limit:(Lazy.force limit)
+    Array.find_opt t.(Proc.register_class of_reg) ~f
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    fold_left t.(Proc.register_class of_reg) ~f ~init ~limit:(Lazy.force limit)
+    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
 
   let actual_cost (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
