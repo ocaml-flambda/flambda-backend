@@ -24,12 +24,13 @@
     Don't add new types to this file; add them to [jane_asttypes.mli] instead.
     This file is considered part of the parse tree, which we can't modify. *)
 
+(* Do not add to this type; it is no longer used in the compiler but is
+   required by ppxlib. *)
 type constant =
     Const_int of int
   | Const_char of char
   | Const_string of string * Location.t * string option
   | Const_float of string
-  | Const_float32 of string
   | Const_int32 of int32
   | Const_int64 of int64
   | Const_nativeint of nativeint
