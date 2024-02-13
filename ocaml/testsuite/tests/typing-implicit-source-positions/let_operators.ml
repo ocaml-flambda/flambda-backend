@@ -8,7 +8,7 @@ val ( let+ ) : src_pos:[%src_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b =
   <fun>
 |}]
 
-(* CR src_pos: Add support for implicit position parameters and (also maybe optional
+(* Would be nice to add support for implicit position parameters and (also maybe optional
    arguments) for let operators. *)
 let _ = 
   let+ (src_pos, a) = 1 in
@@ -48,5 +48,5 @@ let _ =
 val ( >>| ) : src_pos:[%src_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b =
   <fun>
 - : lexing_position =
-{pos_fname = ""; pos_lnum = 3; pos_bol = 1103; pos_cnum = 1105}
+{pos_fname = ""; pos_lnum = 3; pos_bol = 1108; pos_cnum = 1110}
 |}]
