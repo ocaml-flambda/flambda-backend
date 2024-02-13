@@ -250,10 +250,9 @@ let outgoing ofs =
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
 let ocaml_arg_regs =
-  (* caml_callbacks assume the first four parameters are registers, and
-     we need at least one free register that's not a parameter. *)
-  if !Arch.limit_regalloc < 5
-  then Misc.fatal_error "At least five hardware registers are required.";
+  (* We need up to 8 (float) registers to pass arguments to C calls. *)
+  if !Arch.limit_regalloc < 8
+  then Misc.fatal_error "At least eight hardware registers are required.";
   Int.min (!Arch.limit_regalloc - 1) 10
 
 let first_int_arg = 0
