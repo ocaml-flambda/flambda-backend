@@ -358,9 +358,8 @@ CAMLexport int caml_is_stack (value v)
 CAMLexport void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
-    /* This function should not be used on external values, but it ends up
-       being used like that -- for the moment, just allow this. */
-    // CAMLassert(caml_is_stack(obj));
+    CAMLassert(caml_is_stack(obj)
+      || (!Is_block(val) && !Is_block(Field(obj, i)));
     Field(obj, i) = val;
   } else {
     caml_modify(&Field(obj, i), val);
