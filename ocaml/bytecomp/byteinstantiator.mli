@@ -10,6 +10,8 @@ type error =
       compilation_unit : CU.t;
     }
   | Not_an_object_file of Misc.filepath
+  | Not_parameterised of { cmo_path : Misc.filepath }
+  | Missing_argument of { param : Global.Name.t }
 
 exception Error of error
 

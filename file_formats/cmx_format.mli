@@ -66,7 +66,7 @@ type unit_infos =
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t list;
                                           (* Infos imported *)
-    mutable ui_runtime_params: Global.t list;
+    mutable ui_format: Lambda.module_block_format;
                                           (* Implementation imports which are
                                              bound as parameters at runtime,
                                              including source-level parameters
@@ -83,7 +83,7 @@ type unit_infos_raw =
     uir_arg_descr: Lambda.arg_descr option;
     uir_imports_cmi: Import_info.t array;
     uir_imports_cmx: Import_info.t array;
-    uir_runtime_params: Global.t array;
+    uir_format: Lambda.module_block_format;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
     uir_checks: Checks.Raw.t;

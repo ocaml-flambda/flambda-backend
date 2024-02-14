@@ -1039,6 +1039,9 @@ let register_import_as_opaque modname =
 let is_parameter_unit modname =
   Persistent_env.is_registered_parameter_import !persistent_env modname
 
+let is_imported_parameter modname =
+  Persistent_env.is_imported_parameter !persistent_env modname
+
 let implemented_parameter modname =
   Persistent_env.implemented_parameter !persistent_env modname
 
@@ -1352,12 +1355,6 @@ let find_hash_type path env =
       cltda.cltda_declaration.clty_hash_type
   | Papply _ | Pextra_ty _ -> raise Not_found
 
-type instantiation = {
-  instantiating_functor : address;
-  arguments : address list;
-  main_module_block_size : int;
-}
-
 let global_of_instance_compilation_unit cu =
   let global_name = Compilation_unit.to_global_name_exn cu in
   (* Must be a complete instantiation, meaning that its [Global.t] form has no
@@ -1377,55 +1374,6 @@ let global_of_instance_compilation_unit cu =
   in
   check global;
   global
-
-(* Resolve the value of a runtime parameter, given the instance arguments
-   being passed in *)
-let address_of_runtime_arg param ~arg_subst =
-  let cu =
-    Global.subst param arg_subst |> Compilation_unit.of_complete_global_exn
-  in
-  (* XXX This isn't great. The meaning of [param] is ambiguous and we're
-     disambiguating it. Really, [Cmo_format.cu_runtime_params] (as well as its
-     .cmx counterpart) has the wrong type: it conflates instance arguments,
-     which need to be accessed specially, with parameterised dependencies,
-     which do not. *)
-  (* TODO Consider making [Global.subst] abstract and hiding this "is it in the
-     map?" check in a new [Global.Subst] submodule. *)
-  if Global.Name.Map.mem (Global.to_name param) arg_subst then
-    (* The module is itself an argument, so we're using it at its argument
-       type, so here and only here we're accessing its argument block rather
-       than the usual module block. *)
-    Adot (Aunit cu, 1)
-  else
-    (* Just access the module the usual way (which varies depending on the
-       module's [Cmi_format.module_block_layout]). *)
-    let mda = find_pers_mod (cu |> Compilation_unit.to_global_name_exn) in
-    get_address mda.mda_address
-
-let address_of_instantiating_functor cu =
-  (* Here we don't need to worry about the module block format: it's always a
-     block with exactly one field, namely the functor. *)
-  let to_instantiate, _ = cu |> Compilation_unit.split_instance_exn in
-  Adot (Aunit to_instantiate, 0)
-
-let instantiate compilation_unit ~runtime_params : instantiation =
-  let global = global_of_instance_compilation_unit compilation_unit in
-  let arg_subst : Global.subst = Global.Name.Map.of_list global.visible_args in
-  let instantiating_functor =
-    address_of_instantiating_functor compilation_unit
-  in
-  let arguments =
-    List.map (address_of_runtime_arg ~arg_subst) runtime_params
-  in
-  let main_module_block_size =
-    Persistent_env.main_module_block_size !persistent_env
-      (Compilation_unit.to_global_name_exn compilation_unit)
-  in
-  {
-    instantiating_functor;
-    arguments;
-    main_module_block_size;
-  }
 
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty

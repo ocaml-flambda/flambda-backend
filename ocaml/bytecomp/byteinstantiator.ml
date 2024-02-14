@@ -8,7 +8,8 @@ type error =
       compilation_unit : CU.t;
     }
   | Not_an_object_file of Misc.filepath
-
+  | Not_parameterised of { cmo_path : Misc.filepath }
+  | Missing_argument of { param : Global.Name.t }
 
 exception Error of error
 
@@ -38,16 +39,22 @@ let read_unit_info file =
 let instantiate ~src ~args targetcmo =
   let unit_infos = read_unit_info src in
   let base_compilation_unit = unit_infos.cu_name in
-  let param_and_comp_unit_of_cmo_path cmo_path =
+  let arg_info_of_cmo_path cmo_path =
     let unit_infos = read_unit_info cmo_path in
-    match unit_infos.cu_implements_param with
+    match unit_infos.cu_arg_descr with
     | None -> error (Not_compiled_as_parameter { cmo_path })
-    | Some param -> CU.of_global_name param, unit_infos.cu_name
+    | Some { arg_param; arg_block_field } ->
+      arg_param, (unit_infos.cu_name, arg_block_field)
   in
-  let compilation_unit =
-    CU.create_instance base_compilation_unit
-      (args |> List.map param_and_comp_unit_of_cmo_path)
+  let arg_info = List.map arg_info_of_cmo_path args in
+  let arg_pairs : (CU.t * CU.t) list =
+    List.map (fun (param, (value, _)) -> CU.of_global_name param, value)
+      arg_info
   in
+  let arg_map : (CU.t * int) Global.Name.Map.t =
+    Global.Name.Map.of_list arg_info (* FIXME: check for dupes *)
+  in
+  let compilation_unit = CU.create_instance base_compilation_unit arg_pairs in
   let expected_output_prefix = CU.base_filename compilation_unit in
   let output_prefix = Filename.remove_extension targetcmo in
   let output_prefix_basename = Filename.basename output_prefix in
@@ -59,10 +66,50 @@ let instantiate ~src ~args targetcmo =
                actual_basename = output_prefix_basename;
                compilation_unit })
   end;
-  let runtime_params = unit_infos.cu_runtime_params |> Array.to_list in
+  let global =
+    (* This checks that we have all the arguments we need and that the CRCs all
+       match up *)
+    Env.global_of_instance_compilation_unit compilation_unit
+  in
+  let arg_subst : Global.subst = Global.Name.Map.of_list global.visible_args in
+  let runtime_params, main_module_block_size =
+    match unit_infos.cu_format with
+    | Mb_record _ ->
+      error (Not_parameterised { cmo_path = targetcmo })
+    | Mb_wrapped_function { mb_runtime_params; mb_returned_size } ->
+      mb_runtime_params, mb_returned_size
+  in
+  let runtime_args =
+    runtime_params
+    |> List.map (fun runtime_param : Translmod.runtime_arg ->
+         match (runtime_param : Lambda.runtime_param_descr) with
+           | Rp_argument_block global ->
+             let global_name = Global.to_name global in
+             begin
+               match
+                 Global.Name.Map.find_opt global_name arg_map
+               with
+               | Some (ra_unit, ra_field) ->
+                 Argument_block { ra_unit; ra_field }
+               | None ->
+                 error (Missing_argument { param = global_name })
+             end
+           | Rp_dependency global ->
+             (* This is a dependency that will be passed in. We need to
+                substitute the arguments into the name of the dependency to find
+                the particular instance to pass. *)
+             let instance =
+               Global.subst_inside global arg_subst
+               |> Compilation_unit.of_complete_global_exn
+             in
+             Dependency instance
+           | Rp_unit ->
+             Unit)
+  in
+  let arg_descr = unit_infos.cu_arg_descr in
   Compile.instance
-    ~source_file:src ~output_prefix ~compilation_unit ~runtime_params
-    ~keep_symbol_tables:false;
+    ~source_file:src ~output_prefix ~compilation_unit ~runtime_args
+    ~main_module_block_size ~arg_descr ~keep_symbol_tables:false;
   ()
 
 (* Error report *)
@@ -84,6 +131,12 @@ let report_error ppf = function
   | Not_an_object_file file ->
     fprintf ppf "%a is not a bytecode object file"
       Location.print_filename file
+  | Not_parameterised { cmo_path } ->
+    fprintf ppf "%a must be compiled with at least one -parameter"
+      Location.print_filename cmo_path
+  | Missing_argument { param } ->
+    fprintf ppf "No argument given for parameter %a"
+      Global.Name.print param
 
 let () =
   Location.register_error_of_exn

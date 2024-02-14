@@ -151,6 +151,7 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type pers_struct = {
+  ps_name_info: pers_name;
   ps_binding: binding;
 }
 
@@ -741,7 +742,8 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_binding = binding; } in
+  let ps = { ps_name_info = pers_name;
+             ps_binding = binding; } in
   if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
@@ -891,6 +893,11 @@ let local_ident penv modname =
   | Some ({ ps_binding = Static _; _ }, _)
   | None -> None
 
+let is_imported_parameter penv modname =
+  match find_info_in_cache penv modname with
+  | Some (pers_struct, _) -> pers_struct.ps_name_info.pn_import.imp_is_param
+  | None -> false
+
 let locally_bound_imports {persistent_structures; _} =
   persistent_structures
   |> Hashtbl.to_seq_values
@@ -914,26 +921,6 @@ let implemented_parameter penv modname =
   match find_name_info_in_cache penv modname with
   | Some { pn_arg_for; _ } -> pn_arg_for
   | None -> None
-
-let main_module_block_size penv modname =
-  (* We should think about storing this in the .cmo/.cmx of the template, since
-     it's only needed by [-instantiate] and it's really about the .cmo/.cmx ABI
-     rather than typing per se. *)
-  let import =
-    (* FIXME Do we need to check? *)
-    let check = true in
-    find_import penv ~check (CU.Name.of_head_of_global_name modname)
-  in
-  match import.imp_module_block_layout with
-  | Full_module_and_argument_form -> 2
-  | Single_block ->
-    (* This doesn't change from one instance to another, so we can just use the
-       raw signature *)
-    let fields =
-      Types.bound_value_identifiers
-        (Subst.Lazy.force_signature import.imp_raw_sign.sign)
-    in
-    List.length fields
 
 let make_cmi penv modname kind sign alerts =
   let flags =

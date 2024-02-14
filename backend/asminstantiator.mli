@@ -20,6 +20,8 @@ type error =
       actual_basename : Misc.filepath;
       compilation_unit : Compilation_unit.t;
     }
+  | Not_parameterised of { cmx_path : Misc.filepath }
+  | Missing_argument of { param : Global.Name.t }
 
 exception Error of error
 

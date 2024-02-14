@@ -99,7 +99,7 @@ let current_unit =
     ui_arg_descr = None;
     ui_imports_cmi = [];
     ui_imports_cmx = [];
-    ui_runtime_params = [];
+    ui_format = Mb_record { mb_size = -1 };
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
@@ -115,7 +115,7 @@ let reset compilation_unit =
   current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
-  current_unit.ui_runtime_params <- [];
+  current_unit.ui_format <- Mb_record { mb_size = -1 };
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
@@ -154,10 +154,10 @@ let read_unit_info filename =
     let ui = {
       ui_unit = uir.uir_unit;
       ui_defines = uir.uir_defines;
+      ui_format = uir.uir_format;
       ui_arg_descr = uir.uir_arg_descr;
       ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
       ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
-      ui_runtime_params = uir.uir_runtime_params |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
@@ -372,7 +372,7 @@ let write_unit_info info filename =
     uir_arg_descr = info.ui_arg_descr;
     uir_imports_cmi = Array.of_list info.ui_imports_cmi;
     uir_imports_cmx = Array.of_list info.ui_imports_cmx;
-    uir_runtime_params = Array.of_list info.ui_runtime_params;
+    uir_format = info.ui_format;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
     uir_checks = Checks.to_raw info.ui_checks;
@@ -389,23 +389,10 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename ~arg_block_field =
+let save_unit_info filename ~module_block_format ~arg_descr =
   current_unit.ui_imports_cmi <- Env.imports();
-  current_unit.ui_arg_descr <-
-    begin match !Clflags.as_argument_for, arg_block_field with
-    | Some arg_param, Some arg_block_field ->
-      let arg_param =
-        (* Currently, parameters don't have parameters, so we assume the argument
-           list is empty *)
-        Global.Name.create arg_param []
-      in
-      Some { arg_param; arg_block_field }
-    | None, None -> None
-    | Some _, None -> Misc.fatal_error "No argument block"
-    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
-    end;
-  current_unit.ui_runtime_params <-
-    Env.locally_bound_imports () |> List.map fst;
+  current_unit.ui_arg_descr <- arg_descr;
+  current_unit.ui_format <- module_block_format;
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

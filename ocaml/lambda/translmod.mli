@@ -35,8 +35,23 @@ val transl_package:
       Compilation_unit.t option list -> Compilation_unit.t -> module_coercion
         -> style:compilation_unit_style -> int * lambda
 
+type runtime_arg =
+  | (* An argument passed on the command line to fill a parameter of the module
+       being instantiated *)
+    Argument_block of {
+      (* The compilation unit being passed as an argument *)
+      ra_unit : Compilation_unit.t;
+      (* The offset of its argument block, as advertised in its .cmo/.cmx *)
+      ra_field : int;
+    }
+  | (* A parameterised dependency, which must therefore have already been
+       instantiated so that the resulting instance can be passed along here *)
+    Dependency of Compilation_unit.t
+  | Unit
+
 val transl_instance:
-      Compilation_unit.t -> runtime_params:Global.t list
+      Compilation_unit.t -> runtime_args:runtime_arg list
+        -> main_module_block_size:int -> arg_block_field:int option
         -> style:compilation_unit_style -> Lambda.program
 
 val toplevel_name: Ident.t -> string

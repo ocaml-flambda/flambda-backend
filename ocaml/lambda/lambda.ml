@@ -671,9 +671,27 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+type runtime_param_descr =
+  | Rp_argument_block of Global.t       (* The argument block of a module compiled with
+                                           [-as-argument-for] *)
+  | Rp_dependency of Global.t           (* A parameterised module (not itself a
+                                           parameter) that this module depends on *)
+  | Rp_unit                             (* The unit value (only used when there are no
+                                           other parameters) *)
+
+type module_block_format =
+  | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
+  | Mb_wrapped_function of { mb_runtime_params : runtime_param_descr list;
+                             mb_returned_size : int;
+                           }
+                                        (* A block with exactly one field:
+                                           a function taking [mb_runtime_params] and
+                                           returning a block with
+                                           [mb_returned_size] fields *)
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    main_module_block_size : int;
+    module_block_format : module_block_format;
     arg_block_field : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }

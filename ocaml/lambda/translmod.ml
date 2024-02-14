@@ -976,7 +976,7 @@ let add_arg_block_to_module_block primary_block_lam size restr =
 let add_parameters lam params =
   let params =
     List.map
-      (fun (_, name) ->
+      (fun name ->
         { name;
           layout = Pvalue Pgenval;
           attributes = No_attributes;
@@ -996,22 +996,14 @@ let add_parameters lam params =
     ~ret_mode:alloc_heap
     ~region:true
 
-let transl_implementation_module
-      ~scopes ~runtime_params module_id (str, cc, cc2) =
+let transl_implementation_module ~scopes module_id (str, cc, cc2) =
   let path = global_path module_id in
   let lam, size =
     transl_struct ~scopes Loc_unknown [] cc path str
   in
-  let lam, size, arg_block_field =
-    match cc2 with
-    | None -> lam, size, None
-    | Some cc2 -> add_arg_block_to_module_block lam size cc2
-  in
-  match runtime_params with
-    [] ->
-      lam, size, arg_block_field
-  | _ ->
-      add_parameters lam runtime_params, 1, arg_block_field
+  match cc2 with
+  | None -> lam, size, None
+  | Some cc2 -> add_arg_block_to_module_block lam size cc2
 
 let wrap_toplevel_functor_in_struct code =
   Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
@@ -1035,6 +1027,9 @@ type compilation_unit_style =
   | Set_global_to_block
   | Set_individual_fields
 
+let has_parameters () =
+  !Clflags.parameters <> []
+
 let transl_implementation_plain_block compilation_unit impl =
   reset_labels ();
   primitive_declarations := [];
@@ -1042,23 +1037,47 @@ let transl_implementation_plain_block compilation_unit impl =
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, (size, arg_block_field) =
-    let runtime_params = Env.locally_bound_imports () in
+    (* FIXME: This is wrong. [Translobj] needs to know not to look in the
+       global to find its hidden field. *)
     Translobj.transl_label_init (fun () ->
       let body, size, arg_block_field =
-        transl_implementation_module ~scopes ~runtime_params compilation_unit
+        transl_implementation_module ~scopes compilation_unit
           impl
-      in
-      let body, size =
-        match runtime_params with
-        | [] ->
-            body, size
-        | _ :: _ ->
-            wrap_toplevel_functor_in_struct body, 1
       in
       Translcore.declare_probe_handlers body, (size, arg_block_field))
   in
+  let body, module_block_format =
+    match has_parameters () with
+    | false ->
+        body, Mb_record { mb_size = size }
+    | true ->
+        let mb_runtime_params, runtime_param_idents =
+          match Env.locally_bound_imports () with
+          | [] ->
+              (* We didn't end up using any of the parameters, but this is still a
+                 parameterised module, so it must still be implemented as a function that
+                 produces a distinct value for each instance. *)
+              let unit_ident = Ident.create_local "*unit*" in
+              [ Rp_unit ], [ unit_ident ]
+          | globals ->
+              List.map
+                (fun (global, _) ->
+                   if Env.is_imported_parameter (Global.to_name global)
+                   then Rp_argument_block global
+                   else Rp_dependency global)
+                globals,
+              List.map (fun (_, ident) -> ident) globals
+        in
+        let body = add_parameters body runtime_param_idents in
+        let body = wrap_toplevel_functor_in_struct body in
+        let format =
+          Mb_wrapped_function { mb_runtime_params;
+                                mb_returned_size = size }
+        in
+        body, format
+  in
   { compilation_unit;
-    main_module_block_size = size;
+    module_block_format;
     arg_block_field;
     required_globals = required_globals ~flambda:true body;
     code = body }
@@ -1685,22 +1704,8 @@ let transl_store_structure_gen
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_implementation_as_functor
-      ~scopes ~runtime_params module_id impl =
-  (* CR lmaurer: This can actually do better than fall back to
-     [transl_implementation_module], now that [transl_store_gen] isn't
-     hard-coded to set the fields of a global. *)
-  let code, i, arg_block_field =
-    transl_implementation_module ~scopes ~runtime_params module_id impl
-  in
-  let body_id = Ident.create_local "*unit-body*" in
-  i,
-  Llet (Strict, Pvalue Pgenval, body_id, code,
-        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
-                         [Lprim(Pgetglobal module_id, [], Loc_unknown);
-                          Lvar body_id],
-                         Loc_unknown),
-                   lambda_unit)),
-  arg_block_field
+    ~scopes:_ _module_id _impl =
+  Misc.fatal_error "Parameterised modules only supported with flambda2"
 
 let transl_store_phrases module_name str =
   transl_store_gen_init ();
@@ -1714,12 +1719,11 @@ let transl_store_phrases module_name str =
 
 let transl_store_gen module_name impl topl =
   transl_store_gen_init ();
-  let runtime_params = Env.locally_bound_imports () in
-  match runtime_params with
-    [] ->
+  match has_parameters () with
+  | false ->
       transl_store_structure_gen module_name impl topl
-  | _ :: _ ->
-      transl_store_implementation_as_functor module_name impl ~runtime_params
+  | true ->
+      transl_store_implementation_as_functor module_name impl
 
 let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
@@ -1729,7 +1733,7 @@ let transl_implementation_set_fields compilation_unit impl =
     transl_store_gen ~scopes compilation_unit impl false
   in
   transl_store_subst := s;
-  { Lambda.main_module_block_size = i;
+  { Lambda.module_block_format = Mb_record { mb_size = i };
     arg_block_field;
     code;
     (* compilation_unit is not used by closure, but this allow to share
@@ -2034,24 +2038,48 @@ let transl_package component_names target_name coercion ~style =
   | Set_individual_fields ->
       transl_package_set_fields component_names target_name coercion
 
-let rec required_global_of_address (addr : Address.t) =
-  match addr with
-  | Aunit cu -> cu
-  | Adot (addr, _) -> required_global_of_address addr
-  | Alocal ident ->
-      Misc.fatal_errorf "unexpected local ident %a" Ident.print ident
+type runtime_arg =
+  | Argument_block of {
+      ra_unit : Compilation_unit.t;
+      ra_field : int;
+    }
+  | Dependency of Compilation_unit.t
+  | Unit
+
+let unit_of_runtime_arg arg =
+  match arg with
+  | Argument_block { ra_unit = cu; _ } | Dependency cu -> Some cu
+  | Unit -> None
+
+let transl_runtime_arg arg =
+  match arg with
+  | Argument_block { ra_unit; ra_field; } ->
+      Lprim (mod_field ra_field,
+             [Lprim (Pgetglobal ra_unit, [], Loc_unknown)],
+             Loc_unknown)
+  | Dependency cu ->
+      Lprim (Pgetglobal cu, [], Loc_unknown)
+  | Unit ->
+      lambda_unit
 
 let transl_instance_plain_block
-    compilation_unit ~runtime_params : Lambda.program =
-  let { Env.instantiating_functor; arguments; main_module_block_size } =
-    Env.instantiate compilation_unit ~runtime_params
+      compilation_unit ~runtime_args ~main_module_block_size ~arg_block_field
+    : Lambda.program =
+  let base_compilation_unit, _args =
+    Compilation_unit.split_instance_exn compilation_unit
   in
-  let src_lam = Lambda.transl_address Loc_unknown instantiating_functor in
-  let runtime_args = List.map (Lambda.transl_address Loc_unknown) arguments in
+  let instantiating_functor_lam =
+    (* Any parameterized module has a block with exactly one field, namely the
+       instantiating functor *)
+    Lprim (mod_field 0,
+           [Lprim (Pgetglobal base_compilation_unit, [], Loc_unknown)],
+           Loc_unknown)
+  in
+  let runtime_args_lam = List.map transl_runtime_arg runtime_args in
   let code =
     Lapply {
-      ap_func = src_lam;
-      ap_args = runtime_args;
+      ap_func = instantiating_functor_lam;
+      ap_args = runtime_args_lam;
       ap_result_layout = Pvalue Pgenval;
       ap_loc = Loc_unknown;
       ap_inlined = Always_inlined; (* Definitely inline!! *)
@@ -2063,51 +2091,44 @@ let transl_instance_plain_block
     }
   in
   let required_globals =
-    List.map required_global_of_address (instantiating_functor :: arguments)
+    base_compilation_unit :: List.filter_map unit_of_runtime_arg runtime_args
     |> Compilation_unit.Set.of_list
   in
+  let module_block_format = Mb_record { mb_size = main_module_block_size } in
   {
     compilation_unit;
     code;
     required_globals;
-    main_module_block_size;
+    module_block_format;
+    arg_block_field;
   }
 
-let transl_instance_set_global compilation_unit ~runtime_params =
-  transl_instance_plain_block compilation_unit ~runtime_params
+let transl_instance_set_global
+      compilation_unit ~runtime_args ~main_module_block_size ~arg_block_field =
+  transl_instance_plain_block compilation_unit ~runtime_args
+    ~main_module_block_size ~arg_block_field
   |> wrap_in_setglobal
 
-let transl_instance_set_fields compilation_unit ~runtime_params =
-  let block_id = Ident.create_local "instance" in
-  let block_impl =
-    transl_instance_plain_block compilation_unit ~runtime_params
-  in
-  let field_positions =
-    List.init block_impl.main_module_block_size (fun i -> i)
-  in
-  let set_fields =
-    make_sequence
-      (fun pos ->
-        Lprim(mod_setfield pos,
-              [Lprim(Pgetglobal compilation_unit, [], Loc_unknown);
-                Lprim(mod_field pos, [Lvar block_id], Loc_unknown)],
-              Loc_unknown))
-      field_positions
-  in
-  let code =
-    Llet (Strict, Pvalue Pgenval, block_id, block_impl.code, set_fields)
-  in
-  { block_impl with code; }
+let transl_instance_set_fields
+      _compilation_unit ~runtime_args:_ ~main_module_block_size:_
+      ~arg_block_field:_ =
+  Misc.fatal_error "Parameterised modules not supported in Closure"
 
-let transl_instance instance_unit ~runtime_params ~style =
+let transl_instance instance_unit ~runtime_args ~main_module_block_size
+      ~arg_block_field ~style =
   assert (Compilation_unit.is_instance instance_unit);
+  if (runtime_args = []) then
+    Misc.fatal_error "Trying to instantiate but passing no arguments";
   match style with
   | Plain_block ->
-      transl_instance_plain_block instance_unit ~runtime_params
+      transl_instance_plain_block instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
   | Set_global_to_block ->
-      transl_instance_set_global instance_unit ~runtime_params
+      transl_instance_set_global instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
   | Set_individual_fields ->
-      transl_instance_set_fields instance_unit ~runtime_params
+      transl_instance_set_fields instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
 
 (* Error report *)
 

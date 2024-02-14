@@ -128,6 +128,9 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         ~style:transl_style
     in
     let code = Simplif.simplify_lambda code in
+    let module_block_format : Lambda.module_block_format =
+      Mb_record { mb_size = main_module_block_size }
+    in
     let arg_block_field =
       (* Packs not supported as argument modules *)
       None
@@ -135,7 +138,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
     let program =
       { Lambda.
         code;
-        main_module_block_size;
+        module_block_format;
         arg_block_field;
         compilation_unit;
         required_globals;
@@ -164,7 +167,8 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
       Ccomp.call_linker Ccomp.Partial targetobj (objtemp :: objfiles) ""
     in
     remove_file objtemp;
-    if not (exitcode = 0) then raise(Error Linking_error)
+    if not (exitcode = 0) then raise(Error Linking_error);
+    main_module_block_size
   )
 
 (* Make the .cmx file for the package *)
@@ -190,7 +194,7 @@ let get_approx ui : Clambda.value_approximation =
   | Flambda1 _ -> assert false
   | Flambda2 _ -> assert false
 
-let build_package_cmx members cmxfile =
+let build_package_cmx members cmxfile ~main_module_block_size =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
@@ -232,6 +236,10 @@ let build_package_cmx members cmxfile =
   let ui_checks = Checks.create () in
   List.iter (fun info -> Checks.merge info.ui_checks ~into:ui_checks) units;
   let modname = Compilation_unit.name ui.ui_unit in
+  let format : Lambda.module_block_format =
+    (* Open modules not supported with packs, so always just a record *)
+    Mb_record { mb_size = main_module_block_size }
+  in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
       ui_defines =
@@ -244,7 +252,7 @@ let build_package_cmx members cmxfile =
             filter (Asmlink.extract_crc_interfaces ());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());
-      ui_runtime_params = []; (* open modules not supported with packs *)
+      ui_format = format;
       ui_generic_fns =
         { curry_fun =
             union(List.map (fun info -> info.ui_generic_fns.curry_fun) units);
@@ -270,9 +278,11 @@ let package_object_files unix ~ppf_dump files targetcmx
   in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  make_package_object unix ~ppf_dump members targetobj targetname coercion
-    ~backend ~flambda2;
-  build_package_cmx members targetcmx
+  let main_module_block_size =
+    make_package_object unix ~ppf_dump members targetobj targetname coercion
+      ~backend ~flambda2
+  in
+  build_package_cmx members targetcmx ~main_module_block_size
 
 (* The entry point *)
 

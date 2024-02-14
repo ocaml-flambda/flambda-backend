@@ -348,17 +348,11 @@ val make_copy_of_types: t -> (t -> t)
 
 (* Resolution of globals *)
 
-type instantiation = {
-  instantiating_functor : address;
-  arguments : address list;
-  main_module_block_size : int;
-}
-
-(* Find all the addresses needed to form the expression that produces the
-   instance with the given name. Requires knowing all the parameters that the
-   instantiating functor takes, which must be read from the .cmo/.cmx file. *)
-val instantiate:
-  Compilation_unit.t -> runtime_params:Global.t list -> instantiation
+(* [global_of_instance_compilation_unit cu] checks that a compilation unit is a
+   complete instantiation - that is, that all of its parameters are filled by
+   arguments, and all of those arguments' parameters are filled, and so on -
+   and converts it into a global. *)
+val global_of_instance_compilation_unit : Compilation_unit.t -> Global.t
 
 (* Insertion by identifier *)
 
@@ -536,6 +530,10 @@ val is_parameter_unit: Compilation_unit.Name.t -> bool
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
 val implemented_parameter: Global.Name.t -> Global.Name.t option
+
+(* [is_imported_parameter md] is true if [md] has been imported and is a
+   parameter to this module *)
+val is_imported_parameter: Global.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

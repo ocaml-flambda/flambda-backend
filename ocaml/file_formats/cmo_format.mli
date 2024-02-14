@@ -34,9 +34,7 @@ type compilation_unit_descr =
                                         (* If this is an argument unit, the
                                            parameter it implements *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
-    cu_runtime_params : Global.t array; (* Parameters and imports which must be
-                                           passed as parameters to the module
-                                           functor *)
+    cu_format: Lambda.module_block_format;
     cu_required_globals: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects
