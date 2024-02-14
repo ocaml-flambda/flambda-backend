@@ -939,10 +939,13 @@ let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
       (P.result_kind' original_prim)
       ~original_term
 
-let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
-    ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+let simplify_array_load (array_kind : P.Array_kind.t)
+    (accessor_width : P.array_accessor_width) mutability dacc ~original_term:_
+    dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
   let result_kind =
-    P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+    match accessor_width with
+    | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+    | Vec128 -> K.naked_vec128
   in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
@@ -958,34 +961,13 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
        required at present since they only go into [Duplicate_array]
        operations). *)
     let result_kind' =
-      P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+      match accessor_width with
+      | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+      | Vec128 -> K.naked_vec128
     in
     assert (K.equal result_kind result_kind');
-    let prim : P.t = Binary (Array_load (array_kind, mutability), arg1, arg2) in
-    let named = Named.create_prim prim dbg in
-    let ty = T.unknown (P.result_kind' prim) in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create named ~try_reify:false dacc
-
-let simplify_array_vector_load (vec_kind : Lambda.boxed_vector)
-    (array_kind : P.Array_kind.t) mutability dacc ~original_term:_ dbg ~arg1
-    ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
-  let result_kind = match vec_kind with Pvec128 _ -> K.naked_vec128 in
-  let array_kind =
-    Simplify_common.specialise_array_kind dacc array_kind ~array_ty
-  in
-  (* CR-someday mshinwell: should do a meet on the new value too *)
-  match array_kind with
-  | Bottom ->
-    let ty = T.bottom result_kind in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create_invalid dacc
-  | Ok array_kind ->
-    (* CR mshinwell: Add proper support for immutable arrays here (probably not
-       required at present since they only go into [Duplicate_array]
-       operations). *)
     let prim : P.t =
-      Binary (Array_vector_load (vec_kind, array_kind, mutability), arg1, arg2)
+      Binary (Array_load (array_kind, accessor_width, mutability), arg1, arg2)
     in
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
@@ -1035,10 +1017,8 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
       simplify_immutable_block_load access_kind ~min_name_mode
     | Block_load (access_kind, Mutable) ->
       simplify_mutable_block_load access_kind ~original_prim
-    | Array_load (array_kind, mutability) ->
-      simplify_array_load array_kind mutability
-    | Array_vector_load (vec_kind, array_kind, mutability) ->
-      simplify_array_vector_load vec_kind array_kind mutability
+    | Array_load (array_kind, width, mutability) ->
+      simplify_array_load array_kind width mutability
     | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op
@@ -1078,8 +1058,7 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
 
 let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
   match prim with
-  | Block_load _ | Array_load _ | Array_vector_load _ | Int_arith _
-  | Int_shift _
+  | Block_load _ | Array_load _ | Int_arith _ | Int_shift _
   | Int_comp (_, Yielding_int_like_compare_functions _)
   | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
   | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange

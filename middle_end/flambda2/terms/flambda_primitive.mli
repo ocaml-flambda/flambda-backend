@@ -217,6 +217,10 @@ val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
 
+type array_accessor_width =
+  | Scalar
+  | Vec128
+
 type string_like_value =
   | String
   | Bytes
@@ -389,7 +393,7 @@ type binary_float_arith_op =
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * Mutability.t
+  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -403,16 +407,14 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
-  | Array_vector_load of Lambda.boxed_vector * Array_kind.t * Mutability.t
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t
+  | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
-  | Array_vector_set of Lambda.boxed_vector * Array_set_kind.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

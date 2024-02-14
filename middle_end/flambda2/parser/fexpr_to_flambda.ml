@@ -432,8 +432,7 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
-  | Array_load (ak, mut) -> Array_load (ak, mut)
-  | Array_vector_load (vk, ak, mut) -> Array_vector_load (vk, ak, mut)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
@@ -457,12 +456,9 @@ let array_set_kind_of_array_kind :
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) ->
+  | Array_set (ak, width, ia) ->
     let ask = array_set_kind_of_array_kind env (ak, ia) in
-    Array_set ask
-  | Array_vector_set (vk, ak, ia) ->
-    let ask = array_set_kind_of_array_kind env (ak, ia) in
-    Array_vector_set (vk, ask)
+    Array_set (ask, width)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 

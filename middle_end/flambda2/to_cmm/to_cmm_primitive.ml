@@ -142,50 +142,34 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
 
-let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
-  match kind with
-  | Immediates -> C.int_array_ref arr index dbg
-  | Naked_int64s | Naked_nativeints ->
-    C.unboxed_int64_or_nativeint_array_ref arr index dbg
-  | Values -> C.addr_array_ref arr index dbg
-  | Naked_floats -> C.unboxed_float_array_ref arr index dbg
-  | Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
-
-let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
-    (array_kind : P.Array_kind.t) ~arr ~index =
-  P.Array_kind.check_vector_access_kind array_kind vec_kind;
-  let element_width_log2 =
-    match vec_kind with
-    | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
-    | Pvec128 Int32x4 -> 2
-    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) ->
-      (* CR mslater: replace once we have unboxed float32/int16/int8 *)
-      assert false
-  in
+let array_load_128 ~dbg arr index element_width_log2 =
   C.unaligned_load_128 arr
     (C.lsl_int (C.untag_int index dbg)
        (Cconst_int (element_width_log2, dbg))
        dbg)
     dbg
 
-let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
-    (array_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
-  P.Array_kind.check_vector_access_kind
-    (P.Array_set_kind.array_kind array_kind)
-    vec_kind;
-  let element_width_log2 =
-    match vec_kind with
-    | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
-    | Pvec128 Int32x4 -> 2
-    | Pvec128 (Unknown128 | Float32x4 | Int16x8 | Int8x16) ->
-      (* CR mslater: replace once we have unboxed float32/int16/int8 *)
-      assert false
-  in
+let array_set_128 ~dbg arr index new_value element_width_log2 =
   C.unaligned_set_128 arr
     (C.lsl_int (C.untag_int index dbg)
        (Cconst_int (element_width_log2, dbg))
        dbg)
     new_value dbg
+
+let array_load ~dbg (kind : P.Array_kind.t)
+    (accessor_width : P.array_accessor_width) ~arr ~index =
+  match kind, accessor_width with
+  | Immediates, Scalar -> C.int_array_ref arr index dbg
+  | (Naked_int64s | Naked_nativeints), Scalar ->
+    C.unboxed_int64_or_nativeint_array_ref arr index dbg
+  | Values, Scalar -> C.addr_array_ref arr index dbg
+  | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
+  | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
+  | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
+    array_load_128 ~dbg arr index 3
+  | Naked_int32s, Vec128 -> array_load_128 ~dbg arr index 2
+  | Values, Vec128 ->
+    Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
@@ -193,15 +177,22 @@ let addr_array_store init ~arr ~index ~new_value dbg =
   | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ~dbg (kind : P.Array_set_kind.t) ~arr ~index ~new_value =
+let array_set ~dbg (kind : P.Array_set_kind.t)
+    (accessor_width : P.array_accessor_width) ~arr ~index ~new_value =
   let expr =
-    match kind with
-    | Immediates -> C.int_array_set arr index new_value dbg
-    | Values init -> addr_array_store init ~arr ~index ~new_value dbg
-    | Naked_floats -> C.float_array_set arr index new_value dbg
-    | Naked_int32s -> C.unboxed_int32_array_set arr ~index ~new_value dbg
-    | Naked_int64s | Naked_nativeints ->
+    match kind, accessor_width with
+    | Immediates, Scalar -> C.int_array_set arr index new_value dbg
+    | Values init, Scalar -> addr_array_store init ~arr ~index ~new_value dbg
+    | Naked_floats, Scalar -> C.float_array_set arr index new_value dbg
+    | Naked_int32s, Scalar ->
+      C.unboxed_int32_array_set arr ~index ~new_value dbg
+    | (Naked_int64s | Naked_nativeints), Scalar ->
       C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
+    | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
+      array_set_128 ~dbg arr index new_value 3
+    | Naked_int32s, Vec128 -> array_set_128 ~dbg arr index new_value 2
+    | Values _, Vec128 ->
+      Misc.fatal_error "Attempted to store a SIMD vector to a value array."
   in
   C.return_unit dbg expr
 
@@ -707,9 +698,7 @@ let unary_primitive env res dbg f arg =
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
-  | Array_load (kind, _mut) -> array_load ~dbg kind ~arr:x ~index:y
-  | Array_vector_load (vec_kind, array_kind, _mut) ->
-    array_vector_load ~dbg vec_kind array_kind ~arr:x ~index:y
+  | Array_load (kind, width, _mut) -> array_load ~dbg kind width ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
@@ -734,10 +723,8 @@ let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
   | Block_set (block_access, init) ->
     block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
-  | Array_set array_set_kind ->
-    array_set ~dbg array_set_kind ~arr:x ~index:y ~new_value:z
-  | Array_vector_set (vec_kind, array_set_kind) ->
-    array_vector_set ~dbg vec_kind array_set_kind ~arr:x ~index:y ~new_value:z
+  | Array_set (array_set_kind, width) ->
+    array_set ~dbg array_set_kind width ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
