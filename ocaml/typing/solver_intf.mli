@@ -127,8 +127,7 @@ module type Lattices_mono = sig
       usual adjunction between [A] and [B], and [A] is a convex sublattice of
      [A'], and [B] is a convex sublattice of [B'], we say that [f] and [g]
      form a partial adjunction between [A'] and [B']. We do not require [f] to
-     be defined on [A'\A]; In fact, let's require [f] to be undefined on [A'\A]
-     for simplicity. Similar for [g].
+     be defined on [A'\A]. Similar for [g].
 
      For example: Define [A = B = {0, 1, 2}] with total ordering. Define both
      [f] and [g] to be the identity function. Obviously [f] and [g] form a usual

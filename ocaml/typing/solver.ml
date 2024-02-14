@@ -315,22 +315,27 @@ module Solver_mono (C : Lattices_mono) = struct
        constrain [v].
 
        However, we aim to support a wider of notion of adjunctions (see
-       [solver_intf.mli]), where [f' a] is well-defined only if [a] falls in
-       [f]'s codomain.
+       [solver_intf.mli] for context). Say [f : B' -> A'] and [f' : A' -> B'].
+       Note that [f' a] is known to be well-defined only if [a \in A] where [A]
+        is some convex sublattice of [A'].
 
-       Note that we don't request the co-domain of [f] from [Lattices_mono] for
+       Note that we don't request the [A] of [f] from [Lattices_mono] for
        simplicity. Instead, note that we need to check [a] against [f v] anyway,
-       and the bound of the latter is a subset of the co-domain of [f].
-       Therefore, once we make sure [a] is within the bound of [f v], we are
-       free to apply [f'] to [a].
+       and the bound of the latter is a subset of [A]. Therefore, once we make
+       sure [a] is within the bound of [f v], we are free to apply [f'] to [a].
+       Concretely:
 
-       - If [a <= (f v).lower], immediately succeed
-       - If not [a <= (f v).upper], immediately fail
-       - Note that at this point, we still can't ensure that [a >= (f v).lower].
+       1. If [a <= (f v).lower], immediately succeed
+       2. If not [a <= (f v).upper], immediately fail
+       3. Note that at this point, we still can't ensure that [a >= (f v).lower].
          (We don't assume total ordering, for best generality)
-        Therefore, we set [a] to [join a (f v).lower], and have now ensured that
-        [a] is within the range of [f v], and thus the co-domain of [f], and
-        thus it's safe to apply [f'] to [a]. *)
+        Therefore, we set [a] to [join a (f v).lower].
+
+        Note how the "convex" condition plays here: (2) and (3) together ensures
+        [(f v).lower <= a <= (f v).upper]. Note that [v \in B], therefore
+        [f v \in A]. By convexity, we have [a \in A], and thus we can safely
+        apply [f'] to [a].
+        *)
     let mlower = mlower obj mv in
     let mupper = mupper obj mv in
     if C.le obj a mlower
