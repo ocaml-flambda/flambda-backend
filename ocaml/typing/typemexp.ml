@@ -57,7 +57,7 @@ open Format
 
 let report_error ppf = function
   | Duplicated_mode ax ->
-    fprintf ppf "The %s axis has already been specified." (Axis.string_of ax)
+    fprintf ppf "The %s axis has already been specified." (Axis.to_string ax)
 
 let () =
   Location.register_error_of_exn (function

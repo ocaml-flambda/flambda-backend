@@ -28,7 +28,7 @@ module Axis = struct
     | `Uniqueness
     | `Linearity ]
 
-  let string_of = function
+  let to_string = function
     | `Locality -> "locality"
     | `Regionality -> "regionality"
     | `Uniqueness -> "uniqueness"
