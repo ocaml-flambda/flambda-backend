@@ -128,6 +128,10 @@ val restrict_to_erasable_extensions : unit -> unit
     [false].*)
 val disallow_extensions : unit -> unit
 
+(** Check if the allowable extensions are restricted to only those that are
+    "erasable". This is true when [restrict_to_erasable_extensions] was called. *)
+val erasable_extensions_only : unit -> bool
+
 (**/**)
 
 (** Special functionality that can only be used in "pprintast.ml" *)
