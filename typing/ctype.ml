@@ -2018,7 +2018,7 @@ let rec estimate_type_jkind env ty =
        This notably prevents [constrain_type_jkind] from changing layout
        [any] to a sort or changing the externality once the Tvar gets
        generalized.
-       
+
        This, however, still allows sort variables to get instantiated. *)
     Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
@@ -2162,16 +2162,56 @@ let unification_jkind_check env ty jkind =
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
 
-let update_generalized_ty_jkind_reason ty reason =
+exception Incompatible_with_erasability_requirements of
+  Ident.t option * Location.t
+
+let () =
+  Location.register_error_of_exn (function
+  | Incompatible_with_erasability_requirements (id, loc) ->
+    let format_id ppf = function
+      | Some id -> Format.fprintf ppf " in %s" (Ident.name id)
+      | None -> ()
+    in
+    Some (Location.errorf ~loc
+      "@[Usage of layout immediate/immediate64%a can't be erased.@;\
+      This error is produced due to the use of -only-erasable-extensions.@]"
+      format_id id)
+  | _ -> None)
+
+let check_and_update_generalized_ty_jkind ?name ~loc ty =
+  let immediacy_check jkind =
+    let is_immediate jkind =
+      let snap = Btype.snapshot () in
+      let result =
+        Result.is_ok (
+          Jkind.sub
+            jkind
+            (Jkind.immediate64 ~why:Erasability_check))
+      in
+      Btype.backtrack snap;
+      result
+    in
+    if Language_extension.erasable_extensions_only ()
+      && is_immediate jkind
+    then
+      raise (Incompatible_with_erasability_requirements (name, loc))
+    else ()
+  in
   let rec inner ty =
     let level = get_level ty in
     if level = generic_level && try_mark_node ty then begin
       begin match get_desc ty with
       | Tvar ({ jkind; _ } as r) ->
-        let new_jkind = Jkind.(update_reason jkind reason) in
+        immediacy_check jkind;
+        let new_jkind =
+          Jkind.(update_reason jkind (Generalized (name, loc)))
+        in
         set_type_desc ty (Tvar {r with jkind = new_jkind})
       | Tunivar ({ jkind; _ } as r) ->
-        let new_jkind = Jkind.(update_reason jkind reason) in
+        immediacy_check jkind;
+        let new_jkind =
+          Jkind.(update_reason jkind (Generalized (name, loc)))
+        in
         set_type_desc ty (Tunivar {r with jkind = new_jkind})
       | _ -> ()
       end;
