@@ -141,7 +141,6 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
-  | Non_value_arg_or_res_in_primitive of string
 
 exception Error of Location.t * error
 

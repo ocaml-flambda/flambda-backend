@@ -528,8 +528,8 @@ external[@layout_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
 Line 1, characters 29-49:
 1 | external[@layout_poly] dup : ('a : any). 'a -> 'a = "%obj_dup"
                                  ^^^^^^^^^^^^^^^^^^^^
-Error: The primitive [%obj_dup] doesn't yet support argument/return types
-       with non-value layouts.
+Error: The primitive [%obj_dup] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external dup : float# -> float# = "%obj_dup"
@@ -537,8 +537,8 @@ external dup : float# -> float# = "%obj_dup"
 Line 1, characters 15-31:
 1 | external dup : float# -> float# = "%obj_dup"
                    ^^^^^^^^^^^^^^^^
-Error: The primitive [%obj_dup] doesn't yet support argument/return types
-       with non-value layouts.
+Error: The primitive [%obj_dup] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 (**********************************************************)
