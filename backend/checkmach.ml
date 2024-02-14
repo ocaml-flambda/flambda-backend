@@ -561,20 +561,50 @@ end = struct
     | _ -> None
 end
 
-module Func_info = struct
+module Func_info : sig
+  type t = private
+    { name : string;  (** function name *)
+      dbg : Debuginfo.t;  (** debug info associated with the function *)
+      mutable value : Value.t;  (** the result of the check *)
+      annotation : Annotation.t option;
+          (** [value] must be lessequal than the expected value
+          if there is user-defined annotation on this function. *)
+      saved_body : Mach.instruction option
+          (** If the function has callees that haven't been analyzed yet, keep function body
+          so it can be reanalyzed when the callees are available.  *)
+    }
+
+  val create :
+    string ->
+    Value.t ->
+    Debuginfo.t ->
+    Annotation.t option ->
+    Mach.instruction option ->
+    t
+
+  val print : witnesses:bool -> msg:string -> Format.formatter -> t -> unit
+
+  val update : t -> Value.t -> unit
+end = struct
   type t =
     { name : string;  (** function name *)
       dbg : Debuginfo.t;  (** debug info associated with the function *)
-      value : Value.t;  (** the result of the check *)
-      annotation : Annotation.t option
+      mutable value : Value.t;  (** the result of the check *)
+      annotation : Annotation.t option;
           (** [value] must be lessequal than the expected value
           if there is user-defined annotation on this function. *)
+      saved_body : Mach.instruction option
+          (** If the function has callees that haven't been analyzed yet, keep function body
+          so it can be reanalyzed when the callees are available.  *)
     }
 
-  let create name value dbg annotation = { name; dbg; value; annotation }
+  let create name value dbg annotation saved_body =
+    { name; dbg; value; annotation; saved_body }
 
   let print ~witnesses ~msg ppf t =
     Format.fprintf ppf "%s %s %a@." msg t.name (Value.print ~witnesses) t.value
+
+  let update t value = t.value <- value
 end
 
 module type Spec = sig
@@ -613,7 +643,15 @@ module Unit_info : sig
   (** [recod t name v dbg a] name must be in the current compilation unit,
       and not previously recorded.  *)
   val record :
-    t -> string -> Value.t -> Debuginfo.t -> Annotation.t option -> unit
+    t ->
+    string ->
+    Value.t ->
+    Debuginfo.t ->
+    Annotation.t option ->
+    Mach.instruction option ->
+    unit
+
+  val update : t -> string -> Value.t -> unit
 
   val iter : t -> f:(Func_info.t -> unit) -> unit
 
@@ -636,12 +674,17 @@ end = struct
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
-  let record t name value dbg annotation =
+  let record t name value dbg annotation saved_body =
     match String.Tbl.find_opt t name with
     | Some _ -> Misc.fatal_errorf "Duplicate symbol %s" name
     | None ->
-      let func_info = Func_info.create name value dbg annotation in
+      let func_info = Func_info.create name value dbg annotation saved_body in
       String.Tbl.replace t name func_info
+
+  let update t name value =
+    match String.Tbl.find_opt t name with
+    | None -> Misc.fatal_errorf "Cannot find symbol %s" name
+    | Some func_info -> Func_info.update func_info value
 end
 
 (** Check one function. *)
@@ -661,16 +704,19 @@ end = struct
       current_fun_name : string;
       future_funcnames : String.Set.t;
       mutable approx : Value.t option;
-          (** Used for computing fixpoint for self calls. *)
+          (** Used for computing for self calls. *)
+      mutable unresolved : bool;
+          (** the current function contains calls to other unresolved functions (not including self calls) *)
       unit_info : Unit_info.t;  (** must be the current compilation unit.  *)
       mutable keep_witnesses : bool
     }
 
-  let create ppf current_fun_name future_funcnames unit_info =
+  let create ppf current_fun_name future_funcnames unit_info approx =
     { ppf;
       current_fun_name;
       future_funcnames;
-      approx = None;
+      approx;
+      unresolved = false;
       unit_info;
       keep_witnesses = false
     }
@@ -710,7 +756,7 @@ end = struct
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Func_info.print ~witnesses:true ppf ~msg func_info
 
-  let record_unit unit_info ppf =
+  let record_unit ppf unit_info =
     let errors = ref [] in
     let record (func_info : Func_info.t) =
       (match func_info.annotation with
@@ -751,10 +797,6 @@ end = struct
     | [] -> ()
     | errors -> raise (Report.Fail (errors, S.property))
 
-  let record_unit unit_info ppf =
-    Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
-      (fun () -> record_unit unit_info ppf)
-
   let[@inline always] create_witnesses t kind dbg =
     if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
 
@@ -785,10 +827,11 @@ end = struct
           unresolved v "self-call init"
         | Some approx -> unresolved approx "self-call approx"
       else
-        (* Call is defined later in the current compilation unit. Summary of
-           this callee is not yet computed, conservatively return Top. Won't be
-           able to prove any recursive functions as non-allocating. *)
-        unresolved (Value.top w)
+        ((* Call is defined later in the current compilation unit. Summary of
+            this callee is not yet computed, conservatively return Top. Won't be
+            able to prove any recursive functions as non-allocating. *)
+         t.unresolved <- true;
+         unresolved Value.safe)
           "conservative handling of forward or recursive call\nor tailcall"
     else
       (* CR gyorsh: unresolved case here is impossible in the conservative
@@ -968,16 +1011,23 @@ end = struct
        To check divergent loops, the initial value of "div" component of all
        Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
        "Bot". *)
+    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
+      body
+    |> fst
+
+  let analyze_body t body =
     let rec fixpoint () =
-      let new_value =
-        D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges
-          ~transfer body
-        |> fst
-      in
+      let new_value = check_instr t body in
       match t.approx with
       | None -> new_value
       | Some approx ->
-        if Value.lessequal new_value approx
+        (* Fixpoint here is only for the common case of "self" recursive
+           functions that do not have other unresolved dependencies. Other cases
+           will be recomputed simultaneously at the end of the compilation
+           unit. *)
+        if t.unresolved
+        then approx
+        else if Value.lessequal new_value approx
         then approx
         else (
           t.approx <- Some (Value.join new_value approx);
@@ -985,16 +1035,47 @@ end = struct
     in
     fixpoint ()
 
+  let fixpoint ppf unit_info =
+    report_unit_info ppf unit_info ~msg:"before fixpoint";
+    (* CR gyorsh: this is a really dumb iteration strategy. *)
+    let change = ref true in
+    let analyze_func (func_info : Func_info.t) =
+      match func_info.saved_body with
+      | None -> ()
+      | Some b ->
+        let t =
+          create ppf func_info.name String.Set.empty unit_info
+            (Some func_info.value)
+        in
+        let new_value = analyze_body t b in
+        if not (Value.lessequal new_value func_info.value)
+        then (
+          change := true;
+          Func_info.update func_info new_value)
+    in
+    while !change do
+      change := false;
+      Unit_info.iter unit_info ~f:analyze_func;
+      report_unit_info ppf unit_info ~msg:"computing fixpoint"
+    done
+
+  let record_unit unit_info ppf =
+    Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
+      (fun () ->
+        fixpoint ppf unit_info;
+        record_unit ppf unit_info)
+
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
       let fun_name = f.fun_name in
-      let t = create ppf fun_name future_funcnames unit_info in
+      let t = create ppf fun_name future_funcnames unit_info None in
       let a =
         Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
       in
       let really_check ~keep_witnesses =
         t.keep_witnesses <- Unit_info.should_keep_witnesses keep_witnesses;
-        let res = check_instr t f.fun_body in
+        let res = analyze_body t f.fun_body in
+        let saved_body = if t.unresolved then Some f.fun_body else None in
         report t res ~msg:"finished" ~desc:"fundecl" f.fun_dbg;
         if not t.keep_witnesses
         then (
@@ -1002,15 +1083,14 @@ end = struct
           assert (Witnesses.is_empty nor);
           assert (Witnesses.is_empty exn);
           assert (Witnesses.is_empty div));
-        report_unit_info ppf unit_info ~msg:"before record";
-        Unit_info.record unit_info fun_name res f.fun_dbg a;
+        Unit_info.record unit_info fun_name res f.fun_dbg a saved_body;
         report_unit_info ppf unit_info ~msg:"after record"
       in
       match a with
       | Some a when Annotation.is_assume a ->
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
-        Unit_info.record unit_info fun_name expected_value f.fun_dbg None
+        Unit_info.record unit_info fun_name expected_value f.fun_dbg None None
       | None -> really_check ~keep_witnesses:false
       | Some a ->
         let expected_value = Annotation.expected_value a in
