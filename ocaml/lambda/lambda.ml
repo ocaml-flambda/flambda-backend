@@ -1740,6 +1740,8 @@ let primitive_result_layout (p : primitive) =
     layout_boxed_vector (Pvec128 Float64x2)
   | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
   | Punboxed_nativeint_array_load_128 _ ->
+    (* 128-bit types are only supported in the x86_64 backend, so we may
+       assume that nativeint is 64 bits. *)
     layout_boxed_vector (Pvec128 Int64x2)
   | Punboxed_int32_array_load_128 _ ->
     layout_boxed_vector (Pvec128 Int32x4)

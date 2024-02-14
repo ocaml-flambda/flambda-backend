@@ -345,18 +345,22 @@ module Float_arrays = struct
   ;;
 
   let () =
-    let float_array = float_array () in
+    let a = float_array () in
     let _0 = f64x2 0.0 0.0 in
-    let fail i =
+    let fail a i =
       try
-        let _ = float_array_get_float64x2 float_array i in
-        let _ = float_array_set_float64x2 float_array i _0 in
+        let _ = float_array_get_float64x2 a i in
+        let _ = float_array_set_float64x2 a i _0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
-    fail (-1);
-    fail 3;
-    fail 4
+    fail a (-1);
+    fail a 3;
+    fail a 4;
+    fail [||] 0;
+    fail [|0.0|] 0;
+    fail [|0.0|] 1;
+    fail [|0.0|] (-1)
   ;;
 
   let () =
@@ -406,21 +410,27 @@ module Float_arrays = struct
   ;;
 
   let () =
-    let floatarray = floatarray () in
+    let a = floatarray () in
     let _0 = f64x2 0.0 0.0 in
-    let fail i =
+    let fail a i =
       try
-        let _ = floatarray_get_float64x2 floatarray i in
+        let _ = floatarray_get_float64x2 a i in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ();
       try
-        let _ = floatarray_set_float64x2 floatarray i _0 in
+        let _ = floatarray_set_float64x2 a i _0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
-    fail (-1);
-    fail 3;
-    fail 4
+    fail a (-1);
+    fail a 3;
+    fail a 4;
+    fail (Array.Floatarray.create 0) 0;
+    let a = Array.Floatarray.create 1 in
+    Array.Floatarray.set a 0 0.0;
+    fail a 0;
+    fail a 1;
+    fail a (-1)
   ;;
 end
 
@@ -503,20 +513,24 @@ module Int_arrays = struct
   ;;
 
   let () =
-    let int_array = int_array () in
+    let a = int_array () in
     let _0 = i64x2 (tag 0L) (tag 0L) in
-    let fail i =
+    let fail a i =
       try
-        let _ = int_array_get_int64x2 int_array i in
+        let _ = int_array_get_int64x2 a i in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ();
       try
-        let _ = int_array_set_int64x2 int_array i _0 in
+        let _ = int_array_set_int64x2 a i _0 in
         Printf.printf "Did not fail on index %d\n" i
       with | Invalid_argument s when s = "index out of bounds" -> ()
     in
-    fail (-1);
-    fail 3;
-    fail 4
+    fail a (-1);
+    fail a 3;
+    fail a 4;
+    fail [||] 0;
+    fail [|0|] 0;
+    fail [|0|] 1;
+    fail [|0|] (-1)
   ;;
 end

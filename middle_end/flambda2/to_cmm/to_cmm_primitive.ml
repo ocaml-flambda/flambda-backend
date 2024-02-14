@@ -154,7 +154,7 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
 let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
     (array_kind : P.Array_kind.t) ~arr ~index =
   P.Array_kind.check_vector_access_kind array_kind vec_kind;
-  let offset =
+  let element_width_log2 =
     match vec_kind with
     | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
     | Pvec128 Int32x4 -> 2
@@ -163,7 +163,9 @@ let array_vector_load ~dbg (vec_kind : Lambda.boxed_vector)
       assert false
   in
   C.unaligned_load_128 arr
-    (C.lsl_int (C.untag_int index dbg) (Cconst_int (offset, dbg)) dbg)
+    (C.lsl_int (C.untag_int index dbg)
+       (Cconst_int (element_width_log2, dbg))
+       dbg)
     dbg
 
 let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
@@ -171,7 +173,7 @@ let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
   P.Array_kind.check_vector_access_kind
     (P.Array_set_kind.array_kind array_kind)
     vec_kind;
-  let offset =
+  let element_width_log2 =
     match vec_kind with
     | Pvec128 Float64x2 | Pvec128 Int64x2 -> 3
     | Pvec128 Int32x4 -> 2
@@ -180,7 +182,9 @@ let array_vector_set ~dbg (vec_kind : Lambda.boxed_vector)
       assert false
   in
   C.unaligned_set_128 arr
-    (C.lsl_int (C.untag_int index dbg) (Cconst_int (offset, dbg)) dbg)
+    (C.lsl_int (C.untag_int index dbg)
+       (Cconst_int (element_width_log2, dbg))
+       dbg)
     new_value dbg
 
 let addr_array_store init ~arr ~index ~new_value dbg =
