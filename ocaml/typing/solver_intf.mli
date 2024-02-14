@@ -146,7 +146,7 @@ module type Lattices_mono = sig
      Moreover, if [a' \in A'\A], it is still fine to apply [f] to [a'], but the
      result should not be used as a left mode. This is unfortunately not
      enforcable by the ocaml type system, and we have to rely on user's caution.
-     *)
+  *)
 
   (* Note that [left_adjoint] and [right_adjoint] returns a [morph] weaker than
      what we want, which is "\exists r. allowed * r". But ocaml doesn't like

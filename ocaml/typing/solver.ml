@@ -335,7 +335,7 @@ module Solver_mono (C : Lattices_mono) = struct
         [(f v).lower <= a <= (f v).upper]. Note that [v \in B], therefore
         [f v \in A]. By convexity, we have [a \in A], and thus we can safely
         apply [f'] to [a].
-        *)
+    *)
     let mlower = mlower obj mv in
     let mupper = mupper obj mv in
     if C.le obj a mlower
