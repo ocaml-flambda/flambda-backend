@@ -163,7 +163,7 @@
  (action
    (with-outputs-to fail8.output.corrected
     (pipe-outputs
-    (with-accepted-exit-codes 2
+    (with-accepted-exit-codes 0
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
           -zero-alloc-check default -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
@@ -749,3 +749,9 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail24.output fail24.output.corrected)
  (action (diff fail24.output fail24.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_raise_message.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))

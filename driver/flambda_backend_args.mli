@@ -51,6 +51,7 @@ module type Flambda_backend_options = sig
   val dcheckmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
+  val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
