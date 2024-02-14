@@ -96,7 +96,7 @@ module Selection_heuristics = struct
 
   let include_in_random = function
     | Random_for_testing | Worst_fit -> false
-    | _ -> true
+    | First_available | Best_fit -> true
 
   let random =
     let all = List.filter all ~f:include_in_random in
