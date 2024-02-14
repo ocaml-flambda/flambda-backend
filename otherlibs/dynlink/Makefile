@@ -65,6 +65,8 @@ NATOBJS=native/dynlink_compilerlibs.cmx dynlink_types.cmx \
 COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
   parsing/parsetree.mli \
+  typing/solver_intf.mli \
+  typing/mode_intf.mli \
   typing/outcometree.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
@@ -111,6 +113,7 @@ COMPILERLIBS_SOURCES=\
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
+  typing/solver.ml \
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
