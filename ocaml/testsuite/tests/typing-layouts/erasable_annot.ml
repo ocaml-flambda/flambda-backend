@@ -1,6 +1,6 @@
 (* TEST
    * expect
-   flags = "-extension layouts -only-erasable-extensions"
+   flags = "-only-erasable-extensions"
 *)
 
 (* Upstream compatible usages of immediate/immediate64 are allowed *)
@@ -183,6 +183,30 @@ Error: In this `with' constraint, the new definition of t
          it's a type declaration in a first-class module.
        But the layout of the first must be a sublayout of immediate64, because
          of the definition of t at line 2, characters 2-23.
+|}];;
+
+(* Annotations here do nothing and should be accepted *)
+module type S = sig
+  val f : (int as (_ : immediate)) -> (int as (_ : immediate64))
+end
+
+[%%expect {|
+module type S = sig val f : int -> int end
+|}];;
+
+
+(* Annotation would affect ['a] and should be rejected *)
+module type S = sig
+  type 'b id = 'b
+  val f : ('a id as (_ : immediate)) -> 'a
+end
+
+[%%expect {|
+Line 3, characters 2-42:
+3 |   val f : ('a id as (_ : immediate)) -> 'a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Usage of layout immediate/immediate64 in f can't be erased.
+       This error is produced due to the use of -only-erasable-extensions.
 |}];;
 
 (* Other annotations are not effected by this flag *)
