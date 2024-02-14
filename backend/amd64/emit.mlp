@@ -922,6 +922,31 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+(* ISA Extension Checking *)
+
+module Extension = struct
+  module E = Arch.Extension
+
+  (* Keep in sync with [isa.c] in the runtime. *)
+  let symbol : E.t -> string =
+    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
+
+  let is_nasm_or_masm () =
+    match system with
+    | S_macosx | S_win32 | S_win64 -> true
+    | _ -> false
+
+  let emit_symbols () =
+    if !arch_check_symbols && not (is_nasm_or_masm ()) then
+    List.iter (fun ext ->
+      let name = symbol ext in
+      D.label name;
+      D.weak name
+    ) (E.available ())
+end
+
+(* Emit Code *)
+
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let src, dst = match op, size with
   | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
@@ -1460,9 +1485,9 @@ let emit_instr fallthrough i =
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
       I.dec (res i 0)
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
@@ -1550,7 +1575,7 @@ let emit_instr fallthrough i =
          previous experience with similar things, but maybe the change
          should be left for later.
          mshinwell: The current situation is fine for now. *)
-      if Arch.Extension.enabled BMI then begin
+      if Arch.Extension.enabled LZCNT then begin
         I.lzcnt (arg i 0) (res i 0)
       end else if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
@@ -1918,6 +1943,9 @@ let emit_item = function
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
+  | Csymbol_offset (s, o) ->
+    add_used_symbol s.sym_name;
+    D.qword (ConstLabelOffset (emit_cmm_symbol s, o))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align ~data:true n
@@ -1983,6 +2011,7 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
+  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;

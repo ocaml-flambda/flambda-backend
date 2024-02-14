@@ -598,7 +598,14 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-type 'a any4 = Any4 of 'a
+Line 1, characters 23-33:
+1 | type ('a : any) any4 = Any4 of 'a
+                           ^^^^^^^^^^
+Error: Constructor argument types must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on 'a in the declaration of the type any4.
+       But the layout of 'a must be representable, because
+         it's the type of a constructor field.
 |}];;
 
 (************************************************************)
@@ -1816,6 +1823,32 @@ Error: This type signature for foo33 is not a value type.
          it's the type of something stored in a module structure.
 |}]
 
+external foo44 : ('a : any). 'a -> unit = "foo44";;
+
+[%%expect{|
+Line 1, characters 29-31:
+1 | external foo44 : ('a : any). 'a -> unit = "foo44";;
+                                 ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of an argument in an external declaration.
+|}]
+
+external foo55 : ('a : any). unit -> 'a = "foo55";;
+
+[%%expect{|
+Line 1, characters 37-39:
+1 | external foo55 : ('a : any). unit -> 'a = "foo55";;
+                                         ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of the result of an external declaration.
+|}]
+
 (****************************************************)
 (* Test 34: Layout clash in polymorphic record type *)
 
@@ -2342,17 +2375,11 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 28-37.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 28-37.
 |}]
 
 (* This example is unfortunately rejected as a consequence of the fix for the
@@ -2366,17 +2393,11 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2/2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2/2 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 27-36.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
 
 (* This one also unfortunately rejected for the same reason. *)
@@ -2387,15 +2408,9 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2/3 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2/3 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 25-34.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 25-34.
 |}]

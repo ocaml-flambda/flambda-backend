@@ -116,6 +116,7 @@ type t =
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
+  | Unboxing_impossible                     (* 210 *)
 
 type alert = {kind:string; message:string; def:loc; use:loc}
 

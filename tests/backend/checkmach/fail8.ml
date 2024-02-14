@@ -1,4 +1,4 @@
-(* fails because forward dependency on g is treated conservatively *)
+(* forward dependency on g *)
 exception E
 let[@zero_alloc] rec f x b =
   if b then (g x; raise E)

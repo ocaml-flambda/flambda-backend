@@ -751,6 +751,7 @@ flambda2
 flambda
 cpp_mangling
 frame_pointers
+custom_ops_struct_size
 reserved_header_bits
 install_ocamlnat
 install_source_artifacts
@@ -3208,6 +3209,7 @@ ostype="Unix"
 SO="so"
 toolchain="cc"
 reserved_header_bits=0
+custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
 bootstrapping_flexdll=false
@@ -3339,6 +3341,7 @@ OCAML_VERSION_SHORT=5.1
 
 
  # TODO: rename this variable
+
 
 
 
@@ -13646,8 +13649,8 @@ lib_dynlink=true
 
 if test x"$enable_runtime5" = x"yes"
 then :
-  otherlibraries = "$otherlibraries runtime_events"
-   lib_runtime_events = true
+  otherlibraries="$otherlibraries runtime_events"
+   lib_runtime_events=true
 fi
 
 if test x"$enable_unix_lib" != "xno"
@@ -19634,6 +19637,8 @@ fi
 
 
 printf "%s\n" "#define HEADER_RESERVED_BITS $reserved_header_bits" >>confdefs.h
+
+printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
 
 if test x"$enable_installing_bytecode_programs" = "xno"

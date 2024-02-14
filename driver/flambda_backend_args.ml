@@ -57,6 +57,12 @@ let mk_cfg_peephole_optimize f =
 let mk_no_cfg_peephole_optimize f =
   "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG"
 
+let mk_cfg_cse_optimize f =
+  "-cfg-cse-optimize", Arg.Unit f, " Apply CSE optimizations to CFG"
+
+let mk_no_cfg_cse_optimize f =
+  "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -107,6 +113,13 @@ let mk_checkmach_details_cutoff f =
      | Keep_all -> (-1)
      | No_details -> 0
      | At_most n -> n)
+
+let mk_function_layout f =
+  let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
+  let default = Flambda_backend_flags.Function_layout.(to_string default) in
+  "-function-layout", Arg.Symbol (layouts, f),
+  (Printf.sprintf " Order of functions in the generated assembly (default: %s)"
+     default)
 
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
@@ -609,6 +622,9 @@ module type Flambda_backend_options = sig
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
+  val cfg_cse_optimize : unit -> unit
+  val no_cfg_cse_optimize : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -620,6 +636,7 @@ module type Flambda_backend_options = sig
   val dcheckmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
+  val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
@@ -718,6 +735,9 @@ struct
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
 
+    mk_cfg_cse_optimize F.cfg_cse_optimize;
+    mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
+
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
 
@@ -729,6 +749,7 @@ struct
     mk_dcheckmach F.dcheckmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
+    mk_function_layout F.function_layout;
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
 
@@ -856,6 +877,9 @@ module Flambda_backend_options_impl = struct
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
 
+  let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
+  let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -891,6 +915,12 @@ module Flambda_backend_options_impl = struct
       else At_most n
     in
     Flambda_backend_flags.checkmach_details_cutoff := c
+
+  let function_layout s =
+    match Flambda_backend_flags.Function_layout.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some layout ->
+      Flambda_backend_flags.function_layout := layout
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
@@ -1140,6 +1170,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
+    | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
@@ -1163,6 +1194,13 @@ module Extra_params = struct
       | None -> ()
       end;
       true
+    | "function-layout" ->
+      (match Flambda_backend_flags.Function_layout.of_string v with
+       | Some layout -> Flambda_backend_flags.function_layout := layout; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames

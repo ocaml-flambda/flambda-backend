@@ -2176,7 +2176,9 @@ let native_repr_of_type env kind ty =
   | Untagged, Tconstr (path, _, _) when Path.same path Predef.path_int ->
     Some Untagged_int
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
-    Some Unboxed_float
+    Some (Unboxed_float Pfloat64)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
+    Some (Unboxed_float Pfloat32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32 ->
     Some (Unboxed_integer Pint32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64 ->
@@ -2961,12 +2963,12 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
-      | Cstr_tuple -> "Constructor argument"
-      | Record -> "Record element"
-      | Unboxed_record -> "Unboxed record element"
-      | External -> "External"
+      | Cstr_tuple -> "Constructor argument types"
+      | Record -> "Record element types"
+      | Unboxed_record -> "Unboxed record element types"
+      | External -> "Types in an external"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ %a@]" s
+    fprintf ppf "@[%s must have a representable layout.@ %a@]" s
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->

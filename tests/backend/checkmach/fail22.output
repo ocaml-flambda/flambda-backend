@@ -2,4 +2,4 @@ File "fail22.ml", line 2, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail22.foo (camlFail22.foo_HIDE_STAMP)
 
 File "fail22.ml", line 2, characters 29-34:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes

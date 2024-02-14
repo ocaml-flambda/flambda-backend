@@ -121,6 +121,7 @@ let classify env ty : classification =
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
            || Path.same p Predef.path_nativeint
+           || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
            || Path.same p Predef.path_int64 then Addr
       else begin
@@ -324,7 +325,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
     num_nodes_visited, Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, Pfloatval
+    num_nodes_visited, (Pboxedfloatval Pfloat64)
+  | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
+    num_nodes_visited, (Pboxedfloatval Pfloat32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
     num_nodes_visited, (Pboxedintval Pint32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
@@ -521,11 +524,11 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                  out void. *)
               match rep with
               | Record_float | Record_ufloat ->
-                (* We're using the `Pfloatval` value kind for unboxed floats.
+                (* We're using the `Pboxedfloatval` value kind for unboxed floats.
                    This is kind of a lie (there are unboxed floats in here, not
                    boxed floats), but that was already happening here due to the
                    float record optimization. *)
-                num_nodes_visited, Pfloatval
+                num_nodes_visited, Pboxedfloatval Pfloat64
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited
                   label.ld_type
@@ -565,7 +568,7 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
   : Jkind.Sort.const -> _ = function
   | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
+    Lambda.Punboxed_float Pfloat64
   | Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pnativeint
   | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
@@ -662,7 +665,8 @@ let rec layout_union l1 l2 =
   | l, Pbottom -> l
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
-  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Punboxed_float f1, Punboxed_float f2 ->
+      if equal_boxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
@@ -670,7 +674,8 @@ let rec layout_union l1 l2 =
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
-  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _),
+  | (Ptop | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
+     Punboxed_vector _ | Punboxed_product _),
     _ ->
       Ptop
 

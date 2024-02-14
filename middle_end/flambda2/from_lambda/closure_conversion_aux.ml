@@ -544,10 +544,14 @@ module Acc = struct
 
   let symbol_approximations t = t.symbol_approximations
 
-  let add_code ~code_id ~code t =
+  let add_code ~code_id ~code ?slot_offsets t =
     { t with
       code_map = Code_id.Map.add code_id code t.code_map;
-      code_in_reverse_order = code :: t.code_in_reverse_order
+      code_in_reverse_order = code :: t.code_in_reverse_order;
+      code_slot_offsets =
+        (match slot_offsets with
+        | None -> t.code_slot_offsets
+        | Some offsets -> Code_id.Map.add code_id offsets t.code_slot_offsets)
     }
 
   let add_free_names free_names t =
@@ -737,6 +741,16 @@ module Function_decls = struct
         mode : Lambda.alloc_mode
       }
 
+    type unboxing_kind =
+      | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
+      | Unboxed_number of Flambda_kind.Boxable_number.t
+      | Unboxed_float_record of int
+
+    type calling_convention =
+      | Normal_calling_convention
+      | Unboxed_calling_convention of
+          unboxing_kind option list * unboxing_kind option * Function_slot.t
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
@@ -745,6 +759,7 @@ module Function_decls = struct
         removed_params : Ident.Set.t;
         params_arity : [`Complex] Flambda_arity.t;
         return : [`Unarized] Flambda_arity.t;
+        calling_convention : calling_convention;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -760,9 +775,9 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
-        ~removed_params ~return ~return_continuation ~exn_continuation
-        ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
-        ~free_idents_of_body recursive ~closure_alloc_mode
+        ~removed_params ~return ~calling_convention ~return_continuation
+        ~exn_continuation ~my_region ~body ~(attr : Lambda.function_attribute)
+        ~loc ~free_idents_of_body recursive ~closure_alloc_mode
         ~first_complex_local_param ~result_mode
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
@@ -777,6 +792,7 @@ module Function_decls = struct
         params_arity;
         removed_params;
         return;
+        calling_convention;
         return_continuation;
         exn_continuation;
         my_region;
@@ -802,6 +818,8 @@ module Function_decls = struct
     let params_arity t = t.params_arity
 
     let return t = t.return
+
+    let calling_convention t = t.calling_convention
 
     let return_continuation t = t.return_continuation
 

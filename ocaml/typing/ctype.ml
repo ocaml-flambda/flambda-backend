@@ -2011,6 +2011,16 @@ let rec estimate_type_jkind env ty =
       if tvariant_not_immediate row
       then Jkind (value ~why:Polymorphic_variant)
       else Jkind (immediate ~why:Immediate_polymorphic_variant)
+  | Tvar { jkind } when get_level ty = generic_level ->
+    (* Once a Tvar gets generalized with a jkind, it should be considered
+       as fixed (similar to the Tunivar case below).
+
+       This notably prevents [constrain_type_jkind] from changing layout
+       [any] to a sort or changing the externality once the Tvar gets
+       generalized.
+       
+       This, however, still allows sort variables to get instantiated. *)
+    Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
   | Tarrow _ -> Jkind (value ~why:Arrow)
   | Ttuple _ -> Jkind (value ~why:Tuple)

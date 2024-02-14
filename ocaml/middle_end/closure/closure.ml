@@ -61,12 +61,12 @@ let is_gc_ignorable kind =
   match kind with
   | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
   | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
-  | Punboxed_float -> true
+  | Punboxed_float _ -> true
   | Punboxed_int _ -> true
   | Punboxed_vector _ -> true
   | Pvalue Pintval -> true
-  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _ |
-            Pboxedvectorval _) -> false
+  | Pvalue (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pvariant _ |
+            Parrayval _ | Pboxedvectorval _) -> false
   | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 let split_closure_fv kinds fv =
@@ -345,7 +345,7 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
       | Pnot -> make_const_bool (n1 = 0)
       | Pnegint -> make_const_int (- n1)
       | Poffsetint n -> make_const_int (n + n1)
-      | Pfloatofint _ when fpc -> make_const_float (float_of_int n1)
+      | Pfloatofint (Pfloat64, _) when fpc -> make_const_float (float_of_int n1)
       | Pbintofint (Pnativeint,_) -> make_const_natint (Nativeint.of_int n1)
       | Pbintofint (Pint32,_) -> make_const_int32 (Int32.of_int n1)
       | Pbintofint (Pint64,_) -> make_const_int64 (Int64.of_int n1)
@@ -379,20 +379,20 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   (* float *)
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)))] when fpc ->
       begin match p with
-      | Pintoffloat -> make_const_int (int_of_float n1)
-      | Pnegfloat _ -> make_const_float (-. n1)
-      | Pabsfloat _ -> make_const_float (abs_float n1)
+      | Pintoffloat Pfloat64 -> make_const_int (int_of_float n1)
+      | Pnegfloat (Pfloat64, _) -> make_const_float (-. n1)
+      | Pabsfloat (Pfloat64, _) -> make_const_float (abs_float n1)
       | _ -> default
       end
   (* float, float *)
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)));
      Value_const(Uconst_ref(_, Some (Uconst_float n2)))] when fpc ->
       begin match p with
-      | Paddfloat _ -> make_const_float (n1 +. n2)
-      | Psubfloat _ -> make_const_float (n1 -. n2)
-      | Pmulfloat _ -> make_const_float (n1 *. n2)
-      | Pdivfloat _ -> make_const_float (n1 /. n2)
-      | Pfloatcomp c  -> make_float_comparison c n1 n2
+      | Paddfloat (Pfloat64, _) -> make_const_float (n1 +. n2)
+      | Psubfloat (Pfloat64, _) -> make_const_float (n1 -. n2)
+      | Pmulfloat (Pfloat64, _) -> make_const_float (n1 *. n2)
+      | Pdivfloat (Pfloat64, _) -> make_const_float (n1 /. n2)
+      | Pfloatcomp (Pfloat64, c)  -> make_float_comparison c n1 n2
       | _ -> default
       end
   (* nativeint *)
@@ -1027,6 +1027,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         | Const_base (Const_string (s, _, _)) ->
             str (Uconst_string s)
         | Const_base(Const_float x) -> str (Uconst_float (float_of_string x))
+        | Const_base(Const_float32 _x) ->
+          (* CR mslater: (float32) middle end support *)
+          assert false
         | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
                      | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
             (* CR alanechang: implement unboxed constants in closure *)
@@ -1543,7 +1546,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
                fun_region = region;
                fun_poll = attr.poll } in
             let dbg = Debuginfo.from_location loc in
-            (id, List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout, p.mode)) params,
+            (id, List.map (fun (p : Lambda.lparam) -> (p.name, p.layout, p.mode)) params,
              return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in

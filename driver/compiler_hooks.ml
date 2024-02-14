@@ -29,6 +29,8 @@ type _ pass =
   | Mach_sel : Mach.fundecl pass
   | Mach_split : Mach.fundecl pass
   | Linear : Linear.fundecl pass
+  | Cfg_combine : Cfg_with_layout.t pass
+  | Cfg_cse : Cfg_with_layout.t pass
   | Cfg : Cfg_with_layout.t pass
   | Cmm : Cmm.phrase list pass
 
@@ -53,6 +55,8 @@ type t = {
   mutable mach_sel : (Mach.fundecl -> unit) list;
   mutable mach_split : (Mach.fundecl -> unit) list;
   mutable linear : (Linear.fundecl -> unit) list;
+  mutable cfg_combine : (Cfg_with_layout.t -> unit) list;
+  mutable cfg_cse : (Cfg_with_layout.t -> unit) list;
   mutable cfg : (Cfg_with_layout.t -> unit) list;
   mutable cmm : (Cmm.phrase list -> unit) list;
   mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list;
@@ -76,6 +80,8 @@ let hooks : t = {
   mach_sel = [];
   mach_split = [];
   linear = [];
+  cfg_combine = [];
+  cfg_cse = [];
   cfg = [];
   cmm = [];
   inlining_tree = [];
@@ -106,6 +112,8 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Mach_sel -> hooks.mach_sel <- f :: hooks.mach_sel
   | Mach_split -> hooks.mach_split <- f :: hooks.mach_split
   | Linear -> hooks.linear <- f :: hooks.linear
+  | Cfg_combine -> hooks.cfg_combine <- f :: hooks.cfg_combine
+  | Cfg_cse -> hooks.cfg_cse <- f :: hooks.cfg_cse
   | Cfg -> hooks.cfg <- f :: hooks.cfg
   | Cmm -> hooks.cmm <- f :: hooks.cmm
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
@@ -132,6 +140,8 @@ let execute : type a. a pass -> a -> unit =
   | Mach_sel -> execute_hooks hooks.mach_sel arg
   | Mach_split -> execute_hooks hooks.mach_split arg
   | Linear -> execute_hooks hooks.linear arg
+  | Cfg_combine -> execute_hooks hooks.cfg_combine arg
+  | Cfg_cse -> execute_hooks hooks.cfg_cse arg
   | Cfg -> execute_hooks hooks.cfg arg
   | Cmm -> execute_hooks hooks.cmm arg
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
@@ -158,6 +168,8 @@ let clear : type a. a pass -> unit =
   | Mach_sel -> hooks.mach_sel <- []
   | Mach_split -> hooks.mach_split <- []
   | Linear -> hooks.linear <- []
+  | Cfg_combine -> hooks.cfg_combine <- []
+  | Cfg_cse -> hooks.cfg_cse <- []
   | Cfg -> hooks.cfg <- []
   | Cmm -> hooks.cmm <- []
   | Inlining_tree -> hooks.inlining_tree <- []

@@ -68,7 +68,7 @@ let to_lambda (t : t) : Lambda.layout =
   | Value -> Pvalue Pgenval
   | Naked_number Naked_immediate ->
     Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
-  | Naked_number Naked_float -> Punboxed_float
+  | Naked_number Naked_float -> Punboxed_float Pfloat64
   | Naked_number Naked_int32 -> Punboxed_int Pint32
   | Naked_number Naked_int64 -> Punboxed_int Pint64
   | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
@@ -548,10 +548,29 @@ module With_subkind = struct
     | Naked_nativeint -> naked_nativeint
     | Naked_vec128 -> naked_vec128
 
+  let naked_of_boxable_number (boxable_number : Boxable_number.t) =
+    match boxable_number with
+    | Naked_float -> naked_float
+    | Naked_int32 -> naked_int32
+    | Naked_int64 -> naked_int64
+    | Naked_nativeint -> naked_nativeint
+    | Naked_vec128 -> naked_vec128
+
+  let boxed_of_boxable_number (boxable_number : Boxable_number.t) =
+    match boxable_number with
+    | Naked_float -> boxed_float
+    | Naked_int32 -> boxed_int32
+    | Naked_int64 -> boxed_int64
+    | Naked_nativeint -> boxed_nativeint
+    | Naked_vec128 -> boxed_vec128
+
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     match vk with
     | Pgenval -> any_value
-    | Pfloatval -> boxed_float
+    | Pboxedfloatval Pfloat64 -> boxed_float
+    | Pboxedfloatval Pfloat32 ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
     | Pboxedintval Pint32 -> boxed_int32
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
@@ -586,7 +605,10 @@ module With_subkind = struct
     | Parrayval Pintarray -> immediate_array
     | Parrayval Paddrarray -> value_array
     | Parrayval Pgenarray -> generic_array
-    | Parrayval Punboxedfloatarray -> float_array
+    | Parrayval (Punboxedfloatarray Pfloat64) -> float_array
+    | Parrayval (Punboxedfloatarray Pfloat32) ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
     | Parrayval (Punboxedintarray Pint32) -> unboxed_int32_array
     | Parrayval (Punboxedintarray Pint64) -> unboxed_int64_array
     | Parrayval (Punboxedintarray Pnativeint) -> unboxed_nativeint_array
@@ -594,7 +616,10 @@ module With_subkind = struct
   let from_lambda_values_and_unboxed_numbers_only (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
-    | Punboxed_float -> naked_float
+    | Punboxed_float Pfloat64 -> naked_float
+    | Punboxed_float Pfloat32 ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
     | Punboxed_int Pint32 -> naked_int32
     | Punboxed_int Pint64 -> naked_int64
     | Punboxed_int Pnativeint -> naked_nativeint

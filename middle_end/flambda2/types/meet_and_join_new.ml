@@ -826,12 +826,6 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     map_result
       ~f:TG.Head_of_kind_naked_immediate.create_naked_immediates_non_empty
       (set_meet (module I.Set) env is1 is2 ~of_set:Fun.id)
-  | Is_int ty1, Is_int ty2 ->
-    map_result ~f:TG.Head_of_kind_naked_immediate.create_is_int
-      (meet env ty1 ty2)
-  | Get_tag ty1, Get_tag ty2 ->
-    map_result ~f:TG.Head_of_kind_naked_immediate.create_get_tag
-      (meet env ty1 ty2)
   | Is_int is_int_ty, Naked_immediates immediates ->
     is_int_immediate ~is_int_ty ~immediates ~is_int_side:Left
   | Naked_immediates immediates, Is_int is_int_ty ->
@@ -841,6 +835,13 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
   | Naked_immediates immediates, Get_tag get_tag_ty ->
     get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Right
   | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
+    (* CR mshinwell: introduce improved handling for
+     *   Is_int meet Is_int
+     *   Get_tag meet Get_tag
+     * i.e. a better fix for PR1515, at which point we might also be able
+     * to consider improving:
+     *   Is_int meet Get_tag
+     * and vice-versa. *)
     (* We can't return Bottom, as it would be unsound, so we need to either do
        the actual meet with Naked_immediates, or just give up and return one of
        the arguments. *)

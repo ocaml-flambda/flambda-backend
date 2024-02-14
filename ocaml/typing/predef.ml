@@ -32,6 +32,7 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
+and ident_float32 = ident_create "float32"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -62,6 +63,7 @@ let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
+and path_float32 = Pident ident_float32
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -92,6 +94,7 @@ let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
+and type_float32 = newgenty (Tconstr(path_float32, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))
@@ -368,6 +371,11 @@ let add_simd_extension_types add_type env =
   |> add_type ident_int64x2
   |> add_type ident_float32x4
   |> add_type ident_float64x2
+
+let add_small_number_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
+  |> add_type ident_float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

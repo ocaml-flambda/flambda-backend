@@ -21,11 +21,15 @@ val log_body_and_terminator :
 val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
 
 module Priority_heuristics : sig
-  type t = Interval_length
+  type t =
+    | Interval_length
+    | Random_for_testing
 
   val all : t list
 
   val to_string : t -> string
+
+  val random : unit -> int
 
   val value : t Lazy.t
 end
@@ -35,10 +39,13 @@ module Selection_heuristics : sig
     | First_available
     | Best_fit
     | Worst_fit
+    | Random_for_testing
 
   val all : t list
 
   val to_string : t -> string
+
+  val random : unit -> t
 
   val value : t Lazy.t
 end
@@ -47,10 +54,13 @@ module Spilling_heuristics : sig
   type t =
     | Flat_uses
     | Hierarchical_uses
+    | Random_for_testing
 
   val all : t list
 
   val to_string : t -> string
+
+  val random : unit -> bool
 
   val value : t Lazy.t
 end
