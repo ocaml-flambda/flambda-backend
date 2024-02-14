@@ -1,8 +1,9 @@
 (* TEST
    modules = "is_in_static_data.c is_static_flambda_dep.ml"
    * flambda
-   ** naked_pointers
-   *** native
+   ** runtime4
+   *** naked_pointers
+   **** native
    flags = "-flambda2-join-points"
 *)
 
