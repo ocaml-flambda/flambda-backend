@@ -121,21 +121,6 @@ module Array_kind = struct
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
-
-  let check_vector_access_kind t (v : Lambda.boxed_vector) =
-    match v, t with
-    | Pvec128 Float64x2, Naked_floats
-    | Pvec128 Int64x2, (Immediates | Naked_int64s | Naked_nativeints) ->
-      ()
-    | Pvec128 Int32x4, Naked_int32s -> ()
-    | ( Pvec128
-          ( Unknown128 | Float64x2 | Float32x4 | Int64x2 | Int32x4 | Int16x8
-          | Int8x16 ),
-        ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-        | Naked_nativeints ) ) ->
-      (* CR mslater: update once we have unboxed float32/int16/int8 *)
-      Misc.fatal_errorf "Mismatched vector kind and array kind: %a vs %a"
-        Lambda.print_boxed_vector v print t
 end
 
 module Array_set_kind = struct
@@ -1416,7 +1401,7 @@ let print_binary_primitive ppf p =
     fprintf ppf "@[(Block_load@ %a@ %a)@]" Block_access_kind.print kind
       Mutability.print mut
   | Array_load (kind, width, mut) ->
-    fprintf ppf "@[(Array_load@ %a@ %a %a)@]" Array_kind.print kind
+    fprintf ppf "@[(Array_load@ %a %a@ %a)@]" Array_kind.print kind
       Mutability.print mut print_array_accessor_width width
   | String_or_bigstring_load (string_like, width) ->
     fprintf ppf "@[(String_load %a %a)@]" print_string_like_value string_like
