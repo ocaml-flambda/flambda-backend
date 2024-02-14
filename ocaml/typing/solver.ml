@@ -314,8 +314,9 @@ module Solver_mono (C : Lattices_mono) = struct
        adjoint of [f]. We should just apply [f'] to [a] and use that to
        constrain [v].
 
-       However, we aim to support a wider of notion of adjunction, where [f' a]
-       is well-defined only if [a] falls in [f]'s codomain.
+       However, we aim to support a wider of notion of adjunctions (see
+       [solver_intf.mli]), where [f' a] is well-defined only if [a] falls in
+       [f]'s codomain.
 
        Note that we don't request the co-domain of [f] from [Lattices_mono] for
        simplicity. Instead, note that we need to check [a] against [f v] anyway,

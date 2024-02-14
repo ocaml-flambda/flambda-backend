@@ -118,21 +118,34 @@ module type Lattices_mono = sig
   val compose :
     'c obj -> ('b, 'c, 'd) morph -> ('a, 'b, 'd) morph -> ('a, 'c, 'd) morph
 
-  (* The following returns weaker than what we want, which is "\exists r.
-     allowed * r". But ocaml doesn't like existentials, and this weaker version
-     is good enough for us *)
+  (* Usual notion of adjunction:
+     Given two morphisms [f : A -> B] and [g : B -> A], we require [f a <= b]
+      iff [a <= g b].
 
-  (* Usual notion of adjunction f -| g :
-      [f x <= y] iff [x <= g y].
+     Our solver accepts a wider notion of adjunction and only requires the same
+     condition on convex sublattices. To be specific, if [f] and [g] form a
+      usual adjunction between [A] and [B], and [A] is a convex sublattice of
+     [A'], and [B] is a convex sublattice of [B'], we say that [f] and [g]
+     form a partial adjunction between [A'] and [B']. We do not require [f] to
+     be defined on [A'\A]; In fact, let's require [f] to be undefined on [A'\A]
+     for simplicity. Similar for [g].
 
-     Our solver accepts a wider notion of adjunction and allows [f] and [g] to
-     be partial. They need to satisfy:
-     - If [f x <= y] and [y] is within [f]'s codomain, then [g] is well-defined
-     on [y] and [x <= g y].
-     - If not [f x <= y], we don't require anything about [g] on [y].
-     - If [y] is out of [f]'s codomain, we don't require anything about [g] on [y].
+     For example: Define [A = B = {0, 1, 2}] with total ordering. Define both
+     [f] and [g] to be the identity function. Obviously [f] and [g] form a usual
+     adjunction. Now, further define [A'] = [A], and [B'] = [{0, 1, 2, 3}] with
+     total ordering. Obviously [A] is a convex sublattice of [A'], and [B] of
+     [B']. Then we say [f] and [g] forms a partial adjunction between [A'] and
+     [B'].
 
-     Similar in the other direction from [g] to [f]. *)
+     The feature allows the user to invoke [f a <= b'], where [a \in A] and [b'
+     \in B']. Similarly, they can invoke [a' <= g b], where [a' \in A'] and [b
+     \in B]. The user is still not allowed to apply [f] on [a'] where [a' \in
+     A'\A].
+     *)
+
+  (* Note that [left_adjoint] and [right_adjoint] returns a [morph] weaker than
+     what we want, which is "\exists r. allowed * r". But ocaml doesn't like
+     existentials, and this weaker version is good enough for us *)
 
   (** Give left adjoint of a morphism  *)
   val left_adjoint :
