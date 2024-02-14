@@ -82,6 +82,7 @@ PARSING_CMI = \
   parsing/parsetree.cmi
 
 TYPING = \
+  typing/solver.cmo \
   typing/path.cmo \
   typing/jkind.cmo \
   typing/primitive.cmo \

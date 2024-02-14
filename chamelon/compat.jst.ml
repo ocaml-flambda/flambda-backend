@@ -3,7 +3,7 @@ open Types
 open Mode
 
 let dummy_jkind = Jkind.value ~why:(Unknown "dummy_layout")
-let dummy_value_mode = Value.legacy
+let dummy_value_mode = Value.disallow_right Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
@@ -16,30 +16,33 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
   Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
-type texp_apply_identifier = apply_position * Locality.t
+type texp_apply_identifier = apply_position * Locality.l
 
-let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
+let mkTexp_apply
+    ?id:(pos, mode = (Default, Locality.disallow_right Locality.legacy))
+    (exp, args) =
   Texp_apply (exp, args, pos, mode)
 
-type texp_tuple_identifier = string option list * Alloc.t
+type texp_tuple_identifier = string option list * Alloc.r
 
 let mkTexp_tuple ?id exps =
   let labels, alloc =
     match id with
-    | None -> (List.map (fun _ -> None) exps, Alloc.legacy)
+    | None -> (List.map (fun _ -> None) exps, Alloc.disallow_left Alloc.legacy)
     | Some id -> id
   in
   let exps = List.combine labels exps in
   Texp_tuple (exps, alloc)
 
-type texp_construct_identifier = Alloc.t option
+type texp_construct_identifier = Alloc.r option
 
-let mkTexp_construct ?id:(mode = Some Alloc.legacy) (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
+    (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
 type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
-  param_mode : Alloc.t;
+  param_mode : Alloc.l;
   param_curry : function_curry;
   param_newtypes : (string Location.loc * Jkind.annotation option) list;
 }
@@ -54,7 +57,7 @@ type texp_function_param = {
 }
 
 type texp_function_cases_identifier = {
-  last_arg_mode : Alloc.t;
+  last_arg_mode : Alloc.l;
   last_arg_sort : Jkind.Sort.t;
   last_arg_exp_extra : exp_extra option;
   last_arg_attributes : attributes;
@@ -75,15 +78,15 @@ type texp_function = {
 }
 
 type texp_function_identifier = {
-  alloc_mode : Alloc.t;
+  alloc_mode : Alloc.r;
   ret_sort : Jkind.sort;
   region : bool;
-  ret_mode : Alloc.t;
+  ret_mode : Alloc.l;
 }
 
 let texp_function_cases_identifier_defaults =
   {
-    last_arg_mode = Alloc.legacy;
+    last_arg_mode = Alloc.disallow_right Alloc.legacy;
     last_arg_sort = Jkind.Sort.value;
     last_arg_exp_extra = None;
     last_arg_attributes = [];
@@ -92,16 +95,16 @@ let texp_function_cases_identifier_defaults =
 let texp_function_param_identifier_defaults =
   {
     param_sort = Jkind.Sort.value;
-    param_mode = Alloc.legacy;
-    param_curry = More_args { partial_mode = Alloc.legacy };
+    param_mode = Alloc.disallow_right Alloc.legacy;
+    param_curry = More_args { partial_mode = Alloc.disallow_right Alloc.legacy };
     param_newtypes = [];
   }
 
 let texp_function_defaults =
   {
-    alloc_mode = Alloc.legacy;
+    alloc_mode = Alloc.disallow_left Alloc.legacy;
     ret_sort = Jkind.Sort.value;
-    ret_mode = Alloc.legacy;
+    ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
   }
 
@@ -249,12 +252,12 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
-type tpat_var_identifier = Value.t
+type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
   Tpat_var (ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_alias_identifier = Value.t
+type tpat_alias_identifier = Value.l
 
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)

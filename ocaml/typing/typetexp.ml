@@ -587,7 +587,7 @@ let get_type_param_name styp =
   | Ptyp_var name -> Some name
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
-let get_alloc_mode styp =
+let get_alloc_mode styp : Alloc.Const.t =
   let locality =
     match Builtin_attributes.has_local styp.ptyp_attributes with
     | Ok true -> Locality.Const.Local
@@ -609,7 +609,7 @@ let get_alloc_mode styp =
     | Error () ->
       raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
   in
-  { locality = locality; uniqueness; linearity }
+  {locality; linearity; uniqueness}
 
 let rec extract_params styp =
   let final styp =
@@ -683,14 +683,16 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
-          let acc_mode =
+          let {locality; linearity; _} : Alloc.Const.t =
             Alloc.Const.join
               (Alloc.Const.close_over arg_mode)
               (Alloc.Const.partial_apply acc_mode)
           in
-          let acc_mode =
-            Alloc.Const.join acc_mode
-              (Alloc.Const.min_with_uniqueness Uniqueness.Const.Shared)
+          (* Arrow types cross uniqueness axis. Therefore, when user writes an
+          A -> B -> C (to be used as constraint on something), we should make
+          (B -> C) shared. A proper way to do this is via modal kinds. *)
+          let acc_mode : Alloc.Const.t
+            = {locality; linearity; uniqueness=Uniqueness.Const.Shared}
           in
           let ret_mode =
             match rest with

@@ -143,7 +143,7 @@ and type_desc =
   (** Type of a first-class module (a.k.a package). *)
 
 and arrow_desc =
-  arg_label * Mode.Alloc.t * Mode.Alloc.t
+  arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
 
 

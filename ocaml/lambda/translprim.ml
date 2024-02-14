@@ -130,7 +130,7 @@ let to_locality ~poly = function
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some locality -> transl_locality_mode locality
+    | Some locality -> transl_locality_mode_l locality
 
 let to_modify_mode ~poly = function
   | Prim_global, _ -> modify_heap
