@@ -36,6 +36,9 @@ let[@inline] mem_introduced_temporaries state reg =
 let[@inline] iter_introduced_temporaries state ~f =
   Reg.Set.iter f state.introduced_temporaries
 
+let[@inline] introduced_temporary_count state =
+  Reg.Set.cardinal state.introduced_temporaries
+
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =

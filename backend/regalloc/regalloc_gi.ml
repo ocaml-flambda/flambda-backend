@@ -109,15 +109,28 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
 (* CR xclerc for xclerc: try to find a reasonable threshold. *)
 let max_rounds = 32
 
+let max_temp_multiplier = 10
+
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
    spill. *)
-let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
- fun ~round ~flat state cfg_with_infos ->
+let rec main :
+    round:int ->
+    flat:bool ->
+    temporaries:int ->
+    State.t ->
+    Cfg_with_infos.t ->
+    unit =
+ fun ~round ~flat ~temporaries state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
+  let introduced = State.introduced_temporary_count state in
+  if introduced > temporaries * max_temp_multiplier
+  then
+    fatal "register allocation introduced %d temporaries after starting with %d"
+      introduced temporaries;
   if gi_debug
   then (
     log ~indent:0 "main, round #%d" round;
@@ -228,7 +241,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
         ~spilled_nodes:(List.map spilled_nodes ~f:fst)
     with
     | false -> if gi_debug then log ~indent:1 "(end of main)"
-    | true -> main ~round:(succ round) ~flat state cfg_with_infos)
+    | true -> main ~round:(succ round) ~flat ~temporaries state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -242,8 +255,8 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (* CR xclerc for xclerc: consider moving the computation of temporaries and
      the creation of the state to `prelude`. *)
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
-  if gi_debug
-  then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
+  let temporaries = Reg.Set.cardinal all_temporaries in
+  if gi_debug then log ~indent:0 "#temporaries=%d" temporaries;
   let state =
     State.make ~stack_slots
       ~next_instruction_id:(succ cfg_infos.max_instruction_id)
@@ -263,7 +276,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     | Hierarchical_uses -> false
     | Random_for_testing -> Spilling_heuristics.random ()
   in
-  main ~round:1 ~flat state cfg_with_infos;
+  main ~round:1 ~flat ~temporaries state cfg_with_infos;
   if gi_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)

@@ -22,6 +22,8 @@ val mem_introduced_temporaries : t -> Reg.t -> bool
 
 val iter_introduced_temporaries : t -> f:(Reg.t -> unit) -> unit
 
+val introduced_temporary_count : t -> int
+
 val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
