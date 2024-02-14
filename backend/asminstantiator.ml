@@ -101,21 +101,21 @@ open Format
 
 let report_error ppf = function
   | Not_compiled_as_parameter { cmx_path } ->
-    Format.fprintf ppf
+    fprintf ppf
       "Argument .cmx must be compiled with -as-parameter-for: %s"
       cmx_path
   | Incorrect_target_filename
       { expected_basename; actual_basename = _; compilation_unit } ->
-    Format.fprintf ppf
+    fprintf ppf
       "Filename given by -o must have basename %s.cmx@
        to produce the desired instance %a"
       expected_basename
       Compilation_unit.print compilation_unit
   | Not_parameterised { cmx_path } ->
-    Format.fprintf ppf "%a must be compiled with at least one -parameter"
+    fprintf ppf "%a must be compiled with at least one -parameter"
       Location.print_filename cmx_path
   | Missing_argument { param } ->
-    Format.fprintf ppf "No argument given for parameter %a"
+    fprintf ppf "No argument given for parameter %a"
       Global.Name.print param
 
 let () =
