@@ -166,13 +166,12 @@ let to_cmm r =
   let r = archive_data r in
   let sorted_functions =
     match !Flambda_backend_flags.function_layout with
-    | Topological ->
-      List.rev r.functions
+    | Topological -> List.rev r.functions
     | Source ->
       (* Sort functions according to debuginfo, to get a stable ordering *)
       List.sort
         (fun (f1 : Cmm.fundecl) (f2 : Cmm.fundecl) ->
-           Debuginfo.compare f1.fun_dbg f2.fun_dbg)
+          Debuginfo.compare f1.fun_dbg f2.fun_dbg)
         r.functions
   in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
