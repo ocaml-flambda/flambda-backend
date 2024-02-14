@@ -129,6 +129,9 @@ module type Lattices_mono = sig
      form a partial adjunction between [A'] and [B']. We do not require [f] to
      be defined on [A'\A]. Similar for [g].
 
+     Definition of convex sublattice can be found at:
+     https://en.wikipedia.org/wiki/Lattice_(order)#Sublattices
+
      For example: Define [A = B = {0, 1, 2}] with total ordering. Define both
      [f] and [g] to be the identity function. Obviously [f] and [g] form a usual
      adjunction. Now, further define [A'] = [A], and [B'] = [{0, 1, 2, 3}] with
@@ -138,8 +141,11 @@ module type Lattices_mono = sig
 
      The feature allows the user to invoke [f a <= b'], where [a \in A] and [b'
      \in B']. Similarly, they can invoke [a' <= g b], where [a' \in A'] and [b
-     \in B]. The user is still not allowed to apply [f] on [a'] where [a' \in
-     A'\A].
+     \in B].
+
+     Moreover, if [a' \in A'\A], it is still fine to apply [f] to [a'], but the
+     result should not be used as a left mode. This is unfortunately not
+     enforcable by the ocaml type system, and we have to rely on user's caution.
      *)
 
   (* Note that [left_adjoint] and [right_adjoint] returns a [morph] weaker than
