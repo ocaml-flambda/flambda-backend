@@ -557,7 +557,7 @@ val constrain_type_jkind :
 
 (* This function should get called after a type is generalized.
 
-   It does two thing:
+   It does two things:
 
    1. Update the jkind reason of all generalized type vars inside the
       given [type_expr]
