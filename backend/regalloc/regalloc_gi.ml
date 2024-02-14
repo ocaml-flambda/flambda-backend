@@ -68,6 +68,7 @@ let priority_heuristics : Reg.t -> Interval.t -> int =
  fun _reg itv ->
   match Lazy.force Priority_heuristics.value with
   | Priority_heuristics.Interval_length -> Interval.length itv
+  | Priority_heuristics.Random_for_testing -> Priority_heuristics.random ()
 
 let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
     Hardware_registers.t * prio_queue =
@@ -111,8 +112,8 @@ let max_rounds = 32
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
    spill. *)
-let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
- fun ~round state cfg_with_infos ->
+let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~round ~flat state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
@@ -122,11 +123,6 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     log ~indent:0 "main, round #%d" round;
     log_cfg_with_infos ~indent:0 cfg_with_infos);
   if gi_debug then log ~indent:0 "updating spilling costs";
-  let flat =
-    match Lazy.force Spilling_heuristics.value with
-    | Flat_uses -> true
-    | Hierarchical_uses -> false
-  in
   update_spill_cost cfg_with_infos ~flat ();
   State.iter_introduced_temporaries state ~f:(fun (reg : Reg.t) ->
       reg.Reg.spill_cost <- reg.Reg.spill_cost + 10_000);
@@ -232,7 +228,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
         ~spilled_nodes:(List.map spilled_nodes ~f:fst)
     with
     | false -> if gi_debug then log ~indent:1 "(end of main)"
-    | true -> main ~round:(succ round) state cfg_with_infos)
+    | true -> main ~round:(succ round) ~flat state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -261,7 +257,13 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
        work list and set the field to unknown. *)
     let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes in
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
-  main ~round:1 state cfg_with_infos;
+  let flat =
+    match Lazy.force Spilling_heuristics.value with
+    | Flat_uses -> true
+    | Hierarchical_uses -> false
+    | Random_for_testing -> Spilling_heuristics.random ()
+  in
+  main ~round:1 ~flat state cfg_with_infos;
   if gi_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
