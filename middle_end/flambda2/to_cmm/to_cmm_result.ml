@@ -164,16 +164,17 @@ let to_cmm r =
   let r = define_module_symbol_if_missing r in
   (* Make sure we do not forget any current data *)
   let r = archive_data r in
-  (* Sort functions according to debuginfo, to get a stable ordering *)
-  let sorted_functions = List.rev r.functions in
-  (* CR gyorsh: temporarily disable sorting. [checkmach] is overly-conservative
-     on non-recursive forward functions. Fix is in preparation. *)
-  (* let sorted_functions =
-   *   List.sort
-   *     (fun (f1 : Cmm.fundecl) (f2 : Cmm.fundecl) ->
-   *       Debuginfo.compare f1.fun_dbg f2.fun_dbg)
-   *     r.functions
-   * in *)
+  let sorted_functions =
+    match !Flambda_backend_flags.function_layout with
+    | Topological ->
+      List.rev r.functions
+    | Source ->
+      (* Sort functions according to debuginfo, to get a stable ordering *)
+      List.sort
+        (fun (f1 : Cmm.fundecl) (f2 : Cmm.fundecl) ->
+           Debuginfo.compare f1.fun_dbg f2.fun_dbg)
+        r.functions
+  in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
   (* Translate roots to Cmm symbols *)
   let roots = List.map (symbol r) r.gc_roots in
