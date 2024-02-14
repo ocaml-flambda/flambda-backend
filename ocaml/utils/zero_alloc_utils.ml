@@ -43,117 +43,144 @@ module type WS = sig
   val compare : t -> t -> int
 end
 
-module Make (Witnesses : WS) = struct
-  (** Abstract value for each component of the domain. *)
-  module V = struct
-    type t =
-      | Top of Witnesses.t
-      | Safe
-      | Bot
+module type Component = sig
+  type t
 
-    let join c1 c2 =
-      match c1, c2 with
-      | Bot, Bot -> Bot
-      | Safe, Safe -> Safe
-      | Top w1, Top w2 -> Top (Witnesses.join w1 w2)
-      | Safe, Bot | Bot, Safe -> Safe
-      | Top w1, Bot | Top w1, Safe | Bot, Top w1 | Safe, Top w1 -> Top w1
+  type witnesses
 
-    let meet c1 c2 =
-      match c1, c2 with
-      | Bot, Bot -> Bot
-      | Safe, Safe -> Safe
-      | Top w1, Top w2 -> Top (Witnesses.meet w1 w2)
-      | Safe, Bot | Bot, Safe -> Bot
-      | Top _, Bot | Bot, Top _ -> Bot
-      | Top _, Safe | Safe, Top _ -> Safe
+  val top : witnesses -> t
 
-    let lessequal v1 v2 =
-      match v1, v2 with
-      | Bot, Bot -> true
-      | Safe, Safe -> true
-      | Top w1, Top w2 -> Witnesses.lessequal w1 w2
-      | Bot, Safe -> true
-      | Bot, Top _ -> true
-      | Safe, Top _ -> true
-      | Top _, (Bot | Safe) -> false
-      | Safe, Bot -> false
+  val safe : t
 
-    let compare t1 t2 =
-      match t1, t2 with
-      | Bot, Bot -> 0
-      | Safe, Safe -> 0
-      | Top w1, Top w2 -> Witnesses.compare w1 w2
-      | Bot, (Safe | Top _) -> -1
-      | (Safe | Top _), Bot -> 1
-      | Safe, Top _ -> -1
-      | Top _, Safe -> 1
+  val bot : t
 
-    let is_not_safe = function Top _ -> true | Safe | Bot -> false
+  val lessequal : t -> t -> bool
 
-    let print ~witnesses ppf = function
-      | Bot -> Format.fprintf ppf "bot"
-      | Top w ->
-        Format.fprintf ppf "top";
-        if witnesses then Format.fprintf ppf " (%a)" Witnesses.print w
-      | Safe -> Format.fprintf ppf "safe"
-  end
+  val join : t -> t -> t
 
-  module Value = struct
-    (** Lifts V to triples  *)
-    type t =
-      { nor : V.t;
-        exn : V.t;
-        div : V.t
-      }
+  val meet : t -> t -> t
 
-    let bot = { nor = V.Bot; exn = V.Bot; div = V.Bot }
+  val compare : t -> t -> int
 
-    let lessequal v1 v2 =
-      V.lessequal v1.nor v2.nor && V.lessequal v1.exn v2.exn
-      && V.lessequal v1.div v2.div
+  val print : witnesses:bool -> Format.formatter -> t -> unit
+end
 
-    let join v1 v2 =
-      { nor = V.join v1.nor v2.nor;
-        exn = V.join v1.exn v2.exn;
-        div = V.join v1.div v2.div
-      }
+module Make_component (Witnesses : WS) = struct
+  (* keep in sync with "resolved" values in Checkmach. *)
+  type t =
+    | Top of Witnesses.t
+    | Safe
+    | Bot
 
-    let meet v1 v2 =
-      { nor = V.meet v1.nor v2.nor;
-        exn = V.meet v1.exn v2.exn;
-        div = V.meet v1.div v2.div
-      }
+  let bot = Bot
 
-    let normal_return = { bot with nor = V.Safe }
+  let top w = Top w
 
-    let exn_escape = { bot with exn = V.Safe }
+  let safe = Safe
 
-    let diverges = { bot with div = V.Safe }
+  let join c1 c2 =
+    match c1, c2 with
+    | Bot, Bot -> Bot
+    | Safe, Safe -> Safe
+    | Top w1, Top w2 -> Top (Witnesses.join w1 w2)
+    | Safe, Bot | Bot, Safe -> Safe
+    | Top w1, Bot | Top w1, Safe | Bot, Top w1 | Safe, Top w1 -> Top w1
 
-    let safe = { nor = V.Safe; exn = V.Safe; div = V.Safe }
+  let meet c1 c2 =
+    match c1, c2 with
+    | Bot, Bot -> Bot
+    | Safe, Safe -> Safe
+    | Top w1, Top w2 -> Top (Witnesses.meet w1 w2)
+    | Safe, Bot | Bot, Safe -> Bot
+    | Top _, Bot | Bot, Top _ -> Bot
+    | Top _, Safe | Safe, Top _ -> Safe
 
-    let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
+  let lessequal v1 v2 =
+    match v1, v2 with
+    | Bot, Bot -> true
+    | Safe, Safe -> true
+    | Top w1, Top w2 -> Witnesses.lessequal w1 w2
+    | Bot, Safe -> true
+    | Bot, Top _ -> true
+    | Safe, Top _ -> true
+    | Top _, (Bot | Safe) -> false
+    | Safe, Bot -> false
 
-    let relaxed w = { nor = V.Safe; exn = V.Top w; div = V.Top w }
+  let compare t1 t2 =
+    match t1, t2 with
+    | Bot, Bot -> 0
+    | Safe, Safe -> 0
+    | Top w1, Top w2 -> Witnesses.compare w1 w2
+    | Bot, (Safe | Top _) -> -1
+    | (Safe | Top _), Bot -> 1
+    | Safe, Top _ -> -1
+    | Top _, Safe -> 1
 
-    let of_annotation ~strict ~never_returns_normally =
-      let res = if strict then safe else relaxed Witnesses.empty in
-      if never_returns_normally then { res with nor = V.Bot } else res
+  let print ~witnesses ppf = function
+    | Bot -> Format.fprintf ppf "bot"
+    | Top w ->
+      Format.fprintf ppf "top";
+      if witnesses then Format.fprintf ppf " (%a)" Witnesses.print w
+    | Safe -> Format.fprintf ppf "safe"
+end
 
-    let print ~witnesses ppf { nor; exn; div } =
-      let pp = V.print ~witnesses in
-      Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" pp nor pp exn pp div
+module Make_value
+    (Witnesses : WS)
+    (V : Component with type witnesses := Witnesses.t) =
+struct
+  (** Lifts V to triples  *)
+  type t =
+    { nor : V.t;
+      exn : V.t;
+      div : V.t
+    }
 
-    let compare { nor = n1; exn = e1; div = d1 }
-        { nor = n2; exn = e2; div = d2 } =
-      let c = V.compare n1 n2 in
-      if c <> 0
-      then c
-      else
-        let c = V.compare e1 e2 in
-        if c <> 0 then c else V.compare d1 d2
-  end
+  let bot = { nor = V.bot; exn = V.bot; div = V.bot }
+
+  let lessequal v1 v2 =
+    V.lessequal v1.nor v2.nor && V.lessequal v1.exn v2.exn
+    && V.lessequal v1.div v2.div
+
+  let join v1 v2 =
+    { nor = V.join v1.nor v2.nor;
+      exn = V.join v1.exn v2.exn;
+      div = V.join v1.div v2.div
+    }
+
+  let meet v1 v2 =
+    { nor = V.meet v1.nor v2.nor;
+      exn = V.meet v1.exn v2.exn;
+      div = V.meet v1.div v2.div
+    }
+
+  let normal_return = { bot with nor = V.safe }
+
+  let exn_escape = { bot with exn = V.safe }
+
+  let diverges = { bot with div = V.safe }
+
+  let safe = { nor = V.safe; exn = V.safe; div = V.safe }
+
+  let top w = { nor = V.top w; exn = V.top w; div = V.top w }
+
+  let relaxed w = { nor = V.safe; exn = V.top w; div = V.top w }
+
+  let of_annotation ~strict ~never_returns_normally =
+    let res = if strict then safe else relaxed Witnesses.empty in
+    if never_returns_normally then { res with nor = V.bot } else res
+
+  let print ~witnesses ppf { nor; exn; div } =
+    let pp = V.print ~witnesses in
+    Format.fprintf ppf "{ nor=%a;@ exn=%a;@ div=%a }@," pp nor pp exn pp div
+
+  let compare { nor = n1; exn = e1; div = d1 } { nor = n2; exn = e2; div = d2 }
+      =
+    let c = V.compare n1 n2 in
+    if c <> 0
+    then c
+    else
+      let c = V.compare e1 e2 in
+      if c <> 0 then c else V.compare d1 d2
 end
 
 module Assume_info = struct
@@ -173,7 +200,8 @@ module Assume_info = struct
     let compare _ _ = 0
   end
 
-  include Make (Witnesses)
+  module V = Make_component (Witnesses)
+  module Value = Make_value (Witnesses) (V)
 
   type t =
     | No_assume
