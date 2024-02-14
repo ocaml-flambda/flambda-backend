@@ -74,20 +74,20 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pasrint -> Pasrint
   | Pintcomp comp -> Pintcomp comp
   | Pcompare_ints -> Pcompare_ints
-  | Pcompare_floats -> Pcompare_floats
+  | Pcompare_floats bf -> Pcompare_floats bf
   | Pcompare_bints bi -> Pcompare_bints bi
   | Poffsetint offset -> Poffsetint offset
   | Poffsetref offset -> Poffsetref offset
-  | Pintoffloat -> Pintoffloat
-  | Pfloatofint m -> Pfloatofint m
-  | Pnegfloat m -> Pnegfloat m
-  | Pabsfloat m -> Pabsfloat m
-  | Paddfloat m -> Paddfloat m
-  | Psubfloat m -> Psubfloat m
-  | Pmulfloat m -> Pmulfloat m
-  | Pdivfloat m -> Pdivfloat m
-  | Pfloatcomp comp -> Pfloatcomp comp
-  | Punboxed_float_comp comp -> Punboxed_float_comp comp
+  | Pintoffloat bf -> Pintoffloat bf
+  | Pfloatofint (bf,m) -> Pfloatofint (bf,m)
+  | Pnegfloat (bf,m) -> Pnegfloat (bf,m)
+  | Pabsfloat (bf,m) -> Pabsfloat (bf,m)
+  | Paddfloat (bf,m) -> Paddfloat (bf,m)
+  | Psubfloat (bf,m) -> Psubfloat (bf,m)
+  | Pmulfloat (bf,m) -> Pmulfloat (bf,m)
+  | Pdivfloat (bf,m) -> Pdivfloat (bf,m)
+  | Pfloatcomp (bf,comp) -> Pfloatcomp (bf,comp)
+  | Punboxed_float_comp (bf,comp) -> Punboxed_float_comp (bf,comp)
   | Pstringlength -> Pstringlength
   | Pstringrefu -> Pstringrefu
   | Pstringrefs -> Pstringrefs
@@ -178,8 +178,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~native_name:"caml_obj_dup"
       ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
       ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
-  | Punbox_float -> Punbox_float
-  | Pbox_float m -> Pbox_float m
+  | Punbox_float bf -> Punbox_float bf
+  | Pbox_float (bf,m) -> Pbox_float (bf,m)
   | Punbox_int bi -> Punbox_int bi
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m

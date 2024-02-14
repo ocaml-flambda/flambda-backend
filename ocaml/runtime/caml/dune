@@ -65,6 +65,7 @@
     (interp.h as caml/interp.h)
     (intext.h as caml/intext.h)
     (io.h as caml/io.h)
+    (isa.h as caml/isa.h)
     (lf_skiplist.h as caml/lf_skiplist.h)
     (m.h as caml/m.h)
     (major_gc.h as caml/major_gc.h)

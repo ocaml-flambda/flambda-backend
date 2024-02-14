@@ -69,6 +69,13 @@ type basic_block =
            trap stack. *)
   }
 
+(* Subset of Cmm.codegen_option. *)
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
+
+val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
+
 (** Control Flow Graph of a function. *)
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
@@ -77,10 +84,11 @@ type t = private
         (** Function arguments. When Cfg is constructed from Linear, this
             information is not needed (Linear.fundecl does not have fun_args
             field) and [fun_args] is an empty array as a dummy value. *)
+    fun_codegen_options : codegen_option list;
+        (** Code generation options passed from Cmm. *)
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
-    fun_fast : bool;  (** Precomputed based on cmmgen information. *)
     fun_contains_calls : bool;  (** Precomputed at selection time. *)
     fun_num_stack_slots : int array
         (** Precomputed at register allocation time *)
@@ -89,8 +97,8 @@ type t = private
 val create :
   fun_name:string ->
   fun_args:Reg.t array ->
+  fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
-  fun_fast:bool ->
   fun_contains_calls:bool ->
   fun_num_stack_slots:int array ->
   t

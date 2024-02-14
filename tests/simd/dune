@@ -17,8 +17,8 @@
 ; Tests with external assembler
 
 (executables
- (names basic ops arrays scalar_ops)
- (modules basic ops arrays scalar_ops)
+ (names basic ops arrays scalar_ops consts)
+ (modules basic ops arrays scalar_ops consts)
  (libraries simd_test_helpers)
  (foreign_archives stubs)
  (ocamlopt_flags
@@ -27,8 +27,8 @@
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out ops.out arrays.out scalar_ops.out)
- (deps basic.exe ops.exe arrays.exe scalar_ops.exe)
+ (targets basic.out ops.out arrays.out scalar_ops.out consts.out)
+ (deps basic.exe ops.exe arrays.exe scalar_ops.exe consts.exe)
  (action
   (progn
    (with-outputs-to
@@ -42,7 +42,10 @@
     (run ./arrays.exe))
    (with-outputs-to
     scalar_ops.out
-    (run ./scalar_ops.exe)))))
+    (run ./scalar_ops.exe))
+   (with-outputs-to
+    consts.out
+    (run ./consts.exe)))))
 
 (rule
  (alias runtest)
@@ -53,38 +56,8 @@
    (diff empty.expected basic.out)
    (diff empty.expected ops.out)
    (diff empty.expected arrays.out)
-   (diff empty.expected scalar_ops.out))))
-
-; Constants - proper inlining not supported on closure
-; CR mslater: these should run on flambda1 and 2, but dune doesn't know about 2
-
-(executable
- (name consts)
- (modules consts)
- (foreign_archives stubs)
- (ocamlopt_flags
-  (:standard -extension simd)))
-
-(rule
- (enabled_if
-  (and
-   (= %{context_name} "main")
-   %{ocaml-config:flambda}))
- (target consts.out)
- (deps consts.exe)
- (action
-  (with-outputs-to
-   consts.out
-   (run ./consts.exe))))
-
-(rule
- (alias runtest)
- (enabled_if
-  (and
-   (= %{context_name} "main")
-   %{ocaml-config:flambda}))
- (action
-  (diff empty.expected consts.out)))
+   (diff empty.expected scalar_ops.out)
+   (diff empty.expected consts.out))))
 
 ; Tests with probes / internal assembler - not supported on macOS
 
@@ -166,18 +139,7 @@
     (run ./arrays_internal.exe))
    (with-outputs-to
     scalar_ops_internal.out
-    (run ./scalar_ops_internal.exe)))))
-
-(rule
- (enabled_if
-  (and
-   (= %{context_name} "main")
-   (<> %{system} macosx)
-   %{ocaml-config:flambda}))
- (targets consts_internal.out)
- (deps consts_internal.exe)
- (action
-  (progn
+    (run ./scalar_ops_internal.exe))
    (with-outputs-to
     consts_internal.out
     (run ./consts_internal.exe)))))
@@ -194,15 +156,5 @@
    (diff empty.expected basic_internal.out)
    (diff empty.expected ops_internal.out)
    (diff empty.expected arrays_internal.out)
-   (diff empty.expected scalar_ops_internal.out))))
-
-(rule
- (alias runtest)
- (enabled_if
-  (and
-   (= %{context_name} "main")
-   (<> %{system} macosx)
-   %{ocaml-config:flambda}))
- (action
-  (progn
+   (diff empty.expected scalar_ops_internal.out)
    (diff empty.expected consts_internal.out))))

@@ -424,22 +424,6 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 (* Describes how a modality affects field projection. Returns the mode
    of the projection given the mode of the record. *)
-let _modality_unbox_left global_flag mode =
-  match global_flag with
-  | Global ->
-      mode |> Value.to_global |> Value.to_shared |> Value.to_many
-  | Unrestricted -> mode
-
-(* Describes how a modality affects record construction. Gives the
-   expected mode of the field given the expected mode of the record. *)
-let _modality_box_right global_flag mode =
-  match global_flag with
-  | Global ->
-      mode |> Value.to_global |> Value.to_shared |> Value.to_many
-  | Unrestricted -> mode
-
-(* Describes how a modality affects field projection. Returns the mode
-   of the projection given the mode of the record. *)
 let modality_unbox_left global_flag mode =
   match global_flag with
   | Global ->
@@ -626,6 +610,7 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_char _ -> instance Predef.type_char
   | Const_string _ -> instance Predef.type_string
   | Const_float _ -> instance Predef.type_float
+  | Const_float32 _ -> instance Predef.type_float32
   | Const_unboxed_float _ -> instance Predef.type_unboxed_float
   | Const_int32 _ -> instance Predef.type_int32
   | Const_int64 _ -> instance Predef.type_int64
@@ -9309,6 +9294,8 @@ let report_literal_type_constraint expected_type const =
       Some 'L'
     else if Path.same expected_type Predef.path_nativeint then
       Some 'n'
+    else if Path.same expected_type Predef.path_float32 then
+      Some 's'
     else if Path.same expected_type Predef.path_float then
       Some '.'
     else None
@@ -10103,7 +10090,8 @@ let report_error ~loc env = function
         "Exclave expression should only be in tail position of the current region"
   | Exclave_returns_not_local ->
       Location.errorf ~loc
-        "The body of exclave expression should be local"
+        "This expression was expected to be not local, but is an exclave expression,@ \
+         which must be local."
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"

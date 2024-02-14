@@ -11,16 +11,16 @@ File "test_assume_on_call.ml", line 7, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test1 (camlTest_assume_on_call.test1_HIDE_STAMP)
 
 File "test_assume_on_call.ml", line 8, characters 2-22:
-Error: Unexpected allocation of 24 bytes (test_assume_on_call.ml:8,2--22;test_assume_on_call.ml:1,28--33)
+Error: allocation of 24 bytes (test_assume_on_call.ml:8,2--22;test_assume_on_call.ml:1,28--33)
 
 File "test_assume_on_call.ml", line 10, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test2 (camlTest_assume_on_call.test2_HIDE_STAMP)
 
 File "test_assume_on_call.ml", line 11, characters 2-36:
-Error: Unexpected allocation of 24 bytes (test_assume_on_call.ml:11,2--36;test_assume_on_call.ml:1,28--33)
+Error: allocation of 24 bytes (test_assume_on_call.ml:11,2--36;test_assume_on_call.ml:1,28--33)
 
 File "test_assume_on_call.ml", line 13, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test3 (camlTest_assume_on_call.test3_HIDE_STAMP)
 
 File "test_assume_on_call.ml", line 14, characters 2-52:
-Error: Unexpected allocation of 24 bytes (test_assume_on_call.ml:14,2--52;test_assume_on_call.ml:1,28--33)
+Error: allocation of 24 bytes (test_assume_on_call.ml:14,2--52;test_assume_on_call.ml:1,28--33)

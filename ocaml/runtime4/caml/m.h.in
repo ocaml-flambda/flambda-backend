@@ -76,6 +76,8 @@
    supports word-aligned 64-bit integers.  Leave undefined if
    64-bit integers are not supported. */
 
+#undef CUSTOM_OPS_STRUCT_SIZE
+
 #undef PROFINFO_WIDTH
 
 #undef ASM_CFI_SUPPORTED

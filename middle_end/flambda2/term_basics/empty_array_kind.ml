@@ -46,8 +46,12 @@ let of_element_kind t =
 
 let of_lambda array_kind =
   match (array_kind : Lambda.array_kind) with
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray ->
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray Pfloat64 ->
     Values_or_immediates_or_naked_floats
+  | Punboxedfloatarray Pfloat32 ->
+    (* CR mslater: (float32) array support *)
+    assert false
   | Punboxedintarray Pint32 -> Naked_int32s
   | Punboxedintarray Pint64 -> Naked_int64s
   | Punboxedintarray Pnativeint -> Naked_nativeints

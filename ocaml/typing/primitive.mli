@@ -17,6 +17,8 @@
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type boxed_float = Pfloat64 | Pfloat32
+
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
 
 type boxed_vector = Pvec128 of vec128_type
@@ -25,7 +27,7 @@ type boxed_vector = Pvec128 of vec128_type
    of a primitive *)
 type native_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
-  | Unboxed_float
+  | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
@@ -94,6 +96,7 @@ val byte_name: description -> string
 val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+val equal_boxed_float : boxed_float -> boxed_float -> bool
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool

@@ -21,6 +21,7 @@
    and native code. */
 
 #include <stdio.h>
+#include "caml/isa.h"
 #include "caml/backtrace.h"
 #include "caml/memory.h"
 #include "caml/callback.h"
@@ -114,6 +115,7 @@ void caml_parse_ocamlrunparam(void)
       case 'v': scanmult (opt, (uintnat *)&caml_verb_gc); break;
       case 'V': scanmult (opt, &params.verify_heap); break;
       case 'W': scanmult (opt, &caml_runtime_warnings); break;
+      case 'X': scanmult (opt, &caml_skip_arch_extension_check); break;
       case ',': continue;
       }
       while (*opt != '\0'){

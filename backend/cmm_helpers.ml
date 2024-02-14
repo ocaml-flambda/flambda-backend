@@ -891,13 +891,26 @@ let array_indexing ?typ log2size ptr ofs dbg =
    cross-compiling for 64-bit on a 32-bit host *)
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
-let custom_ops_unboxed_int32_odd_array =
-  Cconst_symbol
-    (Cmm.global_symbol "caml_unboxed_int32_odd_array_ops", Debuginfo.none)
+let custom_ops_size_log2 =
+  let lg = Misc.log2 Config.custom_ops_struct_size in
+  assert (1 lsl lg = Config.custom_ops_struct_size);
+  lg
 
-let custom_ops_unboxed_int32_even_array =
+(* caml_unboxed_int32_array_ops refers to the first element of an array of two
+   custom ops. The array index indicates the number of (invalid) tailing int32s
+   (0 or 1). *)
+let custom_ops_unboxed_int32_array =
   Cconst_symbol
-    (Cmm.global_symbol "caml_unboxed_int32_even_array_ops", Debuginfo.none)
+    (Cmm.global_symbol "caml_unboxed_int32_array_ops", Debuginfo.none)
+
+let custom_ops_unboxed_int32_even_array = custom_ops_unboxed_int32_array
+
+let custom_ops_unboxed_int32_odd_array =
+  Cop
+    ( Caddi,
+      [ custom_ops_unboxed_int32_array;
+        Cconst_int (Config.custom_ops_struct_size, Debuginfo.none) ],
+      Debuginfo.none )
 
 let custom_ops_unboxed_int64_array =
   Cconst_symbol
@@ -908,36 +921,34 @@ let custom_ops_unboxed_nativeint_array =
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
 let unboxed_int32_array_length arr dbg =
-  (* A dynamic test is needed to determine if the array contains an odd or even
-     number of elements *)
+  (* Checking custom_ops is needed to determine if the array contains an odd or
+     even number of elements *)
   let res =
     bind "arr" arr (fun arr ->
         let custom_ops_var = Backend_var.create_local "custom_ops" in
+        let custom_ops_index_var =
+          Backend_var.create_local "custom_ops_index"
+        in
         let num_words_var = Backend_var.create_local "num_words" in
         Clet
           ( VP.create num_words_var,
-            (* need to subtract so as not to count the custom_operations
-               field *)
+            (* subtract custom_operations word *)
             sub_int (get_size arr dbg) (int ~dbg 1) dbg,
             Clet
               ( VP.create custom_ops_var,
                 Cop (mk_load_immut Word_int, [arr], dbg),
-                Cifthenelse
-                  ( Cop
-                      ( Ccmpa Ceq,
-                        [Cvar custom_ops_var; custom_ops_unboxed_int32_odd_array],
-                        dbg ),
-                    dbg,
-                    (* unboxed int32 odd *)
-                    (sub_int
-                       (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
-                       (int ~dbg 1))
+                Clet
+                  ( VP.create custom_ops_index_var,
+                    (* compute index into custom ops array *)
+                    lsr_int
+                      (sub_int (Cvar custom_ops_var)
+                         custom_ops_unboxed_int32_array dbg)
+                      (int ~dbg custom_ops_size_log2)
                       dbg,
-                    dbg,
-                    (* assumed to be unboxed int32 even *)
-                    mul_int (Cvar num_words_var) (int ~dbg 2) dbg,
-                    dbg,
-                    Any ) ) ))
+                    (* subtract index from length in int32s *)
+                    sub_int
+                      (mul_int (Cvar num_words_var) (int ~dbg 2) dbg)
+                      (Cvar custom_ops_index_var) dbg ) ) ))
   in
   tag_int res dbg
 
@@ -1241,7 +1252,10 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
+    | Punboxed_float Pfloat32 ->
+      (* CR mslater: (float32) backend support *)
+      assert false
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -2817,10 +2831,13 @@ let arraylength kind arg dbg =
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
     Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray | Punboxedfloatarray ->
+  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     (* Note: we only support 64 bit targets now, so this is ok for
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedfloatarray Pfloat32 ->
+    (* CR mslater: (float32) array support *)
+    assert false
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
   | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
@@ -3542,6 +3559,8 @@ let cvec128 bits = Cmm.Cvec128 bits
 
 let symbol_address s = Cmm.Csymbol_address s
 
+let symbol_offset s o = Cmm.Csymbol_offset (s, o)
+
 let define_symbol symbol = [Cdefine_symbol symbol]
 
 (* Cmm phrases *)
@@ -3602,11 +3621,14 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat32) ->
+    (* CR mslater: (float32) backend support *)
+    assert false
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _
+  | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
   | Punboxed_product _ ->
     Any
 
@@ -3689,7 +3711,15 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
     | [] -> Even, List.rev acc
     | a :: [] -> Odd, List.rev (a :: acc)
     | a :: b :: r ->
-      let i = Cop (Cor, [a; Cop (Clsl, [b; Cconst_int (32, dbg)], dbg)], dbg) in
+      let i =
+        Cop
+          ( Cor,
+            [ (* [a] is sign-extended by default. We need to change it to be
+                 zero-extended for the `or` operation to be correct. *)
+              zero_extend_32 dbg a;
+              Cop (Clsl, [b; Cconst_int (32, dbg)], dbg) ],
+            dbg )
+      in
       aux (i :: acc) r
   in
   aux [] unboxed_int32_list

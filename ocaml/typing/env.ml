@@ -2720,10 +2720,15 @@ let initial =
     empty
 
 let add_language_extension_types env =
+  let add ext f env  =
+    match Language_extension.is_enabled ext with
+    | true -> f (add_type ~check:false) env
+    | false -> env
+  in
   lazy
-    (if Language_extension.is_enabled SIMD
-     then Predef.add_simd_extension_types (add_type ~check:false) env
-     else env)
+    (env
+    |> add SIMD Predef.add_simd_extension_types
+    |> add Small_numbers Predef.add_small_number_extension_types)
 
 (* Some predefined types are part of language extensions, and we don't want to
    make them available in the initial environment if those extensions are not

@@ -60,7 +60,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pasrint
   | Pintcomp _
   | Punboxed_int_comp _ -> No_effects, No_coeffects
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }
   | Pmodbint { is_safe = Unsafe }
@@ -74,18 +74,18 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       Arbitrary_effects, No_coeffects
   | Poffsetint _ -> No_effects, No_coeffects
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
-  | Punbox_float | Punbox_int _
-  | Pintoffloat
-  | Pfloatcomp _
-  | Punboxed_float_comp _ -> No_effects, No_coeffects
-  | Pbox_float m | Pbox_int (_, m)
-  | Pfloatofint m
-  | Pnegfloat m
-  | Pabsfloat m
-  | Paddfloat m
-  | Psubfloat m
-  | Pmulfloat m
-  | Pdivfloat m -> No_effects, coeffects_of m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> No_effects, No_coeffects
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> No_effects, coeffects_of m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> No_effects, No_coeffects
   | Pisint
@@ -165,13 +165,13 @@ type return_type =
 
 let return_type_of_primitive (prim:Clambda_primitives.primitive) =
   match prim with
-  | Pfloatofint _
-  | Pnegfloat _
-  | Pabsfloat _
-  | Paddfloat _
-  | Psubfloat _
-  | Pmulfloat _
-  | Pdivfloat _
+  | Pfloatofint (Pfloat64, _)
+  | Pnegfloat (Pfloat64, _)
+  | Pabsfloat (Pfloat64, _)
+  | Paddfloat (Pfloat64, _)
+  | Psubfloat (Pfloat64, _)
+  | Pmulfloat (Pfloat64, _)
+  | Pdivfloat (Pfloat64, _)
   | Pfloatfield _
   | Parrayrefu (Pfloatarray_ref _)
   | Parrayrefs (Pfloatarray_ref _) ->
@@ -211,22 +211,22 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Plsrint
   | Pasrint
   | Pintcomp _ -> false
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     -> false
   | Poffsetint _ -> false
   | Poffsetref _ -> false
-  | Punbox_float | Punbox_int _
-  | Pintoffloat
-  | Pfloatcomp _
-  | Punboxed_float_comp _ -> false
-  | Pbox_float m | Pbox_int (_, m)
-  | Pfloatofint m
-  | Pnegfloat m
-  | Pabsfloat m
-  | Paddfloat m
-  | Psubfloat m
-  | Pmulfloat m
-  | Pdivfloat m -> is_local_alloc m
+  | Punbox_float _ | Punbox_int _
+  | Pintoffloat _
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _) -> false
+  | Pbox_float (_, m) | Pbox_int (_, m)
+  | Pfloatofint (_, m)
+  | Pnegfloat (_, m)
+  | Pabsfloat (_, m)
+  | Paddfloat (_, m)
+  | Psubfloat (_, m)
+  | Pmulfloat (_, m)
+  | Pdivfloat (_, m) -> is_local_alloc m
   | Pstringlength | Pbyteslength
   | Parraylength _ -> false
   | Pisint

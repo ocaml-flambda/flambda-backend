@@ -84,6 +84,9 @@ void caml_gc_log (char *msg, ...)
     char fmtbuf[GC_LOG_LENGTH];
     va_list args;
     va_start (args, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     snprintf(fmtbuf, GC_LOG_LENGTH, "[%02d] %s\n",
              (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, msg);
     vfprintf(stderr, fmtbuf, args);

@@ -5,6 +5,8 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let gi_debug = true
 
+let gi_rng = Random.State.make [| 4; 6; 2 |]
+
 let bool_of_param param_name =
   bool_of_param ~guard:(gi_debug, "gi_debug") param_name
 
@@ -43,11 +45,17 @@ let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
 
 (* CR xclerc for xclerc: add more heuristics *)
 module Priority_heuristics = struct
-  type t = Interval_length
+  type t =
+    | Interval_length
+    | Random_for_testing
 
-  let all = [Interval_length]
+  let all = [Interval_length; Random_for_testing]
 
-  let to_string = function Interval_length -> "interval_length"
+  let to_string = function
+    | Interval_length -> "interval_length"
+    | Random_for_testing -> "random"
+
+  let random () = Random.State.int gi_rng 10_000
 
   let value =
     let available_heuristics () =
@@ -64,6 +72,7 @@ module Priority_heuristics = struct
       | Some id -> (
         match String.lowercase_ascii id with
         | "interval_length" | "interval-length" -> Interval_length
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -75,13 +84,24 @@ module Selection_heuristics = struct
     | First_available
     | Best_fit
     | Worst_fit
+    | Random_for_testing
 
-  let all = [First_available; Best_fit; Worst_fit]
+  let all = [First_available; Best_fit; Worst_fit; Random_for_testing]
 
   let to_string = function
     | First_available -> "first_available"
     | Best_fit -> "best_fit"
     | Worst_fit -> "worst_fit"
+    | Random_for_testing -> "random"
+
+  let include_in_random = function
+    | Random_for_testing | Worst_fit -> false
+    | First_available | Best_fit -> true
+
+  let random =
+    let all = List.filter all ~f:include_in_random in
+    let len = List.length all in
+    fun () -> List.nth all (Random.State.int gi_rng len)
 
   let value =
     let available_heuristics () =
@@ -100,6 +120,7 @@ module Selection_heuristics = struct
         | "first_available" | "first-available" -> First_available
         | "best_fit" | "best-fit" -> Best_fit
         | "worst_fit" | "worst-fit" -> Worst_fit
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -109,12 +130,16 @@ module Spilling_heuristics = struct
   type t =
     | Flat_uses
     | Hierarchical_uses
+    | Random_for_testing
 
-  let all = [Flat_uses; Hierarchical_uses]
+  let all = [Flat_uses; Hierarchical_uses; Random_for_testing]
 
   let to_string = function
     | Flat_uses -> "flat_uses"
     | Hierarchical_uses -> "hierarchical_uses"
+    | Random_for_testing -> "random"
+
+  let random () = Random.State.bool gi_rng
 
   let value =
     let available_heuristics () =
@@ -132,6 +157,7 @@ module Spilling_heuristics = struct
         match String.lowercase_ascii id with
         | "flat_uses" | "flat-uses" -> Flat_uses
         | "hierarchical_uses" | "hierarchical-uses" -> Hierarchical_uses
+        | "random" -> Random_for_testing
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
@@ -705,7 +731,14 @@ module Hardware_registers = struct
   let find_available : t -> Reg.t -> Interval.t -> available =
    fun t reg interval ->
     let with_no_overlap =
-      match Lazy.force Selection_heuristics.value with
+      let heuristic =
+        match Lazy.force Selection_heuristics.value with
+        | Selection_heuristics.Random_for_testing ->
+          Selection_heuristics.random ()
+        | heuristic -> heuristic
+      in
+      match heuristic with
+      | Selection_heuristics.Random_for_testing -> assert false
       | Selection_heuristics.First_available ->
         if gi_debug
         then

@@ -290,7 +290,7 @@ Error: Layout mismatch in final type declaration consistency check.
            of the definition of t_float64_id at line 2, characters 0-37.
          But the layout of 'a must overlap with value, because
            it instantiates an unannotated type parameter of t5_11, defaulted to layout value.
-       The fix will likely be to add a layout annotation on a parameter to
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
 
@@ -336,7 +336,7 @@ Line 1, characters 31-46:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_float64_id is float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
-       But the layout of type 'a t_float64_id must overlap with value, because
+       But the layout of type 'a t_float64_id must be a sublayout of value, because
          it's the type of something stored in a module structure.
 |}];;
 

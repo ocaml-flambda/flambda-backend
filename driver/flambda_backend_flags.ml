@@ -23,6 +23,8 @@ let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
+let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 
@@ -40,6 +42,27 @@ type checkmach_details_cutoff =
 let default_checkmach_details_cutoff = At_most 20
 let checkmach_details_cutoff = ref default_checkmach_details_cutoff
                                        (* -checkmach-details-cutoff n *)
+module Function_layout = struct
+  type t =
+    | Topological
+    | Source
+
+  let to_string = function
+    | Topological -> "topological"
+    | Source -> "source"
+
+  let default = Topological
+
+  let all = [Topological; Source]
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+end
+
+let function_layout = ref Function_layout.default   (* -function-layout *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)
                                         (* -disable-poll-insertion *)

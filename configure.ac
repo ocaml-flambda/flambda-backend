@@ -5,9 +5,12 @@ AC_INIT([The Flambda backend for OCaml],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
 
+DUNE_MAX_VERSION=[3.8]
+
 AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
 
 m4_include([autoconf-aux/ax_subdirs_configure.m4])
+m4_include([autoconf-aux/ax_compare_version.m4])
 
 AC_CONFIG_AUX_DIR([autoconf-aux])
 
@@ -18,11 +21,18 @@ AC_ARG_WITH([dune],
     [Path to dune executable (otherwise PATH is searched)])],
   [dune=$with_dune])
 
-dnl Bug here somewhere -- if dune is on the path and an invalid --with-dune is
-dnl specified, then we should stop.
-
 AS_IF([test x"$dune" = "x"],
   [AC_MSG_ERROR([dune not found on PATH; install, or use --with-dune])])
+
+dune_version=`$dune --version | sed -e 's/^\([[0-9]]\.[[0-9]]\).*/\1/'`
+
+AS_IF([test x"$dune_version" = "x"],
+  [AC_MSG_ERROR([unable to execute dune at $dune])])
+
+dnl If dune is too new, keep going but warn at the end
+AX_COMPARE_VERSION([$dune_version], [le], [$DUNE_MAX_VERSION],
+  [dune_version_good=true],
+  [dune_version_good=false])
 
 AC_MSG_NOTICE([Using dune executable: $dune])
 
@@ -74,3 +84,6 @@ AX_SUBDIRS_CONFIGURE([ocaml],
 
 AC_CONFIG_FILES([Makefile.config])
 AC_OUTPUT
+
+AS_IF([test x"$dune_version_good" = "xfalse"],
+  [AC_MSG_WARN([dune $dune_version found; only dune up to $DUNE_MAX_VERSION known to work])])
