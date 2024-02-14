@@ -112,14 +112,16 @@ val equal_coeffects : coeffects -> coeffects -> bool
     compiler itself. *)
 val native_name_is_external : description -> bool
 
-(** Check if a primitive can have argument/return types of
-    non-value sort. This check is done based on the primitive
-    name. *)
-val prim_can_have_non_value_arg_or_res : description -> bool
 
-(** Check if a primitive can have jkind [any] within it's type
+(** Check if a primitive has the correct native representations for its
+    argument/return types. This check is done based on the primitive
+    name and only imposes constraints on built-in primitives. Exception
+    would be raised when the check fails. *)
+val prim_has_valid_reprs : loc:Location.t -> description -> unit
+
+(** Check if a primitive can have jkind [any] anywhere within its type
     declaration. Returns [false] for built-in primitives that inspect
-    the layout of type parameters (%array_length for example). *)
+    the layout of type parameters ([%array_length] for example). *)
 val prim_can_contain_jkind_any : description -> bool
 
 type error =
@@ -131,5 +133,6 @@ type error =
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
   | Invalid_representation_polymorphic_attribute
+  | Invalid_native_repr_for_primitive of string
 
 exception Error of Location.t * error

@@ -100,7 +100,6 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
-  | Non_value_arg_or_res_in_primitive of string
 
 open Typedtree
 
@@ -2353,24 +2352,6 @@ let unexpected_jkind_any_check prim env cty ty =
     raise(Error (cty.ctyp_loc,
             Unexpected_jkind_any_in_primitive(prim.prim_name)))
 
-let non_value_arg_or_res_check prim cty =
-  if Primitive.prim_can_have_non_value_arg_or_res prim
-  then ()
-  else
-  let contains_non_value_jkind =
-    (prim.prim_native_repr_res :: prim.prim_native_repr_args)
-    |> List.map snd
-    |> List.exists (function
-      | Same_as_ocaml_repr Value | Unboxed_float _
-      | Unboxed_integer _
-      | Untagged_int | Unboxed_vector _ -> false
-      | Same_as_ocaml_repr _ | Repr_poly -> true)
-  in
-  if not contains_non_value_jkind then ()
-  else
-    raise(Error (cty.ctyp_loc,
-            Non_value_arg_or_res_in_primitive(prim.prim_name)))
-
 (* Note regarding jkind checks on external declarations
 
    There are currently three checks in place:
@@ -2378,9 +2359,15 @@ let non_value_arg_or_res_check prim cty =
    1. The argument/return types of an external can't have
       jkind [any]. This is enforced by [type_sort_external].
 
-   2. Only a selected subset of built-in primitives can have
-      argument/return types with non-value jkinds. Checked by
-      [non_value_arg_or_res_check].
+   2. [Primitive.prim_has_valid_reprs] performs an additional
+      sanity check on built-in primitives regarding
+      argument/result representations. It only allows
+      a selected subset of primitives to have non-value
+      jkinds. And for that subset, it checks to see the
+      argument/return jkinds are what it expects.
+      
+      See comment in [prim_has_valid_reprs] about what it
+      could miss.
 
    3. Built-in primitives that inspect the jkind of type
       parameters cannot have type variables with jkind [any]
@@ -2406,7 +2393,7 @@ let non_value_arg_or_res_check prim cty =
 
    An exception would be raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =
-  non_value_arg_or_res_check prim cty;
+  Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
   unexpected_jkind_any_check prim env cty ty
 
 (* Translate a value declaration *)
@@ -3144,10 +3131,6 @@ let report_error ppf = function
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@layout_poly].@]" name
-  | Non_value_arg_or_res_in_primitive(name) ->
-      fprintf ppf
-        "@[The primitive [%s] doesn't yet support argument/return types@ \
-            with non-value layouts.@]" name
 
 let () =
   Location.register_error_of_exn

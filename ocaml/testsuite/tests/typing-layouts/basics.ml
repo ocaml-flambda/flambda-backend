@@ -2414,3 +2414,61 @@ Error:
        But the layout of 'a t2 must be a sublayout of immediate, because
          of the annotation on the wildcard _ at line 1, characters 25-34.
 |}]
+
+(**********************************************************************)
+(* Test 42: Externals for built-in primitives have some safety checks *)
+
+(* oops the argument/return got swapped *)
+external f : float# -> float = "%unbox_float";;
+[%%expect{|
+Line 1, characters 13-28:
+1 | external f : float# -> float = "%unbox_float";;
+                 ^^^^^^^^^^^^^^^
+Error: The primitive [%unbox_float] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* using the wrong primitive *)
+external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+[%%expect{|
+Line 1, characters 13-39:
+1 | external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%box_int32] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* can't use primitives for jkind conversions *)
+external f : float# -> int32# = "%identity";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%identity";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%identity] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%opaque";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%opaque";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%opaque] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%obj_magic";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%obj_magic";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%obj_magic] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* not smart enough to stop this
+   but the middle end should error in this case *)
+external f : (float# -> int32#) -> int32# -> int32# = "%apply";;
+[%%expect{|
+external f : (float# -> int32#) -> int32# -> int32# = "%apply"
+|}]

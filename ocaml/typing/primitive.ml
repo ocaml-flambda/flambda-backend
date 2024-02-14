@@ -65,6 +65,7 @@ type error =
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
   | Invalid_representation_polymorphic_attribute
+  | Invalid_native_repr_for_primitive of string
 
 exception Error of Location.t * error
 
@@ -401,33 +402,148 @@ let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
 
-let prim_can_have_non_value_arg_or_res prim =
-  match prim.prim_name with
-  | "%identity"
-  | "%ignore"
-  | "%revapply"
-  | "%apply"
-  | "%array_safe_get"
-  | "%array_safe_set"
-  | "%array_unsafe_get"
-  | "%array_unsafe_set"
-  | "%opaque"
-  | "%send"
-  | "%sendself"
-  | "%sendcache"
-  | "%obj_magic"
-  | "%unbox_float"
-  | "%box_float"
-  | "%unbox_nativeint"
-  | "%box_nativeint"
-  | "%unbox_int32"
-  | "%box_int32"
-  | "%unbox_int64"
-  | "%box_int64" -> true
-  | name when is_builtin_prim_name name -> false
-  | _ ->
-    (* make no assumptions about external c primitives *)
-    true
+module Repr_check = struct
+
+  type result =
+    | Wrong_arity
+    | Wrong_repr
+    | Success
+
+  let args_res_reprs prim =
+    (prim.prim_native_repr_args @ [prim.prim_native_repr_res])
+    |> List.map snd
+
+  let is repr = equal_native_repr repr
+
+  let any = fun _ -> true
+
+  let value_or_unboxed_or_untagged = function
+    | Same_as_ocaml_repr Value
+    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
+    | Untagged_int -> true
+    | Same_as_ocaml_repr _ | Repr_poly -> false
+
+  let check checks prim =
+    let reprs = args_res_reprs prim in
+    if List.length reprs <> List.length checks
+    then Wrong_arity
+    else
+    if not (List.for_all2 (fun f x -> f x) checks reprs)
+    then Wrong_repr
+    else Success
+
+  let exactly required =
+    check (List.map is required)
+
+  let same_arg_res_repr_with_arity arity prim =
+    let repr = snd prim.prim_native_repr_res in
+    exactly
+      (List.init (arity+1) (fun _ -> repr))
+      prim
+
+  let no_non_value_repr prim =
+    let arity = List.length prim.prim_native_repr_args in
+    check
+      (List.init (arity+1) (fun _ -> value_or_unboxed_or_untagged))
+      prim
+end
+
+let prim_has_valid_reprs ~loc prim =
+  let open Repr_check in
+  let check =
+    match prim.prim_name with
+    | "%identity"
+    | "%opaque"
+    | "%obj_magic" ->
+      same_arg_res_repr_with_arity 1
+
+    | "%ignore" ->
+      check [any; is (Same_as_ocaml_repr Value)]
+    | "%revapply" ->
+      check [any; is (Same_as_ocaml_repr Value); any]
+    | "%apply" ->
+      check [is (Same_as_ocaml_repr Value); any; any]
+
+    (* This doesn't prevent
+
+       {|
+          external get : float# array -> int -> int32# =
+            "%array_safe_get"
+       |}
+
+       but the same is true for types:
+
+       {|
+          external get : float array -> int -> int32 =
+            "%array_safe_get"
+       |}
+    *)
+    | "%array_safe_get" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any]
+    | "%array_safe_set" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any]
+    | "%array_unsafe_set" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any;
+        is (Same_as_ocaml_repr Value)]
+
+    | "%box_float" ->
+      exactly [Same_as_ocaml_repr Float64; Same_as_ocaml_repr Value]
+    | "%unbox_float" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float64]
+    | "%box_nativeint" ->
+      exactly [Same_as_ocaml_repr Word; Same_as_ocaml_repr Value]
+    | "%unbox_nativeint" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Word]
+    | "%box_int32" ->
+      exactly [Same_as_ocaml_repr Bits32; Same_as_ocaml_repr Value]
+    | "%unbox_int32" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits32]
+    | "%box_int64" ->
+      exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
+    | "%unbox_int64" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+    | name when is_builtin_prim_name name ->
+      no_non_value_repr
+
+    (* These can probably support non-value reprs if the need arises:
+      {|
+        | "%send"
+        | "%sendself"
+        | "%sendcache"
+      |}
+    *)
+    | _ ->
+      (* make no assumptions about external c primitives *)
+      fun _ -> Success
+  in
+  match check prim with
+  | Success -> ()
+  | Wrong_arity ->
+    (* There's already an arity check in translprim
+       that catches this. We will defer to that logic.
+       Reason being we are only checking the arity
+       of some built-in primitives here but not all.
+       Would be weird to raise different errors
+       dependent on the [prim_name]. *)
+    ()
+  | Wrong_repr ->
+    raise (Error (loc,
+            Invalid_native_repr_for_primitive (prim.prim_name)))
 
 let prim_can_contain_jkind_any prim =
   match prim.prim_name with
@@ -466,6 +582,12 @@ let report_error ppf err =
   | Invalid_representation_polymorphic_attribute ->
     Format.fprintf ppf "Attribute [%@layout_poly] can only be used \
                         on built-in primitives."
+  | Invalid_native_repr_for_primitive name ->
+    Format.fprintf ppf
+      "The primitive [%s] is used in an invalid declaration.@ \
+       The declaration contains argument/return types with the@ \
+       wrong layout."
+      name
 
 let () =
   Location.register_error_of_exn
