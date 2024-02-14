@@ -3,6 +3,7 @@
    * flambda
    ** naked_pointers
    *** native
+   flags = "-flambda2-join-points"
 *)
 
 (* Data that should be statically allocated by the compiler (flambda only) *)
@@ -33,40 +34,41 @@ let h x =
 let () = (h [@inlined always]) (Sys.opaque_identity 2)
 *)
 
-(* Recursive constant values should be static *)
-let rec a = 1 :: b
-and b = 2 :: a
-let () =
-  assert(is_in_static_data a);
-  assert(is_in_static_data b)
+(* Recursive constant values were static in Flambda 1,
+   but not in Flambda 2 *)
+(* let rec a = 1 :: b *)
+(* and b = 2 :: a *)
+(* let () = *)
+(*   assert(is_in_static_data a); *)
+(*   assert(is_in_static_data b) *)
 
-(* And a mix *)
-type e = E : 'a -> e
+(* (\* And a mix *\) *)
+(* type e = E : 'a -> e *)
 
-let rec f1 a = E (g1 a, l1)
-and g1 a = E (f1 a, l2)
-and l1 = E (f1, l2)
-and l2 = E (g1, l1)
+(* let rec f1 a = E (g1 a, l1) *)
+(* and g1 a = E (f1 a, l2) *)
+(* and l1 = E (f1, l2) *)
+(* and l2 = E (g1, l1) *)
 
-let () =
-  assert(is_in_static_data f1);
-  assert(is_in_static_data g1);
-  assert(is_in_static_data l1);
-  assert(is_in_static_data l2)
+(* let () = *)
+(*   assert(is_in_static_data f1); *)
+(*   assert(is_in_static_data g1); *)
+(*   assert(is_in_static_data l1); *)
+(*   assert(is_in_static_data l2) *)
 
-(* Also in functions *)
-let i () =
-  let rec f1 a = E (g1 a, l1)
-  and g1 a = E (f1 a, l2)
-  and l1 = E (f1, l2)
-  and l2 = E (g1, l1) in
+(* (\* Also in functions *\) *)
+(* let i () = *)
+(*   let rec f1 a = E (g1 a, l1) *)
+(*   and g1 a = E (f1 a, l2) *)
+(*   and l1 = E (f1, l2) *)
+(*   and l2 = E (g1, l1) in *)
 
-  assert(is_in_static_data f1);
-  assert(is_in_static_data g1);
-  assert(is_in_static_data l1);
-  assert(is_in_static_data l2)
+(*   assert(is_in_static_data f1); *)
+(*   assert(is_in_static_data g1); *)
+(*   assert(is_in_static_data l1); *)
+(*   assert(is_in_static_data l2) *)
 
-let () = (i [@inlined never]) ()
+(* let () = (i [@inlined never]) () *)
 
 module type P = module type of Stdlib
 (* Top-level modules should be static *)
