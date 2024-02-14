@@ -165,7 +165,7 @@ let to_cmm r =
   (* Make sure we do not forget any current data *)
   let r = archive_data r in
   (* Sort functions according to debuginfo, to get a stable ordering *)
-  let sorted_functions = r.functions in
+  let sorted_functions = List.rev r.functions in
   (* CR gyorsh: temporarily disable sorting. [checkmach] is overly-conservative
      on non-recursive forward functions. Fix is in preparation. *)
   (* let sorted_functions =

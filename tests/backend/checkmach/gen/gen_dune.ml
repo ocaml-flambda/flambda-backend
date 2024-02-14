@@ -78,7 +78,7 @@ let () =
   print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail5";
   print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail6";
   print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail7";
-  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail8";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:0 "fail8";
   print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail9";
   print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail10";
   print_test_expected_output ~cutoff:default_cutoff  ~extra_dep:None ~exit_code:2 "fail12";
