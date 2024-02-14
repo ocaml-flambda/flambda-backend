@@ -9,6 +9,9 @@
 
 (* Data that should be statically allocated by the compiler (flambda only) *)
 
+(* Force O3, as we expect this test to fail on classic mode *)
+[@@@flambda_o3]
+
 external is_in_static_data : 'a -> bool = "caml_is_in_static_data"
 
 (* Also after inlining *)

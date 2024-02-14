@@ -3,6 +3,9 @@
    ** native
 *)
 
+(* Force O3, as we expect this test to fail on classic mode *)
+[@@@flambda_o3]
+
 type t = T of { pos : int }
 
 let[@inline always] find_pos i =

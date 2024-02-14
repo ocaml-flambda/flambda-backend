@@ -10,6 +10,9 @@
    Ref: http://caml.inria.fr/mantis/view.php?id=5779
 *)
 
+(* CR vlaviron: see if we can make it work with Oclassic *)
+[@@@flambda_o3]
+
 let () =
   let x0 = Gc.allocated_bytes () in
   let x1 = Gc.allocated_bytes () in
