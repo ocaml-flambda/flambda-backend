@@ -142,14 +142,22 @@ let argument_types_useful dacc apply =
       (Apply.args apply)
 
 let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
-    ~return_arity : Call_site_inlining_decision_type.t =
+    ~return_arity ~rec_depth_exceeded : Call_site_inlining_decision_type.t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
   let decision =
     Code_or_metadata.code_metadata code_or_metadata
     |> Code_metadata.inlining_decision
   in
-  if Function_decl_inlining_decision_type.must_be_inlined decision
+  if Function_decl_inlining_decision_type.is_stub decision
+  then
+    Definition_says_inline
+      { was_inline_always =
+          Function_decl_inlining_decision_type.has_attribute_inline decision
+      }
+  else if rec_depth_exceeded
+  then Recursion_depth_exceeded
+  else if Function_decl_inlining_decision_type.must_be_inlined decision
   then
     Definition_says_inline
       { was_inline_always =
@@ -242,12 +250,12 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
               Flambda_features.Inlining.max_rec_depth
                 (Round (DE.round (DA.denv dacc)))
             in
-            if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
-                 max_rec_depth
-            then Recursion_depth_exceeded
-            else
-              might_inline dacc ~apply ~code_or_metadata ~function_type
-                ~simplify_expr ~return_arity
+            let rec_depth_exceeded =
+              Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
+                max_rec_depth
+            in
+            might_inline dacc ~apply ~code_or_metadata ~function_type
+              ~simplify_expr ~return_arity ~rec_depth_exceeded
           | Unroll (unroll_to, _) ->
             if Simplify_rec_info_expr.can_unroll dacc rec_info
             then
