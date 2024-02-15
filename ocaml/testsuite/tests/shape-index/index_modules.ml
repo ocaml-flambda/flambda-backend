@@ -1,17 +1,17 @@
 (* TEST
 
-flags = "-bin-annot -bin-annot-occurrences";
-compile_only = "true";
-setup-ocamlc.byte-build-env;
-all_modules = "index_modules.ml";
-ocamlc.byte;
-check-ocamlc.byte-output;
+flags = "-bin-annot -bin-annot-occurrences"
+compile_only = "true"
+* setup-ocamlc.byte-build-env
+all_modules = "index_modules.ml"
+** ocamlc.byte
+*** check-ocamlc.byte-output
 
-program = "-quiet -index -decls index_modules.cmt";
-output = "out_objinfo";
-ocamlobjinfo;
+program = "-quiet -index -decls index_modules.cmt"
+output = "out_objinfo"
+**** ocamlobjinfo
 
-check-program-output;
+***** check-program-output
 *)
 
 (* Local modules: *)
