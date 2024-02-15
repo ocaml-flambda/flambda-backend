@@ -1,18 +1,18 @@
 (* TEST
 
-flags = "-bin-annot -bin-annot-occurrences";
-compile_only = "true";
-readonly_files = "index_types.ml";
-setup-ocamlc.byte-build-env;
-all_modules = "index_types.ml";
-ocamlc.byte;
-check-ocamlc.byte-output;
+flags = "-bin-annot -bin-annot-occurrences"
+compile_only = "true"
+readonly_files = "index_types.ml"
+* setup-ocamlc.byte-build-env
+all_modules = "index_types.ml"
+** ocamlc.byte
+*** check-ocamlc.byte-output
 
-program = "-quiet -index -decls index_types.cmt";
-output = "out_objinfo";
-ocamlobjinfo;
+program = "-quiet -index -decls index_types.cmt"
+output = "out_objinfo"
+**** ocamlobjinfo
 
-check-program-output;
+***** check-program-output
 *)
 
 type t = int
@@ -37,5 +37,5 @@ type t1 = ..
 type t1 += B
 
 (* 5.2 local open for types *)
-module N = struct type t end
-type u = N.(t)
+(* module N = struct type t end
+type u = N.(t) *)
