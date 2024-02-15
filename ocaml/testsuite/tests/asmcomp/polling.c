@@ -1,4 +1,7 @@
 #define CAML_INTERNALS
+#ifndef CAML_RUNTIME_5
+#define CAML_NAME_SPACE
+#endif
 
 #include <caml/mlvalues.h>
 #include <caml/domain_state.h>
@@ -16,7 +19,12 @@ CAMLprim value request_minor_gc(value v) {
     tests are only run in a single domain, so we're probably
     good.
   */
+#if CAML_RUNTIME_5
   Caml_state->young_limit = (uintnat)Caml_state->young_end;
+#else
+  caml_something_to_do = 1;
+  Caml_state->young_limit = Caml_state->young_alloc_end;
+#endif
 
   return Val_unit;
 }
