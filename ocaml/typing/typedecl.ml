@@ -351,14 +351,14 @@ let transl_labels ~new_var_jkind env univars closed lbls =
           pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
-         let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
            | Mutable -> Mode.Global_flag.Global
-           | Immutable -> Typemexp.transl_global_flags
-              (Jane_syntax.Mode_expr.of_attrs attrs |> fst)
+           | Immutable -> Typemode.transl_global_flags
+              (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
          in
+         let arg = Ast_helper.Typ.force_poly arg in
+         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -387,7 +387,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
 let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = Typemexp.transl_global_flags
+    let gf = Typemode.transl_global_flags
       (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
     (cty, gf)
   in

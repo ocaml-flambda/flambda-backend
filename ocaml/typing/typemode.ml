@@ -1,5 +1,6 @@
 open Location
 open Mode
+open Jane_syntax
 
 type error = Duplicated_mode of Axis.t
 
@@ -9,7 +10,8 @@ let transl_mode_annots modes =
   let rec loop (acc : Alloc.Const.Option.t) : _ -> Alloc.Const.Option.t =
     function
     | [] -> acc
-    | { txt; loc } :: rest ->
+    | m :: rest ->
+      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
       Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
       let acc =
         match txt with
@@ -25,7 +27,7 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Linearity.Const.Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
-        | _ -> assert false (* would not be parsed *)
+        | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
       in
       loop acc rest
   in
@@ -34,16 +36,17 @@ let transl_mode_annots modes =
 let transl_global_flags gfs =
   let rec loop (acc : Global_flag.t) : _ -> Global_flag.t = function
     | [] -> acc
-    | { txt; loc } :: rest ->
+    | m :: rest ->
+      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
       let acc =
         match txt with
         | "global" -> (
           Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
           match acc with
           | Unrestricted -> Global_flag.Global
-          | _ -> assert false
-          (* would not be parsed *))
-        | _ -> assert false (* would not be parsed *)
+          | Global ->
+            Misc.fatal_error "Duplicated global modality - should not parse")
+        | s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
       in
       loop acc rest
   in

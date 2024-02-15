@@ -1714,7 +1714,7 @@ typing/typecore.cmo : \
     typing/uniqueness_analysis.cmi \
     typing/typetexp.cmi \
     typing/types.cmi \
-    typing/typemexp.cmi \
+    typing/typemode.cmi \
     typing/typedtree.cmi \
     typing/typedecl.cmi \
     typing/subst.cmi \
@@ -1755,7 +1755,7 @@ typing/typecore.cmx : \
     typing/uniqueness_analysis.cmx \
     typing/typetexp.cmx \
     typing/types.cmx \
-    typing/typemexp.cmx \
+    typing/typemode.cmx \
     typing/typedtree.cmx \
     typing/typedecl.cmx \
     typing/subst.cmx \
@@ -1809,7 +1809,7 @@ typing/typedecl.cmo : \
     utils/warnings.cmi \
     typing/typetexp.cmi \
     typing/types.cmi \
-    typing/typemexp.cmi \
+    typing/typemode.cmi \
     typing/typedtree.cmi \
     typing/typedecl_variance.cmi \
     typing/typedecl_separability.cmi \
@@ -1845,7 +1845,7 @@ typing/typedecl.cmx : \
     utils/warnings.cmx \
     typing/typetexp.cmx \
     typing/types.cmx \
-    typing/typemexp.cmx \
+    typing/typemode.cmx \
     typing/typedtree.cmx \
     typing/typedecl_variance.cmx \
     typing/typedecl_separability.cmx \
@@ -2014,17 +2014,17 @@ typing/typedtree.cmi : \
     typing/ident.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi
-typing/typemexp.cmo : \
+typing/typemode.cmo : \
     typing/mode.cmi \
     parsing/location.cmi \
     parsing/jane_syntax_parsing.cmi \
-    typing/typemexp.cmi
-typing/typemexp.cmx : \
+    typing/typemode.cmi
+typing/typemode.cmx : \
     typing/mode.cmx \
     parsing/location.cmx \
     parsing/jane_syntax_parsing.cmx \
-    typing/typemexp.cmi
-typing/typemexp.cmi : \
+    typing/typemode.cmi
+typing/typemode.cmi : \
     typing/mode.cmi \
     parsing/jane_syntax.cmi
 typing/typemod.cmo : \
@@ -2215,7 +2215,7 @@ typing/types.cmi : \
     parsing/asttypes.cmi
 typing/typetexp.cmo : \
     typing/types.cmi \
-    typing/typemexp.cmi \
+    typing/typemode.cmi \
     typing/typedtree.cmi \
     typing/printtyp.cmi \
     typing/predef.cmi \
@@ -2241,7 +2241,7 @@ typing/typetexp.cmo : \
     typing/typetexp.cmi
 typing/typetexp.cmx : \
     typing/types.cmx \
-    typing/typemexp.cmx \
+    typing/typemode.cmx \
     typing/typedtree.cmx \
     typing/printtyp.cmx \
     typing/predef.cmx \

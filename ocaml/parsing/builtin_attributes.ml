@@ -91,6 +91,9 @@ let builtin_attrs =
   ; "afl_inst_ratio"; "ocaml.afl_inst_ratio"
   ; "local_opt"; "ocaml.local_opt"
   ; "curry"; "ocaml.curry"; "extension.curry"
+  (* [local] and [global] are never used and always trigger warning 53 *)
+  ; "global"; "ocaml.global"; "extension.global"
+  ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
   ; "tail"; "ocaml.tail"; "extension.tail"
   ; "noalloc"; "ocaml.noalloc"

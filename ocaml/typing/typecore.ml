@@ -228,7 +228,6 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-  | Invalid_mode_coercion
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -826,15 +825,15 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
 
 let alloc_mode_from_exp_attrs exp =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs exp.pexp_attributes in
-  Typemexp.transl_alloc_mode modes
+  Typemode.transl_alloc_mode modes
 
 let alloc_mode_from_pat_attrs pat =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes in
-  Typemexp.transl_alloc_mode modes
+  Typemode.transl_alloc_mode modes
 
 let mode_annots_from_pat_attrs pat =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes in
-  Typemexp.transl_mode_annots modes
+  Typemode.transl_mode_annots modes
 
 let apply_mode_annots ~loc ~env ~ty_expected (m : Alloc.Const.Option.t) mode =
   let error axis =
@@ -3903,10 +3902,14 @@ end = struct
       | Pexp_apply
           ({ pexp_desc = Pexp_extension(
              {txt; _}, payload); pexp_loc },
-           [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
+           [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.extension_name ->
           let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
-          if List.exists (fun {txt; _} -> txt = "local") modes.txt
-            then Local e.pexp_loc
+          if List.exists
+            (fun m ->
+              let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+              txt = "local")
+            modes.txt
+          then Local e.pexp_loc
           else loop exp
       | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
                                                   None) } ->
@@ -4148,7 +4151,7 @@ let rec type_approx env sexp ty_expected =
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
          {txt; _}, _) },
-       [Nolabel, e]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
+       [Nolabel, e]) when txt = Jane_syntax.Mode_expr.extension_name ->
     type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
@@ -4933,7 +4936,10 @@ let may_lower_contravariant_then_generalize env exp =
 
 let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attributes=attrs; _ } =
   let open Ast_helper in
-  let mode_annot_attrs, _ = Jane_syntax.Mode_expr.partition_attrs attrs in
+  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
+  let mode_annot_attrs =
+    Option.fold ~none:[] ~some:(fun x -> [x]) mode_annot_attr
+  in
   match ct with
   | None -> expr
   | Some (Pvc_constraint { locally_abstract_univars=[]; typ }) ->
@@ -4954,7 +4960,10 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
-  let mode_annot_attrs, _ = Jane_syntax.Mode_expr.partition_attrs attrs in
+  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
+  let mode_annot_attrs =
+    Option.fold ~none:[] ~some:(fun x -> [x]) mode_annot_attr
+  in
   let spat =
     let open Ast_helper in
     match vb.pvb_constraint, pat.ppat_desc, exp.pexp_desc with
@@ -5216,9 +5225,10 @@ and type_expect_
       Misc.fatal_error "non-Jane-Syntax [Pexp_function] made it to typechecking"
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt; _}, payload); pexp_loc},
-        [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
+        [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
       let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
       let expected_mode = List.fold_left (fun expected_mode mode ->
+          let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
           match mode.txt with
           | "unique" ->
             let expected_mode = mode_unique expected_mode in
@@ -5233,8 +5243,8 @@ and type_expect_
             submode ~loc ~env ~reason:Other
               (Value.min_with_regionality Regionality.local) expected_mode;
             mode_strictly_local expected_mode
-          | _ ->
-            raise (Error (mode.loc, env, Invalid_mode_coercion))
+          | s ->
+            Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
           ) expected_mode modes.txt
       in
       let exp =
@@ -6453,7 +6463,7 @@ and type_constraint_expect
   let ret, ty, exp_extra =
     let open Jane_syntax.N_ary_functions in
     let { type_constraint = constraint_; mode_annotations } = constraint_ in
-    let type_mode = Typemexp.transl_alloc_mode mode_annotations in
+    let type_mode = Typemode.transl_alloc_mode mode_annotations in
     match constraint_ with
     | Pcoerce (ty_constrain, ty_coerce) ->
         type_coerce constraint_arg env expected_mode loc ty_constrain ty_coerce
@@ -8167,7 +8177,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({
           txt}, _) },
-        [Nolabel, e]) when txt=Jane_syntax.Mode_expr.embedded_name_str
+        [Nolabel, e]) when txt=Jane_syntax.Mode_expr.extension_name
         -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
@@ -10026,9 +10036,6 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Invalid_mode_coercion ->
-      Location.errorf ~loc
-        "@[Unrecognized mode for coercion.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

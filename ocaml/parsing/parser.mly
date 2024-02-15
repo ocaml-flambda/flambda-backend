@@ -154,38 +154,39 @@ let mk_attr ~loc name payload =
 result from native syntax which is only parsed at proper places that are
 guaranteed to be used. *)
 let mkexp_with_modes ?(ghost=false) loc modes exp =
-  if Mode.is_empty modes then exp
-  else
-  let loc =
-    if ghost then ghost_loc loc else make_loc loc
-  in
-  let payload = Mode.payload_of modes in
-  let ext =
-    (* Use the loc of the annotation as the loc of the extension node *)
-    Exp.extension ~loc:modes.loc (
-      Location.mknoloc Mode.embedded_name_str,
-      payload
-    )
-  in
-  Exp.apply ~loc ext [Nolabel, exp]
+  match Mode.payload_of modes with
+  | None -> exp
+  | Some payload ->
+      let loc =
+        if ghost then ghost_loc loc else make_loc loc
+      in
+      let ext =
+        (* Use the loc of the annotation as the loc of the extension node *)
+        Exp.extension ~loc:modes.loc (
+          Location.mknoloc Mode.extension_name,
+          payload
+        )
+      in
+      Exp.apply ~loc ext [Nolabel, exp]
 
 let mkpat_with_modes modes pat =
-  if Mode.is_empty modes then pat
-  else
-  let attr = Mode.attr_of modes in
-  {pat with
-   ppat_attributes = attr :: pat.ppat_attributes}
+  match Mode.attr_of modes with
+  | None -> pat
+  | Some attr ->
+      {pat with
+      ppat_attributes = attr :: pat.ppat_attributes}
 
 let mktyp_with_modes modes typ =
-  if Mode.is_empty modes then typ
-  else
-  let attr = Mode.attr_of modes in
-  {typ with
-   ptyp_attributes = attr :: typ.ptyp_attributes}
+  match Mode.attr_of modes with
+  | None -> typ
+  | Some attr ->
+      {typ with
+      ptyp_attributes = attr :: typ.ptyp_attributes}
 
 let let_binding_mode_attrs modes =
-  if Mode.is_empty modes then []
-  else [Mode.attr_of modes]
+  match Mode.attr_of modes with
+  | None -> []
+  | Some attr -> [attr]
 
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
@@ -212,19 +213,10 @@ let maybe_curry_typ typ loc =
       else mktyp_curry typ (make_loc loc)
   | _ -> typ
 
-let mkld_modality modalities ld =
-  if Mode.is_empty modalities
-  then ld
-  else
-  let attr = Mode.attr_of modalities in
-  { ld with pld_attributes = attr :: ld.pld_attributes }
-
 let mkcty_modality modalities cty =
-  if Mode.is_empty modalities
-  then cty
-  else
-  let attr = Mode.attr_of modalities in
-  { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
+  match Mode.attr_of modalities with
+  | None -> cty
+  | Some attr -> { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
 
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
@@ -2740,8 +2732,7 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode_legacy seq_expr
-     { let {txt; loc} = $1 in
-       mkexp_with_modes $sloc (Mode.singleton txt loc) $2 }
+     { mkexp_with_modes $sloc (Mode.singleton $1) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2875,10 +2866,7 @@ comprehension_clause_binding:
      We have to have that as a separate rule here because it moves the [local_]
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes mode_legacy pattern IN expr
-      { let {txt; loc} = $2 in
-        let expr =
-          mkexp_with_modes $sloc (Mode.singleton txt loc) $5
-        in
+      { let expr = mkexp_with_modes $sloc (Mode.singleton $2) $5 in
         Jane_syntax.Comprehensions.
           { pattern    = $3
           ; iterator   = In expr
@@ -3971,8 +3959,8 @@ label_declaration:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
         let mut, gbl = $1 in
-        mkld_modality gbl
-          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info)}
+        let typ = mkcty_modality gbl $4 in
+        Type.field $2 typ ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info}
 ;
 label_declaration_semi:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
@@ -3983,8 +3971,8 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, gbl = $1 in
-       mkld_modality gbl
-         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info)}
+       let typ = mkcty_modality gbl $4 in
+       Type.field $2 typ ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info}
 ;
 
 /* Type Extensions */
@@ -4255,11 +4243,11 @@ strict_function_or_labeled_tuple_type:
 ;
 %inline mode_legacy:
    | LOCAL
-       { mkloc "local" (make_loc $sloc) }
+       { Mode.Const.mk "local" (make_loc $sloc) }
    | UNIQUE
-       { mkloc "unique" (make_loc $sloc) }
+       { Mode.Const.mk "unique" (make_loc $sloc) }
    | ONCE
-       { mkloc "once" (make_loc $sloc) }
+       { Mode.Const.mk "once" (make_loc $sloc) }
 ;
 
 %inline mode_expr_legacy_nonempty:
@@ -4703,11 +4691,11 @@ mutable_or_global_flag:
   | MUTABLE
     { Mutable, Mode.empty }
   | GLOBAL
-    { Immutable, Mode.singleton "global" (make_loc $sloc) }
+    { Immutable, Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
 ;
 %inline global_flag:
            { Mode.empty }
-  | GLOBAL { Mode.singleton "global" (make_loc $sloc) }
+  | GLOBAL { Mode.singleton (Mode.Const.mk "global" (make_loc $sloc)) }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

@@ -401,58 +401,107 @@ end = struct
 end
 
 module Mode_expr = struct
-  type t = string Location.loc list Location.loc
+  module Const : sig
+    type raw = string
+
+    type t = private raw Location.loc
+
+    val mk : string -> Location.t -> t
+
+    val list_as_payload : t list -> payload
+
+    val list_from_payload : loc:Location.t -> payload -> t list
+  end = struct
+    type raw = string
+
+    module Protocol = Make_payload_protocol_of_stringable (struct
+      type t = raw
+
+      let indefinite_article_and_name = "a", "mode"
+
+      let to_string s = s
+
+      (* Ideally, we should check that [s] consists of only alphabet and numbers.
+         However, this func *)
+
+      let of_string' s = s
+
+      let of_string s = Some (of_string' s)
+    end)
+
+    let list_as_payload = Protocol.Encode.list_as_payload
+
+    let list_from_payload = Protocol.Decode.list_from_payload
+
+    type t = raw Location.loc
+
+    let mk txt loc : t = { txt; loc }
+  end
+
+  type t = Const.t list Location.loc
 
   let empty = Location.mknoloc []
 
-  let singleton mode loc = Location.mkloc [Location.mkloc mode loc] loc
+  let singleton const =
+    let const' = (const : Const.t :> _ Location.loc) in
+    Location.mkloc [const] const'.loc
 
-  let is_empty { txt; _ } = match txt with [] -> true | _ -> false
+  let feature : Feature.t = Language_extension Mode
 
-  let embedded_name = Embedded_name.of_feature (Language_extension Mode) []
+  let attribute_components = []
 
-  let embedded_name_str = Embedded_name.to_string embedded_name
+  let extension_components = []
 
-  module Payload_protocol_of_mode = Make_payload_protocol_of_stringable (struct
-    type t = string
+  let attribute_name =
+    Embedded_name.of_feature feature attribute_components
+    |> Embedded_name.to_string
 
-    let indefinite_article_and_name = "a", "mode"
-
-    let to_string s = s
-
-    let of_string s = Some s
-  end)
+  let extension_name =
+    Embedded_name.of_feature feature extension_components
+    |> Embedded_name.to_string
 
   let payload_of { txt; _ } =
-    Payload_protocol_of_mode.Encode.list_as_payload txt
+    match txt with
+    | [] -> None
+    | _ :: _ as txt -> Some (Const.list_as_payload txt)
 
   let of_payload ~loc payload =
-    let l = Payload_protocol_of_mode.Decode.list_from_payload ~loc payload in
-    Location.mkloc l loc
+    let l = Const.list_from_payload ~loc payload in
+    match l with
+    | [] ->  Misc.fatal_error "Payload encoding empty mode expression";
+    | _ :: _ -> Location.mkloc l loc
 
-  let partition_attrs attrs =
-    List.partition
-      (fun { attr_name; _ } -> attr_name.txt = embedded_name_str)
-      attrs
+  let extract_attr attrs =
+    let attrs, rest =
+      List.partition
+        (fun { attr_name; _ } -> attr_name.txt = attribute_name)
+        attrs
+    in
+    match attrs with
+    | [] -> None, rest
+    | [attr] -> Some attr, rest
+    | _ :: _ :: _ -> Misc.fatal_error "More than one mode attribute"
 
   let of_attr { attr_payload; attr_loc; _ } =
     of_payload ~loc:attr_loc attr_payload
 
+  let maybe_of_attrs attrs =
+    let attr, rest = extract_attr attrs in
+    let mode = Option.map of_attr attr in
+    mode, rest
+
   let of_attrs attrs =
-    let attrs, rest = partition_attrs attrs in
-    let mode =
-      match attrs with
-      | [] -> empty
-      | [attr] -> of_attr attr
-      | _ -> assert false
-    in
+    let mode, rest = maybe_of_attrs attrs in
+    let mode = Option.value mode ~default:empty in
     mode, rest
 
   let attr_of modes =
-    let attr_name = Location.mknoloc embedded_name_str in
-    let attr_loc = modes.loc in
-    let attr_payload = payload_of modes in
-    { attr_name; attr_loc; attr_payload }
+    match payload_of modes with
+    | None -> None
+    | Some attr_payload ->
+      let attr_name = Location.mknoloc attribute_name in
+      let attr_loc = modes.loc in
+      Some { attr_name; attr_loc; attr_payload }
 end
 
 (** List and array comprehensions *)
@@ -770,7 +819,7 @@ module N_ary_functions = struct
       | Fun_then Constraint_then_cases -> ["constraint"; "cases"], None
       | Mode_constraint modes ->
         let payload = Mode_expr.payload_of modes in
-        ["mode_constraint"], Some payload
+        ["mode_constraint"], payload
       | Jkind_annotation jkind_annotation ->
         let payload = Jkind_annotation.Encode.as_payload jkind_annotation in
         ["jkind_annotation"], Some payload

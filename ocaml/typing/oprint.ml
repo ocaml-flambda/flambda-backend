@@ -468,8 +468,12 @@ and print_out_type_mode ~arg mode ppf ty =
     is_initially_labeled_tuple ty
     && (arg || is_local || is_unique || is_once)
   in
-  (* Print mode annotations regardless of `mode` extension,
-     just to be "correct"*)
+  (* NON-LEGACY MODES
+     Here, we are printing mode annotations even if the mode extension is
+     disabled. Mode extension being disabled means mode annotations are
+     disallowed in parsing of this file, but non-legacy modes might still pop
+     up. For example, the current file might cite values from other files that
+     mention non-legacy modes *)
   if is_local then begin
     pp_print_string ppf "local_";
     pp_print_space ppf () end;
@@ -615,7 +619,7 @@ and print_typargs ppf =
       pp_close_box ppf ();
       pp_print_space ppf ()
 and print_out_label ppf (name, mut_or_gbl, arg) =
-  (* Print modalities regardless of `mode` extension *)
+  (* See the notes [NON-LEGACY MODES] *)
   let flag =
     match mut_or_gbl with
     | Ogom_mutable -> "mutable "
@@ -961,7 +965,7 @@ and print_out_type_decl kwd ppf td =
 and print_simple_out_gf_type ppf (ty, gf) =
   match gf with
   | Ogf_global ->
-      (* Printing modalities regardless of `mode` extension *)
+      (* See the notes [NON-LEGACY MODES] *)
       pp_print_string ppf "global_";
       pp_print_space ppf ();
       print_simple_out_type ppf ty

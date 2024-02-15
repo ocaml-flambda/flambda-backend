@@ -112,44 +112,65 @@ module Mode_expr : sig
   are specifying modalities.
 
   In the future the three annotations will be quite different, but for now they
-  are all lists of modes/modalities. [Typemexp] has the three different
+  are all lists of modes/modalities. [Typemode] has the three different
   interpretations of the annotation.
 
   (TODO: in the future we will have mutable(...), which is similar to the second
   occurrence above and should be covered by this module)
   *)
-  type t = string Location.loc list Location.loc
+
+  module Const : sig
+    (** Constant modes *)
+
+    type raw = string
+
+    (** Represent a user-written mode constant, containing a string and its
+        location *)
+    type t = private raw Location.loc
+
+    (** Constructs a mode constant mode *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t = Const.t list Location.loc
 
   (** The empty mode expression. *)
   val empty : t
 
   (** The mode expression containing a single mode constant. *)
-  val singleton : string -> Location.t -> t
+  val singleton : Const.t -> t
 
-  (** The string used to mark attributes/extensions as containing mode
-      expressions.  *)
-  val embedded_name_str : string
+  (** The string used to mark extensions as containing mode expressions. *)
+  val extension_name : string
 
-  (** Checks if the given mode expression is empty. *)
-  val is_empty : t -> bool
+  (** The string used to mark attributes as containing mode expressions. *)
+  val attribute_name : string
 
-  (** Partitions a list of attributes into two lists: those with mode expressions
-      , and those don't. *)
-  val partition_attrs :
-    Parsetree.attributes -> Parsetree.attributes * Parsetree.attributes
+  (** Extract the mode attribute (if any) from a list of attributes; also
+      returns the rest of the attributes; Raises if multiple relevant attributes
+      are found *)
+  val extract_attr :
+    Parsetree.attributes -> Parsetree.attribute option * Parsetree.attributes
 
-  (** Encode a mode expression into a [attribute] *)
-  val attr_of : t -> Parsetree.attribute
+  (** Encode a mode expression into a [attribute]. If the expression is safe to
+      empty (and thus safe to ignore), returns [None]. *)
+  val attr_of : t -> Parsetree.attribute option
 
-  (** Given a list of attributes, extracts mode expressions and returns the rest
-      of attributes. Raises if mode expressions are found in multiple attributes.
-         *)
+  (** Given a list of attributes, extracts the mode expression and returns the
+      rest of attributes. Raises if multiple relevant attributes are found.
+      Raises if attributes encodes empty mode expression *)
+  val maybe_of_attrs : Parsetree.attributes -> t option * Parsetree.attributes
+
+  (* Similar to [maybe_of_attrs], but default to [empty] if no relevant
+      attribute is found.  *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
-  (** Encodes a mode expression into a [payload]. *)
-  val payload_of : t -> Parsetree.payload
+  (** Encodes a mode expression into a [payload]. If the expression is safe to
+      ignore (i.e. empty), returns [None]. *)
+  val payload_of : t -> Parsetree.payload option
 
-  (** Decode a mode expression from a [payload] whose location is [loc]. *)
+  (** Decode a mode expression from a [payload] whose location is [loc]. Raises
+      if the payload encodes an empty mode expression. *)
   val of_payload : loc:Location.t -> Parsetree.payload -> t
 end
 

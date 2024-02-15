@@ -306,14 +306,14 @@ let string_quot f x = pp f "`%s" x
 
 let maybe_modes m =
   let l =
-    List.map (fun {txt; _} ->
+    List.map (fun m ->
+      let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
       match txt with
       | "local" -> "local_"
       | "unique" -> "unique_"
       | "once" -> "once_"
       | "global" -> "global_" (* global modality *)
-      (* Other strings won't be parsed anyway *)
-      | _ -> assert false
+      | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
     ) m.txt
   in
   match l with
@@ -838,7 +838,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt; _}, payload);
          pexp_loc },
-       [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
+       [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
         let modes = maybe_modes_of_payload ~loc:pexp_loc payload in
         let modes = Option.get modes in
         pp f "@[<2>%s %a@]" modes (expression ctxt) sbody
@@ -1599,7 +1599,7 @@ and bindings ctxt f (rf,l) =
       match modes, x.pvb_expr.pexp_desc with
       | Some _ , Pexp_apply
           ({ pexp_desc = Pexp_extension({txt; _}, _) },
-           [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.embedded_name_str ->
+           [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
           {x with pvb_expr = sbody}
       | _ -> x
     in
@@ -1816,13 +1816,16 @@ and record_declaration ctxt f lbls =
     | None -> ()
   in
   let type_record_field f pld =
-    let modalities, pld_attributes = maybe_modes_of_attrs pld.pld_attributes in
+    let modalities, ptyp_attributes =
+      maybe_modes_of_attrs pld.pld_type.ptyp_attributes
+    in
+    let pld_type = {pld.pld_type with ptyp_attributes} in
     pp f "@[<2>%a%a%s:@;%a@;%a@]"
       mutable_flag pld.pld_mutable
       field_modalities modalities
       pld.pld_name.txt
-      (core_type ctxt) pld.pld_type
-      (attributes ctxt) pld_attributes
+      (core_type ctxt) pld_type
+      (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls

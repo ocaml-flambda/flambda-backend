@@ -259,10 +259,7 @@ let iterator =
        checks for attribute payloads.  See comment on [attr_tracking_time] in
        [builtin_attributes.mli]. *)
     super.attribute { self with attribute = super.attribute } attr;
-    (* CR zqian: I'm not sure about this dirty hack. Basically, mode-syntax
-       attributes should not be registered - how to do that cleanly? *)
-    if not (attr.attr_name.txt = Jane_syntax.Mode_expr.embedded_name_str) then
-      Builtin_attributes.(register_attr Invariant_check attr.attr_name)
+    Builtin_attributes.(register_attr Invariant_check attr.attr_name)
   in
   { super with
     type_declaration

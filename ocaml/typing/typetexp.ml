@@ -589,7 +589,7 @@ let get_type_param_name styp =
 
 let get_alloc_mode styp =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes in
-  Typemexp.transl_alloc_mode modes
+  Typemode.transl_alloc_mode modes
 
 let rec extract_params styp =
   let final styp =

@@ -243,10 +243,7 @@ module Embedded_name : sig
 
   val components : t -> components
 
-  (** Convert one of these Jane syntax names to the embedded string form used in
-      the OCaml AST as the name of an extension node or an attribute; exposed
-      for extensions that only uses [Embedded_name] instead of the whole
-      infrastructure in this module, such as the dummy argument extension *)
+  (** See the mli. *)
   val to_string : t -> string
 
   (** Parse a Jane syntax name from the OCaml AST, either as the name of an
@@ -787,6 +784,10 @@ module type AST = sig
     of_ast_internal:(Feature.t -> ast -> 'a option) -> ast -> 'a option
 end
 
+(* Most of our features make full use of the Jane Syntax framework, which
+   encodes information in a specific way (e.g., payload left empty on purpose).
+   It is therefore nice to check that these conditions are met. This functions
+   returns [true] if the given feature needs these extra checks. *)
 let needs_extra_checks = function
   | Feature.Language_extension Mode -> false
   | _ -> true

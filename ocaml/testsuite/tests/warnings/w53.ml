@@ -226,6 +226,40 @@ module TestLocalOptStruct = struct
   external z : int64 -> int64 = "x" [@@local_opt] (* rejected *)
 end
 
+module type TestLocalGlobalSig = sig
+  (* All will be rejected, as we no longer support mode attributes *)
+  type 'a t1 = 'a [@local]
+  type 'a t1' = 'a [@global]
+
+  type t2 = { x : int [@local] }
+  type t2' = { x : int [@global] }
+
+  val x : 'a list -> ('a [@local]) list
+  val x' : 'a list -> ('a [@global]) list
+
+  val y : 'a -> f:(('a -> 'b) [@local]) -> 'b
+  val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b
+
+  val z : 'a [@@local]
+  val z' : 'a [@@global]
+
+  val w : 'a [@@@local]
+  val w' : 'a [@@@global]
+end
+
+module TestLocalGlobalStruct = struct
+  (* All will be rejected, as we no longer support mode attributes *)
+  type 'a t1 = 'a [@local]
+  type 'a t1' = 'a [@global]
+
+  type t2 = { x : int [@local] }
+  type t2' = { x : int [@global] }
+
+  let f (a [@local]) = a
+  let g (a [@global]) = a
+end
+
+
 module type TestTail = sig
   type 'a t1 = 'a [@tail] (* rejected *)
   type 'a t1' = 'a [@nontail] (* rejected *)
