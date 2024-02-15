@@ -109,6 +109,8 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
 (* CR xclerc for xclerc: try to find a reasonable threshold. *)
 let max_rounds = 32
 
+let max_temp_multiplier = 10
+
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
    spill. *)
@@ -118,6 +120,12 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
+  if State.introduced_temporary_count state
+     > State.initial_temporary_count state * max_temp_multiplier
+  then
+    fatal "register allocation introduced %d temporaries after starting with %d"
+      (State.introduced_temporary_count state)
+      (State.initial_temporary_count state);
   if gi_debug
   then (
     log ~indent:0 "main, round #%d" round;
@@ -242,10 +250,10 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (* CR xclerc for xclerc: consider moving the computation of temporaries and
      the creation of the state to `prelude`. *)
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
-  if gi_debug
-  then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
+  let initial_temporaries = Reg.Set.cardinal all_temporaries in
+  if gi_debug then log ~indent:0 "#temporaries=%d" initial_temporaries;
   let state =
-    State.make ~stack_slots
+    State.make ~stack_slots ~initial_temporaries
       ~next_instruction_id:(succ cfg_infos.max_instruction_id)
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
