@@ -1,9 +1,11 @@
 (* TEST
+   * skip
+   reason = "Flambda 2 doesn't lift mutable arrays"
    modules = "is_in_static_data.c simple_float_const.ml"
-   * flambda
-   ** flat-float-array
-   *** naked_pointers
-   **** native
+   ** flambda
+   *** flat-float-array
+   **** naked_pointers
+   ***** native
 *)
 
 external is_in_static_data : 'a -> bool = "caml_is_in_static_data"

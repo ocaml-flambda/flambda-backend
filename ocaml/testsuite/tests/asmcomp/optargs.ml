@@ -9,6 +9,8 @@
    Ref: http://caml.inria.fr/mantis/view.php?id=6345
 *)
 
+(* CR vlaviron: see if we can make it work with Oclassic *)
+[@@@flambda_o3]
 
 let rec f ?(flag = false) ?(acc = 0) = function
   | [] -> if flag then acc else acc + 1
