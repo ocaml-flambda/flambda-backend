@@ -272,6 +272,9 @@ module Float_arrays = struct
   external float_array_get_float64x2 : float array -> int -> float64x2 = "%caml_float_array_get128"
   external float_array_get_float64x2_unsafe : float array -> int -> float64x2 = "%caml_float_array_get128u"
 
+  external float_iarray_get_float64x2 : float iarray -> int -> float64x2 = "%caml_float_array_get128"
+  external float_iarray_get_float64x2_unsafe : float iarray -> int -> float64x2 = "%caml_float_array_get128u"
+
   external float_array_set_float64x2 : float array -> int -> float64x2 -> unit = "%caml_float_array_set128"
   external float_array_set_float64x2_unsafe : float array -> int -> float64x2 -> unit = "%caml_float_array_set128u"
 
@@ -290,6 +293,7 @@ module Float_arrays = struct
   *)
 
   let float_array () = [| 0.0; 1.0; 2.0; 3.0 |]
+  let float_iarray () = [: 0.0; 1.0; 2.0; 3.0 :]
   let floatarray () =
     let a = Array.Floatarray.create 4 in
     Array.Floatarray.set a 0 0.0;
@@ -432,12 +436,46 @@ module Float_arrays = struct
     fail a 1;
     fail a (-1)
   ;;
+
+  let () =
+    let float_iarray = float_iarray () in
+    let _01 = f64x2 0.0 1.0 in
+    let _12 = f64x2 1.0 2.0 in
+    let get = float_iarray_get_float64x2_unsafe float_iarray 0 in
+    eq (float64x2_low_int64 _01) (float64x2_high_int64 _01)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+    let get = float_iarray_get_float64x2_unsafe float_iarray 1 in
+    eq (float64x2_low_int64 _12) (float64x2_high_int64 _12)
+       (float64x2_low_int64 get) (float64x2_high_int64 get);
+  ;;
+
+  let () =
+    let a = float_iarray () in
+    let _0 = f64x2 0.0 0.0 in
+    let fail a i =
+      try
+        let _ = float_iarray_get_float64x2 a i in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ();
+    in
+    fail a (-1);
+    fail a 3;
+    fail a 4;
+    fail [::] 0;
+    let a = [: 0.0 :] in
+    fail a 0;
+    fail a 1;
+    fail a (-1)
+  ;;
 end
 
 module Int_arrays = struct
 
   external int_array_get_int64x2 : int array -> int -> int64x2 = "%caml_int_array_get128"
   external int_array_get_int64x2_unsafe : int array -> int -> int64x2 = "%caml_int_array_get128u"
+
+  external int_iarray_get_int64x2 : int iarray -> int -> int64x2 = "%caml_int_array_get128"
+  external int_iarray_get_int64x2_unsafe : int iarray -> int -> int64x2 = "%caml_int_array_get128u"
 
   external int_array_set_int64x2 : int array -> int -> int64x2 -> unit = "%caml_int_array_set128"
   external int_array_set_int64x2_unsafe : int array -> int -> int64x2 -> unit = "%caml_int_array_set128u"
@@ -465,6 +503,7 @@ module Int_arrays = struct
   let i64x2 x y = int64x2_of_int64s x y
   let tag i = Int64.(add (shift_left i 1) 1L)
   let int_array () = [| 0; 1; 2; 3 |]
+  let int_iarray () = [: 0; 1; 2; 3 :]
 
   let () =
     let int_array = int_array () in
@@ -532,5 +571,35 @@ module Int_arrays = struct
     fail [|0|] 0;
     fail [|0|] 1;
     fail [|0|] (-1)
+  ;;
+
+  let () =
+    let int_iarray = int_iarray () in
+    let _01 = i64x2 (tag 0L) (tag 1L) in
+    let _12 = i64x2 (tag 1L) (tag 2L) in
+    let get = int_iarray_get_int64x2_unsafe int_iarray 0 in
+    eq (int64x2_low_int64 _01) (int64x2_high_int64 _01)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+    let get = int_iarray_get_int64x2_unsafe int_iarray 1 in
+    eq (int64x2_low_int64 _12) (int64x2_high_int64 _12)
+       (int64x2_low_int64 get) (int64x2_high_int64 get);
+  ;;
+
+  let () =
+    let a = int_iarray () in
+    let _0 = i64x2 (tag 0L) (tag 0L) in
+    let fail a i =
+      try
+        let _ = int_iarray_get_int64x2 a i in
+        Printf.printf "Did not fail on index %d\n" i
+      with | Invalid_argument s when s = "index out of bounds" -> ();
+    in
+    fail a (-1);
+    fail a 3;
+    fail a 4;
+    fail [::] 0;
+    fail [: 0 :] 0;
+    fail [: 0 :] 1;
+    fail [: 0 :] (-1)
   ;;
 end
