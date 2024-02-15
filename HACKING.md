@@ -1,4 +1,4 @@
-# Hacking on the Flambda backend
+# Hacking on the Flambda backend.
 
 This page is intended to keep track of useful information for people who
 want to modify the Flambda backend.  Jump to:
