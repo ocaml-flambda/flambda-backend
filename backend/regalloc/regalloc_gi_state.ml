@@ -7,13 +7,19 @@ type t =
   { mutable assignments : Hardware_register.location Reg.Map.t;
     mutable introduced_temporaries : Reg.Set.t;
     stack_slots : Regalloc_stack_slots.t;
-    mutable next_instruction_id : Instruction.id
+    mutable next_instruction_id : Instruction.id;
+    initial_temporaries : int
   }
 
-let[@inline] make ~stack_slots ~next_instruction_id =
+let[@inline] make ~initial_temporaries ~stack_slots ~next_instruction_id =
   let assignments = Reg.Map.empty in
   let introduced_temporaries = Reg.Set.empty in
-  { assignments; introduced_temporaries; stack_slots; next_instruction_id }
+  { assignments;
+    introduced_temporaries;
+    stack_slots;
+    next_instruction_id;
+    initial_temporaries
+  }
 
 let[@inline] add_assignment state reg ~to_ =
   state.assignments <- Reg.Map.add reg to_ state.assignments
@@ -38,6 +44,8 @@ let[@inline] iter_introduced_temporaries state ~f =
 
 let[@inline] introduced_temporary_count state =
   Reg.Set.cardinal state.introduced_temporaries
+
+let[@inline] initial_temporary_count state = state.initial_temporaries
 
 let[@inline] stack_slots state = state.stack_slots
 

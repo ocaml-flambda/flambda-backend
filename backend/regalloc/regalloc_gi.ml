@@ -114,23 +114,18 @@ let max_temp_multiplier = 10
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
    spill. *)
-let rec main :
-    round:int ->
-    flat:bool ->
-    temporaries:int ->
-    State.t ->
-    Cfg_with_infos.t ->
-    unit =
- fun ~round ~flat ~temporaries state cfg_with_infos ->
+let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~round ~flat state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  let introduced = State.introduced_temporary_count state in
-  if introduced > temporaries * max_temp_multiplier
+  if State.introduced_temporary_count state
+     > State.initial_temporary_count state * max_temp_multiplier
   then
     fatal "register allocation introduced %d temporaries after starting with %d"
-      introduced temporaries;
+      (State.introduced_temporary_count state)
+      (State.initial_temporary_count state);
   if gi_debug
   then (
     log ~indent:0 "main, round #%d" round;
@@ -241,7 +236,7 @@ let rec main :
         ~spilled_nodes:(List.map spilled_nodes ~f:fst)
     with
     | false -> if gi_debug then log ~indent:1 "(end of main)"
-    | true -> main ~round:(succ round) ~flat ~temporaries state cfg_with_infos)
+    | true -> main ~round:(succ round) ~flat state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -258,7 +253,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   let temporaries = Reg.Set.cardinal all_temporaries in
   if gi_debug then log ~indent:0 "#temporaries=%d" temporaries;
   let state =
-    State.make ~stack_slots
+    State.make ~stack_slots ~initial_temporaries:temporaries
       ~next_instruction_id:(succ cfg_infos.max_instruction_id)
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
@@ -276,7 +271,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     | Hierarchical_uses -> false
     | Random_for_testing -> Spilling_heuristics.random ()
   in
-  main ~round:1 ~flat ~temporaries state cfg_with_infos;
+  main ~round:1 ~flat state cfg_with_infos;
   if gi_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
