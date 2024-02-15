@@ -1796,9 +1796,9 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
            use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full arg_sort pv in
-        let ids = List.map (fun (id, _, _, _) -> id) ids_full in
+        let ids = List.map (fun (id, _, _, _, _) -> id) ids_full in
         let ids_kinds =
-          List.map (fun (id, {Location.loc; _}, ty, s) ->
+          List.map (fun (id, {Location.loc; _}, ty, _, s) ->
             id, Typeopt.layout pv.pat_env loc s ty)
             ids_full
         in

@@ -67,8 +67,9 @@ let save_cms filename modname sourcefile shape =
            cms_sourcefile = sourcefile;
            cms_builddir = Location.rewrite_absolute_path (Sys.getcwd ());
            cms_source_digest = source_digest;
-           cms_uid_to_loc = Env.get_uid_to_loc_tbl ();
-           cms_uid_to_attributes = Env.get_uid_to_attributes_tbl ();
+           (* CR poechsel: fix CMS file generation *)
+           cms_uid_to_loc = Types.Uid.Tbl.create 0;
+           cms_uid_to_attributes = Types.Uid.Tbl.create 0;
            cms_impl_shape = shape;
          } in
          output_cms oc cms)

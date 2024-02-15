@@ -2094,7 +2094,8 @@ let approx_class_declarations env sdecls =
 
 open Format
 
-let non_virtual_string_of_kind = function
+let non_virtual_string_of_kind (t : kind) =
+  match t with
   | Object -> "object"
   | Class -> "non-virtual class"
   | Class_type -> "non-virtual class type"
