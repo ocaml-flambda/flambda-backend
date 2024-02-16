@@ -242,7 +242,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
               Flambda_features.Inlining.max_rec_depth
                 (Round (DE.round (DA.denv dacc)))
             in
-            if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
+            if Simplify_rec_info_expr.depth_may_exceed dacc rec_info
                  max_rec_depth
             then Recursion_depth_exceeded
             else
