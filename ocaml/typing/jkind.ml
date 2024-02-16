@@ -76,19 +76,6 @@ module Legacy = struct
       false
 end
 
-module Sub_result = struct
-  type t =
-    | Equal
-    | Sub
-    | Not_sub
-
-  let combine sr1 sr2 =
-    match sr1, sr2 with
-    | Equal, Equal -> Equal
-    | Equal, Sub | Sub, Equal | Sub, Sub -> Sub
-    | Not_sub, _ | _, Not_sub -> Not_sub
-end
-
 (* A *sort* is the information the middle/back ends need to be able to
    compile a manipulation (storing, passing, etc) of a runtime value. *)
 module Sort = struct
@@ -399,11 +386,11 @@ module Layout = struct
       | Any, Any -> true
       | (Any | Sort _), _ -> false
 
-    let sub c1 c2 : Sub_result.t =
+    let sub c1 c2 : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
-      | _, Any -> Sub
-      | Any, Sort _ | Sort _, Sort _ -> Not_sub
+      | _, Any -> Less
+      | Any, Sort _ | Sort _, Sort _ -> Not_le
   end
 
   type t =
@@ -423,12 +410,12 @@ module Layout = struct
     | Any, Any -> true
     | (Any | Sort _), _ -> false
 
-  let sub t1 t2 : Sub_result.t =
+  let sub t1 t2 : Misc.Le_result.t =
     match t1, t2 with
     | Any, Any -> Equal
-    | _, Any -> Sub
-    | Any, _ -> Not_sub
-    | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_sub
+    | _, Any -> Less
+    | Any, _ -> Not_le
+    | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
 
   let intersection t1 t2 =
     match t1, t2 with
@@ -487,14 +474,14 @@ module Externality = struct
     | Internal, Internal -> true
     | (External | External64 | Internal), _ -> false
 
-  let sub t1 t2 : Sub_result.t =
+  let sub t1 t2 : Misc.Le_result.t =
     match t1, t2 with
     | External, External -> Equal
-    | External, (External64 | Internal) -> Sub
-    | External64, External -> Not_sub
+    | External, (External64 | Internal) -> Less
+    | External64, External -> Not_le
     | External64, External64 -> Equal
-    | External64, Internal -> Sub
-    | Internal, (External | External64) -> Not_sub
+    | External64, Internal -> Less
+    | Internal, (External | External64) -> Not_le
     | Internal, Internal -> Equal
 
   let intersection t1 t2 =
@@ -539,7 +526,9 @@ module Const = struct
 
   let sub { layout = lay1; externality = ext1 }
       { layout = lay2; externality = ext2 } =
-    Sub_result.combine (Layout.Const.sub lay1 lay2) (Externality.sub ext1 ext2)
+    Misc.Le_result.combine
+      (Layout.Const.sub lay1 lay2)
+      (Externality.sub ext1 ext2)
 end
 
 module Desc = struct
@@ -557,12 +546,12 @@ module Desc = struct
      relationship only when they are equal.
      Never does mutation.
      Pre-condition: no filled-in sort variables. *)
-  let sub d1 d2 : Sub_result.t =
+  let sub d1 d2 : Misc.Le_result.t =
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
-    | Var _, Const { layout = Any; externality = Internal } -> Sub
-    | Var v1, Var v2 -> if v1 == v2 then Equal else Not_sub
-    | Const _, Var _ | Var _, Const _ -> Not_sub
+    | Var _, Const { layout = Any; externality = Internal } -> Less
+    | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
+    | Const _, Var _ | Var _, Const _ -> Not_le
 end
 
 module Jkind_desc = struct
@@ -580,7 +569,7 @@ module Jkind_desc = struct
 
   let sub { layout = layout1; externality = externality1 }
       { layout = layout2; externality = externality2 } =
-    Sub_result.combine
+    Misc.Le_result.combine
       (Layout.sub layout1 layout2)
       (Externality.sub externality1 externality2)
 
@@ -1448,8 +1437,8 @@ let combine_histories reason lhs rhs =
   if flattened_histories
   then
     match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-    | Sub -> lhs.history
-    | Not_sub ->
+    | Less -> lhs.history
+    | Not_le ->
       rhs.history
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
     | Equal ->
@@ -1475,14 +1464,14 @@ let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 
 let sub sub super =
   match check_sub sub super with
-  | Sub | Equal -> Ok ()
-  | Not_sub -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  | Less | Equal -> Ok ()
+  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let sub_with_history sub super =
   match check_sub sub super with
-  | Sub | Equal ->
+  | Less | Equal ->
     Ok { sub with history = combine_histories Subjkind sub super }
-  | Not_sub -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
