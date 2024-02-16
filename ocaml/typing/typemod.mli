@@ -41,7 +41,9 @@ val type_toplevel_phrase:
 val type_implementation:
   sourcefile:string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
-val type_interface:Compilation_unit.t
+val type_interface:
+  sourcefile:string
+  -> Compilation_unit.t
   -> Env.t
   -> Parsetree.signature
   -> Typedtree.signature
