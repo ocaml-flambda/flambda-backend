@@ -145,7 +145,7 @@ let print_cmt_infos cmt =
   end;
   if !index then begin
     printf "Indexed shapes:\n";
-    List.iter (fun (loc, item) ->
+    Array.iter (fun (loc, item) ->
       let pp_loc fmt { Location.txt; loc } =
         Format.fprintf fmt "%a (%a)"
           Pprintast.longident txt Location.print_loc loc

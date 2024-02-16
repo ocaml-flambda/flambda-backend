@@ -63,7 +63,7 @@ type cmt_infos = {
   cmt_uid_to_decl : item_declaration Shape.Uid.Tbl.t;
   cmt_impl_shape : Shape.t option; (* None for mli *)
   cmt_ident_occurrences :
-    (Longident.t Location.loc * Shape_reduce.result) list
+    (Longident.t Location.loc * Shape_reduce.result) array
 }
 
 type error =
@@ -376,7 +376,7 @@ let index_occurrences binary_annots =
         index := (lid, result) :: !index
   in
   iter_on_annots (iter_on_occurrences ~f) binary_annots;
-  !index
+  Array.of_list !index
 
 exception Error of error
 
@@ -468,7 +468,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
           if !Clflags.store_occurrences then
             index_occurrences binary_annots
           else
-            []
+            Array.of_list []
          in
          let cmt_annots = clear_env binary_annots in
          let cmt_uid_to_decl = index_declarations cmt_annots in
