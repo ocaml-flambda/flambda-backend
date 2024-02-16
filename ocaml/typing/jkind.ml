@@ -474,7 +474,7 @@ module Externality = struct
     | Internal, Internal -> true
     | (External | External64 | Internal), _ -> false
 
-  let sub t1 t2 : Misc.Le_result.t =
+  let less_or_equal t1 t2 : Misc.Le_result.t =
     match t1, t2 with
     | External, External -> Equal
     | External, (External64 | Internal) -> Less
@@ -484,7 +484,7 @@ module Externality = struct
     | Internal, (External | External64) -> Not_le
     | Internal, Internal -> Equal
 
-  let intersection t1 t2 =
+  let meet t1 t2 =
     match t1, t2 with
     | External, (External | External64 | Internal)
     | (External64 | Internal), External ->
@@ -528,7 +528,7 @@ module Const = struct
       { layout = lay2; externality = ext2 } =
     Misc.Le_result.combine
       (Layout.Const.sub lay1 lay2)
-      (Externality.sub ext1 ext2)
+      (Externality.less_or_equal ext1 ext2)
 end
 
 module Desc = struct
@@ -571,12 +571,12 @@ module Jkind_desc = struct
       { layout = layout2; externality = externality2 } =
     Misc.Le_result.combine
       (Layout.sub layout1 layout2)
-      (Externality.sub externality1 externality2)
+      (Externality.less_or_equal externality1 externality2)
 
   let intersection { layout = lay1; externality = ext1 }
       { layout = lay2; externality = ext2 } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
-        Some { layout; externality = Externality.intersection ext1 ext2 })
+        Some { layout; externality = Externality.meet ext1 ext2 })
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
