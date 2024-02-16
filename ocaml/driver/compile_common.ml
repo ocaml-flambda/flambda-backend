@@ -64,6 +64,7 @@ let typecheck_intf info ast =
   let tsg =
     ast
     |> Typemod.type_interface
+        ~sourcefile:info.source_file
         info.module_name
         info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface

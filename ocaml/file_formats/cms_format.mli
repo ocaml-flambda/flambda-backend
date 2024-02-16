@@ -26,6 +26,8 @@ type cms_infos = {
   cms_uid_to_loc : Location.t Shape.Uid.Tbl.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
+  cmt_ident_occurrences :
+    (Longident.t Location.loc * Shape_reduce.result) array
 }
 
 type error =
@@ -43,8 +45,15 @@ val read : string -> cms_infos
 val save_cms :
   string ->  (* filename.cms to generate *)
   Compilation_unit.t ->  (* module name *)
+  Cmt_format.binary_annots ->
   string option ->  (* source file *)
   Shape.t option ->
+  unit
+
+val register_topevel_attributes :
+  Shape.Uid.t ->
+  attributes:Parsetree.attribute list ->
+  loc:Location.t ->
   unit
 
 (* Miscellaneous functions *)

@@ -112,6 +112,14 @@ val set_saved_types : binary_part list -> unit
 val record_value_dependency:
   Types.value_description -> Types.value_description -> unit
 
+val index_occurrences :
+  binary_annots -> (Longident.t Location.loc * Shape_reduce.result) array
+
+val iter_declarations
+  : binary_annots
+    -> f:(Shape.Uid.t -> Typedtree.item_declaration -> unit)
+    -> unit
+
 (*
 
   val is_magic_number : string -> bool

@@ -3329,6 +3329,31 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
+let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
+  (* Cms files do not store the typetree. This can be a problem for Merlin has
+    it uses attributes - which is why we manually construct a mapping from uid
+    to attributes while typing.
+    Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
+    except if it is the first element of the compilation unit structure or
+    signature. *)
+  let attr =
+    match ast with
+    | x :: _ -> f x
+    | [] -> None
+  in
+  match attr with
+  | None -> ()
+  | Some attr ->
+    Cms_format.register_topevel_attributes uid
+      ~loc:(Location.in_file sourcefile)
+      ~attributes:[ attr ]
+
+let cms_register_toplevel_struct_attributes ~sourcefile ~uid ast =
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+      ~f:(function
+        | { pstr_desc = Pstr_attribute attr; _ }  -> Some attr
+        | _ -> None)
+
 let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
@@ -3346,6 +3371,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           type_structure initial_env ast) in
       let uid = Uid.of_compilation_unit_id modulename in
       let shape = Shape.set_uid_if_none shape uid in
+      if !Clflags.binary_annotations_cms then
+        cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
@@ -3398,7 +3425,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
               annots (Some sourcefile) initial_env None (Some shape);
             Cms_format.save_cms (outputprefix ^ ".cms") modulename
-              (Some sourcefile) (Some shape);
+              annots (Some sourcefile) (Some shape);
             gen_annot outputprefix sourcefile annots);
           { structure = str;
             coercion;
@@ -3437,7 +3464,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
               Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
                 annots (Some sourcefile) initial_env (Some cmi) (Some shape);
               Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-                (Some sourcefile) (Some shape);
+                annots (Some sourcefile) (Some shape);
               gen_annot outputprefix sourcefile annots)
           end;
           { structure = str;
@@ -3457,7 +3484,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
             annots (Some sourcefile) initial_env None None;
           Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-            (Some sourcefile) None;
+            annots (Some sourcefile) None;
           gen_annot outputprefix sourcefile annots)
       )
 
@@ -3465,11 +3492,21 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
-    (Some source_file) None
+    (Cmt_format.Interface tsg) (Some source_file) None
 
-let type_interface modulename env ast =
+let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
+  cms_register_toplevel_attributes ~sourcefile ~uid ast
+    ~f:(function
+        | { psig_desc = Psig_attribute attr; _ } -> Some attr
+        | _ -> None)
+
+let type_interface ~sourcefile modulename env ast =
   if !Clflags.as_parameter && Compilation_unit.is_packed modulename then begin
     raise(Error(Location.none, Env.empty, Cannot_pack_parameter))
+  end;
+  if !Clflags.binary_annotations_cms then begin
+    let uid = Shape.Uid.of_compilation_unit_id modulename in
+    cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
   end;
   transl_signature env ast
 
@@ -3558,7 +3595,7 @@ let package_units initial_env objfiles cmifile modulename =
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
     Cms_format.save_cms  (prefix ^ ".cms") modulename
-      None (Some shape);
+      (Cmt_format.Packed (sg, objfiles)) None (Some shape);
     cc
   end else begin
     (* Determine imports *)
@@ -3581,7 +3618,7 @@ let package_units initial_env objfiles cmifile modulename =
         (Cmt_format.Packed (sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
-        None (Some shape);
+        (Cmt_format.Packed (sign, objfiles)) None (Some shape);
     end;
     Tcoerce_none
   end

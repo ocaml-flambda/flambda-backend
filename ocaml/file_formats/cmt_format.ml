@@ -355,10 +355,13 @@ let iter_on_occurrences
       default_iterator.structure_item sub str_item)
 }
 
+let iter_declarations binary_annots ~f =
+  iter_on_annots (iter_on_declarations ~f) binary_annots
+
 let index_declarations binary_annots =
   let index : item_declaration Types.Uid.Tbl.t = Types.Uid.Tbl.create 16 in
   let f uid fragment = Types.Uid.Tbl.add index uid fragment in
-  iter_on_annots (iter_on_declarations ~f) binary_annots;
+  iter_declarations binary_annots ~f;
   index
 
 let index_occurrences binary_annots =
