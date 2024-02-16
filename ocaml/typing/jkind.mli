@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* This module is named Jkind, with a 'y', to distinguish jkinds
+(* This module is named Jkind, with a 'j', to distinguish jkinds
    as used here from type kinds (which might be abstract or record or variant,
    etc.). This is clearly far from ideal, but the current scheme has these
    positives:
@@ -30,6 +30,23 @@
 
    * It is very easy to search for and replace when we have a better name.
 *)
+
+(* The externality mode. This tracks whether or not an expression is external
+   to the type checker; something external to the type checker can be skipped
+   during garbage collection.
+
+   This will eventually be incorporated into the mode
+   solver, but it is defined here because we do not yet track externalities
+   on expressions, just in jkinds. *)
+(* CR externals: Move to mode.ml. But see
+   https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
+   first, which was reisenberg's attempt to do so. *)
+module Externality : sig
+  type t =
+    | External (* not managed by the garbage collector *)
+    | External64 (* not managed by the garbage collector on 64-bit systems *)
+    | Internal (* managed by the garbage collector *)
+end
 
 module Sort : sig
   (** A sort classifies how a type is represented at runtime. Every concrete
@@ -503,6 +520,12 @@ val is_void_defaulting : t -> bool
 (** Returns the sort corresponding to the jkind.  Call only on representable
     jkinds - raises on Any. *)
 val sort_of_jkind : t -> sort
+
+(** Gets the maximum modes for types of this jkind. *)
+val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+
+(** Gets the maximum mode on the externality axis for types of this jkind. *)
+val get_externality_upper_bound : t -> Externality.t
 
 (*********************************)
 (* pretty printing *)

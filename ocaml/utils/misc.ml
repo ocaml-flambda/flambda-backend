@@ -1393,10 +1393,14 @@ module Le_result = struct
 
   let combine_list ts = List.fold_left combine Equal ts
 
-  let to_bool = function
+  let is_le = function
     | Equal -> true
     | Less -> true
     | Not_le -> false
+
+  let is_equal = function
+    | Equal -> true
+    | Less | Not_le -> false
 end
 
 (*********************************************)

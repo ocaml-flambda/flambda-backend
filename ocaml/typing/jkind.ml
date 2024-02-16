@@ -12,6 +12,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Mode
+
+[@@@warning "+9"]
+
 (* CR layouts v2.8: remove this *)
 module Legacy = struct
   type const =
@@ -380,6 +384,8 @@ module Layout = struct
       | Sort of Sort.const
       | Any
 
+    let max = Any
+
     let equal c1 c2 =
       match c1, c2 with
       | Sort s1, Sort s2 -> Sort.equal_const s1 s2
@@ -448,14 +454,11 @@ module Layout = struct
   end
 end
 
-(* Whether or not a type is external to the garbage collector *)
-(* CR layouts: Since this is a mode, the definition here should probably
-   move over to mode.ml *)
 module Externality = struct
   type t =
-    | External (* not managed by the garbage collector *)
-    | External64 (* not managed by the garbage collector on 64-bit systems *)
-    | Internal (* managed by the garbage collector *)
+    | External
+    | External64
+    | Internal
 
   (* CR layouts v2.8: Either use this or remove it *)
   let _to_string = function
@@ -505,11 +508,18 @@ end
 module Const = struct
   type t =
     { layout : Layout.Const.t;
+      modes : Alloc.Const.t;
       externality : Externality.t
     }
 
+  let max =
+    { layout = Layout.Const.max;
+      modes = Alloc.Const.max;
+      externality = Externality.max
+    }
+
   (* CR layouts v2.8: remove this *)
-  let to_legacy_jkind { layout; externality } : Legacy.const =
+  let to_legacy_jkind { layout; modes = _; externality } : Legacy.const =
     match layout, externality with
     | Any, _ -> Any
     | Sort Value, Internal -> Value
@@ -524,11 +534,18 @@ module Const = struct
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
 
-  let sub { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
-    Misc.Le_result.combine
-      (Layout.Const.sub lay1 lay2)
-      (Externality.less_or_equal ext1 ext2)
+  let equal { layout = lay1; modes = modes1; externality = ext1 }
+      { layout = lay2; modes = modes2; externality = ext2 } =
+    Layout.Const.equal lay1 lay2
+    && Alloc.Const.equal modes1 modes2
+    && Externality.equal ext1 ext2
+
+  let sub { layout = lay1; modes = modes1; externality = ext1 }
+      { layout = lay2; modes = modes2; externality = ext2 } =
+    Misc.Le_result.combine_list
+      [ Layout.Const.sub lay1 lay2;
+        Alloc.Const.less_or_equal modes1 modes2;
+        Externality.less_or_equal ext1 ext2 ]
 end
 
 module Desc = struct
@@ -549,7 +566,7 @@ module Desc = struct
   let sub d1 d2 : Misc.Le_result.t =
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
-    | Var _, Const { layout = Any; externality = Internal } -> Less
+    | Var _, Const c when Const.equal Const.max c -> Less
     | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
     | Const _, Var _ | Var _, Const _ -> Not_le
 end
@@ -557,66 +574,95 @@ end
 module Jkind_desc = struct
   type t =
     { layout : Layout.t;
+      modes : Alloc.Const.t;
       externality : Externality.t
     }
 
-  let max = { layout = Layout.max; externality = Externality.max }
+  let max =
+    { layout = Layout.max;
+      modes = Alloc.Const.max;
+      externality = Externality.max
+    }
 
-  let equate_or_equal ~allow_mutation { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
+  let equate_or_equal ~allow_mutation
+      { layout = lay1; modes = modes1; externality = ext1 }
+      { layout = lay2; modes = modes2; externality = ext2 } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
+    && Alloc.Const.equal modes1 modes2
     && Externality.equal ext1 ext2
 
-  let sub { layout = layout1; externality = externality1 }
-      { layout = layout2; externality = externality2 } =
-    Misc.Le_result.combine
-      (Layout.sub layout1 layout2)
-      (Externality.less_or_equal externality1 externality2)
+  let sub { layout = lay1; modes = modes1; externality = ext1 }
+      { layout = lay2; modes = modes2; externality = ext2 } =
+    Misc.Le_result.combine_list
+      [ Layout.sub lay1 lay2;
+        Alloc.Const.less_or_equal modes1 modes2;
+        Externality.less_or_equal ext1 ext2 ]
 
-  let intersection { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
+  let intersection { layout = lay1; modes = modes1; externality = ext1 }
+      { layout = lay2; modes = modes2; externality = ext2 } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
-        Some { layout; externality = Externality.meet ext1 ext2 })
+        Some
+          { layout;
+            modes = Alloc.Const.meet modes1 modes2;
+            externality = Externality.meet ext1 ext2
+          })
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
-    { layout; externality = Externality.max }, sort
+    { max with layout }, sort
 
   let any = max
 
-  let value = { layout = Layout.value; externality = Externality.max }
+  let value = { max with layout = Layout.value }
 
-  let void = { layout = Layout.void; externality = Externality.min }
+  let void =
+    { layout = Layout.void;
+      modes = Alloc.Const.max;
+      externality = Externality.min
+    }
 
-  let immediate64 = { layout = Layout.value; externality = External64 }
+  let immediate64 =
+    { layout = Layout.value;
+      modes = { locality = Global; linearity = Many; uniqueness = Unique };
+      externality = External64
+    }
 
-  let immediate = { layout = Layout.value; externality = External }
+  let immediate =
+    { layout = Layout.value;
+      modes = { locality = Global; linearity = Many; uniqueness = Unique };
+      externality = External
+    }
 
-  let float64 = { layout = Layout.float64; externality = External }
+  let float64 =
+    { layout = Layout.float64; modes = Alloc.Const.max; externality = External }
 
-  let word = { layout = Layout.word; externality = External }
+  let word =
+    { layout = Layout.word; modes = Alloc.Const.max; externality = External }
 
-  let bits32 = { layout = Layout.bits32; externality = External }
+  let bits32 =
+    { layout = Layout.bits32; modes = Alloc.Const.max; externality = External }
 
-  let bits64 = { layout = Layout.bits64; externality = External }
+  let bits64 =
+    { layout = Layout.bits64; modes = Alloc.Const.max; externality = External }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
-  let get { layout; externality } : Desc.t =
+  let get { layout; modes; externality } : Desc.t =
     match layout with
-    | Any -> Const { layout = Any; externality }
+    | Any -> Const { layout = Any; modes; externality }
     | Sort s -> (
       match Sort.get s with
       (* This match isn't as silly as it looks: those are
          different constructors on the left than on the right *)
-      | Const s -> Const { layout = Sort s; externality }
+      | Const s -> Const { layout = Sort s; modes; externality }
       | Var v -> Var v)
 
   module Debug_printers = struct
     open Format
 
-    let t ppf { layout; externality } =
-      fprintf ppf "{ layout = %a;@ externality = %a }" Layout.Debug_printers.t
-        layout Externality.Debug_printers.t externality
+    let t ppf { layout; modes; externality } =
+      fprintf ppf "{ layout = %a;@ modes = %a;@ externality = %a }"
+        Layout.Debug_printers.t layout Alloc.Const.print modes
+        Externality.Debug_printers.t externality
   end
 end
 
@@ -943,10 +989,10 @@ let for_boxed_variant ~all_voids =
 (******************************)
 (* elimination and defaulting *)
 
-let get_default_value { jkind = { layout; externality }; _ } : Const.t =
+let get_default_value { jkind = { layout; modes; externality }; _ } : Const.t =
   match layout with
-  | Any -> { layout = Any; externality }
-  | Sort s -> { layout = Sort (Sort.get_default_value s); externality }
+  | Any -> { layout = Any; modes; externality }
+  | Sort s -> { layout = Sort (Sort.get_default_value s); modes; externality }
 
 let default_to_value t = ignore (get_default_value t)
 
@@ -960,6 +1006,10 @@ let sort_of_jkind l =
   | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
   | Var v -> Sort.of_var v
 
+let get_modal_upper_bounds jk = jk.jkind.modes
+
+let get_externality_upper_bound jk = jk.jkind.externality
+
 (*********************************)
 (* pretty printing *)
 
@@ -971,7 +1021,7 @@ let format ppf t = Format.fprintf ppf "%s" (to_string t)
 (***********************************)
 (* jkind histories *)
 let has_imported_history t =
-  match t with { history = Creation Imported } -> true | _ -> false
+  match t.history with Creation Imported -> true | _ -> false
 
 let update_reason t reason = { t with history = Creation reason }
 
@@ -1296,7 +1346,8 @@ end = struct
   (* this isn't really formatted for user consumption *)
   let format_history_tree ~intro ppf t =
     let rec in_order ppf = function
-      | Interact { reason; lhs_history; rhs_history } ->
+      | Interact
+          { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
         fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
           format_interact_reason reason in_order rhs_history
       | Creation c -> format_creation_reason ppf c
@@ -1337,7 +1388,7 @@ module Violation = struct
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
 
-  let is_missing_cmi { missing_cmi } = Option.is_some missing_cmi
+  let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   let report_general preamble pp_former former ppf t =
     let subjkind_format verb l2 =
@@ -1477,7 +1528,7 @@ let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-let is_any = function { jkind = { layout = Any } } -> true | _ -> false
+let is_any jkind = match jkind.jkind.layout with Any -> true | _ -> false
 
 (*********************************)
 (* debugging *)

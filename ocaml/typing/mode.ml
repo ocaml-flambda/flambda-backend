@@ -58,6 +58,8 @@ module Lattices = struct
 
     let less_or_equal a b = L.less_or_equal b a
 
+    let equal a b = L.equal b a
+
     let le a b = L.le b a
 
     let join = L.meet
@@ -95,7 +97,9 @@ module Lattices = struct
       (* | _, Local -> Less *)
       | Local, Global -> Not_le
 
-    let le a b = Misc.Le_result.to_bool (less_or_equal a b)
+    let equal a b = a = b
+
+    let le a b = Misc.Le_result.is_le (less_or_equal a b)
 
     let join a b =
       match a, b with Local, _ | _, Local -> Local | Global, Global -> Global
@@ -145,7 +149,9 @@ module Lattices = struct
       | Local, Regional -> Not_le
       | Local, Global -> Not_le
 
-    let le a b = Misc.Le_result.to_bool (less_or_equal a b)
+    let equal a b = a = b
+
+    let le a b = Misc.Le_result.is_le (less_or_equal a b)
 
     let print ppf = function
       | Global -> Format.fprintf ppf "Global"
@@ -166,6 +172,8 @@ module Lattices = struct
 
     let legacy = Shared
 
+    let equal a b = a = b
+
     let less_or_equal a b : Misc.Le_result.t =
       match a, b with
       | Unique, Unique -> Equal
@@ -174,7 +182,7 @@ module Lattices = struct
       (* | _, Shared -> Less *)
       | Shared, Unique -> Not_le
 
-    let le a b = Misc.Le_result.to_bool (less_or_equal a b)
+    let le a b = Misc.Le_result.is_le (less_or_equal a b)
 
     let join a b =
       match a, b with
@@ -212,7 +220,9 @@ module Lattices = struct
       (* | _, Once -> Less *)
       | Once, Many -> Not_le
 
-    let le a b = Misc.Le_result.to_bool (less_or_equal a b)
+    let equal a b = a = b
+
+    let le a b = Misc.Le_result.is_le (less_or_equal a b)
 
     let join a b =
       match a, b with Once, _ | _, Once -> Once | Many, Many -> Many
@@ -289,6 +299,9 @@ module Lattices = struct
         Misc.Le_result.combine
           (Areality.less_or_equal a0 b0)
           (Linearity.less_or_equal a1 b1)
+
+      let equal (a0, a1) (b0, b1) =
+        Areality.equal a0 b0 && Linearity.equal a1 b1
 
       let le (a0, a1) (b0, b1) = Areality.le a0 b0 && Linearity.le a1 b1
 
@@ -1512,7 +1525,12 @@ module Value = struct
           Uniqueness.Const.less_or_equal uniqueness0 uniqueness1;
           Linearity.Const.less_or_equal linearity0 linearity1 ]
 
-    let le a b = Misc.Le_result.to_bool (less_or_equal a b)
+    let equal (a0, a1, a2) (b0, b1, b2) =
+      Regionality.Const.equal a0 b0
+      && Linearity.Const.equal a1 b1
+      && Uniqueness.Const.equal a2 b2
+
+    let le a b = Misc.Le_result.is_le (less_or_equal a b)
 
     let print ppf m = print () ppf (of_const m)
 
@@ -1771,7 +1789,12 @@ module Alloc = struct
           Uniqueness.Const.less_or_equal m0.uniqueness m1.uniqueness;
           Linearity.Const.less_or_equal m0.linearity m1.linearity ]
 
-    let le m0 m1 = Misc.Le_result.to_bool (less_or_equal m0 m1)
+    let equal m0 m1 =
+      Locality.Const.equal m0.locality m1.locality
+      && Linearity.Const.equal m0.linearity m1.linearity
+      && Uniqueness.Const.equal m0.uniqueness m1.uniqueness
+
+    let le m0 m1 = Misc.Le_result.is_le (less_or_equal m0 m1)
 
     let print ppf m = print () ppf (of_const m)
 

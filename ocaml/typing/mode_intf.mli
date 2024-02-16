@@ -25,6 +25,8 @@ module type Lattice = sig
 
   val less_or_equal : t -> t -> Misc.Le_result.t
 
+  val equal : t -> t -> bool
+
   val le : t -> t -> bool
 
   val join : t -> t -> t
