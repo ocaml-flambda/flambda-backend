@@ -858,6 +858,8 @@ module Le_result : sig
 
   val combine : t -> t -> t
   val combine_list : t list -> t
+
+  val to_bool : t -> bool
 end
 
 (** Propositional equality *)
