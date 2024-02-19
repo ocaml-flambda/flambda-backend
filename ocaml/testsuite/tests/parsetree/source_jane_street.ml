@@ -98,9 +98,8 @@ let g () = local_
 
 (* exclaves *)
 let f () = exclave_
-  let f = exclave_ () in
   let f x y = exclave_ (x + y) in
-  exclave_ ();;
+  ()
 
 (* types *)
 type record =
