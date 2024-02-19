@@ -96,6 +96,11 @@ let g () = local_
   let f x y = local_ (x + y) in
   local_ ();;
 
+(* exclaves *)
+let f () = exclave_
+  let f x y = exclave_ (x + y) in
+  ()
+
 (* types *)
 type record =
   { global_ field : int
