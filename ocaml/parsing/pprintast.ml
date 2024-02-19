@@ -823,9 +823,9 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
        [Nolabel, sbody]) ->
         pp f "@[<2>local_ %a@]" (expression ctxt) sbody
     | Pexp_apply
-    ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
-      [Nolabel, sbody]) ->
-      pp f "@[<2>exclave_ %a@]" (expression ctxt) sbody
+      ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
+       [Nolabel, sbody]) ->
+        pp f "@[<2>exclave_ %a@]" (expression ctxt) sbody
     | Pexp_apply (e, l) ->
         begin if not (sugar_expr ctxt f x) then
             match view_fixity_of_exp e with
