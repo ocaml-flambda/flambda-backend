@@ -2709,7 +2709,9 @@ let initial =
 let add_language_extension_types env =
   let add ext f env  =
     match Language_extension.is_enabled ext with
-    | true -> f (add_type ~check:false) env
+    | true ->
+      (* CR-someday poechsel: Pass a correct shape here *)
+      f (add_type ?shape:None ~check:false) env
     | false -> env
   in
   lazy
