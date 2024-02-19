@@ -538,6 +538,10 @@ val estimate_type_jkind : Env.t ->  type_expr -> jkind
    types. *)
 val type_jkind : Env.t -> type_expr -> jkind
 
+(* Get the jkind of a type, dropping any changes to types caused by
+   expansion. *)
+val type_jkind_purely : Env.t -> type_expr -> jkind
+
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :

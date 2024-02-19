@@ -2199,6 +2199,17 @@ let estimate_type_jkind env typ =
 let type_jkind env ty =
   estimate_type_jkind env (get_unboxed_type_approximation env ty)
 
+let type_jkind_purely env ty =
+  if !Clflags.principal || Env.has_local_constraints env then
+    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
+       that mentions snapshotting for an example. *)
+    let snap = Btype.snapshot () in
+    let jkind = type_jkind env ty in
+    Btype.backtrack snap;
+    jkind
+  else
+    type_jkind env ty
+
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
   match constrain_type_jkind env ty jkind with

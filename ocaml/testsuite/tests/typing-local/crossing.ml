@@ -347,7 +347,7 @@ val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
 
-(* This test needs the snapshotting in [is_immediate] to prevent a type error
+(* This test needs the snapshotting in [type_jkind_purely] to prevent a type error
    from the use of the gadt equation in the inner scope. *)
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a }
