@@ -108,13 +108,9 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
-<<<<<<< HEAD
   | Generative_application_expects_unit     (* 73 *)
+  | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-=======
-  | Unerasable_position_argument            (* 189 *)
->>>>>>> 431cec26 (Start of implicit-source-positions)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
 
@@ -197,13 +193,9 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
-<<<<<<< HEAD
   | Generative_application_expects_unit -> 73
+  | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-=======
-  | Unerasable_position_argument -> 189
->>>>>>> 431cec26 (Start of implicit-source-positions)
   | Probe_name_too_long _ -> 190
   | Unchecked_property_attribute _ -> 199
 ;;
@@ -544,7 +536,6 @@ let descriptions = [
   { number = 72;
     names = ["tmc-breaks-tailcall"];
     description = "A tail call is turned into a non-tail call \
-<<<<<<< HEAD
                    by the @tail_mod_cons transformation.";
     since = since 4 14 };
   { number = 73;
@@ -552,19 +543,15 @@ let descriptions = [
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
     since = since 5 1 };
+  { number = 188;
+    names = ["unerasable-position-argument"];
+    description = "Unerasable position argument.";
+    since = since 5 1 };
   { number = 189;
     names = ["unnecessarily-partial-tuple-pattern"];
     description = "A tuple pattern ends in .. but fully matches its expected \
                    type.";
     since = since 5 1 };
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-                   by the @tail_mod_cons transformation." };
-=======
-                   by the @tail_mod_cons transformation." };
-  { number = 189;
-    names = ["unerasable-position-argument"];
-    description = "Unerasable position argument." };
->>>>>>> 431cec26 (Start of implicit-source-positions)
   { number = 190;
     names = ["probe-name-too-long"];
     description = "Probe name must be at most 100 characters long.";
@@ -1172,18 +1159,14 @@ let message = function
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
-<<<<<<< HEAD
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
+  | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
        unnecessarily ends in '..', as it explicitly matches all components\n\
        of its expected type."
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-=======
-  | Unerasable_position_argument -> "this position argument cannot be erased."
->>>>>>> 431cec26 (Start of implicit-source-positions)
   | Probe_name_too_long name ->
       Printf.sprintf
         "This probe name is too long: `%s'. \

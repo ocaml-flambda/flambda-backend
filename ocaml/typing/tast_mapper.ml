@@ -866,18 +866,9 @@ let typ sub x =
   let ctyp_env = sub.env sub x.ctyp_env in
   let ctyp_desc =
     match x.ctyp_desc with
-<<<<<<< HEAD
-    | Ttyp_var (_,None) as d -> d
+    | (Ttyp_var (_,None) | Ttyp_src_pos) as d -> d
     | Ttyp_var (s, Some jkind) ->
         Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-    | Ttyp_any
-    | Ttyp_var _ as d -> d
-=======
-    | Ttyp_any
-    | Ttyp_src_pos
-    | Ttyp_var _ as d -> d
->>>>>>> 431cec26 (Start of implicit-source-positions)
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->

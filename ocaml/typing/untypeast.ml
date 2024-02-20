@@ -518,7 +518,6 @@ let expression sub exp =
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
-<<<<<<< HEAD
     | Texp_function { params; body } ->
         let open Jane_syntax.N_ary_functions in
         let body, constraint_ =
@@ -567,69 +566,14 @@ let expression sub exp =
                    fp.fp_newtypes
                in
                let pparam_desc =
-                 Pparam_val (fp.fp_arg_label, default_arg, pat)
+                 let parg_label = label fp.fp_arg_label in
+                 Pparam_val (parg_label, default_arg, pat)
                in
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
         in
         Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
         |> add_jane_syntax_attributes
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-
-    (* Pexp_function can't have a label, so we split in 3 cases. *)
-    (* One case, no guard: It's a fun. *)
-    | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
-          _ } ->
-        Pexp_fun (arg_label, None, sub.pat sub p, sub.expr sub e)
-    (* No label: it's a function. *)
-    | Texp_function { arg_label = Nolabel; cases; _; } ->
-        Pexp_function (List.map (sub.case sub) cases)
-    (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
-    | Texp_function { arg_label = Labelled s | Optional s as label; cases;
-          _ } ->
-        let name = fresh_name s exp.exp_env in
-        Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
-          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
-                          (List.map (sub.case sub) cases))
-=======
-
-    (* Pexp_function can't have a label, so we split in cases.
-       Since typing Position arguments discards the constraint, we case
-       on them to reconstruct the constraints. *)
-    (* One case, no guard: It's a fun. *)
-    | Texp_function { arg_label = Position s;
-                      cases = [{c_lhs=p; c_guard=None; c_rhs=e}]; _ } ->
-        (* First, the special case for a Position argument *)
-        let pat =
-          Pat.constraint_ (sub.pat sub p)
-            (Typ.extension src_pos_extension)
-        in
-        Pexp_fun (Labelled s, None, pat, sub.expr sub e)
-    | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
-          _ } ->
-        Pexp_fun (label arg_label, None, sub.pat sub p, sub.expr sub e)
-    (* No label: it's a function. *)
-    | Texp_function { arg_label = Nolabel; cases; _; } ->
-        Pexp_function (List.map (sub.case sub) cases)
-    (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
-    | Texp_function { arg_label = Position s; cases;
-          _ } ->
-        (* The special case for a Position argument *)
-        let name = fresh_name s exp.exp_env in
-        let pat =
-          Pat.constraint_ (Pat.var ~loc {loc;txt = name })
-            (Typ.extension src_pos_extension)
-        in
-        Pexp_fun (Labelled s, None, pat,
-          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
-                          (List.map (sub.case sub) cases))
-    | Texp_function { arg_label = Labelled s | Optional s as arg_label; cases;
-          _ } ->
-        let name = fresh_name s exp.exp_env in
-        Pexp_fun (label arg_label, None, Pat.var ~loc {loc;txt = name },
-          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
-                          (List.map (sub.case sub) cases))
->>>>>>> 431cec26 (Start of implicit-source-positions)
     | Texp_apply (exp, list, _, _) ->
         let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
         Pexp_apply (sub.expr sub exp,
@@ -1062,32 +1006,18 @@ let core_type sub ct =
     ptyp_desc
   in
   let desc = match ct.ctyp_desc with
-<<<<<<< HEAD
     | Ttyp_var (None, None) -> Ptyp_any
     | Ttyp_var (Some s, None) -> Ptyp_var s
     | Ttyp_var (name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
-    | Ttyp_arrow (label, ct1, ct2) ->
-        Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
+    | Ttyp_arrow (arg_label, ct1, ct2) ->
+        Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->
         Jane_syntax.Labeled_tuples.typ_of ~loc
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
         |> add_jane_syntax_attributes
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-      Ttyp_any -> Ptyp_any
-    | Ttyp_var s -> Ptyp_var s
-    | Ttyp_arrow (label, ct1, ct2) ->
-        Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
-=======
-      Ttyp_any -> Ptyp_any
-    | Ttyp_var s -> Ptyp_var s
-    | Ttyp_arrow (arg_label, ct1, ct2) ->
-        Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
->>>>>>> 431cec26 (Start of implicit-source-positions)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)

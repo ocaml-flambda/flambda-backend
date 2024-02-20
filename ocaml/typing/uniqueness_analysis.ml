@@ -1370,6 +1370,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_probe { handler } -> check_uniqueness_exp ienv handler
   | Texp_probe_is_enabled _ -> UF.unused
   | Texp_exclave e -> check_uniqueness_exp ienv e
+  | Texp_src_pos -> UF.unused
 
 (**
 Corresponds to the first mode.

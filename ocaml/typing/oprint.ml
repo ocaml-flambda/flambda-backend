@@ -694,14 +694,7 @@ let rec print_out_class_type ppf =
       in
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
-<<<<<<< HEAD
-      fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        (print_out_type_2 default_mode) ty print_out_class_type cty
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-      fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        (print_out_type_2 Oam_global) ty print_out_class_type cty
-=======
-      let print_type = print_out_type_2 Oam_global in
+      let print_type = print_out_type_2 default_mode in
       let label, print_type = match lab with
         | Nolabel -> "", print_type
         | Labelled l -> l ^ ":", print_type
@@ -712,7 +705,6 @@ let rec print_out_class_type ppf =
         label
         print_type ty
         print_out_class_type cty
->>>>>>> 431cec26 (Start of implicit-source-positions)
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function

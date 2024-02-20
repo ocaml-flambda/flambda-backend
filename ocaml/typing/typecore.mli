@@ -278,24 +278,12 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-<<<<<<< HEAD
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of type_expr * Mode.Alloc.error
   | Uncurried_function_escapes of Mode.Alloc.error
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr
-  | Uncurried_function_escapes
-=======
-  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
-  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr
-  | Uncurried_function_escapes
->>>>>>> 431cec26 (Start of implicit-source-positions)
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
   | Tail_call_local_returning
@@ -304,16 +292,8 @@ type error =
   | Exclave_in_nontail_position
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
-<<<<<<< HEAD
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-||||||| parent of 431cec26 (Start of implicit-source-positions)
-  | Unboxed_float_literals_not_supported
-  | Function_type_not_rep of type_expr * Layout.Violation.t
-=======
-  | Unboxed_float_literals_not_supported
-  | Function_type_not_rep of type_expr * Layout.Violation.t
   | Invalid_label_for_src_pos of arg_label
->>>>>>> 431cec26 (Start of implicit-source-positions)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
