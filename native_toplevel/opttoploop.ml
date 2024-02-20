@@ -94,7 +94,7 @@ type directive_info = {
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name signature =
+let remember phrase_name signature =
   let exported = List.filter Includemod.is_runtime_component signature in
   List.iteri (fun i sg ->
     match sg with
