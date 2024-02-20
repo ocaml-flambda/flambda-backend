@@ -191,11 +191,11 @@ module Consistbl = Consistbl.Make (CU.Name) (Impl)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
-let implementations_defined = ref ([] : (CU.Name.t * string) list)
+let implementations_defined = ref ([] : (CU.t * string) list)
 
 let check_consistency file_name cu =
   begin try
-    let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
+    let source = List.assoc cu.cu_name !implementations_defined in
     raise (Error (Multiple_definition(cu.cu_name |> CU.full_path_as_string, file_name, source)));
   with Not_found -> ()
   end;
@@ -219,7 +219,7 @@ let check_consistency file_name cu =
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
   implementations_defined :=
-    (CU.name cu.cu_name, file_name) :: !implementations_defined
+    (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces

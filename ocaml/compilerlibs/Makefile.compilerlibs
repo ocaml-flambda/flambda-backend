@@ -95,6 +95,7 @@ TYPING = \
   typing/predef.cmo \
   typing/datarepr.cmo \
   file_formats/cmi_format.cmo \
+  typing/signature_with_global_bindings.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
   typing/errortrace.cmo \

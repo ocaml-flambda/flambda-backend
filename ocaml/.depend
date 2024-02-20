@@ -877,6 +877,7 @@ typing/env.cmi : \
     typing/types.cmi \
     typing/subst.cmi \
     typing/shape.cmi \
+    typing/persistent_env.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
     typing/mode.cmi \
@@ -1282,6 +1283,7 @@ typing/patterns.cmi : \
 typing/persistent_env.cmo : \
     utils/warnings.cmi \
     typing/subst.cmi \
+    typing/signature_with_global_bindings.cmi \
     typing/shape.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
@@ -1298,6 +1300,7 @@ typing/persistent_env.cmo : \
 typing/persistent_env.cmx : \
     utils/warnings.cmx \
     typing/subst.cmx \
+    typing/signature_with_global_bindings.cmx \
     typing/shape.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
@@ -1537,6 +1540,22 @@ typing/signature_group.cmx : \
     typing/signature_group.cmi
 typing/signature_group.cmi : \
     typing/types.cmi
+typing/signature_with_global_bindings.cmo : \
+    typing/subst.cmi \
+    typing/ident.cmi \
+    utils/global.cmi \
+    file_formats/cmi_format.cmi \
+    typing/signature_with_global_bindings.cmi
+typing/signature_with_global_bindings.cmx : \
+    typing/subst.cmx \
+    typing/ident.cmx \
+    utils/global.cmx \
+    file_formats/cmi_format.cmx \
+    typing/signature_with_global_bindings.cmi
+typing/signature_with_global_bindings.cmi : \
+    typing/subst.cmi \
+    utils/global.cmi \
+    file_formats/cmi_format.cmi
 typing/stypes.cmo : \
     typing/typedtree.cmi \
     typing/printtyp.cmi \

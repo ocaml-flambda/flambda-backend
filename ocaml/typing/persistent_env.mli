@@ -17,7 +17,9 @@
 open Misc
 
 module Impl : sig
-  type t
+  type t =
+    | Unknown_argument
+    | Known of Compilation_unit.t
 end
 
 module Consistbl : module type of struct
@@ -39,6 +41,29 @@ type error = private
       { imported : Global.Name.t;
         parameter : Global.Name.t;
   }
+  | Imported_module_has_no_such_parameter of
+      { imported : Compilation_unit.Name.t;
+        valid_parameters : Global.Name.t list;
+        parameter : Global.Name.t;
+        value : Global.Name.t;
+  }
+  | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
+  | Argument_type_mismatch of
+      { value : Global.Name.t;
+        filename : filepath;
+        expected : Global.Name.t;
+        actual : Global.Name.t;
+  }
+  | Inconsistent_global_name_resolution of
+      { name : Global.Name.t;
+        old_global : Global.t;
+        new_global : Global.t;
+        first_mentioned_by : Global.Name.t;
+        now_mentioned_by : Global.Name.t;
+  }
+  | Unbound_module_as_argument_value of
+       { instance : Global.Name.t; value : Global.Name.t; }
+
 
 
 exception Error of error
@@ -115,10 +140,6 @@ val register_exported_parameter : 'a t -> Global.Name.t -> unit
    [penv] (it may have failed) *)
 val looked_up : 'a t -> Global.Name.t -> bool
 
-(* [is_imported penv md] checks if [md] has been successfully
-   imported in the environment [penv] *)
-val is_imported : 'a t -> Compilation_unit.Name.t -> bool
-
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
@@ -127,9 +148,21 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
+(* [local_ident penv md] returns the local identifier generated for [md] if
+   [md] is either a parameter or a dependency with a parameter. This is used
+   strictly for code generation - types should always use persistent
+   [Ident.t]s. *)
+val local_ident : 'a t -> Global.Name.t -> Ident.t option
+
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
+
+val global_of_global_name : 'a t
+  -> check:bool
+  -> param:bool
+  -> Global.Name.t
+  -> Global.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -147,11 +180,10 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath ->
-  Import_info.t array -> unit
+val import_crcs : 'a t -> source:filepath -> Import_info.Intf.t array -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> Import_info.t list
+val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the list of imported modules (including parameters) that must be bound
    as parameters in a toplevel functor *)
