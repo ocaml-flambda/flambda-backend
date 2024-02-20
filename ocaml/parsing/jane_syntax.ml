@@ -468,7 +468,7 @@ module Mode_expr = struct
   let of_payload ~loc payload =
     let l = Const.list_from_payload ~loc payload in
     match l with
-    | [] ->  Misc.fatal_error "Payload encoding empty mode expression";
+    | [] -> Misc.fatal_error "Payload encoding empty mode expression"
     | _ :: _ -> Location.mkloc l loc
 
   let extract_attr attrs =

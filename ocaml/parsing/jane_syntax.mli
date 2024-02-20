@@ -162,7 +162,7 @@ module Mode_expr : sig
   val maybe_of_attrs : Parsetree.attributes -> t option * Parsetree.attributes
 
   (* Similar to [maybe_of_attrs], but default to [empty] if no relevant
-      attribute is found.  *)
+      attribute is found. *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
   (** Encodes a mode expression into a [payload]. If the expression is safe to

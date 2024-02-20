@@ -20,7 +20,6 @@ type nonrec allowed = allowed
 
 type nonrec disallowed = disallowed
 
-
 module Axis = struct
   type t =
     [ `Locality
