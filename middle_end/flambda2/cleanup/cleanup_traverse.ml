@@ -291,20 +291,27 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     List.init (Flambda_arity.cardinal_unarized arity) (fun i ->
         Variable.create (Printf.sprintf "function_param_%i" i))
   in
+  let has_unsafe_result_type =
+    match Code.result_types code with
+    | Unknown -> false
+    | Bottom -> false
+    | Ok _ -> true
+  in
   let code_dep = { return; my_closure; exn; params } in
   let () =
-    (* TODO finer grain to only leak the full results when the function
-       escapes *)
-    let deps =
-      Deps.Dep.Return_of_that_function (Name.var exn)
-      :: List.map
-           (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
-           return
-    in
-    List.iter
-      (fun dep ->
-        Acc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep acc)
-      deps
+    if has_unsafe_result_type then
+      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return)
+    else
+      let deps =
+        Deps.Dep.Return_of_that_function (Name.var exn)
+        :: List.map
+          (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+          return
+      in
+      List.iter
+        (fun dep ->
+           Acc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep acc)
+        deps
   in
   Acc.add_code code_id code_dep acc
 
