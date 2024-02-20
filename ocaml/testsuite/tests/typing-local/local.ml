@@ -2751,27 +2751,36 @@ Error: Signature mismatch:
 
 (* Escaping uncurried functions *)
 
-(* Valid; [local_ int -> int -> int] is [local_ int -> local_ (int -> int)] *)
-let f () = ((fun x y -> x + y) : (local_ int -> int -> int));;
+(* Valid; [local_ string -> string -> string] is [local_ string -> local_ (string -> string)] *)
+let f () = ((fun x y -> "") : (local_ string -> string -> string));;
 [%%expect{|
-val f : unit -> local_ int -> int -> int = <fun>
+val f : unit -> local_ string -> string -> string = <fun>
 |}];;
 
-(* Illegal: the return mode on (int -> int) is global. *)
-let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+(* Illegal: the return mode on (string -> string) is global. *)
+let f () = ((fun x y -> "") : (local_ string -> (string -> string)));;
 [%%expect{|
-Line 1, characters 12-30:
-1 | let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
-                ^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-27:
+1 | let f () = ((fun x y -> "") : (local_ string -> (string -> string)));;
+                ^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
+let f () = ((fun x -> function | y -> "") : (local_ string -> (string -> string)));;
+[%%expect{|
+Line 1, characters 12-41:
+1 | let f () = ((fun x -> function | y -> "") : (local_ string -> (string -> string)));;
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}];;
 
 (* ok if curried *)
-let f () = ((fun x -> (fun y -> x + y) [@extension.curry])
-            : (local_ int -> (int -> int)));;
+let f () = ((fun x -> (fun y -> "") [@extension.curry])
+            : (local_ string -> (string -> string)));;
 [%%expect{|
-val f : unit -> local_ int -> (int -> int) = <fun>
+val f : unit -> local_ string -> (string -> string) = <fun>
 |}];;
 
 (* Illegal: the expected mode is global *)
@@ -2782,6 +2791,26 @@ Line 1, characters 19-37:
                        ^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
+|}];;
+
+let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+[%%expect{|
+Line 1, characters 19-60:
+1 | let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
+(* For nested functions, inner functions are not constrained *)
+let f () = ((fun x -> fun y -> "") : (local_ string -> (string -> string)));;
+[%%expect{|
+val f : unit -> local_ string -> (string -> string) = <fun>
+|}];;
+
+let f () = local_ ((fun x -> fun y -> x + y) : (_ -> _));;
+[%%expect{|
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* ok if curried *)

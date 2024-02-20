@@ -214,6 +214,27 @@ Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}]
 
+let f () =
+  exclave_ (
+    (fun x -> function | "a" -> () | _ -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+Line 3, characters 4-45:
+3 |     (fun x -> function | "a" -> () | _ -> ()) : (string -> string -> unit)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}]
+
+(* For nested functions, inner functions are not constrained *)
+let f () =
+  exclave_ (
+    (fun x -> fun y -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+val f : unit -> local_ (string -> (string -> unit)) = <fun>
+|}]
+
 let f : local_ string -> string =
   fun x -> exclave_ s
 [%%expect{|
