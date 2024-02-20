@@ -91,3 +91,16 @@ Error: The function applied to this argument has type
          src_pos:[%src_pos] -> lexing_position
 This argument cannot be applied without label
 |}]
+
+
+class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+
+
+[%%expect{|
+Line 1, characters 46-49:
+1 | class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+                                                  ^^^
+Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
+
+class this_class_has_an_unerasable_argument : pos:[%src_pos] -> object  end
+|}]

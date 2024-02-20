@@ -437,9 +437,7 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the label below *)
-      let l = transl_label l None in
+      let l = transl_label l (Some sty) in
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
       let ty = cty.ctyp_type in
       let ty =
@@ -1210,9 +1208,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the label below *)
-      let l = transl_label l None in
+      let l, spat = Typetexp.transl_label_from_pat l spat in
       if Typecore.has_poly_constraint spat then
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       let (pat, pv, val_env', met_env) =
@@ -1258,11 +1254,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       let cl =
         Ctype.with_raised_nongen_level
           (fun () -> class_expr cl_num val_env' met_env virt self_scope scl') in
-      (* CR src_pos: The below should probably become is_omittable once
-         classes involve Position arguments *)
-      if Btype.is_optional l && not_nolabel_function cl.cl_type then
-        Location.prerr_warning pat.pat_loc
-          Warnings.Unerasable_optional_argument;
+      if not_nolabel_function cl.cl_type then begin
+        match l with
+        | Nolabel | Labelled _ -> ()
+        | Optional _ -> 
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_optional_argument;
+        | Position _ -> 
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_position_argument;
+      end;
       rc {cl_desc = Tcl_fun (l, pat, pv, cl, partial);
           cl_loc = scl.pcl_loc;
           cl_type = Cty_arrow
@@ -1521,10 +1522,8 @@ let var_option =
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
-    Pcl_fun (l, _, _, cl) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the labels below *)
-      let l = transl_label l None in
+    Pcl_fun (l, _, pat, cl) ->
+      let l, _ = Typetexp.transl_label_from_pat l pat in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Jkind.value ~why:Class_term_argument)
@@ -1543,10 +1542,8 @@ let rec approx_declaration cl =
 
 let rec approx_description ct =
   match ct.pcty_desc with
-    Pcty_arrow (l, _, ct) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the labels below *)
-      let l = transl_label l None in
+    Pcty_arrow (l, core_type, ct) ->
+      let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Jkind.value ~why:Class_term_argument)
