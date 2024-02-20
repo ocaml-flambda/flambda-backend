@@ -561,6 +561,21 @@ Error: This function when partially applied returns a once value,
        but expected to be many.
 |}]
 
+let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 -> function | b2 -> b2
+[%%expect{|
+Line 1, characters 58-87:
+1 | let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 -> function | b2 -> b2
+                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a once value,
+       but expected to be many.
+|}]
+
+(* For n-ary functions, inner functions are not constrained *)
+let no_curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 -> fun b2 -> b2
+[%%expect{|
+val no_curry : unique_ box -> (unique_ box -> unique_ box) = <fun>
+|}]
+
 (* If both type and mode are wrong, complain about type *)
 let f () =
   let id2 (x : string) = shared_id x in

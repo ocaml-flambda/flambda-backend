@@ -343,12 +343,6 @@ type expected_mode =
     mode : Value.r;
     (** The upper bound, hence r (right) *)
 
-    exact : Alloc.lr option;
-    (** In some scnearios, restricing the upper bound is not sufficient.
-      For example, when defining a function [fun a -> fun b -> e]. If the outer
-      function is [local], the inner function must be made [local] as well. See
-      [type_function] for more details *)
-
     strictly_local : bool;
     (** Indicates that the expression was directly annotated with [local], which
     should force any allocations to be on the stack. If [true] the [mode] field
@@ -466,7 +460,6 @@ let mode_default mode =
   { position = RNontail;
     closure_context = None;
     mode = Value.disallow_left mode;
-    exact = None;
     strictly_local = false;
     tuple_modes = [] }
 
@@ -553,10 +546,6 @@ let mode_tuple mode tuple_modes =
   let tuple_modes = Value.List.disallow_left tuple_modes in
   { (mode_default mode) with
     tuple_modes }
-
-let mode_exact mode exact =
-  { (mode_default mode) with
-    exact = Some exact }
 
 (** Takes [marg:Alloc.lr] extracted from the arrow type and returns the real
 mode of argument, after taking into consideration partial application and
@@ -819,7 +808,6 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   if mode_cross env ty then
     { expected_mode with
       mode = Value.disallow_left Value.max;
-      exact = None;
       strictly_local = false }
   else expected_mode
 
@@ -4718,11 +4706,6 @@ type split_function_ty =
     filtered_arrow: filtered_arrow;
     arg_sort : Jkind.sort;
     ret_sort : Jkind.sort;
-    (* If [i = n], then [Final_arg];
-       if [i < n], then the mode of the result of partially applying
-       [f] up to [a_i].
-    *)
-    curry: function_curry;
     (* An instance of [a_i], unless [x_i] is annotated as polymorphic,
        in which case it's just [a_i] (not an instance).
     *)
@@ -4735,8 +4718,10 @@ type split_function_ty =
       *)
     expected_pat_mode: expected_pat_mode;
     expected_inner_mode: expected_mode;
-    (* [alloc_mode] is the mode of [fun x_i ... x_n -> e]. *)
-    alloc_mode: Mode.Alloc.r;
+    (* [alloc_mode] is the mode of [fun x_i ... x_n -> e].
+       This needs to be a left mode for the construction of the [fp_curry] field
+       of the outer function. *)
+    alloc_mode: Mode.Alloc.lr;
   }
 
 (** Return the updated environment (e.g. it may have a closure lock)
@@ -4758,13 +4743,13 @@ let split_function_ty
     ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
   let alloc_mode =
-    match expected_mode.exact with
-    | Some alloc_mode ->
-      (* expected_mode.mode is exact *)
-      alloc_mode
-    | None ->
       let alloc_mode = value_to_alloc_r2g expected_mode.mode in
-      (* expected_mode.mode is upper bound *)
+      (* Unlike most allocations which can be the highest mode allowed by
+         [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
+         functions have more constraints. For example, an outer function needs
+         to be made global if its inner function is global. As a result, a
+         function deserves a separate allocation mode.
+      *)
       fst (Alloc.newvar_below alloc_mode)
   in
   if expected_mode.strictly_local then
@@ -4822,29 +4807,12 @@ let split_function_ty
         if region_locked then Env.add_region_lock env
         else env
   in
-  let expected_inner_mode, curry =
+  let expected_inner_mode =
     if not is_final_val_param then
       (* no need to check mode crossing in this case because ty_res always a
       function *)
-      (* [inner_alloc_mode] will be precisely the allocation mode of the inner
-      function *)
-      let inner_alloc_mode, _ = Alloc.newvar_below ret_mode in
-      begin match
-        Alloc.submode (Alloc.close_over arg_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      begin match
-        Alloc.submode (Alloc.partial_apply alloc_mode) inner_alloc_mode
-      with
-      | Ok () -> ()
-      | Error e ->
-        raise (Error(loc_fun, env, Uncurried_function_escapes e))
-      end;
-      mode_exact (alloc_as_value inner_alloc_mode) inner_alloc_mode,
-      More_args {partial_mode = Alloc.disallow_right inner_alloc_mode}
+      let ret_value_mode = alloc_as_value ret_mode in
+      mode_default ret_value_mode
     else
       let ret_value_mode = alloc_as_value ret_mode in
       let ret_value_mode =
@@ -4859,7 +4827,7 @@ let split_function_ty
         end
       in
       let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
-      ret_value_mode, Final_arg
+      ret_value_mode
   in
   let ty_arg_mono =
     if has_poly then ty_arg
@@ -4886,8 +4854,8 @@ let split_function_ty
   let ret_sort = type_sort ~why:Function_result ty_ret in
   env,
   { filtered_arrow; arg_sort; ret_sort;
-    alloc_mode = Alloc.disallow_left alloc_mode; ty_arg_mono;
-    expected_inner_mode; expected_pat_mode; curry;
+    alloc_mode; ty_arg_mono;
+    expected_inner_mode; expected_pat_mode
   }
 
 type type_function_result_param =
@@ -4907,11 +4875,12 @@ type type_function_result =
     newtypes: (string loc * Jkind.annotation option) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
-    (* The alloc mode of the "rest of the function". None only for
-       recursive calls to [type_function] when there are no parameters
-       left.
+    (* The alloc mode of the "rest of the function". None only for recursive
+       calls to [type_function] when there are no parameters left. This needs to
+       be a left mode for the construction of the [fp_curry] field of the outer
+       function.
     *)
-    fun_alloc_mode: Mode.Alloc.r option;
+    fun_alloc_mode: Mode.Alloc.lr option;
     (* Information about the return of the function. None only for
        recursive calls to [type_function] when there are no parameters
        left.
@@ -5008,7 +4977,7 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
             tuple_pat_mode mode modes, mode_tuple mode modes
       end
     | Some mode ->
-        simple_pat_mode mode, mode_exact mode (value_to_alloc_r2g mode)
+        simple_pat_mode mode, mode_default mode
   in
   attrs, pat_mode, exp_mode, spat
 
@@ -6623,7 +6592,7 @@ and type_function
       let env,
           { filtered_arrow = { ty_arg; arg_mode; ty_ret; ret_mode };
             arg_sort; ret_sort;
-            ty_arg_mono; expected_pat_mode; expected_inner_mode; curry;
+            ty_arg_mono; expected_pat_mode; expected_inner_mode;
             alloc_mode;
           } =
         split_function_ty env expected_mode ty_expected loc
@@ -6670,7 +6639,7 @@ and type_function
             in
             ty_default_arg, Some (default_arg, arg_label, default_arg_sort)
       in
-      let (pat, params, body, ret_info, newtypes, contains_gadt), partial =
+      let (pat, params, body, ret_info, newtypes, contains_gadt, curry), partial =
         (* Check everything else in the scope of the parameter. *)
         map_half_typed_cases Value env expected_pat_mode
           ty_arg_internal ty_ret pat.ppat_loc
@@ -6682,7 +6651,7 @@ and type_function
               ~contains_gadt:param_contains_gadt ->
               let { function_ = _, params_suffix, body;
                     newtypes; params_contain_gadt = suffix_contains_gadt;
-                    fun_alloc_mode = _; ret_info;
+                    fun_alloc_mode; ret_info;
                   }
                 =
                 type_function ext_env expected_inner_mode ty_expected
@@ -6695,7 +6664,28 @@ and type_function
                 else
                   suffix_contains_gadt
               in
-              pat, params_suffix, body, ret_info, newtypes, contains_gadt
+              let curry =
+                if is_final_val_param then
+                  Final_arg
+                else
+                  let fun_alloc_mode = Option.get fun_alloc_mode in
+                  begin match
+                    Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
+                  with
+                    | Ok () -> ()
+                    | Error e ->
+                      raise (Error(loc_fun, env, Uncurried_function_escapes e))
+                  end;
+                  begin match
+                    Alloc.submode (Alloc.partial_apply alloc_mode) fun_alloc_mode
+                  with
+                    | Ok () -> ()
+                    | Error e ->
+                      raise (Error(loc_fun, env, Uncurried_function_escapes e))
+                  end;
+                  More_args {partial_mode = Alloc.disallow_right fun_alloc_mode}
+              in
+              pat, params_suffix, body, ret_info, newtypes, contains_gadt, curry
           end
         |> function
           (* The result must be a singleton because we passed a singleton
@@ -8730,7 +8720,7 @@ and type_n_ary_function
       { exp_desc =
           Texp_function
             { params; body; region = region_locked; ret_sort;
-              alloc_mode = fun_alloc_mode; ret_mode;
+              alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
             };
         exp_loc = loc;
         exp_extra =

@@ -2767,6 +2767,15 @@ Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}];;
 
+let f () = ((fun x -> function | 0 -> x | y -> x + y) : (local_ int -> (int -> int)));;
+[%%expect{|
+Line 1, characters 12-53:
+1 | let f () = ((fun x -> function | 0 -> x | y -> x + y) : (local_ int -> (int -> int)));;
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
 (* ok if curried *)
 let f () = ((fun x -> (fun y -> x + y) [@extension.curry])
             : (local_ int -> (int -> int)));;
@@ -2782,6 +2791,26 @@ Line 1, characters 19-37:
                        ^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
+|}];;
+
+let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+[%%expect{|
+Line 1, characters 19-60:
+1 | let f () = local_ ((fun x -> function | 0 -> x | y -> x + y) : (_ -> _));;
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}];;
+
+(* For n-ary functions, inner functions are not constrained *)
+let f () = ((fun x -> fun y -> x + y) : (local_ int -> (int -> int)));;
+[%%expect{|
+val f : unit -> local_ int -> (int -> int) = <fun>
+|}];;
+
+let f () = local_ ((fun x -> fun y -> x + y) : (_ -> _));;
+[%%expect{|
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* ok if curried *)
