@@ -3,7 +3,7 @@ type maturity = Stable | Beta | Alpha
 (* Remember to update [all] when changing this type. *)
 type _ t =
   | Comprehensions : unit t
-  | Local : unit t
+  | Mode : unit t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -21,7 +21,7 @@ module Exist = struct
 
   let all =
     [ Pack Comprehensions
-    ; Pack Local
+    ; Pack Mode
     ; Pack Unique
     ; Pack Include_functor
     ; Pack Polymorphic_parameters
@@ -41,7 +41,7 @@ end
 (* When you update this, update [pair_of_string] below too. *)
 let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
-  | Local -> "local"
+  | Mode -> "mode"
   | Unique -> "unique"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
@@ -59,7 +59,7 @@ let to_string : type a. a t -> string = function
 let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "local" -> Some (Pair (Local, ()))
+  | "mode" -> Some (Pair (Mode, ()))
   | "unique" -> Some (Pair (Unique, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
@@ -92,7 +92,7 @@ let of_string extn_name : Exist.t option =
    But we've decided to punt on this issue in the short term.
 *)
 let is_erasable : type a. a t -> bool = function
-  | Local
+  | Mode
   | Unique
   | Layouts ->
       true

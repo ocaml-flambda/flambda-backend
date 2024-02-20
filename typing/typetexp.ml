@@ -587,29 +587,9 @@ let get_type_param_name styp =
   | Ptyp_var name -> Some name
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
-let get_alloc_mode styp : Alloc.Const.t =
-  let locality =
-    match Builtin_attributes.has_local styp.ptyp_attributes with
-    | Ok true -> Locality.Const.Local
-    | Ok false -> Locality.Const.Global
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
-  in
-  let uniqueness =
-    match Builtin_attributes.has_unique styp.ptyp_attributes with
-    | Ok true -> Uniqueness.Const.Unique
-    | Ok false -> Uniqueness.Const.Shared
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
-  in
-  let linearity =
-    match Builtin_attributes.has_once styp.ptyp_attributes with
-    | Ok true -> Linearity.Const.Once
-    | Ok false -> Linearity.Const.Many
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
-  in
-  {locality; linearity; uniqueness}
+let get_alloc_mode styp =
+  let modes, _ = Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes in
+  Typemode.transl_alloc_mode modes
 
 let rec extract_params styp =
   let final styp =

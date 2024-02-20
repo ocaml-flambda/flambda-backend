@@ -17,6 +17,7 @@
 
 open Path
 open Types
+open Mode
 open Btype
 
 let builtin_idents = ref []
@@ -264,7 +265,7 @@ let build_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple (List.map (fun x -> (x, Unrestricted)) args);
+        ext_args = Cstr_tuple (List.map (fun x -> (x, Global_flag.Unrestricted)) args);
         ext_arg_jkinds = jkinds;
         ext_constant = args = [];
         ext_ret_type = None;

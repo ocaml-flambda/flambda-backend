@@ -20,6 +20,32 @@ type nonrec allowed = allowed
 
 type nonrec disallowed = disallowed
 
+module Axis = struct
+  type t =
+    [ `Locality
+    | `Regionality
+    | `Uniqueness
+    | `Linearity ]
+
+  let to_string = function
+    | `Locality -> "locality"
+    | `Regionality -> "regionality"
+    | `Uniqueness -> "uniqueness"
+    | `Linearity -> "linearity"
+end
+
+module Global_flag = struct
+  type t =
+    | Global
+    | Unrestricted
+
+  let compare flag0 flag1 =
+    match flag0, flag1 with
+    | Global, Unrestricted -> -1
+    | Unrestricted, Global -> 1
+    | Global, Global | Unrestricted, Unrestricted -> 0
+end
+
 (* This module is too general and should be specialized in the future.
    https://github.com/ocaml-flambda/flambda-backend/pull/1760#discussion_r1468531786
 *)

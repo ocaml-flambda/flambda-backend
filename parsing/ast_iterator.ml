@@ -27,6 +27,7 @@ open Location
 type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
+  modes : iterator -> Jane_syntax.Mode_expr.t -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
@@ -42,6 +43,7 @@ type iterator = {
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
   expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
+  expr_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> expression -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -60,6 +62,7 @@ type iterator = {
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
   pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
+  pat_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> pattern -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -69,6 +72,7 @@ type iterator = {
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
+  typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -76,6 +80,7 @@ type iterator = {
   type_exception: iterator -> type_exception -> unit;
   type_kind: iterator -> type_kind -> unit;
   value_binding: iterator -> value_binding -> unit;
+  value_binding_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> value_binding -> unit;
   value_description: iterator -> value_description -> unit;
   with_constraint: iterator -> with_constraint -> unit;
 }
@@ -146,6 +151,10 @@ module T = struct
     | Jtyp_layout typ -> iter_jst_layout sub typ
     | Jtyp_tuple lt_typ -> iter_jst_labeled_tuple sub lt_typ
 
+  let iter_mode sub modes typ =
+    sub.modes sub modes;
+    sub.typ sub typ
+
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
@@ -153,6 +162,12 @@ module T = struct
     | Some (jtyp, attrs) ->
         sub.attributes sub attrs;
         sub.typ_jane_syntax sub jtyp
+    | None ->
+    let modes, ptyp_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
+    match modes with
+    | Some modes ->
+        let typ = {typ with ptyp_attributes} in
+        sub.typ_mode_syntax sub modes typ
     | None ->
     sub.attributes sub attrs;
     match desc with
@@ -535,6 +550,10 @@ module E = struct
     | Jexp_n_ary_function n_ary_exp -> iter_n_ary_function sub n_ary_exp
     | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
 
+  let iter_mode sub modes expr =
+    sub.modes sub modes;
+    sub.expr sub expr
+
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
@@ -543,6 +562,14 @@ module E = struct
         sub.attributes sub attrs;
         sub.expr_jane_syntax sub jexp
     | None ->
+    match desc with
+    | Pexp_apply
+        ({ pexp_desc = Pexp_extension(
+          {txt; _}, payload); pexp_loc },
+         [Nolabel, e]) when txt = Jane_syntax.Mode_expr.extension_name ->
+        let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
+        sub.expr_mode_syntax sub modes e
+    | _ ->
     sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
@@ -644,6 +671,10 @@ module P = struct
     | Jpat_layout (Lpat_constant _) -> iter_constant
     | Jpat_tuple ltpat -> iter_labeled_tuple sub ltpat
 
+  let iter_mode sub modes pat =
+    sub.modes sub modes;
+    sub.pat sub pat
+
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
@@ -651,6 +682,12 @@ module P = struct
     | Some (jpat, attrs) ->
         sub.attributes sub attrs;
         sub.pat_jane_syntax sub jpat
+    | None ->
+    let modes, ppat_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
+    match modes with
+    | Some modes ->
+      let pat = {pat with ppat_attributes} in
+      sub.pat_mode_syntax sub modes pat
     | None ->
     sub.attributes sub attrs;
     match desc with
@@ -774,6 +811,7 @@ let default_iterator =
     type_kind = T.iter_type_kind;
     typ = T.iter;
     typ_jane_syntax = T.iter_jst;
+    typ_mode_syntax = T.iter_mode;
     row_field = T.row_field;
     object_field = T.object_field;
     type_extension = T.iter_type_extension;
@@ -790,8 +828,10 @@ let default_iterator =
 
     pat = P.iter;
     pat_jane_syntax = P.iter_jst;
+    pat_mode_syntax = P.iter_mode;
     expr = E.iter;
     expr_jane_syntax = E.iter_jst;
+    expr_mode_syntax = E.iter_mode;
     binding_op = E.iter_binding_op;
 
     module_declaration =
@@ -856,7 +896,15 @@ let default_iterator =
 
 
     value_binding =
-      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint} ->
+      (fun this ({pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint} as pvb) ->
+         let modes, pvb_attributes =
+          Jane_syntax.Mode_expr.maybe_of_attrs pvb_attributes
+         in
+         match modes with
+         | Some modes ->
+            let pvb = {pvb with pvb_attributes} in
+            this.value_binding_mode_syntax this modes pvb
+         | None ->
          this.pat this pvb_pat;
          this.expr this pvb_expr;
          Option.iter (function
@@ -871,6 +919,11 @@ let default_iterator =
          this.attributes this pvb_attributes
       );
 
+    value_binding_mode_syntax =
+      (fun this modes pvb ->
+        this.modes this modes;
+        this.value_binding this pvb
+      );
 
     constructor_declaration =
       (fun this ({pcd_name; pcd_vars; pcd_args;
@@ -916,6 +969,8 @@ let default_iterator =
       this.location this a.attr_loc
     );
     attributes = (fun this l -> List.iter (this.attribute this) l);
+    (* [ast_iterator] should not know about the structure of mode expressions *)
+    modes = (fun _this _m -> ());
     payload =
       (fun this -> function
          | PStr x -> this.structure this x

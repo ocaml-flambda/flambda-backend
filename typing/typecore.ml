@@ -444,23 +444,23 @@ let value_regional_to_global mode =
 let modality_unbox_left global_flag mode =
   let mode = Value.disallow_right mode in
   match global_flag with
-  | Global ->
+  | Global_flag.Global ->
       mode
       |> Value.set_regionality_min
       |> join_shared
       |> Value.set_linearity_min
-  | Unrestricted -> mode
+  | Global_flag.Unrestricted -> mode
 
 (* Describes how a modality affects record construction. Gives the
    expected mode of the field given the expected mode of the record. *)
 let modality_box_right global_flag mode =
   match global_flag with
-  | Global ->
+  | Global_flag.Global ->
       mode
       |> meet_global
       |> Value.set_uniqueness_max
       |> meet_many
-  | Unrestricted -> mode
+  | Global_flag.Unrestricted -> mode
 
 let mode_default mode =
   { position = RNontail;
@@ -800,18 +800,6 @@ let extract_label_names env ty =
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
   | Not_a_record_type | Maybe_a_record_type -> assert false
 
-let has_local_attr loc attrs =
-  match Builtin_attributes.has_local attrs with
-  | Ok l -> l
-  | Error () ->
-     raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Local))
-
-let has_local_attr_pat ppat =
-  has_local_attr ppat.ppat_loc ppat.ppat_attributes
-
-let has_local_attr_exp pexp =
-  has_local_attr pexp.pexp_loc pexp.pexp_attributes
-
 let has_poly_constraint spat =
   match spat.ppat_desc with
   | Ppat_constraint(_, styp) -> begin
@@ -835,79 +823,17 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
       strictly_local = false }
   else expected_mode
 
-let has_unique_attr loc attrs =
-  match Builtin_attributes.has_unique attrs with
-  | Ok l -> l
-  | Error () ->
-      raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Unique))
+let alloc_mode_from_exp_attrs exp =
+  let modes, _ = Jane_syntax.Mode_expr.of_attrs exp.pexp_attributes in
+  Typemode.transl_alloc_mode modes
 
-let has_once_attr loc attrs =
-  match Builtin_attributes.has_once attrs with
-  | Ok l -> l
-  | Error () ->
-      raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Unique))
+let alloc_mode_from_pat_attrs pat =
+  let modes, _ = Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes in
+  Typemode.transl_alloc_mode modes
 
-let has_unique_attr_pat ppat =
-  has_unique_attr ppat.ppat_loc ppat.ppat_attributes
-
-let has_unique_attr_exp pexp =
-  has_unique_attr pexp.pexp_loc pexp.pexp_attributes
-
-let has_once_attr_pat ppat =
-  has_once_attr ppat.ppat_loc ppat.ppat_attributes
-
-let has_once_attr_exp pexp =
-  has_once_attr pexp.pexp_loc pexp.pexp_attributes
-
-let has_mode_annotation annots annot =
-  List.exists
-    (fun x -> Jane_syntax.N_ary_functions.mode_annotation_equal x.txt annot)
-    annots
-
-let mode_annots_none = Alloc.Const.Option.none
-
-(* CR-someday: The [mode_annots_from_*] family of functions sweeps through
-   the list of attributes multiple times. Once should be enough.
-*)
-
-let mode_annots_from_pat_attrs sp : Alloc.Const.Option.t =
-  let locality =
-    if has_local_attr_pat sp then Some Locality.Const.Local
-    else None
-  and uniqueness =
-    if has_unique_attr_pat sp then Some Uniqueness.Const.Unique
-    else None
-  and linearity =
-    if has_once_attr_pat sp then Some Linearity.Const.Once
-    else None
-  in
-  {locality; linearity; uniqueness}
-
-let mode_annots_from_exp_attrs exp : Alloc.Const.Option.t =
-  let locality =
-    if has_local_attr_exp exp then Some Locality.Const.Local
-    else None
-  and uniqueness =
-    if has_unique_attr_exp exp then Some Uniqueness.Const.Unique
-    else None
-  and linearity =
-    if has_once_attr_exp exp then Some Linearity.Const.Once
-    else None
-  in
-  {locality; linearity; uniqueness}
-
-let mode_annots_from_n_ary_function_annotations annots : Alloc.Const.Option.t =
-  let locality =
-     if has_mode_annotation annots Local then Some Locality.Const.Local
-     else None
-  and uniqueness =
-    if has_mode_annotation annots Unique then Some Uniqueness.Const.Unique
-    else None
-  and linearity =
-    if has_mode_annotation annots Once then Some Linearity.Const.Once
-    else None
-  in
-  {locality; linearity; uniqueness}
+let mode_annots_from_pat_attrs pat =
+  let modes, _ = Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes in
+  Typemode.transl_mode_annots modes
 
 let apply_mode_annots ~loc ~env ~ty_expected (m : Alloc.Const.Option.t) mode =
   let error axis =
@@ -2826,10 +2752,7 @@ and type_pat_aux
   | Ppat_constraint(sp_constrained, sty) ->
       (* Pretend separate = true *)
       let cty, ty, expected_ty' =
-        let mode_annots = mode_annots_from_pat_attrs sp in
-        let type_modes =
-          Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
-        in
+        let type_modes = alloc_mode_from_pat_attrs sp in
         solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
       in
       let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
@@ -3978,19 +3901,16 @@ end = struct
       match e.pexp_desc with
       | Pexp_apply
           ({ pexp_desc = Pexp_extension(
-             {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
-           [Nolabel, _]) ->
-          Local e.pexp_loc
-      | Pexp_apply
-          ({ pexp_desc = Pexp_extension(
-             {txt = "extension.unique"|"ocaml.unique"|"unique"}, PStr []) },
-           [Nolabel, exp]) ->
-          loop exp
-      | Pexp_apply
-          ({ pexp_desc = Pexp_extension(
-            {txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
-          [Nolabel, exp]) ->
-          loop exp
+             {txt; _}, payload); pexp_loc },
+           [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.extension_name ->
+          let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
+          if List.exists
+            (fun m ->
+              let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+              txt = "local")
+            modes.txt
+          then Local e.pexp_loc
+          else loop exp
       | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
                                                   None) } ->
           Either
@@ -4138,10 +4058,7 @@ let type_pattern_approx env spat ty_expected =
   | None      ->
   match spat.ppat_desc with
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
-      let mode_annots = mode_annots_from_pat_attrs spat in
-      let arg_type_mode =
-        Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
-      in
+      let arg_type_mode = alloc_mode_from_pat_attrs spat in
       let ty_pat =
         Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in
@@ -4233,18 +4150,8 @@ let rec type_approx env sexp ty_expected =
            : type_expr)
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
-         {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
-       [Nolabel, e]) ->
-    type_approx env e ty_expected
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension(
-         {txt = "extension.unique" | "ocaml.unique" | "unique"}, PStr []) },
-       [Nolabel, e]) ->
-    type_approx env e ty_expected
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension(
-        {txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
-      [Nolabel, e]) ->
+         {txt; _}, _) },
+       [Nolabel, e]) when txt = Jane_syntax.Mode_expr.extension_name ->
     type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
@@ -5029,10 +4936,9 @@ let may_lower_contravariant_then_generalize env exp =
 
 let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attributes=attrs; _ } =
   let open Ast_helper in
+  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
   let mode_annot_attrs =
-    Builtin_attributes.filter_attributes
-      Builtin_attributes.mode_annotation_attributes_filter
-      attrs
+    Option.fold ~none:[] ~some:(fun x -> [x]) mode_annot_attr
   in
   match ct with
   | None -> expr
@@ -5054,10 +4960,9 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
+  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
   let mode_annot_attrs =
-    Builtin_attributes.filter_attributes
-      Builtin_attributes.mode_annotation_attributes_filter
-      attrs
+    Option.fold ~none:[] ~some:(fun x -> [x]) mode_annot_attr
   in
   let spat =
     let open Ast_helper in
@@ -5319,43 +5224,29 @@ and type_expect_
   | Pexp_function _ ->
       Misc.fatal_error "non-Jane-Syntax [Pexp_function] made it to typechecking"
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-            txt = ("ocaml.unique" | "unique" | "extension.unique" as txt)}, PStr []) },
-       [Nolabel, sbody]) ->
-      if txt = "extension.unique" && not (Language_extension.is_enabled Unique) then
-        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Unique));
-      let expected_mode = mode_unique expected_mode in
-      let expected_mode = expect_mode_cross env ty_expected expected_mode in
-      let exp =
-        type_expect ~recarg env expected_mode sbody
-          ty_expected_explained
+      ({ pexp_desc = Pexp_extension({txt; _}, payload); pexp_loc},
+        [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
+      let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
+      let expected_mode = List.fold_left (fun expected_mode mode ->
+          let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+          match mode.txt with
+          | "unique" ->
+            let expected_mode = mode_unique expected_mode in
+            expect_mode_cross env ty_expected expected_mode
+          | "once" ->
+            let expected_mode = expect_mode_cross env ty_expected expected_mode in
+            submode ~loc ~env ~reason:Other
+              (Value.min_with_linearity Linearity.once) expected_mode;
+            mode_once expected_mode
+          | "local" ->
+            let expected_mode = expect_mode_cross env ty_expected expected_mode in
+            submode ~loc ~env ~reason:Other
+              (Value.min_with_regionality Regionality.local) expected_mode;
+            mode_strictly_local expected_mode
+          | s ->
+            Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+          ) expected_mode modes.txt
       in
-      {exp with exp_loc = loc}
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-          txt = ("ocaml.once" | "once" | "extension.once" as txt)}, PStr []) },
-      [Nolabel, sbody]) ->
-      if txt = "extension.once" && not (Language_extension.is_enabled Unique) then
-        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Unique));
-      let expected_mode = expect_mode_cross env ty_expected expected_mode in
-      submode ~loc ~env ~reason:Other
-        (Value.min_with_linearity Linearity.once) expected_mode;
-      let expected_mode = mode_once expected_mode in
-      let exp =
-        type_expect ~recarg env expected_mode sbody
-          ty_expected_explained
-      in
-      {exp with exp_loc = loc}
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-          txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
-       [Nolabel, sbody]) ->
-      if txt = "extension.local" && not (Language_extension.is_enabled Local) then
-        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
-      let expected_mode = expect_mode_cross env ty_expected expected_mode in
-      submode ~loc ~env ~reason:Other
-        (Value.min_with_regionality Regionality.local) expected_mode;
-      let expected_mode = mode_strictly_local expected_mode in
       let exp =
         type_expect ~recarg env expected_mode sbody ty_expected_explained
       in
@@ -5373,8 +5264,8 @@ and type_expect_
       ({ pexp_desc = Pexp_extension({
          txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
        [Nolabel, sbody]) ->
-      if (txt = "extension.exclave") && not (Language_extension.is_enabled Local) then
-          raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
+      if (txt = "extension.exclave") && not (Language_extension.is_enabled Mode) then
+          raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Mode));
       begin
         match expected_mode.position with
         | RNontail ->
@@ -5919,7 +5810,7 @@ and type_expect_
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
       let (ty, exp_extra) =
-        type_constraint env sty (mode_annots_from_exp_attrs sexp)
+        type_constraint env sty (alloc_mode_from_exp_attrs sexp)
       in
       let ty' = instance ty in
       let error_message_attr_opt =
@@ -5938,7 +5829,7 @@ and type_expect_
   | Pexp_coerce(sarg, sty, sty') ->
       let arg, ty', exp_extra =
         type_coerce (expression_constraint sarg) env expected_mode loc sty sty'
-          (mode_annots_from_exp_attrs sexp) ~loc_arg:sarg.pexp_loc
+          (alloc_mode_from_exp_attrs sexp) ~loc_arg:sarg.pexp_loc
       in
       rue {
         exp_desc = arg.exp_desc;
@@ -6473,15 +6364,12 @@ and expression_constraint pexp =
 and type_coerce
   : type a. a constraint_arg -> _ -> _ -> _ -> _ -> _ -> _ -> loc_arg:_
          -> a * type_expr * exp_extra =
-  fun constraint_arg env expected_mode loc sty sty' mode_annots ~loc_arg ->
+  fun constraint_arg env expected_mode loc sty sty' type_mode ~loc_arg ->
   (* Pretend separate = true, 1% slowdown for lablgtk *)
   (* Also see PR#7199 for a problem with the following:
       let separate = !Clflags.principal || Env.has_local_constraints env in*)
   let { is_self; type_with_constraint; type_without_constraint } =
     constraint_arg
-  in
-  let type_mode =
-    Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
   in
   match sty with
   | None ->
@@ -6553,13 +6441,10 @@ and type_coerce
       (type_with_constraint env expected_mode ty,
        instance ty', Texp_coerce (Some cty, cty'))
 
-and type_constraint env sty mode_annots =
+and type_constraint env sty type_mode =
   (* Pretend separate = true, 1% slowdown for lablgtk *)
   let cty =
     with_local_level begin fun () ->
-      let type_mode =
-        Alloc.Const.Option.value mode_annots ~default:Alloc.Const.legacy
-      in
       Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false type_mode sty
     end
       ~post:(fun cty -> generalize_structure cty.ctyp_type)
@@ -6578,15 +6463,13 @@ and type_constraint_expect
   let ret, ty, exp_extra =
     let open Jane_syntax.N_ary_functions in
     let { type_constraint = constraint_; mode_annotations } = constraint_ in
-    let mode_annots =
-      mode_annots_from_n_ary_function_annotations mode_annotations
-    in
+    let type_mode = Typemode.transl_alloc_mode mode_annotations in
     match constraint_ with
     | Pcoerce (ty_constrain, ty_coerce) ->
         type_coerce constraint_arg env expected_mode loc ty_constrain ty_coerce
-          mode_annots ~loc_arg
+          type_mode ~loc_arg
     | Pconstraint ty_constrain ->
-        let ty, exp_extra = type_constraint env ty_constrain mode_annots in
+        let ty, exp_extra = type_constraint env ty_constrain type_mode in
         constraint_arg.type_with_constraint env expected_mode ty, ty, exp_extra
   in
   unify_exp_types loc env ty (instance ty_expected);
@@ -8184,7 +8067,7 @@ and type_function_cases_expect
           ty_arg_mono; expected_pat_mode; expected_inner_mode; alloc_mode;
         } =
       split_function_ty env expected_mode ty_expected loc ~arg_label:Nolabel
-        ~in_function ~has_poly:false ~mode_annots:mode_annots_none
+        ~in_function ~has_poly:false ~mode_annots:Mode.Alloc.Const.Option.none
         ~is_first_val_param:first ~is_final_val_param:true
     in
     let cases, partial =
@@ -8290,19 +8173,12 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)
-    | Pexp_newtype (_, e)
+    | Pexp_newtype (_, e) -> sexp_is_fun e
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({
-          txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
-        [Nolabel, e])
-    | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-          txt = "extension.unique" | "ocaml.unique" | "unique"}, PStr []) },
-        [Nolabel, e])
-    | Pexp_apply
-      ({ pexp_desc = Pexp_extension(
-          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
-       [Nolabel, e]) -> sexp_is_fun e
+          txt}, _) },
+        [Nolabel, e]) when txt=Jane_syntax.Mode_expr.extension_name
+        -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _

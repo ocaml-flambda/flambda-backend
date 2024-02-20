@@ -525,14 +525,10 @@ let report_type_mismatch first second decl env ppf err =
       Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
-  match flag0, flag1 with
-  | Global, Unrestricted ->
-    Some {order = First}
-  | Unrestricted, Global ->
-    Some {order = Second}
-  | Global, Global
-  | Unrestricted, Unrestricted ->
-    None
+  let c = Mode.Global_flag.compare flag0 flag1 in
+  if c < 0 then Some {order = First}
+  else if c > 0 then Some {order = Second}
+  else None
 
 module Record_diffing = struct
 
