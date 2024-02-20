@@ -188,6 +188,7 @@ BYTECOMP = \
   bytecomp/bytepackager.cmo \
   driver/errors.cmo \
   driver/compile.cmo \
+  bytecomp/byteinstantiator.cmo \
   driver/maindriver.cmo
 BYTECOMP_CMI =
 

@@ -59,10 +59,19 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_unit] and
                                              any produced via [Asmpackager]) *)
+    mutable ui_arg_descr: Lambda.arg_descr option;
+                                          (* If this is an argument unit, the
+                                             parameter it implements *)
     mutable ui_imports_cmi: Import_info.t list;
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t list;
                                           (* Infos imported *)
+    mutable ui_format: Lambda.module_block_format;
+                                          (* Implementation imports which are
+                                             bound as parameters at runtime,
+                                             including source-level parameters
+                                             as well as implementation imports
+                                             with unbound parameters *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: Checks.t;
@@ -71,8 +80,10 @@ type unit_infos =
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
     uir_defines: Compilation_unit.t list;
+    uir_arg_descr: Lambda.arg_descr option;
     uir_imports_cmi: Import_info.t array;
     uir_imports_cmx: Import_info.t array;
+    uir_format: Lambda.module_block_format;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
     uir_checks: Checks.Raw.t;

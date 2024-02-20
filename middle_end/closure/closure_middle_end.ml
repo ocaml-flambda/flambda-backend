@@ -31,9 +31,13 @@ let raw_clambda_dump_if ppf
 
 let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
       (lambda : Lambda.program) =
-  let clambda =
-    Closure.intro ~backend ~size:lambda.main_module_block_size lambda.code
+  let size =
+    match lambda.module_block_format with
+    | Mb_record { mb_size; _ } -> mb_size
+    | Mb_wrapped_function _ ->
+      Misc.fatal_error "Parameterised modules not supported by Closure"
   in
+  let clambda = Closure.intro ~backend ~size lambda.code in
   let provenance : Clambda.usymbol_provenance =
     let current_unit_ident =
       Compilation_unit.get_current_exn ()
@@ -57,7 +61,7 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
       symbol;
       exported = true;
       tag = 0;
-      fields = List.init lambda.main_module_block_size (fun _ -> None);
+      fields = List.init size (fun _ -> None);
       provenance = Some provenance;
     }
   in

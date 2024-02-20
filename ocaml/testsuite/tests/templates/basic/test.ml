@@ -18,14 +18,18 @@ readonly_files = "\
   category_utils.ml category_utils.mli \
   chain.ml chain.mli \
   import.ml \
+  int_list_element.ml int_list_element.mli \
   list_element.mli \
   list_monoid.ml list_monoid.mli \
-  main.ml main.mli main.reference \
+  main.ml main.mli main.reference main-ocamlobjinfo.reference \
   monoid.mli \
   monoid_of_semigroup.ml monoid_of_semigroup.mli \
   monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
+  run.ml \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
+  string_semigroup.ml string_semigroup.mli \
+  test.reference \
   test_direct_access.ml test_direct_access.reference \
 "
 
@@ -161,18 +165,125 @@ compiler_reference = "bad_instance_arg_value_wrong_type.reference"
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
 ************** ocamlc.byte
+flags = "-as-argument-for Semigroup"
+module = "string_semigroup.mli"
+*************** ocamlc.byte
+module = "string_semigroup.ml"
+**************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "monoid_of_semigroup-String_semigroup.cmo"
+all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
+***************** ocamlc.byte
+flags = "-as-argument-for List_element"
+module = "int_list_element.mli int_list_element.ml"
+****************** ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "list_monoid-Int_list_element.cmo"
+all_modules = "list_monoid.cmo int_list_element.cmo"
+******************* ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_of_semigroup-String_semigroup.cmo"
+all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
+******************** ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_utils-Monoid_of_semigroup--String_semigroup.cmo"
+all_modules = "monoid_utils.cmo monoid_of_semigroup-String_semigroup.cmo"
+********************* ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-List_monoid--Int_list_element.cmo"
+all_modules = "category_of_monoid.cmo list_monoid-Int_list_element.cmo"
+********************** ocamlc.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+all_modules = "category_of_monoid.cmo monoid_of_semigroup-String_semigroup.cmo"
+*********************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--List_monoid---Int_list_element.cmo"
+all_modules = "chain.cmo category_of_monoid-List_monoid--Int_list_element.cmo"
+************************ ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo"
+all_modules = "chain.cmo category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+************************* ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "import-Int_list_element-String_semigroup.cmo"
+all_modules = "import.cmo int_list_element.cmo string_semigroup.cmo"
+************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--List_monoid---Int_list_element.cmo"
+all_modules = "category_utils.cmo category_of_monoid-List_monoid--Int_list_element.cmo"
+*************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo"
+all_modules = "category_utils.cmo category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo"
+**************************** ocamlc.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
-*************** ocamlc.byte
+***************************** ocamlc.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i"
 module = "main.ml"
-**************** check-ocamlc.byte-output
+compiler_output = "main.output"
+****************************** check-ocamlc.byte-output
 compiler_reference = "main.reference"
-*************** ocamlc.byte
+***************************** ocamlc.byte
 module = "main.ml"
-**************** ocamlobjinfo
+****************************** ocamlobjinfo
 program = "main.cmo main.cmi"
-***************** check-program-output
+output = "main-ocamlobjinfo.output"
+******************************* check-program-output
+reference = "main-ocamlobjinfo.reference"
+****************************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "main-Int_list_element-String_semigroup.cmo"
+all_modules = "main.cmo int_list_element.cmo string_semigroup.cmo"
+******************************* ocamlc.byte
+flags = "-w -misplaced-attribute"
+module = "test.ml"
+******************************** ocamlc.byte
+flags = ""
+program = "${test_build_directory}/test.bc"
+module = ""
+all_modules = "\
+   string_semigroup.cmo \
+   monoid_of_semigroup.cmo \
+   monoid_of_semigroup-String_semigroup.cmo \
+   monoid_utils.cmo \
+   monoid_utils-Monoid_of_semigroup--String_semigroup.cmo \
+   int_list_element.cmo \
+   list_monoid.cmo \
+   list_monoid-Int_list_element.cmo \
+   category_of_monoid.cmo \
+   category_of_monoid-List_monoid--Int_list_element.cmo \
+   category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo \
+   chain.cmo \
+   chain-Category_of_monoid--List_monoid---Int_list_element.cmo \
+   chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo \
+   category_utils.cmo \
+   category_utils-Category_of_monoid--List_monoid---Int_list_element.cmo \
+   category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmo \
+   import.cmo \
+   import-Int_list_element-String_semigroup.cmo \
+   main.cmo \
+   main-Int_list_element-String_semigroup.cmo \
+   test.cmo \
+"
+********************************* run
+output = "test.output"
+exit_status = "0"
+********************************** check-program-output
+reference = "test.reference"
 * setup-ocamlopt.byte-build-env
 ** ocamlopt.byte
 flags = "-as-parameter"
@@ -305,13 +416,143 @@ compiler_reference = "bad_instance_arg_value_wrong_type.reference"
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
 ************** ocamlopt.byte
+flags = "-as-argument-for Semigroup"
+module = "string_semigroup.mli"
+*************** ocamlopt.byte
+module = "string_semigroup.ml"
+**************** ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "monoid_of_semigroup-String_semigroup.cmx"
+all_modules = "monoid_of_semigroup.cmx string_semigroup.cmx"
+***************** ocamlopt.byte
+flags = "-as-argument-for List_element"
+module = "int_list_element.mli int_list_element.ml"
+****************** ocamlopt.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "list_monoid-Int_list_element.cmx"
+all_modules = "list_monoid.cmx int_list_element.cmx"
+******************* ocamlopt.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_of_semigroup-String_semigroup.cmx"
+all_modules = "monoid_of_semigroup.cmx string_semigroup.cmx"
+******************** ocamlopt.byte
+module = ""
+flags = "-instantiate -as-argument-for Monoid"
+program = "monoid_utils-Monoid_of_semigroup--String_semigroup.cmx"
+all_modules = "monoid_utils.cmx monoid_of_semigroup-String_semigroup.cmx"
+********************* ocamlopt.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-List_monoid--Int_list_element.cmx"
+all_modules = "category_of_monoid.cmx list_monoid-Int_list_element.cmx"
+********************** ocamlopt.byte
+module = ""
+flags = "-instantiate -as-argument-for Category"
+program = "category_of_monoid-Monoid_of_semigroup--String_semigroup.cmx"
+all_modules = "category_of_monoid.cmx monoid_of_semigroup-String_semigroup.cmx"
+*********************** ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--List_monoid---Int_list_element.cmx"
+all_modules = "chain.cmx category_of_monoid-List_monoid--Int_list_element.cmx"
+************************ ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmx"
+all_modules = "chain.cmx category_of_monoid-Monoid_of_semigroup--String_semigroup.cmx"
+************************* ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "import-Int_list_element-String_semigroup.cmx"
+all_modules = "import.cmx int_list_element.cmx string_semigroup.cmx"
+************************** ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--List_monoid---Int_list_element.cmx"
+all_modules = "category_utils.cmx category_of_monoid-List_monoid--Int_list_element.cmx"
+*************************** ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmx"
+all_modules = "category_utils.cmx category_of_monoid-Monoid_of_semigroup--String_semigroup.cmx"
+**************************** ocamlopt.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
-*************** ocamlopt.byte
+***************************** ocamlopt.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i"
 module = "main.ml"
-**************** check-ocamlopt.byte-output
+compiler_output = "main.output"
+****************************** check-ocamlopt.byte-output
 compiler_reference = "main.reference"
-*************** ocamlopt.byte
+***************************** ocamlopt.byte
 module = "main.ml"
+****************************** ocamlopt.byte
+module = ""
+flags = "-instantiate"
+program = "main-Int_list_element-String_semigroup.cmx"
+all_modules = "main.cmx int_list_element.cmx string_semigroup.cmx"
+******************************* ocamlopt.byte
+flags = "-w -misplaced-attribute"
+module = "test.ml"
+******************************** ocamlopt.byte
+flags = ""
+program = "${test_build_directory}/test.exe"
+module = ""
+all_modules = "\
+   string_semigroup.cmx \
+   monoid_of_semigroup.cmx \
+   monoid_of_semigroup-String_semigroup.cmx \
+   monoid_utils.cmx \
+   monoid_utils-Monoid_of_semigroup--String_semigroup.cmx \
+   int_list_element.cmx \
+   list_monoid.cmx \
+   list_monoid-Int_list_element.cmx \
+   category_of_monoid.cmx \
+   category_of_monoid-List_monoid--Int_list_element.cmx \
+   category_of_monoid-Monoid_of_semigroup--String_semigroup.cmx \
+   chain.cmx \
+   chain-Category_of_monoid--List_monoid---Int_list_element.cmx \
+   chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmx \
+   category_utils.cmx \
+   category_utils-Category_of_monoid--List_monoid---Int_list_element.cmx \
+   category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup.cmx \
+   import.cmx \
+   import-Int_list_element-String_semigroup.cmx \
+   main.cmx \
+   main-Int_list_element-String_semigroup.cmx \
+   test.cmx \
+"
+********************************* run
+output = "test.output"
+exit_status = "0"
+********************************** check-program-output
+reference = "test.reference"
 *)
+
+module M =
+  Main(List_element)(Int_list_element)(Semigroup)(String_semigroup)
+  [@jane.non_erasable.instances]
+
+let ints =
+  M.append3_lists
+    [4; 8]
+    (M.concat_lists [[15]; []])
+    (M.concat_chain_lists [[]; [16; -1]; []; [23; 42]])
+
+let greeting =
+  match
+    M.concat_string_options [Some "Hello "; None; Some "world"; Some "!\n"; None]
+  with
+  | Some greeting -> greeting
+  | None -> assert false
+
+let ints_line =
+  List.map (fun i -> if i > 0 then Some (Format.sprintf " %i" i) else None) ints
+  |> M.concat_semi
+
+let s = M.append3_semi (Some greeting) ints_line None |> Option.get
+
+let () = print_endline s

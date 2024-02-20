@@ -151,6 +151,7 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type pers_struct = {
+  ps_name_info: pers_name;
   ps_binding: binding;
 }
 
@@ -741,7 +742,8 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
         Shape.var uid ident
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_binding = binding; } in
+  let ps = { ps_name_info = pers_name;
+             ps_binding = binding; } in
   if is_unexported_parameter penv modname then begin
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
@@ -891,11 +893,19 @@ let local_ident penv modname =
   | Some ({ ps_binding = Static _; _ }, _)
   | None -> None
 
-let locally_bound_imports ({persistent_structures; _} as penv) =
+let is_imported_parameter penv modname =
+  match find_info_in_cache penv modname with
+  | Some (pers_struct, _) -> pers_struct.ps_name_info.pn_import.imp_is_param
+  | None -> false
+
+let locally_bound_imports {persistent_structures; _} =
   persistent_structures
-  |> Hashtbl.to_seq_keys
+  |> Hashtbl.to_seq_values
   |> Seq.filter_map
-       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
+        (fun (ps, _) ->
+           match ps.ps_binding with
+           | Local local_ident -> Some (ps.ps_name_info.pn_global, local_ident)
+           | Static _ -> None)
   |> List.of_seq
 
 let exported_parameters {exported_params; _} =

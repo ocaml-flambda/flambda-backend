@@ -216,9 +216,17 @@ let flambda_raw_clambda_dump_if ppf
 
 let lambda_to_clambda ~backend ~filename ~prefixname ~ppf_dump
       (program : Lambda.program) =
+  let size =
+    match program.module_block_format with
+    | Mb_record { mb_size } -> mb_size
+    | Mb_wrapped_function _ ->
+      (* The module block has exactly a single function, the instantiating
+         functor *)
+      1
+  in
   let program =
     lambda_to_flambda ~ppf_dump ~prefixname ~backend
-      ~size:program.main_module_block_size
+      ~size
       ~filename
       ~compilation_unit:program.compilation_unit
       ~module_initializer:program.code

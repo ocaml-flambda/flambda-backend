@@ -170,6 +170,7 @@
   afl_instrument
   arch
   asmgen
+  asminstantiator
   asmlibrarian
   asmlink
   asmpackager

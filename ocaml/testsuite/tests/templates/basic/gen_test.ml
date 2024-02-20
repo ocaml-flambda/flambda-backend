@@ -138,6 +138,18 @@ let tree_for_mode mode =
       Act ("check-program-output", [ "reference", !%"%s.reference" main ]);
     ]
   in
+  let instantiate ~flags ?extra out (module_, args) =
+    let all_modules =
+      List.map (module_ :: args) ~f:(fun m -> !%"%s.%s" m cmo)
+      |> String.concat ~sep:" "
+    in
+    Act (compiler, add_extra ?extra [
+      "module", "";
+      "flags", sep_unless_empty "-instantiate" flags;
+      "program", !%"%s.%s" out cmo;
+      "all_modules", all_modules
+    ])
+  in
   Seq [
     Act (!%"setup-%s-build-env" compiler, []);
     compile "monoid.mli" ~flags:"-as-parameter";
@@ -185,12 +197,56 @@ let tree_for_mode mode =
       ~flags:"-parameter List_element";
     compile "import.ml"
       ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+    compile "string_semigroup.mli" ~flags:"-as-argument-for Semigroup";
+    compile "string_semigroup.ml";
+    instantiate "monoid_of_semigroup-String_semigroup"
+      ("monoid_of_semigroup", [ "string_semigroup" ]) ~flags:"";
+    compile "int_list_element.mli int_list_element.ml"
+      ~flags:"-as-argument-for List_element";
+    instantiate "list_monoid-Int_list_element"
+      ("list_monoid", [ "int_list_element" ]) ~flags:"-as-argument-for Monoid";
+    instantiate "monoid_of_semigroup-String_semigroup"
+      ("monoid_of_semigroup", [ "string_semigroup" ])
+      ~flags:"-as-argument-for Monoid";
+    instantiate
+      "monoid_utils-Monoid_of_semigroup--String_semigroup"
+      ("monoid_utils", [ "monoid_of_semigroup-String_semigroup" ])
+      ~flags:"-as-argument-for Monoid";
+    instantiate
+      "category_of_monoid-List_monoid--Int_list_element"
+      ("category_of_monoid", [ "list_monoid-Int_list_element" ])
+      ~flags:"-as-argument-for Category";
+    instantiate
+      "category_of_monoid-Monoid_of_semigroup--String_semigroup"
+      ("category_of_monoid", [ "monoid_of_semigroup-String_semigroup" ])
+      ~flags:"-as-argument-for Category";
+    instantiate
+      "chain-Category_of_monoid--List_monoid---Int_list_element"
+      ("chain", [ "category_of_monoid-List_monoid--Int_list_element" ])
+      ~flags:"";
+    instantiate
+      "chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup"
+      ("chain", [ "category_of_monoid-Monoid_of_semigroup--String_semigroup" ])
+      ~flags:"";
+    instantiate
+      "import-Int_list_element-String_semigroup"
+      ("import", [ "int_list_element"; "string_semigroup" ])
+      ~flags:"";
+    instantiate
+      "category_utils-Category_of_monoid--List_monoid---Int_list_element"
+      ("category_utils", [ "category_of_monoid-List_monoid--Int_list_element" ])
+      ~flags:"";
+    instantiate
+      "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup"
+      ("category_utils", [ "category_of_monoid-Monoid_of_semigroup--String_semigroup" ])
+      ~flags:"";
     compile "main.mli"
       ~flags:"-parameter Semigroup -parameter List_element -w -misplaced-attribute";
     Branch (Seq [
       Act (compiler, [
         "flags", "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
         "module", "main.ml";
+        "compiler_output", "main.output";
       ]);
       Act (!%"check-%s-output" compiler, [
         "compiler_reference", "main.reference"
@@ -202,13 +258,45 @@ let tree_for_mode mode =
       | Byte -> Seq [
           Act ("ocamlobjinfo", [
             "program", !%"main.%s main.cmi" cmo;
+            "output", "main-ocamlobjinfo.output";
           ]);
-          Act ("check-program-output", [])
+          Act ("check-program-output", [
+            "reference", "main-ocamlobjinfo.reference";
+          ])
         ]
       | Native ->
         (* flambda output is too noisy *)
         Nop
     );
+    instantiate
+      "main-Int_list_element-String_semigroup"
+      ("main", [ "int_list_element"; "string_semigroup" ])
+      ~flags:"";
+    compile "test.ml" ~flags:"-w -misplaced-attribute";
+      link_and_run "test" ~flags:"" [
+        "string_semigroup";
+        "monoid_of_semigroup";
+        "monoid_of_semigroup-String_semigroup";
+        "monoid_utils";
+        "monoid_utils-Monoid_of_semigroup--String_semigroup";
+        "int_list_element";
+        "list_monoid";
+        "list_monoid-Int_list_element";
+        "category_of_monoid";
+        "category_of_monoid-List_monoid--Int_list_element";
+        "category_of_monoid-Monoid_of_semigroup--String_semigroup";
+        "chain";
+        "chain-Category_of_monoid--List_monoid---Int_list_element";
+        "chain-Category_of_monoid--Monoid_of_semigroup---String_semigroup";
+        "category_utils";
+        "category_utils-Category_of_monoid--List_monoid---Int_list_element";
+        "category_utils-Category_of_monoid--Monoid_of_semigroup---String_semigroup";
+        "import";
+        "import-Int_list_element-String_semigroup";
+        "main";
+        "main-Int_list_element-String_semigroup";
+        "test";
+      ];
   ]
 
 let test_tree = Par [ tree_for_mode Byte; tree_for_mode Native ]
