@@ -226,7 +226,7 @@ Error: This function or one of its parameters escape their region
        when it is partially applied.
 |}]
 
-(* For n-ary functions, inner functions are not constrained *)
+(* For nested functions, inner functions are not constrained *)
 let f () =
   exclave_ (
     (fun x -> fun y -> ()) : (string -> string -> unit)

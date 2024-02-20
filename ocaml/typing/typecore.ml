@@ -4807,14 +4807,13 @@ let split_function_ty
         if region_locked then Env.add_region_lock env
         else env
   in
+  let ret_value_mode = alloc_as_value ret_mode in
   let expected_inner_mode =
     if not is_final_val_param then
       (* no need to check mode crossing in this case because ty_res always a
       function *)
-      let ret_value_mode = alloc_as_value ret_mode in
       mode_default ret_value_mode
     else
-      let ret_value_mode = alloc_as_value ret_mode in
       let ret_value_mode =
         if region_locked then mode_return ret_value_mode
         else begin

@@ -570,7 +570,7 @@ Error: This function when partially applied returns a once value,
        but expected to be many.
 |}]
 
-(* For n-ary functions, inner functions are not constrained *)
+(* For nested functions, inner functions are not constrained *)
 let no_curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 -> fun b2 -> b2
 [%%expect{|
 val no_curry : unique_ box -> (unique_ box -> unique_ box) = <fun>
