@@ -100,6 +100,80 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
+module Mode_expr : sig
+  (** [Mode_expr] appears in several places:
+  - let local_ x = ...
+  - local_ exp
+  - local string -> string
+  - {global_ x : int}
+
+  Note that in the first two cases, axes other than locality are not specified;
+  in the second case, other axes are defaulted to legacy. In the last case, we
+  are specifying modalities.
+
+  In the future the three annotations will be quite different, but for now they
+  are all lists of modes/modalities. [Typemode] has the three different
+  interpretations of the annotation.
+
+  (TODO: in the future we will have mutable(...), which is similar to the second
+  occurrence above and should be covered by this module)
+  *)
+
+  module Const : sig
+    (** Constant modes *)
+
+    type raw = string
+
+    (** Represent a user-written mode constant, containing a string and its
+        location *)
+    type t = private raw Location.loc
+
+    (** Constructs a mode constant mode *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t = Const.t list Location.loc
+
+  (** The empty mode expression. *)
+  val empty : t
+
+  (** The mode expression containing a single mode constant. *)
+  val singleton : Const.t -> t
+
+  (** The string used to mark extensions as containing mode expressions. *)
+  val extension_name : string
+
+  (** The string used to mark attributes as containing mode expressions. *)
+  val attribute_name : string
+
+  (** Extract the mode attribute (if any) from a list of attributes; also
+      returns the rest of the attributes; Raises if multiple relevant attributes
+      are found *)
+  val extract_attr :
+    Parsetree.attributes -> Parsetree.attribute option * Parsetree.attributes
+
+  (** Encode a mode expression into a [attribute]. If the expression is safe to
+      empty (and thus safe to ignore), returns [None]. *)
+  val attr_of : t -> Parsetree.attribute option
+
+  (** Given a list of attributes, extracts the mode expression and returns the
+      rest of attributes. Raises if multiple relevant attributes are found.
+      Raises if attributes encodes empty mode expression *)
+  val maybe_of_attrs : Parsetree.attributes -> t option * Parsetree.attributes
+
+  (* Similar to [maybe_of_attrs], but default to [empty] if no relevant
+      attribute is found. *)
+  val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
+
+  (** Encodes a mode expression into a [payload]. If the expression is safe to
+      ignore (i.e. empty), returns [None]. *)
+  val payload_of : t -> Parsetree.payload option
+
+  (** Decode a mode expression from a [payload] whose location is [loc]. Raises
+      if the payload encodes an empty mode expression. *)
+  val of_payload : loc:Location.t -> Parsetree.payload -> t
+end
+
 module N_ary_functions : sig
   (** These types use the [P] prefix to match how they are represented in the
       upstream compiler *)
@@ -169,15 +243,8 @@ module N_ary_functions : sig
       has a type constraint on the body, e.g.
       [let local_ f x : int -> int = ...].
   *)
-  type mode_annotation =
-    | Local
-    | Unique
-    | Once
-
-  val mode_annotation_equal : mode_annotation -> mode_annotation -> bool
-
   type function_constraint =
-    { mode_annotations : mode_annotation Location.loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 

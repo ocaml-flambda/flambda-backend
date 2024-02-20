@@ -1425,8 +1425,8 @@ and tree_of_labeled_typlist mode tyl =
 and tree_of_typ_gf (ty, gf) =
   let gf =
     match gf with
-    | Global -> Ogf_global
-    | Unrestricted -> Ogf_unrestricted
+    | Global_flag.Global -> Ogf_global
+    | Global_flag.Unrestricted -> Ogf_unrestricted
   in
   (tree_of_typexp Type ty, gf)
 

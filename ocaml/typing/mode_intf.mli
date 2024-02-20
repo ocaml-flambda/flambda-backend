@@ -98,6 +98,24 @@ module type Common = sig
 end
 
 module type S = sig
+  module Axis : sig
+    type t =
+      [ `Locality
+      | `Regionality
+      | `Uniqueness
+      | `Linearity ]
+
+    val to_string : t -> string
+  end
+
+  module Global_flag : sig
+    type t =
+      | Global
+      | Unrestricted
+
+    val compare : t -> t -> int
+  end
+
   type changes
 
   val undo_changes : changes -> unit
