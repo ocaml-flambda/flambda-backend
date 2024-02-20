@@ -441,9 +441,9 @@ let modality_unbox_left global_flag mode =
   match global_flag with
   | Global_flag.Global ->
       mode
-      |> Value.set_regionality_min
+      |> Value.meet_with_regionality Regionality.Const.Global
       |> join_shared
-      |> Value.set_linearity_min
+      |> Value.meet_with_linearity Linearity.Const.Many
   | Global_flag.Unrestricted -> mode
 
 (* Describes how a modality affects record construction. Gives the
@@ -453,7 +453,7 @@ let modality_box_right global_flag mode =
   | Global_flag.Global ->
       mode
       |> meet_global
-      |> Value.set_uniqueness_max
+      |> Value.join_with_uniqueness Uniqueness.Const.max
       |> meet_many
   | Global_flag.Unrestricted -> mode
 
@@ -504,10 +504,13 @@ let mode_global expected_mode =
 
 let mode_local expected_mode =
   { expected_mode with
-    mode = Value.set_regionality_max expected_mode.mode }
+    mode = Value.join_with_regionality Regionality.Const.Local expected_mode.mode }
 
 let mode_exclave expected_mode =
-  { (mode_default (Value.set_regionality_max expected_mode.mode))
+  let mode =
+    Value.join_with_regionality Regionality.Const.Local expected_mode.mode
+  in
+  { (mode_default mode)
     with strictly_local = true
   }
 
@@ -522,7 +525,7 @@ let mode_unique expected_mode =
 
 let mode_once expected_mode =
   { expected_mode with
-    mode = Value.set_linearity_max expected_mode.mode}
+    mode = Value.join_with_linearity Linearity.Const.Once expected_mode.mode}
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -808,17 +811,17 @@ let mode_cross_left env ty mode =
   let mode = Value.disallow_right mode in
   let mode =
     if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Value.set_regionality_min mode
+    then Value.meet_with_regionality Regionality.Const.min mode
     else mode
   in
   let mode =
     if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Value.set_linearity_min mode
+    then Value.meet_with_linearity Linearity.Const.min mode
     else mode
   in
   let mode =
     if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Value.set_uniqueness_min mode
+    then Value.meet_with_uniqueness Uniqueness.Const.min mode
     else mode
   in
   mode
@@ -833,17 +836,17 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let comonadic =
     if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.Comonadic.set_locality_min comonadic
+    then Alloc.Comonadic.meet_with_locality Locality.Const.min comonadic
     else comonadic
   in
   let comonadic =
     if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.Comonadic.set_linearity_min comonadic
+    then Alloc.Comonadic.meet_with_linearity Linearity.Const.min comonadic
     else comonadic
   in
   let monadic =
     if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.Monadic.set_uniqueness_max monadic
+    then Alloc.Monadic.join_with_uniqueness Uniqueness.Const.max monadic
     else monadic
   in
   { monadic; comonadic }
@@ -855,17 +858,17 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   let mode = expected_mode.mode in
   let mode, strictly_local =
     if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Value.set_regionality_max mode, false
+    then Value.join_with_regionality Regionality.Const.max mode, false
     else mode, expected_mode.strictly_local
   in
   let mode =
     if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Value.set_linearity_max mode
+    then Value.join_with_linearity Linearity.Const.max mode
     else mode
   in
   let mode =
     if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Value.set_uniqueness_max mode
+    then Value.join_with_uniqueness Uniqueness.Const.max mode
     else mode
   in
   { expected_mode with mode; strictly_local }

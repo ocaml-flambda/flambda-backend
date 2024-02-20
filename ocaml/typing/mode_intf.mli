@@ -14,6 +14,9 @@
 
 open Solver_intf
 
+(* While all our lattices are bi-Heyting algebras (see [mode.ml]), the extra
+   structure is not directly useful to the user, so we only expose the basic
+   lattice structure. *)
 module type Lattice = sig
   type t
 
@@ -292,17 +295,23 @@ module type S = sig
 
     val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
 
-    val set_regionality_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_regionality :
+      Regionality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_regionality_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_regionality :
+      Regionality.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_linearity :
+      Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_linearity_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_linearity :
+      Linearity.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val set_uniqueness_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_uniqueness :
+      Uniqueness.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_uniqueness :
+      Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
   end
@@ -314,7 +323,8 @@ module type S = sig
     module Monadic : sig
       include Common with type error = [`Uniqueness of Uniqueness.error]
 
-      val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+      val join_with_uniqueness :
+        Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
       val check_const : ('l * 'r) t -> Uniqueness.Const.t option
     end
@@ -326,9 +336,11 @@ module type S = sig
             [ `Locality of Locality.error
             | `Linearity of Linearity.error ]
 
-      val set_locality_min : ('l * 'r) t -> ('l * disallowed) t
+      val meet_with_locality :
+        Locality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-      val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
+      val meet_with_linearity :
+        Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
       val check_const :
         ('l * 'r) t -> Locality.Const.t option * Linearity.Const.t option
@@ -409,17 +421,23 @@ module type S = sig
 
     val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
 
-    val set_locality_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_locality :
+      Locality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_locality_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_locality :
+      Locality.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_linearity :
+      Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_linearity_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_linearity :
+      Linearity.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val set_uniqueness_min : ('l * 'r) t -> ('l * disallowed) t
+    val meet_with_uniqueness :
+      Uniqueness.Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
-    val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_uniqueness :
+      Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
 
