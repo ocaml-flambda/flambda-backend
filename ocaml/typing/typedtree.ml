@@ -735,16 +735,16 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
-type secondary_interface = {
-  si_signature: Types.signature;
-  si_coercion_from_primary: module_coercion;
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
 }
 
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
-  secondary_iface: secondary_interface option;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 
