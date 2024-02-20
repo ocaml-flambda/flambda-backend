@@ -75,13 +75,6 @@ let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
-  let () =
-   match cu.cu_runtime_params with
-     | [||] -> ()
-     | params ->
-     print_string "Runtime parameters:\n";
-     Array.iter print_global_line params
-  in
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
