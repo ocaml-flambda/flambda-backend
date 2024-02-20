@@ -6665,10 +6665,11 @@ and type_function
                   suffix_contains_gadt
               in
               let curry =
-                if is_final_val_param then
+                match fun_alloc_mode with
+                | None ->
+                  assert(is_final_val_param);
                   Final_arg
-                else
-                  let fun_alloc_mode = Option.get fun_alloc_mode in
+                | Some fun_alloc_mode ->
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
