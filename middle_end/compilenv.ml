@@ -112,7 +112,6 @@ let reset compilation_unit =
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
-  current_unit.ui_runtime_params <- [];
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
