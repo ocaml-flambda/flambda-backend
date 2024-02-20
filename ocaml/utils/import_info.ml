@@ -70,6 +70,10 @@ module Intf = struct
       Misc.fatal_errorf "@[<hv>CU but no CRC for import:@ %a@]" CU.Name.print
         name
     | Some cu, Some crc ->
+      if CU.instance_arguments cu <> []
+      then
+        Misc.fatal_errorf "@[<hv>Interface import with arguments:@ %a@]"
+          CU.print cu;
       if not (CU.Name.equal (CU.name cu) name)
       then
         Misc.fatal_errorf

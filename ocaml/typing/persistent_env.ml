@@ -54,8 +54,8 @@ type error =
   | Not_compiled_as_parameter of CU.Name.t * filepath
   | Cannot_implement_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : CU.Name.t;
-        parameter : CU.Name.t;
+      { imported : Global.Name.t;
+        parameter : Global.Name.t;
       }
 
 exception Error of error
@@ -85,8 +85,8 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
-  imp_params : Compilation_unit.Name.t list;
-  imp_arg_for : Compilation_unit.Name.t option;
+  imp_params : Global.Name.t list;
+  imp_arg_for : Global.Name.t option;
   imp_impl : Impl.t;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
@@ -113,12 +113,11 @@ type pers_struct = {
 
 type 'a pers_struct_info = pers_struct * 'a
 
-module Param_set = CU.Name.Set
+module Param_set = Global.Name.Set
 
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
-  persistent_structures :
-    (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
+  persistent_structures : (Global.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : CU.Name.Set.t ref;
@@ -199,7 +198,7 @@ let register_parameter_import ({param_imports; _} as penv) import =
   param_imports := CU.Name.Set.add import !param_imports
 
 let register_exported_parameter ({exported_params; _} as penv) modname =
-  register_parameter_import penv modname;
+  register_parameter_import penv (CU.Name.of_head_of_global_name modname);
   exported_params := Param_set.add modname !exported_params
 
 let import_crcs penv ~source crcs =
@@ -237,7 +236,7 @@ let is_registered_parameter_import {param_imports; _} import =
   CU.Name.Set.mem import !param_imports
 
 let is_registered_parameter penv name =
-  is_registered_parameter_import penv name
+  is_registered_parameter_import penv (CU.Name.of_head_of_global_name name)
 
 let is_unexported_parameter penv name =
   is_registered_parameter penv name
@@ -396,7 +395,7 @@ let make_binding _penv modname (impl : Impl.t) : binding =
   match impl with
   | Known unit -> Static unit
   | Unknown_argument ->
-      Local (Ident.create_local_binding_for_global (CU.Name.to_string modname))
+      Local (Ident.create_local_binding_for_global modname)
 
 type address =
   | Aunit of Compilation_unit.t
@@ -405,7 +404,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Compilation_unit.Name.t
+  -> Global.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -428,7 +427,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     (* The uid neeeds to include the either the pack prefix, if it's packed, or
        the arguments, if it has any. It cannot have both. *)
     match binding with
-    | Local _ -> (* FIXME *) Shape.Uid.internal_not_actually_unique
+    | Local _ -> (* no pack prefix *) Shape.Uid.of_global_name modname
     | Static unit -> Shape.Uid.of_compilation_unit_id unit
   in
   let shape =
@@ -444,6 +443,7 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     (* This module has no binding, since it's a parameter that we're aware of
        (perhaps because it was the name of an argument in an instance name)
        but it's not a parameter to this module. *)
+    let modname = CU.Name.of_head_of_global_name modname in
     let filename = import.imp_filename in
     raise (Error (Illegal_import_of_parameter (modname, filename)))
   end;
@@ -451,7 +451,8 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   (ps, pm)
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
-  let import = read_import penv ~check modname filename in
+  let unit_name = CU.Name.of_head_of_global_name modname in
+  let import = read_import penv ~check unit_name filename in
   if add_binding then
     ignore
       (acknowledge_pers_struct penv modname import val_of_pers_sig
@@ -463,7 +464,8 @@ let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   match Hashtbl.find persistent_structures name with
   | (ps, pm) -> (ps, pm)
   | exception Not_found ->
-      let import = find_import ~allow_hidden penv ~check name in
+      let unit_name = CU.Name.of_head_of_global_name name in
+      let import = find_import ~allow_hidden penv ~check unit_name in
       acknowledge_pers_struct penv name import val_of_pers_sig
 
 let describe_prefix ppf prefix =
@@ -474,7 +476,7 @@ let describe_prefix ppf prefix =
 
 (* Emits a warning if there is no valid cmi for name *)
 let check_pers_struct ~allow_hidden penv f ~loc name =
-  let name_as_string = CU.Name.to_string name in
+  let name_as_string = CU.Name.to_string (CU.Name.of_head_of_global_name name) in
   try
     ignore (find_pers_struct ~allow_hidden penv f false name)
   with
@@ -525,7 +527,7 @@ let check ~allow_hidden penv f ~loc name =
     (* PR#6843: record the weak dependency ([add_import]) regardless of
        whether the check succeeds, to help make builds more
        deterministic. *)
-    add_import penv name;
+    add_import penv (name |> CU.Name.of_head_of_global_name);
     if (Warnings.is_active (Warnings.No_cmi_file("", None))) then
       !add_delayed_check_forward
         (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
@@ -601,7 +603,9 @@ let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
 let implemented_parameter penv modname =
-  match find_import_info_in_cache penv modname with
+  match
+    find_import_info_in_cache penv (CU.Name.of_head_of_global_name modname)
+  with
   | Some { imp_arg_for; _ } -> imp_arg_for
   | None -> None
 
@@ -708,11 +712,11 @@ let report_error ppf =
         "@[<hov>The module %a@ has parameter %a.@ \
          %a is not declared as a parameter for the current unit (-parameter %a)@ \
          and therefore %a@ is not accessible.@]"
-        CU.Name.print modname
-        CU.Name.print param
-        CU.Name.print param
-        CU.Name.print param
-        CU.Name.print modname
+        Global.Name.print modname
+        Global.Name.print param
+        Global.Name.print param
+        Global.Name.print param
+        Global.Name.print modname
 
 let () =
   Location.register_error_of_exn
