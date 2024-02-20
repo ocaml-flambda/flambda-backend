@@ -6665,10 +6665,13 @@ and type_function
               in
               let curry =
                 match fun_alloc_mode with
+                (* See the comment on the [fun_alloc_mode] field for its
+                   corralation to [is_final_val_param]. *)
                 | None ->
                   assert(is_final_val_param);
                   Final_arg
                 | Some fun_alloc_mode ->
+                  assert(not is_final_val_param);
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
