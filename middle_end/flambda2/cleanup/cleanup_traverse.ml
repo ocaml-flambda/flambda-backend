@@ -300,7 +300,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let code_dep = { return; my_closure; exn; params } in
   let () =
     if has_unsafe_result_type then
-      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (exn :: return)
+      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (my_closure :: params @ exn :: return)
     else
       let deps =
         Deps.Dep.Return_of_that_function (Name.var exn)
