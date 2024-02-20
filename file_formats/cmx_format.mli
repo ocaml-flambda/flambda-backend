@@ -63,12 +63,6 @@ type unit_infos =
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t list;
                                           (* Infos imported *)
-    mutable ui_runtime_params: Compilation_unit.Name.t list;
-                                          (* Implementation imports which are
-                                             bound as parameters at runtime,
-                                             including source-level parameters
-                                             as well as implementation imports
-                                             with unbound parameters *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: Checks.t;
@@ -79,7 +73,6 @@ type unit_infos_raw =
     uir_defines: Compilation_unit.t list;
     uir_imports_cmi: Import_info.t array;
     uir_imports_cmx: Import_info.t array;
-    uir_runtime_params: Compilation_unit.Name.t array;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
     uir_checks: Checks.Raw.t;
