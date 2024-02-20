@@ -2859,3 +2859,37 @@ Line 1, characters 16-22:
                     ^^^^^^
 Error: The locality axis has already been specified.
 |}]
+
+(* type-directed disambiguation *)
+
+module M = struct
+  type t = M_constructor
+end
+
+let foo (local_ _ : M.t) = ();;
+let foo_f (local_ _ : M.t -> unit) = ();;
+[%%expect{|
+module M : sig type t = M_constructor end
+val foo : local_ M.t -> unit = <fun>
+val foo_f : local_ (M.t -> unit) -> unit = <fun>
+|}]
+
+let () = foo M_constructor
+[%%expect{|
+|}]
+
+let () = foo_f (fun M_constructor -> ())
+[%%expect{|
+|}]
+
+let () = foo (local_ M_constructor)
+[%%expect{|
+|}]
+
+let () = foo_f (local_ (fun M_constructor -> ()))
+[%%expect{|
+Line 1, characters 28-41:
+1 | let () = foo_f (local_ (fun M_constructor -> ()))
+                                ^^^^^^^^^^^^^
+Error: Unbound constructor M_constructor
+|}]
