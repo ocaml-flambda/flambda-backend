@@ -105,7 +105,7 @@ module type S = sig
       | `Uniqueness
       | `Linearity ]
 
-    val string_of : t -> string
+    val to_string : t -> string
   end
 
   module Global_flag : sig
