@@ -946,16 +946,20 @@ and 'a class_infos =
     ci_attributes: attributes;
    }
 
-type secondary_interface = {
-  si_signature: Types.signature;
-  si_coercion_from_primary: module_coercion;
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
 }
+(** For a module [M] compiled with [-as-argument-for P] for some parameter
+    module [P], the signature of [P] along with the coercion from [M]'s
+    exported signature (the _primary interface_) to [P]'s signature (the
+    _argument interface_). *)
 
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
-  secondary_iface: secondary_interface option;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 (** A typechecked implementation including its module structure, its exported
@@ -967,9 +971,9 @@ type implementation = {
     If there isn't one, the signature will be inferred from the module
     structure.
 
-    If the module is checked against another .mli besides its own,
-    [secondary_interface] will record the other signature and the coercion
-    _from the primary interface_ to the secondary one.
+    If the module is compiled with [-as-argument-for] and is thus typechecked
+    against the .mli for a parameter in addition to its own .mli, it has an
+    additional signature stored in [argument_interface].
 *)
 
 (* Auxiliary functions over the a.s.t. *)
