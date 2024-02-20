@@ -81,6 +81,7 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
+  imp_arg_for : Compilation_unit.Name.t option;
   imp_impl : Impl.t;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
@@ -302,14 +303,15 @@ let acknowledge_import penv ~check modname pers_sig =
   | true, true
   | false, false -> ()
   end;
-  let impl =
+  let arg_for, impl =
     match kind with
-    | Normal { cmi_impl } -> Impl.Known cmi_impl
-    | Parameter -> Impl.Unknown_argument
+    | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Impl.Known cmi_impl
+    | Parameter -> None, Impl.Unknown_argument
   in
   let {imports;} = penv in
   let import =
     { imp_is_param = is_param;
+      imp_arg_for = arg_for;
       imp_impl = impl;
       imp_sign = sign;
       imp_filename = filename;
@@ -527,6 +529,11 @@ let is_imported {imported_units; _} s =
 
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
+
+let implemented_parameter penv modname =
+  match find_import_info_in_cache penv modname with
+  | Some { imp_arg_for; _ } -> imp_arg_for
+  | None -> None
 
 let make_cmi penv modname kind sign alerts =
   let flags =

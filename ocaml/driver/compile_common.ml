@@ -63,7 +63,7 @@ let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
   let tsg =
     ast
-    |> Typemod.type_interface info.module_name info.env
+    |> Typemod.type_interface info.source_file info.module_name info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let sg = tsg.Typedtree.sig_type in
@@ -85,7 +85,12 @@ let emit_signature info ast tsg =
       if !Clflags.as_parameter then
         Parameter
       else
-        Normal { cmi_impl = info.module_name }
+        let cmi_arg_for =
+          match !Clflags.as_argument_for with
+          | Some arg_type -> Some (Compilation_unit.Name.of_string arg_type)
+          | None -> None
+        in
+        Normal { cmi_impl = info.module_name; cmi_arg_for }
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type

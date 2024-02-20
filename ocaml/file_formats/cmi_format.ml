@@ -23,6 +23,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Compilation_unit.Name.t option;
     }
   | Parameter
 
