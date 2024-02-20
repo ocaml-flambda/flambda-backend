@@ -35,6 +35,10 @@ type error = private
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
   | Cannot_implement_parameter of Compilation_unit.Name.t * filepath
+  | Imported_module_has_unset_parameter of
+      { imported : Compilation_unit.Name.t;
+        parameter : Compilation_unit.Name.t;
+  }
 
 
 exception Error of error
@@ -96,13 +100,16 @@ val check : allow_hidden:bool -> 'a t -> 'a sig_reader
 
 (* Lets it be known that the given module is a parameter and thus is expected
    to have been compiled as such. It may or may not be a parameter to _this_
-   module (see the forthcoming [register_exported_parameter]). Raises an
-   exception if the module has already been imported as a non-parameter. *)
+   module (see [register_exported_parameter]). Raises an exception if the module
+   has already been imported as a non-parameter. *)
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [is_registered_parameter_import penv md] checks if [md] has been passed to
    [register_parameter_import penv] *)
 val is_registered_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+
+(* Declare a parameter to this module. Calls [register_parameter_import]. *)
+val register_exported_parameter : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -147,6 +154,14 @@ val import_crcs : 'a t -> source:filepath ->
 
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.t list
+
+(* Return the list of imported modules (including parameters) that must be bound
+   as parameters in a toplevel functor *)
+val locally_bound_imports : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+
+(* Return the list of parameters registered to be exported from the current
+   unit, in alphabetical order *)
+val exported_parameters : 'a t -> Compilation_unit.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t
