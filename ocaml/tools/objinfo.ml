@@ -62,9 +62,6 @@ let print_global_name_binding global =
 let print_line name =
   printf "\t%s\n" name
 
-let print_global_line glob =
-  printf "\t%a\n" Global.Name.output glob
-
 let print_global_as_name_line global =
   printf "\t%a\n" Global.Name.output (Global.to_name global)
 
