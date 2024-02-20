@@ -792,6 +792,7 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
     | Assume { property = Zero_alloc; _ } -> false
     | Check { property = Zero_alloc; _ } -> true
   in
+  let is_opaque = Code_metadata.is_opaque code_metadata in
   if never_delete then Acc.used_code_id code_id acc;
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
@@ -806,12 +807,22 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~free_names_of_body:_
        ->
       let code_dep = Acc.find_code acc code_id in
+      let maybe_opaque var =
+        if is_opaque then
+          Variable.rename var
+        else
+          var
+      in
+      let return = List.map maybe_opaque code_dep.return in
+      let exn = maybe_opaque code_dep.exn in
       let conts =
         Continuation.Map.of_list
-          [ return_continuation, Normal code_dep.return;
-            exn_continuation, Normal [code_dep.exn] ]
+          [ return_continuation, Normal return;
+            exn_continuation, Normal [exn] ]
       in
       let denv = { parent = Up; conts; current_code_id = Some code_id } in
+      if is_opaque then
+        List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
       let () =
         List.iter
           (fun bp -> Acc.bound_parameter_kind bp acc)
@@ -821,15 +832,21 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
       Acc.kind (Name.var my_region) Flambda_kind.region acc;
       Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
       let () =
-        List.iter2
-          (fun param arg -> Acc.func_param_dep ~denv param arg acc)
-          (Bound_parameters.to_list params)
-          code_dep.params
+        if is_opaque then
+          List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
+        else
+          List.iter2
+            (fun param arg -> Acc.func_param_dep ~denv param arg acc)
+            (Bound_parameters.to_list params)
+            code_dep.params
       in
       let () =
-        Acc.record_dep ~denv (Name.var my_closure)
-          (Alias (Name.var code_dep.my_closure))
-          acc
+        if is_opaque then
+          Acc.used ~denv (Simple.var code_dep.my_closure) acc
+        else
+          Acc.record_dep ~denv (Name.var my_closure)
+            (Alias (Name.var code_dep.my_closure))
+            acc
       in
       let body = traverse denv acc body in
       let params_and_body =
