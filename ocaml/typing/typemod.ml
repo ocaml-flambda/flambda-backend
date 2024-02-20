@@ -3357,8 +3357,8 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
         Includemod.compunit env ~mark:Mark_positive sourcefile actual_sig
           arg_filename arg_sig Shape.dummy_mod
       in
-      Some { si_signature = arg_sig;
-             si_coercion_from_primary = coercion;
+      Some { ai_signature = arg_sig;
+             ai_coercion_from_primary = coercion;
            }
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
@@ -3396,7 +3396,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           coercion = Tcoerce_none;
           shape;
           signature = simple_sg;
-          secondary_iface = None;
+          argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
         if !Clflags.as_parameter then
@@ -3443,7 +3443,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              need to get the coercion out. An alternative would be to store the
              coercion in the .cmi if we can sort out the dependency issues
              ([Tcoerce_primitive] is a pain in particular). *)
-          let secondary_iface =
+          let argument_interface =
             check_argument_type_if_given initial_env intf_file dclsig arg_type
           in
           Typecore.force_delayed_checks ();
@@ -3463,7 +3463,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             coercion;
             shape;
             signature = dclsig;
-            secondary_iface;
+            argument_interface;
           }
         end else begin
           if !Clflags.as_parameter then
@@ -3477,7 +3477,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
-          let secondary_iface =
+          let argument_interface =
             check_argument_type_if_given initial_env sourcefile simple_sg arg_type
           in
           Typecore.force_delayed_checks ();
@@ -3510,7 +3510,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             coercion;
             shape;
             signature = simple_sg;
-            secondary_iface
+            argument_interface
           }
         end
       end
@@ -3545,7 +3545,7 @@ let type_interface sourcefile modulename env ast =
     |> Option.map Compilation_unit.Name.of_string
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
-          : Typedtree.secondary_interface option);
+          : Typedtree.argument_interface option);
   sg
 
 (* "Packaging" of several compilation units into one unit
