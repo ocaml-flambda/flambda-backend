@@ -4610,6 +4610,10 @@ let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt; _}, _) },
+       [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.extension_name ->
+      is_inferred exp
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e

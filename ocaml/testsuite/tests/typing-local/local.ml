@@ -2806,11 +2806,11 @@ let foo () =
   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
   ()
 [%%expect{|
-Line 2, characters 33-58:
+Line 2, characters 40-58:
 2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
-                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> (int -> int)
+                                            ^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
 |}];;
 
 (* test that [function] checks all its branches either for local_ or the
@@ -2858,4 +2858,34 @@ Line 1, characters 16-22:
 1 | let foo (local_ local_ _) = ()
                     ^^^^^^
 Error: The locality axis has already been specified.
+|}]
+
+(* type-directed disambiguation *)
+
+module M = struct
+  type t = M_constructor
+end
+
+let foo (local_ _ : M.t) = ();;
+let foo_f (local_ _ : M.t -> unit) = ();;
+[%%expect{|
+module M : sig type t = M_constructor end
+val foo : local_ M.t -> unit = <fun>
+val foo_f : local_ (M.t -> unit) -> unit = <fun>
+|}]
+
+let () = foo M_constructor
+[%%expect{|
+|}]
+
+let () = foo_f (fun M_constructor -> ())
+[%%expect{|
+|}]
+
+let () = foo (local_ M_constructor)
+[%%expect{|
+|}]
+
+let () = foo_f (local_ (fun M_constructor -> ()))
+[%%expect{|
 |}]
