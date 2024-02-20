@@ -35,14 +35,14 @@ let interface ~source_file ~output_prefix =
 (** Native compilation backend for .ml files. *)
 
 let compile i ~backend ~middle_end ~transl_style
-      Typedtree.{structure; coercion; secondary_iface} =
-  let secondary_coercion =
-    match secondary_iface with
-    | Some { si_coercion_from_primary; si_signature = _ } ->
-      Some si_coercion_from_primary
+      Typedtree.{structure; coercion; argument_interface} =
+  let argument_coercion =
+    match argument_interface with
+    | Some { ai_coercion_from_primary; ai_signature = _ } ->
+      Some ai_coercion_from_primary
     | None -> None
   in
-  (structure, coercion, secondary_coercion)
+  (structure, coercion, argument_coercion)
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program

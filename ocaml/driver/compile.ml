@@ -56,14 +56,14 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
           bytecode, required_globals, module_block_format, arg_descr
     )
 
-let to_bytecode i Typedtree.{structure; coercion; secondary_iface; _} =
-  let secondary_coercion =
-    match secondary_iface with
-    | Some { si_coercion_from_primary; si_signature = _ } ->
-        Some si_coercion_from_primary
+let to_bytecode i Typedtree.{structure; coercion; argument_interface; _} =
+  let argument_coercion =
+    match argument_interface with
+    | Some { ai_coercion_from_primary; ai_signature = _ } ->
+        Some ai_coercion_from_primary
     | None -> None
   in
-  (structure, coercion, secondary_coercion)
+  (structure, coercion, argument_coercion)
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> raw_lambda_to_bytecode i

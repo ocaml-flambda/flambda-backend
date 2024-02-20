@@ -118,16 +118,16 @@ let implementation0 unix ~backend ~(flambda2 : flambda2) ~start_from
       in
       Via_clambda { middle_end; backend; }
   in
-  let backend info ({ structure; coercion; secondary_iface; _ }
+  let backend info ({ structure; coercion; argument_interface; _ }
                     : Typedtree.implementation) =
     Compilenv.reset info.module_name;
-    let secondary_coercion =
-      match secondary_iface with
-      | Some { si_coercion_from_primary; si_signature = _ } ->
-        Some si_coercion_from_primary
+    let argument_coercion =
+      match argument_interface with
+      | Some { ai_coercion_from_primary; ai_signature = _ } ->
+        Some ai_coercion_from_primary
       | None -> None
     in
-    let typed = structure, coercion, secondary_coercion in
+    let typed = structure, coercion, argument_coercion in
     let transl_style : Translmod.compilation_unit_style =
       if Config.flambda || Config.flambda2 then Plain_block
       else Set_individual_fields
