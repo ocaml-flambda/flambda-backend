@@ -448,6 +448,11 @@ module Repr_check = struct
       prim
 end
 
+(* Note: [any] here is not the same as jkind [any]. It means any
+   value of the type [native_repr] which is always representable
+   (can be [Repr_poly]). See [make_native_repr] and notes above
+   [error_if_containing_unexpected_jkind] for how we check the
+   jkinds of argument/return types inside external declarations. *)
 let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =

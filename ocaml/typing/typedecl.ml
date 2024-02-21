@@ -2351,13 +2351,29 @@ let unexpected_jkind_any_check prim env cty ty =
    1. The argument/return types of an external can't have
       jkind [any]. This is enforced by [type_sort_external].
 
+      The situation becomes more tricky with the use
+      of [@layout_poly]. In which case:
+
+      1. we allow argument/return to have jkind [any]
+         iff. it's the layout polymorphic type variable.
+      2. use [Repr_poly] to encode it and mark the primitive
+         as [prim_is_layout_poly]
+      3. all interactions with the declared primitive type
+         has to go through [instance_prim] which instances
+         the layout polymorphic type variable down from jkind
+         [any] to a sort.
+
+      Result of all this is we maintain the facade that
+      all argument/return types are representable. The jkind
+      [any] doesn't leak out.
+
    2. [Primitive.prim_has_valid_reprs] performs an additional
       sanity check on built-in primitives regarding
       argument/result representations. It only allows
       a selected subset of primitives to have non-value
       jkinds. And for that subset, it checks to see the
       argument/return jkinds are what it expects.
-      
+
       See comment in [prim_has_valid_reprs] about what it
       could miss.
 
@@ -2374,10 +2390,11 @@ let unexpected_jkind_any_check prim env cty ty =
 
       [let f x = len x]
 
-      [x] here will have jkind [any] and the array kind function
-      in [typeopt] will fail, producing a bad error message that
-      doesn't point to the source of the mistake which is, in
-      fact, the external declaration.
+      [x] here will have type ['a array] where the jkind of ['a]
+      is [any]. The array kind function in [typeopt] will look at
+      ['a] expecting it to be representable and fail. This produces
+      a bad error message that doesn't point to the source of the
+      mistake which is, in fact, the external declaration.
 
       For this reason, we have [unexpected_jkind_any_check].
       It's here to point out these type of mistakes early and
