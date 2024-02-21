@@ -450,3 +450,12 @@ let foo () =
 [%%expect{|
 val foo : unit -> unit = <fun>
 |}]
+
+(* Values crosses modes when pattern-matching, an implication is that, closing
+   over [local int] won't force the closure to be [local]. *)
+let foo (local_ x : int) =
+  let bar y = x + y in
+  ref bar
+[%%expect{|
+val foo : local_ int -> (int -> int) ref = <fun>
+|}]

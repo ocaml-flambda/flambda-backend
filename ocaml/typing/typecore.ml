@@ -800,9 +800,9 @@ let has_poly_constraint spat =
 
 let mode_cross_to_min env ty mode =
   if mode_cross env ty then
-    Value.disallow_right Value.min
+    Value.min |> Value.allow_left |> Value.allow_right
   else
-    Value.disallow_right mode
+    mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if mode_cross env ty then
@@ -6676,6 +6676,10 @@ and type_function
                   Final_arg
                 | Some fun_alloc_mode ->
                   assert(not is_final_val_param);
+                  (* If the argument cross modes, then the inner closure won't
+                     contain a pointer to it, and thus its mode not constrained.
+                     *)
+                  if not (mode_cross env ty_arg) then
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
