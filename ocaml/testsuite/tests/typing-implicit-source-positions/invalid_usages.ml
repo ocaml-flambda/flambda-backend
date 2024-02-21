@@ -2,89 +2,103 @@
    * expect
 *)
 
-let object_with_a_method_with_a_positional_parameter = object 
-  method m ~(src_pos : [%src_pos]) () = src_pos
-end
+type t = [%src_pos]
+[%%expect {|
+Line 1, characters 11-18:
+1 | type t = [%src_pos]
+               ^^^^^^^
+Error: Uninterpreted extension 'src_pos'.
+|}]
+(* CR src_pos: Improve this error message to notify that [%src_pos] may only
+   be used in arguments *)
 
-[%%expect{|
-val object_with_a_method_with_a_positional_parameter :
-  < m : src_pos:[%src_pos] -> unit -> lexing_position > = <obj>
+type t = unit -> unit -> [%src_pos]
+[%%expect {|
+Line 1, characters 27-34:
+1 | type t = unit -> unit -> [%src_pos]
+                               ^^^^^^^
+Error: Uninterpreted extension 'src_pos'.
 |}]
 
-let position = object_with_a_method_with_a_positional_parameter#m ();;
+let f ~(src_pos:[%src_pos]) () : [%src_pos] = src_pos
 
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 276; pos_cnum = 291}
+Line 1, characters 35-42:
+1 | let f ~(src_pos:[%src_pos]) () : [%src_pos] = src_pos
+                                       ^^^^^^^
+Error: Uninterpreted extension 'src_pos'.
 |}]
 
-class class_with_a_method_with_a_positional_parameter = object 
-  method m ~(src_pos : [%src_pos]) () = src_pos
-end
-
-[%%expect{|
-class class_with_a_method_with_a_positional_parameter :
-  object method m : src_pos:[%src_pos] -> unit -> lexing_position end
+let apply f = f ~src_pos:Lexing.dummy_pos () ;;
+[%%expect {|
+val apply : (src_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
 |}]
 
-let o = new class_with_a_method_with_a_positional_parameter;;
-
+let g = fun ~(src_pos:[%src_pos]) () -> ()
 [%%expect{|
-val o : class_with_a_method_with_a_positional_parameter = <obj>
+val g : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}]
 
-let position = o#m ();;
-
+let _ = apply g ;;
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 866; pos_cnum = 881}
+Line 1, characters 14-15:
+1 | let _ = apply g ;;
+                  ^
+Error: This expression has type src_pos:[%src_pos] -> unit -> unit
+       but an expression was expected of type
+         src_pos:Lexing.position -> (unit -> 'a)
 |}]
 
-let position = (new class_with_a_method_with_a_positional_parameter)#m ();;
-
-(* XXX jrodriguez: Hmm I don't know what the Principal block means, but from skimming
-   docs, this seems to indicate that there are different results when compiled under
-   a different mode? *)
+let h ?(src_pos:[%src_pos]) () = ()
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 1005; pos_cnum = 1020}
+Line 1, characters 16-26:
+1 | let h ?(src_pos:[%src_pos]) () = ()
+                    ^^^^^^^^^^
+Error: A position argument must not be optional.
 |}]
 
-
-class class_with_positional_parameter ~(src_pos : [%src_pos]) () = object 
-  method src_pos = src_pos
-end
-
+let j (src_pos:[%src_pos]) () = ()
 [%%expect{|
-class class_with_positional_parameter :
-  src_pos:[%src_pos] -> unit -> object method src_pos : lexing_position end
+Line 1, characters 15-25:
+1 | let j (src_pos:[%src_pos]) () = ()
+                   ^^^^^^^^^^
+Error: A position argument must not be unlabelled.
 |}]
 
-let o = new class_with_positional_parameter ()
-let position = o#src_pos
-
+let k : src_pos:[%src_pos] -> unit -> unit =
+   fun ~src_pos () -> ()
+(* CR src_pos: Improve this error message *)
 [%%expect{|
-val o : class_with_positional_parameter = <obj>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 1634; pos_cnum = 1642}
+Line 2, characters 3-24:
+2 |    fun ~src_pos () -> ()
+       ^^^^^^^^^^^^^^^^^^^^^
+Error: This function should have type src_pos:[%src_pos] -> unit -> unit
+       but its first argument is labeled ~src_pos
+       instead of ~(src_pos:[%src_pos])
 |}]
 
-
-(* Different kinds of shadowed parameters (both a class parameter is shadowed and a
-   method parameter is shadowed) *)
-
-class c ~(src_pos : [%src_pos]) () = object 
-  method m ~(src_pos : [%src_pos]) () = src_pos
-end
+let n = fun ~(src_pos:[%src_pos]) () -> src_pos
 [%%expect{|
-class c :
-  src_pos:[%src_pos] ->
-  unit -> object method m : src_pos:[%src_pos] -> unit -> lexing_position end
+val n : src_pos:[%src_pos] -> unit -> lexing_position = <fun>
 |}]
 
-let _ = (new c ())#m()
+let _ = n Lexing.dummy_pos ();;
+[%%expect {|
+Line 1, characters 27-29:
+1 | let _ = n Lexing.dummy_pos ();;
+                               ^^
+Error: The function applied to this argument has type
+         src_pos:[%src_pos] -> lexing_position
+This argument cannot be applied without label
+|}]
+
+class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
 
 [%%expect{|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 1; pos_bol = 2219; pos_cnum = 2227}
+Line 1, characters 46-49:
+1 | class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+                                                  ^^^
+Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
+
+class this_class_has_an_unerasable_argument : pos:[%src_pos] -> object  end
 |}]
