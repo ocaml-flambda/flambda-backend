@@ -117,6 +117,17 @@ Error: This class expression is not a class structure; it has type
        src_pos:[%src_pos] -> parent
 |}]
 
+let o ~(src_pos : [%src_pos]) () = object 
+  inherit parent ~src_pos ()
+end
+let position = (o ())#pos
+[%%expect{|
+val o : src_pos:[%src_pos] -> unit -> parent = <fun>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3063; pos_cnum = 3078}
+|}]
+
+
 class parent ?(i = 1) () = object
   method i = i
 end
