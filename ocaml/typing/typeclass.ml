@@ -1384,20 +1384,17 @@ val o : < foo : int; x : int > = <obj>
                 match sargs with
                 | [] -> assert false
                 | (l', sarg) :: remaining_sargs ->
+                    let label_is_absent_in_remaining_args =
+                      lazy (not (List.exists (fun (l, _) -> name = Btype.label_name l) remaining_sargs))
+                    in
                     if name = Btype.label_name l' ||
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if
-                      optional &&
-                      not (List.exists (fun (l, _) -> name = Btype.label_name l)
-                             remaining_sargs)
+                    else if optional && Lazy.force label_is_absent_in_remaining_args
                     then
                       (sargs, eliminate_optional_arg ())
-                    else if
-                      Btype.is_position l &&
-                      not (List.exists (fun (l, _) -> name = Btype.label_name l)
-                             remaining_sargs)
+                    else if Btype.is_position l && Lazy.force label_is_absent_in_remaining_args
                     then
                       (sargs, eliminate_position_arg ())
                     else
