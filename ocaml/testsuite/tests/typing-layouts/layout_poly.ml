@@ -104,6 +104,113 @@ val g1 : unit -> float# = <fun>
 val g2 : unit -> string = <fun>
 |}]
 
+type ('a : any) s
+module S : sig
+  external id : ('a : any). 'a s -> 'a s = "%identity"
+end = struct
+  external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+end
+
+[%%expect{|
+type ('a : any) s
+Lines 4-6, characters 6-3:
+4 | ......struct
+5 |   external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           external id : ('a : any). 'a s -> 'a s = "%identity"
+             [@@layout_poly]
+         end
+       is not included in
+         sig external id : ('a : any). 'a s -> 'a s = "%identity" end
+       Values do not match:
+         external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
+       is not included in
+         external id : ('a : any). 'a s -> 'a s = "%identity"
+       The type 'a s -> 'a s is not compatible with the type 'b s -> 'b s
+       The layout of 'a is any, because
+         of the definition of id at line 3, characters 2-54.
+       But the layout of 'a must be representable, because
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
+|}]
+
+type ('a : any) s
+type t_any : any
+module S : sig
+  external[@layout_poly] id : t_any s -> t_any s = "%identity"
+end = struct
+  external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+end
+
+[%%expect{|
+type ('a : any) s
+type t_any : any
+Lines 5-7, characters 6-3:
+5 | ......struct
+6 |   external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           external id : ('a : any). 'a s -> 'a s = "%identity"
+             [@@layout_poly]
+         end
+       is not included in
+         sig
+           external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+         end
+       Values do not match:
+         external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
+       is not included in
+         external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+       The type 'a s -> 'a s is not compatible with the type
+         t_any s -> t_any s
+       The layout of t_any is any, because
+         of the definition of t_any at line 2, characters 0-16.
+       But the layout of t_any must be representable, because
+         it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
+|}]
+
+type ('a : any) s
+type t_any : any
+module S : sig
+  external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+end = struct
+  external[@layout_poly] id : t_any s -> t_any s = "%identity"
+end
+
+[%%expect{|
+type ('a : any) s
+type t_any : any
+Lines 5-7, characters 6-3:
+5 | ......struct
+6 |   external[@layout_poly] id : t_any s -> t_any s = "%identity"
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+         end
+       is not included in
+         sig
+           external id : ('a : any). 'a s -> 'a s = "%identity"
+             [@@layout_poly]
+         end
+       Values do not match:
+         external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+       is not included in
+         external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
+       The type t_any s -> t_any s is not compatible with the type
+         'a s -> 'a s
+       Type t_any is not compatible with type 'a
+|}]
+
 (* together with local_opt *)
 module S : sig
   external[@layout_poly] id : ('a : any). ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
