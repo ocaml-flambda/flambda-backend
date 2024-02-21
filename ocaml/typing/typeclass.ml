@@ -1525,9 +1525,12 @@ let rec approx_declaration cl =
     Pcl_fun (l, _, pat, cl) ->
       let l, _ = Typetexp.transl_label_from_pat l pat in
       let arg =
-        if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
-        (* CR layouts: use of value here may be relaxed when we update
+        match l with
+        | Optional _ -> Ctype.instance var_option
+        | Position _ -> Ctype.instance Predef.type_lexing_position
+        | Labelled _ | Nolabel ->
+          Ctype.newvar (Jkind.value ~why:Class_term_argument)
+          (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
       let arg = Ctype.newmono arg in

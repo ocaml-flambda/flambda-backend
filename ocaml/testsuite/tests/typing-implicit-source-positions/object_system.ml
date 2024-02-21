@@ -2,75 +2,86 @@
    * expect
 *)
 
-let o = object 
+let object_with_a_method_with_a_positional_parameter = object 
   method m ~(src_pos : [%src_pos]) () = src_pos
 end
 
 [%%expect{|
-val o : < m : src_pos:[%src_pos] -> unit -> lexing_position > = <obj>
+val object_with_a_method_with_a_positional_parameter :
+  < m : src_pos:[%src_pos] -> unit -> lexing_position > = <obj>
 |}]
 
-let x = o#m ();;
+let position = object_with_a_method_with_a_positional_parameter#m ();;
 
 [%%expect{|
-val x : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 180; pos_cnum = 188}
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 276; pos_cnum = 291}
 |}]
 
-class c = object 
+class class_with_a_method_with_a_positional_parameter = object 
   method m ~(src_pos : [%src_pos]) () = src_pos
 end
 
-let o2 = new c;;
-
 [%%expect{|
-class c : object method m : src_pos:[%src_pos] -> unit -> lexing_position end
-val o2 : c = <obj>
+class class_with_a_method_with_a_positional_parameter :
+  object method m : src_pos:[%src_pos] -> unit -> lexing_position end
 |}]
 
-let x = o2#m ();;
+let o = new class_with_a_method_with_a_positional_parameter;;
 
 [%%expect{|
-val x : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 508; pos_cnum = 516}
+val o : class_with_a_method_with_a_positional_parameter = <obj>
 |}]
 
-(* CR src_pos: This should probably work... *)
-class this_one ~(foo : [%src_pos]) () = object 
-  method m = foo
+let position = o#m ();;
+
+[%%expect{|
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 866; pos_cnum = 881}
+|}]
+
+let position = (new class_with_a_method_with_a_positional_parameter)#m ();;
+
+[%%expect{|
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 1005; pos_cnum = 1020}
+|}]
+
+
+class class_with_positional_parameter ~(src_pos : [%src_pos]) () = object 
+  method src_pos = src_pos
 end
 
 [%%expect{|
-Lines 1-3, characters 0-3:
-1 | class this_one ~(foo : [%src_pos]) () = object
-2 |   method m = foo
-3 | end
-Error: Some type variables are unbound in this type:
-         class this_one : foo:[%src_pos] -> unit -> object method m : 'a end
-       The method m has type 'a where 'a is unbound
+class class_with_positional_parameter :
+  src_pos:[%src_pos] -> unit -> object method src_pos : lexing_position end
 |}]
 
-class this_one_but_optional ?(bar = 1) () = object 
-  method m = bar
+let o = new class_with_positional_parameter ()
+let position = o#src_pos
+
+[%%expect{|
+val o : class_with_positional_parameter = <obj>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 1439; pos_cnum = 1447}
+|}]
+
+
+(* Different kinds of shadowed parameters (both a class parameter is shadowed and a
+   method parameter is shadowed) *)
+
+class c ~(src_pos : [%src_pos]) () = object 
+  method m ~(src_pos : [%src_pos]) () = src_pos
 end
-
 [%%expect{|
-class this_one_but_optional : ?bar:int -> unit -> object method m : int end
+class c :
+  src_pos:[%src_pos] ->
+  unit -> object method m : src_pos:[%src_pos] -> unit -> lexing_position end
 |}]
 
-class c ~(foo : int) = object 
-  method m = foo
-end
+let _ = (new c ())#m()
 
 [%%expect{|
-class c : foo:int -> object method m : int end
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 1; pos_bol = 2024; pos_cnum = 2032}
 |}]
-
-let o = new c ~foo:1
-let o_m = o#m
-
-[%%expect{|
-val o : c = <obj>
-val o_m : int = 1
-|}]
-
