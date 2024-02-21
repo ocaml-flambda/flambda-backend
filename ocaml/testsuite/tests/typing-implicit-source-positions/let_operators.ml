@@ -50,4 +50,3 @@ val ( >>| ) : src_pos:[%src_pos] -> 'a -> (lexing_position * 'a -> 'b) -> 'b =
 - : lexing_position =
 {pos_fname = ""; pos_lnum = 3; pos_bol = 1108; pos_cnum = 1110}
 |}]
-

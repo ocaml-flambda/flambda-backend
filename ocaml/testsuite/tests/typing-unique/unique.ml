@@ -617,7 +617,6 @@ Line 5, characters 16-17:
 
 |}]
 
-
 (* Uniqueness is unbroken by the implicit positional argument. *)
 let f ~(src_pos : [%src_pos]) () =
   let unique_ x = src_pos in
@@ -627,7 +626,6 @@ let f ~(src_pos : [%src_pos]) () =
 val f : src_pos:[%src_pos] -> unit -> lexing_position * lexing_position =
   <fun>
 |}]
-
 
 let f ~(src_pos : [%src_pos]) () =
   unique_ (src_pos, src_pos)
