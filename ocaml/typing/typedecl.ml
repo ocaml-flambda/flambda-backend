@@ -2417,9 +2417,7 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_absent -> None
       in
       let is_layout_poly =
-        Attr_helper.has_no_payload_attribute
-          ["layout_poly"; "ocaml.layout_poly"]
-          valdecl.pval_attributes
+        Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes

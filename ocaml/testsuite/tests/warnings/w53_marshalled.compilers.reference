@@ -1017,3 +1017,53 @@ File "w53.ml", line 456, characters 46-59:
 456 |   let f2 v: (('a : value)[@error_message ""][@error_message ""]) = v (* reject second *)
                                                     ^^^^^^^^^^^^^
 Warning 53 [misplaced-attribute]: the "error_message" attribute cannot appear in this context
+
+File "w53.ml", line 460, characters 21-32:
+460 |   type 'a t1 = 'a [@@layout_poly] (* rejected *)
+                           ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 461, characters 19-30:
+461 |   type s1 = Foo1 [@layout_poly] (* rejected *)
+                         ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 462, characters 19-30:
+462 |   val x : int64 [@@layout_poly] (* rejected *)
+                         ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 464, characters 24-35:
+464 |   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+                              ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 464, characters 50-61:
+464 |   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+                                                        ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 469, characters 21-32:
+469 |   type 'a t1 = 'a [@@layout_poly] (* rejected *)
+                           ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 470, characters 19-30:
+470 |   type s1 = Foo1 [@layout_poly] (* rejected *)
+                         ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 471, characters 25-36:
+471 |   let x : int64 = 42L [@@layout_poly] (* rejected *)
+                               ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 473, characters 24-35:
+473 |   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+                              ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context
+
+File "w53.ml", line 473, characters 50-61:
+473 |   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+                                                        ^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "layout_poly" attribute cannot appear in this context

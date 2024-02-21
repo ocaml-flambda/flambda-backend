@@ -108,6 +108,7 @@ let builtin_attrs =
   ; "no_coeffects"; "ocaml.no_coeffects"
   ; "only_generative_effects"; "ocaml.only_generative_effects"
   ; "error_message"; "ocaml.error_message"
+  ; "layout_poly"; "ocaml.layout_poly"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -619,6 +620,9 @@ let parse_standard_implementation_attributes attr =
 
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs
+
+let has_layout_poly attrs =
+  has_attribute ["ocaml.layout_poly"; "layout_poly"] attrs
 
 let has_curry attrs =
   has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs

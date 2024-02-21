@@ -455,3 +455,21 @@ module TestErrorMessageStruct = struct
   let f1 v: ((_ : value)[@error_message ""][@error_message ""]) = v (* reject second *)
   let f2 v: (('a : value)[@error_message ""][@error_message ""]) = v (* reject second *)
 end
+
+module type TestLayoutPolySig = sig
+  type 'a t1 = 'a [@@layout_poly] (* rejected *)
+  type s1 = Foo1 [@layout_poly] (* rejected *)
+  val x : int64 [@@layout_poly] (* rejected *)
+
+  external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+  external z : int64 -> int64 = "%identity" [@@layout_poly] (* accepted *)
+end
+
+module TestLayoutPolyStruct = struct
+  type 'a t1 = 'a [@@layout_poly] (* rejected *)
+  type s1 = Foo1 [@layout_poly] (* rejected *)
+  let x : int64 = 42L [@@layout_poly] (* rejected *)
+
+  external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
+  external z : int64 -> int64 = "%identity" [@@layout_poly] (* accepted *)
+end
