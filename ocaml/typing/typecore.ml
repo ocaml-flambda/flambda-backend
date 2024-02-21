@@ -801,6 +801,7 @@ let has_poly_constraint spat =
 (* CR layouts v2.8: use the meet-with-constant morphism when available *)
 (* The approach here works only for 2-element modal axes. *)
 let mode_cross_left env ty mode =
+  if not (is_principal ty) then Value.disallow_right mode else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let mode = Value.disallow_right mode in
@@ -834,11 +835,26 @@ let alloc_mode_cross_to_max_min env ty {monadic; comonadic} =
   {monadic; comonadic}
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if mode_cross env ty then
-    { expected_mode with
-      mode = Value.disallow_left Value.max;
-      strictly_local = false }
-  else expected_mode
+  if not (is_principal ty) then expected_mode else
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = expected_mode.mode in
+  let mode, strictly_local =
+    if Locality.Const.equal upper_bounds.locality Locality.Const.min
+    then Value.set_regionality_max mode, false
+    else mode, expected_mode.strictly_local
+  in
+  let mode =
+    if Linearity.Const.equal upper_bounds.linearity Linearity.Const.min
+    then Value.set_linearity_max mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.equal upper_bounds.uniqueness Uniqueness.Const.min
+    then Value.set_uniqueness_max mode
+    else mode
+  in
+  { expected_mode with mode; strictly_local }
 
 let alloc_mode_from_exp_attrs exp =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs exp.pexp_attributes in
