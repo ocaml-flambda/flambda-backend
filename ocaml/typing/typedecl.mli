@@ -146,6 +146,7 @@ type error =
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
+  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
 
 exception Error of Location.t * error
 

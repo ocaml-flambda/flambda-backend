@@ -102,6 +102,7 @@ type error =
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
   | Modalities_on_value_description
+  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
 
 open Typedtree
 
@@ -2221,11 +2222,12 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
+type sort_or_poly = Sort of Jkind.Sort.const | Poly
+
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
-  match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
-  | Native_repr_attr_absent ->
-    begin match get_desc (Ctype.get_unboxed_type_approximation env ty) with
+  let sort_or_poly =
+    match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     (* This only captures tvars with jkind [any] explicitly quantified within
        the declaration.
 
@@ -2236,19 +2238,38 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     *)
     | Tvar {jkind} when is_layout_poly
                       && Jkind.is_any jkind
-                      && get_level ty = Btype.generic_level -> Repr_poly
+                      && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
         type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
       in
+      Sort sort
+  in
+  match get_native_repr_attribute
+          core_type.ptyp_attributes ~global_repr,
+        sort_or_poly with
+  | Native_repr_attr_absent, Poly ->
+    Repr_poly
+  | Native_repr_attr_absent, Sort (Value as sort) ->
+    Same_as_ocaml_repr sort
+  | Native_repr_attr_absent, (Sort sort) ->
+    if Language_extension.erasable_extensions_only ()
+    then
+      (* Non-value sorts without [@unboxed] are not erasable. *)
+      raise (Error (core_type.ptyp_loc,
+              Missing_unboxed_attribute_on_non_value_sort sort))
+    else
       Same_as_ocaml_repr sort
-    end
-  | Native_repr_attr_present kind ->
+  | Native_repr_attr_present kind, (Poly | Sort Value)
+  | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
+  | Native_repr_attr_present Unboxed, (Sort sort) ->
+    (* We allow [@unboxed] on non-value sorts. *)
+    Same_as_ocaml_repr sort
 
 let prim_const_mode m =
   match Mode.Locality.check_const m with
@@ -3150,6 +3171,12 @@ let report_error ppf = function
   | Modalities_on_value_description ->
       fprintf ppf
         "@[Modalities on value descriptions are not supported yet.@]"
+  | Missing_unboxed_attribute_on_non_value_sort sort ->
+    fprintf ppf
+      "@[[%@unboxed] attribute must be added to external declaration@ \
+          argument type with layout %a. This error is produced@ \
+          due to the use of -only-erasable-extensions.@]"
+      Jkind.Sort.format_const sort
 
 let () =
   Location.register_error_of_exn

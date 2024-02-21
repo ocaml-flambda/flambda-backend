@@ -255,3 +255,56 @@ module M :
     val f_word : unit
   end
 |}];;
+
+(* Externals *)
+
+external f_1 : int -> bool -> int64# = "foo" "bar";;
+[%%expect{|
+Line 1, characters 30-36:
+1 | external f_1 : int -> bool -> int64# = "foo" "bar";;
+                                  ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout bits64. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_2 : int32# -> bool -> int = "foo" "bar";;
+[%%expect{|
+Line 1, characters 15-21:
+1 | external f_2 : int32# -> bool -> int = "foo" "bar";;
+                   ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout bits32. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_3 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+external f_3 : float# -> bool -> string = "foo" "bar"
+|}];;
+
+external f_4 : string -> (nativeint#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_4 : string -> nativeint# = "foo" "bar"
+|}];;
+
+external f_5 : int64 -> int64#  = "foo" "bar" [@@unboxed];;
+[%%expect{|
+external f_5 : (int64 [@unboxed]) -> int64# = "foo" "bar"
+|}];;
+
+external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 16-22:
+1 | external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+                    ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;
+
+external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 26-32:
+1 | external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
+                              ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;

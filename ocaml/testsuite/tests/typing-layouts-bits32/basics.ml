@@ -461,7 +461,8 @@ val f9_3 : unit -> int32# t_bits32_id = <fun>
    for uses the typechecker should reject.  In particular
    - if using a non-value layout in an external, you must supply separate
      bytecode and native code implementations,
-   - unboxed types can't be unboxed more.
+   - [@unboxed] is allowed on unboxed types but has no effect. Same is not
+     true for [@untagged].
 *)
 
 external f10_1 : int -> bool -> int32# = "foo";;
@@ -484,29 +485,33 @@ Error: The native code version of the primitive is mandatory
 
 external f10_6 : (int32#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 18-24:
-1 | external f10_6 : (int32#[@unboxed]) -> bool -> string  = "foo" "bar";;
-                      ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_6 : int32# -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_7 : string -> (int32#[@unboxed])  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 28-34:
-1 | external f10_7 : string -> (int32#[@unboxed])  = "foo" "bar";;
-                                ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_7 : string -> int32# = "foo" "bar"
 |}];;
 
 external f10_8 : int32 -> int32#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-Line 1, characters 26-32:
-1 | external f10_8 : int32 -> int32#  = "foo" "bar" [@@unboxed];;
-                              ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_8 : (int32 [@unboxed]) -> int32# = "foo" "bar"
+|}];;
+
+external f10_9 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 18-24:
+1 | external f10_9 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+                      ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;
+
+external f10_10 : string -> (int32#[@untagged])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 29-35:
+1 | external f10_10 : string -> (int32#[@untagged])  = "foo" "bar";;
+                                 ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
 (*******************************************************)
