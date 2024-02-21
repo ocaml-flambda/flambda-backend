@@ -1328,6 +1328,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                    Jkind.Sort.value
                   )
             in
+            let eliminate_position_arg () =
+              let arg = Typecore.src_pos (Location.ghostify scl.pcl_loc) [] val_env in
+              Arg (arg, Jkind.Sort.value)
+            in
             let remaining_sargs, arg =
               if ignore_labels then begin
                 match sargs with
@@ -1343,6 +1347,12 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                              remaining_sargs)
                     then
                       (sargs, eliminate_optional_arg ())
+                    else if
+                      Btype.is_position l &&
+                      not (List.exists (fun (l, _) -> name = Btype.label_name l)
+                             remaining_sargs)
+                    then
+                      (sargs, eliminate_position_arg ())
                     else
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
               end else
@@ -1354,9 +1364,12 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                            (Printtyp.string_of_label l));
                     remaining_sargs, use_arg sarg l'
                 | None ->
+                    let is_erased = lazy (List.mem_assoc Nolabel sargs) in
                     sargs,
-                    if Btype.is_optional l && List.mem_assoc Nolabel sargs then
+                    if Btype.is_optional l && force is_erased then
                       eliminate_optional_arg ()
+                    else if Btype.is_position l && force is_erased then
+                      eliminate_position_arg ()
                     else begin
                       let mode_closure = Mode.Alloc.legacy in
                       let mode_arg = Mode.Alloc.legacy in

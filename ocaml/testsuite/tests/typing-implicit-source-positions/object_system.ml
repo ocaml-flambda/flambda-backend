@@ -110,11 +110,9 @@ let position = o#pos
 [%%expect{|
 class parent :
   src_pos:[%src_pos] -> unit -> object method pos : lexing_position end
-Line 6, characters 2-19:
-6 |   inherit parent ()
-      ^^^^^^^^^^^^^^^^^
-Error: This class expression is not a class structure; it has type
-       src_pos:[%src_pos] -> parent
+val o : parent = <obj>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 6; pos_bol = 2661; pos_cnum = 2671}
 |}]
 
 let o ~(src_pos : [%src_pos]) () = object 
@@ -125,6 +123,35 @@ let position = (o ())#pos
 val o : src_pos:[%src_pos] -> unit -> parent = <fun>
 val position : lexing_position =
   {pos_fname = ""; pos_lnum = 4; pos_bol = 3063; pos_cnum = 3078}
+|}, Principal{|
+val o : src_pos:[%src_pos] -> unit -> parent = <fun>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3288; pos_cnum = 3303}
+|}]
+
+(* Applying an src_pos argument without a label. *)
+let o ~(src_pos : [%src_pos]) () = object 
+  inherit parent src_pos ()
+end
+let position = (o ())#pos
+[%%expect{|
+Line 2, characters 10-16:
+2 |   inherit parent src_pos ()
+              ^^^^^^
+Warning 6 [labels-omitted]: label src_pos was omitted in the application of this function.
+
+val o : src_pos:[%src_pos] -> unit -> parent = <fun>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3385; pos_cnum = 3400}
+|}, Principal{|
+Line 2, characters 10-16:
+2 |   inherit parent src_pos ()
+              ^^^^^^
+Warning 6 [labels-omitted]: label src_pos was omitted in the application of this function.
+
+val o : src_pos:[%src_pos] -> unit -> parent = <fun>
+val position : lexing_position =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3610; pos_cnum = 3625}
 |}]
 
 
