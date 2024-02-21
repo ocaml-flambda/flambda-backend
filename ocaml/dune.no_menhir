@@ -1,0 +1,9 @@
+(rule
+  (targets parser.ml)
+  (mode    fallback)
+  (action  (copy# boot/menhir/parser.ml %{targets})))
+
+(rule
+  (targets parser.mli)
+  (mode    fallback)
+  (action  (copy# boot/menhir/parser.mli %{targets})))

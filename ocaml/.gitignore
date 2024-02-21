@@ -366,4 +366,6 @@ META
 /otherlibs/dynlink/natdynlinkops
 
 dune.runtime_selection
+dune.menhir_selection
+/parsing/dune.parsing_menhir_selection
 /otherlibs/dune

@@ -243,6 +243,7 @@ INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
 STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
+WITH_MENHIR=@with_menhir@
 
 # Selection of OCaml 4.x or 5.x runtime
 ifeq "@enable_runtime5@" "yes"

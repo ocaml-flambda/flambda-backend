@@ -859,6 +859,7 @@ VERSION
 default_build_target
 native_compiler
 CONFIGURE_ARGS
+with_menhir
 enable_runtime5
 target_alias
 host_alias
@@ -903,6 +904,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_runtime5
+with_menhir
 with_dune
 enable_debug_runtime
 enable_debugger
@@ -1651,6 +1653,8 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-menhir           Use system-installed menhir instead of the
+                          pregenerated parsers
   --with-dune             Path to dune executable (otherwise PATH is searched)
   --with-odoc             build documentation with odoc
   --with-target-bindir    location of binary programs on target system
@@ -3242,7 +3246,20 @@ then :
 fi
 
 
+# Using menhir
+
+
+# Check whether --with-menhir was given.
+if test ${with_menhir+y}
+then :
+  withval=$with_menhir;
+else $as_nop
+  with_menhir=no
+fi
+
+
 ## Output variables
+
 
 
 

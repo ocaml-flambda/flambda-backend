@@ -1,0 +1,15 @@
+(rule
+ (targets camlinternalMenhirLib.ml)
+ (action
+  (with-stdout-to %{targets}
+   ;; Partial applications of the form Obj.magic f x in menhirLib cause
+   ;; an issue with locals, so rewrite these to Obj.magic (f x)
+   (bash "cat $(menhir --suggest-menhirLib)/menhirLib.ml |
+          sed 's/\\b\\(in\\|then\\|with\\|else\\)\\b/@@@\\1/g; s/Obj.magic \\([a-z0-9_]\\+\\( [a-z0-9_]\\+\\)\\+\\)/Obj.magic (\\1)/g;  s/@@@//g'"))))
+
+(rule
+ (targets camlinternalMenhirLib.mli)
+ (mode    fallback)
+ (action
+  (with-stdout-to %{targets}
+   (bash "cat $(menhir --suggest-menhirLib)/menhirLib.mli"))))
