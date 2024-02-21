@@ -139,7 +139,7 @@ Warning 6 [labels-omitted]: label src_pos was omitted in the application of this
 
 val o : src_pos:[%src_pos] -> unit -> parent = <fun>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3417; pos_cnum = 3432}
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3249; pos_cnum = 3264}
 |}]
 
 
@@ -159,3 +159,40 @@ val o : parent = <obj>
 val position : int = 1
 |}]
 
+(* Partially applying a class *)
+class c ~(a : [%src_pos]) ~(b : [%src_pos]) () =
+  object 
+    method a = a
+    method b = b
+  end
+
+[%%expect{|
+class c :
+  a:[%src_pos] ->
+  b:[%src_pos] ->
+  unit -> object method a : lexing_position method b : lexing_position end
+|}]
+
+let pos_a : lexing_position = {Lexing.dummy_pos with pos_fname = "a"};;
+let partially_applied_class = new c ~a:pos_a
+
+[%%expect{|
+val pos_a : lexing_position =
+  {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+val partially_applied_class : b:[%src_pos] -> unit -> c = <fun>
+|}]
+
+let fully_applied_class = partially_applied_class ()
+
+[%%expect{|
+val fully_applied_class : c = <obj>
+|}]
+
+let a, b = fully_applied_class#a, fully_applied_class#b
+
+[%%expect{|
+val a : lexing_position =
+  {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+val b : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 4427; pos_cnum = 4453}
+|}]

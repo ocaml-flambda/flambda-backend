@@ -93,3 +93,42 @@ Error: This function should have type
          a:[%src_pos] -> b:[%src_pos] -> unit -> unit
        but its first argument is ~(b:[%src_pos]) instead of ~(a:[%src_pos])
 |}]
+
+(* Object system *)
+
+class c ~(a : [%src_pos]) ~(b : [%src_pos]) () =
+  object 
+    method x = a, b
+  end
+[%%expect{|
+class c :
+  a:[%src_pos] ->
+  b:[%src_pos] ->
+  unit -> object method x : lexing_position * lexing_position end
+|}]
+
+(* Object system partial application *)
+let x = new c ~b:pos_b ;;
+let y = x ~a:pos_a ;;
+let a, b = (y ())#x ;;
+[%%expect{|
+val x : a:[%src_pos] -> unit -> c = <fun>
+val y : unit -> c = <fun>
+val a : lexing_position =
+  {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+val b : lexing_position =
+  {pos_fname = "b"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+|}]
+
+(* XXX jrodri: I think the below segment is another bug! *)
+
+(* Labels on source positions can't commute in class definitions *)
+class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
+[%%expect{|
+Line 1, characters 14-21:
+1 | class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
+                  ^^^^^^^
+Error: Uninterpreted extension 'src_pos'.
+|}]
+
+
