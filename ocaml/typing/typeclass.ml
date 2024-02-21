@@ -1366,9 +1366,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                 | None ->
                     let is_erased = lazy (List.mem_assoc Nolabel sargs) in
                     sargs,
-                    if Btype.is_optional l && force is_erased then
+                    if Btype.is_optional l && Lazy.force is_erased then
                       eliminate_optional_arg ()
-                    else if Btype.is_position l && force is_erased then
+                    else if Btype.is_position l && Lazy.force is_erased then
                       eliminate_position_arg ()
                     else begin
                       let mode_closure = Mode.Alloc.legacy in

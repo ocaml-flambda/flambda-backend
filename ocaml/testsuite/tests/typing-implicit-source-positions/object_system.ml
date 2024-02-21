@@ -97,7 +97,6 @@ val from_class_param : lexing_position =
   {pos_fname = ""; pos_lnum = 1; pos_bol = 2167; pos_cnum = 2175}
 |}]
 
-(* XXX jrodri: This should probably work... due to the segment below working... *)
 class parent ~(src_pos : [%src_pos]) () = object
   method pos = src_pos
 end
@@ -112,21 +111,18 @@ class parent :
   src_pos:[%src_pos] -> unit -> object method pos : lexing_position end
 val o : parent = <obj>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 6; pos_bol = 2661; pos_cnum = 2671}
+  {pos_fname = ""; pos_lnum = 6; pos_bol = 2578; pos_cnum = 2588}
 |}]
 
 let o ~(src_pos : [%src_pos]) () = object 
   inherit parent ~src_pos ()
 end
 let position = (o ())#pos
+
 [%%expect{|
 val o : src_pos:[%src_pos] -> unit -> parent = <fun>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3063; pos_cnum = 3078}
-|}, Principal{|
-val o : src_pos:[%src_pos] -> unit -> parent = <fun>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3288; pos_cnum = 3303}
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 2926; pos_cnum = 2941}
 |}]
 
 (* Applying an src_pos argument without a label. *)
@@ -134,6 +130,7 @@ let o ~(src_pos : [%src_pos]) () = object
   inherit parent src_pos ()
 end
 let position = (o ())#pos
+
 [%%expect{|
 Line 2, characters 10-16:
 2 |   inherit parent src_pos ()
@@ -142,19 +139,11 @@ Warning 6 [labels-omitted]: label src_pos was omitted in the application of this
 
 val o : src_pos:[%src_pos] -> unit -> parent = <fun>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3385; pos_cnum = 3400}
-|}, Principal{|
-Line 2, characters 10-16:
-2 |   inherit parent src_pos ()
-              ^^^^^^
-Warning 6 [labels-omitted]: label src_pos was omitted in the application of this function.
-
-val o : src_pos:[%src_pos] -> unit -> parent = <fun>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3610; pos_cnum = 3625}
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3417; pos_cnum = 3432}
 |}]
 
 
+(* Same behavior as optional parameters. *)
 class parent ?(i = 1) () = object
   method i = i
 end
