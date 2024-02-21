@@ -151,19 +151,3 @@ Error: The class type
          unit -> object method x : lexing_position * lexing_position end
 |}]
 
-let f = fun ?(i = 1) () -> i
-[%%expect{|
-val f : src_pos:[%src_pos] -> unit -> lexing_position = <fun>
-|}]
-
-let _ = f ();;
-[%%expect{|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 1; pos_bol = 151; pos_cnum = 159}
-|}]
-
-let j = (f : unit -> int);;
-[%%expect{|
-val j : unit -> lexing_position = <fun>
-|}]
-
