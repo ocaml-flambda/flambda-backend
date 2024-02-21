@@ -193,6 +193,18 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   in
   let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
+    (* Extract the result layout of the primitive.
+       This can be a non-value layout even without
+       the use of [@layout_poly]. For example:
+
+       {[ external id : float# -> float# = "%opaque" ]}
+
+       We don't allow non-value layouts for most
+       primitives. To see how the check happens,
+       reference [prim_has_valid_reprs].
+
+       We don't extract the argument layouts just because
+       there's not yet a need to. *)
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in

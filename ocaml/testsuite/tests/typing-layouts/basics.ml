@@ -2472,3 +2472,30 @@ external f : (float# -> int32#) -> int32# -> int32# = "%apply";;
 [%%expect{|
 external f : (float# -> int32#) -> int32# -> int32# = "%apply"
 |}]
+
+external f : float# -> int -> int = "%send";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : float# -> int -> int = "%send";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%send] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> int -> float# = "%sendself";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : int -> int -> float# = "%sendself";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendself] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> float# -> int -> int -> int = "%sendcache";;
+[%%expect{|
+Line 1, characters 13-47:
+1 | external f : int -> float# -> int -> int -> int = "%sendcache";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendcache] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
