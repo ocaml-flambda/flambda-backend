@@ -120,15 +120,50 @@ val b : lexing_position =
   {pos_fname = "b"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
-(* XXX jrodri: I think the below segment is another bug! *)
-
 (* Labels on source positions can't commute in class definitions *)
 class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
 [%%expect{|
-Line 1, characters 14-21:
+Line 1, characters 67-115:
 1 | class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
-                  ^^^^^^^
-Error: Uninterpreted extension 'src_pos'.
+                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The class type b:[%src_pos] -> a:[%src_pos] -> unit -> object  end
+       is not matched by the class type
+         a:[%src_pos] -> b:[%src_pos] -> unit -> object  end
 |}]
 
+(* [%src_pos] is distinct from lexing_position *)
+class c :
+  a:lexing_position -> b:[%src_pos] -> unit -> object
+    method x : lexing_position * lexing_position
+  end = fun ~(a : [%src_pos]) ~b () -> object
+    method x = a, b
+  end
+[%%expect{|
+Lines 4-6, characters 12-5:
+4 | ............~(a : [%src_pos]) ~b () -> object
+5 |     method x = a, b
+6 |   end
+Error: The class type
+         a:[%src_pos] -> b:'b -> unit -> object method x : 'a * 'b end
+       is not matched by the class type
+         a:lexing_position ->
+         b:[%src_pos] ->
+         unit -> object method x : lexing_position * lexing_position end
+|}]
+
+let f = fun ?(i = 1) () -> i
+[%%expect{|
+val f : src_pos:[%src_pos] -> unit -> lexing_position = <fun>
+|}]
+
+let _ = f ();;
+[%%expect{|
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 1; pos_bol = 151; pos_cnum = 159}
+|}]
+
+let j = (f : unit -> int);;
+[%%expect{|
+val j : unit -> lexing_position = <fun>
+|}]
 

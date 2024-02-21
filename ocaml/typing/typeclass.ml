@@ -437,8 +437,17 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
+      let ctyp ctyp_desc ctyp_type =
+        { ctyp_desc; ctyp_type; ctyp_env = env;
+          ctyp_loc = sty.ptyp_loc; ctyp_attributes = sty.ptyp_attributes }
+      in
       let l = transl_label l (Some sty) in
-      let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
+      let cty =
+        match l with
+        | Position _ -> ctyp Ttyp_src_pos (Ctype.newconstr Predef.path_lexing_position [])
+        | Optional _ | Labelled _ | Nolabel ->
+          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty 
+      in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l

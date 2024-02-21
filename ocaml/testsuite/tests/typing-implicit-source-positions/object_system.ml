@@ -194,5 +194,28 @@ let a, b = fully_applied_class#a, fully_applied_class#b
 val a : lexing_position =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 val b : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 4427; pos_cnum = 4453}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 4459; pos_cnum = 4485}
+|}]
+
+class c :
+  x:[%src_pos] -> y:lexing_position -> unit -> object
+    method xy : lexing_position * lexing_position
+  end = fun ~(x : [%src_pos]) ~y () -> object
+    method xy = x, y
+  end
+
+[%%expect{|
+class c :
+  x:[%src_pos] ->
+  y:lexing_position ->
+  unit -> object method xy : lexing_position * lexing_position end
+|}]
+
+let x, y = (new c ~y:pos_a ())#xy
+
+[%%expect{|
+val x : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 5143; pos_cnum = 5154}
+val y : lexing_position =
+  {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
