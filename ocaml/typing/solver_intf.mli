@@ -178,7 +178,7 @@ module type Lattices_mono = sig
     ('a0, 'a1) Misc.eq option
 
   (** Print morphism *)
-  val print_morph : Format.formatter -> ('a, 'b, 'd) morph -> unit
+  val print_morph : 'b obj -> Format.formatter -> ('a, 'b, 'd) morph -> unit
 end
 
 (** Arrange the permissions appropriately for a positive lattice, by

@@ -612,28 +612,32 @@ module Lattices_mono = struct
 
   let eq_morph = Equal_morph.equal
 
-  let rec print_morph : type a b d. Format.formatter -> (a, b, d) morph -> unit
-      =
-   fun ppf -> function
-    | Id -> Format.fprintf ppf "id"
-    | Const_min _ -> Format.fprintf ppf "const_min"
-    | Const_max _ -> Format.fprintf ppf "const_max"
-    | Proj (_, ax) -> Format.fprintf ppf "proj_%a" Comonadic_with.print_axis ax
-    | Max_with ax ->
-      Format.fprintf ppf "max_with_%a" Comonadic_with.print_axis ax
-    | Min_with ax ->
-      Format.fprintf ppf "min_with_%a" Comonadic_with.print_axis ax
-    | Map (f0, f1) ->
-      Format.fprintf ppf "map(%a,%a)" print_morph f0 print_morph f1
-    | Unique_to_linear -> Format.fprintf ppf "unique_to_linear"
-    | Linear_to_unique -> Format.fprintf ppf "linear_to_unique"
-    | Local_to_regional -> Format.fprintf ppf "local_to_regional"
-    | Regional_to_local -> Format.fprintf ppf "regional_to_local"
-    | Locality_as_regionality -> Format.fprintf ppf "locality_as_regionality"
-    | Regional_to_global -> Format.fprintf ppf "regional_to_global"
-    | Global_to_regional -> Format.fprintf ppf "global_to_regional"
-    | Compose (f0, f1) ->
-      Format.fprintf ppf "%a ∘ %a" print_morph f0 print_morph f1
+  let print_morph :
+      type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
+    let rec print_morph : type a b d. _ -> (a, b, d) morph -> unit =
+     fun ppf -> function
+      | Id -> Format.fprintf ppf "id"
+      | Const_min _ -> Format.fprintf ppf "const_min"
+      | Const_max _ -> Format.fprintf ppf "const_max"
+      | Proj (_, ax) ->
+        Format.fprintf ppf "proj_%a" Comonadic_with.print_axis ax
+      | Max_with ax ->
+        Format.fprintf ppf "max_with_%a" Comonadic_with.print_axis ax
+      | Min_with ax ->
+        Format.fprintf ppf "min_with_%a" Comonadic_with.print_axis ax
+      | Map (f0, f1) ->
+        Format.fprintf ppf "map(%a,%a)" print_morph f0 print_morph f1
+      | Unique_to_linear -> Format.fprintf ppf "unique_to_linear"
+      | Linear_to_unique -> Format.fprintf ppf "linear_to_unique"
+      | Local_to_regional -> Format.fprintf ppf "local_to_regional"
+      | Regional_to_local -> Format.fprintf ppf "regional_to_local"
+      | Locality_as_regionality -> Format.fprintf ppf "locality_as_regionality"
+      | Regional_to_global -> Format.fprintf ppf "regional_to_global"
+      | Global_to_regional -> Format.fprintf ppf "global_to_regional"
+      | Compose (f0, f1) ->
+        Format.fprintf ppf "%a ∘ %a" print_morph f0 print_morph f1
+    in
+    fun _obj ppf morph -> print_morph ppf morph
 
   let id = Id
 

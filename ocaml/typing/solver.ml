@@ -169,7 +169,8 @@ module Solver_mono (C : Lattices_mono) = struct
       type a d. ?traversed:VarSet.t -> a C.obj -> _ -> (a, d) morphvar -> _ =
    fun ?traversed dst ppf (Amorphvar (v, f)) ->
     let src = C.src dst f in
-    Format.fprintf ppf "%a(%a)" C.print_morph f (print_var ?traversed src) v
+    Format.fprintf ppf "%a(%a)" (C.print_morph dst) f (print_var ?traversed src)
+      v
 
   let print_raw :
       type a l r.
