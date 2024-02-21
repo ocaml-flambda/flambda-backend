@@ -2339,8 +2339,7 @@ let unexpected_jkind_any_check prim env cty ty =
       (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
       (Ctype.free_variables ty)
   in
-  if not has_any then ()
-  else
+  if has_any then
     raise(Error (cty.ctyp_loc,
             Unexpected_jkind_any_in_primitive(prim.prim_name)))
 

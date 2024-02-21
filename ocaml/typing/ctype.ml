@@ -1632,7 +1632,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
    No non-generic type variables should be present in [ty] due to
    it being the type of an external declaration. However, the code
    is written without relaying this assumption. *)
-let instance_prim_repr (desc : Primitive.description) ty =
+let instance_prim_layout (desc : Primitive.description) ty =
   if not desc.prim_is_layout_poly
   then ty, None
   else
@@ -1691,7 +1691,7 @@ let instance_prim_mode (desc : Primitive.description) ty =
     ty, None
 
 let instance_prim (desc : Primitive.description) ty =
-  let ty, sort = instance_prim_repr desc ty in
+  let ty, sort = instance_prim_layout desc ty in
   let ty, mode = instance_prim_mode desc ty in
   ty, mode, sort
 

@@ -112,7 +112,6 @@ val equal_coeffects : coeffects -> coeffects -> bool
     compiler itself. *)
 val native_name_is_external : description -> bool
 
-
 (** Check if a primitive has the correct native representations for its
     argument/return types. This check is done based on the primitive
     name and only imposes constraints on built-in primitives. Exception
