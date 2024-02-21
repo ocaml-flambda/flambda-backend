@@ -219,7 +219,7 @@ module Lattices = struct
       match a, b with
       | Areality, Areality -> Some Refl
       | Linearity, Linearity -> Some Refl
-      | _ -> None
+      | (Areality | Linearity), _ -> None
 
     (* Description of which component to set in the comonadic fragment.
        [SAreality]: update the areality in ['a0 t] to get ['a1 t].
