@@ -1392,11 +1392,9 @@ val o : < foo : int; x : int > = <obj>
                     then
                       (remaining_sargs, use_arg sarg l')
                     else if optional && Lazy.force label_is_absent_in_remaining_args
-                    then
-                      (sargs, eliminate_optional_arg ())
+                    then (sargs, eliminate_optional_arg ())
                     else if Btype.is_position l && Lazy.force label_is_absent_in_remaining_args
-                    then
-                      (sargs, eliminate_position_arg ())
+                    then (sargs, eliminate_position_arg ())
                     else
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
               end else
