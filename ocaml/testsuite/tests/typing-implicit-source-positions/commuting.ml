@@ -121,11 +121,12 @@ val b : lexing_position =
 |}]
 
 (* Labels on source positions can't commute in class definitions *)
-class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
+class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end =
+  fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
 [%%expect{|
-Line 1, characters 67-115:
-1 | class m : a:[%src_pos] -> b:[%src_pos] -> unit -> object end = fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
-                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 6-54:
+2 |   fun ~(b:[%src_pos]) ~(a:[%src_pos]) () -> object end
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The class type b:[%src_pos] -> a:[%src_pos] -> unit -> object  end
        is not matched by the class type
          a:[%src_pos] -> b:[%src_pos] -> unit -> object  end

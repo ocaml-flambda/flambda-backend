@@ -102,3 +102,31 @@ Warning 188 [unerasable-position-argument]: this position argument cannot be era
 
 class this_class_has_an_unerasable_argument : pos:[%src_pos] -> object  end
 |}]
+
+class c = object 
+  method this_method_has_an_unerasable_argument ~(pos : [%src_pos]) = pos
+end
+[%%expect{|
+Line 2, characters 50-53:
+2 |   method this_method_has_an_unerasable_argument ~(pos : [%src_pos]) = pos
+                                                      ^^^
+Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
+
+class c :
+  object
+    method this_method_has_an_unerasable_argument :
+      pos:[%src_pos] -> lexing_position
+  end
+|}]
+
+let this_object_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+
+[%%expect{|
+Line 1, characters 45-48:
+1 | let this_object_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+                                                 ^^^
+Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
+
+val this_object_has_an_unerasable_argument : pos:[%src_pos] -> <  > = <fun>
+|}]
+
