@@ -308,3 +308,30 @@ Line 1, characters 26-32:
                               ^^^^^^
 Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
+
+(* With [@layout_poly] *)
+
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
+[%%expect{|
+external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+|}];;
+
+
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+[%%expect{|
+Line 1, characters 40-42:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+                                            ^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+|}];;
+
+
+external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
+[%%expect{|
+Line 1, characters 41-43:
+1 | external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
+                                             ^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+|}];;
