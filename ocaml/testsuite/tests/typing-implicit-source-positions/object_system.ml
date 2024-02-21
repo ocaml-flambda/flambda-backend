@@ -70,18 +70,65 @@ val position : lexing_position =
 (* Different kinds of shadowed parameters (both a class parameter is shadowed and a
    method parameter is shadowed) *)
 
-class c ~(src_pos : [%src_pos]) () = object 
-  method m ~(src_pos : [%src_pos]) () = src_pos
+class c ~(src_pos : [%src_pos]) () = object(self)
+  method from_class_param = src_pos
+
+  method m ~(src_pos : [%src_pos]) () = src_pos, self#from_class_param
 end
 [%%expect{|
 class c :
   src_pos:[%src_pos] ->
-  unit -> object method m : src_pos:[%src_pos] -> unit -> lexing_position end
+  unit ->
+  object
+    method from_class_param : lexing_position
+    method m :
+      src_pos:[%src_pos] -> unit -> lexing_position * lexing_position
+  end
 |}]
 
-let _ = (new c ())#m()
+let c = (new c ())
+let from_method_param, from_class_param = c#m()
 
 [%%expect{|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 1; pos_bol = 2024; pos_cnum = 2032}
+val c : c = <obj>
+val from_method_param : lexing_position =
+  {pos_fname = ""; pos_lnum = 2; pos_bol = 2186; pos_cnum = 2228}
+val from_class_param : lexing_position =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 2167; pos_cnum = 2175}
 |}]
+
+(* XXX jrodri: This should probably work... due to the segment below working... *)
+class parent ~(src_pos : [%src_pos]) () = object
+  method pos = src_pos
+end
+
+let o = object 
+  inherit parent ()
+end
+let position = o#pos
+
+[%%expect{|
+class parent :
+  src_pos:[%src_pos] -> unit -> object method pos : lexing_position end
+Line 6, characters 2-19:
+6 |   inherit parent ()
+      ^^^^^^^^^^^^^^^^^
+Error: This class expression is not a class structure; it has type
+       src_pos:[%src_pos] -> parent
+|}]
+
+class parent ?(i = 1) () = object
+  method i = i
+end
+
+let o = object 
+  inherit parent ()
+end
+let position = o#i
+
+[%%expect{|
+class parent : ?i:int -> unit -> object method i : int end
+val o : parent = <obj>
+val position : int = 1
+|}]
+
