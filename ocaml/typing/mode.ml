@@ -224,6 +224,11 @@ module Lattices = struct
     (* Description of which component to set in the comonadic fragment.
        [SAreality]: update the areality in ['a0 t] to get ['a1 t].
        [SLinearity]: update the linearity in ['a0 t] to get ['a0 t].
+       In [('a0, 'r0, 'a1, 'r1) saxis], we have these type parameters:
+       * ['a0]: the type parameter to [t] before the change
+       * ['r0]: the type of the thing to be changed, before the change
+       * ['a1]: the type parameter to [t] after the change
+       * ['r1]: the type of the thing to be changed, after the change
     *)
     type ('a0, 'r0, 'a1, 'r1) saxis =
       | SAreality : ('a0, 'a0, 'a1, 'a1) saxis
