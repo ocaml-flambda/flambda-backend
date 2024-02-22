@@ -74,7 +74,8 @@ CAMLexport char * caml_format_exception(value exn)
       start = 1;
     }
     add_char(&buf, '(');
-    for (i = start; i < Wosize_val(bucket); i++) {
+    mlsize_t bucket_size = Wosize_val(bucket);
+    for (i = start; i < bucket_size; i++) {
       if (i > start) add_string(&buf, ", ");
       v = Field(bucket, i);
       if (Is_long(v)) {

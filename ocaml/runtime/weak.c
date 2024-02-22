@@ -304,7 +304,8 @@ static void ephe_copy_and_darken(value from, value to)
 
   /* Copy and darken scannable fields */
   caml_domain_state* domain_state = Caml_state;
-  while (i < Wosize_val(to)) {
+  mlsize_t to_size = Wosize_val(to);
+  while (i < to_size) {
     value field = Field(from, i);
     caml_darken (domain_state, field, 0);
     Store_field(to, i, field);
