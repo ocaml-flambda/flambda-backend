@@ -184,6 +184,20 @@ module type Payload_protocol = sig
   end
 end
 
+module type Structure_item_encodable = sig
+  type t
+
+  val of_structure_item : structure_item -> t loc option
+
+  val to_structure_item : t loc -> structure_item
+
+  (** For error messages: a name that can be used to identify the
+      [t] being converted to and from string, and its indefinite
+      article (either "a" or "an").
+  *)
+  val indefinite_article_and_name : string * string
+end
+
 module type Stringable = sig
   type t
 
@@ -198,16 +212,30 @@ module type Stringable = sig
   val indefinite_article_and_name : string * string
 end
 
-module Make_payload_protocol_of_stringable (Stringable : Stringable) :
-  Payload_protocol with type t := Stringable.t = struct
-  module Encode = struct
-    let as_expr t_loc =
-      let string = Stringable.to_string t_loc.txt in
+module Make_structure_item_encodable_of_stringable (Stringable : Stringable) :
+  Structure_item_encodable with type t = Stringable.t = struct
+  include Stringable
+
+  let to_structure_item t_loc =
+    let string = Stringable.to_string t_loc.txt in
+    let expr =
       Ast_helper.Exp.ident (Location.mkloc (Longident.Lident string) t_loc.loc)
+    in
+    { pstr_desc = Pstr_eval (expr, []); pstr_loc = Location.none }
 
-    let structure_item_of_expr expr =
-      { pstr_desc = Pstr_eval (expr, []); pstr_loc = Location.none }
+  let of_structure_item = function
+    | { pstr_desc = Pstr_eval ({ pexp_desc = Pexp_ident payload_lid; _ }, _) }
+      -> (
+      match Stringable.of_string (Longident.last payload_lid.txt) with
+      | Some t -> Some (Location.mkloc t payload_lid.loc)
+      | None -> None)
+    | _ -> None
+end
 
+module Make_payload_protocol_of_structure_item_encodable
+    (Encodable : Structure_item_encodable) :
+  Payload_protocol with type t := Encodable.t = struct
+  module Encode = struct
     let structure_item_of_none =
       { pstr_desc =
           Pstr_attribute
@@ -218,14 +246,10 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         pstr_loc = Location.none
       }
 
-    let as_payload t_loc =
-      let expr = as_expr t_loc in
-      PStr [structure_item_of_expr expr]
+    let as_payload t_loc = PStr [Encodable.to_structure_item t_loc]
 
     let list_as_payload t_locs =
-      let items =
-        List.map (fun t_loc -> structure_item_of_expr (as_expr t_loc)) t_locs
-      in
+      let items = List.map Encodable.to_structure_item t_locs in
       PStr items
 
     let option_list_as_payload t_locs =
@@ -233,7 +257,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         List.map
           (function
             | None -> structure_item_of_none
-            | Some t_loc -> structure_item_of_expr (as_expr t_loc))
+            | Some t_loc -> Encodable.to_structure_item t_loc)
           t_locs
       in
       PStr items
@@ -244,7 +268,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
 
     let report_error ~loc = function
       | Unknown_payload payload ->
-        let indefinite_article, name = Stringable.indefinite_article_and_name in
+        let indefinite_article, name = Encodable.indefinite_article_and_name in
         Location.errorf ~loc "Attribute payload does not name %s %s:@;%a"
           indefinite_article name (Printast.payload 0) payload
 
@@ -263,35 +287,25 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
     open struct
       exception Unexpected
 
-      let from_expr = function
-        | { pexp_desc = Pexp_ident payload_lid; _ } ->
-          let t =
-            match Stringable.of_string (Longident.last payload_lid.txt) with
-            | None -> raise Unexpected
-            | Some t -> t
-          in
-          Location.mkloc t payload_lid.loc
-        | _ -> raise Unexpected
-
-      let expr_of_structure_item = function
-        | { pstr_desc = Pstr_eval (expr, _) } -> expr
-        | _ -> raise Unexpected
-
       let is_none_structure_item = function
         | { pstr_desc = Pstr_attribute { attr_name = { txt = "jane.none" } } }
           ->
           true
         | _ -> false
 
+      let from_structure_item item =
+        match Encodable.of_structure_item item with
+        | Some t_loc -> t_loc
+        | None -> raise Unexpected
+
       let from_payload payload =
         match payload with
-        | PStr [item] -> from_expr (expr_of_structure_item item)
+        | PStr [item] -> from_structure_item item
         | _ -> raise Unexpected
 
       let list_from_payload payload =
         match payload with
-        | PStr items ->
-          List.map (fun item -> from_expr (expr_of_structure_item item)) items
+        | PStr items -> List.map (fun item -> from_structure_item item) items
         | _ -> raise Unexpected
 
       let option_list_from_payload payload =
@@ -301,7 +315,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
             (fun item ->
               if is_none_structure_item item
               then None
-              else Some (from_expr (expr_of_structure_item item)))
+              else Some (from_structure_item item))
             items
         | _ -> raise Unexpected
     end
@@ -319,6 +333,11 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
       with Unexpected -> Desugaring_error.raise ~loc (Unknown_payload payload)
   end
 end
+
+module Make_payload_protocol_of_stringable (Stringable : Stringable) :
+  Payload_protocol with type t := Stringable.t =
+  Make_payload_protocol_of_structure_item_encodable
+    (Make_structure_item_encodable_of_stringable (Stringable))
 
 module Stringable_const_jkind = struct
   type t = const_jkind
