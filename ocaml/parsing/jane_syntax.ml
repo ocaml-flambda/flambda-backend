@@ -339,86 +339,6 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
   Make_payload_protocol_of_structure_item_encodable
     (Make_structure_item_encodable_of_stringable (Stringable))
 
-module Stringable_const_jkind = struct
-  type t = const_jkind
-
-  let indefinite_article_and_name = "a", "layout"
-
-  let to_string = jkind_to_string
-
-  let of_string t = Some (jkind_of_string t)
-end
-
-module Jkinds_pprint = struct
-  let const_jkind fmt cl =
-    Format.pp_print_string fmt (Stringable_const_jkind.to_string cl)
-
-  let jkind_annotation fmt ann = const_jkind fmt ann.txt
-end
-
-(** Jkind annotations' encoding as attribute payload, used in both n-ary
-    functions and jkinds. *)
-module Jkind_annotation : sig
-  include Payload_protocol with type t := const_jkind
-
-  module Decode : sig
-    include module type of Decode
-
-    val bound_vars_from_vars_and_payload :
-      loc:Location.t ->
-      string Location.loc list ->
-      payload ->
-      (string Location.loc * jkind_annotation option) list
-  end
-end = struct
-  module Protocol = Make_payload_protocol_of_stringable (Stringable_const_jkind)
-
-  (*******************************************************)
-  (* Conversions with a payload *)
-
-  module Encode = Protocol.Encode
-
-  module Decode = struct
-    include Protocol.Decode
-
-    module Desugaring_error = struct
-      type error =
-        | Wrong_number_of_jkinds of int * jkind_annotation option list
-
-      let report_error ~loc = function
-        | Wrong_number_of_jkinds (n, jkinds) ->
-          Location.errorf ~loc
-            "Wrong number of layouts in an layout attribute;@;\
-             expecting %i but got this list:@;\
-             %a"
-            n
-            (Format.pp_print_list
-               (Format.pp_print_option
-                  ~none:(fun ppf () -> Format.fprintf ppf "None")
-                  Jkinds_pprint.jkind_annotation))
-            jkinds
-
-      exception Error of Location.t * error
-
-      let () =
-        Location.register_error_of_exn (function
-          | Error (loc, err) -> Some (report_error ~loc err)
-          | _ -> None)
-
-      let raise ~loc err = raise (Error (loc, err))
-    end
-
-    let bound_vars_from_vars_and_payload ~loc var_names payload =
-      let jkinds = option_list_from_payload ~loc payload in
-      try List.combine var_names jkinds
-      with
-      (* seems silly to check the length in advance when [combine] does *)
-      | Invalid_argument _ ->
-        Desugaring_error.raise ~loc
-          (Wrong_number_of_jkinds (List.length var_names, jkinds))
-  end
-end
-
 module Mode_expr = struct
   module Const : sig
     type raw = string
@@ -561,6 +481,86 @@ module Modes = struct
       in
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Exp.apply ~loc ext [Nolabel, body])
+end
+
+module Stringable_const_jkind = struct
+  type t = const_jkind
+
+  let indefinite_article_and_name = "a", "layout"
+
+  let to_string = jkind_to_string
+
+  let of_string t = Some (jkind_of_string t)
+end
+
+module Jkinds_pprint = struct
+  let const_jkind fmt cl =
+    Format.pp_print_string fmt (Stringable_const_jkind.to_string cl)
+
+  let jkind_annotation fmt ann = const_jkind fmt ann.txt
+end
+
+(** Jkind annotations' encoding as attribute payload, used in both n-ary
+    functions and jkinds. *)
+module Jkind_annotation : sig
+  include Payload_protocol with type t := const_jkind
+
+  module Decode : sig
+    include module type of Decode
+
+    val bound_vars_from_vars_and_payload :
+      loc:Location.t ->
+      string Location.loc list ->
+      payload ->
+      (string Location.loc * jkind_annotation option) list
+  end
+end = struct
+  module Protocol = Make_payload_protocol_of_stringable (Stringable_const_jkind)
+
+  (*******************************************************)
+  (* Conversions with a payload *)
+
+  module Encode = Protocol.Encode
+
+  module Decode = struct
+    include Protocol.Decode
+
+    module Desugaring_error = struct
+      type error =
+        | Wrong_number_of_jkinds of int * jkind_annotation option list
+
+      let report_error ~loc = function
+        | Wrong_number_of_jkinds (n, jkinds) ->
+          Location.errorf ~loc
+            "Wrong number of layouts in an layout attribute;@;\
+             expecting %i but got this list:@;\
+             %a"
+            n
+            (Format.pp_print_list
+               (Format.pp_print_option
+                  ~none:(fun ppf () -> Format.fprintf ppf "None")
+                  Jkinds_pprint.jkind_annotation))
+            jkinds
+
+      exception Error of Location.t * error
+
+      let () =
+        Location.register_error_of_exn (function
+          | Error (loc, err) -> Some (report_error ~loc err)
+          | _ -> None)
+
+      let raise ~loc err = raise (Error (loc, err))
+    end
+
+    let bound_vars_from_vars_and_payload ~loc var_names payload =
+      let jkinds = option_list_from_payload ~loc payload in
+      try List.combine var_names jkinds
+      with
+      (* seems silly to check the length in advance when [combine] does *)
+      | Invalid_argument _ ->
+        Desugaring_error.raise ~loc
+          (Wrong_number_of_jkinds (List.length var_names, jkinds))
+  end
 end
 
 (** List and array comprehensions *)
