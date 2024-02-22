@@ -416,7 +416,8 @@ again:
     if (Is_block (f) && Is_young(f)) {
       oldify_one (st, f, Op_val (new_v));
     }
-    for (i = 1; i < Wosize_val (new_v); i++){
+    mlsize_t new_v_size = Wosize_val (new_v);
+    for (i = 1; i < new_v_size; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
       if (Is_block (f) && Is_young(f)) {
