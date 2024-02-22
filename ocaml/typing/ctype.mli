@@ -611,9 +611,6 @@ val check_and_update_generalized_ty_jkind :
    True otherwise. *)
 val is_principal : type_expr -> bool
 
-(* True if a type is immediate. *)
-val is_immediate : Env.t -> type_expr -> bool
-
 (* For use with ocamldebug *)
 type global_state
 val global_state : global_state

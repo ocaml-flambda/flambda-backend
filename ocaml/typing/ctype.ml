@@ -2302,32 +2302,6 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
 
-let is_immediate64 env ty =
-  let perform_check () =
-    Result.is_ok (check_type_jkind env ty
-                    (Jkind.immediate64 ~why:Local_mode_cross_check))
-  in
-  if !Clflags.principal || Env.has_local_constraints env then
-    (* We snapshot to keep this pure; see the mode crossing test that mentions
-       snapshotting for an example. *)
-    let snap = Btype.snapshot () in
-    let result = perform_check () in
-    Btype.backtrack snap;
-    result
-  else
-    (* CR layouts v2.8: Remove the backtracking once mode crossing is
-       implemented correctly; it's needed for now because checking whether
-       a jkind is immediate (rightly) sets the sort to be Value. It worked
-       previous to this patch because the subjkind check failed earlier. *)
-    let snap = Btype.snapshot () in
-    let result = perform_check () in
-    Btype.backtrack snap;
-    result
-
-(* We will require Int63 to be [global many unique] on 32-bit platforms, so
-   this is fine *)
-let is_immediate = is_immediate64
-
 (* Recursively expand the head of a type.
    Also expand #-types.
 
@@ -5563,17 +5537,7 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then begin
-          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
-            either case we pick the smaller type which is the "real" type of
-            runtime values, and easier to cross modes (and thus making the
-            mode-crossing more complete). *)
-          let t1 = if posi then t1 else t1' in
-          if is_immediate env t1 then
-            Mode.Alloc.newvar (), Changed
-          else
-            build_submode (not posi) a
-          end else a, Unchanged
+        if level > 2 then build_submode (not posi) a else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5771,6 +5735,36 @@ let subtype_alloc_mode env trace a1 a2 =
   | Ok () -> ()
   | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
 
+(* CR layouts v2.8: use the meet-with-constant morphism when available *)
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
+   [Alloc] get unified *)
+(* The approach here works only for 2-element modal axes. *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so
+     this one doesn't either. I think it should. But actually test results
+     are bad when checking for principality. Really, I'm surprised that
+     the types here aren't principal. In any case, leaving the check out
+     now; will return and figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = Alloc.disallow_right mode in
+  let mode =
+    if Locality.Const.equal upper_bounds.locality Locality.Const.min
+    then Alloc.set_locality_min mode
+    else mode
+  in
+  let mode =
+    if Linearity.Const.equal upper_bounds.linearity Linearity.Const.min
+    then Alloc.set_linearity_min mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.equal upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.set_uniqueness_min mode
+    else mode
+  in
+  mode
+
 let rec subtype_rec env trace t1 t2 cstrs =
   if eq_type t1 t2 then cstrs else
 
@@ -5791,8 +5785,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        if not (is_immediate env t2) then
-          subtype_alloc_mode env trace a2 a1;
+        let a2 = mode_cross_left env t2 a2 in
+         subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;

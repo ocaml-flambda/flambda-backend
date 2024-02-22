@@ -275,13 +275,9 @@ type immediate_creation_reason =
 (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
 type immediate64_creation_reason =
-  | Local_mode_cross_check
-  (* CR layouts v2.8: Remove Local_mode_cross_check after the check uses modal kinds *)
   | Gc_ignorable_check
   (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
   | Separability_check
-  | Erasability_check
-(* CR layouts v2.8: Remove after the check uses modal kinds *)
 
 (* CR layouts v5: make new void_creation_reasons *)
 type void_creation_reason = |
@@ -578,12 +574,7 @@ val equal : t -> t -> bool
 val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2].  The current hierarchy is:
-
-  Any > Sort Value > Immediate64 > Immediate
-  Any > Sort Void
-
-  Returns [Error _] if the coercion is not possible. *)
+  of [t2]. Returns [Error _] if the coercion is not possible. *)
 val sub : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)

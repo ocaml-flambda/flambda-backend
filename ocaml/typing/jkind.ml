@@ -737,10 +737,8 @@ type immediate_creation_reason =
   | Gc_ignorable_check
 
 type immediate64_creation_reason =
-  | Local_mode_cross_check
   | Gc_ignorable_check
   | Separability_check
-  | Erasability_check
 
 type void_creation_reason = |
 
@@ -1195,14 +1193,10 @@ end = struct
       fprintf ppf "the check to see whether a value can be ignored by GC"
 
   let format_immediate64_creation_reason ppf = function
-    | Local_mode_cross_check ->
-      fprintf ppf "the check for whether a local value can safely escape"
     | Gc_ignorable_check ->
       fprintf ppf "the check to see whether a value can be ignored by GC"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
-    | Erasability_check ->
-      fprintf ppf "the check that a type is compatible with upstream"
 
   let format_value_creation_reason ppf : value_creation_reason -> _ = function
     | Class_let_binding ->
@@ -1599,10 +1593,8 @@ module Debug_printers = struct
     | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
 
   let immediate64_creation_reason ppf = function
-    | Local_mode_cross_check -> fprintf ppf "Local_mode_cross_check"
     | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
     | Separability_check -> fprintf ppf "Separability_check"
-    | Erasability_check -> fprintf ppf "Erasability_check"
 
   let value_creation_reason ppf : value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
