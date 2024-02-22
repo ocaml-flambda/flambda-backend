@@ -3345,7 +3345,120 @@ let trap_return arg trap_actions =
 
 let create_ccatch ~rec_flag ~handlers ~body =
   let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
-  Cmm.Ccatch (rec_flag, handlers, body, Any)
+  let[@inline] default () = Cmm.Ccatch (rec_flag, handlers, body, Any) in
+  match body, handlers with
+  | ( Cifthenelse
+        ( Cop (Ccmpi Cge, [Cvar x; Cconst_int (1, _)], _),
+          _,
+          Cexit
+            ( Lbl k,
+              [ Cop
+                  ( Ccmpi ((Clt | Cle) as comparison_op),
+                    [Cvar x'; ((Cconst_int _ | Cconst_natint _) as bound)],
+                    dbg_cond ) ],
+              [] ),
+          _,
+          Cexit (Lbl k', [Cconst_int (0, _)], []),
+          _,
+          _kind ),
+      [ ( k'',
+          [(k_param, _)],
+          Cifthenelse (Cvar k_param', _, ifso, dbg_ifso, ifnot, dbg_ifnot, kind),
+          dbg,
+          false ) ] )
+  | ( Cifthenelse
+        ( Cop
+            ( Ccmpi ((Clt | Cle) as comparison_op),
+              [Cvar x; ((Cconst_int _ | Cconst_natint _) as bound)],
+              _ ),
+          _,
+          Cexit
+            ( Lbl k,
+              [Cop (Ccmpi Cge, [Cvar x'; Cconst_int (1, _)], dbg_cond)],
+              [] ),
+          _,
+          Cexit (Lbl k', [Cconst_int (0, _)], []),
+          _,
+          _kind ),
+      [ ( k'',
+          [(k_param, _)],
+          Cifthenelse (Cvar k_param', _, ifso, dbg_ifso, ifnot, dbg_ifnot, kind),
+          dbg,
+          false ) ] )
+    when k = k' && k' = k'' && Backend_var.equal x x'
+         && Backend_var.equal (Backend_var.With_provenance.var k_param) k_param'
+    -> (
+    let[@inline] optimize () =
+      Cifthenelse
+        ( Cop (Ccmpa comparison_op, [Cvar x; bound], dbg),
+          dbg_cond,
+          ifso,
+          dbg_ifso,
+          ifnot,
+          dbg_ifnot,
+          kind )
+    in
+    match bound with
+    | Cconst_int (n, _) when n >= 0 -> optimize ()
+    | Cconst_natint (n, _) when n >= 0n -> optimize ()
+    | _ -> default ())
+  | ( Cifthenelse
+        ( Cop (Ccmpi Cle, [Cconst_int (1, _); Cvar x], _),
+          _,
+          Cexit
+            ( Lbl k,
+              [ Cop
+                  ( Ccmpi ((Cgt | Cge) as comparison_op),
+                    [((Cconst_int _ | Cconst_natint _) as bound); Cvar x'],
+                    dbg_cond ) ],
+              [] ),
+          _,
+          Cexit (Lbl k', [Cconst_int (0, _)], []),
+          _,
+          _kind ),
+      [ ( k'',
+          [(k_param, _)],
+          Cifthenelse (Cvar k_param', _, ifso, dbg_ifso, ifnot, dbg_ifnot, kind),
+          dbg,
+          false ) ] )
+  | ( Cifthenelse
+        ( Cop
+            ( Ccmpi ((Cgt | Cge) as comparison_op),
+              [((Cconst_int _ | Cconst_natint _) as bound); Cvar x],
+              _ ),
+          _,
+          Cexit
+            ( Lbl k,
+              [Cop (Ccmpi Cle, [Cconst_int (1, _); Cvar x'], dbg_cond)],
+              [] ),
+          _,
+          Cexit (Lbl k', [Cconst_int (0, _)], []),
+          _,
+          _kind ),
+      [ ( k'',
+          [(k_param, _)],
+          Cifthenelse (Cvar k_param', _, ifso, dbg_ifso, ifnot, dbg_ifnot, kind),
+          dbg,
+          false ) ] )
+    when k = k' && k' = k'' && Backend_var.equal x x'
+         && Backend_var.equal (Backend_var.With_provenance.var k_param) k_param'
+    -> (
+    let[@inline] optimize () =
+      let comparison_op = Cmm.swap_integer_comparison comparison_op in
+      Cifthenelse
+        ( Cop (Ccmpa comparison_op, [Cvar x; bound], dbg),
+          dbg_cond,
+          ifso,
+          dbg_ifso,
+          ifnot,
+          dbg_ifnot,
+          kind )
+    in
+    match bound with
+    | Cconst_int (n, _) when n >= 0 -> optimize ()
+    | Cconst_natint (n, _) when n >= 0n -> optimize ()
+    | _ -> default ())
+  | _, _ -> default ()
 
 let unary op ~dbg x = Cop (op, [x], dbg)
 
