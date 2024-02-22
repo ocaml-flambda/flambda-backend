@@ -93,7 +93,9 @@ value caml_startup_common(char_os **argv, int pooling)
 
   /* Determine options */
   caml_parse_ocamlrunparam();
-  caml_assert_arch_extensions();
+
+  // CR mslater: re-enable architecture check
+  // caml_assert_arch_extensions();
 
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
