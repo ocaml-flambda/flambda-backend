@@ -1348,13 +1348,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
           in
           ty, mode
       end
-  | Tpat_constant _ ->
-      let mode =
-        if Ctype.is_immediate !env p.pat_type
-        then Value.newvar ()
-        else mode
-      in
-      p.pat_type, mode
+  | Tpat_constant _
   | Tpat_any | Tpat_var _
   | Tpat_array _ | Tpat_lazy _ ->
       p.pat_type, mode

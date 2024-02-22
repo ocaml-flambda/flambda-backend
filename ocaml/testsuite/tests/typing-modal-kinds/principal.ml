@@ -91,3 +91,39 @@ Line 1, characters 67-68:
                                                                        ^
 Error: This value escapes its region
 |}]
+
+let escape : 'a -> unit = fun _ -> ()
+
+[%%expect{|
+val escape : 'a -> unit = <fun>
+|}]
+
+let pattern_l (local_ x) =
+  match x with
+  | Pair (y, 0) -> escape y
+  | _ -> ()
+
+[%%expect{|
+val pattern_l : local_ int pair -> unit = <fun>
+|}, Principal{|
+Line 3, characters 26-27:
+3 |   | Pair (y, 0) -> escape y
+                              ^
+Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
+|}]
+
+let pattern_r (local_ x) =
+  match x with
+  | Pair (0, y) -> escape y
+  | _ -> ()
+
+[%%expect{|
+val pattern_r : local_ int pair -> unit = <fun>
+|}, Principal{|
+Line 3, characters 26-27:
+3 |   | Pair (0, y) -> escape y
+                              ^
+Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
+|}]

@@ -487,6 +487,8 @@ module Externality = struct
     | Internal, (External | External64) -> Not_le
     | Internal, Internal -> Equal
 
+  let le t1 t2 = Misc.Le_result.is_le (less_or_equal t1 t2)
+
   let meet t1 t2 =
     match t1, t2 with
     | External, (External | External64 | Internal)
@@ -651,8 +653,6 @@ module Jkind_desc = struct
     | Any -> Const { layout = Any; modes; externality }
     | Sort s -> (
       match Sort.get s with
-      (* This match isn't as silly as it looks: those are
-         different constructors on the left than on the right *)
       | Const s -> Const { layout = Sort s; modes; externality }
       | Var v -> Var v)
 
@@ -1005,6 +1005,12 @@ let sort_of_jkind l =
   | Const { layout = Sort s; _ } -> Sort.of_const s
   | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
   | Var v -> Sort.of_var v
+
+let get_layout jk : Layout.Const.t option =
+  match jk.jkind.layout with
+  | Any -> Some Any
+  | Sort s -> (
+    match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
 let get_modal_upper_bounds jk = jk.jkind.modes
 

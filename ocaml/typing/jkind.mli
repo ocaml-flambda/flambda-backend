@@ -46,6 +46,8 @@ module Externality : sig
     | External (* not managed by the garbage collector *)
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
+
+  val le : t -> t -> bool
 end
 
 module Sort : sig
@@ -174,21 +176,15 @@ end
 
 type sort = Sort.t
 
-(* This module describes jkinds, which classify types. Jkinds are arranged
-   in the following lattice:
-
-   {[
-                          any
-                           |
-               ----------------------------
-              /        |       |     ...   \
-           value     void   float64      bits64
-            |
-        immediate64
-            |
-        immediate
-   ]}
-*)
+(* The layout of a type describes its memory layout. A layout is either the
+   indeterminate [Any] or a sort, which is a concrete memory layout. *)
+module Layout : sig
+  module Const : sig
+    type t =
+      | Sort of Sort.const
+      | Any
+  end
+end
 
 (** A Jkind.t is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
@@ -520,6 +516,10 @@ val is_void_defaulting : t -> bool
 (** Returns the sort corresponding to the jkind.  Call only on representable
     jkinds - raises on Any. *)
 val sort_of_jkind : t -> sort
+
+(** Gets the layout of a jkind; returns [None] if the layout is still unknown.
+    Never does mutation. *)
+val get_layout : t -> Layout.Const.t option
 
 (** Gets the maximum modes for types of this jkind. *)
 val get_modal_upper_bounds : t -> Mode.Alloc.Const.t

@@ -2261,15 +2261,13 @@ let () =
 let check_and_update_generalized_ty_jkind ?name ~loc ty =
   let immediacy_check jkind =
     let is_immediate jkind =
-      let snap = Btype.snapshot () in
-      let result =
-        Result.is_ok (
-          Jkind.sub
-            jkind
-            (Jkind.immediate64 ~why:Erasability_check))
-      in
-      Btype.backtrack snap;
-      result
+      (* Just check externality and layout, because that's what actually matters
+         for upstream code. We check both for a known value and something that
+         might turn out later to be value. This is the conservative choice. *)
+      Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
+             match get_layout jkind with
+               | Some (Sort Value) | None -> true
+               | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind
@@ -2329,10 +2327,6 @@ let is_immediate64 env ty =
 (* We will require Int63 to be [global many unique] on 32-bit platforms, so
    this is fine *)
 let is_immediate = is_immediate64
-
-let mode_cross env (ty : type_expr) =
-  (* immediates can cross all mode axes: locality, uniqueness and linearity *)
-  is_principal ty && is_immediate env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
