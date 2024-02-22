@@ -1793,8 +1793,9 @@ structure_item:
   | kind_abbreviation_decl
       {
         let name, jkind = $1 in
-        ignore (name, jkind);
-        Misc.fatal_error "jkind syntax not implemented"
+        Jane_syntax.Layouts.(str_item_of
+                              ~loc:(make_loc $sloc)
+                              (Lstr_kind_abbrev (name, jkind)))
       }
 
 ;
@@ -2071,8 +2072,9 @@ signature_item:
   | kind_abbreviation_decl
       {
         let name, jkind = $1 in
-        ignore (name, jkind);
-        Misc.fatal_error "jkind syntax not implemented"
+        Jane_syntax.Layouts.(sig_item_of
+                              ~loc:(make_loc $sloc)
+                              (Lsig_kind_abbrev (name, jkind)))
       }
 
 (* A module declaration. *)
@@ -3872,21 +3874,19 @@ type_parameters:
 
 jkind:
     jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
-      Misc.fatal_error "jkind syntax not implemented"
+      Jane_syntax.Jkind.Mod ($1, $3)
     }
   | jkind WITH core_type {
-      Misc.fatal_error "jkind syntax not implemented"
+      Jane_syntax.Jkind.With ($1, $3)
     }
   | mkrhs(ident) {
-      let { txt; _ } = $1 in
-      Jane_asttypes.jkind_of_string txt
+      Jane_syntax.Jkind.Primitive_layout_or_abbreviation $1
     }
   | KIND_OF ty=core_type {
-      ignore ty;
-      Misc.fatal_error "jkind syntax not implemented"
+      Jane_syntax.Jkind.Kind_of ty
     }
   | UNDERSCORE {
-      Misc.fatal_error "jkind syntax not implemented"
+      Jane_syntax.Jkind.Default
     }
 ;
 

@@ -288,19 +288,6 @@ let tyvar ppf s =
   else
     Format.fprintf ppf "'%s" s
 
-let jkind_annotation = Jane_syntax.Layouts.Pprint.jkind_annotation
-
-let tyvar_jkind_loc ~print_quote f (str,jkind) =
-  let pptv =
-    if print_quote
-    then tyvar
-    else fun ppf s -> Format.fprintf ppf "%s" s
-  in
-  match jkind with
-  | None -> pptv f str.txt
-  | Some lay -> Format.fprintf f "(%a : %a)" pptv str.txt jkind_annotation lay
-
-
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
@@ -318,6 +305,18 @@ let legacy_mode f m =
 
 let legacy_modes f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m.txt
+
+let maybe_modes_new m =
+  let l =
+    List.map
+      (fun m ->
+        let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+        txt)
+      m.txt
+  in
+  match l with
+  | [] -> None
+  | _ -> Some (String.concat " " l)
 
 let optional_legacy_modes f m =
   match m with
@@ -361,6 +360,34 @@ and type_with_label ctxt f (label, c) =
   | Nolabel    -> maybe_modes_type core_type1 ctxt f c (* otherwise parenthesize *)
   | Labelled s -> pp f "%s:%a" s (maybe_modes_type core_type1 ctxt) c
   | Optional s -> pp f "?%s:%a" s (maybe_modes_type core_type1 ctxt) c
+
+
+and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
+  | Default -> pp f "_"
+  | Primitive_layout_or_abbreviation { txt } ->
+    pp f "%s" txt
+  | Mod (t, mode_expr) ->
+    begin match maybe_modes_new mode_expr with
+    | None -> Misc.fatal_error "malformed jkind annotation"
+    | Some mode ->
+      pp f "%a mod %s" (jkind ctxt) t mode
+    end
+  | With (t, ty) ->
+    pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
+  | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
+
+and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
+
+and tyvar_jkind_loc ctxt ~print_quote f (str,jkind) =
+  let pptv =
+    if print_quote
+    then tyvar
+    else fun ppf s -> pp ppf "%s" s
+  in
+  match jkind with
+  | None -> pptv f str.txt
+  | Some lay -> pp f "(%a : %a)" pptv str.txt (jkind_annotation ctxt) lay
+
 
 and core_type ctxt f x =
   match Jane_syntax.Core_type.of_ast x with
@@ -482,13 +509,13 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     pp f "@[<2>%a@;as@;(%a :@ %a)@]"
       (core_type1 ctxt) aliased_type
       tyvar_option name
-      jkind_annotation jkind
+      (jkind_annotation ctxt) jkind
   | Jtyp_layout (Ltyp_poly {bound_vars = []; inner_type}) ->
     core_type ctxt f inner_type
   | Jtyp_layout (Ltyp_poly {bound_vars; inner_type}) ->
     let jkind_poly_var f (name, jkind_opt) =
       match jkind_opt with
-      | Some jkind -> pp f "(%a@;:@;%a)" tyvar_loc name jkind_annotation jkind
+      | Some jkind -> pp f "(%a@;:@;%a)" tyvar_loc name (jkind_annotation ctxt) jkind
       | None -> tyvar_loc f name
     in
     pp f "@[<2>%a@;.@;%a@]"
@@ -503,7 +530,7 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   else
     match x with
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
-      pp f "(%a@;:@;%a)" tyvar_option name jkind_annotation jkind
+      pp f "(%a@;:@;%a)" tyvar_option name (jkind_annotation ctxt) jkind
     | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
     | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
       paren true (core_type_jane_syntax ctxt attrs) f x
@@ -1260,6 +1287,11 @@ and include_ : 'a. ctxt -> formatter ->
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
+and kind_abbrev ctxt f name jkind =
+  pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
+    string_loc name
+    (jkind_annotation ctxt) jkind
+
 and module_type ctxt f x =
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
@@ -1349,9 +1381,15 @@ and sig_include_functor ctxt f
   | Ifsig_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_type incl
 
+and sig_layout ctxt f
+  : Jane_syntax.Layouts.signature_item -> _ = function
+  | Lsig_kind_abbrev (name, jkind) ->
+      kind_abbrev ctxt f name jkind
+
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
   | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
+  | Jsig_layout sigi -> sig_layout ctxt f sigi
 
 and signature_item ctxt f x : unit =
   match Jane_syntax.Signature_item.of_ast x with
@@ -1509,7 +1547,7 @@ and pp_print_pexp_function ctxt sep f x =
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
-        jkind_annotation lay
+        (jkind_annotation ctxt) lay
         (pp_print_pexp_function ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
@@ -1652,9 +1690,15 @@ and str_include_functor ctxt f
   | Ifstr_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_expr incl
 
+and str_layout ctxt f
+  : Jane_syntax.Layouts.structure_item -> _ = function
+  | Lstr_kind_abbrev (name, jkind) ->
+      kind_abbrev ctxt f name jkind
+
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
   | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
+  | Jstr_layout stri -> str_layout ctxt f stri
 
 and structure_item ctxt f x =
   match Jane_syntax.Structure_item.of_ast x with
@@ -1811,13 +1855,13 @@ and type_def_list ctxt f (rf, exported, l) =
     in
     let layout_annot, x =
       match Jane_syntax.Layouts.of_type_declaration x with
-      | None -> "", x
+      | None -> Format.dprintf "", x
       | Some (jkind, remaining_attributes) ->
-          Printf.sprintf " : %s"
-            (Jane_asttypes.jkind_to_string jkind.txt),
+          Format.dprintf " : %a"
+            (jkind_annotation ctxt) jkind,
           { x with ptype_attributes = remaining_attributes }
     in
-    pp f "@[<2>%s %a%a%s%s%s%a@]%a" kwd
+    pp f "@[<2>%s %a%a%s%t%s%a@]%a" kwd
       nonrec_flag rf
       (type_params ctxt) x.ptype_params
       x.ptype_name.txt layout_annot eq
@@ -1923,7 +1967,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
   let pp_vars f vls =
     match vls with
     | [] -> ()
-    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ~print_quote:true) ~sep:"@;")
+    | _  -> pp f "%a@;.@;" (list (tyvar_jkind_loc ctxt ~print_quote:true) ~sep:"@;")
                            vls
   in
   match res with
@@ -2102,7 +2146,7 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
   | Lexp_newtype (lid, jkind, inner_expr) ->
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
-      jkind_annotation jkind
+      (jkind_annotation ctxt) jkind
       (pp_print_pexp_function ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
@@ -2123,7 +2167,7 @@ and function_param ctxt f
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
   | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
   | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt jkind_annotation annot
+      pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot
 
 and function_body ctxt f (x : Jane_syntax.N_ary_functions.function_body) =
   match x with
@@ -2257,3 +2301,4 @@ let signature_item = print_reset_with_maximal_extensions signature_item
 let binding = print_reset_with_maximal_extensions binding
 let payload = print_reset_with_maximal_extensions payload
 let type_declaration = print_reset_with_maximal_extensions type_declaration
+let jkind = print_reset_with_maximal_extensions jkind

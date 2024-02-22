@@ -47,7 +47,7 @@ type iterator = {
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
-  jkind_annotation:iterator -> Jane_asttypes.const_jkind -> unit;
+  jkind_annotation:iterator -> Jane_syntax.Jkind.t -> unit;
   label_declaration: iterator -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
@@ -360,9 +360,16 @@ module MT = struct
     : Jane_syntax.Include_functor.signature_item -> unit = function
     | Ifsig_include_functor incl -> sub.include_description sub incl
 
+  let iter_sig_layout sub
+    : Jane_syntax.Layouts.signature_item -> unit = function
+    | Lsig_kind_abbrev (name, jkind) ->
+      iter_loc sub name;
+      iter_loc_txt sub sub.jkind_annotation jkind
+
   let iter_signature_item_jst sub : Jane_syntax.Signature_item.t -> unit =
     function
     | Jsig_include_functor ifincl -> iter_sig_include_functor sub ifincl
+    | Jsig_layout sigi -> iter_sig_layout sub sigi
 
   let iter_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     sub.location sub loc;
@@ -424,9 +431,16 @@ module M = struct
     : Jane_syntax.Include_functor.structure_item -> unit = function
     | Ifstr_include_functor incl -> sub.include_declaration sub incl
 
+  let iter_str_layout sub
+    : Jane_syntax.Layouts.structure_item -> unit = function
+    | Lstr_kind_abbrev (name, jkind) ->
+      iter_loc sub name;
+      iter_loc_txt sub sub.jkind_annotation jkind
+
   let iter_structure_item_jst sub : Jane_syntax.Structure_item.t -> unit =
     function
     | Jstr_include_functor ifincl -> iter_str_include_functor sub ifincl
+    | Jstr_layout stri -> iter_str_layout sub stri
 
   let iter_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     sub.location sub loc;
@@ -983,5 +997,16 @@ let default_iterator =
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
 
-    jkind_annotation = (fun _this _l -> ());
+    jkind_annotation =
+      (fun this -> function
+        | Default -> ()
+        | Primitive_layout_or_abbreviation s ->
+          iter_loc this s
+        | Mod (t, mode_expr) ->
+          this.jkind_annotation this t;
+          this.modes this mode_expr
+        | With (t, ty) ->
+          this.jkind_annotation this t;
+          this.typ this ty
+        | Kind_of ty -> this.typ this ty);
   }
