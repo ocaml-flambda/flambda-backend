@@ -244,14 +244,15 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool * alloc_mode
-  | Pbigstring_load_64 of bool * alloc_mode
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
-  | Pbigstring_set_16 of bool
-  | Pbigstring_set_32 of bool
-  | Pbigstring_set_64 of bool
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+      boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -766,7 +767,17 @@ let layout_unboxed_nativeint = Punboxed_int Pnativeint
 let layout_unboxed_int32 = Punboxed_int Pint32
 let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
+let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+
+let layout_unboxed_vector (v : Primitive.boxed_vector) =
+  match v with
+  | Pvec128 Int8x16 -> Punboxed_vector (Pvec128 Int8x16)
+  | Pvec128 Int16x8 -> Punboxed_vector (Pvec128 Int16x8)
+  | Pvec128 Int32x4 -> Punboxed_vector (Pvec128 Int32x4)
+  | Pvec128 Int64x2 -> Punboxed_vector (Pvec128 Int64x2)
+  | Pvec128 Float32x4 -> Punboxed_vector (Pvec128 Float32x4)
+  | Pvec128 Float64x2 -> Punboxed_vector (Pvec128 Float64x2)
 
 let layout_boxed_vector : Primitive.boxed_vector -> layout = function
   | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
@@ -1579,8 +1590,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
-  | Pbigstring_load_128 { mode = m; _ } -> Some m
+  | Pbigstring_load_32 { mode = m; boxed = true; _ }
+  | Pbigstring_load_64 { mode = m; boxed = true; _ }
+  | Pbigstring_load_128 { mode = m; boxed = true; _ } -> Some m
+  | Pbigstring_load_32 { boxed = false; _ }
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } -> None
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None
   | Pctconst _ -> None
@@ -1695,12 +1710,19 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
   | Punbox_int bi -> Punboxed_int bi
-  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
+  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
-  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
+  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
-  | Pstring_load_128 _ | Pbytes_load_128 _ | Pbigstring_load_128 _ ->
+  | Pstring_load_128 _ | Pbytes_load_128 _
+  | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
+  | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
+  | Pbigstring_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector (Pvec128 Int8x16)
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
