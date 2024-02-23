@@ -573,9 +573,13 @@ val equal : t -> t -> bool
     intersection of the two, not something that modifies the second jkind. *)
 val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
-(** [sub t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2]. Returns [Error _] if the coercion is not possible. *)
-val sub : t -> t -> (unit, Violation.t) result
+(** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
+    either [t1] or [t2] to make their layouts equal.*)
+val sub : t -> t -> bool
+
+(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
+  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result

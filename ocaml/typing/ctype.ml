@@ -2101,12 +2101,18 @@ let rec estimate_type_jkind env ty =
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (value ~why:First_class_module)
 
+(**** checking jkind relationships ****)
 
-(* The ~fixed argument controls what effects this may have on `ty`.  If false,
-   then we will update the jkind of type variables to make the check true, if
-   possible.  If true, we won't (but will still instantiate sort variables).
+type type_jkind_sub_result =
+  | Success
+    (* The [Type_var case might still be "success"; caller should check.
+       We don't just report success here because if the caller unifies the
+       tyvar, error messages improve. *)
+  | Type_var of Jkind.t * type_expr
+  | Missing_cmi of Jkind.t * Path.t
+  | Failure of Jkind.t
 
-   The "fuel" argument here is used because we're duplicating the loop of
+(* The "fuel" argument here is used because we're duplicating the loop of
    `get_unboxed_type_representation`, but performing jkind checking at each
    step.  This allows to check examples like:
 
@@ -2114,69 +2120,84 @@ let rec estimate_type_jkind env ty =
      type s = { lbl : s t } [@@unboxed]
 
    Here, we want to see [s t] has jkind value, and this only requires expanding
-   once to see [t] is list and [s] is irrelvant.  But calling
+   once to see [t] is list and [s] is irrelevant.  But calling
    [get_unboxed_type_representation] itself would otherwise get into a nasty
    loop trying to also expand [s], and then performing jkind checking to ensure
    it's a valid argument to [t].  (We believe there are still loops like this
    that can occur, though, and may need a more principled solution later).
+*)
+let type_jkind_sub env ty ~check_sub =
+  let shallow_check ty =
+    match estimate_type_jkind env ty with
+    | Jkind ty_jkind -> if check_sub ty_jkind then Success else Failure ty_jkind
+    | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
+  in
+  let rec loop ty fuel =
+    (* This is an optimization to avoid unboxing if we can tell the constraint is
+       satisfied from the type_kind *)
+    match get_desc ty with
+    | Tconstr(p, _args, _abbrev) ->
+        let jkind_bound =
+          try (Env.find_type p env).type_jkind
+          with Not_found -> Jkind.any ~why:(Missing_cmi p)
+        in
+        if check_sub jkind_bound
+        then Success
+        else if fuel < 0 then Failure jkind_bound
+        else begin match unbox_once env ty with
+          | Final_result ty -> shallow_check ty
+          | Stepped ty -> loop ty (fuel - 1)
+          | Missing missing_cmi_for ->
+            Missing_cmi (jkind_bound, missing_cmi_for)
+        end
+    | Tpoly (ty, _) -> loop ty fuel
+    | _ -> shallow_check ty
+  in
+  loop ty 100
+
+(* The ~fixed argument controls what effects this may have on `ty`.  If false,
+   then we will update the jkind of type variables to make the check true, if
+   possible.  If true, we won't (but will still instantiate sort variables).
 
    Precondition: [jkind] is not [any]. This common case is short-circuited
    before calling this function. (Though the current implementation is still
    correct on [any].)
 *)
-let rec constrain_type_jkind ~fixed env ty jkind fuel =
-  let constrain_unboxed ty =
-    match estimate_type_jkind env ty with
-    | Jkind ty_jkind -> Jkind.sub ty_jkind jkind
-    | TyVar (ty_jkind, ty) ->
-      if fixed then Jkind.sub ty_jkind jkind
-      else
-        let jkind_inter =
-          Jkind.intersection ~reason:Tyvar_refinement_intersection
-            ty_jkind jkind
-        in
-        Result.map (set_var_jkind ty) jkind_inter
-  in
-  (* This is an optimization to avoid unboxing if we can tell the constraint is
-     satisfied from the type_kind *)
-  match get_desc ty with
-  | Tconstr(p, _args, _abbrev) -> begin
-      let jkind_bound =
-        try (Env.find_type p env).type_jkind
-        with Not_found -> Jkind.any ~why:(Missing_cmi p)
-      in
-      match Jkind.sub jkind_bound jkind with
-      | Ok () as ok -> ok
-      | Error _ as err when fuel < 0 -> err
-      | Error _ ->
-        begin match unbox_once env ty with
-        | Final_result ty -> constrain_unboxed ty
-        | Stepped ty ->
-            constrain_type_jkind ~fixed env ty jkind (fuel - 1)
-        | Missing missing_cmi_for ->
-          Error Jkind.(Violation.of_ ~missing_cmi:missing_cmi_for (Not_a_subjkind (update_reason jkind_bound (Missing_cmi missing_cmi_for), jkind)))
-        end
-    end
-  | Tpoly (ty, _) -> constrain_type_jkind ~fixed env ty jkind fuel
-  | _ -> constrain_unboxed ty
+let constrain_type_jkind ~fixed env ty jkind =
+  match type_jkind_sub env ty
+          ~check_sub:(fun ty_jkind -> Jkind.sub ty_jkind jkind) with
+  | Success -> Ok ()
+  | Type_var (ty_jkind, ty) ->
+    if fixed then Jkind.sub_or_error ty_jkind jkind else
+    let jkind_inter =
+      Jkind.intersection ~reason:Tyvar_refinement_intersection
+        ty_jkind jkind
+    in
+    Result.map (set_var_jkind ty) jkind_inter
+  | Missing_cmi (ty_jkind, missing_cmi) ->
+    Error Jkind.(Violation.of_ ~missing_cmi
+      (Not_a_subjkind
+         (update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
+  | Failure ty_jkind ->
+    Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
-let constrain_type_jkind ~fixed env ty jkind fuel =
+let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
   if Jkind.is_any jkind then Ok ()
-  else constrain_type_jkind ~fixed env ty jkind fuel
+  else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:true env ty jkind 100
+  constrain_type_jkind ~fixed:true env ty jkind
 
 let constrain_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:false env ty jkind 100
+  constrain_type_jkind ~fixed:false env ty jkind
 
 let () =
   Env.constrain_type_jkind := constrain_type_jkind
 
 let check_decl_jkind env decl jkind =
-  match Jkind.sub decl.type_jkind jkind with
+  match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with

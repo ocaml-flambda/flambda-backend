@@ -1513,10 +1513,10 @@ let intersection ~reason t1 t2 =
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 
-let sub sub super =
-  match check_sub sub super with
-  | Less | Equal -> Ok ()
-  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+let sub sub super = Misc.Le_result.is_le (check_sub sub super)
+
+let sub_or_error t1 t2 =
+  if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
 let sub_with_history sub super =
   match check_sub sub super with
