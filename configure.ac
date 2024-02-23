@@ -66,11 +66,20 @@ AC_ARG_ENABLE([legacy-library-layout],
   [legacy_layout=yes],
   [legacy_layout=no])
 
+AC_ARG_ENABLE([dev],
+  [AS_HELP_STRING([--enable-dev],
+    [Use the dev build profile for dune when building the 2nd stage.
+     Can speed up the compile time by a lot. (WARNING: do not use for
+     production compiler deployments)])],
+  [main_build_profile=dev],
+  [main_build_profile=main])
+
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
 AC_SUBST([coverage])
 AC_SUBST([legacy_layout])
+AC_SUBST([main_build_profile])
 
 # Don't error on options that this configure script doesn't understand but
 # the ocaml/ one does.

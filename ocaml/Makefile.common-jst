@@ -42,7 +42,7 @@ define dune_main_context
 (lang dune 2.8)
 (context (default
   (name main)
-  (profile main)
+  (profile $(main_build_profile))
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
