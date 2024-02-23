@@ -2783,6 +2783,13 @@ let f () = ((fun x -> (fun y -> "") [@extension.curry])
 val f : unit -> local_ string -> (string -> string) = <fun>
 |}];;
 
+(* mode crossing - the inner closure is [global] despite closing over [local_
+int] *)
+let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+[%%expect{|
+val f : unit -> local_ int -> (int -> int) = <fun>
+|}];;
+
 (* Illegal: the expected mode is global *)
 let f () = local_ ((fun x y -> x + y) : (_ -> _));;
 [%%expect{|
