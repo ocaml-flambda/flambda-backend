@@ -81,15 +81,15 @@ let is_base_type env ty base_ty_path =
   | _ -> false
 
 let is_always_gc_ignorable env ty =
-  let jkind =
+  let ext : Jkind.Externality.t =
     (* We check that we're compiling to (64-bit) native code before counting
-       immediate64 types as gc_ignorable, because bytecode is intended to be
+       External64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
     if !Clflags.native_code && Sys.word_size = 64
-    then Jkind.immediate64 ~why:Gc_ignorable_check
-    else Jkind.immediate ~why:Gc_ignorable_check
+    then External64
+    else External
   in
-  Result.is_ok (Ctype.check_type_jkind env ty jkind)
+  Ctype.check_type_externality env ty ext
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
