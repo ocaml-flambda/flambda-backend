@@ -734,11 +734,8 @@ type immediate_creation_reason =
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
-  | Gc_ignorable_check
 
-type immediate64_creation_reason =
-  | Gc_ignorable_check
-  | Separability_check
+type immediate64_creation_reason = Separability_check
 
 type void_creation_reason = |
 
@@ -1189,12 +1186,8 @@ end = struct
     | Immediate_polymorphic_variant ->
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
-    | Gc_ignorable_check ->
-      fprintf ppf "the check to see whether a value can be ignored by GC"
 
   let format_immediate64_creation_reason ppf = function
-    | Gc_ignorable_check ->
-      fprintf ppf "the check to see whether a value can be ignored by GC"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
 
@@ -1590,10 +1583,8 @@ module Debug_printers = struct
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Immediate_polymorphic_variant ->
       fprintf ppf "Immediate_polymorphic_variant"
-    | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
 
   let immediate64_creation_reason ppf = function
-    | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
     | Separability_check -> fprintf ppf "Separability_check"
 
   let value_creation_reason ppf : value_creation_reason -> _ = function

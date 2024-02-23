@@ -66,5 +66,3 @@ Error: This expression has type [ `A | `B ]
          of the definition of t at line 1, characters 0-22.
 |}]
 
-(* Gc_ignorable_check *)
-(* Only used within [Result.is_ok] and not thrown as an exception *)

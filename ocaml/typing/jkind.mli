@@ -271,13 +271,8 @@ type immediate_creation_reason =
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
-  | Gc_ignorable_check
-(* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
-type immediate64_creation_reason =
-  | Gc_ignorable_check
-  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
-  | Separability_check
+type immediate64_creation_reason = Separability_check
 
 (* CR layouts v5: make new void_creation_reasons *)
 type void_creation_reason = |
