@@ -66,10 +66,11 @@ AC_ARG_ENABLE([legacy-library-layout],
   [legacy_layout=yes],
   [legacy_layout=no])
 
-AC_ARG_ENABLE([dev-build],
-  [AS_HELP_STRING([--enable-dev-build],
+AC_ARG_ENABLE([dev],
+  [AS_HELP_STRING([--enable-dev],
     [Use the dev build profile for dune when building the 2nd stage.
-     Can speed up the compile time by a lot.])],
+     Can speed up the compile time by a lot. (WARNING: do not use for
+     production compiler deployments)])],
   [main_build_profile=dev],
   [main_build_profile=main])
 
