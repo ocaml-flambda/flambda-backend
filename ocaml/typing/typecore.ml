@@ -804,18 +804,6 @@ let mode_cross_to_min env ty mode =
   else
     Value.disallow_right mode
 
-(* cross the monadic fragment to max, and the comonadic fragment to min *)
-let alloc_mode_cross_to_max_min env ty {monadic; comonadic} =
-  let (monadic, comonadic)=
-    if mode_cross env ty then
-      Alloc.Monadic.max, Alloc.Comonadic.min
-    else
-      monadic, comonadic
-  in
-  let monadic = Alloc.Monadic.disallow_left monadic in
-  let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  {monadic; comonadic}
-
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if mode_cross env ty then
     { expected_mode with
@@ -6688,9 +6676,6 @@ and type_function
                   Final_arg
                 | Some fun_alloc_mode ->
                   assert(not is_final_val_param);
-                  (* If the argument cross modes, it crosses to max on monadic
-                     axes, and min on comonadic axes. *)
-                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
