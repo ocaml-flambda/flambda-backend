@@ -2196,6 +2196,16 @@ let constrain_type_jkind env ty jkind =
 let () =
   Env.constrain_type_jkind := constrain_type_jkind
 
+let check_type_externality env ty ext =
+  let check_sub ty_jkind =
+    Jkind.(Externality.le (get_externality_upper_bound ty_jkind) ext)
+  in
+  match type_jkind_sub env ty ~check_sub with
+  | Success -> true
+  | Type_var (ty_jkind, _) -> check_sub ty_jkind
+  | Missing_cmi _ -> false (* safe answer *)
+  | Failure _ -> false
+
 let check_decl_jkind env decl jkind =
   match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok

@@ -561,6 +561,11 @@ val check_type_jkind :
 val constrain_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 
+(* Check whether a type's externality's upper bound is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+
 (* This function should get called after a type is generalized.
 
    It does two things:
