@@ -166,7 +166,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Addf | Subf | Mulf | Divf) ->
     may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
   | Op (Specific (Isimd op)) ->
-    (match Simd_selection.register_behavior op with
+    (match Simd_proc.register_behavior op with
     | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
     | R_RM_to_fst ->
       may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true

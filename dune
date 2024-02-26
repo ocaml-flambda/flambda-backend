@@ -121,6 +121,7 @@
   simd
   simd_selection
   simd_reload
+  simd_proc
   reg
   reload
   reloadgen
