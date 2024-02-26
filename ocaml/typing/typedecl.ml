@@ -2237,18 +2237,18 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
     begin match get_desc (Ctype.get_unboxed_type_approximation env ty) with
-    (* This only captures tvar with jkind [any] explicitly quantified within
+    (* This only captures tvars with jkind [any] explicitly quantified within
        the declaration.
 
-       This is truth since [transl_type_scheme] promises that:
+       This is sufficient since [transl_type_scheme] promises that:
        - non-explicitly quantified tvars get sort jkinds
-       - can't reference tvars from outer scopes ([TyVarEnv] gets
-         reset before transl)
+       - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
+         transl)
     *)
     | Tvar {jkind} when is_layout_poly
                       && Jkind.is_any jkind
                       && get_level ty = Btype.generic_level -> Repr_poly
-    | __ ->
+    | _ ->
       let sort =
         type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
       in
@@ -2347,59 +2347,52 @@ let unexpected_jkind_any_check prim env cty ty =
 
    There are currently three checks in place:
 
-   1. The argument/return types of an external can't have
-      jkind [any]. This is enforced by [type_sort_external].
+   1. The argument/return types of an external can't have jkind [any]. This is
+      enforced by [type_sort_external].
 
-      The situation becomes more tricky with the use
-      of [@layout_poly]. In which case:
+      The situation becomes trickier with the use of [@layout_poly]:
 
-      1. we allow argument/return to have jkind [any]
-         iff. it's the layout polymorphic type variable.
-      2. use [Repr_poly] to encode it and mark the primitive
-         as [prim_is_layout_poly]
-      3. all interactions with the declared primitive type
-         has to go through [instance_prim] which instances
-         the layout polymorphic type variable down from jkind
-         [any] to a sort.
+      1. we allow argument/return to have jkind [any] iff it's the layout
+         polymorphic type variable.
+      2. we use [Repr_poly] to encode it and we mark the primitive as
+         [prim_is_layout_poly]
+      3. all interactions with the declared primitive type have to go through
+         [instance_prim], which instances the layout polymorphic type variable
+         down from jkind [any] to a sort.
 
-      Result of all this is we maintain the facade that
-      all argument/return types are representable. The jkind
-      [any] doesn't leak out.
+      The result is that we maintain the facade that all argument/return types
+      are representable. The jkind [any] from [@layout_poly] doesn't leak out.
 
-   2. [Primitive.prim_has_valid_reprs] performs an additional
-      sanity check on built-in primitives regarding
-      argument/result representations. It only allows
-      a selected subset of primitives to have non-value
-      jkinds. And for that subset, it checks to see the
-      argument/return jkinds are what it expects.
+   2. [Primitive.prim_has_valid_reprs] performs an additional sanity check on
+      built-in primitives regarding argument/result representations. It only
+      allows a selected subset of primitives to have non-value jkinds. And for
+      that subset, it checks to see the argument/return jkinds are what it
+      expects.
 
-      See comment in [prim_has_valid_reprs] about what it
-      could miss.
+      See comment in [prim_has_valid_reprs] about what it could miss.
 
-   3. Built-in primitives that inspect the jkind of type
-      parameters cannot have type variables with jkind [any]
-      anywhere within its type.
+   3. Built-in primitives that inspect the jkind of type parameters cannot have
+      type variables with jkind [any] anywhere within their types.
 
       This check is here to prevent someone from writing:
 
       [external len : ('a : any). 'a array -> int = "%array_length"]
 
-      If this is accepted, [len] will behave as expected most
-      of the time until someone writes:
+      If this is accepted, [len] will behave as expected most of the time until
+      someone writes:
 
       [let f x = len x]
 
-      [x] here will have type ['a array] where the jkind of ['a]
-      is [any]. The array kind function in [typeopt] will look at
-      ['a] expecting it to be representable and fail. This produces
-      a bad error message that doesn't point to the source of the
-      mistake which is, in fact, the external declaration.
+      [x] here will have type ['a array] where the jkind of ['a] is [any]. The
+      array kind function in [typeopt] will look at ['a] expecting it to be
+      representable and fail. This produces a bad error message that doesn't
+      point to the source of the mistake which is, in fact, the external
+      declaration.
 
-      For this reason, we have [unexpected_jkind_any_check].
-      It's here to point out these type of mistakes early and
-      suggest the use of [@layout_poly].
+      For this reason, we have [unexpected_jkind_any_check].  It's here to point
+      out this type of mistake early and suggest the use of [@layout_poly].
 
-   An exception would be raised if any of these checks fails. *)
+      An exception is raised if any of these checks fails. *)
 let error_if_containing_unexpected_jkind prim env cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
   unexpected_jkind_any_check prim env cty ty

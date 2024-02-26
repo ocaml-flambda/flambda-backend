@@ -448,11 +448,12 @@ module Repr_check = struct
       prim
 end
 
-(* Note: [any] here is not the same as jkind [any]. It means any
-   value of the type [native_repr] which is always representable
-   (can be [Repr_poly]). See [make_native_repr] and notes above
-   [error_if_containing_unexpected_jkind] for how we check the
-   jkinds of argument/return types inside external declarations. *)
+(* Note: [any] here is not the same as jkind [any]. It means we allow any
+   [native_repr] for the corresponding argument or return.  It's [Typedecl]'s
+   responsibility to check that types in externals are representable or marked
+   with [@layout_poly] (see [make_native_repr] and the note above
+   [error_if_containing_unexpected_jkind]).  Here we have more speicific checks
+   for individual primitives. *)
 let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =
@@ -539,12 +540,10 @@ let prim_has_valid_reprs ~loc prim =
   match check prim with
   | Success -> ()
   | Wrong_arity ->
-    (* There's already an arity check in translprim
-       that catches this. We will defer to that logic.
-       Reason being we are only checking the arity
-       of some built-in primitives here but not all.
-       Would be weird to raise different errors
-       dependent on the [prim_name]. *)
+    (* There's already an arity check in translprim that catches this. We will
+       defer to that logic.  We are only checking the arity of some built-in
+       primitives here but not all, and it would be weird to raise different
+       errors dependent on the [prim_name]. *)
     ()
   | Wrong_repr ->
     raise (Error (loc,

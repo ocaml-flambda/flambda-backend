@@ -193,18 +193,16 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   in
   let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
-    (* Extract the result layout of the primitive.
-       This can be a non-value layout even without
-       the use of [@layout_poly]. For example:
+    (* Extract the result layout of the primitive.  This can be a non-value
+       layout even without the use of [@layout_poly]. For example:
 
        {[ external id : float# -> float# = "%opaque" ]}
 
-       We don't allow non-value layouts for most
-       primitives. To see how the check happens,
-       reference [prim_has_valid_reprs].
+       We don't allow non-value layouts for most primitives. This is checked by
+       [prim_has_valid_reprs] in [typing/primitive.ml].
 
-       We don't extract the argument layouts just because
-       there's not yet a need to. *)
+       We don't extract the argument layouts just because it is not needed by
+       the middle-end. *)
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
@@ -1030,8 +1028,8 @@ let check_primitive_arity loc p =
       Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
-  (* By a similar assumption, the sort shouldn't change the arity.
-     So it's ok to lie here. *)
+  (* By a similar assumption, the sort shouldn't change the arity.  So it's ok
+     to lie here. *)
   let sort = Some (Jkind.Sort.of_const Value) in
   let prim =
     lookup_primitive loc ~poly_mode:mode ~poly_sort:sort Rc_normal p

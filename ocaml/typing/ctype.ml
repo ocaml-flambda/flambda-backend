@@ -1612,26 +1612,25 @@ let rec instance_prim_locals locals mvar macc finalret ty =
   | [], _ ->
      ty
 
-(* This function makes a copy of [ty] if [desc] is marked
-   [prim_is_layout_poly] AND at least one
-   generic type variable with jkind [any] is present. The function
-   returns [ty] unchanged otherwise.
+(* This function makes a copy of [ty] if [desc] is marked [prim_is_layout_poly]
+   AND at least one generic type variable with jkind [any] is present. The
+   function returns [ty] unchanged otherwise.
 
-   When making the copy, all generic type variables with jkind
-   [any] will be modified to have a sort var jkind. The same sort
-   var will be used for all such rewrites.
+   When making the copy, all generic type variables with jkind [any] will be
+   modified to have a sort var jkind. The same sort var will be used for all
+   such rewrites.
 
-   The copy should also have the same level information as [ty].
-   This is done in three steps:
-   1. Change [ty] directly within a copy scope to have the sort var
-      in place of jkind [any].
-   2. Call [generic_instance] on this modified [ty] to make the actual
-      copy we return (non-generic & generic levels should be preserved).
+   The copy should also have the same level information as [ty].  This is done
+   in three steps:
+   1. Change [ty] directly within a copy scope to have the sort var in place of
+      jkind [any].
+   2. Call [generic_instance] on this modified [ty] to make the actual copy we
+      return (non-generic & generic levels should be preserved).
    3. Exit the copy scope thus restoring [ty] to its original state.
 
-   No non-generic type variables should be present in [ty] due to
-   it being the type of an external declaration. However, the code
-   is written without relaying this assumption. *)
+   No non-generic type variables should be present in [ty] due to it being the
+   type of an external declaration. However, the code is written without
+   relaying this assumption. *)
 let instance_prim_layout (desc : Primitive.description) ty =
   if not desc.prim_is_layout_poly
   then ty, None
@@ -1651,8 +1650,8 @@ let instance_prim_layout (desc : Primitive.description) ty =
   For_copy.with_scope (fun copy_scope ->
     let rec inner ty =
       let level = get_level ty in
-      (* only change type vars on generic_level to avoid
-         modifying ones captured from an outer scope *)
+      (* only change type vars on generic_level to avoid modifying ones captured
+         from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
         | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
@@ -1670,10 +1669,9 @@ let instance_prim_layout (desc : Primitive.description) ty =
     unmark_type ty;
     match !new_sort_and_jkind with
     | Some (sort, _) ->
-      (* We don't want to lower the type vars from generic_level due to
-         usages in [includecore.ml]. This means an extra [instance] call
-         is needed in [type_ident], but we only hit it if it's
-         layout polymorphic. *)
+      (* We don't want to lower the type vars from generic_level due to usages
+         in [includecore.ml]. This means an extra [instance] call is needed in
+         [type_ident], but we only hit it if it's layout polymorphic. *)
       generic_instance ty, Some sort
     | None -> ty, None)
 

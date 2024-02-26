@@ -113,9 +113,9 @@ val equal_coeffects : coeffects -> coeffects -> bool
 val native_name_is_external : description -> bool
 
 (** Check if a primitive has the correct native representations for its
-    argument/return types. This check is done based on the primitive
-    name and only imposes constraints on built-in primitives. Exception
-    would be raised when the check fails. *)
+    argument/return types. This check is done based on the primitive name and
+    only imposes constraints on built-in primitives. Raises if the check
+    fails. *)
 val prim_has_valid_reprs : loc:Location.t -> description -> unit
 
 (** Check if a primitive can have jkind [any] anywhere within its type
