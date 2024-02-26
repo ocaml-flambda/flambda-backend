@@ -100,6 +100,7 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
+  | Useless_layout_poly
 
 open Typedtree
 
@@ -2330,16 +2331,16 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
+let has_ty_var_with_jkind_any env ty =
+  List.exists
+    (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
+    (Ctype.free_variables ty)
+
 let unexpected_jkind_any_check prim env cty ty =
   if Primitive.prim_can_contain_jkind_any prim ||
      prim.prim_is_layout_poly then ()
   else
-  let has_any =
-    List.exists
-      (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
-      (Ctype.free_variables ty)
-  in
-  if has_any then
+  if has_ty_var_with_jkind_any env ty then
     raise(Error (cty.ctyp_loc,
             Unexpected_jkind_any_in_primitive(prim.prim_name)))
 
@@ -2428,6 +2429,9 @@ let transl_value_decl env loc valdecl =
       let is_layout_poly =
         Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
+      if is_layout_poly &&
+         not (has_ty_var_with_jkind_any env ty) then
+        raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes
           env valdecl.pval_type ty Prim_global ~global_repr ~is_layout_poly
@@ -3125,10 +3129,15 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Unexpected_jkind_any_in_primitive(name) ->
+  | Unexpected_jkind_any_in_primitive name ->
       fprintf ppf
         "@[The primitive [%s] doesn't work well with type variables of@ \
            layout any. Consider using [@@layout_poly].@]" name
+  | Useless_layout_poly ->
+      fprintf ppf
+        "@[[@@layout_poly] on this external declaration has no@ \
+           effect. Consider removing it or adding a type@ \
+           variable for it to operate on.@]"
 
 let () =
   Location.register_error_of_exn

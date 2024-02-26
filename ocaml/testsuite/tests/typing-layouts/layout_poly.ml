@@ -138,37 +138,43 @@ Error: Signature mismatch:
          representable at call sites).
 |}]
 
-type ('a : any) s
+type ('a : any, 'b : any) s
 type t_any : any
 module S : sig
-  external[@layout_poly] id : t_any s -> t_any s = "%identity"
+  external[@layout_poly] id :
+    ('b : any). (t_any, 'b) s -> (t_any, 'b) s = "%identity"
 end = struct
-  external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+  external[@layout_poly] id :
+    ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s = "%identity"
 end
 
 [%%expect{|
-type ('a : any) s
+type ('a : any, 'b : any) s
 type t_any : any
-Lines 5-7, characters 6-3:
-5 | ......struct
-6 |   external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
-7 | end
+Lines 6-9, characters 6-3:
+6 | ......struct
+7 |   external[@layout_poly] id :
+8 |     ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s = "%identity"
+9 | end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           external id : ('a : any). 'a s -> 'a s = "%identity"
-             [@@layout_poly]
+           external id : ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s
+             = "%identity" [@@layout_poly]
          end
        is not included in
          sig
-           external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+           external id : ('b : any). (t_any, 'b) s -> (t_any, 'b) s
+             = "%identity" [@@layout_poly]
          end
        Values do not match:
-         external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
+         external id : ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s
+           = "%identity" [@@layout_poly]
        is not included in
-         external id : t_any s -> t_any s = "%identity" [@@layout_poly]
-       The type 'a s -> 'a s is not compatible with the type
-         t_any s -> t_any s
+         external id : ('b : any). (t_any, 'b) s -> (t_any, 'b) s
+           = "%identity" [@@layout_poly]
+       The type ('a, 'b) s -> ('a, 'b) s is not compatible with the type
+         (t_any, 'c) s -> (t_any, 'c) s
        The layout of t_any is any, because
          of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable, because
@@ -177,38 +183,45 @@ Error: Signature mismatch:
          representable at call sites).
 |}]
 
-type ('a : any) s
+type ('a : any, 'b : any) s
+
 type t_any : any
 module S : sig
-  external[@layout_poly] id : ('a : any). 'a s -> 'a s = "%identity"
+  external[@layout_poly] id :
+    ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s = "%identity"
 end = struct
-  external[@layout_poly] id : t_any s -> t_any s = "%identity"
+  external[@layout_poly] id :
+    ('b : any). (t_any, 'b) s -> (t_any, 'b) s = "%identity"
 end
 
 [%%expect{|
-type ('a : any) s
+type ('a : any, 'b : any) s
 type t_any : any
-Lines 5-7, characters 6-3:
-5 | ......struct
-6 |   external[@layout_poly] id : t_any s -> t_any s = "%identity"
-7 | end
+Lines 7-10, characters 6-3:
+ 7 | ......struct
+ 8 |   external[@layout_poly] id :
+ 9 |     ('b : any). (t_any, 'b) s -> (t_any, 'b) s = "%identity"
+10 | end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+           external id : ('b : any). (t_any, 'b) s -> (t_any, 'b) s
+             = "%identity" [@@layout_poly]
          end
        is not included in
          sig
-           external id : ('a : any). 'a s -> 'a s = "%identity"
-             [@@layout_poly]
+           external id : ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s
+             = "%identity" [@@layout_poly]
          end
        Values do not match:
-         external id : t_any s -> t_any s = "%identity" [@@layout_poly]
+         external id : ('b : any). (t_any, 'b) s -> (t_any, 'b) s
+           = "%identity" [@@layout_poly]
        is not included in
-         external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
-       The type t_any s -> t_any s is not compatible with the type
-         'a s -> 'a s
-       Type t_any is not compatible with type 'a
+         external id : ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s
+           = "%identity" [@@layout_poly]
+       The type (t_any, 'a) s -> (t_any, 'a) s
+       is not compatible with the type ('b, 'c) s -> ('b, 'c) s
+       Type t_any is not compatible with type 'b
 |}]
 
 (* together with local_opt *)
@@ -367,7 +380,7 @@ let f (type a1 : any) () =
     type t = a1
     external[@layout_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
   end in
-  (module M : S with type t = a)
+  (module M : S with type t = a1)
 
 [%%expect{|
 module type S = sig type t val f : 'a -> t -> 'a end
@@ -388,7 +401,7 @@ let f (type a2 : any) () =
     type t = a2
     external[@layout_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
   end in
-  (module M : S with type t = a)
+  (module M : S with type t = a2)
 
 [%%expect{|
 Line 4, characters 49-62:
@@ -408,7 +421,7 @@ let f (type a3 : any) () =
     type t = a3
     external[@layout_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
   end in
-  (module M : S with type t = a)
+  (module M : S with type t = a3)
 
 [%%expect{|
 Line 4, characters 49-59:
@@ -421,6 +434,29 @@ Error: Types in an external must have a representable layout
          of the annotation on the abstract type declaration for a3.
        But the layout of a3 M_any.t must be representable, because
          it's the type of an argument in an external declaration.
+|}]
+
+module type S4 = sig
+  type t
+  val f : int -> int
+end
+
+let f (type a4 : any) () =
+  let module M = struct
+    type t = a4
+    type ('a : any) s = int
+    external[@layout_poly] f : a4 s -> a4 s = "%identity"
+  end in
+  (module M : S4 with type t = a4)
+
+[%%expect{|
+module type S4 = sig type t val f : int -> int end
+Line 10, characters 31-43:
+10 |     external[@layout_poly] f : a4 s -> a4 s = "%identity"
+                                    ^^^^^^^^^^^^
+Error: [@layout_poly] on this external declaration has no
+       effect. Consider removing it or adding a type
+       variable for it to operate on.
 |}]
 
 (************)
@@ -648,7 +684,7 @@ Error: The primitive [%obj_dup] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
 
-(**********************************************************)
+(*************************************************************)
 (* Non-explicitly quantify tvars don't work with layout_poly *)
 
 type ('a : any) t = 'a
@@ -660,15 +696,10 @@ external[@layout_poly] id : 'a t -> 'a t = "%identity"
 let idf : ('a : float64). 'a -> 'a = id
 [%%expect{|
 type ('a : any) t = 'a
-external id : 'a t -> 'a t = "%identity" [@@layout_poly]
-Line 7, characters 37-39:
-7 | let idf : ('a : float64). 'a -> 'a = id
-                                         ^^
-Error: This expression has type 'b t -> 'b t
-       but an expression was expected of type 'a -> 'a
-       Type 'b t = 'b is not compatible with type 'a
-       The layout of 'a t is value, because
-         of the definition of id at line 3, characters 0-54.
-       But the layout of 'a t must overlap with float64, because
-         of the annotation on the universal variable 'a.
+Line 3, characters 28-40:
+3 | external[@layout_poly] id : 'a t -> 'a t = "%identity"
+                                ^^^^^^^^^^^^
+Error: [@layout_poly] on this external declaration has no
+       effect. Consider removing it or adding a type
+       variable for it to operate on.
 |}]

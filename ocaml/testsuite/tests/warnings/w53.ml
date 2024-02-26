@@ -462,7 +462,7 @@ module type TestLayoutPolySig = sig
   val x : int64 [@@layout_poly] (* rejected *)
 
   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
-  external z : int64 -> int64 = "%identity" [@@layout_poly] (* accepted *)
+  external z : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] (* accepted *)
 end
 
 module TestLayoutPolyStruct = struct
@@ -471,5 +471,5 @@ module TestLayoutPolyStruct = struct
   let x : int64 = 42L [@@layout_poly] (* rejected *)
 
   external y : (int64 [@layout_poly]) -> (int64 [@layout_poly]) = "%identity" (* rejected *)
-  external z : int64 -> int64 = "%identity" [@@layout_poly] (* accepted *)
+  external z : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] (* accepted *)
 end
