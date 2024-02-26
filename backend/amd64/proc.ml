@@ -488,6 +488,20 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
+  | Op (Specific (Isimd op)) ->
+    (match Simd_proc.register_behavior op with
+    | R_RM_rax_rdx_to_xmm0
+    | R_RM_to_xmm0 -> destroy_xmm 0
+    | R_RM_rax_rdx_to_rcx
+    | R_RM_to_rcx -> [| rcx |]
+    | R_to_fst
+    | R_to_R
+    | R_to_RM
+    | RM_to_R
+    | R_R_to_fst
+    | R_RM_to_fst
+    | R_RM_to_R
+    | R_RM_xmm0_to_fst -> [||])
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
@@ -512,7 +526,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ | Isimd _
+                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
@@ -611,6 +625,20 @@ let max_register_pressure =
     consumes ~int:1 ~float:0
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
+  | Ispecific(Isimd op) ->
+    (match Simd_proc.register_behavior op with
+    | R_RM_rax_rdx_to_xmm0
+    | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
+    | R_RM_rax_rdx_to_rcx
+    | R_RM_to_rcx -> consumes ~int:1 ~float:0
+    | R_to_fst
+    | R_to_R
+    | R_to_RM
+    | RM_to_R
+    | R_R_to_fst
+    | R_RM_to_fst
+    | R_RM_to_R
+    | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
@@ -628,7 +656,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
-             | Ilfence | Isfence | Imfence | Isimd _
+             | Ilfence | Isfence | Imfence
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
