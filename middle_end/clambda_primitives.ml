@@ -54,7 +54,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of Lambda.external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -265,7 +265,7 @@ let result_layout (p : primitive) =
   | Pbox_float (bf, _) -> Lambda.layout_boxed_float bf
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float bf -> Punboxed_float bf
-  | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_native_repr repr_res
+  | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_extern_repr repr_res
   | Praise _ -> Lambda.layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
