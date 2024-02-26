@@ -3071,8 +3071,8 @@ let report_error ppf = function
       match kloc with
       | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
       | External_with_layout_poly -> dprintf
-        "@ (variables with layout 'any' are made representable@ \
-          by [@@layout_poly])"
+        "@ (locally-scoped type variables with layout 'any' are@ \
+          made representable by [@@layout_poly])"
     in
     fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
       extra

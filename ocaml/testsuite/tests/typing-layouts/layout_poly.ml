@@ -388,8 +388,8 @@ Line 9, characters 49-51:
 9 |     external[@layout_poly] f : ('a : any). 'a -> a1 -> 'a = "%apply"
                                                      ^^
 Error: Types in an external must have a representable layout
-       (variables with layout 'any' are made representable
-       by [@layout_poly]).
+       (locally-scoped type variables with layout 'any' are
+       made representable by [@layout_poly]).
        The layout of a1 is any, because
          of the annotation on the abstract type declaration for a1.
        But the layout of a1 must be representable, because
@@ -408,8 +408,8 @@ Line 4, characters 49-62:
 4 |     external[@layout_poly] f : ('a : any). 'a -> a2 t_with_any -> 'a = "%apply"
                                                      ^^^^^^^^^^^^^
 Error: Types in an external must have a representable layout
-       (variables with layout 'any' are made representable
-       by [@layout_poly]).
+       (locally-scoped type variables with layout 'any' are
+       made representable by [@layout_poly]).
        The layout of a2 t_with_any is any, because
          of the annotation on the abstract type declaration for a2.
        But the layout of a2 t_with_any must be representable, because
@@ -428,8 +428,8 @@ Line 4, characters 49-59:
 4 |     external[@layout_poly] f : ('a : any). 'a -> a3 M_any.t -> 'a = "%apply"
                                                      ^^^^^^^^^^
 Error: Types in an external must have a representable layout
-       (variables with layout 'any' are made representable
-       by [@layout_poly]).
+       (locally-scoped type variables with layout 'any' are
+       made representable by [@layout_poly]).
        The layout of a3 M_any.t is any, because
          of the annotation on the abstract type declaration for a3.
        But the layout of a3 M_any.t must be representable, because
@@ -473,8 +473,8 @@ Line 4, characters 48-51:
 4 |   external[@layout_poly] id : ('a : any). 'a -> A.t -> 'a = "%apply"
                                                     ^^^
 Error: Types in an external must have a representable layout
-       (variables with layout 'any' are made representable
-       by [@layout_poly]).
+       (locally-scoped type variables with layout 'any' are
+       made representable by [@layout_poly]).
        The layout of A.t is any, because
          of the definition of t at line 2, characters 2-13.
        But the layout of A.t must be representable, because
