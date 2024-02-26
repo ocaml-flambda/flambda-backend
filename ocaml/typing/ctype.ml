@@ -2105,36 +2105,36 @@ let rec estimate_type_jkind env ty =
 
 type type_jkind_sub_result =
   | Success
-    (* The [Type_var case might still be "success"; caller should check.
+    (* The [Type_var] case might still be "success"; caller should check.
        We don't just report success here because if the caller unifies the
        tyvar, error messages improve. *)
   | Type_var of Jkind.t * type_expr
   | Missing_cmi of Jkind.t * Path.t
   | Failure of Jkind.t
 
-(* The "fuel" argument here is used because we're duplicating the loop of
-   `get_unboxed_type_representation`, but performing jkind checking at each
-   step.  This allows to check examples like:
-
-     type 'a t = 'a list
-     type s = { lbl : s t } [@@unboxed]
-
-   Here, we want to see [s t] has jkind value, and this only requires expanding
-   once to see [t] is list and [s] is irrelevant.  But calling
-   [get_unboxed_type_representation] itself would otherwise get into a nasty
-   loop trying to also expand [s], and then performing jkind checking to ensure
-   it's a valid argument to [t].  (We believe there are still loops like this
-   that can occur, though, and may need a more principled solution later).
-*)
 let type_jkind_sub env ty ~check_sub =
   let shallow_check ty =
     match estimate_type_jkind env ty with
     | Jkind ty_jkind -> if check_sub ty_jkind then Success else Failure ty_jkind
     | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
   in
+  (* The "fuel" argument here is used because we're duplicating the loop of
+     `get_unboxed_type_representation`, but performing jkind checking at each
+     step.  This allows to check examples like:
+
+       type 'a t = 'a list
+       type s = { lbl : s t } [@@unboxed]
+
+     Here, we want to see [s t] has jkind value, and this only requires
+     expanding once to see [t] is list and [s] is irrelevant.  But calling
+     [get_unboxed_type_representation] itself would otherwise get into a nasty
+     loop trying to also expand [s], and then performing jkind checking to
+     ensure it's a valid argument to [t].  (We believe there are still loops
+     like this that can occur, though, and may need a more principled solution
+     later).  *)
   let rec loop ty fuel =
-    (* This is an optimization to avoid unboxing if we can tell the constraint is
-       satisfied from the type_kind *)
+    (* This is an optimization to avoid unboxing if we can tell the constraint
+       is satisfied from the type_kind *)
     match get_desc ty with
     | Tconstr(p, _args, _abbrev) ->
         let jkind_bound =
