@@ -510,19 +510,21 @@ end
 module Const = struct
   type t =
     { layout : Layout.Const.t;
-      modes : Alloc.Const.t;
-      externality : Externality.t
+      modes_upper_bounds : Alloc.Const.t;
+      externality_upper_bound : Externality.t
     }
 
   let max =
     { layout = Layout.Const.max;
-      modes = Alloc.Const.max;
-      externality = Externality.max
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = Externality.max
     }
 
   (* CR layouts v2.8: remove this *)
-  let to_legacy_jkind { layout; modes = _; externality } : Legacy.const =
-    match layout, externality with
+  let to_legacy_jkind
+      { layout; modes_upper_bounds = _; externality_upper_bound } : Legacy.const
+      =
+    match layout, externality_upper_bound with
     | Any, _ -> Any
     | Sort Value, Internal -> Value
     | Sort Value, External64 -> Immediate64
@@ -536,14 +538,28 @@ module Const = struct
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
 
-  let equal { layout = lay1; modes = modes1; externality = ext1 }
-      { layout = lay2; modes = modes2; externality = ext2 } =
+  let equal
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Layout.Const.equal lay1 lay2
     && Alloc.Const.equal modes1 modes2
     && Externality.equal ext1 ext2
 
-  let sub { layout = lay1; modes = modes1; externality = ext1 }
-      { layout = lay2; modes = modes2; externality = ext2 } =
+  let sub
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Misc.Le_result.combine_list
       [ Layout.Const.sub lay1 lay2;
         Alloc.Const.less_or_equal modes1 modes2;
@@ -576,37 +592,57 @@ end
 module Jkind_desc = struct
   type t =
     { layout : Layout.t;
-      modes : Alloc.Const.t;
-      externality : Externality.t
+      modes_upper_bounds : Alloc.Const.t;
+      externality_upper_bound : Externality.t
     }
 
   let max =
     { layout = Layout.max;
-      modes = Alloc.Const.max;
-      externality = Externality.max
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = Externality.max
     }
 
   let equate_or_equal ~allow_mutation
-      { layout = lay1; modes = modes1; externality = ext1 }
-      { layout = lay2; modes = modes2; externality = ext2 } =
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
     && Alloc.Const.equal modes1 modes2
     && Externality.equal ext1 ext2
 
-  let sub { layout = lay1; modes = modes1; externality = ext1 }
-      { layout = lay2; modes = modes2; externality = ext2 } =
+  let sub
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Misc.Le_result.combine_list
       [ Layout.sub lay1 lay2;
         Alloc.Const.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2 ]
 
-  let intersection { layout = lay1; modes = modes1; externality = ext1 }
-      { layout = lay2; modes = modes2; externality = ext2 } =
+  let intersection
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
         Some
           { layout;
-            modes = Alloc.Const.meet modes1 modes2;
-            externality = Externality.meet ext1 ext2
+            modes_upper_bounds = Alloc.Const.meet modes1 modes2;
+            externality_upper_bound = Externality.meet ext1 ext2
           })
 
   let of_new_sort_var () =
@@ -619,50 +655,67 @@ module Jkind_desc = struct
 
   let void =
     { layout = Layout.void;
-      modes = Alloc.Const.max;
-      externality = Externality.min
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = Externality.min
     }
 
   let immediate64 =
     { layout = Layout.value;
-      modes = { locality = Global; linearity = Many; uniqueness = Unique };
-      externality = External64
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External64
     }
 
   let immediate =
     { layout = Layout.value;
-      modes = { locality = Global; linearity = Many; uniqueness = Unique };
-      externality = External
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External
     }
 
   let float64 =
-    { layout = Layout.float64; modes = Alloc.Const.max; externality = External }
+    { layout = Layout.float64;
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = External
+    }
 
   let word =
-    { layout = Layout.word; modes = Alloc.Const.max; externality = External }
+    { layout = Layout.word;
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = External
+    }
 
   let bits32 =
-    { layout = Layout.bits32; modes = Alloc.Const.max; externality = External }
+    { layout = Layout.bits32;
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = External
+    }
 
   let bits64 =
-    { layout = Layout.bits64; modes = Alloc.Const.max; externality = External }
+    { layout = Layout.bits64;
+      modes_upper_bounds = Alloc.Const.max;
+      externality_upper_bound = External
+    }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
-  let get { layout; modes; externality } : Desc.t =
+  let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
     match layout with
-    | Any -> Const { layout = Any; modes; externality }
+    | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
     | Sort s -> (
       match Sort.get s with
-      | Const s -> Const { layout = Sort s; modes; externality }
+      | Const s ->
+        Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
       | Var v -> Var v)
 
   module Debug_printers = struct
     open Format
 
-    let t ppf { layout; modes; externality } =
-      fprintf ppf "{ layout = %a;@ modes = %a;@ externality = %a }"
-        Layout.Debug_printers.t layout Alloc.Const.print modes
-        Externality.Debug_printers.t externality
+    let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
+      fprintf ppf
+        "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+         %a }"
+        Layout.Debug_printers.t layout Alloc.Const.print modes_upper_bounds
+        Externality.Debug_printers.t externality_upper_bound
   end
 end
 
@@ -984,10 +1037,16 @@ let for_boxed_variant ~all_voids =
 (******************************)
 (* elimination and defaulting *)
 
-let get_default_value { jkind = { layout; modes; externality }; _ } : Const.t =
+let get_default_value
+    { jkind = { layout; modes_upper_bounds; externality_upper_bound }; _ } :
+    Const.t =
   match layout with
-  | Any -> { layout = Any; modes; externality }
-  | Sort s -> { layout = Sort (Sort.get_default_value s); modes; externality }
+  | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
+  | Sort s ->
+    { layout = Sort (Sort.get_default_value s);
+      modes_upper_bounds;
+      externality_upper_bound
+    }
 
 let default_to_value t = ignore (get_default_value t)
 
@@ -1007,9 +1066,9 @@ let get_layout jk : Layout.Const.t option =
   | Sort s -> (
     match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
-let get_modal_upper_bounds jk = jk.jkind.modes
+let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
-let get_externality_upper_bound jk = jk.jkind.externality
+let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 
 (*********************************)
 (* pretty printing *)
