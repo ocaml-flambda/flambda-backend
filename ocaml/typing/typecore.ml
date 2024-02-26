@@ -806,17 +806,17 @@ let mode_cross_left env ty mode =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let mode = Value.disallow_right mode in
   let mode =
-    if Locality.Const.equal upper_bounds.locality Locality.Const.min
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
     then Value.set_regionality_min mode
     else mode
   in
   let mode =
-    if Linearity.Const.equal upper_bounds.linearity Linearity.Const.min
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
     then Value.set_linearity_min mode
     else mode
   in
   let mode =
-    if Uniqueness.Const.equal upper_bounds.uniqueness Uniqueness.Const.min
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
     then Value.set_uniqueness_min mode
     else mode
   in
@@ -840,17 +840,17 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let mode = expected_mode.mode in
   let mode, strictly_local =
-    if Locality.Const.equal upper_bounds.locality Locality.Const.min
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
     then Value.set_regionality_max mode, false
     else mode, expected_mode.strictly_local
   in
   let mode =
-    if Linearity.Const.equal upper_bounds.linearity Linearity.Const.min
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
     then Value.set_linearity_max mode
     else mode
   in
   let mode =
-    if Uniqueness.Const.equal upper_bounds.uniqueness Uniqueness.Const.min
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
     then Value.set_uniqueness_max mode
     else mode
   in

@@ -56,10 +56,6 @@ module Lattices = struct
 
     let legacy = L.legacy
 
-    let less_or_equal a b = L.less_or_equal b a
-
-    let equal a b = L.equal b a
-
     let le a b = L.le b a
 
     let join = L.meet
@@ -89,17 +85,8 @@ module Lattices = struct
 
     let legacy = Global
 
-    let less_or_equal a b : Misc.Le_result.t =
-      match a, b with
-      | Global, Global -> Equal
-      | Global, _ -> Less
-      | Local, Local -> Equal
-      (* | _, Local -> Less *)
-      | Local, Global -> Not_le
-
-    let equal a b = a = b
-
-    let le a b = Misc.Le_result.is_le (less_or_equal a b)
+    let le a b =
+      match a, b with Global, _ | _, Local -> true | Local, Global -> false
 
     let join a b =
       match a, b with Local, _ | _, Local -> Local | Global, Global -> Global
@@ -138,20 +125,11 @@ module Lattices = struct
       | Regional, _ | _, Regional -> Regional
       | Local, Local -> Local
 
-    let less_or_equal a b : Misc.Le_result.t =
+    let le a b =
       match a, b with
-      | Global, Global -> Equal
-      | Global, _ -> Less
-      | Local, Local -> Equal
-      | _, Local -> Less
-      | Regional, Regional -> Equal
-      | Regional, Global -> Not_le
-      | Local, Regional -> Not_le
-      | Local, Global -> Not_le
-
-    let equal a b = a = b
-
-    let le a b = Misc.Le_result.is_le (less_or_equal a b)
+      | Global, _ | _, Local -> true
+      | _, Global | Local, _ -> false
+      | Regional, Regional -> true
 
     let print ppf = function
       | Global -> Format.fprintf ppf "Global"
@@ -172,17 +150,8 @@ module Lattices = struct
 
     let legacy = Shared
 
-    let equal a b = a = b
-
-    let less_or_equal a b : Misc.Le_result.t =
-      match a, b with
-      | Unique, Unique -> Equal
-      | Unique, _ -> Less
-      | Shared, Shared -> Equal
-      (* | _, Shared -> Less *)
-      | Shared, Unique -> Not_le
-
-    let le a b = Misc.Le_result.is_le (less_or_equal a b)
+    let le a b =
+      match a, b with Unique, _ | _, Shared -> true | Shared, Unique -> false
 
     let join a b =
       match a, b with
@@ -212,17 +181,8 @@ module Lattices = struct
 
     let legacy = Many
 
-    let less_or_equal a b : Misc.Le_result.t =
-      match a, b with
-      | Many, Many -> Equal
-      | Many, _ -> Less
-      | Once, Once -> Equal
-      (* | _, Once -> Less *)
-      | Once, Many -> Not_le
-
-    let equal a b = a = b
-
-    let le a b = Misc.Le_result.is_le (less_or_equal a b)
+    let le a b =
+      match a, b with Many, _ | _, Once -> true | Once, Many -> false
 
     let join a b =
       match a, b with Once, _ | _, Once -> Once | Many, Many -> Many
@@ -294,14 +254,6 @@ module Lattices = struct
       let max = Areality.max, Linearity.max
 
       let legacy = Areality.legacy, Linearity.legacy
-
-      let less_or_equal (a0, a1) (b0, b1) =
-        Misc.Le_result.combine
-          (Areality.less_or_equal a0 b0)
-          (Linearity.less_or_equal a1 b1)
-
-      let equal (a0, a1) (b0, b1) =
-        Areality.equal a0 b0 && Linearity.equal a1 b1
 
       let le (a0, a1) (b0, b1) = Areality.le a0 b0 && Linearity.le a1 b1
 
@@ -1518,19 +1470,11 @@ module Value = struct
 
     let max = Regionality.Const.max, Linearity.Const.max, Uniqueness.Const.max
 
-    let less_or_equal (locality0, linearity0, uniqueness0)
+    let le (locality0, linearity0, uniqueness0)
         (locality1, linearity1, uniqueness1) =
-      Misc.Le_result.combine_list
-        [ Regionality.Const.less_or_equal locality0 locality1;
-          Uniqueness.Const.less_or_equal uniqueness0 uniqueness1;
-          Linearity.Const.less_or_equal linearity0 linearity1 ]
-
-    let equal (a0, a1, a2) (b0, b1, b2) =
-      Regionality.Const.equal a0 b0
-      && Linearity.Const.equal a1 b1
-      && Uniqueness.Const.equal a2 b2
-
-    let le a b = Misc.Le_result.is_le (less_or_equal a b)
+      Regionality.Const.le locality0 locality1
+      && Uniqueness.Const.le uniqueness0 uniqueness1
+      && Linearity.Const.le linearity0 linearity1
 
     let print ppf m = print () ppf (of_const m)
 
@@ -1783,18 +1727,10 @@ module Alloc = struct
       let uniqueness = Uniqueness.Const.max in
       { locality; linearity; uniqueness }
 
-    let less_or_equal m0 m1 =
-      Misc.Le_result.combine_list
-        [ Locality.Const.less_or_equal m0.locality m1.locality;
-          Uniqueness.Const.less_or_equal m0.uniqueness m1.uniqueness;
-          Linearity.Const.less_or_equal m0.linearity m1.linearity ]
-
-    let equal m0 m1 =
-      Locality.Const.equal m0.locality m1.locality
-      && Linearity.Const.equal m0.linearity m1.linearity
-      && Uniqueness.Const.equal m0.uniqueness m1.uniqueness
-
-    let le m0 m1 = Misc.Le_result.is_le (less_or_equal m0 m1)
+    let le m0 m1 =
+      Locality.Const.le m0.locality m1.locality
+      && Uniqueness.Const.le m0.uniqueness m1.uniqueness
+      && Linearity.Const.le m0.linearity m1.linearity
 
     let print ppf m = print () ppf (of_const m)
 

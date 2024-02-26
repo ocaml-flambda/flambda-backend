@@ -5780,17 +5780,17 @@ let mode_cross_left env ty mode =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let mode = Alloc.disallow_right mode in
   let mode =
-    if Locality.Const.equal upper_bounds.locality Locality.Const.min
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
     then Alloc.set_locality_min mode
     else mode
   in
   let mode =
-    if Linearity.Const.equal upper_bounds.linearity Linearity.Const.min
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
     then Alloc.set_linearity_min mode
     else mode
   in
   let mode =
-    if Uniqueness.Const.equal upper_bounds.uniqueness Uniqueness.Const.min
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
     then Alloc.set_uniqueness_min mode
     else mode
   in

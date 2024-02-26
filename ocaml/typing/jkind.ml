@@ -507,16 +507,28 @@ module Externality = struct
   end
 end
 
+module Modes = struct
+  include Alloc.Const
+
+  let less_or_equal a b : Misc.Le_result.t =
+    match le a b, le b a with
+    | true, true -> Equal
+    | true, false -> Less
+    | false, _ -> Not_le
+
+  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
+end
+
 module Const = struct
   type t =
     { layout : Layout.Const.t;
-      modes_upper_bounds : Alloc.Const.t;
+      modes_upper_bounds : Modes.t;
       externality_upper_bound : Externality.t
     }
 
   let max =
     { layout = Layout.Const.max;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = Externality.max
     }
 
@@ -548,7 +560,7 @@ module Const = struct
         externality_upper_bound = ext2
       } =
     Layout.Const.equal lay1 lay2
-    && Alloc.Const.equal modes1 modes2
+    && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
 
   let sub
@@ -562,7 +574,7 @@ module Const = struct
       } =
     Misc.Le_result.combine_list
       [ Layout.Const.sub lay1 lay2;
-        Alloc.Const.less_or_equal modes1 modes2;
+        Modes.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2 ]
 end
 
@@ -592,13 +604,13 @@ end
 module Jkind_desc = struct
   type t =
     { layout : Layout.t;
-      modes_upper_bounds : Alloc.Const.t;
+      modes_upper_bounds : Modes.t;
       externality_upper_bound : Externality.t
     }
 
   let max =
     { layout = Layout.max;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = Externality.max
     }
 
@@ -612,7 +624,7 @@ module Jkind_desc = struct
         externality_upper_bound = ext2
       } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
-    && Alloc.Const.equal modes1 modes2
+    && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
 
   let sub
@@ -626,7 +638,7 @@ module Jkind_desc = struct
       } =
     Misc.Le_result.combine_list
       [ Layout.sub lay1 lay2;
-        Alloc.Const.less_or_equal modes1 modes2;
+        Modes.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2 ]
 
   let intersection
@@ -641,7 +653,7 @@ module Jkind_desc = struct
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
         Some
           { layout;
-            modes_upper_bounds = Alloc.Const.meet modes1 modes2;
+            modes_upper_bounds = Modes.meet modes1 modes2;
             externality_upper_bound = Externality.meet ext1 ext2
           })
 
@@ -655,7 +667,7 @@ module Jkind_desc = struct
 
   let void =
     { layout = Layout.void;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = Externality.min
     }
 
@@ -675,25 +687,25 @@ module Jkind_desc = struct
 
   let float64 =
     { layout = Layout.float64;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = External
     }
 
   let word =
     { layout = Layout.word;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = External
     }
 
   let bits32 =
     { layout = Layout.bits32;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = External
     }
 
   let bits64 =
     { layout = Layout.bits64;
-      modes_upper_bounds = Alloc.Const.max;
+      modes_upper_bounds = Modes.max;
       externality_upper_bound = External
     }
 
@@ -714,7 +726,7 @@ module Jkind_desc = struct
       fprintf ppf
         "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
          %a }"
-        Layout.Debug_printers.t layout Alloc.Const.print modes_upper_bounds
+        Layout.Debug_printers.t layout Modes.print modes_upper_bounds
         Externality.Debug_printers.t externality_upper_bound
   end
 end
