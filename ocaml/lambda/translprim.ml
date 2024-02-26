@@ -80,7 +80,7 @@ type loc_kind =
 
 type prim =
   | Primitive of Lambda.primitive * int
-  | External of Primitive.description
+  | External of Lambda.external_call_description
   | Sys_argv
   | Comparison of comparison * comparison_kind
   | Raise of Lambda.raise_kind
@@ -122,7 +122,7 @@ let gen_array_set_kind mode =
   if Config.flat_float_array then Pgenarray_set mode else Paddrarray_set mode
 
 let prim_sys_argv =
-  Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
 let to_locality ~poly = function
   | Prim_global, _ -> alloc_heap
@@ -140,9 +140,50 @@ let to_modify_mode ~poly = function
     | None -> assert false
     | Some mode -> transl_modify_mode mode
 
-let lookup_primitive loc poly pos p =
-  let mode = to_locality ~poly p.prim_native_repr_res in
-  let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
+let extern_repr_of_native_repr:
+  poly_sort:Jkind.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
+  = fun ~poly_sort r -> match r, poly_sort with
+  | Repr_poly, Some s -> Same_as_ocaml_repr (Jkind.Sort.get_default_value s)
+  | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
+  | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
+  | Unboxed_float f, _ -> Unboxed_float f
+  | Unboxed_integer i, _ -> Unboxed_integer i
+  | Unboxed_vector i, _ -> Unboxed_vector i
+  | Untagged_int, _ -> Untagged_int
+
+let sort_of_native_repr ~poly_sort repr =
+  match extern_repr_of_native_repr ~poly_sort repr with
+  | Same_as_ocaml_repr s -> s
+  | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+      Unboxed_vector _) ->
+    Jkind.Sort.Value
+
+let to_lambda_prim prim ~poly_sort =
+  let native_repr_args =
+    List.map
+    (fun (m, r) -> m, extern_repr_of_native_repr ~poly_sort r)
+      prim.prim_native_repr_args
+  in
+  let native_repr_res =
+    let (m, r) = prim.prim_native_repr_res in
+    m, extern_repr_of_native_repr ~poly_sort r
+  in
+  Primitive.make
+    ~name:prim.prim_name
+    ~alloc:prim.prim_alloc
+    ~c_builtin:prim.prim_c_builtin
+    ~effects:prim.prim_effects
+    ~coeffects:prim.prim_coeffects
+    ~native_name:prim.prim_native_name
+    ~native_repr_args
+    ~native_repr_res
+    ~is_layout_poly:prim.prim_is_layout_poly
+
+let lookup_primitive loc ~poly_mode ~poly_sort pos p =
+  let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
+  let arg_modes =
+    List.map (to_modify_mode ~poly:poly_mode) p.prim_native_repr_args
+  in
   let get_first_arg_mode () =
     match arg_modes with
     | mode :: _ -> mode
@@ -150,13 +191,28 @@ let lookup_primitive loc poly pos p =
         Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
           p.prim_name
   in
+  let lambda_prim = to_lambda_prim p ~poly_sort in
+  let layout =
+    (* Extract the result layout of the primitive.  This can be a non-value
+       layout even without the use of [@layout_poly]. For example:
+
+       {[ external id : float# -> float# = "%opaque" ]}
+
+       We don't allow non-value layouts for most primitives. This is checked by
+       [prim_has_valid_reprs] in [typing/primitive.ml].
+
+       We don't extract the argument layouts just because it is not needed by
+       the middle-end. *)
+    let (_, repr) = lambda_prim.prim_native_repr_res in
+    Lambda.layout_of_extern_repr repr
+  in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
     | "%bytes_of_string" -> Primitive (Pbytes_of_string, 1)
     | "%ignore" -> Primitive (Pignore, 1)
-    | "%revapply" -> Revapply (pos, Lambda.layout_any_value)
-    | "%apply" -> Apply (pos, Lambda.layout_any_value)
+    | "%revapply" -> Revapply (pos, layout)
+    | "%apply" -> Apply (pos, layout)
     | "%loc_LOC" -> Loc Loc_LOC
     | "%loc_FILE" -> Loc Loc_FILE
     | "%loc_LINE" -> Loc Loc_LINE
@@ -497,11 +553,11 @@ let lookup_primitive loc poly pos p =
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
     | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
     | "%int_as_pointer" -> Primitive (Pint_as_pointer mode, 1)
-    | "%opaque" -> Primitive (Popaque Lambda.layout_any_value, 1)
+    | "%opaque" -> Primitive (Popaque layout, 1)
     | "%sys_argv" -> Sys_argv
-    | "%send" -> Send (pos, Lambda.layout_any_value)
-    | "%sendself" -> Send_self (pos, Lambda.layout_any_value)
-    | "%sendcache" -> Send_cache (pos, Lambda.layout_any_value)
+    | "%send" -> Send (pos, layout)
+    | "%sendself" -> Send_self (pos, layout)
+    | "%sendcache" -> Send_cache (pos, layout)
     | "%equal" -> Comparison(Equal, Compare_generic)
     | "%notequal" -> Comparison(Not_equal, Compare_generic)
     | "%lessequal" -> Comparison(Less_equal, Compare_generic)
@@ -510,7 +566,7 @@ let lookup_primitive loc poly pos p =
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
-    | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
+    | "%obj_magic" -> Primitive(Pobj_magic layout, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
     | "%unbox_float" -> Primitive(Punbox_float Pfloat64, 1)
@@ -534,12 +590,12 @@ let lookup_primitive loc poly pos p =
     | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
-    | _ -> External p
+    | _ -> External lambda_prim
   in
   prim
 
-let lookup_primitive_and_mark_used loc mode pos p env path =
-  match lookup_primitive loc mode pos p with
+let lookup_primitive_and_mark_used loc ~poly_mode ~poly_sort pos p env path =
+  match lookup_primitive loc ~poly_mode ~poly_sort pos p with
   | External _ as e -> add_used_primitive loc env path; e
   | x -> x
 
@@ -777,51 +833,51 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | _ -> None
 
 let caml_equal =
-  Primitive.simple_on_values ~name:"caml_equal" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_equal" ~arity:2 ~alloc:true
 let caml_string_equal =
-  Primitive.simple_on_values ~name:"caml_string_equal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_string_equal" ~arity:2 ~alloc:false
 let caml_bytes_equal =
-  Primitive.simple_on_values ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_bytes_equal" ~arity:2 ~alloc:false
 let caml_notequal =
-  Primitive.simple_on_values ~name:"caml_notequal" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_notequal" ~arity:2 ~alloc:true
 let caml_string_notequal =
-  Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_string_notequal" ~arity:2 ~alloc:false
 let caml_bytes_notequal =
-  Primitive.simple_on_values ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_bytes_notequal" ~arity:2 ~alloc:false
 let caml_lessequal =
-  Primitive.simple_on_values ~name:"caml_lessequal" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_lessequal" ~arity:2 ~alloc:true
 let caml_string_lessequal =
-  Primitive.simple_on_values ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_string_lessequal" ~arity:2 ~alloc:false
 let caml_bytes_lessequal =
-  Primitive.simple_on_values ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_bytes_lessequal" ~arity:2 ~alloc:false
 let caml_lessthan =
-  Primitive.simple_on_values ~name:"caml_lessthan" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_lessthan" ~arity:2 ~alloc:true
 let caml_string_lessthan =
-  Primitive.simple_on_values ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_string_lessthan" ~arity:2 ~alloc:false
 let caml_bytes_lessthan =
-  Primitive.simple_on_values ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_bytes_lessthan" ~arity:2 ~alloc:false
 let caml_greaterequal =
-  Primitive.simple_on_values ~name:"caml_greaterequal" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_greaterequal" ~arity:2 ~alloc:true
 let caml_string_greaterequal =
-  Primitive.simple_on_values ~name:"caml_string_greaterequal" ~arity:2
+  Lambda.simple_prim_on_values ~name:"caml_string_greaterequal" ~arity:2
     ~alloc:false
 let caml_bytes_greaterequal =
-  Primitive.simple_on_values ~name:"caml_bytes_greaterequal" ~arity:2
+  Lambda.simple_prim_on_values ~name:"caml_bytes_greaterequal" ~arity:2
     ~alloc:false
 let caml_greaterthan =
-  Primitive.simple_on_values ~name:"caml_greaterthan" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_greaterthan" ~arity:2 ~alloc:true
 let caml_string_greaterthan =
-  Primitive.simple_on_values ~name:"caml_string_greaterthan" ~arity:2
+  Lambda.simple_prim_on_values ~name:"caml_string_greaterthan" ~arity:2
     ~alloc:false
 let caml_bytes_greaterthan =
-  Primitive.simple_on_values ~name:"caml_bytes_greaterthan" ~arity:2
+  Lambda.simple_prim_on_values ~name:"caml_bytes_greaterthan" ~arity:2
     ~alloc:false
 let caml_compare =
-  Primitive.simple_on_values ~name:"caml_compare" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_compare" ~arity:2 ~alloc:true
 let caml_string_compare =
-  Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_string_compare" ~arity:2 ~alloc:false
 let caml_bytes_compare =
-  Primitive.simple_on_values ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
 
 let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
@@ -929,7 +985,7 @@ let lambda_of_loc kind sloc =
     Lconst (Const_immstring scope_name)
 
 let caml_restore_raw_backtrace =
-  Primitive.simple_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
+  Lambda.simple_prim_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
     ~alloc:false
 
 let try_ids = Hashtbl.create 8
@@ -1035,7 +1091,12 @@ let check_primitive_arity loc p =
       Some Mode.Locality.global
     | Prim_local, _ -> Some Mode.Locality.local
   in
-  let prim = lookup_primitive loc mode Rc_normal p in
+  (* By a similar assumption, the sort shouldn't change the arity.  So it's ok
+     to lie here. *)
+  let sort = Some (Jkind.Sort.of_const Value) in
+  let prim =
+    lookup_primitive loc ~poly_mode:mode ~poly_sort:sort Rc_normal p
+  in
   let ok =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
@@ -1056,10 +1117,10 @@ let check_primitive_arity loc p =
 
 (* Eta-expand a primitive *)
 
-let transl_primitive loc p env ty ~poly_mode path =
+let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
   let prim =
     lookup_primitive_and_mark_used
-      (to_location loc) poly_mode Rc_normal p env path
+      (to_location loc) ~poly_mode ~poly_sort Rc_normal p env path
   in
   let has_constant_constructor = false in
   let prim =
@@ -1071,17 +1132,21 @@ let transl_primitive loc p env ty ~poly_mode path =
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
-      let res_sort = sort_of_native_repr res_repr in
-      [], Typeopt.layout env (to_location loc) (Jkind.Sort.of_const res_sort) ty
+      let res_sort =
+        Jkind.Sort.of_const (sort_of_native_repr res_repr ~poly_sort)
+      in
+      [], Typeopt.layout env (to_location loc) res_sort ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_sort = sort_of_native_repr arg_repr in
+          let arg_sort =
+            Jkind.Sort.of_const (sort_of_native_repr arg_repr ~poly_sort)
+          in
           let arg_layout =
-            Typeopt.layout env (to_location loc) (Jkind.Sort.of_const arg_sort) arg_ty
+            Typeopt.layout env (to_location loc) arg_sort arg_ty
           in
           let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
@@ -1224,10 +1289,11 @@ let primitive_needs_event_after = function
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
 
-let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
+let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
+    path exp args arg_exps pos =
   let prim =
     lookup_primitive_and_mark_used
-      (to_location loc) mode pos p env (Some path)
+      (to_location loc) ~poly_mode ~poly_sort pos p env (Some path)
   in
   let has_constant_constructor =
     match arg_exps with

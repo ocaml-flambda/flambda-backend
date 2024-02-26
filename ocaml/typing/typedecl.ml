@@ -26,7 +26,12 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc =
+  | Cstr_tuple
+  | Record
+  | Unboxed_record
+  | External
+  | External_with_layout_poly
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -94,6 +99,8 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Unexpected_jkind_any_in_primitive of string
+  | Useless_layout_poly
 
 open Typedtree
 
@@ -2211,11 +2218,43 @@ let error_if_has_deep_native_repr_attributes core_type =
   in
   default_iterator.typ this_iterator core_type
 
-let make_native_repr env core_type sort ty ~global_repr =
+(* Note that [typ] is guaranteed not to contain sort variables because it was
+   produced by [type_scheme], which defaults them.
+
+   However, there can be jkind [any] present with something like:
+    [external f : ('a : any). 'a -> 'a = "%identity"]
+   In such cases, we raise an expection. *)
+let type_sort_external ~is_layout_poly ~why env loc typ =
+  match Ctype.type_sort ~why env typ with
+  | Ok s -> Jkind.Sort.get_default_value s
+  | Error err ->
+    let kloc =
+      if is_layout_poly then External_with_layout_poly else External
+    in
+    raise(Error (loc, Jkind_sort {kloc; typ; err}))
+
+let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
-    Same_as_ocaml_repr sort
+    begin match get_desc (Ctype.get_unboxed_type_approximation env ty) with
+    (* This only captures tvars with jkind [any] explicitly quantified within
+       the declaration.
+
+       This is sufficient since [transl_type_scheme] promises that:
+       - non-explicitly quantified tvars get sort jkinds
+       - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
+         transl)
+    *)
+    | Tvar {jkind} when is_layout_poly
+                      && Jkind.is_any jkind
+                      && get_level ty = Btype.generic_level -> Repr_poly
+    | _ ->
+      let sort =
+        type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
+      in
+      Same_as_ocaml_repr sort
+    end
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
@@ -2229,20 +2268,8 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
-(* Note that [ty] is guaranteed not to contain sort variables because it was
-   produced by [type_scheme], which defaults them.  Further, if ty is an arrow
-   we know its bits are representable, so [type_sort_external] can only fail
-   on externals with non-arrow types. *)
-(* CR layouts v3: When we allow non-representable function args/returns, the
-   representability argument above isn't quite right. Decide whether we want to
-   allow non-representable types in external args/returns then. *)
-let type_sort_external ~why env loc typ =
-  match Ctype.type_sort ~why env typ with
-  | Ok s -> Jkind.Sort.get_default_value s
-  | Error err ->
-    raise (Error (loc,Jkind_sort {kloc = External; typ; err}))
-
-let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
+let rec parse_native_repr_attributes env core_type ty rmode
+        ~global_repr ~is_layout_poly =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
   with
@@ -2251,10 +2278,11 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
-    let sort_arg =
-      type_sort_external ~why:External_argument env ct1.ptyp_loc t1
+    let repr_arg =
+      make_native_repr
+        env ct1 t1 ~global_repr
+        ~is_layout_poly ~why:External_argument
     in
-    let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
@@ -2262,21 +2290,24 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     in
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2
-        (prim_const_mode (Mode.Alloc.locality mret)) ~global_repr
+        (prim_const_mode (Mode.Alloc.locality mret))
+        ~global_repr ~is_layout_poly
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
-     parse_native_repr_attributes env t ty rmode ~global_repr
+     parse_native_repr_attributes env t ty rmode ~global_repr ~is_layout_poly
   | _ ->
      let rmode =
        if Builtin_attributes.has_local_opt core_type.ptyp_attributes
        then Prim_poly
        else rmode
      in
-     let sort_res =
-       type_sort_external ~why:External_result env core_type.ptyp_loc ty
+     let repr_res =
+       make_native_repr
+        env core_type ty ~global_repr
+        ~is_layout_poly ~why:External_result
      in
-     ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
+     ([], (rmode, repr_res))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -2299,6 +2330,73 @@ let check_unboxable env loc ty =
     )
     all_unboxable_types
     ()
+
+let has_ty_var_with_jkind_any env ty =
+  List.exists
+    (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
+    (Ctype.free_variables ty)
+
+let unexpected_jkind_any_check prim env cty ty =
+  if Primitive.prim_can_contain_jkind_any prim ||
+     prim.prim_is_layout_poly then ()
+  else
+  if has_ty_var_with_jkind_any env ty then
+    raise(Error (cty.ctyp_loc,
+            Unexpected_jkind_any_in_primitive(prim.prim_name)))
+
+(* Note regarding jkind checks on external declarations
+
+   There are currently three checks in place:
+
+   1. The argument/return types of an external can't have jkind [any]. This is
+      enforced by [type_sort_external].
+
+      The situation becomes trickier with the use of [@layout_poly]:
+
+      1. we allow argument/return to have jkind [any] iff it's the layout
+         polymorphic type variable.
+      2. we use [Repr_poly] to encode it and we mark the primitive as
+         [prim_is_layout_poly]
+      3. all interactions with the declared primitive type have to go through
+         [instance_prim], which instances the layout polymorphic type variable
+         down from jkind [any] to a sort.
+
+      The result is that we maintain the facade that all argument/return types
+      are representable. The jkind [any] from [@layout_poly] doesn't leak out.
+
+   2. [Primitive.prim_has_valid_reprs] performs an additional sanity check on
+      built-in primitives regarding argument/result representations. It only
+      allows a selected subset of primitives to have non-value jkinds. And for
+      that subset, it checks to see the argument/return jkinds are what it
+      expects.
+
+      See comment in [prim_has_valid_reprs] about what it could miss.
+
+   3. Built-in primitives that inspect the jkind of type parameters cannot have
+      type variables with jkind [any] anywhere within their types.
+
+      This check is here to prevent someone from writing:
+
+      [external len : ('a : any). 'a array -> int = "%array_length"]
+
+      If this is accepted, [len] will behave as expected most of the time until
+      someone writes:
+
+      [let f x = len x]
+
+      [x] here will have type ['a array] where the jkind of ['a] is [any]. The
+      array kind function in [typeopt] will look at ['a] expecting it to be
+      representable and fail. This produces a bad error message that doesn't
+      point to the source of the mistake which is, in fact, the external
+      declaration.
+
+      For this reason, we have [unexpected_jkind_any_check].  It's here to point
+      out this type of mistake early and suggest the use of [@layout_poly].
+
+      An exception is raised if any of these checks fails. *)
+let error_if_containing_unexpected_jkind prim env cty ty =
+  Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
+  unexpected_jkind_any_check prim env cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -2328,14 +2426,23 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_present repr -> Some repr
         | Native_repr_attr_absent -> None
       in
+      let is_layout_poly =
+        Builtin_attributes.has_layout_poly valdecl.pval_attributes
+      in
+      if is_layout_poly &&
+         not (has_ty_var_with_jkind_any env ty) then
+        raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
-        parse_native_repr_attributes env valdecl.pval_type ty Prim_global ~global_repr
+        parse_native_repr_attributes
+          env valdecl.pval_type ty Prim_global ~global_repr ~is_layout_poly
       in
       let prim =
         Primitive.parse_declaration valdecl
           ~native_repr_args
           ~native_repr_res
+          ~is_layout_poly
       in
+      error_if_containing_unexpected_jkind prim env cty ty;
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
         raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));
@@ -2958,8 +3065,17 @@ let report_error ppf = function
       | Record -> "Record element types"
       | Unboxed_record -> "Unboxed record element types"
       | External -> "Types in an external"
+      | External_with_layout_poly -> "Types in an external"
     in
-    fprintf ppf "@[%s must have a representable layout.@ %a@]" s
+    let extra =
+      match kloc with
+      | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
+      | External_with_layout_poly -> dprintf
+        "@ (locally-scoped type variables with layout 'any' are@ \
+          made representable by [@@layout_poly])"
+    in
+    fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
+      extra
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
@@ -2974,7 +3090,7 @@ let report_error ppf = function
       | Cstr_tuple -> "Variants"
       | Record -> "Records"
       | Unboxed_record -> "Unboxed records"
-      | External -> assert false
+      | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
@@ -3013,6 +3129,15 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
+  | Unexpected_jkind_any_in_primitive name ->
+      fprintf ppf
+        "@[The primitive [%s] doesn't work well with type variables of@ \
+           layout any. Consider using [@@layout_poly].@]" name
+  | Useless_layout_poly ->
+      fprintf ppf
+        "@[[@@layout_poly] on this external declaration has no@ \
+           effect. Consider removing it or adding a type@ \
+           variable for it to operate on.@]"
 
 let () =
   Location.register_error_of_exn

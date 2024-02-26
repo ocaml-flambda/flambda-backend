@@ -121,7 +121,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -251,6 +251,17 @@ type primitive =
   (* Fetching domain-local state *)
   | Pdls_get
 
+(** This is the same as [Primitive.native_repr] but with [Repr_poly]
+    compiled away. *)
+and extern_repr =
+  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Unboxed_float of boxed_float
+  | Unboxed_vector of Primitive.boxed_vector
+  | Unboxed_integer of Primitive.boxed_integer
+  | Untagged_int
+
+and external_call_description = extern_repr Primitive.description_gen
+
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
 
@@ -372,12 +383,12 @@ val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 val must_be_value : layout -> value_kind
 
 (* This is the layout of ocaml values used as arguments to or returned from
-   primitives for this [native_repr].  So the legacy [Unboxed_float] - which is
+   primitives for this [extern_repr].  So the legacy [Unboxed_float] - which is
    a float that is unboxed before being passed to a C function - is mapped to
    [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
    [layout_unboxed_float].
 *)
-val layout_of_native_repr : Primitive.native_repr -> layout
+val layout_of_extern_repr : extern_repr -> layout
 
 type structured_constant =
     Const_base of constant
@@ -788,7 +799,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
   *)
 
 val alloc_mode_of_primitive_description :
-  Primitive.description -> alloc_mode option
+  external_call_description -> alloc_mode option
   (** Like [primitive_may_allocate], for [external] calls. *)
 
 (***********************)
@@ -837,3 +848,11 @@ val is_check_enabled : opt:bool -> property -> bool
 
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool
+
+(* Returns [external_call_description] for [Pccall] assuming arguments
+   and result all have layout [value] *)
+val simple_prim_on_values
+:  name:string
+-> arity:int
+-> alloc:bool
+-> external_call_description
