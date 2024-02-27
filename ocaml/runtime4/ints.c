@@ -334,7 +334,7 @@ CAMLprim value caml_int32_format(value fmt, value arg)
   return caml_alloc_sprintf(format_string, Int32_val(arg));
 }
 
-int32_t caml_int32_of_string_unboxed(value s)
+CAMLprim int32_t caml_int32_of_string_unboxed(value s)
 {
   return (int32_t) parse_intnat(s, 32, INT32_ERRMSG);
 }
@@ -587,7 +587,7 @@ CAMLprim value caml_int64_format(value fmt, value arg)
   return caml_alloc_sprintf(format_string, Int64_val(arg));
 }
 
-int64_t caml_int64_of_string_unboxed(value s)
+CAMLprim int64_t caml_int64_of_string_unboxed(value s)
 {
   const char * p;
   uint64_t res, threshold;
@@ -855,7 +855,7 @@ CAMLprim value caml_nativeint_format(value fmt, value arg)
   return caml_alloc_sprintf(format_string, Nativeint_val(arg));
 }
 
-intnat caml_nativeint_of_string_unboxed(value s)
+CAMLprim intnat caml_nativeint_of_string_unboxed(value s)
 {
   return parse_intnat(s, 8 * sizeof(value), INTNAT_ERRMSG);
 }
