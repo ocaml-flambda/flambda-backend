@@ -16,7 +16,6 @@
 
 [@@@ocaml.warning "-fragile-match"]
 
-open! Int_replace_polymorphic_compare
 open! Flambda
 module BP = Bound_parameter
 module IR = Closure_conversion_aux.IR

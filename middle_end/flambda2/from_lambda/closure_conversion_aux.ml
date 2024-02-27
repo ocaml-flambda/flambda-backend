@@ -308,10 +308,10 @@ module Env = struct
     try Variable.Map.find var t.value_approximations
     with Not_found -> Value_approximation.Value_unknown
 
-  let set_path_to_root t path_to_root =
-    if path_to_root = Debuginfo.Scoped_location.Loc_unknown
-    then t
-    else { t with path_to_root }
+  let set_path_to_root t (path_to_root : Debuginfo.Scoped_location.t) =
+    match path_to_root with
+    | Loc_unknown -> t
+    | Loc_known _ -> { t with path_to_root }
 
   let path_to_root { path_to_root; _ } = path_to_root
 

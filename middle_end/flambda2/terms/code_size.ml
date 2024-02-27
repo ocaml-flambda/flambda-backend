@@ -193,10 +193,15 @@ let bytes_like_set kind width =
   | Bytes -> string_or_bigstring_load Bytes width
   | Bigstring -> string_or_bigstring_load Bigstring width
 
-let divmod_bi_check else_branch_size bi =
+let divmod_bi_check else_branch_size (bi : Flambda_kind.Standard_int.t) =
   (* CR gbury: we should allow check Arch.division_crashed_on_overflow, but
      that's likely a dependency we want to avoid ? *)
-  if arch32 || bi <> Flambda_kind.Standard_int.Naked_int32
+  if arch32
+     ||
+     match bi with
+     | Naked_int32 -> false
+     | Naked_int64 | Naked_nativeint | Naked_immediate | Tagged_immediate ->
+       true
   then 2 + else_branch_size
   else 0
 

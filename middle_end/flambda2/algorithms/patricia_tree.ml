@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Int_replace_polymorphic_compare
-
 (* The following is a "little endian" implementation. *)
 
 (* CR-someday mshinwell: Can we fix the traversal order by swapping endianness?

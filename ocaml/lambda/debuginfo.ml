@@ -27,6 +27,19 @@ module Scoped_location = struct
     | Sc_partial_or_eta_wrapper
     | Sc_lazy
 
+  let equal_scope_item si1 si2 =
+    match si1, si2 with
+    | Sc_anonymous_function, Sc_anonymous_function
+    | Sc_value_definition, Sc_value_definition
+    | Sc_module_definition, Sc_module_definition
+    | Sc_class_definition, Sc_class_definition
+    | Sc_method_definition, Sc_method_definition
+    | Sc_partial_or_eta_wrapper, Sc_partial_or_eta_wrapper
+    | Sc_lazy, Sc_lazy -> true
+    | (Sc_anonymous_function | Sc_value_definition | Sc_module_definition
+      | Sc_class_definition | Sc_method_definition | Sc_partial_or_eta_wrapper
+      | Sc_lazy), _ -> false
+
   type scopes =
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;

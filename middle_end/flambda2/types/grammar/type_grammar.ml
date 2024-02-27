@@ -2403,7 +2403,8 @@ module Row_like_for_blocks = struct
     }
 
   let is_bottom { known_tags; other_tags; alloc_mode = _ } =
-    Tag.Map.is_empty known_tags && other_tags = Or_bottom.Bottom
+    Tag.Map.is_empty known_tags
+    && match other_tags with Bottom -> true | Ok _ -> false
 
   let all_tags { known_tags; other_tags; alloc_mode = _ } :
       Tag.Set.t Or_unknown.t =

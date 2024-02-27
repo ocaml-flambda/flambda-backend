@@ -23,6 +23,8 @@ module Scoped_location : sig
     | Sc_partial_or_eta_wrapper
     | Sc_lazy
 
+  val equal_scope_item : scope_item -> scope_item -> bool
+
   type scopes = private
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;

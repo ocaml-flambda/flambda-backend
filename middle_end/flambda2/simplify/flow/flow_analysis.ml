@@ -60,11 +60,12 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       let ({ T.Acc.stack; map; extra = _; dummy_toplevel_cont } as t) =
         Flow_acc.extend_args_with_extra_args t
       in
-      assert (stack = []);
+      assert (match stack with [] -> true | _ :: _ -> false);
       assert (
         not
-          (Continuation.name dummy_toplevel_cont
-          = Flow_acc.wrong_dummy_toplevel_cont_name));
+          (String.equal
+             (Continuation.name dummy_toplevel_cont)
+             Flow_acc.wrong_dummy_toplevel_cont_name));
       if Flambda_features.dump_flow ()
       then Format.eprintf "SOURCE:@\n%a@\n@." T.Acc.print t;
       (* dependency graph *)

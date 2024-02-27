@@ -42,7 +42,7 @@ let must_be_singleton_simple simples =
       simples
 
 let print_compact_location ppf (loc : Location.t) =
-  if loc.loc_start.pos_fname = "//toplevel//"
+  if String.equal loc.loc_start.pos_fname "//toplevel//"
   then ()
   else
     let file, line, startchar = Location.get_pos_info loc.loc_start in
@@ -1489,7 +1489,14 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all
-          (fun kind -> kind = Lambda.(Pboxedfloatval Pfloat64))
+          (fun (kind : Lambda.value_kind) ->
+            match kind with
+            | Pboxedfloatval Pfloat64 -> true
+            | Pboxedfloatval Pfloat32
+            (* CR mshinwell: should this unboxing apply for Pfloat32? *)
+            | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
+            | Pboxedvectorval _ ->
+              false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)

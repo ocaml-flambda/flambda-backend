@@ -32,7 +32,18 @@ module Naked_number_kind = struct
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
     | Naked_vec128 -> Format.pp_print_string ppf "Naked_vec128"
 
-  let equal (t1 : t) t2 = t1 = t2
+  let equal t1 t2 =
+    match t1, t2 with
+    | Naked_immediate, Naked_immediate -> true
+    | Naked_float, Naked_float -> true
+    | Naked_int32, Naked_int32 -> true
+    | Naked_int64, Naked_int64 -> true
+    | Naked_nativeint, Naked_nativeint -> true
+    | Naked_vec128, Naked_vec128 -> true
+    | ( ( Naked_immediate | Naked_float | Naked_int32 | Naked_int64
+        | Naked_nativeint | Naked_vec128 ),
+        _ ) ->
+      false
 end
 
 type t =

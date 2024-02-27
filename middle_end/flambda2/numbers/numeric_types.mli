@@ -50,8 +50,6 @@ module Int16 : sig
   val to_int : t -> int
 end
 
-module Float : Container_types.S with type t = float
-
 module Float_by_bit_pattern : sig
   (** Floating point numbers whose comparison and equality relations are the
       usual [Int64] relations on the bit patterns of the floats. This in
