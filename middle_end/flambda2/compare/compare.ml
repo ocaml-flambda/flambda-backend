@@ -1,6 +1,5 @@
 [@@@ocaml.warning "-fragile-match"]
 
-open! Int_replace_polymorphic_compare
 open! Flambda
 
 (* General notes on comparison

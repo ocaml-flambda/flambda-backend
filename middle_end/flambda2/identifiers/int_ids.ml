@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Int_replace_polymorphic_compare
-
 let hash_seed =
   let seed = Random.bits () in
   if seed mod 2 = 0 then seed + 1 else seed
