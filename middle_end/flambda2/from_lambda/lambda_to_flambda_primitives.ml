@@ -1607,6 +1607,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
         Naked_floats array index ]
   | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+    if Targetint.size <> 64
+    then Misc.fatal_error "[Pint_array_load_128]: immediates must be 64 bits.";
     [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
         Immediates array index ]
   | Punboxed_int64_array_load_128 { unsafe; mode }, [[array]; [index]] ->
@@ -1631,12 +1633,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
         new_value ]
   | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+    if Targetint.size <> 64
+    then Misc.fatal_error "[Pint_array_set_128]: immediates must be 64 bits.";
     [array_like_set_128 ~dbg ~size_int ~unsafe Immediates array index new_value]
   | Punboxed_int64_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
     [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_int64s array index
         new_value ]
   | Punboxed_nativeint_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
     ->
+    if Targetint.size <> 64
+    then
+      Misc.fatal_error
+        "[Punboxed_nativeint_array_load_128]: nativeint must be 64 bits.";
     [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_nativeints array index
         new_value ]
   | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
