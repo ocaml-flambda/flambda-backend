@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-42"]
 
 (* SIMD instruction selection for AMD64 *)
 
@@ -27,7 +27,7 @@ let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
 
 (* Assumes untagged int *)
-let extract_constant args name ~max =
+let[@ocaml.warning "-4"] extract_constant args name ~max =
   match args with
   | Cmm.Cconst_int (i, _) :: args ->
     if i < 0 || i > max

@@ -400,6 +400,21 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
+let destroyed_by_simd_op op =
+  match Simd_proc.register_behavior op with
+  | R_RM_rax_rdx_to_xmm0
+  | R_RM_to_xmm0 -> destroy_xmm 0
+  | R_RM_rax_rdx_to_rcx
+  | R_RM_to_rcx -> [| rcx |]
+  | R_to_fst
+  | R_to_R
+  | R_to_RM
+  | RM_to_R
+  | R_R_to_fst
+  | R_RM_to_fst
+  | R_RM_to_R
+  | R_RM_xmm0_to_fst -> [||]
+
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _) ->
@@ -421,20 +436,7 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isimd op)) ->
-    (match Simd_proc.register_behavior op with
-    | R_RM_rax_rdx_to_xmm0
-    | R_RM_to_xmm0 -> destroy_xmm 0
-    | R_RM_rax_rdx_to_rcx
-    | R_RM_to_rcx -> [| rcx |]
-    | R_to_fst
-    | R_to_R
-    | R_to_RM
-    | RM_to_R
-    | R_R_to_fst
-    | R_RM_to_fst
-    | R_RM_to_R
-    | R_RM_xmm0_to_fst -> [||])
+  | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Iprefetch _
@@ -488,20 +490,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op (Specific (Isimd op)) ->
-    (match Simd_proc.register_behavior op with
-    | R_RM_rax_rdx_to_xmm0
-    | R_RM_to_xmm0 -> destroy_xmm 0
-    | R_RM_rax_rdx_to_rcx
-    | R_RM_to_rcx -> [| rcx |]
-    | R_to_fst
-    | R_to_R
-    | R_to_RM
-    | RM_to_R
-    | R_R_to_fst
-    | R_RM_to_fst
-    | R_RM_to_R
-    | R_RM_xmm0_to_fst -> [||])
+  | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
