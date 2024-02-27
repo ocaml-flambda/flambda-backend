@@ -808,7 +808,8 @@ static void verify_object(struct heap_verify_state* st, value v) {
     if (Tag_val(v) == Closure_tag) {
       i = Start_env_closinfo(Closinfo_val(v));
     }
-    for (; i < Wosize_val(v); i++) {
+    mlsize_t size = Wosize_val(v);
+    for (; i < size; i++) {
       value f = Field(v, i);
       if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
     }

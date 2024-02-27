@@ -94,7 +94,7 @@ type directive_info = {
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name signature =
+let remember phrase_name signature =
   let exported = List.filter Includemod.is_runtime_component signature in
   List.iteri (fun i sg ->
     match sg with
@@ -348,7 +348,7 @@ let name_expression ~loc ~attrs sort exp =
   in
   let sg = [Sig_value(id, vd, Exported)] in
   let pat =
-    { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid, Mode.Value.legacy);
+    { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid, Mode.Value.disallow_right Mode.Value.legacy);
       pat_loc = loc;
       pat_extra = [];
       pat_type = exp.exp_type;

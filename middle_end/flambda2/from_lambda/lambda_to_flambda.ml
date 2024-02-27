@@ -302,7 +302,7 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 1 + num_dimensions in
         let name = "caml_ba_get_" ^ string_of_int num_dimensions in
-        let desc = Primitive.simple_on_values ~name ~arity ~alloc:true in
+        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else
         Misc.fatal_errorf
@@ -319,7 +319,7 @@ let transform_primitive env (prim : L.primitive) args loc =
       then
         let arity = 2 + num_dimensions in
         let name = "caml_ba_set_" ^ string_of_int num_dimensions in
-        let desc = Primitive.simple_on_values ~name ~arity ~alloc:true in
+        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
         Primitive (L.Pccall desc, args, loc)
       else
         Misc.fatal_errorf
@@ -584,13 +584,13 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_32 false
   | Pbytes_set_64 false
   | Pbytes_set_128 { unsafe = false; _ }
-  | Pbigstring_load_16 false
-  | Pbigstring_load_32 (false, _)
-  | Pbigstring_load_64 (false, _)
+  | Pbigstring_load_16 { unsafe = false }
+  | Pbigstring_load_32 { unsafe = false; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = false; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = false; _ }
-  | Pbigstring_set_16 false
-  | Pbigstring_set_32 false
-  | Pbigstring_set_64 false
+  | Pbigstring_set_16 { unsafe = false }
+  | Pbigstring_set_32 { unsafe = false; boxed = _ }
+  | Pbigstring_set_64 { unsafe = false; boxed = _ }
   | Pbigstring_set_128 { unsafe = false; _ }
   | Pfloatarray_load_128 { unsafe = false; _ }
   | Pfloat_array_load_128 { unsafe = false; _ }
@@ -670,13 +670,13 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_set_32 true
   | Pbytes_set_64 true
   | Pbytes_set_128 { unsafe = true; _ }
-  | Pbigstring_load_16 true
-  | Pbigstring_load_32 (true, _)
-  | Pbigstring_load_64 (true, _)
+  | Pbigstring_load_16 { unsafe = true }
+  | Pbigstring_load_32 { unsafe = true; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = true; mode = _; boxed = _ }
   | Pbigstring_load_128 { unsafe = true; _ }
-  | Pbigstring_set_16 true
-  | Pbigstring_set_32 true
-  | Pbigstring_set_64 true
+  | Pbigstring_set_16 { unsafe = true }
+  | Pbigstring_set_32 { unsafe = true; boxed = _ }
+  | Pbigstring_set_64 { unsafe = true; boxed = _ }
   | Pbigstring_set_128 { unsafe = true; _ }
   | Pfloatarray_load_128 { unsafe = true; _ }
   | Pfloat_array_load_128 { unsafe = true; _ }

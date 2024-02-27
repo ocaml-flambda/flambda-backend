@@ -17,6 +17,7 @@
 
 open Asttypes
 open Types
+open Mode
 
 type constant =
     Const_int of int
@@ -48,11 +49,13 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-type unique_barrier = Mode.Uniqueness.t option
+type unique_barrier = Mode.Uniqueness.r option
 
-type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
+type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
-let shared_many_use = (Mode.Uniqueness.shared, Mode.Linearity.many)
+let shared_many_use =
+  ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
+    Mode.Linearity.disallow_right Mode.Linearity.many )
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
@@ -75,9 +78,9 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
   | Tpat_construct :
@@ -128,30 +131,30 @@ and expression_desc =
       { params : function_param list;
         body : function_body;
         region : bool;
-        ret_mode : Mode.Alloc.t;
+        ret_mode : Mode.Alloc.l;
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.t;
+        alloc_mode : Mode.Alloc.r;
       }
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
-        Mode.Locality.t
+        Mode.Locality.l
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.t
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Mode.Alloc.t option
-  | Texp_variant of label * (expression * Mode.Alloc.t) option
+      Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
+  | Texp_variant of label * (expression * Mode.Alloc.r) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.t option
+      alloc_mode : Mode.Alloc.r option
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * unique_use * Mode.Alloc.t option
+      expression * Longident.t loc * label_description * unique_use * Mode.Alloc.r option
   | Texp_setfield of
-      expression * Mode.Locality.t * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.t
+      expression * Mode.Locality.l * Longident.t loc * label_description * expression
+  | Texp_array of mutable_flag * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -201,7 +204,7 @@ and expression_desc =
   | Texp_exclave of expression
 
 and function_curry =
-  | More_args of { partial_mode : Mode.Alloc.t }
+  | More_args of { partial_mode : Mode.Alloc.l }
   | Final_arg
 
 and function_param =
@@ -211,7 +214,7 @@ and function_param =
     fp_partial: partial;
     fp_kind: function_param_kind;
     fp_sort: Jkind.sort;
-    fp_mode: Mode.Alloc.t;
+    fp_mode: Mode.Alloc.l;
     fp_curry: function_curry;
     fp_newtypes: (string loc * Jkind.annotation option) list;
     fp_loc: Location.t;
@@ -227,7 +230,7 @@ and function_body =
 
 and function_cases =
   { fc_cases: value case list;
-    fc_arg_mode: Mode.Alloc.t;
+    fc_arg_mode: Mode.Alloc.l;
     fc_arg_sort: Jkind.sort;
     fc_partial: partial;
     fc_param: Ident.t;
@@ -236,7 +239,9 @@ and function_cases =
     fc_attributes: attributes;
   }
 
-and ident_kind = Id_value | Id_prim of Mode.Locality.t option
+and ident_kind =
+  | Id_value
+  | Id_prim of Mode.Locality.l option * Jkind.Sort.t option
 
 and meth =
   | Tmeth_name of string
@@ -298,9 +303,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : Mode.Alloc.t;
-    mode_arg : Mode.Alloc.t;
-    mode_ret : Mode.Alloc.t;
+  { mode_closure : Mode.Alloc.r;
+    mode_arg : Mode.Alloc.l;
+    mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort }
 
 and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
@@ -470,7 +475,8 @@ and primitive_coercion =
   {
     pc_desc: Primitive.description;
     pc_type: type_expr;
-    pc_poly_mode: Mode.Locality.t option;
+    pc_poly_mode: Mode.Locality.l option;
+    pc_poly_sort: Jkind.Sort.t option;
     pc_env: Env.t;
     pc_loc : Location.t;
   }
@@ -656,7 +662,7 @@ and label_declaration =
      ld_id: Ident.t;
      ld_name: string loc;
      ld_mutable: mutable_flag;
-     ld_global: global_flag;
+     ld_global: Global_flag.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -674,7 +680,7 @@ and constructor_declaration =
     }
 
 and constructor_arguments =
-  | Cstr_tuple of (core_type * global_flag) list
+  | Cstr_tuple of (core_type * Global_flag.t) list
   | Cstr_record of label_declaration list
 
 and type_extension =
@@ -916,7 +922,7 @@ let rec iter_bound_idents
        d
 
 type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.t -> Jkind.sort -> unit
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> Jkind.sort -> unit
 
 (* The intent is that the sort should be the sort of the type of the pattern.
    It's used to avoid computing jkinds from types.  `f` then gets passed

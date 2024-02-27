@@ -17,6 +17,7 @@
 
 open Asttypes
 open Types
+open Mode
 open Typedtree
 module Uniqueness = Mode.Uniqueness
 module Linearity = Mode.Linearity
@@ -62,7 +63,7 @@ module Maybe_unique : sig
   (** Returns the uniqueness represented by this usage. If this identifier is
       expected to be unique in any branch, it will return unique. If the current
       usage is forced, it will return shared. *)
-  val uniqueness : t -> Uniqueness.t
+  val uniqueness : t -> Uniqueness.r
 end = struct
   (** Occurrences with modes to be forced shared and many in the future if
       needed. This is a list because of multiple control flows. For example, if
@@ -93,11 +94,11 @@ end = struct
          - the expected mode must be higher than [shared]
          - the access mode must be lower than [many] *)
       match Linearity.submode lin Linearity.many with
-      | Error () -> Error { occ; axis = Linearity }
+      | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
         match Uniqueness.submode Uniqueness.shared uni with
         | Ok () -> Ok ()
-        | Error () -> Error { occ; axis = Uniqueness })
+        | Error _ -> Error { occ; axis = Uniqueness })
     in
     iter_error force_one l
 
@@ -125,7 +126,7 @@ module Maybe_shared : sig
        must be Borrowed (hence no code motion); if that mode is not restricted
        to Unique, this usage can be Borrowed or Shared (prefered). Raise if
         called more than once. *)
-  val set_barrier : t -> Uniqueness.t -> unit
+  val set_barrier : t -> Uniqueness.r -> unit
 
   val meet : t -> t -> t
 
@@ -738,18 +739,18 @@ module Paths : sig
 
   (** [modal_child gf proj t] is [child prof t] when [gf] is [Unrestricted]
       and is [untracked] otherwise. *)
-  val modal_child : global_flag -> Projection.t -> t -> t
+  val modal_child : Global_flag.t -> Projection.t -> t -> t
 
   (** [tuple_field i t] is [child (Projection.Tuple_field i) t]. *)
   val tuple_field : int -> t -> t
 
   (** [record_field gf s t] is
       [modal_child gf (Projection.Record_field s) t]. *)
-  val record_field : global_flag -> string -> t -> t
+  val record_field : Global_flag.t -> string -> t -> t
 
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
-  val construct_field : global_flag -> string -> int -> t -> t
+  val construct_field : Global_flag.t -> string -> int -> t -> t
 
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
@@ -777,7 +778,9 @@ end = struct
   let child proj t = List.map (UF.Path.child proj) t
 
   let modal_child gf proj t =
-    match gf with Global -> untracked | Unrestricted -> child proj t
+    match gf with
+    | Global_flag.Global -> untracked
+    | Global_flag.Unrestricted -> child proj t
 
   let tuple_field i t = child (Projection.Tuple_field i) t
 
@@ -836,7 +839,7 @@ module Value : sig
       are the paths of [t] and [o] is [t]'s occurrence. This is used for the
       implicit record field values for kept fields in a [{ foo with ... }]
       expression. *)
-  val implicit_record_field : global_flag -> string -> t -> unique_use -> t
+  val implicit_record_field : Global_flag.t -> string -> t -> unique_use -> t
 
   (** Mark the value as shared_or_unique   *)
   val mark_maybe_unique : t -> UF.t

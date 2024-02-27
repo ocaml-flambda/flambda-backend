@@ -251,7 +251,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
     for(glob = caml_globals[i]; *glob != 0; glob++) {
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start);
-      for (j = start; j < Wosize_val(glob_block); j++) {
+      mlsize_t size = Wosize_val(glob_block);
+      for (j = start; j < size; j++) {
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
@@ -262,7 +263,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
     for(glob = (value *) lnk->data; *glob != 0; glob++) {
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start);
-      for (j = start; j < Wosize_val(glob_block); j++) {
+      mlsize_t size = Wosize_val(glob_block);
+      for (j = start; j < size; j++) {
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }

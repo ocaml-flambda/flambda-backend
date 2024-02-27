@@ -145,17 +145,17 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbytes_set (Thirty_two, convert_unsafety is_unsafe)
   | Pbytes_set_64 is_unsafe ->
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
-  | Pbigstring_load_16 is_unsafe ->
+  | Pbigstring_load_16 { unsafe = is_unsafe } ->
       Pbigstring_load (Sixteen, convert_unsafety is_unsafe, Lambda.alloc_heap)
-  | Pbigstring_load_32 (is_unsafe, m) ->
+  | Pbigstring_load_32 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Thirty_two, convert_unsafety is_unsafe, m)
-  | Pbigstring_load_64 (is_unsafe, m) ->
+  | Pbigstring_load_64 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Sixty_four, convert_unsafety is_unsafe, m)
-  | Pbigstring_set_16 is_unsafe ->
+  | Pbigstring_set_16 { unsafe = is_unsafe } ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
-  | Pbigstring_set_32 is_unsafe ->
+  | Pbigstring_set_32 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Thirty_two, convert_unsafety is_unsafe)
-  | Pbigstring_set_64 is_unsafe ->
+  | Pbigstring_set_64 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
@@ -169,6 +169,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
   | Pobj_dup ->
     let module P = Primitive in
+    let module L = Lambda in
     Pccall (Primitive.make
       ~name:"caml_obj_dup"
       ~alloc:true
@@ -176,8 +177,9 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~effects:Only_generative_effects
       ~coeffects:Has_coeffects
       ~native_name:"caml_obj_dup"
-      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
-      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
+      ~native_repr_args:[P.Prim_global, L.Same_as_ocaml_repr Jkind.Sort.Value]
+      ~native_repr_res:(P.Prim_global, L.Same_as_ocaml_repr Jkind.Sort.Value)
+      ~is_layout_poly:false)
   | Punbox_float bf -> Punbox_float bf
   | Pbox_float (bf,m) -> Pbox_float (bf,m)
   | Punbox_int bi -> Punbox_int bi
@@ -194,6 +196,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pgetpredef _
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pbigstring_load_32 _
+  | Pbigstring_set_32 _
+  | Pbigstring_load_64 _
+  | Pbigstring_set_64 _
   | Pbigstring_load_128 _
   | Pbigstring_set_128 _
   | Pstring_load_128 _

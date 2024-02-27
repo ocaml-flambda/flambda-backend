@@ -71,7 +71,12 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc =
+  | Cstr_tuple
+  | Record
+  | Unboxed_record
+  | External
+  | External_with_layout_poly
 
 type reaching_type_path = reaching_type_step list
 and reaching_type_step =
@@ -135,6 +140,8 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Unexpected_jkind_any_in_primitive of string
+  | Useless_layout_poly
 
 exception Error of Location.t * error
 

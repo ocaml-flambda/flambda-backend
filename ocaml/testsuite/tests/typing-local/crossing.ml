@@ -54,6 +54,7 @@ Line 2, characters 14-15:
 2 |   fun x -> f' x
                   ^
 Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* 2. constructor argument crosses mode at construction *)
@@ -214,6 +215,7 @@ Line 6, characters 6-22:
 6 |     g (local_ "world")
           ^^^^^^^^^^^^^^^^
 Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* the result of function application crosses mode *)
@@ -447,4 +449,13 @@ let foo () =
   ()
 [%%expect{|
 val foo : unit -> unit = <fun>
+|}]
+
+(* Values crosses modes when pattern-matching, an implication is that, closing
+   over [local int] won't force the closure to be [local]. *)
+let foo (local_ x : int) =
+  let bar y = x + y in
+  ref bar
+[%%expect{|
+val foo : local_ int -> (int -> int) ref = <fun>
 |}]

@@ -328,7 +328,8 @@ CAMLexport void caml_set_fields (value obj, value v)
   int i;
   CAMLassert (Is_block(obj));
 
-  for (i = 0; i < Wosize_val(obj); i++) {
+  mlsize_t size = Wosize_val(obj);
+  for (i = 0; i < size; i++) {
     caml_modify(&Field(obj, i), v);
   }
 }

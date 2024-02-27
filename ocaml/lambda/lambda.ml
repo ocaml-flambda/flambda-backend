@@ -163,7 +163,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -244,14 +244,15 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool * alloc_mode
-  | Pbigstring_load_64 of bool * alloc_mode
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
-  | Pbigstring_set_16 of bool
-  | Pbigstring_set_32 of bool
-  | Pbigstring_set_64 of bool
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+      boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
   | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -296,6 +297,15 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+
+and extern_repr =
+  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Unboxed_float of boxed_float
+  | Unboxed_vector of Primitive.boxed_vector
+  | Unboxed_integer of Primitive.boxed_integer
+  | Untagged_int
+
+and external_call_description = extern_repr Primitive.description_gen
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -787,7 +797,17 @@ let layout_unboxed_nativeint = Punboxed_int Pnativeint
 let layout_unboxed_int32 = Punboxed_int Pint32
 let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
+let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+
+let layout_unboxed_vector (v : Primitive.boxed_vector) =
+  match v with
+  | Pvec128 Int8x16 -> Punboxed_vector (Pvec128 Int8x16)
+  | Pvec128 Int16x8 -> Punboxed_vector (Pvec128 Int16x8)
+  | Pvec128 Int32x4 -> Punboxed_vector (Pvec128 Int32x4)
+  | Pvec128 Int64x2 -> Punboxed_vector (Pvec128 Int64x2)
+  | Pvec128 Float32x4 -> Punboxed_vector (Pvec128 Float32x4)
+  | Pvec128 Float64x2 -> Punboxed_vector (Pvec128 Float64x2)
 
 let layout_boxed_vector : Primitive.boxed_vector -> layout = function
   | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
@@ -1506,7 +1526,7 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
-let alloc_mode_of_primitive_description (p : Primitive.description) =
+let alloc_mode_of_primitive_description (p : external_call_description) =
   if not Config.stack_allocation then
     if p.prim_alloc then Some alloc_heap else None
   else
@@ -1607,8 +1627,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
-  | Pbigstring_load_128 { mode = m; _ } -> Some m
+  | Pbigstring_load_32 { mode = m; boxed = true; _ }
+  | Pbigstring_load_64 { mode = m; boxed = true; _ }
+  | Pbigstring_load_128 { mode = m; boxed = true; _ } -> Some m
+  | Pbigstring_load_32 { boxed = false; _ }
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } -> None
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
@@ -1650,7 +1674,7 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
-let layout_of_native_repr : Primitive.native_repr -> _ = function
+let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
@@ -1701,7 +1725,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1729,12 +1753,19 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
   | Punbox_int bi -> Punboxed_int bi
-  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
+  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
-  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
+  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
-  | Pstring_load_128 _ | Pbytes_load_128 _ | Pbigstring_load_128 _ ->
+  | Pstring_load_128 _ | Pbytes_load_128 _
+  | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
+  | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
+  | Pbigstring_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector (Pvec128 Int8x16)
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
   | Punboxed_float_array_load_128 _ ->
     layout_boxed_vector (Pvec128 Float64x2)
@@ -1891,3 +1922,17 @@ let may_allocate_in_region lam =
     | () -> false
     | exception Exit -> true
   end
+
+let simple_prim_on_values ~name ~arity ~alloc =
+  Primitive.make
+    ~name
+    ~alloc
+    ~c_builtin:false
+    ~effects:Arbitrary_effects
+    ~coeffects:Has_coeffects
+    ~native_name:""
+    ~native_repr_args:
+      (Primitive.make_prim_repr_args arity
+        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
+    ~is_layout_poly:false

@@ -20,7 +20,7 @@ open Asttypes
 open Types
 open Btype
 open Errortrace
-
+open Mode
 open Local_store
 module Int = Misc.Stdlib.Int
 
@@ -538,8 +538,8 @@ let remove_mode_and_jkind_variables ty =
       | Tvar { jkind } -> Jkind.default_to_value jkind
       | Tunivar { jkind } -> Jkind.default_to_value jkind
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Mode.Alloc.constrain_legacy marg in
-         let _ = Mode.Alloc.constrain_legacy mret in
+         let _ = Alloc.zap_to_legacy marg in
+         let _ = Alloc.zap_to_legacy mret in
          go targ; go tret
       | _ -> iter_type_expr go ty
     end
@@ -1571,27 +1571,40 @@ let instance_label fixed lbl =
   )
 
 let prim_mode mvar = function
-  | Primitive.Prim_global, _ -> Mode.Locality.global
-  | Primitive.Prim_local, _ -> Mode.Locality.local
+  | Primitive.Prim_global, _ -> Locality.allow_right Locality.global
+  | Primitive.Prim_local, _ -> Locality.allow_right Locality.local
   | Primitive.Prim_poly, _ ->
     match mvar with
     | Some mvar -> mvar
     | None -> assert false
 
+(** Returns a new mode variable whose locality is the given locality, while
+    all other axes are from the given [m]. This function is too specific to be
+    put in [mode.ml] *)
+let with_locality locality m =
+  let m' = Alloc.newvar () in
+  Locality.equate_exn (Alloc.locality m') locality;
+  Alloc.submode_exn m' (Alloc.set_locality_max m);
+  Alloc.submode_exn (Alloc.set_locality_min m) m';
+  m'
+
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
-     let marg = Mode.Alloc.with_locality (prim_mode (Some mvar) l) marg in
+     let marg = with_locality  (prim_mode (Some mvar) l) marg in
      let macc =
-       Mode.Alloc.join [mret;
-         Mode.Alloc.close_over marg;
-         Mode.Alloc.partial_apply macc
+       Alloc.join [
+        Alloc.disallow_right mret;
+        Alloc.close_over marg;
+        Alloc.partial_apply macc
        ]
      in
      let mret =
        match locals with
-       | [] -> Mode.Alloc.with_locality finalret mret
-       | _ :: _ -> macc (* curried arrow *)
+       | [] -> with_locality finalret mret
+       | _ :: _ ->
+          let mret', _ = Alloc.newvar_above macc in (* curried arrow *)
+          mret'
      in
      let ret = instance_prim_locals locals mvar macc finalret ret in
      newty2 ~level:(get_level ty) (Tarrow ((lbl,marg,mret),arg,ret, commu))
@@ -1599,17 +1612,86 @@ let rec instance_prim_locals locals mvar macc finalret ty =
   | [], _ ->
      ty
 
+(* This function makes a copy of [ty] if [desc] is marked [prim_is_layout_poly]
+   AND at least one generic type variable with jkind [any] is present. The
+   function returns [ty] unchanged otherwise.
+
+   When making the copy, all generic type variables with jkind [any] will be
+   modified to have a sort var jkind. The same sort var will be used for all
+   such rewrites.
+
+   The copy should also have the same level information as [ty].  This is done
+   in three steps:
+   1. Change [ty] directly within a copy scope to have the sort var in place of
+      jkind [any].
+   2. Call [generic_instance] on this modified [ty] to make the actual copy we
+      return (non-generic & generic levels should be preserved).
+   3. Exit the copy scope thus restoring [ty] to its original state.
+
+   No non-generic type variables should be present in [ty] due to it being the
+   type of an external declaration. However, the code is written without
+   relaying this assumption. *)
+let instance_prim_layout (desc : Primitive.description) ty =
+  if not desc.prim_is_layout_poly
+  then ty, None
+  else
+  let new_sort_and_jkind = ref None in
+  let get_jkind () =
+    match !new_sort_and_jkind with
+    | Some (_, jkind) ->
+      jkind
+    | None ->
+      let jkind, sort =
+        Jkind.of_new_sort_var ~why:Layout_poly_in_external
+      in
+      new_sort_and_jkind := Some (sort, jkind);
+      jkind
+  in
+  For_copy.with_scope (fun copy_scope ->
+    let rec inner ty =
+      let level = get_level ty in
+      (* only change type vars on generic_level to avoid modifying ones captured
+         from an outer scope *)
+      if level = generic_level && try_mark_node ty then begin
+        begin match get_desc ty with
+        | Tvar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+          For_copy.redirect_desc copy_scope ty
+            (Tvar {r with jkind = get_jkind ()})
+        | Tunivar ({ jkind; _ } as r) when Jkind.is_any jkind ->
+          For_copy.redirect_desc copy_scope ty
+            (Tunivar {r with jkind = get_jkind ()})
+        | _ -> ()
+        end;
+        iter_type_expr inner ty
+      end
+    in
+    inner ty;
+    unmark_type ty;
+    match !new_sort_and_jkind with
+    | Some (sort, _) ->
+      (* We don't want to lower the type vars from generic_level due to usages
+         in [includecore.ml]. This means an extra [instance] call is needed in
+         [type_ident], but we only hit it if it's layout polymorphic. *)
+      generic_instance ty, Some sort
+    | None -> ty, None)
+
+
 let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Mode.Locality.newvar () in
+    let mode = Locality.newvar () in
     let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
-      mode Mode.Alloc.legacy finalret ty,
+      mode (Alloc.disallow_right Alloc.legacy) finalret ty,
     Some mode
   else
     ty, None
+
+let instance_prim (desc : Primitive.description) ty =
+  let ty, sort = instance_prim_layout desc ty in
+  let ty, mode = instance_prim_mode desc ty in
+  ty, mode, sort
 
 (**** Instantiation with parameter substitution ****)
 
@@ -2005,7 +2087,7 @@ let rec estimate_type_jkind env ty =
        This notably prevents [constrain_type_jkind] from changing layout
        [any] to a sort or changing the externality once the Tvar gets
        generalized.
-       
+
        This, however, still allows sort variables to get instantiated. *)
     Jkind jkind
   | Tvar { jkind } -> TyVar (jkind, ty)
@@ -2149,16 +2231,56 @@ let unification_jkind_check env ty jkind =
   | Delay_checks r -> r := (ty,jkind) :: !r
   | Skip_checks -> ()
 
-let update_generalized_ty_jkind_reason ty reason =
+exception Incompatible_with_erasability_requirements of
+  Ident.t option * Location.t
+
+let () =
+  Location.register_error_of_exn (function
+  | Incompatible_with_erasability_requirements (id, loc) ->
+    let format_id ppf = function
+      | Some id -> Format.fprintf ppf " in %s" (Ident.name id)
+      | None -> ()
+    in
+    Some (Location.errorf ~loc
+      "@[Usage of layout immediate/immediate64%a can't be erased.@;\
+      This error is produced due to the use of -only-erasable-extensions.@]"
+      format_id id)
+  | _ -> None)
+
+let check_and_update_generalized_ty_jkind ?name ~loc ty =
+  let immediacy_check jkind =
+    let is_immediate jkind =
+      let snap = Btype.snapshot () in
+      let result =
+        Result.is_ok (
+          Jkind.sub
+            jkind
+            (Jkind.immediate64 ~why:Erasability_check))
+      in
+      Btype.backtrack snap;
+      result
+    in
+    if Language_extension.erasable_extensions_only ()
+      && is_immediate jkind
+    then
+      raise (Incompatible_with_erasability_requirements (name, loc))
+    else ()
+  in
   let rec inner ty =
     let level = get_level ty in
     if level = generic_level && try_mark_node ty then begin
       begin match get_desc ty with
       | Tvar ({ jkind; _ } as r) ->
-        let new_jkind = Jkind.(update_reason jkind reason) in
+        immediacy_check jkind;
+        let new_jkind =
+          Jkind.(update_reason jkind (Generalized (name, loc)))
+        in
         set_type_desc ty (Tvar {r with jkind = new_jkind})
       | Tunivar ({ jkind; _ } as r) ->
-        let new_jkind = Jkind.(update_reason jkind reason) in
+        immediacy_check jkind;
+        let new_jkind =
+          Jkind.(update_reason jkind (Generalized (name, loc)))
+        in
         set_type_desc ty (Tunivar {r with jkind = new_jkind})
       | _ -> ()
       end;
@@ -3159,7 +3281,7 @@ let unify_package env unify_list lv1 p1 fl1 lv2 p2 fl2 =
   && !package_subtype env p2 fl2 p1 fl1 then () else raise Not_found
 
 let unify_alloc_mode_for tr_exn a b =
-  match Mode.Alloc.equate a b with
+  match Alloc.equate a b with
   | Ok () -> ()
   | Error _ -> raise_unexplained_for tr_exn
 
@@ -3875,9 +3997,9 @@ exception Filter_arrow_failed of filter_arrow_failure
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : Mode.Alloc.t;
+    arg_mode : Mode.Alloc.lr;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t
+    ret_mode : Mode.Alloc.lr
   }
 
 let filter_arrow env t l ~force_tpoly =
@@ -3904,8 +4026,8 @@ let filter_arrow env t l ~force_tpoly =
       end
     in
     let ty_ret = newvar2 level k_res in
-    let arg_mode = Mode.Alloc.newvar () in
-    let ret_mode = Mode.Alloc.newvar () in
+    let arg_mode = Alloc.newvar () in
+    let ret_mode = Alloc.newvar () in
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
@@ -4403,9 +4525,9 @@ let relevant_pairs pairs v =
 let moregen_alloc_mode v a1 a2 =
   match
     match v with
-    | Invariant -> Mode.Alloc.equate a1 a2
-    | Covariant -> Mode.Alloc.submode a1 a2
-    | Contravariant -> Mode.Alloc.submode a2 a1
+    | Invariant -> Result.map_error ignore (Alloc.equate a1 a2)
+    | Covariant -> Result.map_error ignore (Alloc.submode a1 a2)
+    | Contravariant -> Result.map_error ignore (Alloc.submode a2 a1)
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
@@ -5407,11 +5529,11 @@ let has_constr_row' env t =
 
 let build_submode posi m =
   if posi then begin
-    let m', changed = Mode.Alloc.newvar_below m in
+    let m', changed = Alloc.newvar_below m in
     let c = if changed then Changed else Unchanged in
     m', c
   end else begin
-    let m', changed = Mode.Alloc.newvar_above m in
+    let m', changed = Alloc.newvar_above m in
     let c = if changed then Changed else Unchanged in
     m', c
   end
@@ -5640,7 +5762,7 @@ let subtype_error ~env ~trace ~unification_trace =
                     ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
-  match Mode.Alloc.submode a1 a2 with
+  match Alloc.submode a1 a2 with
   | Ok () -> ()
   | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
 

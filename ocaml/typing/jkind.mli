@@ -198,6 +198,7 @@ type concrete_jkind_reason =
   | Wildcard
   | Unification_var
   | Optional_arg_default
+  | Layout_poly_in_external
 
 type annotation_context =
   | Type_declaration of Path.t
@@ -266,6 +267,8 @@ type immediate64_creation_reason =
   | Gc_ignorable_check
   (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
   | Separability_check
+  | Erasability_check
+(* CR layouts v2.8: Remove after the check uses modal kinds *)
 
 (* CR layouts v5: make new void_creation_reasons *)
 type void_creation_reason = |

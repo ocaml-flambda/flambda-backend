@@ -73,17 +73,18 @@ type ('a : immediate) for_layouts = 'a;;
 ([(x[@test.attr1]) for (x[@test.attr2]) in ([][@test.attr3])] [@test.attr4]);;
 
 (*********)
-(* Local *)
+(* Modes *)
 
 (* parameters *)
-let f (local_ x) ~(local_ y) ~z:(local_ z) ?foo:(local_ w = 1) () = x + y + z + w;;
+let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
+  ?foo:(local_ unique_ once_ w = 1) () = ();;
 
 (* bindings *)
 let g () =
-  let local_ f = () in
-  let local_ f : 'a . 'a -> 'a = fun x -> x in
-  let local_ f x y = x + y in
-  let local_ f : int -> int = fun z -> z + z in
+  let local_ unique_ f = () in
+  let unique_ once_ f : 'a . 'a -> 'a = fun x -> x in
+  let once_ local_ f x y = x + y in
+  let local_ unique_ once_ f : int -> int = fun z -> z + z in
   (* nroberts: we should reenable this test when we fix
    * pprint_ast to put the (int -> int) annotation back in
    * the correct position. *)
@@ -91,10 +92,15 @@ let g () =
   ();;
 
 (* expressions *)
-let g () = local_
-  let f = local_ () in
-  let f x y = local_ (x + y) in
-  local_ ();;
+let g () = local_ unique_
+  let f = unique_ once_ () in
+  let f x y = once_ local_ (x + y) in
+  local_ unique_ once_ ();;
+
+(* exclaves *)
+let f () = exclave_
+  let f x y = exclave_ (x + y) in
+  ()
 
 (* types *)
 type record =
@@ -106,10 +112,10 @@ type 'a parameterized_record = {
   mutable a: 'a ;
   global_ c: 'a };;
 
-type fn = local_ int -> local_ int;;
-type nested_fn = (local_ int -> local_ int) -> local_ int;;
+type fn = local_ unique_ int -> local_ once_ int;;
+type nested_fn = (local_ unique_ int -> local_ once_ int) -> local_ unique_ once_ int;;
 type ('a, 'b) labeled_fn =
-  a:local_ 'a -> ?b:local_ 'b -> local_ 'a -> (int -> local_ 'b);;
+  a:local_ unique_ 'a -> ?b:local_ once_ 'b -> unique_ once_ 'a -> (int -> once_ unique_ 'b);;
 
 (*******************)
 (* Include functor *)

@@ -34,6 +34,7 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
@@ -64,6 +65,10 @@ let primitive_descriptions pd1 pd2 =
     Some (No_alloc First)
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
+  else if not
+    (Bool.equal pd1.prim_is_layout_poly
+                pd2.prim_is_layout_poly) then
+    Some Layout_poly_attr
   else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin
   else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
@@ -94,9 +99,9 @@ let value_descriptions ~loc env name
   | Val_prim p1 -> begin
      match vd2.val_kind with
      | Val_prim p2 -> begin
-         let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_global, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_global =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
              mode2;
@@ -104,9 +109,9 @@ let value_descriptions ~loc env name
          in
          (try Ctype.moregeneral env true ty1_global ty2_global
           with Ctype.Moregen err -> raise (Dont_match (Type err)));
-         let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_local, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_local =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
              mode2;
@@ -119,11 +124,13 @@ let value_descriptions ~loc env name
          | Some err -> raise (Dont_match (Primitive_mismatch err))
        end
      | _ ->
-        let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
+        let ty1, mode1, sort1 = Ctype.instance_prim p1 vd1.val_type in
         (try Ctype.moregeneral env true ty1 vd2.val_type
          with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
-          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+          {pc_desc = p1; pc_type = vd2.Types.val_type;
+           pc_poly_mode = Option.map Mode.Locality.disallow_right mode1;
+           pc_poly_sort=sort1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc
      end
@@ -280,6 +287,8 @@ let report_primitive_mismatch first second ppf err =
   | Argument_repr n ->
       pr "The two primitives' %d%s arguments have different representations"
         n (Misc.ordinal_suffix n)
+  | Layout_poly_attr ->
+      pr "The two primitives have different [@@layout_poly] attributes"
 
 let report_value_mismatch first second env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -524,14 +533,10 @@ let report_type_mismatch first second decl env ppf err =
       Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
-  match flag0, flag1 with
-  | Global, Unrestricted ->
-    Some {order = First}
-  | Unrestricted, Global ->
-    Some {order = Second}
-  | Global, Global
-  | Unrestricted, Unrestricted ->
-    None
+  let c = Mode.Global_flag.compare flag0 flag1 in
+  if c < 0 then Some {order = First}
+  else if c > 0 then Some {order = Second}
+  else None
 
 module Record_diffing = struct
 
