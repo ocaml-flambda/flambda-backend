@@ -440,6 +440,28 @@ Line 1, characters 12-39:
 Error: Type int -> local_ int is not a subtype of local_ int -> int
 |}]
 
+(* Testing mode crossing in [enlarge_type] *)
+module M : sig
+  val foo : (int -> unit) -> (local_ int -> unit)
+end = struct
+  let foo f = (f :> local_ int -> unit)
+end
+[%%expect{|
+module M : sig val foo : (int -> unit) -> local_ int -> unit end
+|}]
+
+(* Same, but in opposite variance.
+   The following coercion is still strenghthening *)
+module M : sig
+  val foo : ((local_ int -> int) -> unit) -> ((int -> int) -> unit)
+end = struct
+  let foo f = (f :> (int -> int) -> unit)
+end
+[%%expect{|
+module M :
+  sig val foo : ((local_ int -> int) -> unit) -> (int -> int) -> unit end
+|}]
+
 (* Mode crossing at identifiers - in the following, x and y are added to the
 environment at mode local, but they cross to global when they are refered to
 again. Note that ref is polymorphic and thus doesn't trigger crossing. *)

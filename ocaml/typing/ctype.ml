@@ -5537,16 +5537,70 @@ let find_cltype_for_path env p =
 let has_constr_row' env t =
   has_constr_row (expand_abbrev env t)
 
+let build_submode_pos m =
+  let m', changed = Alloc.newvar_below m in
+  let c = if changed then Changed else Unchanged in
+  m', c
+
+let build_submode_neg m =
+  let m', changed = Alloc.newvar_above m in
+  let c = if changed then Changed else Unchanged in
+  m', c
+
 let build_submode posi m =
-  if posi then begin
-    let m', changed = Alloc.newvar_below m in
-    let c = if changed then Changed else Unchanged in
-    m', c
-  end else begin
-    let m', changed = Alloc.newvar_above m in
-    let c = if changed then Changed else Unchanged in
-    m', c
-  end
+  if posi then build_submode_pos (Alloc.allow_left m)
+  else build_submode_neg (Alloc.allow_right m)
+
+(* CR layouts v2.8: use the meet-with-constant morphism when available *)
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
+   [Alloc] get unified *)
+(* The approach here works only for 2-element modal axes. *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so
+     this one doesn't either. I think it should. But actually test results
+     are bad when checking for principality. Really, I'm surprised that
+     the types here aren't principal. In any case, leaving the check out
+     now; will return and figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = Alloc.disallow_right mode in
+  let mode =
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
+    then Alloc.set_locality_min mode
+    else mode
+  in
+  let mode =
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
+    then Alloc.set_linearity_min mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.set_uniqueness_min mode
+    else mode
+  in
+  mode
+
+let mode_cross_right env ty mode =
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = Alloc.disallow_left mode in
+  let mode =
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
+    then Alloc.set_locality_max mode
+    else mode
+  in
+  let mode =
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
+    then Alloc.set_linearity_max mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.set_uniqueness_max mode
+    else mode
+  in
+  mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
@@ -5568,7 +5622,21 @@ let rec build_subtype env (visited : transient_expr list)
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let (a', c3) =
-        if level > 2 then build_submode (not posi) a else a, Unchanged
+        if level > 2 then begin
+          (* If posi, then t1' >= t1, and we pick t1; otherwise we pick t1'. In
+            either case we pick the smaller type which is the "real" type of
+            runtime values, and easier to cross modes (and thus making the
+            mode-crossing more complete). *)
+          let t1 = if posi then t1 else t1' in
+          let posi_arg = not posi in
+          if posi_arg then begin
+            let a = mode_cross_right env t1 a in
+            build_submode_pos a
+          end else begin
+            let a = mode_cross_left env t1 a in
+            build_submode_neg a
+          end
+        end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5765,36 +5833,6 @@ let subtype_alloc_mode env trace a1 a2 =
   match Alloc.submode a1 a2 with
   | Ok () -> ()
   | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
-
-(* CR layouts v2.8: use the meet-with-constant morphism when available *)
-(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
-   [Alloc] get unified *)
-(* The approach here works only for 2-element modal axes. *)
-let mode_cross_left env ty mode =
-  (* CR layouts v2.8: The old check didn't check for principality, and so
-     this one doesn't either. I think it should. But actually test results
-     are bad when checking for principality. Really, I'm surprised that
-     the types here aren't principal. In any case, leaving the check out
-     now; will return and figure this out later. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Alloc.disallow_right mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.set_locality_min mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.set_linearity_min mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.set_uniqueness_min mode
-    else mode
-  in
-  mode
 
 let rec subtype_rec env trace t1 t2 cstrs =
   if eq_type t1 t2 then cstrs else
