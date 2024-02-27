@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-42"]
 
 (* SIMD instruction reload for AMD64 *)
 
@@ -20,7 +20,7 @@ let reload_operation makereg op arg res =
   let stackp r =
     match r.Reg.loc with Stack _ -> true | Reg _ | Unknown -> false
   in
-  match Simd_selection.register_behavior op with
+  match Simd_proc.register_behavior op with
   | R_to_fst ->
     (* Argument must be in a register; result must be the argument. *)
     let arg0 = if stackp arg.(0) then makereg arg.(0) else arg.(0) in

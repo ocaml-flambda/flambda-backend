@@ -963,7 +963,7 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.movzx res8 res
 
 let emit_simd_instr op i =
-  (match Simd_selection.register_behavior op with
+  (match Simd_proc.register_behavior op with
   | R_to_fst ->
     assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
