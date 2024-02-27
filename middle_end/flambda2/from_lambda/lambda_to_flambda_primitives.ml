@@ -1372,9 +1372,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              (Targetint_31_63.of_int
                 ((1 lsl ((8 * size_int) - (10 + Config.reserved_header_bits)))
                 - 1))) ]
-    | Ostype_unix -> [Simple (Simple.const_bool (Sys.os_type = "Unix"))]
-    | Ostype_win32 -> [Simple (Simple.const_bool (Sys.os_type = "Win32"))]
-    | Ostype_cygwin -> [Simple (Simple.const_bool (Sys.os_type = "Cygwin"))]
+    | Ostype_unix ->
+      [Simple (Simple.const_bool (String.equal Sys.os_type "Unix"))]
+    | Ostype_win32 ->
+      [Simple (Simple.const_bool (String.equal Sys.os_type "Win32"))]
+    | Ostype_cygwin ->
+      [Simple (Simple.const_bool (String.equal Sys.os_type "Cygwin"))]
     | Backend_type ->
       [Simple Simple.const_zero] (* constructor 0 is the same as Native here *)
     | Runtime5 -> [Simple (Simple.const_bool Config.runtime5)])

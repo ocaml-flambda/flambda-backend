@@ -39,6 +39,8 @@ module type S = sig
 
   val ( <= ) : t -> t -> bool
 
+  val ( >= ) : t -> t -> bool
+
   val ( < ) : t -> t -> bool
 
   val bottom_byte_to_int : t -> int
@@ -144,9 +146,11 @@ module Make (I : S) : S with type t = I.t = struct
 
   let ( <= ) = I.( <= )
 
+  let ( >= ) = I.( >= )
+
   let ( < ) = I.( < )
 
-  let is_in_range n = n >= min_value && n <= max_value
+  let is_in_range n = I.( >= ) n min_value && I.( <= ) n max_value
 
   let bottom_byte_to_int = I.bottom_byte_to_int
 

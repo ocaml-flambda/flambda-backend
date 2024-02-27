@@ -72,22 +72,6 @@ module Int16 = struct
   let to_int t = t
 end
 
-module Float = struct
-  type t = float
-
-  include Container_types.Make (struct
-    type t = float
-
-    let compare x y = Stdlib.compare x y
-
-    let hash f = Hashtbl.hash f
-
-    let equal (i : float) j = i = j
-
-    let print = Format.pp_print_float
-  end)
-end
-
 module Float_by_bit_pattern = struct
   let create f = Int64.bits_of_float f
 

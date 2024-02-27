@@ -83,7 +83,7 @@ let equal_value_slot_info (info1 : value_slot_info) (info2 : value_slot_info) =
   | Dead_value_slot, Dead_value_slot -> true
   | ( Live_value_slot { offset = o1; size = s1; is_scanned = v1 },
       Live_value_slot { offset = o2; size = s2; is_scanned = v2 } ) ->
-    o1 = o2 && s1 = s2 && v1 = v2
+    o1 = o2 && s1 = s2 && Bool.equal v1 v2
   | Dead_value_slot, Live_value_slot _ | Live_value_slot _, Dead_value_slot ->
     false
 
