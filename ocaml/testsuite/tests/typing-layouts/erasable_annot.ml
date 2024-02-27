@@ -335,3 +335,45 @@ Line 1, characters 41-43:
 Error: Don't know how to unbox this type.
        Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
+
+(* module and abstract types *)
+module M : sig
+  type t : float64
+end = struct
+  type t = float#
+end
+
+external f_1 : M.t -> M.t = "%identity";;
+[%%expect{|
+module M : sig type t : float64 end
+Line 7, characters 15-18:
+7 | external f_1 : M.t -> M.t = "%identity";;
+                   ^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout float64. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
+[%%expect{|
+Line 1, characters 15-18:
+1 | external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
+                   ^^^
+Error: External declaration here is not upstream compatible.
+       The only types with non-value layouts allowed are float#,
+       int32#, int64#, and nativeint#. Unknown type with layout
+       float64 encountered. This error is produced due to
+       the use of -only-erasable-extensions.
+|}];;
+
+module M2 : sig
+  type t = float#
+end = struct
+  type t = float#
+end
+
+external f_3 : M2.t -> M2.t = "%identity" [@@unboxed];;
+[%%expect{|
+module M2 : sig type t = float# end
+external f_3 : M2.t -> M2.t = "%identity"
+|}];;

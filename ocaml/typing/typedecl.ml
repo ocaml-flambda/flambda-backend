@@ -103,6 +103,7 @@ type error =
   | Useless_layout_poly
   | Modalities_on_value_description
   | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
+  | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
 
 open Typedtree
 
@@ -2159,6 +2160,20 @@ let get_native_repr_attribute attrs ~global_repr =
   | _, Some { Location.loc }, _ ->
     raise (Error (loc, Multiple_native_repr_attributes))
 
+let native_repr_usage_is_upstream_compatible env ty =
+  match get_desc (Ctype.expand_head_opt env ty) with
+  | Tconstr (path, _, _) ->
+    List.exists
+      (Path.same path)
+      [
+        Predef.path_unboxed_float;
+        Predef.path_unboxed_int32;
+        Predef.path_unboxed_int64;
+        Predef.path_unboxed_nativeint;
+      ]
+  | _ ->
+    false
+
 let native_repr_of_type env kind ty =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (path, _, _) when Path.same path Predef.path_int ->
@@ -2269,7 +2284,15 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     end
   | Native_repr_attr_present Unboxed, (Sort sort) ->
     (* We allow [@unboxed] on non-value sorts. *)
-    Same_as_ocaml_repr sort
+    if Language_extension.erasable_extensions_only ()
+       && not (native_repr_usage_is_upstream_compatible env ty)
+    then
+      (* There are additional requirements if we are operating in
+         upstream compatible mode. *)
+      raise (Error (core_type.ptyp_loc,
+             Non_value_sort_not_upstream_compatible sort))
+    else
+      Same_as_ocaml_repr sort
 
 let prim_const_mode m =
   match Mode.Locality.check_const m with
@@ -3176,6 +3199,14 @@ let report_error ppf = function
       "@[[%@unboxed] attribute must be added to external declaration@ \
           argument type with layout %a. This error is produced@ \
           due to the use of -only-erasable-extensions.@]"
+      Jkind.Sort.format_const sort
+  | Non_value_sort_not_upstream_compatible sort ->
+    fprintf ppf
+      "@[External declaration here is not upstream compatible.@ \
+         The only types with non-value layouts allowed are float#,@ \
+         int32#, int64#, and nativeint#. Unknown type with layout@ \
+         %a encountered. This error is produced due to@ \
+         the use of -only-erasable-extensions.@]"
       Jkind.Sort.format_const sort
 
 let () =
