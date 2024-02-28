@@ -612,6 +612,48 @@ let primitive ppf = function
      fprintf ppf "bigarray.array1.unaligned_set128"
   | Pbigstring_set_128 {unsafe = false; aligned = true} ->
      fprintf ppf "bigarray.array1.aligned_set128"
+  | Pfloatarray_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "floatarray.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "floatarray.get128%s" (alloc_kind mode)
+  | Pfloat_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "float_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "float_array.get128%s" (alloc_kind mode)
+  | Pint_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "int_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "int_array.get128%s" (alloc_kind mode)
+  | Punboxed_float_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_float_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_float_array.get128%s" (alloc_kind mode)
+  | Punboxed_int32_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_int32_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_int32_array.get128%s" (alloc_kind mode)
+  | Punboxed_int64_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_int64_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_int64_array.get128%s" (alloc_kind mode)
+  | Punboxed_nativeint_array_load_128 {unsafe; mode} ->
+     if unsafe then fprintf ppf "unboxed_nativeint_array.unsafe_get128%s" (alloc_kind mode)
+     else fprintf ppf "unboxed_nativeint_array.get128%s" (alloc_kind mode)
+  | Pfloatarray_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "floatarray.unsafe_set128"
+     else fprintf ppf "floatarray.set128"
+  | Pfloat_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "float_array.unsafe_set128"
+     else fprintf ppf "float_array.set128"
+  | Pint_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "int_array.unsafe_set128"
+     else fprintf ppf "int_array.set128"
+  | Punboxed_float_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_float_array.unsafe_set128"
+     else fprintf ppf "unboxed_float_array.set128"
+  | Punboxed_int32_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_int32_array.unsafe_set128"
+     else fprintf ppf "unboxed_int32_array.set128"
+  | Punboxed_int64_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_int64_array.unsafe_set128"
+     else fprintf ppf "unboxed_int64_array.set128"
+  | Punboxed_nativeint_array_set_128 {unsafe} ->
+     if unsafe then fprintf ppf "unboxed_nativeint_array.unsafe_set128"
+     else fprintf ppf "unboxed_nativeint_array.set128"
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
@@ -750,6 +792,20 @@ let name_of_primitive = function
   | Pbigstring_set_32 _ -> "Pbigstring_set_32"
   | Pbigstring_set_64 _ -> "Pbigstring_set_64"
   | Pbigstring_set_128 _ -> "Pbigstring_set_128"
+  | Pfloatarray_load_128 _ -> "Pfloatarray_load_128"
+  | Pfloat_array_load_128 _ -> "Pfloat_array_load_128"
+  | Pint_array_load_128 _ -> "Pint_array_load_128"
+  | Punboxed_float_array_load_128 _ -> "Punboxed_float_array_load_128"
+  | Punboxed_int32_array_load_128 _ -> "Punboxed_int32_array_load_128"
+  | Punboxed_int64_array_load_128 _ -> "Punboxed_int64_array_load_128"
+  | Punboxed_nativeint_array_load_128 _ -> "Punboxed_nativeint_array_load_128"
+  | Pfloatarray_set_128 _ -> "Pfloatarray_set_128"
+  | Pfloat_array_set_128 _ -> "Pfloat_array_set_128"
+  | Pint_array_set_128 _ -> "Pint_array_set_128"
+  | Punboxed_float_array_set_128 _ -> "Punboxed_float_array_set_128"
+  | Punboxed_int32_array_set_128 _ -> "Punboxed_int32_array_set_128"
+  | Punboxed_int64_array_set_128 _ -> "Punboxed_int64_array_set_128"
+  | Punboxed_nativeint_array_set_128 _ -> "Punboxed_nativeint_array_set_128"
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer _ -> "Pint_as_pointer"

@@ -567,7 +567,7 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
-  | Array_load (ak, mut) -> Array_load (ak, mut)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_load (access_kind, mutability) ->
     let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
@@ -591,24 +591,10 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set ak ->
-    let ia : Flambda_primitive.Init_or_assign.t =
-      match ak with
-      | Values ia -> ia
-      | Immediates | Naked_floats | Naked_int32s | Naked_int64s
-      | Naked_nativeints ->
-        Assignment Alloc_mode.For_assignments.heap
-    in
-    let ak : Flambda_primitive.Array_kind.t =
-      match ak with
-      | Immediates -> Immediates
-      | Values _ -> Values
-      | Naked_floats -> Naked_floats
-      | Naked_int32s -> Naked_int32s
-      | Naked_int64s -> Naked_int64s
-      | Naked_nativeints -> Naked_nativeints
-    in
-    Array_set (ak, init_or_assign env ia)
+  | Array_set (ak, width) ->
+    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
+    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
+    Array_set (ak, width, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->

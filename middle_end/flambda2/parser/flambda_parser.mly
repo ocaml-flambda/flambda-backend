@@ -184,6 +184,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_VAL    [@symbol "val"]
 %token KWD_WHERE  [@symbol "where"]
 %token KWD_WITH   [@symbol "with"]
+%token KWD_VEC128 [@symbol "vec128"]
 
 %token PRIM_ARRAY_LENGTH [@symbol "%array_length"]
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
@@ -465,6 +466,10 @@ string_accessor_width:
       | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
+array_accessor_width:
+  | { Scalar }
+  | KWD_VEC128 { Vec128 }
+
 array_kind:
   | { Values }
   | KWD_IMM { Immediates }
@@ -563,8 +568,9 @@ binop_app:
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
   | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
-    arg1 = simple; DOT; LPAREN; arg2 = simple; RPAREN
-    { Binary (Array_load (ak, mut), arg1, arg2) }
+    width = array_accessor_width; arg1 = simple; DOT;
+    LPAREN; arg2 = simple; RPAREN
+    { Binary (Array_load (ak, width, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }
@@ -582,10 +588,10 @@ bytes_or_bigstring_set:
   | PRIM_BIGSTRING_SET { Bigstring }
 
 ternop_app:
-  | PRIM_ARRAY_SET; ak = array_kind;
+  | PRIM_ARRAY_SET; ak = array_kind; width = array_accessor_width;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
-    { Ternary (Array_set (ak, ia), arr, ix, v) }
+    { Ternary (Array_set (ak, width, ia), arr, ix, v) }
   | PRIM_BLOCK_SET; kind = block_access_kind;
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple

@@ -89,6 +89,8 @@ module Array_set_kind : sig
 
   val array_kind : t -> Array_kind.t
 
+  val init_or_assign : t -> Init_or_assign.t
+
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
 
@@ -212,6 +214,10 @@ type string_accessor_width =
 val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
+
+type array_accessor_width =
+  | Scalar
+  | Vec128
 
 type string_like_value =
   | String
@@ -385,7 +391,7 @@ type binary_float_arith_op =
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * Mutability.t
+  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -403,7 +409,7 @@ type binary_primitive =
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t
+  | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set

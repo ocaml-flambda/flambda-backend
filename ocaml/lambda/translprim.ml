@@ -548,6 +548,62 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bigstring_seta128u#" ->
       Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
         boxed = false}), 3)
+    | "%caml_float_array_get128" ->
+      Primitive ((Pfloat_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_float_array_get128u" ->
+      Primitive ((Pfloat_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_floatarray_get128" ->
+      Primitive ((Pfloatarray_load_128 {unsafe = false; mode}), 2)
+    | "%caml_floatarray_get128u" ->
+      Primitive ((Pfloatarray_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_float_array_get128" ->
+      Primitive ((Punboxed_float_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_float_array_get128u" ->
+      Primitive ((Punboxed_float_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_int_array_get128" ->
+      Primitive ((Pint_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_int_array_get128u" ->
+      Primitive ((Pint_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_int64_array_get128" ->
+      Primitive ((Punboxed_int64_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_int64_array_get128u" ->
+      Primitive ((Punboxed_int64_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_int32_array_get128" ->
+      Primitive ((Punboxed_int32_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_int32_array_get128u" ->
+      Primitive ((Punboxed_int32_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_nativeint_array_get128" ->
+      Primitive ((Punboxed_nativeint_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_nativeint_array_get128u" ->
+      Primitive ((Punboxed_nativeint_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_float_array_set128" ->
+      Primitive ((Pfloat_array_set_128 {unsafe = false}), 3)
+    | "%caml_float_array_set128u" ->
+      Primitive ((Pfloat_array_set_128 {unsafe = true}), 3)
+    | "%caml_floatarray_set128" ->
+      Primitive ((Pfloatarray_set_128 {unsafe = false}), 3)
+    | "%caml_floatarray_set128u" ->
+      Primitive ((Pfloatarray_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_float_array_set128" ->
+      Primitive ((Punboxed_float_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_float_array_set128u" ->
+      Primitive ((Punboxed_float_array_set_128 {unsafe = true}), 3)
+    | "%caml_int_array_set128" ->
+      Primitive ((Pint_array_set_128 {unsafe = false}), 3)
+    | "%caml_int_array_set128u" ->
+      Primitive ((Pint_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_int64_array_set128" ->
+      Primitive ((Punboxed_int64_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_int64_array_set128u" ->
+      Primitive ((Punboxed_int64_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_int32_array_set128" ->
+      Primitive ((Punboxed_int32_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_int32_array_set128u" ->
+      Primitive ((Punboxed_int32_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_nativeint_array_set128" ->
+      Primitive ((Punboxed_nativeint_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_nativeint_array_set128u" ->
+      Primitive ((Punboxed_nativeint_array_set_128 {unsafe = true}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
     | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
@@ -1248,6 +1304,12 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
   | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
+  | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
+  | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
+  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
 
