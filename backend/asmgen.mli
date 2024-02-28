@@ -42,7 +42,7 @@ val compile_implementation
 (** [compile_implementation_linear] reads Linear IR from [progname] file
     produced by previous compilation stages (for example,
     using "ocamlopt -save-ir-after" and "ocamlfdo opt")
-    and continues compilatin from [Emit].
+    and continues compilation from [Emit].
 
     Correctness: carefully consider any use of [Config], [Clflags],
     [Flambda_backend_flags] and shared variables during or after [Emit].
@@ -58,7 +58,12 @@ val compile_implementation
     pointers enabled require a compatible [ocamlfdo].
     There is currently no way to pass compilation flags to [ocamlfdo] so transformations
     perfomed by [ocamlfdo] must not depend on such compilation flags.  For example, SIMD
-    is disable din [ocamlfdo].
+    is disabled in [ocamlfdo].
+
+    Note that it is not safe to call functions that access variables whose values depend
+    on previous compilation stages. For example, calling [Reg.create] may return a
+    register that clashes with existing ones, because of the shared stamp counter in [Reg]
+    that is not recorded in Linear IR files.
 *)
 val compile_implementation_linear
   : (module Compiler_owee.Unix_intf.S)
