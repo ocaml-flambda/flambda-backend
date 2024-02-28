@@ -944,7 +944,7 @@ let rec lam ppf = function
                 let { unbox_param } = p.attributes in
                 fprintf ppf "@ %a%s%a%s"
                   Ident.print p.name (alloc_kind p.mode) layout p.layout
-                  (if unbox_param then "[@unboxed]" else "")
+                  (if unbox_param then "[@unboxable]" else "")
               ) params
         | Tupled ->
             fprintf ppf " (";
@@ -956,7 +956,7 @@ let rec lam ppf = function
                  Ident.print ppf p.name;
                  Format.fprintf ppf "%s" (alloc_kind p.mode);
                  layout ppf p.layout;
-                 if unbox_param then Format.fprintf ppf "[@unboxed]"
+                 if unbox_param then Format.fprintf ppf "[@unboxable]"
               )
               params;
             fprintf ppf ")" in
