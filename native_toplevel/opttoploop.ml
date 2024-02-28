@@ -67,7 +67,7 @@ let global_symbol comp_unit =
   | Some obj -> obj
 
 let need_symbol sym =
-  Option.is_none (Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol:sym)
+  not (Dynlink.does_symbol_exist ~bytecode_or_asm_symbol:sym)
 
 let dll_run dll entry =
   match (try Result (Obj.magic (ndl_run_toplevel dll entry))
