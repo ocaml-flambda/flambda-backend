@@ -3871,7 +3871,7 @@ jkind:
       Jane_syntax.Jkind.Primitive_layout_or_abbreviation $1
     }
   | KIND_OF ty=core_type {
-      Jane_syntax.Jkind.Of ty
+      Jane_syntax.Jkind.Kind_of ty
     }
   | UNDERSCORE {
       Jane_syntax.Jkind.Default

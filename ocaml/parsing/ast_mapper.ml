@@ -1114,7 +1114,7 @@ let default_mapper =
         Mod (this.jkind_annotation this t, mode_expr)
       | With (t, ty) ->
         With (this.jkind_annotation this t, this.typ this ty)
-      | Of ty -> Of (this.typ this ty));
+      | Kind_of ty -> Kind_of (this.typ this ty));
 
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;

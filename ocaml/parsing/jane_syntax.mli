@@ -191,7 +191,7 @@ module Jkind : sig
     | Primitive_layout_or_abbreviation of string Location.loc
     | Mod of t * Mode_expr.t
     | With of t * Parsetree.core_type
-    | Of of Parsetree.core_type
+    | Kind_of of Parsetree.core_type
 
   type annotation = t Location.loc
 end

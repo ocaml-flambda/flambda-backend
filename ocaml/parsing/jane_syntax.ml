@@ -498,7 +498,7 @@ module Jkind = struct
     | Primitive_layout_or_abbreviation of string loc
     | Mod of t * Mode_expr.t
     | With of t * core_type
-    | Of of core_type
+    | Kind_of of core_type
 
   type annotation = t loc
 
@@ -569,7 +569,7 @@ module Jkind = struct
       struct_item_of_list "with"
         [to_structure_item t; struct_item_of_type ty]
         t_loc.loc
-    | Of ty -> struct_item_of_list "of" [struct_item_of_type ty] t_loc.loc
+    | Kind_of ty -> struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
 
   (* let rec to_structure_item t_loc = function
      | Primitive_layout_or_abbreviation const_jkind
@@ -587,8 +587,8 @@ module Jkind = struct
       bind (of_structure_item item_of_t) (fun { txt = t } ->
           bind (struct_item_to_type item_of_ty) (fun ty ->
               ret loc (With (t, ty))))
-    | Some ("of", [item_of_ty], loc) ->
-      bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Of ty))
+    | Some ("kind_of", [item_of_ty], loc) ->
+      bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("prim", [item], loc) ->
       bind (Prim_jkind.of_structure_item item) (fun c -> ret loc (Primitive_layout_or_abbreviation c))
     | Some _ | None -> None

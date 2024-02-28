@@ -987,5 +987,5 @@ let default_iterator =
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty
-        | Of ty -> this.typ this ty);
+        | Kind_of ty -> this.typ this ty);
   }

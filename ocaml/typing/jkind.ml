@@ -51,7 +51,7 @@ module Legacy = struct
       | "bits64" -> Some Bits64
       | _ -> None
     end
-  | Default | Mod _ | With _ | Of _ -> Misc.fatal_error "XXX unimplemented"
+  | Default | Mod _ | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
   let string_of_const const =
     match const with
