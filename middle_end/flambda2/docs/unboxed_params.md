@@ -11,10 +11,14 @@ this only applies when the type/layout of the unboxed value is one of the follow
 - boxed numbers (Float, Int32, Int64, Nativeint, Vec128)
 - records/pairs[1]
 
+Unboxing of variants will follow in the near future.
+
+This unboxing is best-effort: in particular, indirect calls to functions
+using this new optimization will still cause boxing.
 
 ## How does one unbox a parameter/return value ?
 
-The `[@unboxed]` annotations are used to specify what to unbox in this context.
+The `[@unboxable]` annotations are used to specify what to unbox in this context.
 These annotations can be put either on a function parameter, or on a function declaration
 to unbox its return value.
 
@@ -25,15 +29,15 @@ Here are some examples:
 let f_boxed x y = x +. y
 
 (* The same function, but this time with the return value unboxed *)
-let[@unboxed] f_return x y = x +. y
+let[@unboxable] f_return x y = x +. y
 
 (* Again, `f`, but with only the first argument unboxed.
    Note the parentheses around `x`, so that the annotation attaches to the parameter *)
-let f_first (x[@unboxed]) y = x +. y
+let f_first (x[@unboxable]) y = x +. y
 
 (* Let's define a version of `f` with the first parameter unboxed, and the return
    value unboxed, and mark it as never inline. *)
-let[@unboxed] f (x[@unboxed]) y = x +. y [@@inline never]
+let[@unboxable] f (x[@unboxable]) y = x +. y [@@inline never]
 
 (* Using the definition of `f` just above, this `main` function does not allocate,
    even with `f` not being inlined. *)
@@ -45,7 +49,7 @@ let main t y =
 
 ## What exactly happens ? What does it mean to unbox a parameter/return ?
 
-Contrary to layouts/kinds/jkinds, the `[@unboxed]` annotation does not really change
+Contrary to layouts/kinds/jkinds, the `[@unboxable]` annotation does not really change
 the calling convention of functions. However, these annotations alter the compilation
 strategy just enough so that the annotated function actually becomes a thin wrapper
 around the unboxed version of the function. Later, that wrapper can be inlined (without
@@ -58,7 +62,7 @@ code will look like:
 (* ***** Source code ***** *)
 
 (* here are the original `f` and `main` functions *)
-let[@unboxed] f (x[@unboxed]) y = x +. y [@@inline never]
+let[@unboxable] f (x[@unboxable]) y = x +. y [@@inline never]
 
 let main t y =
   let x = t +. 1. in
