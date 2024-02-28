@@ -150,9 +150,6 @@ let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
 
-(* For modes-related attributes, no need to call [register_attr] because they
-result from native syntax which is only parsed at proper places that are
-guaranteed to be used. *)
 let mkexp_with_modes ?(ghost=false) ~loc modes exp =
   match Mode.payload_of modes with
   | None -> exp
@@ -169,10 +166,12 @@ let mkexp_with_modes ?(ghost=false) ~loc modes exp =
       in
       Exp.apply ~loc ext [Nolabel, exp]
 
+(* For modes-related attributes, no need to call [register_attr] because they
+result from native syntax which is only parsed at proper places that are
+guaranteed to be used. *)
+
 let mkpat_with_modes modes pat =
-  (* Modes doesn't belong to the pattern; in particular, it should not be
-     mentioned in a pattern error message. Therfore, it's not covered by the
-     pattern's location. We mark it ghost for location well-nestedness. *)
+  (* Mark ghost to pass ppxlib well-nestedness check. *)
   let modes = Mode.ghostify modes in
   match Mode.attr_of modes with
   | None -> pat
@@ -181,9 +180,7 @@ let mkpat_with_modes modes pat =
       ppat_attributes = attr :: pat.ppat_attributes}
 
 let mktyp_with_modes modes typ =
-  (* Modes doesn't belong to the type; in particular, it should not be
-     mentioned in a type error message. Therefore, it's not covered by the
-     type's location. We mark it ghost for location well-nestedness. *)
+  (* Mark ghost to pass ppxlib well-nestedness check. *)
   let modes = Mode.ghostify modes in
   match Mode.attr_of modes with
   | None -> typ
