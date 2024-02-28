@@ -1647,7 +1647,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     if Targetint.size <> 64
     then
       Misc.fatal_error
-        "[Punboxed_nativeint_array_load_128]: nativeint must be 64 bits.";
+        "[Punboxed_nativeint_array_set_128]: nativeint must be 64 bits.";
     [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_nativeints array index
         new_value ]
   | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
