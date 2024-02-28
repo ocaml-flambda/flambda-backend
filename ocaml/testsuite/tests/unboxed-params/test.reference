@@ -1,0 +1,6 @@
+floats: allocs ok.
+int32s: allocs ok.
+int64s: allocs ok.
+nativeints: allocs ok.
+tuples: allocs ok.
+variants: allocation check failed.
