@@ -153,7 +153,7 @@ let mk_attr ~loc name payload =
 (* For modes-related attributes, no need to call [register_attr] because they
 result from native syntax which is only parsed at proper places that are
 guaranteed to be used. *)
-let mkexp_with_modes ?(ghost=false) loc modes exp =
+let mkexp_with_modes ?(ghost=false) ~loc modes exp =
   match Mode.payload_of modes with
   | None -> exp
   | Some payload ->
@@ -170,6 +170,10 @@ let mkexp_with_modes ?(ghost=false) loc modes exp =
       Exp.apply ~loc ext [Nolabel, exp]
 
 let mkpat_with_modes modes pat =
+  (* Modes doesn't belong to the pattern; in particular, it should not be
+     mentioned in a pattern error message. Therfore, it's not covered by the
+     pattern's location. We mark it ghost for location well-nestedness. *)
+  let modes = Mode.ghostify modes in
   match Mode.attr_of modes with
   | None -> pat
   | Some attr ->
@@ -177,6 +181,10 @@ let mkpat_with_modes modes pat =
       ppat_attributes = attr :: pat.ppat_attributes}
 
 let mktyp_with_modes modes typ =
+  (* Modes doesn't belong to the type; in particular, it should not be
+     mentioned in a type error message. Therefore, it's not covered by the
+     type's location. We mark it ghost for location well-nestedness. *)
+  let modes = Mode.ghostify modes in
   match Mode.attr_of modes with
   | None -> typ
   | Some attr ->
@@ -212,11 +220,6 @@ let maybe_curry_typ typ loc =
       if List.exists is_curry_attr typ.ptyp_attributes then typ
       else mktyp_curry typ (make_loc loc)
   | _ -> typ
-
-let mkcty_modality modalities cty =
-  match Mode.attr_of modalities with
-  | None -> cty
-  | Some attr -> { cty with ptyp_attributes = attr :: cty.ptyp_attributes }
 
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
@@ -770,7 +773,7 @@ let mkghost_newtype_function_body newtypes body_constraint body ~loc =
         let body = Exp.mk (mkexp_desc_constraint body type_constraint) ~loc in
         let {Location.loc_start; loc_end} = body.pexp_loc in
         let loc = loc_start, loc_end in
-        mkexp_with_modes ~ghost:true loc mode_annotations body
+        mkexp_with_modes ~ghost:true ~loc mode_annotations body
   in
   mk_newtypes ~loc newtypes wrapped_body
 
@@ -2732,7 +2735,7 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode_legacy seq_expr
-     { mkexp_with_modes $sloc (Mode.singleton $1) $2 }
+     { mkexp_with_modes ~loc:$sloc (Mode.singleton $1) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2866,7 +2869,7 @@ comprehension_clause_binding:
      We have to have that as a separate rule here because it moves the [local_]
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes mode_legacy pattern IN expr
-      { let expr = mkexp_with_modes $sloc (Mode.singleton $2) $5 in
+      { let expr = mkexp_with_modes ~loc:$sloc (Mode.singleton $2) $5 in
         Jane_syntax.Comprehensions.
           { pattern    = $3
           ; iterator   = In expr
@@ -3041,7 +3044,9 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2, None, []) }
-  | mode_expr_legacy let_ident type_constraint EQUAL seq_expr
+  | modes = mode_expr_legacy let_ident type_constraint EQUAL seq_expr
+      (* CR zqian: modes are duplicated, and one of them needs to be made ghost
+         to make internal tools happy. We should try to avoid that. *)
       { let v = $2 in (* PR#7344 *)
         let t =
           match $3 with
@@ -3049,19 +3054,21 @@ let_binding_body_no_punning:
              Pvc_constraint { locally_abstract_univars = []; typ=t }
           | N_ary.Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion}
         in
-        let exp = mkexp_with_modes ~ghost:true $sloc $1 $5 in
-        (v, exp, Some t, let_binding_mode_attrs $1)
+        let modes_ghost = Mode.ghostify modes in
+        let exp = mkexp_with_modes ~ghost:true ~loc:$sloc modes_ghost $5 in
+        (v, exp, Some t, let_binding_mode_attrs modes)
       }
-  | mode_expr_legacy let_ident COLON poly(core_type) EQUAL seq_expr
+  | modes = mode_expr_legacy let_ident COLON poly(core_type) EQUAL seq_expr
       { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
         let typ_loc = Location.ghostify (make_loc $loc($4)) in
         let typ =
           Jane_syntax.Layouts.type_of ~loc:typ_loc ltyp
         in
-        let exp = mkexp_with_modes ~ghost:true $sloc $1 $6 in
+        let modes_ghost = Mode.ghostify modes in
+        let exp = mkexp_with_modes ~ghost:true ~loc:$sloc modes_ghost $6 in
         ($2, exp, Some (Pvc_constraint { locally_abstract_univars = []; typ }),
-         let_binding_mode_attrs $1)
+         let_binding_mode_attrs modes)
       }
   | let_ident COLON TYPE newtypes DOT core_type EQUAL seq_expr
       (* The code upstream looks like:
@@ -3090,9 +3097,10 @@ let_binding_body_no_punning:
       { ($1, $3, None, []) }
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
       { ($1, $5, Some(Pvc_constraint { locally_abstract_univars=[]; typ=$3 }), []) }
-  | mode_expr_legacy_nonempty let_ident strict_binding_modes
-      { ($2, mkexp_with_modes ~ghost:true $sloc $1 ($3 $1), None,
-         let_binding_mode_attrs $1) }
+  | modes=mode_expr_legacy_nonempty let_ident strict_binding_modes
+      { let modes_ghost = Mode.ghostify modes in
+        ($2, mkexp_with_modes ~ghost:true ~loc:$sloc modes_ghost ($3 modes_ghost), None,
+         let_binding_mode_attrs modes) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
@@ -3939,7 +3947,7 @@ generalized_constructor_arguments:
 
 %inline atomic_type_gbl:
   gbl = global_flag cty = atomic_type {
-    mkcty_modality gbl cty
+    mktyp_with_modes gbl cty
 }
 ;
 
@@ -3959,7 +3967,7 @@ label_declaration:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
         let mut, gbl = $1 in
-        let typ = mkcty_modality gbl $4 in
+        let typ = mktyp_with_modes gbl $4 in
         Type.field $2 typ ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info}
 ;
 label_declaration_semi:
@@ -3971,7 +3979,7 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, gbl = $1 in
-       let typ = mkcty_modality gbl $4 in
+       let typ = mktyp_with_modes gbl $4 in
        Type.field $2 typ ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info}
 ;
 
