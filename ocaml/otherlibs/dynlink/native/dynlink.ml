@@ -53,6 +53,9 @@ module Native = struct
     = "caml_sys_exit" "caml_natdynlink_globals_inited"
   external ndl_loadsym : string -> Obj.t
     = "caml_sys_exit" "caml_natdynlink_loadsym"
+  external ndl_existssym : string -> bool
+    = "caml_sys_exit" "caml_natdynlink_existssym"
+    [@@noalloc]
 
   module Unit_header = struct
     type t = Cmxs_format.dynunit
@@ -160,6 +163,9 @@ module Native = struct
     match ndl_loadsym bytecode_or_asm_symbol with
     | exception _ -> None
     | obj -> Some obj
+
+  let does_symbol_exist ~bytecode_or_asm_symbol =
+    ndl_existssym bytecode_or_asm_symbol
 
   let finish _handle = ()
 end
