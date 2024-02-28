@@ -172,6 +172,10 @@ module Mode_expr : sig
   (** Decode a mode expression from a [payload] whose location is [loc]. Raises
       if the payload encodes an empty mode expression. *)
   val of_payload : loc:Location.t -> Parsetree.payload -> t
+
+  (** In some cases, a single mode expression appears twice in the parsetree;
+      one of them needs to be made ghost to make our internal tools happy. *)
+  val ghostify : t -> t
 end
 
 module N_ary_functions : sig
