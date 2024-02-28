@@ -215,6 +215,21 @@ type primitive =
   | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
+  (* load/set SIMD vectors in GC-managed arrays *)
+  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloatarray_set_128 of { unsafe : bool }
+  | Pfloat_array_set_128 of { unsafe : bool }
+  | Pint_array_set_128 of { unsafe : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -379,6 +394,10 @@ val equal_boxed_float : boxed_float -> boxed_float -> bool
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
+
+val compare_boxed_vector : boxed_vector -> boxed_vector -> int
+
+val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
 val must_be_value : layout -> value_kind
 
