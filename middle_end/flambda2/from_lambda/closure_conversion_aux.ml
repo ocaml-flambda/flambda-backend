@@ -746,6 +746,11 @@ module Function_decls = struct
       | Unboxed_number of Flambda_kind.Boxable_number.t
       | Unboxed_float_record of int
 
+    let num_params_for_unboxing_kind = function
+      | Fields_of_block_with_tag_zero l -> List.length l
+      | Unboxed_number _ -> 1
+      | Unboxed_float_record n -> n
+
     type calling_convention =
       | Normal_calling_convention
       | Unboxed_calling_convention of

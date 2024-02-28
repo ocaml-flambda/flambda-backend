@@ -2378,7 +2378,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
 
-let close_functions acc external_env ~current_region function_declarations =
+let close_functions acc external_env ~current_region function_declarations
+    ~ident_map =
   let compilation_unit = Compilation_unit.get_current_exn () in
   let value_slots_from_idents =
     Ident.Set.fold
@@ -2416,12 +2417,31 @@ let close_functions acc external_env ~current_region function_declarations =
     && Flambda_features.classic_mode ()
   in
   let func_decl_list = Function_decls.to_list function_declarations in
+  let idents_for_unboxed_decls =
+    List.fold_left
+      (fun idents_for_unboxed_decls decl ->
+        match Function_decl.calling_convention decl with
+        | Normal_calling_convention -> idents_for_unboxed_decls
+        | Unboxed_calling_convention (_, _, unboxed_function_slot) ->
+          let unboxed_ident = Ident.rename (Function_decl.let_rec_ident decl) in
+          Function_slot.Map.add unboxed_function_slot unboxed_ident
+            idents_for_unboxed_decls)
+      Function_slot.Map.empty func_decl_list
+  in
   let function_slots_from_idents =
     List.fold_left
       (fun map decl ->
         let id = Function_decl.let_rec_ident decl in
         let function_slot = Function_decl.function_slot decl in
-        Ident.Map.add id function_slot map)
+        let map = Ident.Map.add id function_slot map in
+        match Function_decl.calling_convention decl with
+        | Normal_calling_convention -> map
+        | Unboxed_calling_convention (_, _, unboxed_function_slot) ->
+          let unboxed_id =
+            Function_slot.Map.find unboxed_function_slot
+              idents_for_unboxed_decls
+          in
+          Ident.Map.add unboxed_id unboxed_function_slot map)
       Ident.Map.empty func_decl_list
   in
   let function_code_ids =
@@ -2492,8 +2512,6 @@ let close_functions acc external_env ~current_region function_declarations =
             ~loopify:Never_loopify
         in
         let code = Code_or_metadata.create_metadata_only metadata in
-        (* CR ncourant: do we need to add the unboxed function slot to the
-           approx map? *)
         let all_function_slots =
           Ident.Map.data function_slots_from_idents |> Function_slot.Set.of_list
         in
@@ -2510,7 +2528,15 @@ let close_functions acc external_env ~current_region function_declarations =
               symbol = None
             }
         in
-        Function_slot.Map.add function_slot approx approx_map)
+        let approx_map =
+          Function_slot.Map.add function_slot approx approx_map
+        in
+        match Function_decl.calling_convention decl with
+        | Normal_calling_convention -> approx_map
+        | Unboxed_calling_convention (_, _, unboxed_function_slot) ->
+          (* CR mshinwell: add a proper approximation here *)
+          Function_slot.Map.add unboxed_function_slot
+            Value_approximation.Value_unknown approx_map)
       Function_slot.Map.empty func_decl_list
   in
   let acc, external_env, symbol_map =
@@ -2521,8 +2547,9 @@ let close_functions acc external_env ~current_region function_declarations =
           let env, acc, symbol =
             declare_symbol_for_function_slot env acc ident function_slot
           in
+          let approx = Function_slot.Map.find function_slot approx_map in
           let approx =
-            match Function_slot.Map.find function_slot approx_map with
+            match approx with
             | Value_approximation.Closure_approximation
                 { code_id;
                   function_slot;
@@ -2539,6 +2566,7 @@ let close_functions acc external_env ~current_region function_declarations =
                   code;
                   symbol = Some symbol
                 }
+            | Value_unknown -> Value_approximation.Value_unknown
             | _ -> assert false
             (* see above *)
           in
@@ -2548,6 +2576,7 @@ let close_functions acc external_env ~current_region function_declarations =
         (acc, external_env, Function_slot.Map.empty)
     else acc, external_env, Function_slot.Map.empty
   in
+  (* CR mshinwell: rename [approximations] *)
   let acc, (approximations, function_code_ids_in_order) =
     List.fold_left
       (fun (acc, (by_function_slot, function_code_ids_in_order)) function_decl ->
@@ -2593,6 +2622,15 @@ let close_functions acc external_env ~current_region function_declarations =
         Value_slot.Map.add value_slot external_simple map)
       value_slots_from_idents Value_slot.Map.empty
   in
+  let unboxed_function_slots =
+    List.concat_map
+      (fun decl ->
+        match Function_decl.calling_convention decl with
+        | Normal_calling_convention -> []
+        | Unboxed_calling_convention (_, _, function_slot) -> [function_slot])
+      func_decl_list
+    |> Function_slot.Set.of_list
+  in
   let approximations =
     Function_slot.Map.mapi
       (fun function_slot code ->
@@ -2600,7 +2638,9 @@ let close_functions acc external_env ~current_region function_declarations =
           Code_metadata.code_id (Code_or_metadata.code_metadata code)
         in
         let all_function_slots =
-          Function_slot.Lmap.keys funs |> Function_slot.Set.of_list
+          Function_slot.Set.union
+            (Function_slot.Lmap.keys funs |> Function_slot.Set.of_list)
+            unboxed_function_slots
         in
         Value_approximation.Closure_approximation
           { code_id;
@@ -2621,6 +2661,10 @@ let close_functions acc external_env ~current_region function_declarations =
   in
   let acc =
     Acc.add_set_of_closures_offsets ~is_phantom:false acc set_of_closures
+  in
+  let ident_map =
+    Function_slot.Map.disjoint_union ~eq:Ident.same ident_map
+      idents_for_unboxed_decls
   in
   if can_be_lifted
   then
@@ -2654,8 +2698,8 @@ let close_functions acc external_env ~current_region function_declarations =
     in
     let symbols = Function_slot.Lmap.map fst symbols_with_approx in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
-    acc, Lifted symbols_with_approx
-  else acc, Dynamic (set_of_closures, approximations)
+    acc, Lifted symbols_with_approx, ident_map
+  else acc, Dynamic (set_of_closures, approximations), ident_map
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) ~current_region =
@@ -2707,10 +2751,10 @@ let close_let_rec acc env ~function_declarations
     | None ->
       Misc.fatal_error "let-rec group of [lfunction] declarations is empty"
   in
-  let acc, closed_functions =
+  let acc, closed_functions, ident_map =
     close_functions acc env
       (Function_decls.create function_declarations alloc_mode)
-      ~current_region
+      ~current_region ~ident_map
   in
   match closed_functions with
   | Lifted symbols ->
