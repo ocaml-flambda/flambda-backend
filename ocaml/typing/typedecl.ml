@@ -2160,7 +2160,7 @@ let get_native_repr_attribute attrs ~global_repr =
   | _, Some { Location.loc }, _ ->
     raise (Error (loc, Multiple_native_repr_attributes))
 
-let native_repr_usage_is_upstream_compatible env ty =
+let is_upstream_compatible_non_value_unbox env ty =
   match get_desc (Ctype.expand_head_opt env ty) with
   | Tconstr (path, _, _) ->
     List.exists
@@ -2285,7 +2285,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   | Native_repr_attr_present Unboxed, (Sort sort) ->
     (* We allow [@unboxed] on non-value sorts. *)
     if Language_extension.erasable_extensions_only ()
-       && not (native_repr_usage_is_upstream_compatible env ty)
+       && not (is_upstream_compatible_non_value_unbox env ty)
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
