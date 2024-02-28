@@ -997,6 +997,8 @@ let unboxed_type sloc lident tys =
 %token INITIALIZER            "initializer"
 %token <string * char option> INT      "42"  (* just an example *)
 %token <string * char option> HASH_INT "#42l" (* just an example *)
+%token KIND_ABBREV            "kind_abbrev"
+%token KIND_OF                "kind_of"
 %token <string> LABEL         "~label:" (* just an example *)
 %token LAZY                   "lazy"
 %token LBRACE                 "{"
@@ -1022,6 +1024,7 @@ let unboxed_type sloc lident tys =
 %token MINUS                  "-"
 %token MINUSDOT               "-."
 %token MINUSGREATER           "->"
+%token MOD                    "mod"
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
 %token NEW                    "new"
@@ -1128,7 +1131,7 @@ The precedences must be listed from low to high.
 %nonassoc LBRACKETAT
 %right    COLONCOLON                    /* expr (e :: e :: e) */
 %left     INFIXOP2 PLUS PLUSDOT MINUS MINUSDOT PLUSEQ /* expr (e OP e OP e) */
-%left     PERCENT INFIXOP3 STAR                 /* expr (e OP e OP e) */
+%left     PERCENT INFIXOP3 MOD STAR                 /* expr (e OP e OP e) */
 %right    INFIXOP4                      /* expr (e OP e OP e) */
 %nonassoc prec_unary_minus prec_unary_plus /* unary - */
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
@@ -1787,6 +1790,7 @@ structure_item:
         in
         wrap_str_ext ~loc:$sloc item ext
       }
+  | kind_abbreviation_decl { failwith "modal kinds syntax not implemented" }
 
 ;
 
@@ -2059,6 +2063,7 @@ signature_item:
         in
         wrap_sig_ext ~loc:$sloc item ext
       }
+  | kind_abbreviation_decl { failwith "modal kinds syntax not implemented" }
 
 (* A module declaration. *)
 %inline module_declaration:
@@ -3855,8 +3860,34 @@ type_parameters:
       { ps }
 ;
 
+jkind:
+    jkind MOD mode_expr {
+      Jane_syntax.Jkind.Mod ($1, $3)
+    }
+  | jkind WITH core_type {
+      Jane_syntax.Jkind.With ($1, $3)
+    }
+  | mkrhs(ident) {
+      Jane_syntax.Jkind.Primitive_layout_or_abbreviation $1
+    }
+  | KIND_OF ty=core_type {
+      Jane_syntax.Jkind.Of ty
+    }
+  | UNDERSCORE {
+      Jane_syntax.Jkind.Default
+    }
+;
+
+kind_abbreviation_decl:
+  KIND_ABBREV abbrev=LIDENT EQUAL jkind=jkind {
+    (* XXX aec: fix this *)
+      ignore (abbrev, jkind);
+      assert false
+  }
+;
+
 jkind_annotation: (* : jkind_annotation *)
-  ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
+  mkrhs(jkind) { $1 }
 ;
 
 jkind_constraint:
@@ -4639,6 +4670,10 @@ operator:
   | BANG                                        { "!" }
   | infix_operator                              { $1 }
 ;
+%inline infixop3:
+  | op = INFIXOP3 { op }
+  | MOD           { "mod" }
+;
 %inline infix_operator:
   | op = INFIXOP0 { op }
   /* Still support the two symbols as infix operators */
@@ -4646,7 +4681,7 @@ operator:
   | ATAT           {"@@"}
   | op = INFIXOP1 { op }
   | op = INFIXOP2 { op }
-  | op = INFIXOP3 { op }
+  | op = infixop3 { op }
   | op = INFIXOP4 { op }
   | PLUS           {"+"}
   | PLUSDOT       {"+."}

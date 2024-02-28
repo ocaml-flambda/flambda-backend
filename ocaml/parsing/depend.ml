@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -98,7 +97,7 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_jkind _bv (_jkind : jkind_annotation) = ()
+let add_jkind _bv (_jkind : Jane_syntax.Jkind.annotation) = ()
 
 let add_vars_jkinds bv vars_jkinds =
   let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in

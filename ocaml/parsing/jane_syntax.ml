@@ -1,5 +1,4 @@
 open Asttypes
-open Jane_asttypes
 open Parsetree
 open Jane_syntax_parsing
 
@@ -484,26 +483,121 @@ module Modes = struct
 end
 
 module Stringable_const_jkind = struct
-  type t = const_jkind
+  type t = string
 
-  let indefinite_article_and_name = "a", "layout"
+  let indefinite_article_and_name = "a", "primitive kind"
 
-  let to_string = jkind_to_string
+  let to_string t = t
 
-  let of_string t = Some (jkind_of_string t)
+  let of_string t = Some t
 end
 
-module Jkinds_pprint = struct
-  let const_jkind fmt cl =
-    Format.pp_print_string fmt (Stringable_const_jkind.to_string cl)
+module Jkind = struct
+  type t =
+    | Default
+    | Primitive_layout_or_abbreviation of string loc
+    | Mod of t * Mode_expr.t
+    | With of t * core_type
+    | Of of core_type
 
-  let jkind_annotation fmt ann = const_jkind fmt ann.txt
+  type annotation = t loc
+
+  let indefinite_article_and_name = "a", "kind"
+
+  let prefix = "jane.erasable.layouts."
+
+  let struct_item_of_attr attr =
+    { pstr_desc = Pstr_attribute attr; pstr_loc = Location.none }
+
+  let struct_item_to_attr item =
+    match item with
+    | { pstr_desc = Pstr_attribute attr; _ } -> Some attr
+    | _ -> None
+
+  let struct_item_of_type ty =
+    { pstr_desc =
+        Pstr_type
+          (Recursive, [Ast_helper.Type.mk ~manifest:ty (Location.mknoloc "t")]);
+      pstr_loc = Location.none
+    }
+
+  let struct_item_to_type item =
+    match item with
+    | { pstr_desc = Pstr_type (Recursive, [decl]); _ } -> decl.ptype_manifest
+    | _ -> None
+
+  let struct_item_of_list name list loc =
+    struct_item_of_attr
+      { attr_name = Location.mknoloc (prefix ^ name);
+        attr_payload = PStr list;
+        attr_loc = loc
+      }
+
+  let struct_item_to_list item =
+    let strip_prefix s =
+      let prefix_len = String.length prefix in
+      String.sub s prefix_len (String.length s - prefix_len)
+    in
+    match item with
+    | { pstr_desc =
+          Pstr_attribute
+            { attr_name = name; attr_payload = PStr list; attr_loc = loc };
+        _
+      }
+      when String.starts_with ~prefix name.txt ->
+      Some (strip_prefix name.txt, list, loc)
+    | _ -> None
+
+  module Prim_jkind =
+    Make_structure_item_encodable_of_stringable (Stringable_prim_jkind)
+
+  let rec to_structure_item t_loc =
+    let to_structure_item t = to_structure_item (Location.mknoloc t) in
+    match t_loc.txt with
+    | Default -> struct_item_of_list "default" [] t_loc.loc
+    | Primitive_layout_or_abbreviation c ->
+      struct_item_of_list "prim" [Prim_jkind.to_structure_item c] t_loc.loc
+
+    | Mod (t, mode_expr) ->
+      let mode_expr_item =
+        match Mode_expr.attr_of mode_expr with
+        | Some attr -> struct_item_of_attr attr
+        | None -> Misc.fatal_error "Can't encode empty mode expression"
+      in
+      struct_item_of_list "mod" [to_structure_item t; mode_expr_item] t_loc.loc
+    | With (t, ty) ->
+      struct_item_of_list "with"
+        [to_structure_item t; struct_item_of_type ty]
+        t_loc.loc
+    | Of ty -> struct_item_of_list "of" [struct_item_of_type ty] t_loc.loc
+
+  (* let rec to_structure_item t_loc = function
+     | Primitive_layout_or_abbreviation const_jkind
+     | *)
+  let rec of_structure_item item =
+    let bind = Option.bind in
+    let ret loc v = Some (Location.mkloc v loc) in
+    match struct_item_to_list item with
+    | Some ("default", [], loc) -> ret loc Default
+    | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
+      bind (of_structure_item item_of_t) (fun { txt = t } ->
+          bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
+              ret loc (Mod (t, Mode_expr.of_attr attr))))
+    | Some ("with", [item_of_t; item_of_ty], loc) ->
+      bind (of_structure_item item_of_t) (fun { txt = t } ->
+          bind (struct_item_to_type item_of_ty) (fun ty ->
+              ret loc (With (t, ty))))
+    | Some ("of", [item_of_ty], loc) ->
+      bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Of ty))
+    | Some ("prim", [item], loc) ->
+      bind (Prim_jkind.of_structure_item item) (fun c -> ret loc (Primitive_layout_or_abbreviation c))
+    | Some _ | None -> None
 end
 
 (** Jkind annotations' encoding as attribute payload, used in both n-ary
     functions and jkinds. *)
 module Jkind_annotation : sig
-  include Payload_protocol with type t := const_jkind
+  include Payload_protocol with type t := Jkind.t
 
   module Decode : sig
     include module type of Decode
@@ -512,10 +606,10 @@ module Jkind_annotation : sig
       loc:Location.t ->
       string Location.loc list ->
       payload ->
-      (string Location.loc * jkind_annotation option) list
+      (string Location.loc * Jkind.annotation option) list
   end
 end = struct
-  module Protocol = Make_payload_protocol_of_stringable (Stringable_const_jkind)
+  module Protocol = Make_payload_protocol_of_structure_item_encodable (Jkind)
 
   (*******************************************************)
   (* Conversions with a payload *)
@@ -527,21 +621,14 @@ end = struct
 
     module Desugaring_error = struct
       type error =
-        | Wrong_number_of_jkinds of int * jkind_annotation option list
+        | Wrong_number_of_jkinds of int * Jkind.annotation option list
 
       let report_error ~loc = function
-        | Wrong_number_of_jkinds (n, jkinds) ->
+        | Wrong_number_of_jkinds (n, _jkinds) ->
           Location.errorf ~loc
-            "Wrong number of layouts in an layout attribute;@;\
-             expecting %i but got this list:@;\
-             %a"
+            "Wrong number of kinds in an kind attribute;@;\
+             expecting %i."
             n
-            (Format.pp_print_list
-               (Format.pp_print_option
-                  ~none:(fun ppf () -> Format.fprintf ppf "None")
-                  Jkinds_pprint.jkind_annotation))
-            jkinds
-
       exception Error of Location.t * error
 
       let () =
@@ -821,7 +908,7 @@ module N_ary_functions = struct
 
   type function_param_desc =
     | Pparam_val of arg_label * expression option * pattern
-    | Pparam_newtype of string loc * jkind_annotation option
+    | Pparam_newtype of string loc * Jkind.annotation option
 
   type function_param =
     { pparam_desc : function_param_desc;
@@ -853,7 +940,7 @@ module N_ary_functions = struct
       | Top_level
       | Fun_then of after_fun
       | Mode_constraint of Mode_expr.t
-      | Jkind_annotation of const_jkind loc
+      | Jkind_annotation of Jkind.annotation
 
     (* We return an [of_suffix_result] from [of_suffix] rather than having
        [of_suffix] interpret the payload for two reasons:
@@ -915,7 +1002,7 @@ module N_ary_functions = struct
       | Expected_constraint_or_coerce
       | Expected_function_cases of Attribute_node.t
       | Expected_fun_or_newtype of Attribute_node.t
-      | Expected_newtype_with_jkind_annotation of jkind_annotation
+      | Expected_newtype_with_jkind_annotation of Jkind.annotation
       | Parameterless_function
 
     let report_error ~loc = function
@@ -1509,35 +1596,30 @@ module Layouts = struct
 
   type nonrec expression =
     | Lexp_constant of constant
-    | Lexp_newtype of string loc * jkind_annotation * expression
+    | Lexp_newtype of string loc * Jkind.annotation * expression
 
   type nonrec pattern = Lpat_constant of constant
 
   type nonrec core_type =
     | Ltyp_var of
         { name : string option;
-          jkind : jkind_annotation
+          jkind : Jkind.annotation
         }
     | Ltyp_poly of
-        { bound_vars : (string loc * jkind_annotation option) list;
+        { bound_vars : (string loc * Jkind.annotation option) list;
           inner_type : core_type
         }
     | Ltyp_alias of
         { aliased_type : core_type;
           name : string option;
-          jkind : jkind_annotation
+          jkind : Jkind.annotation
         }
 
   type nonrec extension_constructor =
     | Lext_decl of
-        (string Location.loc * jkind_annotation option) list
+        (string Location.loc * Jkind.annotation option) list
         * constructor_arguments
         * Parsetree.core_type option
-
-  (*******************************************************)
-  (* Pretty-printing *)
-
-  module Pprint = Jkinds_pprint
 
   (*******************************************************)
   (* Errors *)

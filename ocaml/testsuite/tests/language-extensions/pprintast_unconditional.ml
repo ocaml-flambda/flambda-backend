@@ -93,6 +93,12 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let jkind            = Jane_syntax.Jkind.(
+                            With (
+                              Primitive_layout_or_abbreviation
+                                (located "value"),
+                              core_type
+                            ))
 end
 
 let print_test_header name =
@@ -171,6 +177,7 @@ end = struct
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
 
   let tyvar = test "tyvar" tyvar Example.tyvar
+  let jkind = test "jkind" jkind Example.jkind
 end
 
 

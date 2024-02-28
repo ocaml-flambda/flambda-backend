@@ -11,11 +11,3 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-type const_jkind = string
-
-let jkind_of_string x = x
-
-let jkind_to_string x = x
-
-type jkind_annotation = const_jkind Location.loc

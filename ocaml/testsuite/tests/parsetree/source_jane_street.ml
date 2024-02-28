@@ -294,3 +294,15 @@ let f x =
 ;;
 
 test_int64 "result" (f #7L);;
+
+(***************)
+(* Modal kinds *)
+
+type 'a list : immutable_data with 'a
+type ('a, 'b) either : immutable_data with 'a * 'b
+type 'a gel : kind_of 'a mod global
+
+kind_abbrev immediate = value mod global unique many sync uncontended
+kind_abbrev immutable_data = value mod sync uncontended many
+kind_abbrev immutable = value mod uncontended
+kind_abbrev data = value mod sync many

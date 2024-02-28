@@ -47,7 +47,7 @@ type iterator = {
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
-  jkind_annotation:iterator -> Jane_asttypes.const_jkind -> unit;
+  jkind_annotation:iterator -> Jane_syntax.Jkind.t -> unit;
   label_declaration: iterator -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
@@ -977,5 +977,15 @@ let default_iterator =
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
 
-    jkind_annotation = (fun _this _l -> ());
+    jkind_annotation =
+      (fun this -> function
+        | Default -> ()
+        | Primitive_layout_or_abbreviation s ->
+          iter_loc this s
+        | Mod (t, _mode_expr) ->
+          this.jkind_annotation this t
+        | With (t, ty) ->
+          this.jkind_annotation this t;
+          this.typ this ty
+        | Of ty -> this.typ this ty);
   }
