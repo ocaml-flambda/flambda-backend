@@ -411,6 +411,8 @@ module Mode_expr = struct
     val list_as_payload : t list -> payload
 
     val list_from_payload : loc:Location.t -> payload -> t list
+
+    val ghostify : t -> t
   end = struct
     type raw = string
 
@@ -436,6 +438,10 @@ module Mode_expr = struct
     type t = raw Location.loc
 
     let mk txt loc : t = { txt; loc }
+
+    let ghostify { txt; loc } =
+      let loc = { loc with loc_ghost = true } in
+      { txt; loc }
   end
 
   type t = Const.t list Location.loc
@@ -502,6 +508,11 @@ module Mode_expr = struct
       let attr_name = Location.mknoloc attribute_name in
       let attr_loc = modes.loc in
       Some { attr_name; attr_loc; attr_payload }
+
+  let ghostify { txt; loc } =
+    let loc = { loc with loc_ghost = true } in
+    let txt = List.map Const.ghostify txt in
+    { loc; txt }
 end
 
 (** List and array comprehensions *)
