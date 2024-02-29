@@ -300,9 +300,9 @@ test_int64 "result" (f #7L);;
 
 type 'a list : immutable_data with 'a
 type ('a, 'b) either : immutable_data with 'a * 'b
-type 'a gel : kind_of 'a mod global
+type 'a gel : kind_of_ 'a mod global
 
-kind_abbrev immediate = value mod global unique many sync uncontended
-kind_abbrev immutable_data = value mod sync uncontended many
-kind_abbrev immutable = value mod uncontended
-kind_abbrev data = value mod sync many
+kind_abbrev_ immediate = value mod global unique many sync uncontended
+kind_abbrev_ immutable_data = value mod sync uncontended many
+kind_abbrev_ immutable = value mod uncontended
+kind_abbrev_ data = value mod sync many

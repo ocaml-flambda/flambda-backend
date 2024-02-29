@@ -362,7 +362,7 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
     end
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
-  | Kind_of ty -> pp f "kind_of %a" (core_type ctxt) ty
+  | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
 
 and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
 
@@ -1275,8 +1275,8 @@ and include_ : 'a. ctxt -> formatter ->
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
-and kind_abbrev_ ctxt f name jkind =
-  pp f "@[<hov2>kind_abbrev@ %a@ =@ %a@]"
+and kind_abbrev ctxt f name jkind =
+  pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
     string_loc name
     (jkind_annotation ctxt) jkind
 
@@ -1372,7 +1372,7 @@ and sig_include_functor ctxt f
 and sig_layout ctxt f
   : Jane_syntax.Layouts.signature_item -> _ = function
   | Lsig_kind_abbrev (name, jkind) ->
-      kind_abbrev_ ctxt f name jkind
+      kind_abbrev ctxt f name jkind
 
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
@@ -1681,7 +1681,7 @@ and str_include_functor ctxt f
 and str_layout ctxt f
   : Jane_syntax.Layouts.structure_item -> _ = function
   | Lstr_kind_abbrev (name, jkind) ->
-      kind_abbrev_ ctxt f name jkind
+      kind_abbrev ctxt f name jkind
 
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
