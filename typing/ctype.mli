@@ -538,6 +538,10 @@ val estimate_type_jkind : Env.t ->  type_expr -> jkind
    types. *)
 val type_jkind : Env.t -> type_expr -> jkind
 
+(* Get the jkind of a type, dropping any changes to types caused by
+   expansion. *)
+val type_jkind_purely : Env.t -> type_expr -> jkind
+
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
@@ -556,6 +560,11 @@ val check_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
+
+(* Check whether a type's externality's upper bound is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
 
 (* This function should get called after a type is generalized.
 
@@ -606,12 +615,6 @@ val check_and_update_generalized_ty_jkind :
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)
 val is_principal : type_expr -> bool
-
-(* True if a type is immediate. *)
-val is_immediate : Env.t -> type_expr -> bool
-
-(* True if a type can cross to the minimum on all mode axes. *)
-val mode_cross : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state

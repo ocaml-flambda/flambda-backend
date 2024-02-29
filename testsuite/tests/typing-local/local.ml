@@ -1815,6 +1815,12 @@ let foo (local_ x) =
   | _ -> ()
 [%%expect{|
 val foo : local_ int -> unit = <fun>
+|}, Principal{|
+Line 3, characters 21-22:
+3 |   | 0 as y -> escape y
+                         ^
+Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 let foo (local_ x) =
@@ -1823,6 +1829,12 @@ let foo (local_ x) =
   | _ -> ()
 [%%expect{|
 val foo : local_ char -> unit = <fun>
+|}, Principal{|
+Line 3, characters 28-29:
+3 |   | 'a'..'e' as y -> escape y
+                                ^
+Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 let foo (local_ x) =

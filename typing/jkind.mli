@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* This module is named Jkind, with a 'y', to distinguish jkinds
+(* This module is named Jkind, with a 'j', to distinguish jkinds
    as used here from type kinds (which might be abstract or record or variant,
    etc.). This is clearly far from ideal, but the current scheme has these
    positives:
@@ -30,6 +30,25 @@
 
    * It is very easy to search for and replace when we have a better name.
 *)
+
+(* The externality mode. This tracks whether or not an expression is external
+   to the type checker; something external to the type checker can be skipped
+   during garbage collection.
+
+   This will eventually be incorporated into the mode
+   solver, but it is defined here because we do not yet track externalities
+   on expressions, just in jkinds. *)
+(* CR externals: Move to mode.ml. But see
+   https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
+   first, which was reisenberg's attempt to do so. *)
+module Externality : sig
+  type t =
+    | External (* not managed by the garbage collector *)
+    | External64 (* not managed by the garbage collector on 64-bit systems *)
+    | Internal (* managed by the garbage collector *)
+
+  val le : t -> t -> bool
+end
 
 module Sort : sig
   (** A sort classifies how a type is represented at runtime. Every concrete
@@ -157,21 +176,15 @@ end
 
 type sort = Sort.t
 
-(* This module describes jkinds, which classify types. Jkinds are arranged
-   in the following lattice:
-
-   {[
-                          any
-                           |
-               ----------------------------
-              /        |       |     ...   \
-           value     void   float64      bits64
-            |
-        immediate64
-            |
-        immediate
-   ]}
-*)
+(* The layout of a type describes its memory layout. A layout is either the
+   indeterminate [Any] or a sort, which is a concrete memory layout. *)
+module Layout : sig
+  module Const : sig
+    type t =
+      | Sort of Sort.const
+      | Any
+  end
+end
 
 (** A Jkind.t is a full description of the runtime representation of values
     of a given type. It includes sorts, but also the abstract top jkind
@@ -258,17 +271,8 @@ type immediate_creation_reason =
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
-  | Gc_ignorable_check
-(* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
 
-type immediate64_creation_reason =
-  | Local_mode_cross_check
-  (* CR layouts v2.8: Remove Local_mode_cross_check after the check uses modal kinds *)
-  | Gc_ignorable_check
-  (* CR layouts v2.8: Remove Gc_ignorable_check after the check uses modal kinds *)
-  | Separability_check
-  | Erasability_check
-(* CR layouts v2.8: Remove after the check uses modal kinds *)
+type immediate64_creation_reason = Separability_check
 
 (* CR layouts v5: make new void_creation_reasons *)
 type void_creation_reason = |
@@ -504,6 +508,16 @@ val is_void_defaulting : t -> bool
     jkinds - raises on Any. *)
 val sort_of_jkind : t -> sort
 
+(** Gets the layout of a jkind; returns [None] if the layout is still unknown.
+    Never does mutation. *)
+val get_layout : t -> Layout.Const.t option
+
+(** Gets the maximum modes for types of this jkind. *)
+val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+
+(** Gets the maximum mode on the externality axis for types of this jkind. *)
+val get_externality_upper_bound : t -> Externality.t
+
 (*********************************)
 (* pretty printing *)
 
@@ -554,14 +568,13 @@ val equal : t -> t -> bool
     intersection of the two, not something that modifies the second jkind. *)
 val intersection : reason:interact_reason -> t -> t -> (t, Violation.t) Result.t
 
-(** [sub t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2].  The current hierarchy is:
+(** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
+    either [t1] or [t2] to make their layouts equal.*)
+val sub : t -> t -> bool
 
-  Any > Sort Value > Immediate64 > Immediate
-  Any > Sort Void
-
-  Returns [Error _] if the coercion is not possible. *)
-val sub : t -> t -> (unit, Violation.t) result
+(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
+  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result

@@ -2101,82 +2101,113 @@ let rec estimate_type_jkind env ty =
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (value ~why:First_class_module)
 
+(**** checking jkind relationships ****)
+
+type type_jkind_sub_result =
+  | Success
+    (* The [Type_var] case might still be "success"; caller should check.
+       We don't just report success here because if the caller unifies the
+       tyvar, error messages improve. *)
+  | Type_var of Jkind.t * type_expr
+  | Missing_cmi of Jkind.t * Path.t
+  | Failure of Jkind.t
+
+let type_jkind_sub env ty ~check_sub =
+  let shallow_check ty =
+    match estimate_type_jkind env ty with
+    | Jkind ty_jkind -> if check_sub ty_jkind then Success else Failure ty_jkind
+    | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
+  in
+  (* The "fuel" argument here is used because we're duplicating the loop of
+     `get_unboxed_type_representation`, but performing jkind checking at each
+     step.  This allows to check examples like:
+
+       type 'a t = 'a list
+       type s = { lbl : s t } [@@unboxed]
+
+     Here, we want to see [s t] has jkind value, and this only requires
+     expanding once to see [t] is list and [s] is irrelevant.  But calling
+     [get_unboxed_type_representation] itself would otherwise get into a nasty
+     loop trying to also expand [s], and then performing jkind checking to
+     ensure it's a valid argument to [t].  (We believe there are still loops
+     like this that can occur, though, and may need a more principled solution
+     later).  *)
+  let rec loop ty fuel =
+    (* This is an optimization to avoid unboxing if we can tell the constraint
+       is satisfied from the type_kind *)
+    match get_desc ty with
+    | Tconstr(p, _args, _abbrev) ->
+        let jkind_bound =
+          try (Env.find_type p env).type_jkind
+          with Not_found -> Jkind.any ~why:(Missing_cmi p)
+        in
+        if check_sub jkind_bound
+        then Success
+        else if fuel < 0 then Failure jkind_bound
+        else begin match unbox_once env ty with
+          | Final_result ty -> shallow_check ty
+          | Stepped ty -> loop ty (fuel - 1)
+          | Missing missing_cmi_for ->
+            Missing_cmi (jkind_bound, missing_cmi_for)
+        end
+    | Tpoly (ty, _) -> loop ty fuel
+    | _ -> shallow_check ty
+  in
+  loop ty 100
 
 (* The ~fixed argument controls what effects this may have on `ty`.  If false,
    then we will update the jkind of type variables to make the check true, if
    possible.  If true, we won't (but will still instantiate sort variables).
 
-   The "fuel" argument here is used because we're duplicating the loop of
-   `get_unboxed_type_representation`, but performing jkind checking at each
-   step.  This allows to check examples like:
-
-     type 'a t = 'a list
-     type s = { lbl : s t } [@@unboxed]
-
-   Here, we want to see [s t] has jkind value, and this only requires expanding
-   once to see [t] is list and [s] is irrelvant.  But calling
-   [get_unboxed_type_representation] itself would otherwise get into a nasty
-   loop trying to also expand [s], and then performing jkind checking to ensure
-   it's a valid argument to [t].  (We believe there are still loops like this
-   that can occur, though, and may need a more principled solution later).
-
    Precondition: [jkind] is not [any]. This common case is short-circuited
    before calling this function. (Though the current implementation is still
    correct on [any].)
 *)
-let rec constrain_type_jkind ~fixed env ty jkind fuel =
-  let constrain_unboxed ty =
-    match estimate_type_jkind env ty with
-    | Jkind ty_jkind -> Jkind.sub ty_jkind jkind
-    | TyVar (ty_jkind, ty) ->
-      if fixed then Jkind.sub ty_jkind jkind
-      else
-        let jkind_inter =
-          Jkind.intersection ~reason:Tyvar_refinement_intersection
-            ty_jkind jkind
-        in
-        Result.map (set_var_jkind ty) jkind_inter
-  in
-  (* This is an optimization to avoid unboxing if we can tell the constraint is
-     satisfied from the type_kind *)
-  match get_desc ty with
-  | Tconstr(p, _args, _abbrev) -> begin
-      let jkind_bound =
-        try (Env.find_type p env).type_jkind
-        with Not_found -> Jkind.any ~why:(Missing_cmi p)
-      in
-      match Jkind.sub jkind_bound jkind with
-      | Ok () as ok -> ok
-      | Error _ as err when fuel < 0 -> err
-      | Error _ ->
-        begin match unbox_once env ty with
-        | Final_result ty -> constrain_unboxed ty
-        | Stepped ty ->
-            constrain_type_jkind ~fixed env ty jkind (fuel - 1)
-        | Missing missing_cmi_for ->
-          Error Jkind.(Violation.of_ ~missing_cmi:missing_cmi_for (Not_a_subjkind (update_reason jkind_bound (Missing_cmi missing_cmi_for), jkind)))
-        end
-    end
-  | Tpoly (ty, _) -> constrain_type_jkind ~fixed env ty jkind fuel
-  | _ -> constrain_unboxed ty
+let constrain_type_jkind ~fixed env ty jkind =
+  match type_jkind_sub env ty
+          ~check_sub:(fun ty_jkind -> Jkind.sub ty_jkind jkind) with
+  | Success -> Ok ()
+  | Type_var (ty_jkind, ty) ->
+    if fixed then Jkind.sub_or_error ty_jkind jkind else
+    let jkind_inter =
+      Jkind.intersection ~reason:Tyvar_refinement_intersection
+        ty_jkind jkind
+    in
+    Result.map (set_var_jkind ty) jkind_inter
+  | Missing_cmi (ty_jkind, missing_cmi) ->
+    Error Jkind.(Violation.of_ ~missing_cmi
+      (Not_a_subjkind
+         (update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
+  | Failure ty_jkind ->
+    Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
-let constrain_type_jkind ~fixed env ty jkind fuel =
+let constrain_type_jkind ~fixed env ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
   if Jkind.is_any jkind then Ok ()
-  else constrain_type_jkind ~fixed env ty jkind fuel
+  else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:true env ty jkind 100
+  constrain_type_jkind ~fixed:true env ty jkind
 
 let constrain_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:false env ty jkind 100
+  constrain_type_jkind ~fixed:false env ty jkind
 
 let () =
   Env.constrain_type_jkind := constrain_type_jkind
 
+let check_type_externality env ty ext =
+  let check_sub ty_jkind =
+    Jkind.(Externality.le (get_externality_upper_bound ty_jkind) ext)
+  in
+  match type_jkind_sub env ty ~check_sub with
+  | Success -> true
+  | Type_var (ty_jkind, _) -> check_sub ty_jkind
+  | Missing_cmi _ -> false (* safe answer *)
+  | Failure _ -> false
+
 let check_decl_jkind env decl jkind =
-  match Jkind.sub decl.type_jkind jkind with
+  match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
@@ -2198,6 +2229,17 @@ let estimate_type_jkind env typ =
 
 let type_jkind env ty =
   estimate_type_jkind env (get_unboxed_type_approximation env ty)
+
+let type_jkind_purely env ty =
+  if !Clflags.principal || Env.has_local_constraints env then
+    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
+       that mentions snapshotting for an example. *)
+    let snap = Btype.snapshot () in
+    let jkind = type_jkind env ty in
+    Btype.backtrack snap;
+    jkind
+  else
+    type_jkind env ty
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
@@ -2250,15 +2292,13 @@ let () =
 let check_and_update_generalized_ty_jkind ?name ~loc ty =
   let immediacy_check jkind =
     let is_immediate jkind =
-      let snap = Btype.snapshot () in
-      let result =
-        Result.is_ok (
-          Jkind.sub
-            jkind
-            (Jkind.immediate64 ~why:Erasability_check))
-      in
-      Btype.backtrack snap;
-      result
+      (* Just check externality and layout, because that's what actually matters
+         for upstream code. We check both for a known value and something that
+         might turn out later to be value. This is the conservative choice. *)
+      Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
+             match get_layout jkind with
+               | Some (Sort Value) | None -> true
+               | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind
@@ -2292,36 +2332,6 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
 
 let is_principal ty =
   not !Clflags.principal || get_level ty = generic_level
-
-let is_immediate64 env ty =
-  let perform_check () =
-    Result.is_ok (check_type_jkind env ty
-                    (Jkind.immediate64 ~why:Local_mode_cross_check))
-  in
-  if !Clflags.principal || Env.has_local_constraints env then
-    (* We snapshot to keep this pure; see the mode crossing test that mentions
-       snapshotting for an example. *)
-    let snap = Btype.snapshot () in
-    let result = perform_check () in
-    Btype.backtrack snap;
-    result
-  else
-    (* CR layouts v2.8: Remove the backtracking once mode crossing is
-       implemented correctly; it's needed for now because checking whether
-       a jkind is immediate (rightly) sets the sort to be Value. It worked
-       previous to this patch because the subjkind check failed earlier. *)
-    let snap = Btype.snapshot () in
-    let result = perform_check () in
-    Btype.backtrack snap;
-    result
-
-(* We will require Int63 to be [global many unique] on 32-bit platforms, so
-   this is fine *)
-let is_immediate = is_immediate64
-
-let mode_cross env (ty : type_expr) =
-  (* immediates can cross all mode axes: locality, uniqueness and linearity *)
-  is_principal ty && is_immediate env ty
 
 (* Recursively expand the head of a type.
    Also expand #-types.
@@ -5527,16 +5537,75 @@ let find_cltype_for_path env p =
 let has_constr_row' env t =
   has_constr_row (expand_abbrev env t)
 
+let build_submode_pos m =
+  let m', changed = Alloc.newvar_below m in
+  let c = if changed then Changed else Unchanged in
+  m', c
+
+let build_submode_neg m =
+  let m', changed = Alloc.newvar_above m in
+  let c = if changed then Changed else Unchanged in
+  m', c
+
 let build_submode posi m =
-  if posi then begin
-    let m', changed = Alloc.newvar_below m in
-    let c = if changed then Changed else Unchanged in
-    m', c
-  end else begin
-    let m', changed = Alloc.newvar_above m in
-    let c = if changed then Changed else Unchanged in
-    m', c
-  end
+  if posi then build_submode_pos (Alloc.allow_left m)
+  else build_submode_neg (Alloc.allow_right m)
+
+(* CR layouts v2.8: use the meet-with-constant morphism when available *)
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
+   [Alloc] get unified *)
+(* The approach here works only for 2-element modal axes. *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so
+     this one doesn't either. I think it should. But actually test results
+     are bad when checking for principality. Really, I'm surprised that
+     the types here aren't principal. In any case, leaving the check out
+     now; will return and figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = Alloc.disallow_right mode in
+  let mode =
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
+    then Alloc.set_locality_min mode
+    else mode
+  in
+  let mode =
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
+    then Alloc.set_linearity_min mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.set_uniqueness_min mode
+    else mode
+  in
+  mode
+
+(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
+   and [Alloc] get unified *)
+(* The approach here works only for 2-element modal axes. *)
+let mode_cross_right env ty mode =
+  (* CR layouts v2.8: This should probably check for principality. See
+     similar comment in [mode_cross_left]. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let mode = Alloc.disallow_left mode in
+  let mode =
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
+    then Alloc.set_locality_max mode
+    else mode
+  in
+  let mode =
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
+    then Alloc.set_linearity_max mode
+    else mode
+  in
+  let mode =
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.set_uniqueness_max mode
+    else mode
+  in
+  mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
@@ -5564,11 +5633,15 @@ let rec build_subtype env (visited : transient_expr list)
             runtime values, and easier to cross modes (and thus making the
             mode-crossing more complete). *)
           let t1 = if posi then t1 else t1' in
-          if is_immediate env t1 then
-            Mode.Alloc.newvar (), Changed
-          else
-            build_submode (not posi) a
-          end else a, Unchanged
+          let posi_arg = not posi in
+          if posi_arg then begin
+            let a = mode_cross_right env t1 a in
+            build_submode_pos a
+          end else begin
+            let a = mode_cross_left env t1 a in
+            build_submode_neg a
+          end
+        end else a, Unchanged
       in
       let (r', c4) =
         if level > 2 then build_submode posi r else r, Unchanged
@@ -5786,8 +5859,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
             t2 t1
             cstrs
         in
-        if not (is_immediate env t2) then
-          subtype_alloc_mode env trace a2 a1;
+        let a2 = mode_cross_left env t2 a2 in
+         subtype_alloc_mode env trace a2 a1;
         (* RHS mode of arrow types indicates allocation in the parent region
            and is not subject to mode crossing *)
         subtype_alloc_mode env trace r1 r2;

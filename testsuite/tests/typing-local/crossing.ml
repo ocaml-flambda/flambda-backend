@@ -347,7 +347,7 @@ val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
 
-(* This test needs the snapshotting in [is_immediate] to prevent a type error
+(* This test needs the snapshotting in [type_jkind_purely] to prevent a type error
    from the use of the gadt equation in the inner scope. *)
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a }
@@ -438,6 +438,28 @@ Line 1, characters 12-39:
 1 | let _ = bar (foo' :> local_ int -> int)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Type int -> local_ int is not a subtype of local_ int -> int
+|}]
+
+(* Testing mode crossing in [enlarge_type] *)
+module M : sig
+  val foo : (int -> unit) -> (local_ int -> unit)
+end = struct
+  let foo f = (f :> local_ int -> unit)
+end
+[%%expect{|
+module M : sig val foo : (int -> unit) -> local_ int -> unit end
+|}]
+
+(* Same, but in opposite variance.
+   The following coercion is still strenghthening *)
+module M : sig
+  val foo : ((local_ int -> int) -> unit) -> ((int -> int) -> unit)
+end = struct
+  let foo f = (f :> (int -> int) -> unit)
+end
+[%%expect{|
+module M :
+  sig val foo : ((local_ int -> int) -> unit) -> (int -> int) -> unit end
 |}]
 
 (* Mode crossing at identifiers - in the following, x and y are added to the

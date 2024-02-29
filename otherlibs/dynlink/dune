@@ -80,12 +80,12 @@
     ident
     path
     shape
-    jkind
-    primitive
     solver_intf
     solver
     mode_intf
     mode
+    jkind
+    primitive
     types
     btype
     lazy_backtrack
@@ -351,9 +351,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -431,9 +431,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

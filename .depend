@@ -1094,6 +1094,7 @@ typing/includemod_errorprinter.cmi : \
 typing/jkind.cmo : \
     typing/path.cmi \
     parsing/parsetree.cmi \
+    typing/mode.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/language_extension.cmi \
@@ -1105,6 +1106,7 @@ typing/jkind.cmo : \
 typing/jkind.cmx : \
     typing/path.cmx \
     parsing/parsetree.cmi \
+    typing/mode.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/language_extension.cmx \
@@ -1116,6 +1118,7 @@ typing/jkind.cmx : \
 typing/jkind.cmi : \
     typing/path.cmi \
     parsing/parsetree.cmi \
+    typing/mode.cmi \
     parsing/location.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi
@@ -1135,7 +1138,8 @@ typing/mode.cmi : \
     typing/mode_intf.cmi
 typing/mode_intf.cmi : \
     typing/solver_intf.cmi \
-    typing/solver.cmi
+    typing/solver.cmi \
+    utils/misc.cmi
 typing/mtype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -4172,11 +4176,13 @@ lambda/transl_array_comprehension.cmi : \
     lambda/debuginfo.cmi
 lambda/transl_comprehension_utils.cmo : \
     utils/targetint.cmi \
+    typing/primitive.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     lambda/transl_comprehension_utils.cmi
 lambda/transl_comprehension_utils.cmx : \
     utils/targetint.cmx \
+    typing/primitive.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     lambda/transl_comprehension_utils.cmi
