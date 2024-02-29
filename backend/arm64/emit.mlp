@@ -1210,7 +1210,7 @@ let data l =
 let emit_line str = emit_string (str ^ "\n")
 
 let file_emitter ~file_num ~file_name =
-  emit_line (Printf.sprintf ".file %d,%s" file_num file_name)
+  emit_line (Printf.sprintf ".file %d %S" file_num file_name)
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
   module Asm_targets.Asm_directives.Make(struct
@@ -1261,7 +1261,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 
       let label ?data_type str =
         let _ = data_type in
-        emit_line (Printf.sprintf ".%s:" str)
+        emit_line (Printf.sprintf "%s:" str)
 
       let section ?delayed:_ name flags args =
         match name, flags, args with
@@ -1295,7 +1295,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 
       let word const =
         emit_line
-          (Printf.sprintf "\t.word %s" (string_of_constant const))
+          (Printf.sprintf "\t.short %s" (string_of_constant const))
 
       let long const =
         emit_line
@@ -1303,7 +1303,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 
       let qword const =
         emit_line
-          (Printf.sprintf "\t.qword %s" (string_of_constant const))
+          (Printf.sprintf "\t.quad %s" (string_of_constant const))
 
       let bytes str =
         emit_line (Printf.sprintf "\t.ascii %S" str)
