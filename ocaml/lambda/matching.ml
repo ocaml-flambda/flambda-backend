@@ -109,7 +109,7 @@ let dbg = false
 (* CR layouts v5: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let jkind_layout_must_be_value loc jkind =
-  match Jkind.(sub jkind (value ~why:V1_safety_check)) with
+  match Jkind.(sub_or_error jkind (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 

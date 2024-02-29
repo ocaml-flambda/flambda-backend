@@ -956,9 +956,6 @@ let check_constraints env sdecl (_, decl) =
    relatively expensive thing of computing the best possible jkind for the
    manifest, checking that it's a subjkind of [type_jkind], and then replacing
    [type_jkind] with what we computed.
-
-   CR layouts: if easy, factor out the shared backtracking logic from here
-   and is_immediate.
 *)
 let check_coherence env loc dpath decl =
   match decl with
@@ -996,17 +993,7 @@ let check_coherence env loc dpath decl =
       end
   | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
-    let jkind' =
-      if !Clflags.principal || Env.has_local_constraints env then
-        (* We snapshot to keep this pure; see the mode crossing test that
-           mentions snapshotting for an example. *)
-        let snap = Btype.snapshot () in
-        let jkind' = Ctype.type_jkind env ty in
-        Btype.backtrack snap;
-        jkind'
-      else
-        Ctype.type_jkind env ty
-    in
+    let jkind' = Ctype.type_jkind_purely env ty in
     begin match Jkind.sub_with_history jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
@@ -1217,7 +1204,7 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.sub new_jkind decl.type_jkind with
+    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
     | Ok () -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))

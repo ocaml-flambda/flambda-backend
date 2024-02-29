@@ -314,6 +314,8 @@ module type S = sig
     module Monadic : sig
       include Common with type error = [`Uniqueness of Uniqueness.error]
 
+      val set_uniqueness_max : ('l * 'r) t -> (disallowed * 'r) t
+
       val check_const : ('l * 'r) t -> Uniqueness.Const.t option
     end
 
@@ -323,6 +325,10 @@ module type S = sig
           with type error =
             [ `Locality of Locality.error
             | `Linearity of Linearity.error ]
+
+      val set_locality_min : ('l * 'r) t -> ('l * disallowed) t
+
+      val set_linearity_min : ('l * 'r) t -> ('l * disallowed) t
 
       val check_const :
         ('l * 'r) t -> Locality.Const.t option * Linearity.Const.t option
