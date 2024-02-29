@@ -39,3 +39,22 @@ let is_tagged_immediate t =
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Naked_vec128 _ ->
     None
+
+let dummy_from_kind (kind : Flambda_kind.t) =
+  match kind with
+  | Value ->
+    tagged_immediate Targetint_31_63.zero
+  | Naked_number Naked_immediate ->
+    naked_immediate Targetint_31_63.zero
+  | Naked_number Naked_float ->
+    naked_float Numeric_types.Float_by_bit_pattern.zero
+  | Naked_number Naked_int32 ->
+    naked_int32 Int32.zero
+  | Naked_number Naked_int64 ->
+    naked_int64 Int64.zero
+  | Naked_number Naked_nativeint ->
+    naked_nativeint Targetint_32_64.zero
+  | Naked_number Naked_vec128 ->
+    naked_vec128 Vector_types.Vec128.Bit_pattern.zero
+  | Region | Rec_info ->
+    Misc.fatal_errorf "No dummy constant for kind %a" Flambda_kind.print kind
