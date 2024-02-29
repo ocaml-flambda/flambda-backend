@@ -823,16 +823,29 @@ let mode_cross_left env ty mode =
   mode
 
 (* cross the monadic fragment to max, and the comonadic fragment to min *)
-let alloc_mode_cross_to_max_min env ty {monadic; comonadic} =
-  let (monadic, comonadic)=
-    if mode_cross env ty then
-      Alloc.Monadic.max, Alloc.Comonadic.min
-    else
-      monadic, comonadic
-  in
+(* CR layouts v2.8: use the meet-with-constant morphism when available *)
+let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  {monadic; comonadic}
+  if not (is_principal ty) then { monadic; comonadic } else
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let comonadic =
+    if Locality.Const.le upper_bounds.locality Locality.Const.min
+    then Alloc.Comonadic.set_locality_min comonadic
+    else comonadic
+  in
+  let comonadic =
+    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
+    then Alloc.Comonadic.set_linearity_min comonadic
+    else comonadic
+  in
+  let monadic =
+    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
+    then Alloc.Monadic.set_uniqueness_max monadic
+    else monadic
+  in
+  { monadic; comonadic }
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
