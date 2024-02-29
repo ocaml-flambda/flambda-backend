@@ -93,7 +93,7 @@ module type S_subrange_info = sig
     key ->
     subrange_state ->
     fun_contains_calls:bool ->
-    fun_num_stack_slots:int array ->
+    fun_num_stack_slots:int Stack_class.Tbl.t ->
     t
 
   val print : Format.formatter -> t -> unit

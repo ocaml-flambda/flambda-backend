@@ -189,7 +189,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           else
             RD.Set.made_unavailable_by_clobber avail_before
               ~regs_clobbered:instr.res ~register_class:Proc.register_class
-              ~stack_class:(fun r -> Proc.stack_slot_class r.typ)
+              ~stack_class:(fun r -> Stack_class.of_machtype r.typ)
         in
         let results =
           Array.map2
@@ -239,7 +239,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           in
           RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
             ~register_class:Proc.register_class ~stack_class:(fun r ->
-              Proc.stack_slot_class r.typ)
+              Stack_class.of_machtype r.typ)
         in
         (* Second: the cases of (a) allocations, (b) other polling points, (c)
            OCaml to OCaml function calls and (d) end-region operations. In these

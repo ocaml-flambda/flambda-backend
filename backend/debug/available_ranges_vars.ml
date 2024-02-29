@@ -109,7 +109,7 @@ module Vars = struct
           in
           let slot_offset =
             Proc.slot_offset loc
-              ~stack_class:(Proc.stack_slot_class reg.typ)
+              ~stack_class:(Stack_class.of_machtype reg.typ)
               ~stack_offset ~fun_contains_calls ~fun_num_stack_slots
           in
           let offset : Stack_reg_offset.t =

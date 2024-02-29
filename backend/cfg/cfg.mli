@@ -90,7 +90,7 @@ type t = private
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
     fun_contains_calls : bool;  (** Precomputed at selection time. *)
-    fun_num_stack_slots : int array
+    fun_num_stack_slots : int Stack_class.Tbl.t
         (** Precomputed at register allocation time *)
   }
 
@@ -100,7 +100,7 @@ val create :
   fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   t
 
 val fun_name : t -> string

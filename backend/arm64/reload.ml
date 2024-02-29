@@ -38,4 +38,4 @@ method! reload_operation op arg res =
 end
 
 let fundecl f num_stack_slots =
-  (new reload)#fundecl f num_stack_slots
+  (new reload)#fundecl f ~num_stack_slots

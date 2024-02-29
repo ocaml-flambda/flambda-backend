@@ -133,6 +133,8 @@
   selection
   spill
   split
+  stack_class
+  stack_class_utils
   string_table
   symbol_entry
   symbol_table

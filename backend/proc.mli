@@ -28,13 +28,6 @@ val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val rotate_registers: bool
 val precolored_regs : unit -> Reg.Set.t
 
-(* The number of stack slot classes may differ from the number of register classes.
-   On x86, we use the same class for floating point and SIMD vector registers,
-   but they take up different amounts of space on the stack. *)
-val num_stack_slot_classes: int
-val stack_slot_class: Cmm.machtype_component -> int
-val stack_class_tag: int -> string
-
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
 val loc_results_call: Cmm.machtype -> Reg.t array * int
@@ -75,13 +68,13 @@ val trap_frame_size_in_bytes : int
 
 val frame_required :
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   bool
 
 val frame_size :
   stack_offset:int ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   int
 
 type slot_offset = private
@@ -90,16 +83,16 @@ type slot_offset = private
 
 val slot_offset :
   Reg.stack_location ->
-  stack_class:int ->
+  stack_class:Stack_class.t ->
   stack_offset:int ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   slot_offset
 
 (* Function prologues *)
 val prologue_required :
   fun_contains_calls : bool ->
-  fun_num_stack_slots : int array ->
+  fun_num_stack_slots : int Stack_class.Tbl.t ->
   bool
 
 (** For a given register class, the DWARF register numbering for that class.

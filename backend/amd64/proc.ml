@@ -105,21 +105,6 @@ let register_class r =
   | Float -> 1
   | Vec128 -> assert_simd_enabled (); 1
 
-let num_stack_slot_classes = 3
-
-let stack_slot_class typ =
-  match typ with
-  | Val | Addr | Int -> 0
-  | Float -> 1
-  | Vec128 -> assert_simd_enabled (); 2
-
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | 2 -> assert_simd_enabled (); "x"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
-
 let num_available_registers = [| 13; 16 |]
 
 let first_available_register = [| 0; 100 |]
@@ -627,9 +612,8 @@ let trap_frame_size_in_bytes = 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
-  fun_num_stack_slots.(0) > 0 ||
-  fun_num_stack_slots.(1) > 0 ||
-  fun_num_stack_slots.(2) > 0
+  Stack_class.Tbl.exists fun_num_stack_slots ~f:(fun _stack_class num ->
+    num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
@@ -642,9 +626,7 @@ let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
     let sz =
       (stack_offset
        + 8
-       + 8 * fun_num_stack_slots.(0)
-       + 8 * fun_num_stack_slots.(1)
-       + 16 * fun_num_stack_slots.(2)
+       + Stack_class.Tbl.total_size_in_bytes fun_num_stack_slots
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -664,12 +646,10 @@ let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
   | Local n ->
       Bytes_relative_to_stack_pointer (
         (stack_offset +
-          match stack_class with
-          | 2 -> n * 16
-          | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-          | 1 ->
-              fun_num_stack_slots.(2) * 16 + fun_num_stack_slots.(0) * 8 + n * 8
-          | n -> Misc.fatal_errorf "Invalid register class %d" n))
+         Stack_class.offset_in_bytes
+           fun_num_stack_slots
+           ~stack_class
+           ~slot:n))
   | Outgoing n -> Bytes_relative_to_stack_pointer n
   | Domainstate n ->
       Bytes_relative_to_domainstate_pointer (

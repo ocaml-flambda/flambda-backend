@@ -228,4 +228,4 @@ method! reload_test tst arg =
 end
 
 let fundecl f num_stack_slots =
-  (new reload)#fundecl f num_stack_slots
+  (new reload)#fundecl f ~num_stack_slots

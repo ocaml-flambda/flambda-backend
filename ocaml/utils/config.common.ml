@@ -51,8 +51,8 @@ and ast_intf_magic_number = "Caml1999N033"
 and cmxs_magic_number = "Caml1999D524"
 and cmt_magic_number = "Caml1999T524"
 and cms_magic_number = "Caml1999S524"
-and linear_magic_number = "Caml1999L524"
-and cfg_magic_number = "Caml2021G524"
+and linear_magic_number = "Caml1999L525"
+and cfg_magic_number = "Caml2021G525"
 
 let safe_string = true
 let default_safe_string = true

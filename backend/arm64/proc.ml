@@ -69,21 +69,6 @@ let register_class r =
   (* CR mslater: (SIMD) arm64 *)
   | Vec128 -> fatal_error "arm64: got vec128 register"
 
-let num_stack_slot_classes = 2
-
-let stack_slot_class typ =
-  match typ with
-  | Val | Int | Addr  -> 0
-  | Float -> 1
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
-
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
-
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
 
@@ -398,8 +383,8 @@ let trap_frame_size_in_bytes = 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
-    || fun_num_stack_slots.(0) > 0
-    || fun_num_stack_slots.(1) > 0
+  || Stack_class.Tbl.exists fun_num_stack_slots ~f:(fun _stack_class num ->
+        num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots

@@ -93,15 +93,14 @@ let emit_wreg = function
 
 let stack_offset = ref 0
 
-let num_stack_slots = Array.make Proc.num_stack_slot_classes 0
+let num_stack_slots = Stack_class.Tbl.make 0
 
 let prologue_required = ref false
 
 let contains_calls = ref false
 
 let initial_stack_offset () =
-    8 * num_stack_slots.(0) +
-    8 * num_stack_slots.(1) +
+    Stack_class.Tbl.total_size_in_bytes num_stack_slots +
     (if !contains_calls then 8 else 0)
 
 let frame_size () =
@@ -116,14 +115,12 @@ let slot_offset loc cl =
       assert (n >= 0);
       frame_size() + n
   | Local n ->
-      !stack_offset +
-      (if cl = 0
-       then n * 8
-       else num_stack_slots.(0) * 8 + n * 8)
+    !stack_offset
+    + Stack_class.offset_in_bytes num_stack_slots ~stack_class:cl ~slot:n
   | Outgoing n ->
       assert (n >= 0);
       n
-  | Domainstate _ -> assert false (* not a satck slot *)
+  | Domainstate _ -> assert false (* not a stack slot *)
 
 (* Output a stack reference *)
 
@@ -133,7 +130,7 @@ let emit_stack r =
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       `[{emit_reg reg_domain_state_ptr}, #{emit_int ofs}]`
   | Stack s ->
-      let ofs = slot_offset s (stack_slot_class r.typ) in
+      let ofs = slot_offset s (Stack_class.of_machtype r.typ) in
       `[sp, #{emit_int ofs}]`
   | _ -> fatal_error "Emit.emit_stack"
 
@@ -163,7 +160,7 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
+          live_offset := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ())
@@ -1109,9 +1106,7 @@ let fundecl fundecl =
   float_literals := [];
   stack_offset := 0;
   call_gc_sites := [];
-  for i = 0 to Proc.num_stack_slot_classes - 1 do
-    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
-  done;
+  Stack_class.Tbl.copy_values ~from:fundecl.fun_num_stack_slots ~to_:num_stack_slots;
   prologue_required := fundecl.fun_prologue_required;
   contains_calls := fundecl.fun_contains_calls;
   emit_named_text_section !function_name;

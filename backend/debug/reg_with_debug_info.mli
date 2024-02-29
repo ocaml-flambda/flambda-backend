@@ -69,7 +69,7 @@ val at_same_location :
   t ->
   Reg.t ->
   register_class:(Reg.t -> int) ->
-  stack_class:(Reg.t -> int) ->
+  stack_class:(Reg.t -> Stack_class.t) ->
   bool
 
 val holds_pointer : t -> bool
@@ -109,7 +109,7 @@ module Set : sig
     t ->
     regs_clobbered:Reg.t array ->
     register_class:(Reg.t -> int) ->
-    stack_class:(Reg.t -> int) ->
+    stack_class:(Reg.t -> Stack_class.t) ->
     t
 end
 

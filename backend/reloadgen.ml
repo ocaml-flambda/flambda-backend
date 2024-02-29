@@ -67,7 +67,7 @@ method reload_operation op arg res =
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2
-          && Proc.stack_slot_class arg.(0).typ = Proc.stack_slot_class res.(0).typ then
+          && Stack_class.Tbl.equal_machtype arg.(0) res.(0) then
             (* nothing will be emitted later,
                not necessary to apply constraints *)
             (arg, res)
@@ -145,7 +145,7 @@ method private reload i k =
             k (instr_cons_debug (Itrywith(body, kind, (ts, handler)))
                  [||] [||] i.dbg next))))
 
-method fundecl f num_stack_slots =
+method fundecl f ~num_stack_slots =
   redo_regalloc <- false;
   let new_body = self#reload f.fun_body Fun.id in
   ({fun_name = f.fun_name; fun_args = f.fun_args;
@@ -153,7 +153,7 @@ method fundecl f num_stack_slots =
     fun_dbg  = f.fun_dbg;
     fun_poll = f.fun_poll;
     fun_contains_calls = f.fun_contains_calls;
-    fun_num_stack_slots = Array.copy num_stack_slots;
+    fun_num_stack_slots = Stack_class.Tbl.copy num_stack_slots;
    },
    redo_regalloc)
 end

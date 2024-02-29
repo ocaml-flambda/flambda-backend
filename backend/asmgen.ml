@@ -361,7 +361,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             (* Skip DWARF variable range generation for complicated functions
                to avoid high compilation speed penalties *)
             let total_num_stack_slots =
-              Array.fold_left (+) 0 fundecl.fun_num_stack_slots
+              Stack_class.Tbl.total_size_in_slots fundecl.fun_num_stack_slots
             in
             if total_num_stack_slots
                > !Dwarf_flags.dwarf_max_function_complexity

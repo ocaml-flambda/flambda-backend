@@ -15,4 +15,4 @@
 
 (* Register allocation by coloring of the interference graph *)
 
-val allocate_registers: unit -> int array
+val allocate_registers: unit -> int Stack_class.Tbl.t

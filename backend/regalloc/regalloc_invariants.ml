@@ -106,9 +106,11 @@ let precondition : Cfg_with_layout.t -> unit =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun stack_class num_slots ->
+  Stack_class.Tbl.iter fun_num_stack_slots ~f:(fun stack_class num_slots ->
       if num_slots <> 0
-      then fatal "stack slot class %d has %d slots(s)" stack_class num_slots)
+      then
+        fatal "stack slot class %a has %d slots(s)" Stack_class.print
+          stack_class num_slots)
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
@@ -167,9 +169,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
   in
   let module Int = Numbers.Int in
-  let used_stack_slots =
-    Array.init Proc.num_stack_slot_classes ~f:(fun _ -> Int.Set.empty)
-  in
+  let used_stack_slots = Stack_class.Tbl.init ~f:(fun _ -> Int.Set.empty) in
   let record_stack_slot_use (reg : Reg.t) : unit =
     match reg.loc with
     | Unknown -> ()
@@ -177,9 +177,9 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     | Stack stack_loc -> (
       match stack_loc with
       | Local index ->
-        let stack_class = Proc.stack_slot_class reg.typ in
-        used_stack_slots.(stack_class)
-          <- Int.Set.add index used_stack_slots.(stack_class)
+        let stack_class = Stack_class.of_machtype reg.typ in
+        Stack_class.Tbl.update used_stack_slots stack_class ~f:(fun curr ->
+            Int.Set.add index curr)
       | Incoming _ -> ()
       | Outgoing _ -> ()
       | Domainstate _ -> ())
@@ -211,7 +211,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun stack_class num_slots ->
+  Stack_class.Tbl.iter fun_num_stack_slots ~f:(fun stack_class num_slots ->
       let available_slots =
         Seq.ints 0 |> Seq.take num_slots |> Int.Set.of_seq
       in
@@ -219,20 +219,17 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         set |> Int.Set.elements |> List.map ~f:string_of_int
         |> String.concat ", "
       in
-      let invalid =
-        Int.Set.diff used_stack_slots.(stack_class) available_slots
-      in
+      let used_slots = Stack_class.Tbl.find used_stack_slots stack_class in
+      let invalid = Int.Set.diff used_slots available_slots in
       if not (Int.Set.is_empty invalid)
       then
-        fatal "stack slot class %d uses the following invalid slots: %s"
-          stack_class (string_of_set invalid);
-      let unused =
-        Int.Set.diff available_slots used_stack_slots.(stack_class)
-      in
+        fatal "stack slot class %a uses the following invalid slots: %s"
+          Stack_class.print stack_class (string_of_set invalid);
+      let unused = Int.Set.diff available_slots used_slots in
       if not (Int.Set.is_empty unused)
       then
-        fatal "stack slot class %d has the following unused slots: %s"
-          stack_class (string_of_set unused))
+        fatal "stack slot class %a has the following unused slots: %s"
+          Stack_class.print stack_class (string_of_set unused))
 
 let postcondition_liveness : Cfg_with_infos.t -> unit =
  fun cfg_with_infos ->

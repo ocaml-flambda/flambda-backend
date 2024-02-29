@@ -93,8 +93,8 @@ module Cfg_desc = struct
     let cfg =
       Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
         ~fun_codegen_options:[]
-         ~fun_contains_calls
-        ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
+        ~fun_contains_calls
+        ~fun_num_stack_slots:(Stack_class.Tbl.make 0)
     in
     List.iter
       (fun (block : Block.t) ->
@@ -124,10 +124,12 @@ module Cfg_desc = struct
          count. *)
       let update_stack_slots i =
         let update_slot (r : Reg.t) =
-          match r.loc, Proc.stack_slot_class r.typ with
+          match r.loc, Stack_class.of_machtype r.typ with
           | Stack (Local idx), stack_class ->
-            cfg.fun_num_stack_slots.(stack_class)
-              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
+            Stack_class.Tbl.update
+              cfg.fun_num_stack_slots
+              stack_class
+              ~f:(fun curr -> max curr (idx + 1))
           | _ -> ()
         in
         Array.iter update_slot i.arg;

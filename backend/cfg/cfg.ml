@@ -70,7 +70,7 @@ type t =
     entry_label : Label.t;
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
-    fun_num_stack_slots : int array
+    fun_num_stack_slots : int Stack_class.Tbl.t
   }
 
 let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
@@ -530,7 +530,8 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
   match r1.loc with
   | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
   | Reg _ -> Proc.register_class r1 = Proc.register_class r2
-  | Stack _ -> Proc.stack_slot_class r1.typ = Proc.stack_slot_class r2.typ
+  | Stack _ ->
+    Stack_class.Tbl.equal_machtype r1 r2
 
 let is_noop_move instr =
   match instr.desc with
