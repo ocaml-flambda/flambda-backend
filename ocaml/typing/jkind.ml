@@ -671,6 +671,36 @@ module Jkind_desc = struct
       externality_upper_bound = Externality.min
     }
 
+  (* [immediate64] describes types that are stored directly (no indirection)
+     on 64-bit platforms but indirectly on 32-bit platforms. The key question:
+     along which modes should a [immediate64] cross? As of today, all of them,
+     but the reasoning for each is independent and somewhat subtle:
+
+     * Locality: This is fine, because we do not have stack-allocation on
+     32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
+     including immediate64 types.
+
+     * Linearity: This is fine, because linearity matters only for function
+     types, and an immediate64 cannot be a function type and cannot store
+     one either.
+
+     * Uniqueness: This is fine, because uniqueness matters only for
+     in-place update, and no record supporting in-place update is an
+     immediate64. ([@@unboxed] records do not support in-place update.)
+
+     * Syncness: This is fine, because syncness matters only for function
+     types, and an immediate64 cannot be a function type and cannot store
+     one either.
+
+     * Contention: This is fine, because contention matters only for
+     types with mutable fields, and an immediate64 does not have immutable
+     fields.
+
+     In practice, the functor that creates immediate64s,
+     [Stdlib.Sys.Immediate64.Make], will require these conditions on its
+     argument. But the arguments that we expect here will have no trouble
+     meeting the conditions.
+  *)
   let immediate64 =
     { layout = Layout.value;
       modes_upper_bounds =
