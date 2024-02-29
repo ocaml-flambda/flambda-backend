@@ -1261,7 +1261,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 
       let label ?data_type str =
         let _ = data_type in
-        emit_line (Printf.sprintf ".L%s:" str)
+        emit_line (Printf.sprintf ".%s:" str)
 
       let section ?delayed:_ name flags args =
         match name, flags, args with
