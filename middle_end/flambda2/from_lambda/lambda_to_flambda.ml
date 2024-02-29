@@ -1555,7 +1555,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let unboxing_kind layout mode =
     match (mode : Lambda.alloc_mode) with
     | Alloc_heap -> unboxing_kind layout
-    | Alloc_local -> None
+    | Alloc_local ->
+      Location.prerr_warning
+        (Debuginfo.Scoped_location.to_location loc)
+        Warnings.Unboxing_impossible;
+      None
   in
   let params_arity =
     Flambda_arity.from_lambda_list
