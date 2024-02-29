@@ -1816,16 +1816,15 @@ and record_declaration ctxt f lbls =
     | None -> ()
   in
   let type_record_field f pld =
-    let modalities, ptyp_attributes =
-      maybe_modes_of_attrs pld.pld_type.ptyp_attributes
+    let modalities, pld_attributes =
+      maybe_modes_of_attrs pld.pld_attributes
     in
-    let pld_type = {pld.pld_type with ptyp_attributes} in
     pp f "@[<2>%a%a%s:@;%a@;%a@]"
       mutable_flag pld.pld_mutable
       field_modalities modalities
       pld.pld_name.txt
-      (core_type ctxt) pld_type
-      (attributes ctxt) pld.pld_attributes
+      (core_type ctxt) pld.pld_type
+      (attributes ctxt) pld_attributes
   in
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls

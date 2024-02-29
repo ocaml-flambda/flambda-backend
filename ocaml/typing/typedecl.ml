@@ -362,7 +362,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
            match mut with
            | Mutable -> Mode.Global_flag.Global
            | Immutable -> Typemode.transl_global_flags
-              (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
+              (Jane_syntax.Mode_expr.of_attrs attrs |> fst)
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in

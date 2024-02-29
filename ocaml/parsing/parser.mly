@@ -188,6 +188,15 @@ let mktyp_with_modes modes typ =
       {typ with
       ptyp_attributes = attr :: typ.ptyp_attributes}
 
+let mkld_with_modes modes ld =
+  (* Mark ghost to pass ppxlib well-nestedness check. *)
+  let modes = Mode.ghostify modes in
+  match Mode.attr_of modes with
+  | None -> ld
+  | Some attr ->
+      {ld with
+       pld_attributes = attr :: ld.pld_attributes}
+
 let let_binding_mode_attrs modes =
   match Mode.attr_of modes with
   | None -> []
@@ -3964,8 +3973,8 @@ label_declaration:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
         let mut, gbl = $1 in
-        let typ = mktyp_with_modes gbl $4 in
-        Type.field $2 typ ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info}
+        mkld_with_modes gbl @@
+        Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info}
 ;
 label_declaration_semi:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
@@ -3976,8 +3985,8 @@ label_declaration_semi:
           | None -> symbol_info $endpos
        in
        let mut, gbl = $1 in
-       let typ = mktyp_with_modes gbl $4 in
-       Type.field $2 typ ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info}
+       mkld_with_modes gbl @@
+       Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info}
 ;
 
 /* Type Extensions */
