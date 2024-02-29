@@ -281,6 +281,7 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
   Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
   Simplify_terminator.run cfg;
+  Eliminate_dead_code.run_dead_block cfg_with_layout;
   cfg_with_layout
 
 let save_cfg : string -> Cfg_with_layout.t -> unit =
