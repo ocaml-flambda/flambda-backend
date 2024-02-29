@@ -166,11 +166,15 @@ let dwarf state (fundecl : L.fundecl) lexical_block_ranges ~function_proto_die =
         let rec create_up_to_root block scope_proto_dies all_summaries =
           Format.eprintf "... %a\n%!" Debuginfo.print_compact block;
           match K.Map.find block scope_proto_dies with
-          | proto_die -> proto_die, scope_proto_dies, all_summaries
+          | proto_die ->
+            Format.eprintf "block already has a proto DIE\n%!";
+            proto_die, scope_proto_dies, all_summaries
           | exception Not_found ->
             let parent, scope_proto_dies, all_summaries =
               match K.parent block with
-              | None -> function_proto_die, scope_proto_dies, all_summaries
+              | None ->
+                Format.eprintf "no parent\n%!";
+                function_proto_die, scope_proto_dies, all_summaries
               | Some parent ->
                 Format.eprintf "parent is: %a\n%!" K.print parent;
                 create_up_to_root parent scope_proto_dies all_summaries

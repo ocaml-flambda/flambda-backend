@@ -71,7 +71,7 @@ module Inlined_frames = struct
 
     let parent t =
       (* Format.eprintf "K.parent: t has length %d\n%!" (List.length t); *)
-      match List.rev t with [] | [_] -> None | _ :: t -> Some t
+      match List.rev t with [] | [_] -> None | _ :: t -> Some (List.rev t)
 
     let all_parents _t = []
     (* match List.rev t with | [] | [_] -> [] | _ :: parents -> let rec loop t =
@@ -121,7 +121,9 @@ module Inlined_frames = struct
       match List.rev dbg with
       | [] | [_] -> []
       | _ :: parents ->
-        let rec loop t = match t with [] -> [] | _ :: tl -> t :: loop tl in
+        let rec loop t =
+          match t with [] -> [] | _ :: tl -> List.rev t :: loop tl
+        in
         loop parents
     in
     match insn.dbg with

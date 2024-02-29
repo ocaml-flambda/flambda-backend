@@ -1207,6 +1207,122 @@ let data l =
   `	.align 3\n`;
   List.iter emit_item l
 
+let emit_line str = emit_string (str ^ "\n")
+
+let file_emitter ~file_num ~file_name =
+  emit_line (Printf.sprintf ".file %d,%s" file_num file_name)
+
+let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
+  module Asm_targets.Asm_directives.Make(struct
+    let emit_line = emit_line
+
+    let get_file_num file_name =
+      Emitaux.get_file_num ~file_emitter file_name
+
+    let debugging_comments_in_asm_files =
+      !Flambda_backend_flags.dasm_comments
+
+    module D = struct
+      type constant =
+        | Int64 of Int64.t
+        | Label of string
+        | Add of constant * constant
+        | Sub of constant * constant
+
+      let rec string_of_constant const =
+        match const with
+        | Int64 n -> Int64.to_string n
+        | Label s -> s
+        | Add (c1, c2) ->
+          Printf.sprintf "(%s + %s)"
+            (string_of_constant c1) (string_of_constant c2)
+        | Sub (c1, c2) ->
+          Printf.sprintf "(%s - %s)"
+            (string_of_constant c1) (string_of_constant c2)
+
+      let const_int64 num = Int64 num
+      let const_label str = Label str
+      let const_add c1 c2 = Add (c1, c2)
+      let const_sub c1 c2 = Sub (c1, c2)
+
+      type data_type =
+        | NONE
+        | DWORD
+        | QWORD
+        | VEC128
+
+      let file = file_emitter
+
+      let loc ~file_num ~line ~col ?discriminator () =
+        emit_line (Printf.sprintf ".loc %d %d %d" file_num line col)
+
+      let comment str =
+        emit_line (Printf.sprintf "; %s" str)
+
+      let label ?data_type str =
+        let _ = data_type in
+        emit_line (Printf.sprintf ".L%s:" str)
+
+      let section ?delayed:_ name flags args =
+        match name, flags, args with
+        | [".data" ], _, _ -> emit_line "\t.data"
+        | [".text" ], _, _ -> emit_line "\t.text"
+        | name, flags, args ->
+          emit_string (Printf.sprintf "\t.section %s"
+            (String.concat "," name));
+          begin match flags with
+          | None -> ()
+          | Some flags -> emit_string (Printf.sprintf ",%S" flags)
+          end;
+          begin match args with
+          | [] -> ()
+          | _ ->
+            emit_string (Printf.sprintf ",%s" (String.concat "," args))
+          end;
+          emit_string "\n"
+
+      let text () = emit_line "\t.text"
+
+      let new_line () = emit_line ""
+
+      let global sym = emit_line (Printf.sprintf "\t.globl %s" sym)
+
+      let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
+
+      let byte const =
+        emit_line
+          (Printf.sprintf "\t.byte %s" (string_of_constant const))
+
+      let word const =
+        emit_line
+          (Printf.sprintf "\t.word %s" (string_of_constant const))
+
+      let long const =
+        emit_line
+          (Printf.sprintf "\t.long %s" (string_of_constant const))
+
+      let qword const =
+        emit_line
+          (Printf.sprintf "\t.qword %s" (string_of_constant const))
+
+      let bytes str =
+        emit_line (Printf.sprintf "\t.ascii %S" str)
+
+      let uleb128 const =
+        emit_line
+          (Printf.sprintf "\t.uleb128 %s" (string_of_constant const))
+
+      let sleb128 const =
+        emit_line
+          (Printf.sprintf "\t.sleb128 %s" (string_of_constant const))
+
+      let direct_assignment var const =
+        emit_line
+          (Printf.sprintf "\t.set %s,%s" var (string_of_constant const))
+    end
+  end)
+)
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly _unix =
@@ -1219,9 +1335,13 @@ let begin_assembly _unix =
   let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
   emit_named_text_section lbl_begin;
   `	.globl	{emit_symbol lbl_begin}\n`;
-  `{emit_symbol lbl_begin}:\n`
+  `{emit_symbol lbl_begin}:\n`;
+  let lbl_end = Cmm_helpers.make_symbol "code_end" in
+  Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives
+    ~code_begin:lbl_begin ~code_end:lbl_end
+    ~file_emitter
 
-let end_assembly _dwarf =
+let end_assembly () =
   let lbl_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section lbl_end;
   `	.globl	{emit_symbol lbl_end}\n`;
@@ -1254,6 +1374,8 @@ let end_assembly _dwarf =
       efa_string = (fun s -> emit_string_directive "	.asciz	" s) };
   emit_symbol_type emit_symbol lbl "object";
   emit_symbol_size lbl;
+  if not !Flambda_backend_flags.internal_assembler then
+    Emitaux.Dwarf_helpers.emit_dwarf ();
   begin match Config.system with
   | "linux" ->
       (* Mark stack as non-executable *)
