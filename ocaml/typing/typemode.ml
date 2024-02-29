@@ -27,6 +27,10 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Linearity.Const.Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
+        | "global" ->
+          (* CR zqian: global modality might leak to here by ppxes.
+             This is a dirty fix that needs to be fixed ASAP. *)
+          acc
         | s ->
           Misc.fatal_errorf "Unrecognized mode %s at %a - should not parse" s
             Location.print_loc loc
