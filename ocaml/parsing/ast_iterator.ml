@@ -158,16 +158,16 @@ module T = struct
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
-    match Jane_syntax.Core_type.of_ast typ with
-    | Some (jtyp, attrs) ->
-        sub.attributes sub attrs;
-        sub.typ_jane_syntax sub jtyp
-    | None ->
     let modes, ptyp_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
     match modes with
     | Some modes ->
         let typ = {typ with ptyp_attributes} in
         sub.typ_mode_syntax sub modes typ
+    | None ->
+    match Jane_syntax.Core_type.of_ast typ with
+    | Some (jtyp, attrs) ->
+        sub.attributes sub attrs;
+        sub.typ_jane_syntax sub jtyp
     | None ->
     sub.attributes sub attrs;
     match desc with
@@ -557,11 +557,6 @@ module E = struct
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    match Jane_syntax.Expression.of_ast expr with
-    | Some (jexp, attrs) ->
-        sub.attributes sub attrs;
-        sub.expr_jane_syntax sub jexp
-    | None ->
     match desc with
     | Pexp_apply
         ({ pexp_desc = Pexp_extension(
@@ -570,6 +565,11 @@ module E = struct
         let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
         sub.expr_mode_syntax sub modes e
     | _ ->
+    match Jane_syntax.Expression.of_ast expr with
+    | Some (jexp, attrs) ->
+        sub.attributes sub attrs;
+        sub.expr_jane_syntax sub jexp
+    | None ->
     sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
@@ -678,16 +678,16 @@ module P = struct
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    match Jane_syntax.Pattern.of_ast pat with
-    | Some (jpat, attrs) ->
-        sub.attributes sub attrs;
-        sub.pat_jane_syntax sub jpat
-    | None ->
     let modes, ppat_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
     match modes with
     | Some modes ->
       let pat = {pat with ppat_attributes} in
       sub.pat_mode_syntax sub modes pat
+    | None ->
+    match Jane_syntax.Pattern.of_ast pat with
+    | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
+        sub.pat_jane_syntax sub jpat
     | None ->
     sub.attributes sub attrs;
     match desc with
