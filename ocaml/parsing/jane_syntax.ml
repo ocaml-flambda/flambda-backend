@@ -557,7 +557,6 @@ module Jkind = struct
     | Default -> struct_item_of_list "default" [] t_loc.loc
     | Primitive_layout_or_abbreviation c ->
       struct_item_of_list "prim" [Prim_jkind.to_structure_item c] t_loc.loc
-
     | Mod (t, mode_expr) ->
       let mode_expr_item =
         match Mode_expr.attr_of mode_expr with
@@ -569,7 +568,8 @@ module Jkind = struct
       struct_item_of_list "with"
         [to_structure_item t; struct_item_of_type ty]
         t_loc.loc
-    | Kind_of ty -> struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Kind_of ty ->
+      struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
 
   (* let rec to_structure_item t_loc = function
      | Primitive_layout_or_abbreviation const_jkind
@@ -590,7 +590,8 @@ module Jkind = struct
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("prim", [item], loc) ->
-      bind (Prim_jkind.of_structure_item item) (fun c -> ret loc (Primitive_layout_or_abbreviation c))
+      bind (Prim_jkind.of_structure_item item) (fun c ->
+          ret loc (Primitive_layout_or_abbreviation c))
     | Some _ | None -> None
 end
 
@@ -626,9 +627,8 @@ end = struct
       let report_error ~loc = function
         | Wrong_number_of_jkinds (n, _jkinds) ->
           Location.errorf ~loc
-            "Wrong number of kinds in an kind attribute;@;\
-             expecting %i."
-            n
+            "Wrong number of kinds in an kind attribute;@;expecting %i." n
+
       exception Error of Location.t * error
 
       let () =
@@ -1621,6 +1621,12 @@ module Layouts = struct
         * constructor_arguments
         * Parsetree.core_type option
 
+  type signature_item =
+    | Lsig_kind_abbrev of string Location.loc * Jkind.annotation
+
+  type structure_item =
+    | Lstr_kind_abbrev of string Location.loc * Jkind.annotation
+
   (*******************************************************)
   (* Errors *)
 
@@ -1967,6 +1973,59 @@ module Layouts = struct
 
   let of_type_declaration =
     Type_declaration.make_of_ast ~of_ast_internal:of_type_declaration_internal
+
+  (*********************************************************)
+  (* Constructing a [signature_item] for kind_abbrev *)
+
+  let attr_name_of name =
+    Location.map
+      (fun s ->
+        let embed = Embedded_name.of_feature feature ["kind_abbrev"; s] in
+        Embedded_name.to_string embed)
+      name
+
+  let of_attr_name attr_name =
+    Location.map
+      (fun s ->
+        match Embedded_name.of_string s with
+        | Some (Ok embed) -> (
+          match Embedded_name.components embed with
+          | _ :: ["kind_abbrev"; name] -> name
+          | _ -> failwith "Malformed [kind_abbrev] attribute")
+        | None | Some (Error _) -> failwith "Malformed [kind_abbrev] attribute")
+      attr_name
+
+  let sig_item_of ~loc = function
+    | Lsig_kind_abbrev (name, jkind) ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
+          let payload = Encode.as_payload jkind in
+          Ast_helper.Sig.attribute
+            (Ast_helper.Attr.mk (attr_name_of name) payload))
+
+  let of_sig_item sigi =
+    match sigi.psig_desc with
+    | Psig_attribute { attr_name; attr_payload; _ } ->
+      Lsig_kind_abbrev
+        ( of_attr_name attr_name,
+          Decode.from_payload ~loc:sigi.psig_loc attr_payload )
+    | _ -> failwith "Malformed [kind_abbrev] in signature"
+
+  let str_item_of ~loc = function
+    | Lstr_kind_abbrev (name, jkind) ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
+          let payload = Encode.as_payload jkind in
+          Ast_helper.Str.attribute
+            (Ast_helper.Attr.mk (attr_name_of name) payload))
+
+  let of_str_item stri =
+    match stri.pstr_desc with
+    | Pstr_attribute { attr_name; attr_payload; _ } ->
+      Lstr_kind_abbrev
+        ( of_attr_name attr_name,
+          Decode.from_payload ~loc:stri.pstr_loc attr_payload )
+    | _ -> failwith "Malformed [kind_abbrev] in structure"
 end
 
 (******************************************************************************)
@@ -2130,24 +2189,32 @@ module Module_type = struct
 end
 
 module Signature_item = struct
-  type t = Jsig_include_functor of Include_functor.signature_item
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+    | Jsig_layout of Layouts.signature_item
 
   let of_ast_internal (feat : Feature.t) sigi =
     match feat with
     | Language_extension Include_functor ->
       Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
+    | Language_extension Layouts ->
+      Some (Jsig_layout (Layouts.of_sig_item sigi))
     | _ -> None
 
   let of_ast = Signature_item.make_of_ast ~of_ast_internal
 end
 
 module Structure_item = struct
-  type t = Jstr_include_functor of Include_functor.structure_item
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+    | Jstr_layout of Layouts.structure_item
 
   let of_ast_internal (feat : Feature.t) stri =
     match feat with
     | Language_extension Include_functor ->
       Some (Jstr_include_functor (Include_functor.of_str_item stri))
+    | Language_extension Layouts ->
+      Some (Jstr_layout (Layouts.of_str_item stri))
     | _ -> None
 
   let of_ast = Structure_item.make_of_ast ~of_ast_internal

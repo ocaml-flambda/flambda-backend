@@ -1275,6 +1275,11 @@ and include_ : 'a. ctxt -> formatter ->
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
+and kind_abbrev_ ctxt f name jkind =
+  pp f "@[<hov2>kind_abbrev@ %a@ =@ %a@]"
+    string_loc name
+    (jkind_annotation ctxt) jkind
+
 and module_type ctxt f x =
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
@@ -1364,9 +1369,15 @@ and sig_include_functor ctxt f
   | Ifsig_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_type incl
 
+and sig_layout ctxt f
+  : Jane_syntax.Layouts.signature_item -> _ = function
+  | Lsig_kind_abbrev (name, jkind) ->
+      kind_abbrev_ ctxt f name jkind
+
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
   | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
+  | Jsig_layout sigi -> sig_layout ctxt f sigi
 
 and signature_item ctxt f x : unit =
   match Jane_syntax.Signature_item.of_ast x with
@@ -1667,9 +1678,15 @@ and str_include_functor ctxt f
   | Ifstr_include_functor incl ->
       include_ ctxt f ~functor_:true ~contents:module_expr incl
 
+and str_layout ctxt f
+  : Jane_syntax.Layouts.structure_item -> _ = function
+  | Lstr_kind_abbrev (name, jkind) ->
+      kind_abbrev_ ctxt f name jkind
+
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
   | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
+  | Jstr_layout stri -> str_layout ctxt f stri
 
 and structure_item ctxt f x =
   match Jane_syntax.Structure_item.of_ast x with

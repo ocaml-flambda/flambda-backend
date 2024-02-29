@@ -421,11 +421,23 @@ module MT = struct
     | Ifsig_include_functor incl ->
         Ifsig_include_functor (sub.include_description sub incl)
 
+  module L = Jane_syntax.Layouts
+
+  let map_sig_layout sub : L.signature_item -> L.signature_item =
+    function
+    | Lsig_kind_abbrev (name, jkind) ->
+        Lsig_kind_abbrev (
+          map_loc sub name,
+          map_loc_txt sub sub.jkind_annotation jkind
+        )
+
   let map_signature_item_jst sub :
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t =
     function
     | Jsig_include_functor ifincl ->
         Jsig_include_functor (map_sig_include_functor sub ifincl)
+    | Jsig_layout sigi ->
+        Jsig_layout (map_sig_layout sub sigi)
 
   let map_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     let open Sig in
@@ -435,6 +447,8 @@ module MT = struct
         match sub.signature_item_jane_syntax sub jsigi with
         | Jsig_include_functor incl ->
             Jane_syntax.Include_functor.sig_item_of ~loc incl
+        | Jsig_layout sigi ->
+            Jane_syntax.Layouts.sig_item_of ~loc sigi
     end
     | None ->
     match desc with
@@ -502,11 +516,23 @@ module M = struct
     | Ifstr_include_functor incl ->
         Ifstr_include_functor (sub.include_declaration sub incl)
 
+  module L = Jane_syntax.Layouts
+
+  let map_str_layout sub : L.structure_item -> L.structure_item =
+    function
+    | Lstr_kind_abbrev (name, jkind) ->
+        Lstr_kind_abbrev (
+          map_loc sub name,
+          map_loc_txt sub sub.jkind_annotation jkind
+        )
+
   let map_structure_item_jst sub :
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t =
     function
     | Jstr_include_functor ifincl ->
         Jstr_include_functor (map_str_include_functor sub ifincl)
+    | Jstr_layout stri ->
+        Jstr_layout (map_str_layout sub stri)
 
   let map_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     let open Str in
@@ -516,6 +542,8 @@ module M = struct
         match sub.structure_item_jane_syntax sub jstri with
         | Jstr_include_functor incl ->
             Jane_syntax.Include_functor.str_item_of ~loc incl
+        | Jstr_layout stri ->
+            Jane_syntax.Layouts.str_item_of ~loc stri
     end
     | None ->
     match desc with

@@ -37,9 +37,10 @@ module Legacy = struct
     it doesn't check whether the layouts extension is enabled.
     It should be inverse to [string_of_const].
   *)
-  let const_of_user_written_annotation_unchecked: Jane_syntax.Jkind.t -> const option = function
-  | Primitive_layout_or_abbreviation {txt = name} ->
-    begin match name with
+  let const_of_user_written_annotation_unchecked :
+      Jane_syntax.Jkind.t -> const option = function
+    | Primitive_layout_or_abbreviation { txt = name } -> (
+      match name with
       | "any" -> Some Any
       | "value" -> Some Value
       | "void" -> Some Void
@@ -49,9 +50,9 @@ module Legacy = struct
       | "word" -> Some Word
       | "bits32" -> Some Bits32
       | "bits64" -> Some Bits64
-      | _ -> None
-    end
-  | Default | Mod _ | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+      | _ -> None)
+    | Default | Mod _ | With _ | Kind_of _ ->
+      Misc.fatal_error "XXX unimplemented"
 
   let string_of_const const =
     match const with
@@ -1054,12 +1055,11 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
            let annot =
              Location.map
                (fun attr ->
-                let jkind_of_prim_name name =
-                  Jane_syntax.Jkind.Primitive_layout_or_abbreviation name
-                in
-                Builtin_attributes.jkind_attribute_to_string attr
-                |> Location.mknoloc
-                |> jkind_of_prim_name)
+                 let jkind_of_prim_name name =
+                   Jane_syntax.Jkind.Primitive_layout_or_abbreviation name
+                 in
+                 Builtin_attributes.jkind_attribute_to_string attr
+                 |> Location.mknoloc |> jkind_of_prim_name)
                attr
            in
            t, (const, annot), decl.ptype_attributes)

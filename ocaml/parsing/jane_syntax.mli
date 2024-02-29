@@ -230,8 +230,7 @@ module N_ary_functions : sig
         Note: If [E0] is provided, only
         {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
     *)
-    | Pparam_newtype of
-        string Asttypes.loc * Jkind.annotation option
+    | Pparam_newtype of string Asttypes.loc * Jkind.annotation option
         (** [Pparam_newtype (x, jkind)] represents the parameter [(type x)].
         [x] carries the location of the identifier, whereas [pparam_loc] is
         the location of the [(type x)] as a whole.
@@ -379,9 +378,7 @@ module Layouts : sig
     (* [fun (type a : immediate) -> ...] *)
     (* This is represented as an attribute wrapping a [Pexp_newtype] node. *)
     | Lexp_newtype of
-        string Location.loc
-        * Jkind.annotation
-        * Parsetree.expression
+        string Location.loc * Jkind.annotation * Parsetree.expression
 
   type nonrec pattern =
     (* examples: [ #2.0 ] or [ #42L ] *)
@@ -404,8 +401,7 @@ module Layouts : sig
        parsed representation and guarantees that we don't accidentally try to
        require the layouts extension. *)
     | Ltyp_poly of
-        { bound_vars :
-            (string Location.loc * Jkind.annotation option) list;
+        { bound_vars : (string Location.loc * Jkind.annotation option) list;
           inner_type : Parsetree.core_type
         }
     (* [ty as ('a : immediate)] *)
@@ -428,6 +424,12 @@ module Layouts : sig
         * Parsetree.constructor_arguments
         * Parsetree.core_type option
 
+  type signature_item =
+    | Lsig_kind_abbrev of string Location.loc * Jkind.annotation
+
+  type structure_item =
+    | Lstr_kind_abbrev of string Location.loc * Jkind.annotation
+
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
@@ -448,8 +450,7 @@ module Layouts : sig
     loc:Location.t ->
     attrs:Parsetree.attributes ->
     info:Docstrings.info ->
-    vars_jkinds:
-      (string Location.loc * Jkind.annotation option) list ->
+    vars_jkinds:(string Location.loc * Jkind.annotation option) list ->
     args:Parsetree.constructor_arguments ->
     res:Parsetree.core_type option ->
     string Location.loc ->
@@ -481,6 +482,10 @@ module Layouts : sig
     jkind:Jkind.annotation option ->
     string Location.loc ->
     Parsetree.type_declaration
+
+  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
+
+  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
 
   (** Extract the jkind annotation from a [type_declaration]; returns
       leftover attributes. Similar to [of_constructor_declaration] in the
@@ -644,14 +649,18 @@ end
 
 (** Novel syntax in signature items *)
 module Signature_item : sig
-  type t = Jsig_include_functor of Include_functor.signature_item
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+    | Jsig_layout of Layouts.signature_item
 
   include AST with type t := t and type ast := Parsetree.signature_item
 end
 
 (** Novel syntax in structure items *)
 module Structure_item : sig
-  type t = Jstr_include_functor of Include_functor.structure_item
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+    | Jstr_layout of Layouts.structure_item
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end
