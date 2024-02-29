@@ -5581,7 +5581,12 @@ let mode_cross_left env ty mode =
   in
   mode
 
+(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
+   and [Alloc] get unified *)
+(* The approach here works only for 2-element modal axes. *)
 let mode_cross_right env ty mode =
+  (* CR layouts v2.8: This should probably check for principality. See
+     similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let mode = Alloc.disallow_left mode in
