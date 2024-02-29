@@ -2528,6 +2528,11 @@ type gfoo = GFoo of global_ string * string
 type gfoo = GFoo of global_ string * string
 |}]
 
+type gfoo' = GFoo' : global_ string -> gfoo'
+[%%expect{|
+type gfoo' = GFoo' : global_ string -> gfoo'
+|}]
+
 (* TESTING OF GLOBAL_ *)
 
 (* global arguments must be global when constructing
