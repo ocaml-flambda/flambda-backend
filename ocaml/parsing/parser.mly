@@ -1790,7 +1790,13 @@ structure_item:
         in
         wrap_str_ext ~loc:$sloc item ext
       }
-  | kind_abbreviation_decl { failwith "modal kinds syntax not implemented" }
+  | kind_abbreviation_decl
+      {
+        let name, jkind = $1 in
+        Jane_syntax.Layouts.(str_item_of
+                              ~loc:(make_loc $sloc)
+                              (Lstr_kind_abbrev (name, jkind)))
+      }
 
 ;
 
@@ -2063,7 +2069,13 @@ signature_item:
         in
         wrap_sig_ext ~loc:$sloc item ext
       }
-  | kind_abbreviation_decl { failwith "modal kinds syntax not implemented" }
+  | kind_abbreviation_decl
+      {
+        let name, jkind = $1 in
+        Jane_syntax.Layouts.(sig_item_of
+                              ~loc:(make_loc $sloc)
+                              (Lsig_kind_abbrev (name, jkind)))
+      }
 
 (* A module declaration. *)
 %inline module_declaration:
@@ -3878,20 +3890,18 @@ jkind:
     }
 ;
 
-kind_abbreviation_decl:
-  KIND_ABBREV abbrev=LIDENT EQUAL jkind=jkind {
-    (* XXX aec: fix this *)
-      ignore (abbrev, jkind);
-      assert false
-  }
-;
-
 jkind_annotation: (* : jkind_annotation *)
   mkrhs(jkind) { $1 }
 ;
 
 jkind_constraint:
   COLON jkind_annotation { $2 }
+;
+
+kind_abbreviation_decl:
+  KIND_ABBREV abbrev=mkrhs(LIDENT) EQUAL jkind=jkind_annotation {
+    (abbrev, jkind)
+  }
 ;
 
 %inline type_param_with_jkind:
