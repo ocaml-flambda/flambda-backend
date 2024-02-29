@@ -27,7 +27,7 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Linearity.Const.Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
-        | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+        | s -> Misc.fatal_errorf "Unrecognized mode %s at %a - should not parse" s Location.print_loc loc
       in
       loop acc rest
   in
@@ -45,8 +45,8 @@ let transl_global_flags gfs =
           match acc with
           | Unrestricted -> Global_flag.Global
           | Global ->
-            Misc.fatal_error "Duplicated global modality - should not parse")
-        | s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
+            Misc.fatal_errorf "Duplicated global modality at %a - should not parse" Location.print_loc loc)
+        | s -> Misc.fatal_errorf "Unrecognized modality %s at %a - should not parse" s Location.print_loc loc
       in
       loop acc rest
   in
