@@ -39,7 +39,7 @@ module Legacy = struct
   *)
   let const_of_user_written_annotation_unchecked :
       Jane_syntax.Jkind.t -> const option = function
-    | Primitive_layout_or_abbreviation { txt = name } -> (
+    | Primitive_layout_or_abbreviation { txt = name; _ } -> (
       match name with
       | "any" -> Some Any
       | "value" -> Some Value
