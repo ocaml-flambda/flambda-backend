@@ -53,6 +53,7 @@ type iterator = {
   include_description: iterator -> include_description -> unit;
   jkind_annotation: iterator -> Jane_asttypes.const_jkind -> unit;
   label_declaration: iterator -> label_declaration -> unit;
+  label_declaration_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
   module_declaration: iterator -> module_declaration -> unit;

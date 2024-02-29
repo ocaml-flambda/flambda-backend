@@ -50,6 +50,7 @@ type iterator = {
   include_description: iterator -> include_description -> unit;
   jkind_annotation:iterator -> Jane_asttypes.const_jkind -> unit;
   label_declaration: iterator -> label_declaration -> unit;
+  label_declaration_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
   module_declaration: iterator -> module_declaration -> unit;
@@ -945,11 +946,21 @@ let default_iterator =
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable = _; pld_attributes}->
+      (fun this ({pld_name; pld_type; pld_loc; pld_mutable = _; pld_attributes} as pld)->
+         let modes, pld_attributes = Jane_syntax.Mode_expr.maybe_of_attrs pld_attributes in
+         match modes with
+         | Some modes -> this.label_declaration_mode_syntax this modes {pld with pld_attributes}
+         | None ->
          iter_loc this pld_name;
          this.typ this pld_type;
          this.location this pld_loc;
          this.attributes this pld_attributes
+      );
+
+    label_declaration_mode_syntax =
+      (fun this modes pld ->
+        this.modes this modes;
+        this.label_declaration this pld
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
