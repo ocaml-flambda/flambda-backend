@@ -518,7 +518,8 @@ module E = struct
   let iter_function_constraint sub : N_ary.function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
        field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
+    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
+      sub.modes sub mode_annotations;
       match type_constraint with
       | Pconstraint ty ->
           sub.typ sub ty
@@ -773,6 +774,8 @@ module CE = struct
     sub.attributes sub pci_attributes
 end
 
+module ME = Jane_syntax.Mode_expr
+
 (* Now, a generic AST mapper, to be extended to cover all kinds and
    cases of the OCaml grammar.  The default behavior of the mapper is
    the identity. *)
@@ -967,8 +970,12 @@ let default_iterator =
       this.location this a.attr_loc
     );
     attributes = (fun this l -> List.iter (this.attribute this) l);
-    (* CR zqian: should go into the modes and at least iterate the locations. *)
-    modes = (fun _this _m -> ());
+    (* Location inside a mode expression needs to be traversed. *)
+    modes = (fun this m ->
+      let iter_const sub : ME.Const.t -> _ =
+        fun m -> iter_loc sub (m : ME.Const.t :> _ Location.loc)
+      in
+      iter_loc_txt this (fun sub -> List.iter (iter_const sub)) m);
     payload =
       (fun this -> function
          | PStr x -> this.structure this x

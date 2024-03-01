@@ -621,7 +621,7 @@ module E = struct
       : N_ary.function_constraint -> N_ary.function_constraint =
     function
     | { mode_annotations; type_constraint } ->
-      { mode_annotations;
+      { mode_annotations = sub.modes sub mode_annotations;
         type_constraint = map_type_constraint sub type_constraint;
       }
 
@@ -891,6 +891,8 @@ module CE = struct
       (f pci_expr)
 end
 
+module ME = Jane_syntax.Mode_expr
+
 (* Now, a generic AST mapper, to be extended to cover all kinds and
    cases of the OCaml grammar.  The default behavior of the mapper is
    the identity. *)
@@ -1096,7 +1098,13 @@ let default_mapper =
         attr_loc = this.location this a.attr_loc
       }
     );
-    attributes = (fun this l -> List.map (this.attribute this) l);
+    attributes = (fun this l ->
+      List.filter_map (fun attr ->
+        let m, _ = ME.maybe_of_attrs [attr] in
+        match m with
+        | Some m -> this.modes this m |> ME.attr_of
+        | None -> Some (this.attribute this attr)) l);
+
     payload =
       (fun this -> function
          | PStr x -> PStr (this.structure this x)
@@ -1115,8 +1123,16 @@ let default_mapper =
     structure_item_jane_syntax = M.map_structure_item_jst;
     typ_jane_syntax = T.map_jst;
 
-    (* CR zqian: should go into the modes and at least map the locations. *)
-    modes = (fun _this m -> m);
+    modes = (fun this m ->
+      let open Jane_syntax.Mode_expr in
+      let map_const sub : Const.t -> Const.t =
+        fun m ->
+          let {txt; loc} =
+            map_loc sub (m : Const.t :> _ Location.loc)
+          in
+          Const.mk txt loc
+      in
+      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
   }
 
 let extension_of_error {kind; main; sub} =
