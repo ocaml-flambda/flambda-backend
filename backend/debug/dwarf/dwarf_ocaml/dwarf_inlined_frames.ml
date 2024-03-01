@@ -100,7 +100,8 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute block
       ~function_proto_die:parent block
   in
   let abstract_instance_symbol = Some abstract_instance_symbol in
-  let entry_pc =
+  let _entry_pc =
+    (* XXX this doesn't relocate correctly on macos ARM *)
     (* CR-someday mshinwell: The "entry PC" is supposed to be the address of the
        "temporally first" instruction of the inlined function. We assume here
        that we don't do transformations which might cause the first instruction
@@ -114,6 +115,17 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute block
     | None -> []
     | Some (lowest_address, offset) ->
       [DAH.create_entry_pc (Asm_label.create_int Text (lowest_address + offset))]
+  in
+  let low_pc =
+    match IF.Range.estimate_lowest_address range with
+    | None -> []
+    | Some (lowest_address, offset) ->
+      [DAH.create_low_pc (Asm_label.create_int Text (lowest_address + offset))]
+  in
+  let high_pc =
+    match IF.Range.estimate_lowest_address range with
+    | None -> []
+    | Some _ -> [DAH.create_high_pc_offset (Targetint.of_int 8)]
   in
   (* Note that with Flambda, this DIE may not be in the scope of the referenced
      abstract instance DIE, as inline expansions may be made out of the scope of
@@ -150,8 +162,8 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute block
      Debuginfo.Code_range.file code_range in *)
   Proto_die.create ~parent:(Some parent) ~tag:Inlined_subroutine
     ~attribute_values:
-      (entry_pc @ abstract_instance
-      @ [ range_list_attribute
+      (low_pc @ high_pc (*entry_pc @ *) @ abstract_instance
+      @ [ (*range_list_attribute *)
           (* DAH.create_call_file (Emitaux.file_num_for Ocaml ~file_name);
              DAH.create_call_line (Debuginfo.Code_range.line code_range);
              DAH.create_call_column (Debuginfo.Code_range.char_start
