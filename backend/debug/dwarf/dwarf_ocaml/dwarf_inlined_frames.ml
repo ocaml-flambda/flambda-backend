@@ -96,9 +96,8 @@ end)
 let die_for_inlined_frame state parent fundecl range range_list_attribute block
     =
   let _, abstract_instance_symbol =
-    Dwarf_abstract_instances.find_or_add
-      (* find_maybe_in_another_unit_or_add *) state ~function_proto_die:parent
-      block
+    Dwarf_abstract_instances.find (* find_maybe_in_another_unit_or_add *) state
+      ~function_proto_die:parent block
   in
   let abstract_instance_symbol = Some abstract_instance_symbol in
   let entry_pc =

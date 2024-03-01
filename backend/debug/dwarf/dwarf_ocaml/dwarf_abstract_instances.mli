@@ -20,13 +20,16 @@ open! Dwarf_high
 
 val attributes : string -> Dwarf_attribute_values.Attribute_value.t list
 
-val add :
+(** Add an abstract instance root. *)
+val add_root :
   Dwarf_state.t ->
   function_proto_die:Proto_die.t ->
-  string ->
+  demangled_name:string ->
+  Asm_symbol.t ->
+  location_attributes:Dwarf_attribute_values.Attribute_value.t list ->
   Proto_die.t * Asm_symbol.t
 
-val find_or_add :
+val find :
   Dwarf_state.t ->
   function_proto_die:Proto_die.t ->
   Debuginfo.t ->
