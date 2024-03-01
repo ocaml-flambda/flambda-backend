@@ -19,16 +19,15 @@ module DAH = Dwarf_attribute_helpers
 module DS = Dwarf_state
 module L = Linear
 
-let attributes (fundecl : L.fundecl) =
-  [ DAH.create_name fundecl.fun_name;
-    DAH.create_external ~is_visible_externally:true ]
+let attributes fun_name =
+  [DAH.create_name fun_name; DAH.create_external ~is_visible_externally:true]
 
-let add state ~function_proto_die:parent (fundecl : L.fundecl) =
+let add state ~function_proto_die:parent fun_name =
   let abstract_instance_proto_die =
     (* DWARF-5 specification section 3.3.8.1, page 82. *)
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram
       ~attribute_values:
-        (attributes fundecl
+        (attributes fun_name
         @ [ (* We assume every function might potentially be inlined (and
                possibly in the future), so we choose [DW_INL_inlined] as the
                most appropriate setting for [DW_AT_inline], even if it doesn't
@@ -38,23 +37,27 @@ let add state ~function_proto_die:parent (fundecl : L.fundecl) =
       ()
   in
   let abstract_instance_proto_die_symbol =
-    Asm_symbol.create (fundecl.fun_name ^ "_absinst")
+    Asm_symbol.create (fun_name ^ "_absinst")
   in
   Proto_die.set_name abstract_instance_proto_die
     abstract_instance_proto_die_symbol;
   Misc.Stdlib.String.Tbl.add
     (DS.function_abstract_instances state)
-    fundecl.fun_name
+    fun_name
     (abstract_instance_proto_die, abstract_instance_proto_die_symbol);
   abstract_instance_proto_die, abstract_instance_proto_die_symbol
 
-let find_or_add state ~function_proto_die (fundecl : L.fundecl) =
+let find_or_add state ~function_proto_die (dbg : Debuginfo.t) =
+  let fun_name =
+    match List.rev dbg with
+    | [] -> Misc.fatal_error "Empty Debuginfo.t"
+    | { dinfo_scopes; _ } :: _ ->
+      Debuginfo.Scoped_location.string_of_scopes dinfo_scopes
+  in
   match
-    Misc.Stdlib.String.Tbl.find
-      (DS.function_abstract_instances state)
-      fundecl.fun_name
+    Misc.Stdlib.String.Tbl.find (DS.function_abstract_instances state) fun_name
   with
-  | exception Not_found -> add state ~function_proto_die fundecl
+  | exception Not_found -> add state ~function_proto_die fun_name
   | existing_instance -> existing_instance
 (* let find_maybe_in_another_unit_or_add state ~function_proto_die
    (fundecl:Linear.fundecl)= (* if not (Debuginfo.Function.dwarf_die_present

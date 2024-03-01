@@ -92,11 +92,13 @@ module All_summaries = Identifiable.Make (struct
   let hash t = Hashtbl.hash (elements t)
 end)
 
-let die_for_inlined_frame state parent fundecl range range_list_attribute =
+(* XXX fundecl -> fundecl_being_inlined *)
+let die_for_inlined_frame state parent fundecl range range_list_attribute block
+    =
   let _, abstract_instance_symbol =
     Dwarf_abstract_instances.find_or_add
       (* find_maybe_in_another_unit_or_add *) state ~function_proto_die:parent
-      fundecl
+      block
   in
   let abstract_instance_symbol = Some abstract_instance_symbol in
   let entry_pc =
@@ -123,7 +125,7 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute =
       (* If the abstract instance DIE cannot be referenced, reconstitute as much
          of its attributes as we can and put them directly into the DIE for the
          inlined frame, making use of DWARF-5 spec page 85, line 30 onwards. *)
-      Dwarf_abstract_instances.attributes fundecl
+      Dwarf_abstract_instances.attributes fundecl.L.fun_name
     | Some abstract_instance_symbol ->
       (* This appears to be the source of a bogus error from "dwarfdump
          --verify" on macOS:
@@ -169,52 +171,56 @@ let dwarf state (fundecl : L.fundecl) lexical_block_ranges ~function_proto_die =
           | proto_die ->
             Format.eprintf "block already has a proto DIE\n%!";
             proto_die, scope_proto_dies, all_summaries
-          | exception Not_found ->
-            let parent, scope_proto_dies, all_summaries =
-              match K.parent block with
-              | None ->
-                Format.eprintf "no parent\n%!";
-                function_proto_die, scope_proto_dies, all_summaries
-              | Some parent ->
+          | exception Not_found -> (
+            match K.parent block with
+            | None ->
+              Format.eprintf "no parent\n%!";
+              function_proto_die, scope_proto_dies, all_summaries
+            | Some parent ->
+              let parent, scope_proto_dies, all_summaries =
                 Format.eprintf "parent is: %a\n%!" K.print parent;
                 create_up_to_root parent scope_proto_dies all_summaries
-            in
-            let () = Format.eprintf "looking for block: %a\n%!" K.print block in
-            let range = IF.find lexical_block_ranges block in
-            let range_list_attribute, all_summaries =
-              let dwarf_4_range_list_entries, range_list, summary =
-                create_range_list_and_summarise state fundecl range
               in
-              match All_summaries.Map.find summary all_summaries with
-              | exception Not_found ->
-                let range_list_attribute =
-                  match !Dwarf_flags.gdwarf_version with
-                  | Four ->
-                    let range_list =
-                      Dwarf_4_range_list.create
-                        ~range_list_entries:dwarf_4_range_list_entries
-                    in
-                    Debug_ranges_table.insert
-                      (DS.debug_ranges_table state)
-                      ~range_list
-                  | Five -> Misc.fatal_error "not yet implemented"
-                  (* let range_list_index = Range_list_table.add
-                     (DS.range_list_table state) range_list in DAH.create_ranges
-                     range_list_index *)
+              let () =
+                Format.eprintf "looking for block: %a\n%!" K.print block
+              in
+              let range = IF.find lexical_block_ranges block in
+              let range_list_attribute, all_summaries =
+                let dwarf_4_range_list_entries, range_list, summary =
+                  create_range_list_and_summarise state fundecl range
                 in
-                let all_summaries =
-                  All_summaries.Map.add summary range_list_attribute
-                    all_summaries
-                in
-                range_list_attribute, all_summaries
-              | range_list_attribute -> range_list_attribute, all_summaries
-            in
-            let proto_die =
-              die_for_inlined_frame state parent fundecl range
-                range_list_attribute
-            in
-            let scope_proto_dies = K.Map.add block proto_die scope_proto_dies in
-            proto_die, scope_proto_dies, all_summaries
+                match All_summaries.Map.find summary all_summaries with
+                | exception Not_found ->
+                  let range_list_attribute =
+                    match !Dwarf_flags.gdwarf_version with
+                    | Four ->
+                      let range_list =
+                        Dwarf_4_range_list.create
+                          ~range_list_entries:dwarf_4_range_list_entries
+                      in
+                      Debug_ranges_table.insert
+                        (DS.debug_ranges_table state)
+                        ~range_list
+                    | Five -> Misc.fatal_error "not yet implemented"
+                    (* let range_list_index = Range_list_table.add
+                       (DS.range_list_table state) range_list in
+                       DAH.create_ranges range_list_index *)
+                  in
+                  let all_summaries =
+                    All_summaries.Map.add summary range_list_attribute
+                      all_summaries
+                  in
+                  range_list_attribute, all_summaries
+                | range_list_attribute -> range_list_attribute, all_summaries
+              in
+              let proto_die =
+                die_for_inlined_frame state parent fundecl range
+                  range_list_attribute block
+              in
+              let scope_proto_dies =
+                K.Map.add block proto_die scope_proto_dies
+              in
+              proto_die, scope_proto_dies, all_summaries)
         in
         let _proto_die, scope_proto_dies, all_summaries =
           create_up_to_root block scope_proto_dies all_summaries

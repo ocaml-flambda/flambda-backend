@@ -39,6 +39,8 @@ type t =
     location_list_in_debug_loc_table : Dwarf_4_location_list.t option
   }
 
+let equal t1 t2 = t1 == t2
+
 let attribute_values_map attribute_values =
   List.fold_left
     (fun map attribute_value ->

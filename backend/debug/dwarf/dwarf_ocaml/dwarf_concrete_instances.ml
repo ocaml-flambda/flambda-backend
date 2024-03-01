@@ -86,6 +86,12 @@ let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
   let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram ~attribute_values ()
   in
+  let _, _abstract_instance_symbol =
+    (* Add the abstract instance root for this function *)
+    Dwarf_abstract_instances.add state
+      ~function_proto_die:parent (* XXX mislabelled arg *)
+      linkage_name
+  in
   let inlined_frame_proto_dies =
     Profile.record "dwarf_inlined_frames"
       (fun () ->

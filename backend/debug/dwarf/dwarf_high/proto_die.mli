@@ -102,3 +102,5 @@ val depth_first_fold : t -> init:'a -> f:('a -> fold_arg -> 'a) -> 'a
     suppresses a complaint from objdump "Location lists in .debug_loc start at
     ...". *)
 val location_list_in_debug_loc_table : t -> Dwarf_4_location_list.t option
+
+val equal : t -> t -> bool

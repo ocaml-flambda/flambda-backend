@@ -18,12 +18,18 @@ open! Asm_targets
 open! Dwarf_low
 open! Dwarf_high
 
-val attributes : Linear.fundecl -> Dwarf_attribute_values.Attribute_value.t list
+val attributes : string -> Dwarf_attribute_values.Attribute_value.t list
+
+val add :
+  Dwarf_state.t ->
+  function_proto_die:Proto_die.t ->
+  string ->
+  Proto_die.t * Asm_symbol.t
 
 val find_or_add :
   Dwarf_state.t ->
   function_proto_die:Proto_die.t ->
-  Linear.fundecl ->
+  Debuginfo.t ->
   Proto_die.t * Asm_symbol.t
 (* val find_maybe_in_another_unit_or_add : Dwarf_state.t ->
    function_proto_die:Proto_die.t -> Linear.fundecl -> Asm_symbol.t option *)
