@@ -1139,7 +1139,10 @@ let default_mapper =
       | Primitive_layout_or_abbreviation s ->
         Primitive_layout_or_abbreviation (map_loc this s)
       | Mod (t, mode_expr) ->
-        Mod (this.jkind_annotation this t, mode_expr)
+        Mod (
+          this.jkind_annotation this t,
+          this.modes this mode_expr
+        )
       | With (t, ty) ->
         With (this.jkind_annotation this t, this.typ this ty)
       | Kind_of ty -> Kind_of (this.typ this ty));

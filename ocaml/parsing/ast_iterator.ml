@@ -996,8 +996,9 @@ let default_iterator =
         | Default -> ()
         | Primitive_layout_or_abbreviation s ->
           iter_loc this s
-        | Mod (t, _mode_expr) ->
-          this.jkind_annotation this t
+        | Mod (t, mode_expr) ->
+          this.jkind_annotation this t;
+          this.modes this mode_expr
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty
