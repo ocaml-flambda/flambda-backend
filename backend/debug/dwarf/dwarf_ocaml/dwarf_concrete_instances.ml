@@ -70,6 +70,12 @@ let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
         :: DAH.create_decl_column startchar
         :: attributes
   in
+  let _abstract_instance_root_proto_die, _abstract_instance_root_symbol =
+    (* Add the abstract instance root for this function *)
+    Dwarf_abstract_instances.add state
+      ~function_proto_die:parent (* XXX mislabelled arg *)
+      linkage_name
+  in
   let attribute_values =
     location_attributes
     @ [ DAH.create_name fun_name;
@@ -80,17 +86,11 @@ let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
            low PC value should be assumed, which is correct. *)
         DAH.create_entry_pc_from_symbol start_sym;
         DAH.create_stmt_list
-          ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line)
-      ]
+          ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line);
+        DAH.create_abstract_origin ~die_symbol:_abstract_instance_root_symbol ]
   in
   let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram ~attribute_values ()
-  in
-  let _, _abstract_instance_symbol =
-    (* Add the abstract instance root for this function *)
-    Dwarf_abstract_instances.add state
-      ~function_proto_die:parent (* XXX mislabelled arg *)
-      linkage_name
   in
   let inlined_frame_proto_dies =
     Profile.record "dwarf_inlined_frames"
