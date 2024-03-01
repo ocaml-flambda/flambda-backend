@@ -51,6 +51,7 @@ type mapper = {
                          -> extension_constructor;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
+  modes : mapper -> Jane_syntax.Mode_expr.t -> Jane_syntax.Mode_expr.t;
   jkind_annotation:
     mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
@@ -620,7 +621,7 @@ module E = struct
       : N_ary.function_constraint -> N_ary.function_constraint =
     function
     | { mode_annotations; type_constraint } ->
-      { mode_annotations;
+      { mode_annotations = sub.modes sub mode_annotations;
         type_constraint = map_type_constraint sub type_constraint;
       }
 
@@ -890,6 +891,8 @@ module CE = struct
       (f pci_expr)
 end
 
+module ME = Jane_syntax.Mode_expr
+
 (* Now, a generic AST mapper, to be extended to cover all kinds and
    cases of the OCaml grammar.  The default behavior of the mapper is
    the identity. *)
@@ -1078,7 +1081,13 @@ let default_mapper =
         attr_loc = this.location this a.attr_loc
       }
     );
-    attributes = (fun this l -> List.map (this.attribute this) l);
+    attributes = (fun this l ->
+      List.filter_map (fun attr ->
+        let m, _ = ME.maybe_of_attrs [attr] in
+        match m with
+        | Some m -> this.modes this m |> ME.attr_of
+        | None -> Some (this.attribute this attr)) l);
+
     payload =
       (fun this -> function
          | PStr x -> PStr (this.structure this x)
@@ -1086,6 +1095,16 @@ let default_mapper =
          | PTyp x -> PTyp (this.typ this x)
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
+
+    modes = (fun this m ->
+      let map_const sub : ME.Const.t -> ME.Const.t =
+        fun m ->
+          let {txt; loc} =
+            map_loc sub (m : ME.Const.t :> _ Location.loc)
+          in
+          ME.Const.mk txt loc
+      in
+      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
 
     jkind_annotation = (fun _this l -> l);
 

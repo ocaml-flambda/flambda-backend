@@ -89,6 +89,7 @@ type mapper = {
       thus the thing being included might be a functor and not a plain module
       type *)
 
+  modes : mapper -> Jane_syntax.Mode_expr.t -> Jane_syntax.Mode_expr.t;
   jkind_annotation:
     mapper -> Jane_asttypes.const_jkind -> Jane_asttypes.const_jkind;
   label_declaration: mapper -> label_declaration -> label_declaration;
