@@ -1529,8 +1529,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pvariant { consts; non_consts }) ->
       let non_consts =
-        List.map (fun (tag, field_kinds) ->
-            (tag, List.map Flambda_kind.With_subkind.from_lambda_value_kind field_kinds))
+        List.map
+          (fun (tag, field_kinds) ->
+            ( tag,
+              List.map Flambda_kind.With_subkind.from_lambda_value_kind
+                field_kinds ))
           non_consts
       in
       Some (Variant { consts; non_consts })
