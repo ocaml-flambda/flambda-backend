@@ -17,6 +17,16 @@ module Example = struct
     let parse p str = p (Lexing.from_string str)
   end
 
+  let modality_record  = parse module_expr
+    "struct \
+      type t = {global_ x : string; global_ y : int} \
+     end"
+  let modality_cstrarg = parse module_expr
+    "struct \
+      type t = Foo of global_ string * global_ string \
+      type u = Foo : global_ string * global_ string -> u \
+     end"
+
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
   let pattern          = parse pattern "[:_:]"
@@ -122,6 +132,9 @@ end = struct
     print_test_header Test.name;
     Test.setup ()
   ;;
+
+  let modality_record = test "modality_record" module_expr Example.modality_record
+  let modality_cstrarg = test "modality_cstrarg" module_expr Example.modality_cstrarg
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression

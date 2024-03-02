@@ -1915,7 +1915,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> ()
            | Pcstr_tuple l ->
-             pp f "@;of@;%a" (list (core_type1 ctxt) ~sep:"@;*@;") l
+             pp f "@;of@;%a" (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
            | Pcstr_record l -> pp f "@;of@;%a" (record_declaration ctxt) l
         ) args
         (attributes ctxt) attrs
@@ -1925,7 +1925,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
-                                (list (core_type1 ctxt) ~sep:"@;*@;") l
+                                (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
                                 (core_type1 ctxt) r
            | Pcstr_record l ->
                pp f "%a@;->@;%a" (record_declaration ctxt) l (core_type1 ctxt) r
