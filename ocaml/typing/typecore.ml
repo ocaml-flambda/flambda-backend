@@ -3927,6 +3927,16 @@ end = struct
 
   let expr e =
     let rec loop e =
+      match Jane_syntax.Mode_expr.coerce_of_expr e with
+      | Some (modes, exp) ->
+          if List.exists
+            (fun m ->
+              let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+              txt = "local")
+            modes.txt
+          then Local e.pexp_loc
+          else loop exp
+      | None ->
       match Jane_syntax.Expression.of_ast e with
       | Some (jexp, _attrs) -> begin
           match jexp with
@@ -3939,18 +3949,6 @@ end = struct
         end
       | None      ->
       match e.pexp_desc with
-      | Pexp_apply
-          ({ pexp_desc = Pexp_extension(
-             {txt; _}, payload); pexp_loc },
-           [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.extension_name ->
-          let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
-          if List.exists
-            (fun m ->
-              let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
-              txt = "local")
-            modes.txt
-          then Local e.pexp_loc
-          else loop exp
       | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
                                                   None) } ->
           Either
@@ -4165,6 +4163,9 @@ let type_approx_fun_one_param
 
 let rec type_approx env sexp ty_expected =
   let loc = sexp.pexp_loc in
+  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
+  | Some (_, e) -> type_approx env e ty_expected
+  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax ~loc env jexp ty_expected
   | None      -> match sexp.pexp_desc with
@@ -4188,11 +4189,6 @@ let rec type_approx env sexp ty_expected =
       ignore
         (type_approx_constraint env (Pcoerce (sty1, sty2)) ty_expected ~loc
            : type_expr)
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension(
-         {txt; _}, _) },
-       [Nolabel, e]) when txt = Jane_syntax.Mode_expr.extension_name ->
-    type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
@@ -4647,13 +4643,12 @@ let unify_exp ?sdesc_for_hint env exp expected_ty =
    the "expected type" provided by the context. *)
 
 let rec is_inferred sexp =
+  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
+  | Some (_, exp) -> is_inferred exp
+  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt; _}, _) },
-       [Nolabel, exp]) when txt = Jane_syntax.Mode_expr.extension_name ->
-      is_inferred exp
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
@@ -5080,6 +5075,33 @@ and type_expect_
     submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
+  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
+  | Some (modes, sbody) ->
+      let expected_mode = List.fold_left (fun expected_mode mode ->
+          let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+          match mode.txt with
+          | "unique" ->
+            let expected_mode = mode_unique expected_mode in
+            expect_mode_cross env ty_expected expected_mode
+          | "once" ->
+            let expected_mode = expect_mode_cross env ty_expected expected_mode in
+            submode ~loc ~env ~reason:Other
+              (Value.min_with_linearity Linearity.once) expected_mode;
+            mode_once expected_mode
+          | "local" ->
+            let expected_mode = expect_mode_cross env ty_expected expected_mode in
+            submode ~loc ~env ~reason:Other
+              (Value.min_with_regionality Regionality.local) expected_mode;
+            mode_strictly_local expected_mode
+          | s ->
+            Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+          ) expected_mode modes.txt
+      in
+      let exp =
+        type_expect ~recarg env expected_mode sbody ty_expected_explained
+      in
+      {exp with exp_loc = loc}
+  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
@@ -5247,34 +5269,6 @@ and type_expect_
       Misc.fatal_error "non-Jane-Syntax [Pexp_fun] made it to typechecking"
   | Pexp_function _ ->
       Misc.fatal_error "non-Jane-Syntax [Pexp_function] made it to typechecking"
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt; _}, payload); pexp_loc},
-        [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
-      let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
-      let expected_mode = List.fold_left (fun expected_mode mode ->
-          let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
-          match mode.txt with
-          | "unique" ->
-            let expected_mode = mode_unique expected_mode in
-            expect_mode_cross env ty_expected expected_mode
-          | "once" ->
-            let expected_mode = expect_mode_cross env ty_expected expected_mode in
-            submode ~loc ~env ~reason:Other
-              (Value.min_with_linearity Linearity.once) expected_mode;
-            mode_once expected_mode
-          | "local" ->
-            let expected_mode = expect_mode_cross env ty_expected expected_mode in
-            submode ~loc ~env ~reason:Other
-              (Value.min_with_regionality Regionality.local) expected_mode;
-            mode_strictly_local expected_mode
-          | s ->
-            Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
-          ) expected_mode modes.txt
-      in
-      let exp =
-        type_expect ~recarg env expected_mode sbody ty_expected_explained
-      in
-      {exp with exp_loc = loc}
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, sbody]) ->
@@ -8221,17 +8215,15 @@ and type_newtype_expr
 and type_let ?check ?check_strict ?(force_toplevel = false)
     existential_context env rec_flag spat_sexp_list allow_modules =
   let rec sexp_is_fun sexp =
+    match Jane_syntax.Mode_expr.coerce_of_expr sexp with
+    | Some (_, e) -> sexp_is_fun e
+    | None ->
     match Jane_syntax.Expression.of_ast sexp with
     | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)
     | Pexp_newtype (_, e) -> sexp_is_fun e
-    | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-          txt}, _) },
-        [Nolabel, e]) when txt=Jane_syntax.Mode_expr.extension_name
-        -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _

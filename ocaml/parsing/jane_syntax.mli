@@ -140,12 +140,6 @@ module Mode_expr : sig
   (** The mode expression containing a single mode constant. *)
   val singleton : Const.t -> t
 
-  (** The string used to mark extensions as containing mode expressions. *)
-  val extension_name : string
-
-  (** The string used to mark attributes as containing mode expressions. *)
-  val attribute_name : string
-
   (** Extract the mode attribute (if any) from a list of attributes; also
       returns the rest of the attributes; Raises if multiple relevant attributes
       are found *)
@@ -165,13 +159,13 @@ module Mode_expr : sig
       attribute is found. *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
-  (** Encodes a mode expression into a [payload]. If the expression is safe to
-      ignore (i.e. empty), returns [None]. *)
-  val payload_of : t -> Parsetree.payload option
+  (** Decode mode coercion and returns the mode and the body. Returns [None] if 
+      the given expression is not mode coercion. *)
+  val coerce_of_expr : Parsetree.expression -> (t * Parsetree.expression) option
 
-  (** Decode a mode expression from a [payload] whose location is [loc]. Raises
-      if the payload encodes an empty mode expression. *)
-  val of_payload : loc:Location.t -> Parsetree.payload -> t
+  (** Encode a mode coercion into an expression *)
+  val expr_of_coerce :
+    loc:Location.t -> t -> Parsetree.expression -> Parsetree.expression
 
   (** In some cases, a single mode expression appears twice in the parsetree;
       one of them needs to be made ghost to make our internal tools happy. *)

@@ -557,14 +557,10 @@ module E = struct
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    match desc with
-    | Pexp_apply
-        ({ pexp_desc = Pexp_extension(
-          {txt; _}, payload); pexp_loc },
-         [Nolabel, e]) when txt = Jane_syntax.Mode_expr.extension_name ->
-        let modes = Jane_syntax.Mode_expr.of_payload ~loc:pexp_loc payload in
+    match Jane_syntax.Mode_expr.coerce_of_expr expr with
+    | Some (modes, e) ->
         sub.expr_mode_syntax sub modes e
-    | _ ->
+    | None ->
     match Jane_syntax.Expression.of_ast expr with
     | Some (jexp, attrs) ->
         sub.attributes sub attrs;
