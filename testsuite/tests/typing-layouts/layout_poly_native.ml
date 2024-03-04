@@ -58,3 +58,10 @@ let () =
   Printf.printf "%s\n" (revapply "abcde" (fun x -> x));
   ()
 
+let () =
+  Printf.printf "%s\n" (N.to_string (Sys.opaque_identity #1n));
+  Printf.printf "%s\n" (I32.to_string (Sys.opaque_identity #2l));
+  Printf.printf "%s\n" (I64.to_string (Sys.opaque_identity #3L));
+  Printf.printf "%s\n" (F.to_string (Sys.opaque_identity #4.));
+  Printf.printf "%s\n" (Sys.opaque_identity "abcde");
+  ()
