@@ -304,7 +304,7 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-let maybe_modes m =
+let modes m =
   let l =
     List.map (fun m ->
       let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
@@ -316,17 +316,12 @@ let maybe_modes m =
       | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
     ) m.txt
   in
-  match l with
-  | [] -> None
-  | _ -> Some (String.concat " " l)
+  String.concat " " l
 
 let maybe_modes_of_attrs attrs =
-  let m, rest = Jane_syntax.Mode_expr.of_attrs attrs in
-  maybe_modes m, rest
+  let m, rest = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
+  Option.map modes m, rest
 
-let maybe_modes_of_payload ~loc payload =
-  let m = Jane_syntax.Mode_expr.of_payload ~loc payload in
-  maybe_modes m
 
 let maybe_modes_type pty ctxt f c =
   let m, cattrs = maybe_modes_of_attrs c.ptyp_attributes in
@@ -793,6 +788,10 @@ and sugar_expr ctxt f e =
    expressions that aren't already self-delimiting.
 *)
 and expression ?(jane_syntax_parens = false) ctxt f x =
+  match Jane_syntax.Mode_expr.coerce_of_expr x with
+  | Some (m, body) ->
+    pp f "@[<2>%s %a@]" (modes m) (expression ctxt) body
+  | None ->
   match Jane_syntax.Expression.of_ast x with
   | Some (jexpr, attrs) ->
       jane_syntax_expr ctxt attrs f jexpr ~parens:jane_syntax_parens
@@ -835,13 +834,6 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         pp f "@[<2>%a in@;<1 -2>%a@]"
           (bindings reset_ctxt) (rf,l)
           (expression ctxt) e
-    | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt; _}, payload);
-         pexp_loc },
-       [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
-        let modes = maybe_modes_of_payload ~loc:pexp_loc payload in
-        let modes = Option.get modes in
-        pp f "@[<2>%s %a@]" modes (expression ctxt) sbody
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
        [Nolabel, sbody]) ->
@@ -1596,10 +1588,8 @@ and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
     let modes, attrs = maybe_modes_of_attrs x.pvb_attributes in
     let x =
-      match modes, x.pvb_expr.pexp_desc with
-      | Some _ , Pexp_apply
-          ({ pexp_desc = Pexp_extension({txt; _}, _) },
-           [Nolabel, sbody]) when txt = Jane_syntax.Mode_expr.extension_name ->
+      match modes, Jane_syntax.Mode_expr.coerce_of_expr x.pvb_expr with
+      | Some _ , Some (_, sbody) ->
           {x with pvb_expr = sbody}
       | _ -> x
     in
