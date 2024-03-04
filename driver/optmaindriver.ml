@@ -90,7 +90,7 @@ let main unix argv ppf ~flambda2 =
       | None ->
           Compenv.fatal "Please specify at most one of -pack, -a, -shared, -c, \
                          -output-obj";
-      | Some ((P.Parsing | P.Typing | P.Lambda | P.Scheduling
+      | Some ((P.Parsing | P.Typing | P.Lambda | P.Middle_end | P.Scheduling
               | P.Simplify_cfg | P.Emit | P.Selection) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
