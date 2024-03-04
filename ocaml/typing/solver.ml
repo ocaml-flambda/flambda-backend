@@ -805,7 +805,10 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let newvar = S.newvar
 
-    let submode obj m0 m1 = S.submode obj m1 m0
+    let submode obj m0 m1 =
+      Result.map_error
+        (fun { left; right } -> { left = right; right = left })
+        (S.submode obj m1 m0)
 
     let join = S.meet
 
