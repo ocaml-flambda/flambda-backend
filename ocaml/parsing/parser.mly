@@ -151,20 +151,10 @@ let mk_attr ~loc name payload =
   Attr.mk ~loc name payload
 
 let mkexp_with_modes ?(ghost=false) ~loc modes exp =
-  match Mode.payload_of modes with
-  | None -> exp
-  | Some payload ->
-      let loc =
-        if ghost then ghost_loc loc else make_loc loc
-      in
-      let ext =
-        (* Use the loc of the annotation as the loc of the extension node *)
-        Exp.extension ~loc:modes.loc (
-          Location.mknoloc Mode.extension_name,
-          payload
-        )
-      in
-      Exp.apply ~loc ext [Nolabel, exp]
+  let loc =
+    if ghost then ghost_loc loc else make_loc loc
+  in
+  Mode.expr_of_coerce ~loc modes exp
 
 (* For modes-related attributes, no need to call [register_attr] because they
 result from native syntax which is only parsed at proper places that are
