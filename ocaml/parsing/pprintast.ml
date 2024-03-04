@@ -1592,6 +1592,9 @@ and bindings ctxt f (rf,l) =
       match modes_on_binding, Jane_syntax.Expression.of_ast x.pvb_expr with
       | Some modes_on_binding,
         Some (Jexp_modes (Coerce (modes_on_expr, sbody)), _) ->
+          (* Sanity check: only suppress the printing of one mode expression if
+             the mode expressions are in fact identical.
+          *)
           let mode_names (modes : Jane_syntax.Mode_expr.t) =
             List.map Location.get_txt (modes.txt :> string loc list)
           in

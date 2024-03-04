@@ -8664,6 +8664,9 @@ and type_mode_expr
       type_expect env expected_mode sbody (mk_expected ty_expected ?explanation)
     in
     {exp with
+     (* CR modes: We should consider not overriding [exp_loc] here -- that would
+        be more consistent to the typing of [Pexp_constraint].
+     *)
      exp_loc = loc;
      exp_extra = (Texp_mode_coerce modes, loc, attributes) :: exp.exp_extra}
 
