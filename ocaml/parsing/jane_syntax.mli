@@ -159,18 +159,25 @@ module Mode_expr : sig
       attribute is found. *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
-  (** Decode mode coercion and returns the mode and the body.
-      For example, return [Some (local, expr)] on input [local_ expr].
-      Returns [None] if the given expression is not a mode coercion. *)
-  val coerce_of_expr : Parsetree.expression -> (t * Parsetree.expression) option
-
-  (** Encode a mode coercion like [local_ expr] into an expression *)
-  val expr_of_coerce :
-    loc:Location.t -> t -> Parsetree.expression -> Parsetree.expression
-
   (** In some cases, a single mode expression appears twice in the parsetree;
       one of them needs to be made ghost to make our internal tools happy. *)
   val ghostify : t -> t
+end
+
+(** A subset of the mode-related syntax extensions that is embedded
+    using full-blown Jane Syntax. By "full-blown" Jane Syntax, we
+    mean the [Expression], [Pattern], (etc.) modules below that
+    attempt to create a variant of all possible Jane Street syntax
+    for the syntactic form.
+
+    We avoid full-blown Jane Syntax when it isn't very lightweight to fit the
+    new construct into the (somewhat opinionated) framework. Mode coercions are
+    lightweight to fit into full-blown Jane Syntax.
+*)
+module Modes : sig
+  type expression = Coerce of Mode_expr.t * Parsetree.expression
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end
 
 module N_ary_functions : sig
@@ -586,6 +593,7 @@ module Expression : sig
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
     | Jexp_tuple of Labeled_tuples.expression
+    | Jexp_modes of Modes.expression
 
   include
     AST

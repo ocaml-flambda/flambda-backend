@@ -332,6 +332,11 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_layout x -> add_layout_expr bv x
   | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
   | Jexp_tuple x -> add_labeled_tuple_expr bv x
+  | Jexp_modes x -> add_modes_expr bv x
+
+and add_modes_expr bv : Jane_syntax.Modes.expression -> _ =
+  function
+  | Coerce (_modes, exp) -> add_expr bv exp
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function

@@ -121,6 +121,7 @@ and exp_extra =
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
+  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
 
 and expression_desc =
     Texp_ident of

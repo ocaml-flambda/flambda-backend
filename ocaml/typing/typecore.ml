@@ -3927,16 +3927,6 @@ end = struct
 
   let expr e =
     let rec loop e =
-      match Jane_syntax.Mode_expr.coerce_of_expr e with
-      | Some (modes, exp) ->
-          if List.exists
-            (fun m ->
-              let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
-              txt = "local")
-            modes.txt
-          then Local e.pexp_loc
-          else loop exp
-      | None ->
       match Jane_syntax.Expression.of_ast e with
       | Some (jexp, _attrs) -> begin
           match jexp with
@@ -3946,6 +3936,16 @@ end = struct
           | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
           | Jexp_n_ary_function _ -> Not e.pexp_loc
           | Jexp_tuple _ -> Not e.pexp_loc
+          | Jexp_modes (Coerce (modes, exp)) ->
+              if List.exists
+                  (fun m ->
+                     let {txt; _} =
+                       (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
+                     in
+                     txt = "local")
+                  modes.txt
+              then Local e.pexp_loc
+              else loop exp
         end
       | None      ->
       match e.pexp_desc with
@@ -4163,9 +4163,6 @@ let type_approx_fun_one_param
 
 let rec type_approx env sexp ty_expected =
   let loc = sexp.pexp_loc in
-  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
-  | Some (_, e) -> type_approx env e ty_expected
-  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax ~loc env jexp ty_expected
   | None      -> match sexp.pexp_desc with
@@ -4210,6 +4207,7 @@ and type_approx_aux_jane_syntax
       type_approx_function ~loc env params c body ty_expected
   | Jexp_tuple l ->
       type_tuple_approx env loc ty_expected l
+  | Jexp_modes (Coerce (_, e)) -> type_approx env e ty_expected
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
@@ -4643,9 +4641,6 @@ let unify_exp ?sdesc_for_hint env exp expected_ty =
    the "expected type" provided by the context. *)
 
 let rec is_inferred sexp =
-  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
-  | Some (_, exp) -> is_inferred exp
-  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
@@ -4661,6 +4656,7 @@ and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
   | Jexp_n_ary_function _ -> false
   | Jexp_tuple _ -> false
+  | Jexp_modes (Coerce (_, exp)) -> is_inferred exp
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -5075,33 +5071,6 @@ and type_expect_
     submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
-  match Jane_syntax.Mode_expr.coerce_of_expr sexp with
-  | Some (modes, sbody) ->
-      let expected_mode = List.fold_left (fun expected_mode mode ->
-          let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
-          match mode.txt with
-          | "unique" ->
-            let expected_mode = mode_unique expected_mode in
-            expect_mode_cross env ty_expected expected_mode
-          | "once" ->
-            let expected_mode = expect_mode_cross env ty_expected expected_mode in
-            submode ~loc ~env ~reason:Other
-              (Value.min_with_linearity Linearity.once) expected_mode;
-            mode_once expected_mode
-          | "local" ->
-            let expected_mode = expect_mode_cross env ty_expected expected_mode in
-            submode ~loc ~env ~reason:Other
-              (Value.min_with_regionality Regionality.local) expected_mode;
-            mode_strictly_local expected_mode
-          | s ->
-            Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
-          ) expected_mode modes.txt
-      in
-      let exp =
-        type_expect ~recarg env expected_mode sbody ty_expected_explained
-      in
-      {exp with exp_loc = loc}
-  | None ->
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
@@ -7674,7 +7643,8 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
                 | Jexp_comprehension _
                 | Jexp_immutable_array _
                 | Jexp_n_ary_function _
-                | Jexp_layout _), _) -> [se]
+                | Jexp_layout _
+                | Jexp_modes _ ), _) -> [se]
         | None -> match se.pexp_desc with
         | Pexp_tuple sel when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
@@ -8215,9 +8185,6 @@ and type_newtype_expr
 and type_let ?check ?check_strict ?(force_toplevel = false)
     existential_context env rec_flag spat_sexp_list allow_modules =
   let rec sexp_is_fun sexp =
-    match Jane_syntax.Mode_expr.coerce_of_expr sexp with
-    | Some (_, e) -> sexp_is_fun e
-    | None ->
     match Jane_syntax.Expression.of_ast sexp with
     | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
@@ -8232,6 +8199,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
     | Jexp_n_ary_function _ -> true
     | Jexp_tuple _ -> false
+    | Jexp_modes (Coerce (_, e)) -> sexp_is_fun e
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -8664,6 +8632,40 @@ and type_expect_jane_syntax
   | Jexp_tuple x ->
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+  | Jexp_modes x ->
+      type_mode_expr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+
+and type_mode_expr
+    ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+  : Jane_syntax.Modes.expression -> _ = function
+  | Coerce (modes, sbody) ->
+    let expected_mode = List.fold_left (fun expected_mode mode ->
+        let mode = (mode : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+        match mode.txt with
+        | "unique" ->
+          let expected_mode = mode_unique expected_mode in
+          expect_mode_cross env ty_expected expected_mode
+        | "once" ->
+          let expected_mode = expect_mode_cross env ty_expected expected_mode in
+          submode ~loc ~env ~reason:Other
+            (Value.min_with_linearity Linearity.once) expected_mode;
+          mode_once expected_mode
+        | "local" ->
+          let expected_mode = expect_mode_cross env ty_expected expected_mode in
+          submode ~loc ~env ~reason:Other
+            (Value.min_with_regionality Regionality.local) expected_mode;
+          mode_strictly_local expected_mode
+        | s ->
+          Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+        ) expected_mode modes.txt
+    in
+    let exp =
+      type_expect env expected_mode sbody (mk_expected ty_expected ?explanation)
+    in
+    {exp with
+     exp_loc = loc;
+     exp_extra = (Texp_mode_coerce modes, loc, attributes) :: exp.exp_extra}
 
 and type_n_ary_function
       ~loc ~env ~(expected_mode : expected_mode) ~ty_expected

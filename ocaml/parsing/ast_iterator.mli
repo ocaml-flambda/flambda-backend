@@ -46,7 +46,6 @@ type iterator = {
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
   expr_jane_syntax : iterator -> Jane_syntax.Expression.t -> unit;
-  expr_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> expression -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;

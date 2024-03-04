@@ -1138,8 +1138,7 @@ typing/mode.cmi : \
     typing/mode_intf.cmi
 typing/mode_intf.cmi : \
     typing/solver_intf.cmi \
-    typing/solver.cmi \
-    utils/misc.cmi
+    typing/solver.cmi
 typing/mtype.cmo : \
     typing/types.cmi \
     typing/subst.cmi \
@@ -1991,6 +1990,7 @@ typing/typedtree.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
+    parsing/jane_syntax.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -2006,6 +2006,7 @@ typing/typedtree.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/jkind.cmx \
+    parsing/jane_syntax.cmx \
     parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/env.cmx \
@@ -2021,6 +2022,7 @@ typing/typedtree.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
+    parsing/jane_syntax.cmi \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -4176,13 +4178,11 @@ lambda/transl_array_comprehension.cmi : \
     lambda/debuginfo.cmi
 lambda/transl_comprehension_utils.cmo : \
     utils/targetint.cmi \
-    typing/primitive.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     lambda/transl_comprehension_utils.cmi
 lambda/transl_comprehension_utils.cmx : \
     utils/targetint.cmx \
-    typing/primitive.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     lambda/transl_comprehension_utils.cmi
