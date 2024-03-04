@@ -454,17 +454,12 @@ module Mode_expr = struct
 
   let feature : Feature.t = Language_extension Mode
 
-  let attribute_components = []
+  let attribute_or_extension_name =
+    Embedded_name.of_feature feature [] |> Embedded_name.to_string
 
-  let coerce_components = []
+  let attribute_name = attribute_or_extension_name
 
-  let attribute_name =
-    Embedded_name.of_feature feature attribute_components
-    |> Embedded_name.to_string
-
-  let coerce_name =
-    Embedded_name.of_feature feature coerce_components
-    |> Embedded_name.to_string
+  let extension_name = attribute_or_extension_name
 
   let payload_of { txt; _ } =
     match txt with
@@ -519,7 +514,7 @@ module Mode_expr = struct
     | Pexp_apply
         ( { pexp_desc = Pexp_extension ({ txt; _ }, payload); pexp_loc; _ },
           [(Nolabel, body)] )
-      when txt = coerce_name ->
+      when txt = extension_name ->
       let modes = of_payload ~loc:pexp_loc payload in
       Some (modes, body)
     | _ -> None
@@ -530,7 +525,7 @@ module Mode_expr = struct
     | Some payload ->
       let ext =
         Ast_helper.Exp.extension ~loc:modes.loc
-          (Location.mknoloc coerce_name, payload)
+          (Location.mknoloc extension_name, payload)
       in
       Ast_helper.Exp.apply ~loc ext [Nolabel, body]
 end

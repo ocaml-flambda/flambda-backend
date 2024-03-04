@@ -159,11 +159,12 @@ module Mode_expr : sig
       attribute is found. *)
   val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
 
-  (** Decode mode coercion and returns the mode and the body. Returns [None] if 
-      the given expression is not mode coercion. *)
+  (** Decode mode coercion and returns the mode and the body.
+      For example, return [Some (local, expr)] on input [local_ expr].
+      Returns [None] if the given expression is not a mode coercion. *)
   val coerce_of_expr : Parsetree.expression -> (t * Parsetree.expression) option
 
-  (** Encode a mode coercion into an expression *)
+  (** Encode a mode coercion like [local_ expr] into an expression *)
   val expr_of_coerce :
     loc:Location.t -> t -> Parsetree.expression -> Parsetree.expression
 
