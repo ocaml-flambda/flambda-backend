@@ -73,6 +73,7 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | No_stack_check
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
 

@@ -384,7 +384,8 @@ end = struct
             None
           | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
-            None)
+            None
+          | No_stack_check -> None)
         codegen_options
     in
     match a with

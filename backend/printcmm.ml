@@ -394,6 +394,7 @@ let codegen_option = function
     Printf.sprintf "assert_%s%s"
       (property_to_string property)
       (if strict then "_strict" else "")
+  | No_stack_check -> "no_stack_check"
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

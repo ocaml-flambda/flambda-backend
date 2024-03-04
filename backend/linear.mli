@@ -66,6 +66,7 @@ type fundecl =
     fun_frame_required: bool;
     fun_prologue_required: bool;
     fun_section_name: string option;
+    fun_no_stack_check : bool;
   }
 
 val traps_to_bytes : int -> int

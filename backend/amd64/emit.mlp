@@ -1864,7 +1864,7 @@ let fundecl fundecl =
   let handle_overflow_and_max_frame_size =
     (* CR mshinwell: this should be conditionalized on a specific
        "stack checks enabled" config option, so we can backport to 4.x *)
-    if not Config.runtime5 then None
+    if not Config.runtime5 || fundecl.fun_no_stack_check then None
     else (
       if !Clflags.runtime_variant = "d" then
         emit_call (Cmm.global_symbol "caml_assert_stack_invariants");

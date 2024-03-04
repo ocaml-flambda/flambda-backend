@@ -312,6 +312,7 @@ type codegen_option =
   | Assume of { property: property; strict: bool; never_returns_normally: bool;
                 loc: Location.t }
   | Check of { property: property; strict: bool; loc: Location.t }
+  | No_stack_check
 
 type fundecl =
   { fun_name: symbol;

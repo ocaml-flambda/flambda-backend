@@ -48,6 +48,7 @@ type basic_block =
 type codegen_option =
   | Reduce_code_size
   | No_CSE
+  | No_stack_check
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
  fun cmm_options ->
@@ -57,6 +58,7 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
+    | No_stack_check -> No_stack_check :: of_cmm_codegen_option tl
     | Use_linscan_regalloc | Ignore_assert_all Zero_alloc | Assume _ | Check _
       ->
       of_cmm_codegen_option tl)

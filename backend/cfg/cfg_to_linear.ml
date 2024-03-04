@@ -435,7 +435,8 @@ let run cfg_with_layout =
     fun_num_stack_slots;
     fun_frame_required;
     fun_prologue_required;
-    fun_section_name
+    fun_section_name;
+    fun_no_stack_check = List.mem Cfg.No_stack_check cfg.fun_codegen_options
   }
 
 let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
