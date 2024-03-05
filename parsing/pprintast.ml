@@ -788,10 +788,6 @@ and sugar_expr ctxt f e =
    expressions that aren't already self-delimiting.
 *)
 and expression ?(jane_syntax_parens = false) ctxt f x =
-  match Jane_syntax.Mode_expr.coerce_of_expr x with
-  | Some (m, body) ->
-    pp f "@[<2>%s %a@]" (modes m) (expression ctxt) body
-  | None ->
   match Jane_syntax.Expression.of_ast x with
   | Some (jexpr, attrs) ->
       jane_syntax_expr ctxt attrs f jexpr ~parens:jane_syntax_parens
@@ -1484,9 +1480,6 @@ and payload ctxt f = function
       pp f " when "; expression ctxt f e
 
 and pp_print_pexp_function ctxt sep f x =
-  (* do not print [@jane.erasable.mode] on expressions *)
-  let _, attrs = maybe_modes_of_attrs x.pexp_attributes in
-  let x = { x with pexp_attributes = attrs } in
   (* We go to some trouble to print nested [Pexp_newtype]/[Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1586,15 +1579,35 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
-    let modes, attrs = maybe_modes_of_attrs x.pvb_attributes in
+    let modes_on_binding, attrs =
+      Jane_syntax.Mode_expr.maybe_of_attrs x.pvb_attributes
+    in
     let x =
-      match modes, Jane_syntax.Mode_expr.coerce_of_expr x.pvb_expr with
-      | Some _ , Some (_, sbody) ->
-          {x with pvb_expr = sbody}
+      (* For [let local_ x = e in ...] and [let x @ local = e in ...],
+         the parser puts attributes on both the let-binding and on e.
+
+         The below code is meant to print the modes only in one place,
+         not both. (We print it on the let-binding, not the expression.)
+      *)
+      match modes_on_binding, Jane_syntax.Expression.of_ast x.pvb_expr with
+      | Some modes_on_binding,
+        Some (Jexp_modes (Coerce (modes_on_expr, sbody)), _) ->
+          (* Sanity check: only suppress the printing of one mode expression if
+             the mode expressions are in fact identical.
+          *)
+          let mode_names (modes : Jane_syntax.Mode_expr.t) =
+            List.map Location.get_txt (modes.txt :> string loc list)
+          in
+          if
+            List.equal String.equal
+              (mode_names modes_on_binding)
+              (mode_names modes_on_expr)
+          then {x with pvb_expr = sbody}
+          else x
       | _ -> x
     in
     pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf
-      (match modes with Some s -> s ^ " " | None -> "")
+      (match modes_on_binding with Some s -> modes s ^ " " | None -> "")
       (binding ctxt) x (item_attributes ctxt) attrs
   in
   match l with
@@ -2006,6 +2019,11 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
   | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
+  | Jexp_modes mexp -> mode_expr ctxt f mexp
+
+and mode_expr ctxt f (mexp : Jane_syntax.Modes.expression) =
+  match mexp with
+  | Coerce (m, body) -> pp f "@[<2>%s %a@]" (modes m) (expression ctxt) body
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
