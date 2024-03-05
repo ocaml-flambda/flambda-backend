@@ -366,6 +366,7 @@ let extra sub = function
     Texp_coerce (Option.map (sub.typ sub) cty1, sub.typ sub cty2)
   | Texp_newtype _ as d -> d
   | Texp_poly cto -> Texp_poly (Option.map (sub.typ sub) cto)
+  | Texp_mode_coerce modes -> Texp_mode_coerce modes
 
 let function_body sub body =
   match body with

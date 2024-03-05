@@ -154,7 +154,7 @@ let mkexp_with_modes ?(ghost=false) ~loc modes exp =
   let loc =
     if ghost then ghost_loc loc else make_loc loc
   in
-  Mode.expr_of_coerce ~loc modes exp
+  Jane_syntax.Modes.expr_of ~loc (Coerce (modes, exp))
 
 (* For modes-related attributes, no need to call [register_attr] because they
 result from native syntax which is only parsed at proper places that are

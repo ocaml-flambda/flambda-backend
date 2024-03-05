@@ -105,6 +105,18 @@ let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
 
+let map_mode_expr sub (mode_expr : Jane_syntax.Mode_expr.t)
+  : Jane_syntax.Mode_expr.t =
+  map_loc_txt sub
+    (fun sub modes ->
+       List.map
+         (fun (mode : Jane_syntax.Mode_expr.Const.t) ->
+            let { loc; txt } = (mode :> string loc) in
+            let loc = sub.location sub loc in
+            Jane_syntax.Mode_expr.Const.mk txt loc)
+         modes)
+    mode_expr
+
 module C = struct
   (* Constants *)
 
@@ -536,6 +548,7 @@ module E = struct
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
   module LT = Jane_syntax.Labeled_tuples
+  module Modes = Jane_syntax.Modes
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -629,6 +642,11 @@ module E = struct
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
     | el -> List.map (map_snd (sub.expr sub)) el
 
+  let map_modes_exp sub : Modes.expression -> Modes.expression = function
+    (* CR modes: One day mappers might want to see the modes *)
+    | Coerce (modes, exp) ->
+        Coerce (map_mode_expr sub modes, sub.expr sub exp)
+
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
@@ -636,6 +654,7 @@ module E = struct
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
     | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
     | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
+    | Jexp_modes mode_exp -> Jexp_modes (map_modes_exp sub mode_exp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
