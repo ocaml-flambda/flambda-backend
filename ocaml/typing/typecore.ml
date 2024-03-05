@@ -5804,9 +5804,9 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
-      let sty, alloc_mode = alloc_mode_from_pexp_constraint_typ_attrs sty in
+      let sty, type_mode = alloc_mode_from_pexp_constraint_typ_attrs sty in
       let (ty, exp_extra) =
-        type_constraint env sty alloc_mode
+        type_constraint env sty type_mode
       in
       let ty' = instance ty in
       let error_message_attr_opt =
