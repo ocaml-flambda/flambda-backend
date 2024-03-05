@@ -516,15 +516,17 @@ module Modes = struct
 
   let extension_name = Mode_expr.attribute_or_extension_name
 
-  let of_expr { pexp_desc; pexp_attributes; _ } =
+  let of_expr ({ pexp_desc; pexp_attributes; _ } as expr) =
     match pexp_desc with
     | Pexp_apply
         ( { pexp_desc = Pexp_extension ({ txt; _ }, payload); pexp_loc; _ },
           [(Nolabel, body)] )
       when txt = extension_name ->
       let modes = Mode_expr.of_payload ~loc:pexp_loc payload in
-      Some (Coerce (modes, body), pexp_attributes)
-    | _ -> None
+      Coerce (modes, body), pexp_attributes
+    | _ ->
+      Misc.fatal_errorf "Improperly encoded modes expression: %a"
+        (Printast.expression 0) expr
 
   let expr_of ~loc (Coerce (modes, body)) =
     match Mode_expr.payload_of modes with
@@ -1939,10 +1941,9 @@ module Expression = struct
     | Language_extension Labeled_tuples ->
       let expr, attrs = Labeled_tuples.of_expr expr in
       Some (Jexp_tuple expr, attrs)
-    | Language_extension Mode -> (
-      match Modes.of_expr expr with
-      | Some (expr, attrs) -> Some (Jexp_modes expr, attrs)
-      | None -> None)
+    | Language_extension Mode ->
+      let expr, attrs = Modes.of_expr expr in
+      Some (Jexp_modes expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal

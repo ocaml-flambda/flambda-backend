@@ -869,9 +869,13 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   in
   { expected_mode with mode; strictly_local }
 
-let alloc_mode_from_exp_attrs exp =
-  let modes, _ = Jane_syntax.Mode_expr.of_attrs exp.pexp_attributes in
-  Typemode.transl_alloc_mode modes
+(* Value binding elaboration can insert alloc mode attributes on the forged
+   [Pexp_constraint] node. Use this function to detect
+   and remove these inserted attributes.
+*)
+let alloc_mode_from_pexp_constraint_typ_attrs styp =
+  let modes, rest = Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes in
+  { styp with ptyp_attributes = rest }, Typemode.transl_alloc_mode modes
 
 let alloc_mode_from_pat_attrs pat =
   let modes, _ = Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes in
@@ -4952,8 +4956,12 @@ let may_lower_contravariant_then_generalize env exp =
 let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attributes=attrs; _ } =
   let open Ast_helper in
   let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
-  let mode_annot_attrs =
-    Option.fold ~none:[] ~some:(fun x -> [x]) mode_annot_attr
+  (* This added mode attribute is read and removed by
+     [alloc_mode_from_pexp_constraint_typ_attributes].  *)
+  let add_mode_annot_attrs typ =
+    match mode_annot_attr with
+    | None -> typ
+    | Some attr -> { typ with ptyp_attributes = attr :: typ.ptyp_attributes }
   in
   match ct with
   | None -> expr
@@ -4962,7 +4970,7 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
       | Ptyp_poly _ -> expr
       | _ ->
           let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-          Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ
+          Exp.constraint_ ~loc expr (add_mode_annot_attrs typ)
       end
   | Some (Pvc_coercion { ground; coercion}) ->
       let loc = { expr.pexp_loc with Location.loc_ghost = true } in
@@ -4970,7 +4978,7 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attrib
   | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
       let loc_start = pat.ppat_loc.Location.loc_start in
       let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc ~attrs:mode_annot_attrs expr typ in
+      let expr = Exp.constraint_ ~loc expr (add_mode_annot_attrs typ) in
       List.fold_right (Exp.newtype ~loc) vars expr
 
 let vb_pat_constraint
@@ -5796,8 +5804,9 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
+      let sty, alloc_mode = alloc_mode_from_pexp_constraint_typ_attrs sty in
       let (ty, exp_extra) =
-        type_constraint env sty (alloc_mode_from_exp_attrs sexp)
+        type_constraint env sty alloc_mode
       in
       let ty' = instance ty in
       let error_message_attr_opt =
@@ -5816,7 +5825,12 @@ and type_expect_
   | Pexp_coerce(sarg, sty, sty') ->
       let arg, ty', exp_extra =
         type_coerce (expression_constraint sarg) env expected_mode loc sty sty'
-          (alloc_mode_from_exp_attrs sexp) ~loc_arg:sarg.pexp_loc
+          (* CR modes: We could consider changing value binding elaboration to
+             put modes on forged [Pexp_coerce] nodes, as we do for
+             [Pexp_constraint]. Then we could use that mode here instead of
+             legacy.
+          *)
+          Alloc.Const.legacy  ~loc_arg:sarg.pexp_loc
       in
       rue {
         exp_desc = arg.exp_desc;
