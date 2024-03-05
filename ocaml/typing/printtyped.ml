@@ -380,8 +380,11 @@ and expression_extra i ppf x attrs =
       attributes i ppf attrs;
   | Texp_mode_coerce modes ->
       let modes = (modes :> string Location.loc list Location.loc) in
-      line i ppf "Texp_mode_coerce \"%s\"\n"
-        (String.concat "," (List.map Location.get_txt modes.txt));
+      line i ppf "Texp_mode_coerce %s\n"
+        (String.concat ","
+          (List.map
+            (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
+            modes.txt));
       attributes i ppf attrs;
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
