@@ -504,30 +504,30 @@ let comp_primitive stack_info p sz args =
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
      array modes (allocation for [Parrayref{s,u}], modification for
      [Parrayset{s,u}]). *)
-  | Parrayrefs (Pgenarray_ref _) -> Kccall("caml_array_get", 2)
-  | Parrayrefs (Pfloatarray_ref _) -> Kccall("caml_floatarray_get", 2)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
+  | Parrayrefs (Pgenarray_ref _, _index_kind) -> Kccall("caml_array_get", 2)
+  | Parrayrefs (Pfloatarray_ref _, _index_kind) -> Kccall("caml_floatarray_get", 2)
+  | Parrayrefs ((Paddrarray_ref | Pintarray_ref), _index_kind) ->
       Kccall("caml_array_get_addr", 2)
-  | Parrayrefs (Punboxedfloatarray_ref _ | Punboxedintarray_ref _) ->
+  | Parrayrefs ((Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
         Printlambda.primitive p
-  | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
-  | Parraysets Pfloatarray_set -> Kccall("caml_floatarray_set", 3)
-  | Parraysets (Paddrarray_set _ | Pintarray_set) ->
+  | Parraysets (Pgenarray_set _, _index_kind) -> Kccall("caml_array_set", 3)
+  | Parraysets (Pfloatarray_set, _index_kind) -> Kccall("caml_floatarray_set", 3)
+  | Parraysets ((Paddrarray_set _ | Pintarray_set), _index_kind) ->
       Kccall("caml_array_set_addr", 3)
-  | Parraysets (Punboxedfloatarray_set _ | Punboxedintarray_set _) ->
+  | Parraysets ((Punboxedfloatarray_set _ | Punboxedintarray_set _), _index_kind) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
         Printlambda.primitive p
-  | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
-  | Parrayrefu (Pfloatarray_ref _) -> Kccall("caml_floatarray_unsafe_get", 2)
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
-  | Parrayrefu (Punboxedfloatarray_ref _ | Punboxedintarray_ref _) ->
+  | Parrayrefu (Pgenarray_ref _, _index_kind) -> Kccall("caml_array_unsafe_get", 2)
+  | Parrayrefu (Pfloatarray_ref _, _index_kind) -> Kccall("caml_floatarray_unsafe_get", 2)
+  | Parrayrefu ((Paddrarray_ref | Pintarray_ref), _index_kind) -> Kgetvectitem
+  | Parrayrefu ((Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _index_kind) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
         Printlambda.primitive p
-  | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
-  | Parraysetu Pfloatarray_set -> Kccall("caml_floatarray_unsafe_set", 3)
-  | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
-  | Parraysetu (Punboxedfloatarray_set _ | Punboxedintarray_set _) ->
+  | Parraysetu (Pgenarray_set _, _index_kind) -> Kccall("caml_array_unsafe_set", 3)
+  | Parraysetu (Pfloatarray_set, _index_kind) -> Kccall("caml_floatarray_unsafe_set", 3)
+  | Parraysetu ((Paddrarray_set _ | Pintarray_set), _index_kind) -> Ksetvectitem
+  | Parraysetu ((Punboxedfloatarray_set _ | Punboxedintarray_set _), _index_kind) ->
       Misc.fatal_errorf "Cannot use primitive %a for unboxed arrays in bytecode"
         Printlambda.primitive p
   | Pctconst c ->
