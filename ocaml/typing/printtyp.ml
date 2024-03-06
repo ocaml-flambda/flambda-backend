@@ -622,6 +622,10 @@ and labeled_type ppf (label, ty) =
 
 and raw_type_list tl = raw_list raw_type tl
 and labeled_type_list tl = raw_list labeled_type tl
+and raw_lid_type_list tl =
+  raw_list (fun ppf (lid, typ) ->
+             fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
+    tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%s)" print_name name
@@ -678,8 +682,8 @@ and raw_type_desc ppf = function
           | Some(p,tl) ->
               fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
   | Tpackage (p, fl) ->
-      fprintf ppf "@[<hov1>Tpackage(@,%a@,%a)@]" path p
-        raw_type_list (List.map snd fl)
+      fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
+        raw_lid_type_list fl
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
