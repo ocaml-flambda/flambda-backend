@@ -49,3 +49,5 @@ val location_list_table : t -> Location_list_table.t
 
 val function_abstract_instances :
   t -> (Proto_die.t * Asm_symbol.t) Misc.Stdlib.String.Tbl.t
+
+val can_reference_dies_across_units : t -> bool

@@ -102,6 +102,10 @@ let add_or_replace_attribute_value t attribute_value =
   in
   t.attribute_values <- attribute_values
 
+let replace_all_attribute_values t attribute_values =
+  let attribute_values = attribute_values_map attribute_values in
+  { t with attribute_values }
+
 let set_name t name = t.name <- Some name
 
 type fold_arg =

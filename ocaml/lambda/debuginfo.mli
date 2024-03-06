@@ -29,6 +29,8 @@ module Scoped_location : sig
 
   val string_of_scopes : scopes -> string
 
+  val compilation_unit : scopes -> Compilation_unit.t option
+
   val empty_scopes : scopes
   val enter_anonymous_function : scopes:scopes -> scopes
   val enter_value_definition : scopes:scopes -> Ident.t -> scopes

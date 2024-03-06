@@ -59,6 +59,9 @@ val create_ignore :
 val add_or_replace_attribute_value :
   t -> Dwarf_attribute_values.Attribute_value.t -> unit
 
+val replace_all_attribute_values :
+  t -> Dwarf_attribute_values.Attribute_value.t list -> t
+
 (* CR-someday mshinwell: add a [name] argument to the creation functions *)
 val set_name : t -> Asm_symbol.t -> unit
 

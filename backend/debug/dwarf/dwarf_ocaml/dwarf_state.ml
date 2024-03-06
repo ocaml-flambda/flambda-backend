@@ -60,3 +60,5 @@ let address_table t = t.address_table
 let location_list_table t = t.location_list_table
 
 let function_abstract_instances t = t.function_abstract_instances
+
+let can_reference_dies_across_units _t = false (* XXX *)

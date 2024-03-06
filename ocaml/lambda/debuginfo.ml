@@ -106,6 +106,22 @@ module Scoped_location = struct
         repr := StringSet.add res !repr;
         res
 
+  let rec outermost_scope scopes =
+    match scopes with
+    | Empty -> None
+    | Cons { prev = Empty; _ } -> Some scopes
+    | Cons { prev } -> outermost_scope prev
+
+  let compilation_unit scopes =
+    match outermost_scope scopes with
+    | None -> None
+    | Some scopes ->
+      (* CR mshinwell: this won't work with -pack *)
+      match scopes with
+      | Cons { item = Sc_module_definition; str; _ } ->
+        Some (Compilation_unit.of_string str)
+      | _ -> None
+
   type t =
     | Loc_unknown
     | Loc_known of
@@ -258,9 +274,11 @@ let rec print_compact ppf t =
     if item.dinfo_char_start >= 0 then begin
       Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
     end;
-    match item.dinfo_uid with
+    (match item.dinfo_uid with
     | None -> ()
-    | Some uid -> Format.fprintf ppf "[%s]" uid
+    | Some uid -> Format.fprintf ppf "[%s]" uid);
+    Format.fprintf ppf "$%s$"
+      (Scoped_location.string_of_scopes item.dinfo_scopes)
   in
   match t with
   | [] -> ()

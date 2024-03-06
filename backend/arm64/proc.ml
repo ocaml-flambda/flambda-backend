@@ -408,16 +408,45 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
 
-let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+let compute_initial_stack_offset ~fun_contains_calls ~fun_num_stack_slots =
+    8 * fun_num_stack_slots.(0) +
+    8 * fun_num_stack_slots.(1) +
+    (if fun_contains_calls then 8 else 0)
+
+let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
+  let sz =
+    stack_offset +
+    compute_initial_stack_offset ~fun_contains_calls ~fun_num_stack_slots
+  in Misc.align sz 16
 
 type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
 
-let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
-      ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
+      ~fun_contains_calls ~fun_num_stack_slots =
+  match loc with
+    Incoming n ->
+      assert (n >= 0);
+      let frame_size =
+        frame_size ~stack_offset ~fun_contains_calls
+          ~fun_num_stack_slots
+      in
+      Bytes_relative_to_stack_pointer (frame_size + n)
+  | Local n ->
+      let offset =
+        stack_offset +
+        (if stack_class = 0
+        then n * 8
+        else fun_num_stack_slots.(0) * 8 + n * 8)
+      in
+      Bytes_relative_to_stack_pointer offset
+  | Outgoing n ->
+      assert (n >= 0);
+      Bytes_relative_to_stack_pointer n
+  | Domainstate n ->
+      Bytes_relative_to_domainstate_pointer (
+        n + Domainstate.(idx_of_field Domain_extra_params) * 8)
 
 (* Calling the assembler *)
 

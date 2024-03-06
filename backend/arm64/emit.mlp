@@ -97,30 +97,26 @@ let prologue_required = ref false
 let contains_calls = ref false
 
 let initial_stack_offset () =
-    8 * num_stack_slots.(0) +
-    8 * num_stack_slots.(1) +
-    (if !contains_calls then 8 else 0)
+  (* CR mshinwell: share with Proc *)
+  8 * num_stack_slots.(0) +
+  8 * num_stack_slots.(1) +
+  (if !contains_calls then 8 else 0)
 
 let frame_size () =
-  let sz =
-    !stack_offset +
-    initial_stack_offset ()
-  in Misc.align sz 16
+  Proc.frame_size ~stack_offset:!stack_offset
+    ~fun_contains_calls:!contains_calls
+    ~fun_num_stack_slots:num_stack_slots
 
-let slot_offset loc cl =
-  match loc with
-    Incoming n ->
-      assert (n >= 0);
-      frame_size() + n
-  | Local n ->
-      !stack_offset +
-      (if cl = 0
-       then n * 8
-       else num_stack_slots.(0) * 8 + n * 8)
-  | Outgoing n ->
-      assert (n >= 0);
-      n
-  | Domainstate _ -> assert false (* not a satck slot *)
+let slot_offset loc stack_class =
+  let offset =
+    Proc.slot_offset loc ~stack_class ~stack_offset:!stack_offset
+      ~fun_contains_calls:!contains_calls
+      ~fun_num_stack_slots:num_stack_slots
+  in
+  match offset with
+  | Bytes_relative_to_stack_pointer offset -> offset
+  | Bytes_relative_to_domainstate_pointer _ ->
+    Misc.fatal_error "Not a stack slot"
 
 (* Output a stack reference *)
 
