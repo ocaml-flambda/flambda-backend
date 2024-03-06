@@ -103,6 +103,7 @@ type classification =
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
+
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
 (* CR layouts v2.5: when we allow [float# array] or [float# lazy], this should
