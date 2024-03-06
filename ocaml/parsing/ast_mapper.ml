@@ -106,17 +106,19 @@ let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
 
-let map_mode_expr sub (mode_expr : Jane_syntax.Mode_expr.t)
-  : Jane_syntax.Mode_expr.t =
-  map_loc_txt sub
-    (fun sub modes ->
-       List.map
-         (fun (mode : Jane_syntax.Mode_expr.Const.t) ->
-            let { loc; txt } = (mode :> string loc) in
-            let loc = sub.location sub loc in
-            Jane_syntax.Mode_expr.Const.mk txt loc)
-         modes)
-    mode_expr
+module ME = Jane_syntax.Mode_expr
+
+let map_mode_and_attributes sub attrs =
+  let modes, attrs =
+    Jane_syntax.Mode_expr.maybe_of_attrs attrs
+  in
+  let mode_attr =
+    match modes with
+    | Some modes ->
+      Option.to_list (sub.modes sub modes |> ME.attr_of)
+    | None -> []
+  in
+  mode_attr @ sub.attributes sub attrs
 
 module C = struct
   (* Constants *)
@@ -201,12 +203,12 @@ module T = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         let jtyp = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -646,7 +648,7 @@ module E = struct
   let map_modes_exp sub : Modes.expression -> Modes.expression = function
     (* CR modes: One day mappers might want to see the modes *)
     | Coerce (modes, exp) ->
-        Coerce (map_mode_expr sub modes, sub.expr sub exp)
+        Coerce (sub.modes sub modes, sub.expr sub exp)
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
@@ -790,11 +792,11 @@ module P = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -890,8 +892,6 @@ module CE = struct
       (map_loc sub pci_name)
       (f pci_expr)
 end
-
-module ME = Jane_syntax.Mode_expr
 
 (* Now, a generic AST mapper, to be extended to cover all kinds and
    cases of the OCaml grammar.  The default behavior of the mapper is
@@ -1025,7 +1025,7 @@ let default_mapper =
            (this.expr this pvb_expr)
            ?value_constraint:(Option.map map_ct pvb_constraint)
            ~loc:(this.location this pvb_loc)
-           ~attrs:(this.attributes this pvb_attributes)
+           ~attrs:(map_mode_and_attributes this pvb_attributes)
       );
 
 
@@ -1081,12 +1081,7 @@ let default_mapper =
         attr_loc = this.location this a.attr_loc
       }
     );
-    attributes = (fun this l ->
-      List.filter_map (fun attr ->
-        let m, _ = ME.maybe_of_attrs [attr] in
-        match m with
-        | Some m -> this.modes this m |> ME.attr_of
-        | None -> Some (this.attribute this attr)) l);
+    attributes = (fun this l -> List.map (this.attribute this) l);
 
     payload =
       (fun this -> function
