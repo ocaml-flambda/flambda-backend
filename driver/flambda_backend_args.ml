@@ -88,6 +88,9 @@ let mk_dasm_comments f =
 let mk_dno_asm_comments f =
   "-dno-asm-comments", Arg.Unit f, " Do not add comments in .s files"
 
+let mk_no_stack_checks_genfuncs f =
+  "-no-stack-checks-genfuncs", Arg.Unit f, " Disable stack checks for generated functions"
+
 let mk_heap_reduction_threshold f =
   "-heap-reduction-threshold",
   Arg.Int f,
@@ -631,6 +634,8 @@ module type Flambda_backend_options = sig
   val dasm_comments : unit -> unit
   val dno_asm_comments : unit -> unit
 
+  val no_stack_checks_genfuncs : unit -> unit
+
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
@@ -743,6 +748,8 @@ struct
 
     mk_dasm_comments F.dasm_comments;
     mk_dno_asm_comments F.dno_asm_comments;
+
+    mk_no_stack_checks_genfuncs F.no_stack_checks_genfuncs;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
@@ -890,6 +897,9 @@ module Flambda_backend_options_impl = struct
 
   let dno_asm_comments =
     clear' Flambda_backend_flags.dasm_comments
+
+  let no_stack_checks_genfuncs =
+    set' Flambda_backend_flags.no_stack_checks_genfuncs
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
@@ -1216,6 +1226,7 @@ module Extra_params = struct
     | "caml-apply-inline-fast-path" ->
       set' Flambda_backend_flags.caml_apply_inline_fast_path
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
+    | "no-stack-checks-genfuncs" -> set' Flambda_backend_flags.no_stack_checks_genfuncs
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gdwarf-may-alter-codegen" -> set' Debugging.gdwarf_may_alter_codegen
     | "gstartup" -> set' Debugging.dwarf_for_startup_file

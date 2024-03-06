@@ -2435,6 +2435,11 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           dbg (),
           Any ) )
 
+let codegen_options_for_generated_function () =
+  if !Flambda_backend_flags.no_stack_checks_genfuncs
+  then [No_stack_check]
+  else []
+
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in
@@ -2494,7 +2499,7 @@ let send_function (arity, result, mode) =
     { fun_name;
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
       fun_body = body;
-      fun_codegen_options = [No_stack_check];
+      fun_codegen_options = codegen_options_for_generated_function ();
       fun_dbg;
       fun_poll = Default_poll
     }
@@ -2508,7 +2513,7 @@ let apply_function (arity, result, mode) =
     { fun_name;
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) all_args;
       fun_body = body;
-      fun_codegen_options = [No_stack_check];
+      fun_codegen_options = codegen_options_for_generated_function ();
       fun_dbg;
       fun_poll = Default_poll
     }
@@ -2546,7 +2551,7 @@ let tuplify_function arity return =
             :: access_components 0
             @ [Cvar clos],
             dbg () );
-      fun_codegen_options = [No_stack_check];
+      fun_codegen_options = codegen_options_for_generated_function ();
       fun_dbg;
       fun_poll = Default_poll
     }
@@ -2688,7 +2693,7 @@ let final_curry_function nlocal arity result =
       fun_body =
         make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
           last_clos (narity - 1);
-      fun_codegen_options = [No_stack_check];
+      fun_codegen_options = codegen_options_for_generated_function ();
       fun_dbg;
       fun_poll = Default_poll
     }
@@ -2748,7 +2753,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
                 @ value_slot_given_machtype args
                 @ [Cvar clos],
                 dbg () );
-          fun_codegen_options = [No_stack_check];
+          fun_codegen_options = codegen_options_for_generated_function ();
           fun_dbg;
           fun_poll = Default_poll
         }
@@ -2779,7 +2784,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
                   (arg_type :: accumulated_args)
                   (List.map (fun (arg, _) -> Cvar arg) direct_args)
                   clos (num + 1);
-              fun_codegen_options = [No_stack_check];
+              fun_codegen_options = codegen_options_for_generated_function ();
               fun_dbg;
               fun_poll = Default_poll
             }

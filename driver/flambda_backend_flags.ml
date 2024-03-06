@@ -30,6 +30,8 @@ let basic_block_sections = ref false    (* -basic-block-sections *)
 
 let dasm_comments = ref false (* -dasm-comments *)
 
+let no_stack_checks_genfuncs = ref false (* -no-stack-checks-genfuncs *)
+
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)

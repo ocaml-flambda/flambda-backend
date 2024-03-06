@@ -19,11 +19,14 @@ jobs:
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
+            build_ocamlparam: '_,no-stack-checks-genfuncs=1'
+            ocamlparam: '_,no-stack-checks-genfuncs=1'
 
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            build_ocamlparam: ''
+            build_ocamlparam: '_,no-stack-checks-genfuncs=1'
+            ocamlparam: '_,no-stack-checks-genfuncs=1'
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
