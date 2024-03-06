@@ -2215,7 +2215,7 @@ let check_decl_jkind env decl jkind =
       | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
-  match Jkind.sub decl.type_jkind jkind with
+  match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
