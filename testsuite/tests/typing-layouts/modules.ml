@@ -716,3 +716,30 @@ Error: Function arguments and returns must be representable.
          it's the type of a function argument.
 |}]
 
+(***********************************)
+(* Test 11: [any] in package types *)
+
+module type S = sig
+  type t : any
+end
+
+module C : S = struct
+  type t = float
+end
+
+let x = (module C : S with type t = 'a)
+
+(* This should be accepted *)
+[%%expect{|
+module type S = sig type t : any end
+module C : S
+Line 9, characters 8-39:
+9 | let x = (module C : S with type t = 'a)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type (module S with type t = C.t)
+       but an expression was expected of type (module S with type t = 'a)
+       The layout of C.t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of C.t must be a sublayout of value, because
+         it's a type declaration in a first-class module.
+|}]

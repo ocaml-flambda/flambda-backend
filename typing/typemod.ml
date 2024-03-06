@@ -3272,9 +3272,8 @@ let type_package env m p fl =
   in
   List.iter
     (fun (n, ty) ->
-       (* CR layouts v5: relax value requirement. *)
       try Ctype.unify env ty
-            (Ctype.newvar (Jkind.value ~why:Structure_element))
+            (Ctype.newvar (Jkind.any ~why:Dummy_jkind))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
