@@ -716,3 +716,26 @@ Error: Function arguments and returns must be representable.
          it's the type of a function argument.
 |}]
 
+(***********************************)
+(* Test 11: [any] in package types *)
+
+module type S = sig
+  type t : any
+end
+
+module C : S = struct
+  type t = float
+end
+
+let x = (module C : S with type t = 'a)
+
+(* This should be accepted *)
+[%%expect{|
+module type S = sig type t : any end
+module C : S
+Line 9, characters 16-17:
+9 | let x = (module C : S with type t = 'a)
+                    ^
+Error: The type t in this module cannot be exported.
+       Its type contains local dependencies: C.t
+|}]
