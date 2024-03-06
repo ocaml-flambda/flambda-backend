@@ -100,16 +100,24 @@ let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 type classification =
   | Int   (* any immediate type *)
   | Float
+  | Unboxed_float of unboxed_float
+  | Unboxed_int of unboxed_integer
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
-
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
 (* CR layouts v2.5: when we allow [float# array] or [float# lazy], this should
    be updated to check for unboxed float. *)
 let classify env ty : classification =
   let ty = scrape_ty env ty in
+  let sort =
+    match Ctype.type_sort ~why:Wildcard env ty with
+    | Ok sort -> sort
+    | Error _ -> Misc.fatal_error "oh no"
+  in
+  match Jkind.(Sort.get_default_value sort) with
+  | Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
@@ -141,6 +149,13 @@ let classify env ty : classification =
       Addr
   | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
       assert false
+  end
+  | Float64 -> Unboxed_float Pfloat64
+  | Bits32 -> Unboxed_int Pint32
+  | Bits64 -> Unboxed_int Pint64
+  | Word -> Unboxed_int Pnativeint
+  | Void ->
+    Misc.fatal_error "oh no"
 
 let array_type_kind env ty =
   match scrape_poly env ty with
@@ -151,12 +166,21 @@ let array_type_kind env ty =
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
       | Addr | Lazy -> Paddrarray
       | Int -> Pintarray
+      | Unboxed_float f -> Punboxedfloatarray f
+      | Unboxed_int i -> Punboxedintarray i
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
       (* This can happen with e.g. Obj.field *)
       Pgenarray
+
+let array_type_index_kind env ty =
+  match classify env ty with
+  | Any | Float | Addr | Lazy | Int
+  | Unboxed_float _ -> Ptagged_int_index
+  | Unboxed_int i -> Punboxed_int_index i
+
 
 let array_kind exp = array_type_kind exp.exp_env exp.exp_type
 
@@ -626,6 +650,8 @@ let function_arg_layout env loc sort ty =
 let lazy_val_requires_forward env ty =
   match classify env ty with
   | Any | Lazy -> true
+  | Unboxed_float _ | Unboxed_int _ ->
+    Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
 

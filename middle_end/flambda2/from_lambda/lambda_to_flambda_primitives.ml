@@ -395,6 +395,18 @@ let max_with_zero ~size_int x =
   in
   ret
 
+let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
+  match index_kind with
+  | Ptagged_int_index -> index
+  | Punboxed_int_index bint ->
+    H.Prim
+      (Unary
+         ( Num_conv
+             { src = standard_int_or_float_of_boxed_integer bint;
+               dst = Tagged_immediate
+             },
+           index ))
+
 (* actual (strict) upper bound for an index in a string-like read/write *)
 let actual_max_length_for_string_like_access ~size_int ~access_size length =
   (* offset to subtract from the length depending on the size of the
@@ -745,16 +757,29 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
   bigarray_access ~dbg ~unsafe ~access layout b indexes
 
 (* Array accesses *)
-let array_access_validity_condition array array_kind index =
-  [ H.Binary
-      ( Int_comp (Tagged_immediate, Yielding_bool (Lt Unsigned)),
-        index,
-        Prim (Unary (Array_length array_kind, array)) ) ]
+let array_access_validity_condition array array_kind index
+    (index_kind : L.array_index_kind) =
+  let arr_len = H.Prim (Unary (Array_length array_kind, array)) in
+  let (comp_kind : I.t), arr_len =
+    match index_kind with
+    | Ptagged_int_index -> I.Tagged_immediate, arr_len
+    | Punboxed_int_index bint ->
+      ( standard_int_of_boxed_integer bint,
+        H.Prim
+          (Unary
+             ( Num_conv
+                 { src = Tagged_immediate;
+                   dst = standard_int_or_float_of_boxed_integer bint
+                 },
+               arr_len )) )
+  in
+  [H.Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, arr_len)]
 
-let check_array_access ~dbg ~array array_kind ~index primitive :
+let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
     H.expr_primitive =
   checked_access ~primitive
-    ~conditions:(array_access_validity_condition array array_kind index)
+    ~conditions:
+      (array_access_validity_condition array array_kind index index_kind)
     ~dbg
 
 let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
@@ -1383,25 +1408,33 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, _array_index_kind), [[array]; [index]] ->
+  | Parrayrefu (array_ref_kind, array_index_kind), [[array]; [index]] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
+    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     [ match_on_array_ref_kind ~array array_ref_kind
-        (array_load_unsafe ~array ~index ~current_region) ]
-  | Parrayrefs (array_ref_kind, _array_index_kind), [[array]; [index]] ->
+        (array_load_unsafe ~array ~index:tagged_index ~current_region) ]
+  | Parrayrefs (array_ref_kind, array_index_kind), [[array]; [index]] ->
+    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
     [ check_array_access ~dbg ~array array_kind ~index
+        ~index_kind:array_index_kind
         (match_on_array_ref_kind ~array array_ref_kind
-           (array_load_unsafe ~array ~index ~current_region)) ]
-  | Parraysetu (array_set_kind, _array_index_kind), [[array]; [index]; [new_value]] ->
+           (array_load_unsafe ~array ~index:tagged_index ~current_region)) ]
+  | ( Parraysetu (array_set_kind, array_index_kind),
+      [[array]; [index]; [new_value]] ) ->
+    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     [ match_on_array_set_kind ~array array_set_kind
-        (array_set_unsafe ~array ~index ~new_value) ]
-  | Parraysets (array_set_kind, _array_index_kind), [[array]; [index]; [new_value]] ->
+        (array_set_unsafe ~array ~index:tagged_index ~new_value) ]
+  | ( Parraysets (array_set_kind, array_index_kind),
+      [[array]; [index]; [new_value]] ) ->
+    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     let array_kind = convert_array_set_kind_for_length array_set_kind in
     [ check_array_access ~dbg ~array array_kind ~index
+        ~index_kind:array_index_kind
         (match_on_array_set_kind ~array array_set_kind
-           (array_set_unsafe ~array ~index ~new_value)) ]
+           (array_set_unsafe ~array ~index:tagged_index ~new_value)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Eight Bytes ~boxed:false bytes index
         new_value ]
@@ -1744,11 +1777,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
       | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
-          ( (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-          | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _ )
+          ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
+            | Pfloatarray_ref _ | Punboxedfloatarray_ref _
+            | Punboxedintarray_ref _ ),
+            _ )
       | Parrayrefs
-          ( (Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
-          | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _ )
+          ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
+            | Pfloatarray_ref _ | Punboxedfloatarray_ref _
+            | Punboxedintarray_ref _ ),
+            _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
       | Patomic_fetch_add ),
       ( []
@@ -1762,11 +1799,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Psetfield_computed _ | Pbytessetu | Pbytessets
       | Parraysetu
-          ( (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-          | Punboxedfloatarray_set _ | Punboxedintarray_set _), _ )
+          ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
+            | Pfloatarray_set | Punboxedfloatarray_set _
+            | Punboxedintarray_set _ ),
+            _ )
       | Parraysets
-          ( (Pgenarray_set _ | Paddrarray_set _ | Pintarray_set | Pfloatarray_set
-          | Punboxedfloatarray_set _ | Punboxedintarray_set _), _ )
+          ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
+            | Pfloatarray_set | Punboxedfloatarray_set _
+            | Punboxedintarray_set _ ),
+            _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
       | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
       | Pbigstring_set_128 _ | Pfloatarray_set_128 _ | Pfloat_array_set_128 _

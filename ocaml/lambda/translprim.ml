@@ -807,23 +807,27 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
-  | Primitive (Parrayrefu (rt, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefu (rt, _index_kind), arity), [p1; p2]-> begin
+      let index_kind = (array_type_index_kind env p2) in
       let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1)
       in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefu (array_ref_type, index_kind), arity))
     end
-  | Primitive (Parraysetu (st, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parraysetu (st, _index_kind), arity), [p1; p2]-> begin
+      let index_kind = (array_type_index_kind env p2) in
       let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysetu (array_set_type, index_kind), arity))
     end
-  | Primitive (Parrayrefs (rt, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefs (rt, _index_kind), arity), [p1; p2]-> begin
+      let index_kind = (array_type_index_kind env p2) in
       let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1) in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefs (array_ref_type, index_kind), arity))
     end
-  | Primitive (Parraysets (st, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parraysets (st, _index_kind), arity), [p1; p2]-> begin
+      let index_kind = (array_type_index_kind env p2) in
       let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))

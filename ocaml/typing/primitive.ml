@@ -487,23 +487,23 @@ let prim_has_valid_reprs ~loc prim =
     | "%array_safe_get" ->
       check [
         is (Same_as_ocaml_repr Value);
-        is (Same_as_ocaml_repr Value);
+        any;
         any]
     | "%array_safe_set" ->
       check [
         is (Same_as_ocaml_repr Value);
-        is (Same_as_ocaml_repr Value);
+        any;
         any;
         is (Same_as_ocaml_repr Value)]
     | "%array_unsafe_get" ->
       check [
         is (Same_as_ocaml_repr Value);
-        is (Same_as_ocaml_repr Value);
+        any;
         any]
     | "%array_unsafe_set" ->
       check [
         is (Same_as_ocaml_repr Value);
-        is (Same_as_ocaml_repr Value);
+        any;
         any;
         is (Same_as_ocaml_repr Value)]
 
