@@ -337,6 +337,18 @@ let bint_shift bi mode prim arg1 arg2 =
          unbox_bint bi arg1,
          untag_int arg2 ))
 
+let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
+  match index_kind with
+  | Ptagged_int_index -> index
+  | Punboxed_int_index bint ->
+    H.Prim
+      (Unary
+         ( Num_conv
+             { src = standard_int_or_float_of_boxed_integer bint;
+               dst = Tagged_immediate
+             },
+           index ))
+
 let check_non_negative_imm imm prim_name =
   if not (Targetint_31_63.is_non_negative imm)
   then
@@ -394,18 +406,6 @@ let max_with_zero ~size_int x =
     H.Prim (Binary (Int_arith (Naked_nativeint, And), sign_negation, x))
   in
   ret
-
-let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
-  match index_kind with
-  | Ptagged_int_index -> index
-  | Punboxed_int_index bint ->
-    H.Prim
-      (Unary
-         ( Num_conv
-             { src = standard_int_or_float_of_boxed_integer bint;
-               dst = Tagged_immediate
-             },
-           index ))
 
 (* actual (strict) upper bound for an index in a string-like read/write *)
 let actual_max_length_for_string_like_access ~size_int ~access_size length =
@@ -759,10 +759,10 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
     (index_kind : L.array_index_kind) =
-  let arr_len = H.Prim (Unary (Array_length array_kind, array)) in
+  let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
   let (comp_kind : I.t), arr_len =
     match index_kind with
-    | Ptagged_int_index -> I.Tagged_immediate, arr_len
+    | Ptagged_int_index -> I.Tagged_immediate, arr_len_as_tagged_imm
     | Punboxed_int_index bint ->
       ( standard_int_of_boxed_integer bint,
         H.Prim
@@ -771,7 +771,7 @@ let array_access_validity_condition array array_kind index
                  { src = Tagged_immediate;
                    dst = standard_int_or_float_of_boxed_integer bint
                  },
-               arr_len )) )
+               arr_len_as_tagged_imm )) )
   in
   [H.Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, arr_len)]
 
@@ -1412,29 +1412,33 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
-    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     [ match_on_array_ref_kind ~array array_ref_kind
-        (array_load_unsafe ~array ~index:tagged_index ~current_region) ]
+        (array_load_unsafe ~array
+           ~index:(convert_index_to_tagged_int index array_index_kind)
+           ~current_region) ]
   | Parrayrefs (array_ref_kind, array_index_kind), [[array]; [index]] ->
-    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
     [ check_array_access ~dbg ~array array_kind ~index
         ~index_kind:array_index_kind
         (match_on_array_ref_kind ~array array_ref_kind
-           (array_load_unsafe ~array ~index:tagged_index ~current_region)) ]
+           (array_load_unsafe ~array
+              ~index:(convert_index_to_tagged_int index array_index_kind)
+              ~current_region)) ]
   | ( Parraysetu (array_set_kind, array_index_kind),
       [[array]; [index]; [new_value]] ) ->
-    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     [ match_on_array_set_kind ~array array_set_kind
-        (array_set_unsafe ~array ~index:tagged_index ~new_value) ]
+        (array_set_unsafe ~array
+           ~index:(convert_index_to_tagged_int index array_index_kind)
+           ~new_value) ]
   | ( Parraysets (array_set_kind, array_index_kind),
       [[array]; [index]; [new_value]] ) ->
-    let tagged_index = convert_index_to_tagged_int index array_index_kind in
     let array_kind = convert_array_set_kind_for_length array_set_kind in
     [ check_array_access ~dbg ~array array_kind ~index
         ~index_kind:array_index_kind
         (match_on_array_set_kind ~array array_set_kind
-           (array_set_unsafe ~array ~index:tagged_index ~new_value)) ]
+           (array_set_unsafe ~array
+              ~index:(convert_index_to_tagged_int index array_index_kind)
+              ~new_value)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Eight Bytes ~boxed:false bytes index
         new_value ]
