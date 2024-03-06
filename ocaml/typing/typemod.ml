@@ -3272,7 +3272,6 @@ let type_package env m p fl =
   in
   List.iter
     (fun (n, ty) ->
-       (* CR layouts v5: relax value requirement. *)
       try Ctype.unify env ty
             (Ctype.newvar (Jkind.any ~why:Dummy_jkind))
       with Ctype.Unify _ ->
