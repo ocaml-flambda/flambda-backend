@@ -1338,44 +1338,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                   )
             in
             let eliminate_position_arg () =
-              (* XXX jrodri: I _think_ this is correct, but I wanted to sanity check.
-                 There are two environments, [val_env] and [met_env], I _think_ it is
-                 correct to pass in [val_env] as IIUC, it is the environment from
-                 "outside" the class (or at least this is what I think as Pcl_constr looks
-                 at the [val_env] instead of the [met_env])?
- 
-                 jrodri: I am not 100% confident though and it's more of an assumption
-                 that I wanted to sanity check. Is [val_env] correct here? I also wanted
-                 to write a test, but since I _think_ that Texp_src_pos does not refer to
-                 anything from the environment in translcore.ml nor in other parts, I
-                 couldn't think of a way of meaninfully testing/knowing whether I sent in
-                 the wrong environment or not...
-
-                 jrodri: The test I wanted to write was something like attempting to refer to "self" 
-                 from somewhere invalid/valid (as seen in the example below), but I don't
-                 think the src_pos that is written refers to anything...:
-
-                 Invalid:
-                 {v
-─( 17:08:24 )─< command 5 >────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
-utop # let o = object(self)
-  inherit c (if self = self then 1 else 0)
-end;;
-Line 2, characters 16-20:
-Error: The self variable self
-       cannot be accessed from the definition of an instance variable
-                 v}
-
-                 Valid:
-
-                 {v
-─( 17:08:24 )─< command 5 >────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────{ counter: 0 }─
-utop # let o = object(self)
-  method foo = if self = self then 1 else 0
-end;;
-val o : < foo : int; x : int > = <obj>
-                 v}
-              *)
               let arg = Typecore.src_pos (Location.ghostify scl.pcl_loc) [] val_env in
               Arg (arg, Jkind.Sort.value)
             in
@@ -1384,16 +1346,16 @@ val o : < foo : int; x : int > = <obj>
                 match sargs with
                 | [] -> assert false
                 | (l', sarg) :: remaining_sargs ->
-                    let label_is_absent_in_remaining_args =
-                      lazy (not (List.exists (fun (l, _) -> name = Btype.label_name l) remaining_sargs))
+                    let label_is_absent_in_remaining_args () =
+                      not (List.exists (fun (l, _) -> name = Btype.label_name l) remaining_sargs)
                     in
                     if name = Btype.label_name l' ||
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if optional && Lazy.force label_is_absent_in_remaining_args
+                    else if optional && label_is_absent_in_remaining_args () 
                     then (sargs, eliminate_optional_arg ())
-                    else if Btype.is_position l && Lazy.force label_is_absent_in_remaining_args
+                    else if Btype.is_position l && label_is_absent_in_remaining_args ()
                     then (sargs, eliminate_position_arg ())
                     else
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
@@ -1406,11 +1368,11 @@ val o : < foo : int; x : int > = <obj>
                            (Printtyp.string_of_label l));
                     remaining_sargs, use_arg sarg l'
                 | None ->
-                    let is_erased = lazy (List.mem_assoc Nolabel sargs) in
+                    let is_erased () = List.mem_assoc Nolabel sargs in
                     sargs,
-                    if Btype.is_optional l && Lazy.force is_erased then
+                    if Btype.is_optional l && is_erased () then
                       eliminate_optional_arg ()
-                    else if Btype.is_position l && Lazy.force is_erased then
+                    else if Btype.is_position l && is_erased () then
                       eliminate_position_arg ()
                     else begin
                       let mode_closure = Mode.Alloc.legacy in
