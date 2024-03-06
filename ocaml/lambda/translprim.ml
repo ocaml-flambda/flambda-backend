@@ -293,23 +293,82 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%bytes_unsafe_get" -> Primitive (Pbytesrefu, 2)
     | "%bytes_unsafe_set" -> Primitive (Pbytessetu, 3)
     | "%array_length" -> Primitive ((Parraylength gen_array_kind), 1)
-    | "%array_safe_get" -> Primitive ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index)), 2)
+    | "%array_safe_get" ->
+      Primitive
+        ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index)), 2)
     | "%array_safe_set" ->
-       Primitive (Parraysets (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index), 3)
-    | "%array_unsafe_get" -> Primitive (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index), 2)
+      Primitive
+        (Parraysets (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index),
+         3)
+    | "%array_unsafe_get" ->
+      Primitive
+        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index), 2)
     | "%array_unsafe_set" ->
-       Primitive ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)), 3)
+      Primitive
+        ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
+        3)
+    | "%array_safe_get_indexed_by_int64#" ->
+      Primitive
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint64)), 2)
+    | "%array_safe_set_indexed_by_int64#" ->
+      Primitive
+        (Parraysets
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint64),
+         3)
+    | "%array_unsafe_get_indexed_by_int64#" ->
+      Primitive
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64), 2)
+    | "%array_unsafe_set_indexed_by_int64#" ->
+      Primitive
+        ((Parraysetu
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint64)),
+        3)
+    | "%array_safe_get_indexed_by_int32#" ->
+      Primitive
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint32)), 2)
+    | "%array_safe_set_indexed_by_int32#" ->
+      Primitive
+        (Parraysets
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint32),
+         3)
+    | "%array_unsafe_get_indexed_by_int32#" ->
+      Primitive
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32), 2)
+    | "%array_unsafe_set_indexed_by_int32#" ->
+      Primitive
+        ((Parraysetu
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint32)),
+        3)
+    | "%array_safe_get_indexed_by_nativeint#" ->
+      Primitive
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pnativeint)), 2)
+    | "%array_safe_set_indexed_by_nativeint#" ->
+      Primitive
+        (Parraysets
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint),
+         3)
+    | "%array_unsafe_get_indexed_by_nativeint#" ->
+      Primitive
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint), 2)
+    | "%array_unsafe_set_indexed_by_nativeint#" ->
+      Primitive
+        ((Parraysetu
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
+        3)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index)), 2)
     | "%obj_set_field" ->
-       Primitive ((Parraysetu (Pgenarray_set (get_first_arg_mode ()), Ptagged_int_index)), 3)
+      Primitive
+        ((Parraysetu (Pgenarray_set (get_first_arg_mode ()), Ptagged_int_index)), 3)
     | "%floatarray_length" -> Primitive ((Parraylength Pfloatarray), 1)
     | "%floatarray_safe_get" ->
-       Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index)), 2)
-    | "%floatarray_safe_set" -> Primitive (Parraysets (Pfloatarray_set, Ptagged_int_index), 3)
+      Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index)), 2)
+    | "%floatarray_safe_set" ->
+      Primitive (Parraysets (Pfloatarray_set, Ptagged_int_index), 3)
     | "%floatarray_unsafe_get" ->
-       Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index)), 2)
-    | "%floatarray_unsafe_set" -> Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
+      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index)), 2)
+    | "%floatarray_unsafe_set" ->
+      Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
     | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
@@ -807,27 +866,23 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
-  | Primitive (Parrayrefu (rt, _index_kind), arity), [p1; p2]-> begin
-      let index_kind = (array_type_index_kind env p2) in
+  | Primitive (Parrayrefu (rt, index_kind), arity), p1 :: _ -> begin
       let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1)
       in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefu (array_ref_type, index_kind), arity))
     end
-  | Primitive (Parraysetu (st, _index_kind), arity), [p1; p2]-> begin
-      let index_kind = (array_type_index_kind env p2) in
+  | Primitive (Parraysetu (st, index_kind), arity), p1 :: _ -> begin
       let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysetu (array_set_type, index_kind), arity))
     end
-  | Primitive (Parrayrefs (rt, _index_kind), arity), [p1; p2]-> begin
-      let index_kind = (array_type_index_kind env p2) in
+  | Primitive (Parrayrefs (rt, index_kind), arity), p1 :: _ -> begin
       let array_ref_type = glb_array_ref_type (to_location loc) rt (array_type_kind env p1) in
       if rt = array_ref_type then None
       else Some (Primitive (Parrayrefs (array_ref_type, index_kind), arity))
     end
-  | Primitive (Parraysets (st, _index_kind), arity), [p1; p2]-> begin
-      let index_kind = (array_type_index_kind env p2) in
+  | Primitive (Parraysets (st, index_kind), arity), p1 :: _ -> begin
       let array_set_type = glb_array_set_type (to_location loc) st (array_type_kind env p1) in
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
