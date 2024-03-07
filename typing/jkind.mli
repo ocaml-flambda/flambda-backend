@@ -227,7 +227,6 @@ type value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
-  | Package_hack
   | Object
   | Instance_variable
   | Object_field

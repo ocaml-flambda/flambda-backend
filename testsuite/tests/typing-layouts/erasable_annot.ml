@@ -170,19 +170,11 @@ end
 
 [%%expect {|
 module type S = sig type t : immediate64 end
-Line 6, characters 16-43:
+Line 6, characters 2-49:
 6 |   val f : 'a -> (module S with type t = 'a) -> 'a
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : immediate64
-       The layout of the first is value, because
-         it's a type declaration in a first-class module.
-       But the layout of the first must be a sublayout of immediate64, because
-         of the definition of t at line 2, characters 2-23.
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Usage of layout immediate/immediate64 in f can't be erased.
+       This error is produced due to the use of -only-erasable-extensions.
 |}];;
 
 (* Annotations here do nothing and should be accepted *)
