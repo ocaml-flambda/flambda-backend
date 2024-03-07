@@ -2019,7 +2019,9 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
   | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
-  | Jexp_modes mexp -> mode_expr ctxt f mexp
+  | Jexp_modes mexp ->
+      if parens then pp f "(%a)" (mode_expr ctxt) mexp
+      else mode_expr ctxt f mexp
 
 and mode_expr ctxt f (mexp : Jane_syntax.Modes.expression) =
   match mexp with

@@ -27,6 +27,8 @@ module Example = struct
       type u = Foo : global_ string * global_ string -> u \
      end"
 
+  let local_exp = parse expression "let x = foo (local_ x) in local_ y"
+
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
   let pattern          = parse pattern "[:_:]"
@@ -135,6 +137,8 @@ end = struct
 
   let modality_record = test "modality_record" module_expr Example.modality_record
   let modality_cstrarg = test "modality_cstrarg" module_expr Example.modality_cstrarg
+
+  let local_exp = test "local_exp" expression Example.local_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
