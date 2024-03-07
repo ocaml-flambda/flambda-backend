@@ -437,10 +437,17 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the label below *)
-      let l = transl_label l None in
-      let cty = transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty in
+      let ctyp ctyp_desc ctyp_type =
+        { ctyp_desc; ctyp_type; ctyp_env = env;
+          ctyp_loc = sty.ptyp_loc; ctyp_attributes = sty.ptyp_attributes }
+      in
+      let l = transl_label l (Some sty) in
+      let cty =
+        match l with
+        | Position _ -> ctyp Ttyp_src_pos (Ctype.newconstr Predef.path_lexing_position [])
+        | Optional _ | Labelled _ | Nolabel ->
+          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty 
+      in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -1210,9 +1217,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the label below *)
-      let l = transl_label l None in
+      let l, spat = Typetexp.transl_label_from_pat l spat in
       if Typecore.has_poly_constraint spat then
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       let (pat, pv, val_env', met_env) =
@@ -1258,11 +1263,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       let cl =
         Ctype.with_raised_nongen_level
           (fun () -> class_expr cl_num val_env' met_env virt self_scope scl') in
-      (* CR src_pos: The below should probably become is_omittable once
-         classes involve Position arguments *)
-      if Btype.is_optional l && not_nolabel_function cl.cl_type then
-        Location.prerr_warning pat.pat_loc
-          Warnings.Unerasable_optional_argument;
+      if not_nolabel_function cl.cl_type then begin
+        match l with
+        | Nolabel | Labelled _ -> ()
+        | Optional _ -> 
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_optional_argument;
+        | Position _ -> 
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_position_argument;
+      end;
       rc {cl_desc = Tcl_fun (l, pat, pv, cl, partial);
           cl_loc = scl.pcl_loc;
           cl_type = Cty_arrow
@@ -1327,21 +1337,26 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                    Jkind.Sort.value
                   )
             in
+            let eliminate_position_arg () =
+              let arg = Typecore.src_pos (Location.ghostify scl.pcl_loc) [] val_env in
+              Arg (arg, Jkind.Sort.value)
+            in
             let remaining_sargs, arg =
               if ignore_labels then begin
                 match sargs with
                 | [] -> assert false
                 | (l', sarg) :: remaining_sargs ->
+                    let label_is_absent_in_remaining_args () =
+                      not (List.exists (fun (l, _) -> name = Btype.label_name l) remaining_sargs)
+                    in
                     if name = Btype.label_name l' ||
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if
-                      optional &&
-                      not (List.exists (fun (l, _) -> name = Btype.label_name l)
-                             remaining_sargs)
-                    then
-                      (sargs, eliminate_optional_arg ())
+                    else if optional && label_is_absent_in_remaining_args () 
+                    then (sargs, eliminate_optional_arg ())
+                    else if Btype.is_position l && label_is_absent_in_remaining_args ()
+                    then (sargs, eliminate_position_arg ())
                     else
                       raise(Error(sarg.pexp_loc, val_env, Apply_wrong_label l'))
               end else
@@ -1353,9 +1368,12 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                            (Printtyp.string_of_label l));
                     remaining_sargs, use_arg sarg l'
                 | None ->
+                    let is_erased () = List.mem_assoc Nolabel sargs in
                     sargs,
-                    if Btype.is_optional l && List.mem_assoc Nolabel sargs then
+                    if Btype.is_optional l && is_erased () then
                       eliminate_optional_arg ()
+                    else if Btype.is_position l && is_erased () then
+                      eliminate_position_arg ()
                     else begin
                       let mode_closure = Mode.Alloc.legacy in
                       let mode_arg = Mode.Alloc.legacy in
@@ -1521,14 +1539,15 @@ let var_option =
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
-    Pcl_fun (l, _, _, cl) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the labels below *)
-      let l = transl_label l None in
+    Pcl_fun (l, _, pat, cl) ->
+      let l, _ = Typetexp.transl_label_from_pat l pat in
       let arg =
-        if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Jkind.value ~why:Class_term_argument)
-        (* CR layouts: use of value here may be relaxed when we update
+        match l with
+        | Optional _ -> Ctype.instance var_option
+        | Position _ -> Ctype.instance Predef.type_lexing_position
+        | Labelled _ | Nolabel ->
+          Ctype.newvar (Jkind.value ~why:Class_term_argument)
+          (* CR layouts: use of value here may be relaxed when we update
            classes to work with jkinds *)
       in
       let arg = Ctype.newmono arg in
@@ -1543,10 +1562,8 @@ let rec approx_declaration cl =
 
 let rec approx_description ct =
   match ct.pcty_desc with
-    Pcty_arrow (l, _, ct) ->
-      (* CR src_pos: Implement Position arguments for classes, and pass a
-         reasonable type to translate the labels below *)
-      let l = transl_label l None in
+    Pcty_arrow (l, core_type, ct) ->
+      let l = transl_label l (Some core_type) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Jkind.value ~why:Class_term_argument)

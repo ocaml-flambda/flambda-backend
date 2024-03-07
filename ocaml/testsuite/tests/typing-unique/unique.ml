@@ -616,3 +616,28 @@ Line 5, characters 16-17:
                     ^
 
 |}]
+
+(* Uniqueness is unbroken by the implicit positional argument. *)
+let f ~(src_pos : [%src_pos]) () =
+  let unique_ x = src_pos in
+  (x, x)
+;;
+[%%expect{|
+val f : src_pos:[%src_pos] -> unit -> lexing_position * lexing_position =
+  <fun>
+|}]
+
+let f ~(src_pos : [%src_pos]) () =
+  unique_ (src_pos, src_pos)
+;;
+[%%expect{|
+Line 2, characters 20-27:
+2 |   unique_ (src_pos, src_pos)
+                        ^^^^^^^
+Error: This value is used here, but it has already been used as unique:
+Line 2, characters 11-18:
+2 |   unique_ (src_pos, src_pos)
+               ^^^^^^^
+
+|}]
+

@@ -20,26 +20,6 @@ type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
 
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
-  (* XXX jrodri: Question! I am unsure if my approach for fixing
-     this subdirectory is sane. It seems like chamelon needs to run on both a "JST" version
-     and an "upstream" version. The JST version changes Typedtree with a new arg_label,
-     while the upstream version still does not have this new arg_label type.
-
-     jrodri: My first approach was to make this entire subdirectory use
-     [Typedtree.arg_label] which made `make minimizer` build fine, but
-     sadly made `make minimizer-upstream` fail. I then made the mli's keep
-     using [Asttypes.arg_label], and only perform the conversion here in
-     [compat.jst.ml] like in the diff below; however, I think this sadly means
-     that - since I always send in None/don't have access to the [core_type]/the
-     original AST pattern with the [(... : [%src_pos])] constraint, I may not
-     be able to retrieve things here...
-
-     jrodriguez: In the context of chamelon, is the below segment correct?
-     jrodriguez: Should my approach for fixing the [make minimizer] <-> [make
-     minimizer-upstream] compatibility relationship be different? (e.g. maybe changing the
-     dune.upstream/dune.jst files to be aware of the Typedtree change?/something else?)
-     Thanks!
-  *)
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
