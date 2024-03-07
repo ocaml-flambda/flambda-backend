@@ -54,7 +54,7 @@ let is_empty { new_params_indexed } = Id.Map.is_empty new_params_indexed
 let length { new_params_indexed } = Id.Map.cardinal new_params_indexed
 
 let new_param t bound_param =
-  (* create a fres var/bound_param to index the new parameter *)
+  (* create a fresh var/bound_param to index the new parameter *)
   let id = Id.fresh () in
   let new_params_indexed = Id.Map.add id bound_param t.new_params_indexed in
   { (* t with *) new_params_indexed }
@@ -85,6 +85,14 @@ let rec find_arg id = function
     | Some param -> Bound_parameter.simple param
     | None -> find_arg id r)
 
+(* NOTE about the order of the returned args/params for the {args} and
+   {bound_parameters} functions: The exact order does not matter as long as
+   both functions return params (or their corresponding arguments) **in the
+   same order**.
+
+   The current implementations return the parameters/arguments in the reverse
+   order of the bindings in the Map, but that's fine since it is the case for
+   both functions. *)
 let args ~callee_lifted_params ~caller_stack_lifted_params =
   fold callee_lifted_params ~init:[] ~f:(fun id _callee_param acc ->
       find_arg id caller_stack_lifted_params :: acc)
