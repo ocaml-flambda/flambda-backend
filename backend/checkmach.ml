@@ -775,9 +775,14 @@ end = struct
           unresolved (Value.top w)
             "(missing summary: callee compiled without checks)"
         | Some v -> resolved v)
-      | Some callee_info ->
+      | Some callee_info -> (
         (* Callee defined earlier in the same compilation unit. *)
-        resolved callee_info.value
+        match callee_info.saved_body with
+        | None -> resolved callee_info.value
+        | Some _ ->
+          (* callee was unresolved, mark caller as unresolved *)
+          t.unresolved <- true;
+          unresolved callee_info.value "unresolved callee")
 
   let transform_return ~(effect : V.t) dst =
     match effect with
