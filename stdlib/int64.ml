@@ -66,7 +66,8 @@ let unsigned_to_int =
 external format : string -> int64 -> string = "caml_int64_format"
 let[@inline available] to_string n = format "%d" n
 
-external of_string : string -> int64 = "caml_int64_of_string"
+external of_string : string -> (int64[@unboxed])
+  = "caml_int64_of_string" "caml_int64_of_string_unboxed"
 
 let[@inline available] of_string_opt s =
   (* TODO: expose a non-raising primitive directly. *)
