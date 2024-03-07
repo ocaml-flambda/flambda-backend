@@ -1027,7 +1027,7 @@ end = struct
            will be recomputed simultaneously at the end of the compilation
            unit. *)
         if t.unresolved
-        then approx
+        then new_value
         else if Value.lessequal new_value approx
         then approx
         else (
@@ -1044,10 +1044,7 @@ end = struct
       match func_info.saved_body with
       | None -> ()
       | Some b ->
-        let t =
-          create ppf func_info.name String.Set.empty unit_info
-            (Some func_info.value)
-        in
+        let t = create ppf func_info.name String.Set.empty unit_info None in
         let new_value = analyze_body t b in
         if not (Value.lessequal new_value func_info.value)
         then (
