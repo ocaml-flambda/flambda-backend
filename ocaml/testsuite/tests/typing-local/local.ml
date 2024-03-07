@@ -2902,7 +2902,10 @@ let foo () =
   let local_ local_ _x = "hello" in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 2, characters 13-19:
+2 |   let local_ local_ _x = "hello" in
+                 ^^^^^^
+Error: The locality axis has already been specified.
 |}]
 
 let foo (local_ local_ _) = ()

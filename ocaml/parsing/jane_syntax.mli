@@ -140,6 +140,11 @@ module Mode_expr : sig
   (** The mode expression containing a single mode constant. *)
   val singleton : Const.t -> t
 
+  (** Merging two mode expressions. This will be hard to define as mode
+      expressions gets complex. Currently it's for merging legacy and new syntax
+      *)
+  val concat : t -> t -> t
+
   (** Extract the mode attribute (if any) from a list of attributes; also
       returns the rest of the attributes; Raises if multiple relevant attributes
       are found *)

@@ -2387,6 +2387,9 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
+  match Jane_syntax.Mode_expr.maybe_of_attrs valdecl.pval_type.ptyp_attributes with
+  | Some _, _ -> Misc.fatal_error "Modalities not supported in value declarations"
+  | None, _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type

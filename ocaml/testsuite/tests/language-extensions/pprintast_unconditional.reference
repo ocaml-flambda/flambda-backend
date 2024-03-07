@@ -13,6 +13,8 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
+modality_val: sig val t : string -> local_ string @@ foo bar end
+
 local_exp: let x = foo (local_ x) in local_ y
 
 longident: No.Longidents.Require.extensions
@@ -83,6 +85,8 @@ modality_cstrarg:
     type u =
       | Foo: global_ string * global_ string -> u 
   end
+
+modality_val: sig val t : string -> local_ string @@ foo bar end
 
 local_exp: let x = foo (local_ x) in local_ y
 

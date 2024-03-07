@@ -814,6 +814,11 @@ let default_iterator =
     value_description =
       (fun this {pval_name; pval_type; pval_prim = _; pval_loc;
                  pval_attributes} ->
+        let modes, ptyp_attributes =
+          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
+        in
+        Option.iter (this.modes this) modes;
+        let pval_type = {pval_type with ptyp_attributes} in
         iter_loc this pval_name;
         this.typ this pval_type;
         this.location this pval_loc;
@@ -962,7 +967,7 @@ let default_iterator =
       this.location this a.attr_loc
     );
     attributes = (fun this l -> List.iter (this.attribute this) l);
-    (* [ast_iterator] should not know about the structure of mode expressions *)
+    (* CR zqian: should go into the modes and at least iterate the locations. *)
     modes = (fun _this _m -> ());
     payload =
       (fun this -> function
