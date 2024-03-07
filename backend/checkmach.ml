@@ -652,8 +652,6 @@ module Unit_info : sig
     unit
 
   val iter : t -> f:(Func_info.t -> unit) -> unit
-
-  val should_keep_witnesses : bool -> bool
 end = struct
   (** map function name to the information about it *)
   type t = Func_info.t String.Tbl.t
@@ -663,12 +661,6 @@ end = struct
   let reset t = String.Tbl.reset t
 
   let find_opt t name = String.Tbl.find_opt t name
-
-  let should_keep_witnesses keep =
-    match !Flambda_backend_flags.checkmach_details_cutoff with
-    | Keep_all -> true
-    | No_details -> false
-    | At_most _ -> keep
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
@@ -701,17 +693,24 @@ end = struct
       mutable unresolved : bool;
           (** the current function contains calls to other unresolved functions (not including self calls) *)
       unit_info : Unit_info.t;  (** must be the current compilation unit.  *)
-      mutable keep_witnesses : bool
+      keep_witnesses : bool
     }
 
-  let create ppf current_fun_name future_funcnames unit_info approx =
+  let should_keep_witnesses keep =
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> true
+    | No_details -> false
+    | At_most _ -> keep
+
+  let create ppf current_fun_name future_funcnames unit_info approx annot =
+    let keep_witnesses = should_keep_witnesses (Option.is_some annot) in
     { ppf;
       current_fun_name;
       future_funcnames;
       approx;
       unresolved = false;
       unit_info;
-      keep_witnesses = false
+      keep_witnesses
     }
 
   let analysis_name = Printcmm.property_to_string S.property
@@ -1044,7 +1043,10 @@ end = struct
       match func_info.saved_body with
       | None -> ()
       | Some b ->
-        let t = create ppf func_info.name String.Set.empty unit_info None in
+        let t =
+          create ppf func_info.name String.Set.empty unit_info None
+            func_info.annotation
+        in
         let new_value = analyze_body t b in
         if not (Value.lessequal new_value func_info.value)
         then (
@@ -1067,12 +1069,11 @@ end = struct
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
       let fun_name = f.fun_name in
-      let t = create ppf fun_name future_funcnames unit_info None in
       let a =
         Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
       in
-      let really_check ~keep_witnesses =
-        t.keep_witnesses <- Unit_info.should_keep_witnesses keep_witnesses;
+      let t = create ppf fun_name future_funcnames unit_info None a in
+      let really_check () =
         let res = analyze_body t f.fun_body in
         let saved_body = if t.unresolved then Some f.fun_body else None in
         report t res ~msg:"finished" ~desc:"fundecl" f.fun_dbg;
@@ -1090,12 +1091,12 @@ end = struct
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
         Unit_info.record unit_info fun_name expected_value f.fun_dbg None None
-      | None -> really_check ~keep_witnesses:false
+      | None -> really_check ()
       | Some a ->
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
         (* Only keep witnesses for functions that need checking. *)
-        really_check ~keep_witnesses:true
+        really_check ()
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
