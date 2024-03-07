@@ -843,7 +843,7 @@ end = struct
         match S.get_value_opt callee with
         | None ->
           unresolved (Value.top w)
-            "(missign summary: callee compiled without checks)"
+            "(missing summary: callee compiled without checks)"
         | Some v -> resolved v)
       | Some callee_info ->
         (* Callee defined earlier in the same compilation unit. *)
