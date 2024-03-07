@@ -104,6 +104,10 @@ let mk_zero_alloc_check f =
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
+let mk_disable_checkmach f =
+  "-disable-checkmach", Arg.Unit f,
+  " Disable zero_alloc pass, both summary genration and checking of annotations."
+
 let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
@@ -634,6 +638,7 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
+  val disable_checkmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
   val function_layout : string -> unit
@@ -747,6 +752,7 @@ struct
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
+    mk_disable_checkmach F.disable_checkmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
     mk_function_layout F.function_layout;
@@ -908,6 +914,7 @@ module Flambda_backend_options_impl = struct
       Clflags.zero_alloc_check := a
 
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+  let disable_checkmach = set' Flambda_backend_flags.disable_checkmach
   let checkmach_details_cutoff n =
     let c : Flambda_backend_flags.checkmach_details_cutoff =
       if n < 0 then Keep_all
@@ -1187,6 +1194,7 @@ module Extra_params = struct
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
+    | "disable-checkmach" -> set' Flambda_backend_flags.disable_checkmach
     | "checkmach-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->

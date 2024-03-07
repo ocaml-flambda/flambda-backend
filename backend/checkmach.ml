@@ -1256,14 +1256,18 @@ module Check_zero_alloc = Analysis (Spec_zero_alloc)
 let unit_info = Unit_info.create ()
 
 let fundecl ppf_dump ~future_funcnames fd =
-  Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
+  if not !Flambda_backend_flags.disable_checkmach
+  then Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
   fd
 
-let reset_unit_info () = Unit_info.reset unit_info
+let reset_unit_info () =
+  if not !Flambda_backend_flags.disable_checkmach then Unit_info.reset unit_info
 
 let record_unit_info ppf_dump =
-  Check_zero_alloc.record_unit unit_info ppf_dump;
-  Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
+  if not !Flambda_backend_flags.disable_checkmach
+  then (
+    Check_zero_alloc.record_unit unit_info ppf_dump;
+    Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks)
 
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 
