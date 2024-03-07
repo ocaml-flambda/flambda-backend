@@ -61,6 +61,9 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
       ~value_type_proto_die ~start_of_code_symbol debug_loc_table
       debug_ranges_table address_table location_list_table
+      ~get_file_num:get_file_id
+    (* CR mshinwell: does get_file_id successfully emit .file directives for
+       files we haven't seen before? *)
   in
   { state;
     asm_directives;

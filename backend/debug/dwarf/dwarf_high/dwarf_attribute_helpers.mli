@@ -63,6 +63,12 @@ val create_decl_line : int -> Dwarf_attribute_values.Attribute_value.t
 
 val create_decl_column : int -> Dwarf_attribute_values.Attribute_value.t
 
+val create_call_file : int -> Dwarf_attribute_values.Attribute_value.t
+
+val create_call_line : int -> Dwarf_attribute_values.Attribute_value.t
+
+val create_call_column : int -> Dwarf_attribute_values.Attribute_value.t
+
 val create_call_pc : Asm_label.t -> Dwarf_attribute_values.Attribute_value.t
 
 val create_call_return_pc :

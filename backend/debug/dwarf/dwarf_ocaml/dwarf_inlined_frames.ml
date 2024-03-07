@@ -77,6 +77,8 @@ let create_range_list_and_summarise state (_fundecl : L.fundecl) range =
                 (Asm_label.create_int Text end_pos)
               ~first_address_when_not_in_scope_offset:(Some end_pos_offset)
           in
+          Format.eprintf "range_list_entry: start=%d end=%d+%d\n%!" start_pos
+            end_pos end_pos_offset;
           range_list_entry :: dwarf_4_range_list_entries
         | Five -> dwarf_4_range_list_entries
       in
@@ -116,24 +118,18 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute block
     | Some (lowest_address, offset) ->
       [DAH.create_entry_pc (Asm_label.create_int Text (lowest_address + offset))]
   in
-  let low_pc =
-    match IF.Range.estimate_lowest_address range with
-    | None -> []
-    | Some (lowest_address, offset) ->
-      [DAH.create_low_pc (Asm_label.create_int Text (lowest_address + offset))]
-  in
-  let high_pc =
-    match IF.Range.estimate_lowest_address range with
-    | None -> []
-    | Some _ -> [DAH.create_high_pc_offset (Targetint.of_int 8)]
-  in
+  (* let low_pc = match IF.Range.estimate_lowest_address range with | None -> []
+     | Some (lowest_address, offset) -> [DAH.create_low_pc (Asm_label.create_int
+     Text (lowest_address + offset))] in let high_pc = match
+     IF.Range.estimate_lowest_address range with | None -> [] | Some _ ->
+     [DAH.create_high_pc_offset (Targetint.of_int 8)] in *)
   (* Note that with Flambda, this DIE may not be in the scope of the referenced
      abstract instance DIE, as inline expansions may be made out of the scope of
      the function declaration. *)
   let abstract_instance =
     match abstract_instance_symbol with
     | None ->
-      (* If the abstract instance DIE cannot be referenced, reconstitute as much
+      (* If the abstract instance DIE cannot be referenced, reconstitute as many
          of its attributes as we can and put them directly into the DIE for the
          inlined frame, making use of DWARF-5 spec page 85, line 30 onwards. *)
       Dwarf_abstract_instances.attributes fundecl.L.fun_name
@@ -158,16 +154,16 @@ let die_for_inlined_frame state parent fundecl range range_list_attribute block
          do not attempt to work around it. *)
       [DAH.create_abstract_origin ~die_symbol:abstract_instance_symbol]
   in
+  let block : Debuginfo.item = List.hd block in
   (* let code_range = Debuginfo.Call_site.position call_site in let file_name =
      Debuginfo.Code_range.file code_range in *)
   Proto_die.create ~parent:(Some parent) ~tag:Inlined_subroutine
     ~attribute_values:
-      (low_pc @ high_pc (*entry_pc @ *) @ abstract_instance
-      @ [ (*range_list_attribute *)
-          (* DAH.create_call_file (Emitaux.file_num_for Ocaml ~file_name);
-             DAH.create_call_line (Debuginfo.Code_range.line code_range);
-             DAH.create_call_column (Debuginfo.Code_range.char_start
-             code_range) *) ])
+      ((*low_pc @ high_pc (*entry_pc @ *) @ *) abstract_instance
+      @ [ range_list_attribute;
+          DAH.create_call_file (Dwarf_state.get_file_num state block.dinfo_file);
+          DAH.create_call_line block.dinfo_line;
+          DAH.create_call_column block.dinfo_char_start ])
     ()
 
 let dwarf state (fundecl : L.fundecl) lexical_block_ranges ~function_proto_die =

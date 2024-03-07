@@ -29,6 +29,7 @@ val create :
   Debug_ranges_table.t ->
   Address_table.t ->
   Location_list_table.t ->
+  get_file_num:(string -> int) ->
   t
 
 val compilation_unit_header_label : t -> Asm_label.t
@@ -51,3 +52,5 @@ val function_abstract_instances :
   t -> (Proto_die.t * Asm_symbol.t) Misc.Stdlib.String.Tbl.t
 
 val can_reference_dies_across_units : t -> bool
+
+val get_file_num : t -> string -> int
