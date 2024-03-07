@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42-32"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 module String = Misc.Stdlib.String
 
@@ -651,8 +651,6 @@ module Unit_info : sig
     Mach.instruction option ->
     unit
 
-  val update : t -> string -> Value.t -> unit
-
   val iter : t -> f:(Func_info.t -> unit) -> unit
 
   val should_keep_witnesses : bool -> bool
@@ -680,11 +678,6 @@ end = struct
     | None ->
       let func_info = Func_info.create name value dbg annotation saved_body in
       String.Tbl.replace t name func_info
-
-  let update t name value =
-    match String.Tbl.find_opt t name with
-    | None -> Misc.fatal_errorf "Cannot find symbol %s" name
-    | Some func_info -> Func_info.update func_info value
 end
 
 (** Check one function. *)
