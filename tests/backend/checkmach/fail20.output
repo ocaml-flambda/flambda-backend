@@ -6,3 +6,9 @@ Error: allocation of 32 bytes on a path to exceptional return (fail20.ml:8,16--2
 
 File "fail20.ml", line 10, characters 13-24:
 Error: called function may allocate on a path to exceptional return (direct call camlFail20.div_HIDE_STAMP)
+
+File "fail20.ml", line 13, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Fail20.foo (camlFail20.foo_HIDE_STAMP)
+
+File "fail20.ml", line 19, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Fail20.zee (camlFail20.zee_HIDE_STAMP)
