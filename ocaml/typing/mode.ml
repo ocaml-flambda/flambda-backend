@@ -12,6 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* warn on fragile matches *)
+[@@@warning "+4"]
+
 open Solver
 open Solver_intf
 open Mode_intf
@@ -304,7 +307,7 @@ module Lattices = struct
     | Areality, Areality -> Some Refl
     | Linearity, Linearity -> Some Refl
     | Uniqueness, Uniqueness -> Some Refl
-    | _ -> None
+    | (Areality | Linearity | Uniqueness), _ -> None
 
   let proj : type t r. (t, r) axis -> t -> r =
    fun ax t ->
@@ -329,19 +332,14 @@ module Lattices = struct
     | Linearity, Comonadic_with_regionality -> Linearity
     | Uniqueness, Monadic_op -> Uniqueness_op
 
-  let prod_comonadic_obj :
-      type a. a obj -> Linearity.t obj -> a comonadic_with obj =
-   fun a0 a1 ->
-    match a0, a1 with
-    | Locality, Linearity -> Comonadic_with_locality
-    | Regionality, Linearity -> Comonadic_with_regionality
-    | ( ( Uniqueness_op | Linearity | Monadic_op | Comonadic_with_regionality
-        | Comonadic_with_locality ),
-        Linearity ) ->
+  let comonadic_with_obj : type a. a obj -> a comonadic_with obj =
+   fun a0 ->
+    match a0 with
+    | Locality -> Comonadic_with_locality
+    | Regionality -> Comonadic_with_regionality
+    | Uniqueness_op | Linearity | Monadic_op | Comonadic_with_regionality
+    | Comonadic_with_locality ->
       assert false
-
-  let prod_monadic_obj : Uniqueness_op.t obj -> Monadic_op.t obj =
-   fun a0 -> match a0 with Uniqueness_op -> Monadic_op
 
   let min : type a. a obj -> a = function
     | Locality -> Locality.min
@@ -599,16 +597,11 @@ module Lattices_mono = struct
     | Global_to_regional -> Locality
     | Regional_to_local -> Regionality
     | Regional_to_global -> Regionality
-    | Map_comonadic (f0, f1) ->
+    | Map_comonadic (f0, _) ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
       let src0 = src dst0 f0 in
-      let src1 = src dst1 f1 in
-      prod_comonadic_obj src0 src1
-    | Map_monadic f0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      let src0 = src dst0 f0 in
-      prod_monadic_obj src0
+      comonadic_with_obj src0
+    | Map_monadic _ -> Monadic_op
 
   module Equal_morph = Magic_equal (struct
     type ('a, 'b, 'd) t = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
@@ -649,9 +642,9 @@ module Lattices_mono = struct
       | Map_comonadic (f0, f1), Map_comonadic (g0, g1) -> (
         match equal f0 g0, equal f1 g1 with
         | Some Refl, Some Refl -> Some Refl
-        | _, _ -> None)
+        | None, _ | _, None -> None)
       | Map_monadic f0, Map_monadic g0 -> (
-        match equal f0 g0 with Some Refl -> Some Refl | _ -> None)
+        match equal f0 g0 with Some Refl -> Some Refl | None -> None)
       | ( ( Id | Proj _ | Max_with _ | Min_with _ | Const_min _ | Const_max _
           | Unique_to_linear | Linear_to_unique | Local_to_regional
           | Locality_as_regionality | Global_to_regional | Regional_to_local
