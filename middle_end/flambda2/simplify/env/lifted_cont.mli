@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-
 (** {1 Lifted continuations}
 
     Continuations that are being lifted are stored in the dacc, so that
@@ -43,6 +42,7 @@ type non_recursive_handler =
     is_cold : bool
   }
 
+(** These types are defined here only to avoid a cyclic dependency. *)
 type original_handlers =
   | Recursive of
       { invariant_params : Bound_parameters.t;
@@ -50,14 +50,16 @@ type original_handlers =
         continuation_handlers : one_recursive_handler Continuation.Map.t
       }
   | Non_recursive of non_recursive_handler (**)
-(** These types are defined here only to avoid a cyclic dependency. *)
 
-val print_one_recursive_handler : Format.formatter -> one_recursive_handler -> unit
-val print_non_recursive_handler : Format.formatter -> non_recursive_handler -> unit
-val print_original_handlers : Format.formatter -> original_handlers -> unit
+val print_one_recursive_handler :
+  Format.formatter -> one_recursive_handler -> unit
+
+val print_non_recursive_handler :
+  Format.formatter -> non_recursive_handler -> unit
+
 (** Printing functions *)
+val print_original_handlers : Format.formatter -> original_handlers -> unit
 
-val add_params_to_lift : original_handlers -> Lifted_cont_params.t -> original_handlers
 (** Add lifted cont params to some continuations. Note that this must happen only
     once per continuation at most: when it is lifted and additional parameters are
     added to replace those that were in scope at the original location of the continuation
@@ -65,5 +67,5 @@ val add_params_to_lift : original_handlers -> Lifted_cont_params.t -> original_h
 
     @raise Fatal_error if at least one of the continuations in [original_handlers]
     already had some lifted cont params. *)
-
-
+val add_params_to_lift :
+  original_handlers -> Lifted_cont_params.t -> original_handlers

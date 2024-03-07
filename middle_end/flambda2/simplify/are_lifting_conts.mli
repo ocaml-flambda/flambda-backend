@@ -17,6 +17,7 @@
 
     Continuation lifting is done in simplify on the way down. Considering
     a term of the form: *)
+
 (** * let_cont k x =
     *   let_cont k' y =
     *     ...
@@ -25,6 +26,7 @@
     * in
     * ..
     *)
+
 (** The decision to lift continuations (e.g. k') out of another (e.g. k),
     is made once Simplify has reached the bottom of the handler of k **but**
     has not yet explored the handler of k'. The [t] type represente the current
@@ -43,23 +45,24 @@
     simplify_switch because that will be the interesting case for the
     match-in-match optimisation. *)
 
+(** The current continuation lifting status, stored in the dacc. *)
 type t = private
   | Not_lifting
   | Analyzing of
       { continuation : Continuation.t;
-        uses : Continuation_uses.t; }
-  | Lifting_out_of of { continuation : Continuation.t } (**)
-(** The current continuation lifting status, stored in the dacc. *)
+        uses : Continuation_uses.t
+      }
+  | Lifting_out_of of { continuation : Continuation.t }
+(**)
 
-val print : Format.formatter -> t -> unit
 (** Printing function. *)
+val print : Format.formatter -> t -> unit
 
-val no_lifting : t
 (** Prevent any lifting of continuation. *)
+val no_lifting : t
 
-val think_about_lifting_out_of : Continuation.t -> Continuation_uses.t -> t
 (** Delay the choice of lifting until the leaf of a continuation's handler. *)
+val think_about_lifting_out_of : Continuation.t -> Continuation_uses.t -> t
 
-val lift_continuations_out_of : Continuation.t -> t
 (** Instruct [simplify_let_cont] to lift continuations. *)
-
+val lift_continuations_out_of : Continuation.t -> t

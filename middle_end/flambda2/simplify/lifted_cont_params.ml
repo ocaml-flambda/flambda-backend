@@ -86,9 +86,9 @@ let rec find_arg id = function
     | None -> find_arg id r)
 
 (* NOTE about the order of the returned args/params for the {args} and
-   {bound_parameters} functions: The exact order does not matter as long as
-   both functions return params (or their corresponding arguments) **in the
-   same order**.
+   {bound_parameters} functions: The exact order does not matter as long as both
+   functions return params (or their corresponding arguments) **in the same
+   order**.
 
    The current implementations return the parameters/arguments in the reverse
    order of the bindings in the Map, but that's fine since it is the case for

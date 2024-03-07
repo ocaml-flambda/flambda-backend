@@ -38,56 +38,53 @@
 *)
 
 module Id : sig
-
-  type t
   (** Identifiers for new parameters for lifted continuations. *)
+  type t
 
-  val print : Format.formatter -> t -> unit
   (** Printing function *)
+  val print : Format.formatter -> t -> unit
 
-  module Map : Container_types.Map with type key = t
   (** Maps *)
-
+  module Map : Container_types.Map with type key = t
 end
 
-type t
 (** This type represents all of the new params for one lifted continuation.
     These addeed parameters are indexed by the {Id.t} type: when an individual
     new param is first created/added to a value of type [t], it is given a fresh
     identifier.
 *)
+type t
 
-val print : Format.formatter -> t -> unit
 (** Print function. *)
+val print : Format.formatter -> t -> unit
 
-val empty : t
 (** The empty set of lifted cont params. *)
+val empty : t
 
-val is_empty : t -> bool
 (** Is the set of new params empty ? *)
+val is_empty : t -> bool
 
-val length : t -> int
 (** Number of new params. *)
+val length : t -> int
 
-val new_param : t -> Bound_parameter.t -> t
 (** Add a new parameter *)
+val new_param : t -> Bound_parameter.t -> t
 
-val rename : t -> t * Renaming.t
 (** Rename all new parameters, and returns the corresponding renaming. *)
+val rename : t -> t * Renaming.t
 
-val find_arg : Id.t -> t list
 (** Given a unique id, and a stack of the parent continuations lifted cont params,
     this function lookups the first occurrence of a new param that maps to the
     same unique id. *)
+val find_arg : Id.t -> t list
 
-val args : callee_lifted_params:t -> caller_stack_lifted_params:(t list) -> Simple.t list
 (** This function wraps the {find_arg} function to compute all adequate args for a given callsite.
     This takes the lifted cont params of the continuation being called, as well as the stack of
     the lifted param for all parent continuations at the callsite. *)
+val args :
+  callee_lifted_params:t -> caller_stack_lifted_params:t list -> Simple.t list
 
-val bound_parameters : t -> Bound_parameters.t
 (** Returns the bound parameters for a given set of new params.
     The parameters returned by this function are in the same order as the arguments returned
     by the {args} function. *)
-
-
+val bound_parameters : t -> Bound_parameters.t
