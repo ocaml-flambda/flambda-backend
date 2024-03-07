@@ -25,7 +25,7 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.with_are_lifting_conts dacc Not_lifting
+    DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting
     |> DA.map_denv
          ~f:(DE.enter_continuation dummy_toplevel_cont Lifted_cont_params.empty)
     |> DA.map_flow_acc
