@@ -740,7 +740,10 @@ end = struct
       let msg = Printf.sprintf "unresolved %s (%s)" callee reason in
       return ~msg v
     in
-    let resolved v = return ~msg:"resolved %s" v in
+    let resolved v =
+      let msg = Printf.sprintf "resolved  %s" callee in
+      return ~msg v
+    in
     if is_future_funcname t callee
     then
       if String.equal callee t.current_fun_name
@@ -976,6 +979,7 @@ end = struct
         if not (Value.lessequal new_value func_info.value)
         then (
           change := true;
+          report t new_value ~msg:"update" ~desc:"fixpoint" func_info.dbg;
           Func_info.update func_info new_value)
     in
     while !change do
