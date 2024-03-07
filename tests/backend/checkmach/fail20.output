@@ -10,5 +10,11 @@ Error: called function may allocate on a path to exceptional return (direct call
 File "fail20.ml", line 13, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail20.foo (camlFail20.foo_HIDE_STAMP)
 
+File "fail20.ml", line 17, characters 6-19:
+Error: called function may allocate (direct call camlFail20.bar_HIDE_STAMP)
+
 File "fail20.ml", line 19, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail20.zee (camlFail20.zee_HIDE_STAMP)
+
+File "fail20.ml", line 19, characters 27-56:
+Error: called function may allocate (direct tailcall camlFail20.foo_HIDE_STAMP)
