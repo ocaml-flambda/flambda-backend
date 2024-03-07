@@ -106,7 +106,9 @@ let mk_dcheckmach f =
 
 let mk_disable_checkmach f =
   "-disable-checkmach", Arg.Unit f,
-  " Disable zero_alloc pass, both summary genration and checking of annotations."
+  " Conservatively assume that all functions may allocate, without checking. \
+    Disables computation of zero_alloc function summaries, \
+    unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
 
 let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,

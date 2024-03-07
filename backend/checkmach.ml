@@ -1173,6 +1173,14 @@ end = struct
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
       in
+      let really_check ~keep_witnesses =
+        if !Flambda_backend_flags.disable_checkmach
+        then
+          (* Do not analyze the body of the function, conservatively assume that
+             the summary is top. *)
+          Unit_info.join_value unit_info fun_name (Value.top Witnesses.empty)
+        else really_check ~keep_witnesses
+      in
       match a with
       | Some a when Annotation.is_assume a ->
         let expected_value = Annotation.expected_value a in
@@ -1256,18 +1264,14 @@ module Check_zero_alloc = Analysis (Spec_zero_alloc)
 let unit_info = Unit_info.create ()
 
 let fundecl ppf_dump ~future_funcnames fd =
-  if not !Flambda_backend_flags.disable_checkmach
-  then Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
+  Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
   fd
 
-let reset_unit_info () =
-  if not !Flambda_backend_flags.disable_checkmach then Unit_info.reset unit_info
+let reset_unit_info () = Unit_info.reset unit_info
 
 let record_unit_info ppf_dump =
-  if not !Flambda_backend_flags.disable_checkmach
-  then (
-    Check_zero_alloc.record_unit unit_info ppf_dump;
-    Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks)
+  Check_zero_alloc.record_unit unit_info ppf_dump;
+  Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
 
