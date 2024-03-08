@@ -291,16 +291,18 @@ Error: Optional parameters cannot be polymorphic
    another PR. Here, we test that they at least parse. *)
 let foo ((x @ unique once), (y@local unique)) = x + y
 [%%expect{|
->> Fatal error: Mode expressions on patterns are not supported yet
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 14-25:
+1 | let foo ((x @ unique once), (y@local unique)) = x + y
+                  ^^^^^^^^^^^
+Error: Mode annotations on patterns are not supported yet.
 |}]
 
 let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
 [%%expect{|
->> Fatal error: Mode expressions on patterns are not supported yet
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 19-30:
+1 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
+                       ^^^^^^^^^^^
+Error: Mode annotations on patterns are not supported yet.
 |}]
 
 (* let-bound function *)
@@ -335,7 +337,8 @@ module type S = sig
   val x : string -> string @ local @@ foo bar
 end
 [%%expect{|
->> Fatal error: Modalities not supported in value declarations
-Uncaught exception: Misc.Fatal_error
-
+Line 337, characters 38-45:
+337 |   val x : string -> string @ local @@ foo bar
+                                            ^^^^^^^
+Error: Modalities on value descriptions are not supported yet.
 |}]

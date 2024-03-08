@@ -228,6 +228,7 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Modes_on_pattern
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2463,7 +2464,7 @@ and type_pat_aux
       pat_env = !env }
   in
   match Jane_syntax.Mode_expr.maybe_of_attrs sp.ppat_attributes with
-  | Some _, _ -> Misc.fatal_error "Mode expressions on patterns are not supported yet"
+  | Some modes, _ -> raise (Error (modes.loc, !env, Modes_on_pattern))
   | None, _ ->
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
@@ -4962,7 +4963,7 @@ let may_lower_contravariant_then_generalize env exp =
 
 (* This added mode attribute is read and removed by
     [alloc_mode_from_pexp_constraint_typ_attrs] or
-    [alloc_mode_from_pexp_constraint_typ_attrs]. *)
+    [alloc_mode_from_ppat_constraint_typ_attrs]. *)
 let add_mode_annot_attrs mode_annot_attr typ =
   match mode_annot_attr with
   | None -> typ
@@ -10121,6 +10122,9 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Modes_on_pattern ->
+      Location.errorf ~loc
+        "@[Mode annotations on patterns are not supported yet.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

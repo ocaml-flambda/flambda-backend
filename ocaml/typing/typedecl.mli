@@ -145,6 +145,7 @@ type error =
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
+  | Modalities_on_value_description
 
 exception Error of Location.t * error
 
