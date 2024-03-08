@@ -1339,6 +1339,10 @@ module Monadic = struct
   let uniqueness m =
     S.Negative.via_monotone Uniqueness.Obj.obj (Proj (Obj.obj, Uniqueness)) m
 
+  (* The monadic fragment is inverted. Most of the inversion logic is taken care
+     by [Solver_polarized], but some remain, such as the [Min_with] below which
+     is inverted from [Max_with]. *)
+
   let max_with_uniqueness m =
     S.Negative.via_monotone Obj.obj (Min_with Uniqueness)
       (S.Negative.disallow_left m)
@@ -1368,8 +1372,9 @@ module Monadic = struct
     match submode m0 m1 with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
-      assert (not (Uniqueness.Const.le uni0 uni1));
-      Error (`Uniqueness { left = uni0; right = uni1 })
+      if Uniqueness.Const.le uni0 uni1
+      then assert false
+      else Error (`Uniqueness { left = uni0; right = uni1 })
 
   (* override to report the offending axis *)
   let equate = equate_from_submode submode
