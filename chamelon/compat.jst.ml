@@ -20,7 +20,6 @@ type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.t
 
 let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
-
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
