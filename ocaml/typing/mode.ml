@@ -666,8 +666,8 @@ module Lattices_mono = struct
       | Max_with ax -> Format.fprintf ppf "max_with_%a" print_axis ax
       | Min_with ax -> Format.fprintf ppf "min_with_%a" print_axis ax
       | Map_comonadic (f0, f1) ->
-        Format.fprintf ppf "map(%a,%a)" print_morph f0 print_morph f1
-      | Map_monadic f0 -> Format.fprintf ppf "map(%a)" print_morph f0
+        Format.fprintf ppf "map_comonadic(%a,%a)" print_morph f0 print_morph f1
+      | Map_monadic f0 -> Format.fprintf ppf "map_monadic(%a)" print_morph f0
       | Unique_to_linear -> Format.fprintf ppf "unique_to_linear"
       | Linear_to_unique -> Format.fprintf ppf "linear_to_unique"
       | Local_to_regional -> Format.fprintf ppf "local_to_regional"
@@ -1312,9 +1312,7 @@ module Comonadic_with_locality = struct
 end
 
 module Monadic = struct
-  module Const = struct
-    include C.Monadic
-  end
+  module Const = C.Monadic
 
   module Obj = struct
     type const = Const.t
@@ -1362,9 +1360,8 @@ module Monadic = struct
     match submode m0 m1 with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
-      if Uniqueness.Const.le uni0 uni1
-      then assert false
-      else Error (`Uniqueness { left = uni0; right = uni1 })
+      assert (not (Uniqueness.Const.le uni0 uni1));
+      Error (`Uniqueness { left = uni0; right = uni1 })
 
   (* override to report the offending axis *)
   let equate = equate_from_submode submode
