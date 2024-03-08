@@ -2,61 +2,63 @@ open Location
 open Mode
 open Jane_syntax
 
-type error = Duplicated_mode of Axis.t
+type error =
+  | Duplicated_mode of Axis.t
+  | Unrecognized_mode of string
+  | Unrecognized_modality of string
 
 exception Error of Location.t * error
 
 let transl_mode_annots modes =
-  let rec loop (acc : Alloc.Const.Option.t) : _ -> Alloc.Const.Option.t =
-    function
+  let rec loop (acc : Alloc.Const.Option.t) = function
     | [] -> acc
     | m :: rest ->
       let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
       Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
-      let acc =
+      let acc : Alloc.Const.Option.t =
         match txt with
+        (* CR zqian: We should interpret other mode names (global, shared, once)
+           as well. We can't do that yet because of the CR below. *)
         | "local" -> (
           match acc.locality with
-          | None -> { acc with locality = Some Locality.Const.Local }
+          | None -> { acc with locality = Some Local }
           | Some _ -> raise (Error (loc, Duplicated_mode `Locality)))
         | "unique" -> (
           match acc.uniqueness with
-          | None -> { acc with uniqueness = Some Uniqueness.Const.Unique }
+          | None -> { acc with uniqueness = Some Unique }
           | Some _ -> raise (Error (loc, Duplicated_mode `Uniqueness)))
         | "once" -> (
           match acc.linearity with
-          | None -> { acc with linearity = Some Linearity.Const.Once }
+          | None -> { acc with linearity = Some Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
         | "global" ->
           (* CR zqian: global modality might leak to here by ppxes.
              This is a dirty fix that needs to be fixed ASAP. *)
           acc
-        | s ->
-          Misc.fatal_errorf "Unrecognized mode %s at %a - should not parse" s
-            Location.print_loc loc
+        | s -> raise (Error (loc, Unrecognized_mode s))
       in
       loop acc rest
   in
   loop Alloc.Const.Option.none modes.txt
 
 let transl_global_flags gfs =
-  let rec loop (acc : Global_flag.t) : _ -> Global_flag.t = function
+  let rec loop (acc : Global_flag.t) = function
     | [] -> acc
     | m :: rest ->
       let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
-      let acc =
+      let acc : Global_flag.t =
         match txt with
         | "global" -> (
           Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
           match acc with
-          | Unrestricted -> Global_flag.Global
+          | Unrestricted -> Global
+          (* Duplicated modality is not an error, just silly and thus a warning.
+             As we introduce more modalities, it might be in general difficult
+             to detect all redundant modalities, but we should do our best. *)
           | Global ->
-            Misc.fatal_errorf
-              "Duplicated global modality at %a - should not parse"
-              Location.print_loc loc)
-        | s ->
-          Misc.fatal_errorf "Unrecognized modality %s at %a - should not parse"
-            s Location.print_loc loc
+            Location.prerr_warning loc (Warnings.Redundant_modality txt);
+            Global)
+        | s -> raise (Error (loc, Unrecognized_modality s))
       in
       loop acc rest
   in
@@ -71,6 +73,8 @@ open Format
 let report_error ppf = function
   | Duplicated_mode ax ->
     fprintf ppf "The %s axis has already been specified." (Axis.to_string ax)
+  | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
+  | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
 
 let () =
   Location.register_error_of_exn (function

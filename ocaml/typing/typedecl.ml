@@ -101,6 +101,7 @@ type error =
   | Local_not_enabled
   | Unexpected_jkind_any_in_primitive of string
   | Useless_layout_poly
+  | Modalities_on_value_description
 
 open Typedtree
 
@@ -2387,6 +2388,9 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
+  match Jane_syntax.Mode_expr.maybe_of_attrs valdecl.pval_type.ptyp_attributes with
+  | Some modes, _ -> raise (Error(modes.loc, Modalities_on_value_description))
+  | None, _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
@@ -3143,6 +3147,9 @@ let report_error ppf = function
         "@[[@@layout_poly] on this external declaration has no@ \
            effect. Consider removing it or adding a type@ \
            variable for it to operate on.@]"
+  | Modalities_on_value_description ->
+      fprintf ppf
+        "@[Modalities on value descriptions are not supported yet.@]"
 
 let () =
   Location.register_error_of_exn

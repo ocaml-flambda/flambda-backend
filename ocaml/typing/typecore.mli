@@ -293,6 +293,7 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Modes_on_pattern
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
