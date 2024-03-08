@@ -2052,6 +2052,7 @@ typing/typemod.cmo : \
     parsing/jane_syntax.cmi \
     typing/includemod_errorprinter.cmi \
     typing/includemod.cmi \
+    typing/includecore.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
     typing/envaux.cmi \
@@ -2094,6 +2095,7 @@ typing/typemod.cmx : \
     parsing/jane_syntax.cmx \
     typing/includemod_errorprinter.cmx \
     typing/includemod.cmx \
+    typing/includecore.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
     typing/envaux.cmx \
@@ -2127,15 +2129,15 @@ typing/typemod.cmi : \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi
 typing/typemode.cmo : \
+    utils/warnings.cmi \
     typing/mode.cmi \
-    utils/misc.cmi \
     parsing/location.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/jane_syntax.cmi \
     typing/typemode.cmi
 typing/typemode.cmx : \
+    utils/warnings.cmx \
     typing/mode.cmx \
-    utils/misc.cmx \
     parsing/location.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/jane_syntax.cmx \
@@ -2294,7 +2296,8 @@ typing/typetexp.cmi : \
     typing/jkind.cmi \
     parsing/jane_asttypes.cmi \
     typing/errortrace.cmi \
-    typing/env.cmi
+    typing/env.cmi \
+    parsing/asttypes.cmi
 typing/uniqueness_analysis.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
