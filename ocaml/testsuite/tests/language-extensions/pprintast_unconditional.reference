@@ -67,6 +67,28 @@ string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
 
+modal_kind_struct:
+  struct
+    type 'a list : immutable_data with 'a
+    type ('a, 'b) either : immutable_data with ('a * 'b)
+    type 'a gel : kind_of_ 'a mod global
+    kind_abbrev_ immediate = value mod global unique many sync uncontended
+    kind_abbrev_ immutable_data = value mod sync uncontended many
+    kind_abbrev_ immutable = value mod uncontended
+    kind_abbrev_ data = value mod sync many
+  end
+
+modal_kind_sig:
+  sig
+    type 'a list : immutable_data with 'a
+    type ('a, 'b) either : immutable_data with ('a * 'b)
+    type 'a gel : kind_of_ 'a mod global
+    kind_abbrev_ immediate = value mod global unique many sync uncontended
+    kind_abbrev_ immutable_data = value mod sync uncontended many
+    kind_abbrev_ immutable = value mod uncontended
+    kind_abbrev_ data = value mod sync many
+  end
+
 tyvar: 'no_tyvars_require_extensions
 
 jkind: value with local_ ('a : value) -> unit
@@ -141,6 +163,28 @@ type_declaration:  local_ ('a : value) -> unit
 string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
+
+modal_kind_struct:
+  struct
+    type 'a list : immutable_data with 'a
+    type ('a, 'b) either : immutable_data with ('a * 'b)
+    type 'a gel : kind_of_ 'a mod global
+    kind_abbrev_ immediate = value mod global unique many sync uncontended
+    kind_abbrev_ immutable_data = value mod sync uncontended many
+    kind_abbrev_ immutable = value mod uncontended
+    kind_abbrev_ data = value mod sync many
+  end
+
+modal_kind_sig:
+  sig
+    type 'a list : immutable_data with 'a
+    type ('a, 'b) either : immutable_data with ('a * 'b)
+    type 'a gel : kind_of_ 'a mod global
+    kind_abbrev_ immediate = value mod global unique many sync uncontended
+    kind_abbrev_ immutable_data = value mod sync uncontended many
+    kind_abbrev_ immutable = value mod uncontended
+    kind_abbrev_ data = value mod sync many
+  end
 
 tyvar: 'no_tyvars_require_extensions
 

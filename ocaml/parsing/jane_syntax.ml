@@ -482,7 +482,7 @@ module Modes = struct
           Ast_helper.Exp.apply ~loc ext [Nolabel, body])
 end
 
-module Stringable_const_jkind = struct
+module Stringable_prim_jkind = struct
   type t = string
 
   let indefinite_article_and_name = "a", "primitive kind"
