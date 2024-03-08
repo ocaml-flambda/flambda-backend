@@ -997,6 +997,8 @@ let unboxed_type sloc lident tys =
 %token INITIALIZER            "initializer"
 %token <string * char option> INT      "42"  (* just an example *)
 %token <string * char option> HASH_INT "#42l" (* just an example *)
+%token KIND_ABBREV            "kind_abbrev_"
+%token KIND_OF                "kind_of_"
 %token <string> LABEL         "~label:" (* just an example *)
 %token LAZY                   "lazy"
 %token LBRACE                 "{"
@@ -1022,6 +1024,7 @@ let unboxed_type sloc lident tys =
 %token MINUS                  "-"
 %token MINUSDOT               "-."
 %token MINUSGREATER           "->"
+%token MOD                    "mod"
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
 %token NEW                    "new"
@@ -1128,7 +1131,7 @@ The precedences must be listed from low to high.
 %nonassoc LBRACKETAT
 %right    COLONCOLON                    /* expr (e :: e :: e) */
 %left     INFIXOP2 PLUS PLUSDOT MINUS MINUSDOT PLUSEQ /* expr (e OP e OP e) */
-%left     PERCENT INFIXOP3 STAR                 /* expr (e OP e OP e) */
+%left     PERCENT INFIXOP3 MOD STAR                 /* expr (e OP e OP e) */
 %right    INFIXOP4                      /* expr (e OP e OP e) */
 %nonassoc prec_unary_minus prec_unary_plus /* unary - */
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
@@ -1787,6 +1790,12 @@ structure_item:
         in
         wrap_str_ext ~loc:$sloc item ext
       }
+  | kind_abbreviation_decl
+      {
+        let name, jkind = $1 in
+        ignore (name, jkind);
+        Misc.fatal_error "jkind syntax not implemented"
+      }
 
 ;
 
@@ -2058,6 +2067,12 @@ signature_item:
           else mksig ~loc:$sloc (Psig_include incl)
         in
         wrap_sig_ext ~loc:$sloc item ext
+      }
+  | kind_abbreviation_decl
+      {
+        let name, jkind = $1 in
+        ignore (name, jkind);
+        Misc.fatal_error "jkind syntax not implemented"
       }
 
 (* A module declaration. *)
@@ -3855,12 +3870,38 @@ type_parameters:
       { ps }
 ;
 
+jkind:
+    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+      Misc.fatal_error "jkind syntax not implemented"
+    }
+  | jkind WITH core_type {
+      Misc.fatal_error "jkind syntax not implemented"
+    }
+  | mkrhs(ident) {
+      let { txt; _ } = $1 in
+      Jane_asttypes.jkind_of_string txt
+    }
+  | KIND_OF ty=core_type {
+      ignore ty;
+      Misc.fatal_error "jkind syntax not implemented"
+    }
+  | UNDERSCORE {
+      Misc.fatal_error "jkind syntax not implemented"
+    }
+;
+
 jkind_annotation: (* : jkind_annotation *)
-  ident { mkloc (Jane_asttypes.jkind_of_string $1) (make_loc $sloc) }
+  mkrhs(jkind) { $1 }
 ;
 
 jkind_constraint:
   COLON jkind_annotation { $2 }
+;
+
+kind_abbreviation_decl:
+  KIND_ABBREV abbrev=mkrhs(LIDENT) EQUAL jkind=jkind_annotation {
+    (abbrev, jkind)
+  }
 ;
 
 %inline type_param_with_jkind:
@@ -4639,6 +4680,10 @@ operator:
   | BANG                                        { "!" }
   | infix_operator                              { $1 }
 ;
+%inline infixop3:
+  | op = INFIXOP3 { op }
+  | MOD           { "mod" }
+;
 %inline infix_operator:
   | op = INFIXOP0 { op }
   /* Still support the two symbols as infix operators */
@@ -4646,7 +4691,7 @@ operator:
   | ATAT           {"@@"}
   | op = INFIXOP1 { op }
   | op = INFIXOP2 { op }
-  | op = INFIXOP3 { op }
+  | op = infixop3 { op }
   | op = INFIXOP4 { op }
   | PLUS           {"+"}
   | PLUSDOT       {"+."}
