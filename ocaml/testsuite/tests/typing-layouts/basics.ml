@@ -2470,8 +2470,7 @@ Error: The primitive [%obj_magic] is used in an invalid declaration.
    but the middle end should error in this case *)
 external f : (float# -> int32#) -> int32# -> int32# = "%apply";;
 [%%expect{|
-external f : (float# -> int32#) -> (int32# [@unboxed]) -> (int32# [@unboxed])
-  = "%apply"
+external f : (float# -> int32#) -> int32# -> int32# = "%apply"
 |}]
 
 external f : float# -> int -> int = "%send";;
@@ -2499,14 +2498,4 @@ Line 1, characters 13-47:
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The primitive [%sendcache] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
-|}]
-
-(************************************************************)
-(* Test 43: [@unboxed] gets printed with non-value layouts. *)
-
-(* Not ideal but also shouldn't be a big problem. This only happens
-   with [Printtyp] not [Pprintast] used for [-dsource] *)
-external f : float# -> float# = "%identity";;
-[%%expect{|
-external f : float# -> float# = "%identity" [@@unboxed]
 |}]

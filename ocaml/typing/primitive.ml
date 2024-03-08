@@ -84,14 +84,18 @@ let is_unboxed = function
   | _, Same_as_ocaml_repr Value
   | _, Repr_poly
   | _, Untagged_int -> false
-  (* We consider non-value layouts to always be unboxed. This means
-     the attribute will be printed even when it's not specified on
-     non-value types, but that should be fine. The alternative of
-     adding a new constructor doesn't seem worth it.*)
-  | _, Same_as_ocaml_repr _
   | _, Unboxed_float _
   | _, Unboxed_vector _
   | _, Unboxed_integer _ -> true
+  | _, Same_as_ocaml_repr _ ->
+    (* We require [@unboxed] for non-value types in
+       upstream-compatible code, but treat it as optional otherwise.
+
+       [is_unboxed] here is used to print the primitive. We want to
+       print the [@unboxed] attribute only in the case it's required
+       and leave it out when it's not. That's why we call
+       [erasable_extensions_only] here. *)
+    Language_extension.erasable_extensions_only ()
 
 let is_untagged = function
   | _, Untagged_int -> true
@@ -308,11 +312,14 @@ let print p osig_val_decl =
     (match repr with
      | Same_as_ocaml_repr Value
      | Repr_poly -> []
-     | Same_as_ocaml_repr _
      | Unboxed_float _
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_int -> if all_untagged then [] else [oattr_untagged])
+     | Untagged_int -> if all_untagged then [] else [oattr_untagged]
+     | Same_as_ocaml_repr _->
+      if all_unboxed || not (is_unboxed (m, repr))
+      then []
+      else [oattr_unboxed])
   in
   let type_attrs =
     List.map attrs_of_mode_and_repr p.prim_native_repr_args @
