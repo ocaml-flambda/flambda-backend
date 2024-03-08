@@ -323,7 +323,8 @@ Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
                                             ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}];;
 
 
@@ -333,7 +334,8 @@ Line 1, characters 41-43:
 1 | external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
                                              ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}];;
 
 (* module and abstract types *)
@@ -376,4 +378,17 @@ external f_3 : M2.t -> M2.t = "%identity" [@@unboxed];;
 [%%expect{|
 module M2 : sig type t = float# end
 external f_3 : M2.t -> M2.t = "%identity" [@@unboxed]
+|}];;
+
+(* should also work with private types *)
+module M3 : sig
+  type t = private float#
+end = struct
+  type t = float#
+end
+
+external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
+[%%expect{|
+module M3 : sig type t = private float# end
+external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
 |}];;

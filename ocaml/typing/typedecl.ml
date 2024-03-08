@@ -2161,6 +2161,8 @@ let get_native_repr_attribute attrs ~global_repr =
     raise (Error (loc, Multiple_native_repr_attributes))
 
 let is_upstream_compatible_non_value_unbox env ty =
+  (* CR layouts v2.5: This needs to be updated when we support unboxed
+     types with arbitrary names suffixed with "#" *)
   match get_desc (Ctype.expand_head_opt env ty) with
   | Tconstr (path, _, _) ->
     List.exists
@@ -2283,7 +2285,25 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     | Some repr -> repr
     end
   | Native_repr_attr_present Unboxed, (Sort sort) ->
-    (* We allow [@unboxed] on non-value sorts. *)
+    (* We allow [@unboxed] on non-value sorts.
+
+       This is to enable upstream-compatibility. We want the code to
+       still work when all the layout annotations and unboxed types
+       get erased.
+
+       One may wonder why can't the erasure process mentioned above
+       also add in the [@unboxed] attributes. This is not possible due
+       to the fact that:
+
+       1. Without type information, the erasure process can't transform:
+
+        {|
+           type t = float#
+           external f : t -> t = ...
+        |}
+
+       2. We need [is_upstream_compatible_non_value_unbox] to further
+          limit the cases that can work with upstream. *)
     if Language_extension.erasable_extensions_only ()
        && not (is_upstream_compatible_non_value_unbox env ty)
     then
@@ -3093,7 +3113,8 @@ let report_error ppf = function
       fprintf ppf "Too many [@@unboxed]/[@@untagged] attributes"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only float, int32, int64, nativeint, and vector primitives can be unboxed.@]"
+                   Only float, int32, int64, nativeint, vector primitives, and@ \
+                   concrete unboxed types can be marked unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type.@ \
                    Only int can be untagged.@]"
