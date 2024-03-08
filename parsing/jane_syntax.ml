@@ -452,6 +452,10 @@ module Mode_expr = struct
     let const' = (const : Const.t :> _ Location.loc) in
     Location.mkloc [const] const'.loc
 
+  let concat mode0 mode1 =
+    let txt = mode0.txt @ mode1.txt in
+    Location.mknoloc txt
+
   let feature : Feature.t = Language_extension Mode
 
   let attribute_or_extension_name =
