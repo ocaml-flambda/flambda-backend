@@ -280,17 +280,17 @@ Error: [@unboxed] attribute must be added to external declaration
 
 external f_3 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-external f_3 : float# -> bool -> string = "foo" "bar"
+external f_3 : (float# [@unboxed]) -> bool -> string = "foo" "bar"
 |}];;
 
 external f_4 : string -> (nativeint#[@unboxed])  = "foo" "bar";;
 [%%expect{|
-external f_4 : string -> nativeint# = "foo" "bar"
+external f_4 : string -> (nativeint# [@unboxed]) = "foo" "bar"
 |}];;
 
 external f_5 : int64 -> int64#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-external f_5 : (int64 [@unboxed]) -> int64# = "foo" "bar"
+external f_5 : int64 -> int64# = "foo" "bar" [@@unboxed]
 |}];;
 
 external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
@@ -375,5 +375,5 @@ end
 external f_3 : M2.t -> M2.t = "%identity" [@@unboxed];;
 [%%expect{|
 module M2 : sig type t = float# end
-external f_3 : M2.t -> M2.t = "%identity"
+external f_3 : M2.t -> M2.t = "%identity" [@@unboxed]
 |}];;

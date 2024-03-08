@@ -548,17 +548,17 @@ Error: Cannot use "float" in conjunction with types of non-value layouts.
 
 external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-external f10_6 : float# -> bool -> string = "foo" "bar"
+external f10_6 : (float# [@unboxed]) -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
 [%%expect{|
-external f10_7 : string -> float# = "foo" "bar"
+external f10_7 : string -> (float# [@unboxed]) = "foo" "bar"
 |}];;
 
 external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-external f10_8 : (float [@unboxed]) -> float# = "foo" "bar"
+external f10_8 : float -> float# = "foo" "bar" [@@unboxed]
 |}];;
 
 external f10_9 : (float#[@untagged]) -> bool -> string  = "foo" "bar";;

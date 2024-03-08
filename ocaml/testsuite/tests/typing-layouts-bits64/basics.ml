@@ -485,17 +485,17 @@ Error: The native code version of the primitive is mandatory
 
 external f10_6 : (int64#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-external f10_6 : int64# -> bool -> string = "foo" "bar"
+external f10_6 : (int64# [@unboxed]) -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_7 : string -> (int64#[@unboxed])  = "foo" "bar";;
 [%%expect{|
-external f10_7 : string -> int64# = "foo" "bar"
+external f10_7 : string -> (int64# [@unboxed]) = "foo" "bar"
 |}];;
 
 external f10_8 : int64 -> int64#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-external f10_8 : (int64 [@unboxed]) -> int64# = "foo" "bar"
+external f10_8 : int64 -> int64# = "foo" "bar" [@@unboxed]
 |}];;
 
 external f10_9 : (int64#[@untagged]) -> bool -> string  = "foo" "bar";;
