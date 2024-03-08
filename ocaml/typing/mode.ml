@@ -1196,7 +1196,10 @@ module Comonadic_with_regionality = struct
       (C.lift SLinearity (Const_min Linearity))
       (S.Positive.disallow_right m)
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy m =
+    let regionality = regionality m |> Regionality.zap_to_legacy in
+    let linearity = linearity m |> Linearity.zap_to_legacy in
+    regionality, linearity
 
   let legacy = of_const Const.legacy
 
@@ -1285,7 +1288,10 @@ module Comonadic_with_locality = struct
       (C.lift SLinearity (Const_min Linearity))
       (S.Positive.disallow_right m)
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy m =
+    let locality = locality m |> Locality.zap_to_legacy in
+    let linearity = linearity m |> Linearity.zap_to_legacy in
+    locality, linearity
 
   let legacy = of_const Const.legacy
 
@@ -1351,7 +1357,9 @@ module Monadic = struct
       (C.lift SUniqueness (Const_max Uniqueness_op))
       (S.Negative.disallow_right m)
 
-  let zap_to_legacy = zap_to_ceil
+  let zap_to_legacy m =
+    let uniqueness = uniqueness m |> Uniqueness.zap_to_legacy in
+    uniqueness, ()
 
   let legacy = of_const Const.legacy
 
