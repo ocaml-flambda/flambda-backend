@@ -19,10 +19,11 @@ let mapper: Ast_mapper.mapper =
 let test mapper s =
   let p = Lexing.from_string s |> Parse.implementation in
   ignore (mapper.Ast_mapper.structure mapper p);
-  Format.printf "------------------------------"
+  Format.printf "------------------------------\n"
 
 let () =
   test mapper "let f (local_ x) = x";
   test mapper "let unique_ f (local_ x) = x";
   test mapper "let local_ f x: int -> int = x";
+  test mapper "module M : sig val x : string -> string @ foo @@ bar hello end = struct end";
   ()

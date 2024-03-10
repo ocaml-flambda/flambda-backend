@@ -925,26 +925,9 @@ let default_mapper =
     value_description =
       (fun this {pval_name; pval_type; pval_prim; pval_loc;
                  pval_attributes} ->
-        let modes, ptyp_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
-        in
-        let pval_type = { pval_type with ptyp_attributes } in
-        let pval_type = this.typ this pval_type in
-        let attr =
-          match modes with
-          | None -> None
-          | Some modes ->
-              let modes = this.modes this modes in
-              Jane_syntax.Mode_expr.attr_of modes
-        in
-        let pval_type =
-          match attr with
-          | None -> pval_type
-          | Some attr -> {pval_type with ptyp_attributes = attr :: pval_type.ptyp_attributes}
-        in
         Val.mk
           (map_loc this pval_name)
-          pval_type
+          (this.typ this pval_type)
           ~attrs:(this.attributes this pval_attributes)
           ~loc:(this.location this pval_loc)
           ~prim:pval_prim
