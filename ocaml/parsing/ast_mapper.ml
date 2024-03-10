@@ -106,16 +106,13 @@ let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
 
-module ME = Jane_syntax.Mode_expr
-
 let map_mode_and_attributes sub attrs =
-  let modes, attrs =
-    Jane_syntax.Mode_expr.maybe_of_attrs attrs
-  in
+  let open Jane_syntax.Mode_expr in
+  let modes, attrs = maybe_of_attrs attrs in
   let mode_attr =
     match modes with
     | Some modes ->
-      Option.to_list (sub.modes sub modes |> ME.attr_of)
+      Option.to_list (sub.modes sub modes |> attr_of)
     | None -> []
   in
   mode_attr @ sub.attributes sub attrs

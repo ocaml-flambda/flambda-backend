@@ -774,8 +774,6 @@ module CE = struct
     sub.attributes sub pci_attributes
 end
 
-module ME = Jane_syntax.Mode_expr
-
 (* Now, a generic AST mapper, to be extended to cover all kinds and
    cases of the OCaml grammar.  The default behavior of the mapper is
    the identity. *)
@@ -972,8 +970,9 @@ let default_iterator =
     attributes = (fun this l -> List.iter (this.attribute this) l);
     (* Location inside a mode expression needs to be traversed. *)
     modes = (fun this m ->
-      let iter_const sub : ME.Const.t -> _ =
-        fun m -> iter_loc sub (m : ME.Const.t :> _ Location.loc)
+      let open Jane_syntax.Mode_expr in
+      let iter_const sub : Const.t -> _ =
+        fun m -> iter_loc sub (m : Const.t :> _ Location.loc)
       in
       iter_loc_txt this (fun sub -> List.iter (iter_const sub)) m);
     payload =
