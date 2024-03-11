@@ -493,7 +493,7 @@ module Jkind = struct
   type t =
     | Default
     | Primitive_layout_or_abbreviation of string loc
-    | Mod of t * Mode_expr.t
+    | Mod of t * Mode_expr.Const.t list
     | With of t * core_type
     | Kind_of of core_type
 
@@ -554,13 +554,15 @@ module Jkind = struct
     | Default -> struct_item_of_list "default" [] t_loc.loc
     | Primitive_layout_or_abbreviation c ->
       struct_item_of_list "prim" [Prim_jkind.to_structure_item c] t_loc.loc
-    | Mod (t, mode_expr) ->
-      let mode_expr_item =
-        match Mode_expr.attr_of mode_expr with
-        | Some attr -> struct_item_of_attr attr
-        | None -> Misc.fatal_error "Can't encode empty mode expression"
+    | Mod (t, mode_list) ->
+      let mode_list_item =
+        struct_item_of_attr
+          { attr_name = Location.mknoloc (prefix ^ "mod");
+            attr_payload = Mode_expr.Const.list_as_payload mode_list;
+            attr_loc = Location.none
+          }
       in
-      struct_item_of_list "mod" [to_structure_item t; mode_expr_item] t_loc.loc
+      struct_item_of_list "mod" [to_structure_item t; mode_list_item] t_loc.loc
     | With (t, ty) ->
       struct_item_of_list "with"
         [to_structure_item t; struct_item_of_type ty]
@@ -578,17 +580,20 @@ module Jkind = struct
     | Some ("default", [], loc) -> ret loc Default
     | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
-          bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
-              ret loc (Mod (t, Mode_expr.of_attr attr))))
+        bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
+          let mode_list =
+            Mode_expr.Const.list_from_payload ~loc attr.attr_payload
+          in
+          ret loc (Mod (t, mode_list))))
     | Some ("with", [item_of_t; item_of_ty], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
-          bind (struct_item_to_type item_of_ty) (fun ty ->
-              ret loc (With (t, ty))))
+        bind (struct_item_to_type item_of_ty) (fun ty ->
+          ret loc (With (t, ty))))
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("prim", [item], loc) ->
       bind (Prim_jkind.of_structure_item item) (fun c ->
-          ret loc (Primitive_layout_or_abbreviation c))
+        ret loc (Primitive_layout_or_abbreviation c))
     | Some _ | None -> None
 end
 

@@ -189,7 +189,7 @@ module Jkind : sig
   type t =
     | Default
     | Primitive_layout_or_abbreviation of string Location.loc
-    | Mod of t * Mode_expr.t
+    | Mod of t * Mode_expr.Const.t list
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type
 

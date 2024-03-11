@@ -306,18 +306,6 @@ let legacy_mode f m =
 let legacy_modes f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m.txt
 
-let maybe_modes_new m =
-  let l =
-    List.map
-      (fun m ->
-        let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
-        txt)
-      m.txt
-  in
-  match l with
-  | [] -> None
-  | _ -> Some (String.concat " " l)
-
 let optional_legacy_modes f m =
   match m with
   | None -> ()
@@ -366,11 +354,21 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
   | Primitive_layout_or_abbreviation { txt } ->
     pp f "%s" txt
-  | Mod (t, mode_expr) ->
-    begin match maybe_modes_new mode_expr with
-    | None -> Misc.fatal_error "malformed jkind annotation"
-    | Some mode ->
-      pp f "%a mod %s" (jkind ctxt) t mode
+  | Mod (t, mode_list) ->
+    begin match mode_list with
+    | [] -> Misc.fatal_error "malformed jkind annotation"
+    | _ :: _ ->
+      let mode_string =
+        List.map
+          (fun m ->
+            let {txt; _} =
+              (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
+            in
+            txt)
+          mode_list
+        |> String.concat " "
+      in
+      pp f "%a mod %s" (jkind ctxt) t mode_string
     end
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
