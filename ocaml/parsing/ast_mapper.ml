@@ -1116,10 +1116,15 @@ let default_mapper =
       );
 
 
-    jkind_annotation = (fun this -> function
+    jkind_annotation = (fun this ->
+      let open Jane_syntax in
+      function
       | Default -> Default
       | Primitive_layout_or_abbreviation s ->
-        Primitive_layout_or_abbreviation (map_loc this s)
+        let {txt; loc} =
+          map_loc this (s : Jkind.Const.t :> _ loc)
+        in
+        Primitive_layout_or_abbreviation (Jkind.Const.mk txt loc)
       | Mod (t, mode_list) ->
         Mod (
           this.jkind_annotation this t,
@@ -1127,9 +1132,9 @@ let default_mapper =
             (fun m ->
               let {txt; loc} =
                 map_loc this
-                  (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
+                  (m : Mode_expr.Const.t :> _ loc)
               in
-              Jane_syntax.Mode_expr.Const.mk txt loc)
+              Mode_expr.Const.mk txt loc)
             mode_list
         )
       | With (t, ty) ->

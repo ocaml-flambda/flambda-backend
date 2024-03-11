@@ -39,7 +39,10 @@ module Legacy = struct
   *)
   let const_of_user_written_annotation_unchecked :
       Jane_syntax.Jkind.t -> const option = function
-    | Primitive_layout_or_abbreviation { txt = name; _ } -> (
+    | Primitive_layout_or_abbreviation const -> (
+      let { txt = name; _ } =
+        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+      in
       match name with
       | "any" -> Some Any
       | "value" -> Some Value
@@ -1055,11 +1058,10 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
            let annot =
              Location.map
                (fun attr ->
-                 let jkind_of_prim_name name =
-                   Jane_syntax.Jkind.Primitive_layout_or_abbreviation name
-                 in
-                 Builtin_attributes.jkind_attribute_to_string attr
-                 |> Location.mknoloc |> jkind_of_prim_name)
+                 let name = Builtin_attributes.jkind_attribute_to_string attr in
+                 Jane_syntax.Jkind.(
+                   Primitive_layout_or_abbreviation
+                     (Const.mk name Location.none)))
                attr
            in
            t, (const, annot), decl.ptype_attributes)

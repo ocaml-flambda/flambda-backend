@@ -118,7 +118,7 @@ module Example = struct
   let jkind            = Jane_syntax.Jkind.(
                             With (
                               Primitive_layout_or_abbreviation
-                                (located "value"),
+                                (Const.mk "value" loc),
                               core_type
                             ))
 end

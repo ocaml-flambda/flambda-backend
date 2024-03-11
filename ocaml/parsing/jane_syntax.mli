@@ -186,9 +186,22 @@ module Modes : sig
 end
 
 module Jkind : sig
+  module Const : sig
+    (** Constant jkind *)
+
+    type raw = string
+
+    (** Represent a user-written kind primitive/abbreviation,
+        containing a string and its location *)
+    type t = private raw Location.loc
+
+    (** Constructs a jkind constant *)
+    val mk : string -> Location.t -> t
+  end
+
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of string Location.loc
+    | Primitive_layout_or_abbreviation of Const.t
     | Mod of t * Mode_expr.Const.t list
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type

@@ -479,20 +479,42 @@ module Modes = struct
           Ast_helper.Exp.apply ~loc ext [Nolabel, body])
 end
 
-module Stringable_prim_jkind = struct
-  type t = string
-
-  let indefinite_article_and_name = "a", "primitive kind"
-
-  let to_string t = t
-
-  let of_string t = Some t
-end
-
 module Jkind = struct
+  module Const : sig
+    type raw = string
+
+    type t = private raw loc
+
+    val mk : string -> Location.t -> t
+
+    val of_structure_item : structure_item -> t option
+
+    val to_structure_item : t -> structure_item
+  end = struct
+    type raw = string
+
+    module Protocol = Make_structure_item_encodable_of_stringable (struct
+      type t = raw
+
+      let indefinite_article_and_name = "a", "primitive kind"
+
+      let to_string t = t
+
+      let of_string t = Some t
+    end)
+
+    type t = raw loc
+
+    let mk txt loc : t = { txt; loc }
+
+    let of_structure_item = Protocol.of_structure_item
+
+    let to_structure_item = Protocol.to_structure_item
+  end
+
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of string loc
+    | Primitive_layout_or_abbreviation of Const.t
     | Mod of t * Mode_expr.Const.t list
     | With of t * core_type
     | Kind_of of core_type
@@ -545,15 +567,12 @@ module Jkind = struct
       Some (strip_prefix name.txt, list, loc)
     | _ -> None
 
-  module Prim_jkind =
-    Make_structure_item_encodable_of_stringable (Stringable_prim_jkind)
-
   let rec to_structure_item t_loc =
     let to_structure_item t = to_structure_item (Location.mknoloc t) in
     match t_loc.txt with
     | Default -> struct_item_of_list "default" [] t_loc.loc
     | Primitive_layout_or_abbreviation c ->
-      struct_item_of_list "prim" [Prim_jkind.to_structure_item c] t_loc.loc
+      struct_item_of_list "prim" [Const.to_structure_item c] t_loc.loc
     | Mod (t, mode_list) ->
       let mode_list_item =
         struct_item_of_attr
@@ -592,7 +611,7 @@ module Jkind = struct
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("prim", [item], loc) ->
-      bind (Prim_jkind.of_structure_item item) (fun c ->
+      bind (Const.of_structure_item item) (fun c ->
           ret loc (Primitive_layout_or_abbreviation c))
     | Some _ | None -> None
 end
