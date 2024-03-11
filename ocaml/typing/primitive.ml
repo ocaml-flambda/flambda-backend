@@ -80,31 +80,6 @@ let check_ocaml_value = function
   | _, Unboxed_integer _
   | _, Untagged_int -> Bad_attribute
 
-let is_unboxed = function
-  | _, Same_as_ocaml_repr Value
-  | _, Repr_poly
-  | _, Untagged_int -> false
-  | _, Unboxed_float _
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _ -> true
-  | _, Same_as_ocaml_repr _ ->
-    (* We require [@unboxed] for non-value types in
-       upstream-compatible code, but treat it as optional otherwise.
-
-       [is_unboxed] here is used to print the primitive. We want to
-       print the [@unboxed] attribute only in the case it's required
-       and leave it out when it's not. That's why we call
-       [erasable_extensions_only] here. *)
-    Language_extension.erasable_extensions_only ()
-
-let is_untagged = function
-  | _, Untagged_int -> true
-  | _, Same_as_ocaml_repr _
-  | _, Unboxed_float _
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _
-  | _, Repr_poly -> false
-
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
 let rec make_prim_repr_args arity x =
@@ -276,6 +251,28 @@ let print p osig_val_decl =
   in
   let for_all f =
     List.for_all f p.prim_native_repr_args && f p.prim_native_repr_res
+  in
+  let is_unboxed = function
+    | _, Same_as_ocaml_repr Value
+    | _, Repr_poly
+    | _, Untagged_int -> false
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _ -> true
+    | _, Same_as_ocaml_repr _ ->
+      (* We require [@unboxed] for non-value types in upstream-compatible code,
+         but treat it as optional otherwise. We thus print the [@unboxed]
+         attribute only in the case it's required and leave it out when it's
+         not. That's why we call [erasable_extensions_only] here. *)
+      Language_extension.erasable_extensions_only ()
+  in
+  let is_untagged = function
+    | _, Untagged_int -> true
+    | _, Same_as_ocaml_repr _
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _
+    | _, Repr_poly -> false
   in
   let all_unboxed = for_all is_unboxed in
   let all_untagged = for_all is_untagged in
