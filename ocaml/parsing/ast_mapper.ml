@@ -1115,7 +1115,6 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
-
     jkind_annotation = (fun this ->
       let open Jane_syntax in
       function

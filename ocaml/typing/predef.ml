@@ -185,12 +185,11 @@ let predef_jkind_annotation const =
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-
-        let name = Jkind.string_of_const const in
-        Jane_syntax.Jkind.(
-          Primitive_layout_or_abbreviation
-            (Const.mk name Location.none))
-        |> Location.mknoloc
+         let name = Jkind.string_of_const const in
+         Jane_syntax.Jkind.(
+           Primitive_layout_or_abbreviation
+             (Const.mk name Location.none))
+         |> Location.mknoloc
        in
        const, user_written)
     const

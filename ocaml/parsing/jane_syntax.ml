@@ -1998,23 +1998,20 @@ module Layouts = struct
   (*********************************************************)
   (* Constructing a [signature_item] for kind_abbrev *)
 
-  let attr_name_of name =
-    Location.map
-      (fun s ->
-        let embed = Embedded_name.of_feature feature ["kind_abbrev"; s] in
-        Embedded_name.to_string embed)
-      name
+  let attr_name_of { txt = name; loc } =
+    let embed = Embedded_name.of_feature feature ["kind_abbrev"; name] in
+    Location.mkloc (Embedded_name.to_string embed) loc
 
-  let of_attr_name attr_name =
-    Location.map
-      (fun s ->
-        match Embedded_name.of_string s with
-        | Some (Ok embed) -> (
-          match Embedded_name.components embed with
-          | _ :: ["kind_abbrev"; name] -> name
-          | _ -> failwith "Malformed [kind_abbrev] attribute")
-        | None | Some (Error _) -> failwith "Malformed [kind_abbrev] attribute")
-      attr_name
+  let of_attr_name { txt = attr_name; loc } =
+    let name =
+      match Embedded_name.of_string attr_name with
+      | Some (Ok embed) -> (
+        match Embedded_name.components embed with
+        | _ :: ["kind_abbrev"; name] -> name
+        | _ -> failwith "Malformed [kind_abbrev] attribute")
+      | None | Some (Error _) -> failwith "Malformed [kind_abbrev] attribute"
+    in
+    Location.mkloc name loc
 
   let sig_item_of ~loc = function
     | Lsig_kind_abbrev (name, jkind) ->
