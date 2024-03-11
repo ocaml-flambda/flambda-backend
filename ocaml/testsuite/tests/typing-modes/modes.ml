@@ -337,8 +337,8 @@ module type S = sig
   val x : string -> string @ local @@ foo bar
 end
 [%%expect{|
-Line 337, characters 38-45:
-337 |   val x : string -> string @ local @@ foo bar
-                                            ^^^^^^^
+Line 2, characters 38-45:
+2 |   val x : string -> string @ local @@ foo bar
+                                          ^^^^^^^
 Error: Modalities on value descriptions are not supported yet.
 |}]

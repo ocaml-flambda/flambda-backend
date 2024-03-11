@@ -106,17 +106,16 @@ let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
 
-let map_mode_expr sub (mode_expr : Jane_syntax.Mode_expr.t)
-  : Jane_syntax.Mode_expr.t =
-  map_loc_txt sub
-    (fun sub modes ->
-       List.map
-         (fun (mode : Jane_syntax.Mode_expr.Const.t) ->
-            let { loc; txt } = (mode :> string loc) in
-            let loc = sub.location sub loc in
-            Jane_syntax.Mode_expr.Const.mk txt loc)
-         modes)
-    mode_expr
+let map_mode_and_attributes sub attrs =
+  let open Jane_syntax.Mode_expr in
+  let modes, attrs = maybe_of_attrs attrs in
+  let mode_attr =
+    match modes with
+    | Some modes ->
+      Option.to_list (sub.modes sub modes |> attr_of)
+    | None -> []
+  in
+  mode_attr @ sub.attributes sub attrs
 
 module C = struct
   (* Constants *)
@@ -201,12 +200,12 @@ module T = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         let jtyp = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -621,7 +620,7 @@ module E = struct
       : N_ary.function_constraint -> N_ary.function_constraint =
     function
     | { mode_annotations; type_constraint } ->
-      { mode_annotations;
+      { mode_annotations = sub.modes sub mode_annotations;
         type_constraint = map_type_constraint sub type_constraint;
       }
 
@@ -644,9 +643,8 @@ module E = struct
     | el -> List.map (map_snd (sub.expr sub)) el
 
   let map_modes_exp sub : Modes.expression -> Modes.expression = function
-    (* CR modes: One day mappers might want to see the modes *)
     | Coerce (modes, exp) ->
-        Coerce (map_mode_expr sub modes, sub.expr sub exp)
+        Coerce (sub.modes sub modes, sub.expr sub exp)
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
@@ -790,11 +788,11 @@ module P = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
+        let attrs = map_mode_and_attributes sub attrs in
         Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
-    let attrs = sub.attributes sub attrs in
+    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -926,26 +924,9 @@ let default_mapper =
     value_description =
       (fun this {pval_name; pval_type; pval_prim; pval_loc;
                  pval_attributes} ->
-        let modes, ptyp_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
-        in
-        let pval_type = { pval_type with ptyp_attributes } in
-        let pval_type = this.typ this pval_type in
-        let attr =
-          match modes with
-          | None -> None
-          | Some modes ->
-              let modes = this.modes this modes in
-              Jane_syntax.Mode_expr.attr_of modes
-        in
-        let pval_type =
-          match attr with
-          | None -> pval_type
-          | Some attr -> {pval_type with ptyp_attributes = attr :: pval_type.ptyp_attributes}
-        in
         Val.mk
           (map_loc this pval_name)
-          pval_type
+          (this.typ this pval_type)
           ~attrs:(this.attributes this pval_attributes)
           ~loc:(this.location this pval_loc)
           ~prim:pval_prim
@@ -1040,7 +1021,7 @@ let default_mapper =
            (this.expr this pvb_expr)
            ?value_constraint:(Option.map map_ct pvb_constraint)
            ~loc:(this.location this pvb_loc)
-           ~attrs:(this.attributes this pvb_attributes)
+           ~attrs:(map_mode_and_attributes this pvb_attributes)
       );
 
 
@@ -1097,6 +1078,7 @@ let default_mapper =
       }
     );
     attributes = (fun this l -> List.map (this.attribute this) l);
+
     payload =
       (fun this -> function
          | PStr x -> PStr (this.structure this x)
@@ -1115,8 +1097,16 @@ let default_mapper =
     structure_item_jane_syntax = M.map_structure_item_jst;
     typ_jane_syntax = T.map_jst;
 
-    (* CR zqian: should go into the modes and at least map the locations. *)
-    modes = (fun _this m -> m);
+    modes = (fun this m ->
+      let open Jane_syntax.Mode_expr in
+      let map_const sub : Const.t -> Const.t =
+        fun m ->
+          let {txt; loc} =
+            map_loc sub (m : Const.t :> _ Location.loc)
+          in
+          Const.mk txt loc
+      in
+      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
   }
 
 let extension_of_error {kind; main; sub} =

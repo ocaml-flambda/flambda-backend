@@ -85,6 +85,7 @@ let g () =
   let unique_ once_ f : 'a . 'a -> 'a = fun x -> x in
   let once_ local_ f x y = x + y in
   let local_ unique_ once_ f : int -> int = fun z -> z + z in
+  let local_ f x: int -> int = x in
   (* nroberts: we should reenable this test when we fix
    * pprint_ast to put the (int -> int) annotation back in
    * the correct position. *)
