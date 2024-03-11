@@ -255,3 +255,140 @@ module M :
     val f_word : unit
   end
 |}];;
+
+(* Externals *)
+
+external f_1 : int -> bool -> int64# = "foo" "bar";;
+[%%expect{|
+Line 1, characters 30-36:
+1 | external f_1 : int -> bool -> int64# = "foo" "bar";;
+                                  ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout bits64. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_2 : int32# -> bool -> int = "foo" "bar";;
+[%%expect{|
+Line 1, characters 15-21:
+1 | external f_2 : int32# -> bool -> int = "foo" "bar";;
+                   ^^^^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout bits32. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_3 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+external f_3 : (float# [@unboxed]) -> bool -> string = "foo" "bar"
+|}];;
+
+external f_4 : string -> (nativeint#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+external f_4 : string -> (nativeint# [@unboxed]) = "foo" "bar"
+|}];;
+
+external f_5 : int64 -> int64#  = "foo" "bar" [@@unboxed];;
+[%%expect{|
+external f_5 : int64 -> int64# = "foo" "bar" [@@unboxed]
+|}];;
+
+external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 16-22:
+1 | external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
+                    ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;
+
+external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 26-32:
+1 | external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
+                              ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;
+
+(* With [@layout_poly] *)
+
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
+[%%expect{|
+external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
+|}];;
+
+
+external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+[%%expect{|
+Line 1, characters 40-42:
+1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
+                                            ^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
+|}];;
+
+
+external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
+[%%expect{|
+Line 1, characters 41-43:
+1 | external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
+                                             ^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
+|}];;
+
+(* module and abstract types *)
+module M : sig
+  type t : float64
+end = struct
+  type t = float#
+end
+
+external f_1 : M.t -> M.t = "%identity";;
+[%%expect{|
+module M : sig type t : float64 end
+Line 7, characters 15-18:
+7 | external f_1 : M.t -> M.t = "%identity";;
+                   ^^^
+Error: [@unboxed] attribute must be added to external declaration
+       argument type with layout float64. This error is produced
+       due to the use of -only-erasable-extensions.
+|}];;
+
+external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
+[%%expect{|
+Line 1, characters 15-18:
+1 | external f_2 : M.t -> M.t = "%identity" [@@unboxed];;
+                   ^^^
+Error: External declaration here is not upstream compatible.
+       The only types with non-value layouts allowed are float#,
+       int32#, int64#, and nativeint#. Unknown type with layout
+       float64 encountered. This error is produced due to
+       the use of -only-erasable-extensions.
+|}];;
+
+module M2 : sig
+  type t = float#
+end = struct
+  type t = float#
+end
+
+external f_3 : M2.t -> M2.t = "%identity" [@@unboxed];;
+[%%expect{|
+module M2 : sig type t = float# end
+external f_3 : M2.t -> M2.t = "%identity" [@@unboxed]
+|}];;
+
+(* should also work with private types *)
+module M3 : sig
+  type t = private float#
+end = struct
+  type t = float#
+end
+
+external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
+[%%expect{|
+module M3 : sig type t = private float# end
+external f_4 : M3.t -> M3.t = "%identity" [@@unboxed]
+|}];;

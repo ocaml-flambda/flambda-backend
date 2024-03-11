@@ -68,6 +68,9 @@ val path_lazy_t: Path.t
 val path_extension_constructor: Path.t
 val path_floatarray: Path.t
 val path_unboxed_float: Path.t
+val path_unboxed_nativeint: Path.t
+val path_unboxed_int32: Path.t
+val path_unboxed_int64: Path.t
 
 val path_int8x16: Path.t
 val path_int16x8: Path.t
