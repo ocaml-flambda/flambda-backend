@@ -1638,7 +1638,6 @@ struct
     mk_no_alias_deps F._no_alias_deps;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
-    mk_directory F._directory;
     mk_disable_all_extensions F._disable_all_extensions;
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
