@@ -580,20 +580,20 @@ module Jkind = struct
     | Some ("default", [], loc) -> ret loc Default
     | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
-        bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
-          let mode_list =
-            Mode_expr.Const.list_from_payload ~loc attr.attr_payload
-          in
-          ret loc (Mod (t, mode_list))))
+          bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
+              let mode_list =
+                Mode_expr.Const.list_from_payload ~loc attr.attr_payload
+              in
+              ret loc (Mod (t, mode_list))))
     | Some ("with", [item_of_t; item_of_ty], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
-        bind (struct_item_to_type item_of_ty) (fun ty ->
-          ret loc (With (t, ty))))
+          bind (struct_item_to_type item_of_ty) (fun ty ->
+              ret loc (With (t, ty))))
     | Some ("kind_of", [item_of_ty], loc) ->
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("prim", [item], loc) ->
       bind (Prim_jkind.of_structure_item item) (fun c ->
-        ret loc (Primitive_layout_or_abbreviation c))
+          ret loc (Primitive_layout_or_abbreviation c))
     | Some _ | None -> None
 end
 
