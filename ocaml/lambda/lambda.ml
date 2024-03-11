@@ -649,6 +649,10 @@ type lparam = {
   mode : alloc_mode
 }
 
+type pop_region =
+  | Popped_region
+  | Same_region
+
 type lambda =
     Lvar of Ident.t
   | Lmutvar of Ident.t
@@ -663,7 +667,9 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Lstaticcatch of
+      lambda * (static_label * (Ident.t * layout) list) * lambda
+      * pop_region * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
@@ -912,8 +918,8 @@ let make_key e =
           Loc_unknown,kind)
     | Lstaticraise (i,es) ->
         Lstaticraise (i,tr_recs env es)
-    | Lstaticcatch (e1,xs,e2, kind) ->
-        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, kind)
+    | Lstaticcatch (e1,xs,e2, r, kind) ->
+        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, r, kind)
     | Ltrywith (e1,x,e2,kind) ->
         Ltrywith (tr_rec env e1,x,tr_rec env e2,kind)
     | Lifthenelse (cond,ifso,ifnot,kind) ->
@@ -1005,7 +1011,7 @@ let shallow_iter ~tail ~non_tail:f = function
       iter_opt tail default
   | Lstaticraise (_,args) ->
       List.iter f args
-  | Lstaticcatch(e1, _, e2, _kind) ->
+  | Lstaticcatch(e1, _, e2, _, _kind) ->
       tail e1; tail e2
   | Ltrywith(e1, _, e2,_) ->
       f e1; tail e2
@@ -1074,7 +1080,7 @@ let rec free_variables = function
       end
   | Lstaticraise (_,args) ->
       free_variables_list Ident.Set.empty args
-  | Lstaticcatch(body, (_, params), handler, _kind) ->
+  | Lstaticcatch(body, (_, params), handler, _, _kind) ->
       Ident.Set.union
         (Ident.Set.diff
            (free_variables handler)
@@ -1269,10 +1275,10 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
            subst_opt s l default,
            loc,kind)
     | Lstaticraise (i,args) ->  Lstaticraise (i, subst_list s l args)
-    | Lstaticcatch(body, (id, params), handler, kind) ->
+    | Lstaticcatch(body, (id, params), handler, r, kind) ->
         let params, l' = bind_many params l in
         Lstaticcatch(subst s l body, (id, params),
-                     subst s l' handler, kind)
+                     subst s l' handler, r, kind)
     | Ltrywith(body, exn, handler,kind) ->
         let exn, l' = bind exn l in
         Ltrywith(subst s l body, exn, subst s l' handler,kind)
@@ -1401,8 +1407,8 @@ let shallow_map ~tail ~non_tail:f = function
         loc, layout)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
-  | Lstaticcatch (body, id, handler, layout) ->
-      Lstaticcatch (tail body, id, tail handler, layout)
+  | Lstaticcatch (body, id, handler, r, layout) ->
+      Lstaticcatch (tail body, id, tail handler, r, layout)
   | Ltrywith (e1, v, e2, layout) ->
       Ltrywith (f e1, v, tail e2, layout)
   | Lifthenelse (e1, e2, e3, layout) ->
@@ -1839,7 +1845,7 @@ let compute_expr_layout free_vars_kind lam =
     | Lprim(p, _, _) ->
       primitive_result_layout p
     | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
-    | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
+    | Lstaticcatch(_, _, _, _, kind) | Ltrywith(_, _, _, kind)
     | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
       kind
     | Lstaticraise (_, _) ->

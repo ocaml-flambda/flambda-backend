@@ -121,9 +121,18 @@ type add_continuation_result =
     extra_params : (Ident.t * Flambda_kind.With_subkind.t) list
   }
 
-let add_continuation t cont ~push_to_try_stack (recursive : Asttypes.rec_flag) =
+let add_continuation t cont ~push_to_try_stack ~pop_region
+    (recursive : Asttypes.rec_flag) =
+  let region_stack =
+    if pop_region then
+      match t.region_stack with
+      | [] -> Misc.fatal_error "Cannot pop region, region stack is empty"
+      | _ :: region_stack -> region_stack
+    else
+      t.region_stack
+  in
   let region_stack_in_cont_scope =
-    Continuation.Map.add cont t.region_stack t.region_stack_in_cont_scope
+    Continuation.Map.add cont region_stack t.region_stack_in_cont_scope
   in
   let body_env =
     let mutables_needed_by_continuations =
@@ -171,7 +180,8 @@ let add_continuation t cont ~push_to_try_stack (recursive : Asttypes.rec_flag) =
     { handler_env with
       current_values_of_mutables_in_scope;
       unboxed_product_components_in_scope;
-      region_stack_in_cont_scope
+      region_stack_in_cont_scope;
+      region_stack
     }
   in
   let extra_params_for_unboxed_products =
@@ -184,15 +194,13 @@ let add_continuation t cont ~push_to_try_stack (recursive : Asttypes.rec_flag) =
   in
   { body_env; handler_env; extra_params }
 
-let add_static_exn_continuation t static_exn cont =
+let add_static_exn_continuation t static_exn ~pop_region cont =
   let t =
     { t with
       try_stack_at_handler =
         Continuation.Map.add cont t.try_stack t.try_stack_at_handler;
       static_exn_continuation =
         Numeric_types.Int.Map.add static_exn cont t.static_exn_continuation;
-      region_stack_in_cont_scope =
-        Continuation.Map.add cont t.region_stack t.region_stack_in_cont_scope
     }
   in
   let recursive : Asttypes.rec_flag =
@@ -200,7 +208,8 @@ let add_static_exn_continuation t static_exn cont =
     then Recursive
     else Nonrecursive
   in
-  add_continuation t cont ~push_to_try_stack:false recursive
+  add_continuation t cont
+    ~push_to_try_stack:false ~pop_region recursive
 
 let get_static_exn_continuation t static_exn =
   match Numeric_types.Int.Map.find static_exn t.static_exn_continuation with
