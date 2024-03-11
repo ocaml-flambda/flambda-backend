@@ -851,6 +851,12 @@ module Lattices_mono = struct
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
+    | Meet_with c0, Meet_with c1 -> Some (Meet_with (meet dst c0 c1))
+    | Join_with c0, Join_with c1 -> Some (Join_with (join dst c0 c1))
+    | Meet_with c0, m1 when (le dst (max dst) c0) ->
+      Some m1
+    | Join_with c0, m1 when (le dst c0 (min dst)) ->
+      Some m1
     | Compose (f0, f1), g -> (
       let mid = src dst f0 in
       match maybe_compose mid f1 g with
@@ -882,6 +888,46 @@ module Lattices_mono = struct
     | Regional_to_local, Local_to_regional -> Some Id
     | Regional_to_local, Global_to_regional -> Some (Join_with Locality.Local)
     | Regional_to_local, Locality_as_regionality -> Some Id
+    | Regional_to_local, Meet_with c ->
+      Some (compose dst (Meet_with (regional_to_local c)) Regional_to_local)
+    | Regional_to_local, Join_with c ->
+      Some (compose dst (Join_with (regional_to_local c)) Regional_to_local)
+    | Regional_to_global, Join_with c ->
+      Some (compose dst (Join_with (regional_to_global c)) Regional_to_global)
+    | Regional_to_global, Meet_with c ->
+      Some (compose dst (Meet_with (regional_to_global c)) Regional_to_global)
+    | Local_to_regional, Meet_with c ->
+      Some (compose dst (Meet_with (local_to_regional c)) Local_to_regional)
+    | Local_to_regional, Join_with c ->
+      Some (compose dst (Join_with (local_to_regional c)) Local_to_regional)
+    | Global_to_regional, Meet_with c ->
+      Some (compose dst (Meet_with (global_to_regional c)) Global_to_regional)
+    | Global_to_regional, Join_with c ->
+      Some (compose dst (Join_with (global_to_regional c)) Global_to_regional)
+    | Locality_as_regionality, Meet_with c ->
+      Some (compose dst (Meet_with (locality_as_regionality c)) Locality_as_regionality)
+    | Locality_as_regionality, Join_with c ->
+      Some (compose dst (Join_with (locality_as_regionality c)) Locality_as_regionality)
+    | Unique_to_linear, Meet_with c ->
+      Some (compose dst (Meet_with (unique_to_linear c)) Unique_to_linear)
+    | Unique_to_linear, Join_with c ->
+      Some (compose dst (Join_with (unique_to_linear c)) Unique_to_linear)
+    | Linear_to_unique, Meet_with c ->
+      Some (compose dst (Meet_with (linear_to_unique c)) Linear_to_unique)
+    | Linear_to_unique, Join_with c ->
+      Some (compose dst (Join_with (linear_to_unique c)) Linear_to_unique)
+    | Map_comonadic f, Join_with c ->
+      let dst0 = proj_obj Areality dst in
+      let areality, linearity = c in
+      Some (compose dst (Join_with (min_with dst Linearity linearity))
+          (Map_comonadic (compose dst0 f (Join_with areality)))
+      )
+    | Map_comonadic f, Meet_with c ->
+      let dst0 = proj_obj Areality dst in
+      let areality, linearity = c in
+      Some (compose dst (Meet_with (max_with dst Linearity linearity))
+          (Map_comonadic (compose dst0 f (Meet_with areality)))
+      )
     | Regional_to_global, Locality_as_regionality -> Some Id
     | Regional_to_global, Local_to_regional -> Some (Meet_with Locality.Global)
     | Local_to_regional, Regional_to_local -> None
