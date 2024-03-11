@@ -643,7 +643,6 @@ module E = struct
     | el -> List.map (map_snd (sub.expr sub)) el
 
   let map_modes_exp sub : Modes.expression -> Modes.expression = function
-    (* CR modes: One day mappers might want to see the modes *)
     | Coerce (modes, exp) ->
         Coerce (sub.modes sub modes, sub.expr sub exp)
 
