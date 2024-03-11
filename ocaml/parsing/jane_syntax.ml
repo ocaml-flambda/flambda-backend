@@ -1,5 +1,4 @@
 open Asttypes
-open Jane_asttypes
 open Parsetree
 open Jane_syntax_parsing
 
@@ -184,6 +183,20 @@ module type Payload_protocol = sig
   end
 end
 
+module type Structure_item_encodable = sig
+  type t
+
+  val of_structure_item : structure_item -> t loc option
+
+  val to_structure_item : t loc -> structure_item
+
+  (** For error messages: a name that can be used to identify the
+      [t] being converted to and from string, and its indefinite
+      article (either "a" or "an").
+  *)
+  val indefinite_article_and_name : string * string
+end
+
 module type Stringable = sig
   type t
 
@@ -198,16 +211,30 @@ module type Stringable = sig
   val indefinite_article_and_name : string * string
 end
 
-module Make_payload_protocol_of_stringable (Stringable : Stringable) :
-  Payload_protocol with type t := Stringable.t = struct
-  module Encode = struct
-    let as_expr t_loc =
-      let string = Stringable.to_string t_loc.txt in
+module Make_structure_item_encodable_of_stringable (Stringable : Stringable) :
+  Structure_item_encodable with type t = Stringable.t = struct
+  include Stringable
+
+  let to_structure_item t_loc =
+    let string = Stringable.to_string t_loc.txt in
+    let expr =
       Ast_helper.Exp.ident (Location.mkloc (Longident.Lident string) t_loc.loc)
+    in
+    { pstr_desc = Pstr_eval (expr, []); pstr_loc = Location.none }
 
-    let structure_item_of_expr expr =
-      { pstr_desc = Pstr_eval (expr, []); pstr_loc = Location.none }
+  let of_structure_item = function
+    | { pstr_desc = Pstr_eval ({ pexp_desc = Pexp_ident payload_lid; _ }, _) }
+      -> (
+      match Stringable.of_string (Longident.last payload_lid.txt) with
+      | Some t -> Some (Location.mkloc t payload_lid.loc)
+      | None -> None)
+    | _ -> None
+end
 
+module Make_payload_protocol_of_structure_item_encodable
+    (Encodable : Structure_item_encodable) :
+  Payload_protocol with type t := Encodable.t = struct
+  module Encode = struct
     let structure_item_of_none =
       { pstr_desc =
           Pstr_attribute
@@ -218,14 +245,10 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         pstr_loc = Location.none
       }
 
-    let as_payload t_loc =
-      let expr = as_expr t_loc in
-      PStr [structure_item_of_expr expr]
+    let as_payload t_loc = PStr [Encodable.to_structure_item t_loc]
 
     let list_as_payload t_locs =
-      let items =
-        List.map (fun t_loc -> structure_item_of_expr (as_expr t_loc)) t_locs
-      in
+      let items = List.map Encodable.to_structure_item t_locs in
       PStr items
 
     let option_list_as_payload t_locs =
@@ -233,7 +256,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         List.map
           (function
             | None -> structure_item_of_none
-            | Some t_loc -> structure_item_of_expr (as_expr t_loc))
+            | Some t_loc -> Encodable.to_structure_item t_loc)
           t_locs
       in
       PStr items
@@ -244,7 +267,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
 
     let report_error ~loc = function
       | Unknown_payload payload ->
-        let indefinite_article, name = Stringable.indefinite_article_and_name in
+        let indefinite_article, name = Encodable.indefinite_article_and_name in
         Location.errorf ~loc "Attribute payload does not name %s %s:@;%a"
           indefinite_article name (Printast.payload 0) payload
 
@@ -263,35 +286,25 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
     open struct
       exception Unexpected
 
-      let from_expr = function
-        | { pexp_desc = Pexp_ident payload_lid; _ } ->
-          let t =
-            match Stringable.of_string (Longident.last payload_lid.txt) with
-            | None -> raise Unexpected
-            | Some t -> t
-          in
-          Location.mkloc t payload_lid.loc
-        | _ -> raise Unexpected
-
-      let expr_of_structure_item = function
-        | { pstr_desc = Pstr_eval (expr, _) } -> expr
-        | _ -> raise Unexpected
-
       let is_none_structure_item = function
         | { pstr_desc = Pstr_attribute { attr_name = { txt = "jane.none" } } }
           ->
           true
         | _ -> false
 
+      let from_structure_item item =
+        match Encodable.of_structure_item item with
+        | Some t_loc -> t_loc
+        | None -> raise Unexpected
+
       let from_payload payload =
         match payload with
-        | PStr [item] -> from_expr (expr_of_structure_item item)
+        | PStr [item] -> from_structure_item item
         | _ -> raise Unexpected
 
       let list_from_payload payload =
         match payload with
-        | PStr items ->
-          List.map (fun item -> from_expr (expr_of_structure_item item)) items
+        | PStr items -> List.map (fun item -> from_structure_item item) items
         | _ -> raise Unexpected
 
       let option_list_from_payload payload =
@@ -301,7 +314,7 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
             (fun item ->
               if is_none_structure_item item
               then None
-              else Some (from_expr (expr_of_structure_item item)))
+              else Some (from_structure_item item))
             items
         | _ -> raise Unexpected
     end
@@ -320,85 +333,10 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
   end
 end
 
-module Stringable_const_jkind = struct
-  type t = const_jkind
-
-  let indefinite_article_and_name = "a", "layout"
-
-  let to_string = jkind_to_string
-
-  let of_string t = Some (jkind_of_string t)
-end
-
-module Jkinds_pprint = struct
-  let const_jkind fmt cl =
-    Format.pp_print_string fmt (Stringable_const_jkind.to_string cl)
-
-  let jkind_annotation fmt ann = const_jkind fmt ann.txt
-end
-
-(** Jkind annotations' encoding as attribute payload, used in both n-ary
-    functions and jkinds. *)
-module Jkind_annotation : sig
-  include Payload_protocol with type t := const_jkind
-
-  module Decode : sig
-    include module type of Decode
-
-    val bound_vars_from_vars_and_payload :
-      loc:Location.t ->
-      string Location.loc list ->
-      payload ->
-      (string Location.loc * jkind_annotation option) list
-  end
-end = struct
-  module Protocol = Make_payload_protocol_of_stringable (Stringable_const_jkind)
-
-  (*******************************************************)
-  (* Conversions with a payload *)
-
-  module Encode = Protocol.Encode
-
-  module Decode = struct
-    include Protocol.Decode
-
-    module Desugaring_error = struct
-      type error =
-        | Wrong_number_of_jkinds of int * jkind_annotation option list
-
-      let report_error ~loc = function
-        | Wrong_number_of_jkinds (n, jkinds) ->
-          Location.errorf ~loc
-            "Wrong number of layouts in an layout attribute;@;\
-             expecting %i but got this list:@;\
-             %a"
-            n
-            (Format.pp_print_list
-               (Format.pp_print_option
-                  ~none:(fun ppf () -> Format.fprintf ppf "None")
-                  Jkinds_pprint.jkind_annotation))
-            jkinds
-
-      exception Error of Location.t * error
-
-      let () =
-        Location.register_error_of_exn (function
-          | Error (loc, err) -> Some (report_error ~loc err)
-          | _ -> None)
-
-      let raise ~loc err = raise (Error (loc, err))
-    end
-
-    let bound_vars_from_vars_and_payload ~loc var_names payload =
-      let jkinds = option_list_from_payload ~loc payload in
-      try List.combine var_names jkinds
-      with
-      (* seems silly to check the length in advance when [combine] does *)
-      | Invalid_argument _ ->
-        Desugaring_error.raise ~loc
-          (Wrong_number_of_jkinds (List.length var_names, jkinds))
-  end
-end
+module Make_payload_protocol_of_stringable (Stringable : Stringable) :
+  Payload_protocol with type t := Stringable.t =
+  Make_payload_protocol_of_structure_item_encodable
+    (Make_structure_item_encodable_of_stringable (Stringable))
 
 module Mode_expr = struct
   module Const : sig
@@ -539,6 +477,174 @@ module Modes = struct
       in
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Exp.apply ~loc ext [Nolabel, body])
+end
+
+module Stringable_prim_jkind = struct
+  type t = string
+
+  let indefinite_article_and_name = "a", "primitive kind"
+
+  let to_string t = t
+
+  let of_string t = Some t
+end
+
+module Jkind = struct
+  type t =
+    | Default
+    | Primitive_layout_or_abbreviation of string loc
+    | Mod of t * Mode_expr.t
+    | With of t * core_type
+    | Kind_of of core_type
+
+  type annotation = t loc
+
+  let indefinite_article_and_name = "a", "kind"
+
+  let prefix = "jane.erasable.layouts."
+
+  let struct_item_of_attr attr =
+    { pstr_desc = Pstr_attribute attr; pstr_loc = Location.none }
+
+  let struct_item_to_attr item =
+    match item with
+    | { pstr_desc = Pstr_attribute attr; _ } -> Some attr
+    | _ -> None
+
+  let struct_item_of_type ty =
+    { pstr_desc =
+        Pstr_type
+          (Recursive, [Ast_helper.Type.mk ~manifest:ty (Location.mknoloc "t")]);
+      pstr_loc = Location.none
+    }
+
+  let struct_item_to_type item =
+    match item with
+    | { pstr_desc = Pstr_type (Recursive, [decl]); _ } -> decl.ptype_manifest
+    | _ -> None
+
+  let struct_item_of_list name list loc =
+    struct_item_of_attr
+      { attr_name = Location.mknoloc (prefix ^ name);
+        attr_payload = PStr list;
+        attr_loc = loc
+      }
+
+  let struct_item_to_list item =
+    let strip_prefix s =
+      let prefix_len = String.length prefix in
+      String.sub s prefix_len (String.length s - prefix_len)
+    in
+    match item with
+    | { pstr_desc =
+          Pstr_attribute
+            { attr_name = name; attr_payload = PStr list; attr_loc = loc };
+        _
+      }
+      when String.starts_with ~prefix name.txt ->
+      Some (strip_prefix name.txt, list, loc)
+    | _ -> None
+
+  module Prim_jkind =
+    Make_structure_item_encodable_of_stringable (Stringable_prim_jkind)
+
+  let rec to_structure_item t_loc =
+    let to_structure_item t = to_structure_item (Location.mknoloc t) in
+    match t_loc.txt with
+    | Default -> struct_item_of_list "default" [] t_loc.loc
+    | Primitive_layout_or_abbreviation c ->
+      struct_item_of_list "prim" [Prim_jkind.to_structure_item c] t_loc.loc
+    | Mod (t, mode_expr) ->
+      let mode_expr_item =
+        match Mode_expr.attr_of mode_expr with
+        | Some attr -> struct_item_of_attr attr
+        | None -> Misc.fatal_error "Can't encode empty mode expression"
+      in
+      struct_item_of_list "mod" [to_structure_item t; mode_expr_item] t_loc.loc
+    | With (t, ty) ->
+      struct_item_of_list "with"
+        [to_structure_item t; struct_item_of_type ty]
+        t_loc.loc
+    | Kind_of ty ->
+      struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+
+  (* let rec to_structure_item t_loc = function
+     | Primitive_layout_or_abbreviation const_jkind
+     | *)
+  let rec of_structure_item item =
+    let bind = Option.bind in
+    let ret loc v = Some (Location.mkloc v loc) in
+    match struct_item_to_list item with
+    | Some ("default", [], loc) -> ret loc Default
+    | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
+      bind (of_structure_item item_of_t) (fun { txt = t } ->
+          bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
+              ret loc (Mod (t, Mode_expr.of_attr attr))))
+    | Some ("with", [item_of_t; item_of_ty], loc) ->
+      bind (of_structure_item item_of_t) (fun { txt = t } ->
+          bind (struct_item_to_type item_of_ty) (fun ty ->
+              ret loc (With (t, ty))))
+    | Some ("kind_of", [item_of_ty], loc) ->
+      bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
+    | Some ("prim", [item], loc) ->
+      bind (Prim_jkind.of_structure_item item) (fun c ->
+          ret loc (Primitive_layout_or_abbreviation c))
+    | Some _ | None -> None
+end
+
+(** Jkind annotations' encoding as attribute payload, used in both n-ary
+    functions and jkinds. *)
+module Jkind_annotation : sig
+  include Payload_protocol with type t := Jkind.t
+
+  module Decode : sig
+    include module type of Decode
+
+    val bound_vars_from_vars_and_payload :
+      loc:Location.t ->
+      string Location.loc list ->
+      payload ->
+      (string Location.loc * Jkind.annotation option) list
+  end
+end = struct
+  module Protocol = Make_payload_protocol_of_structure_item_encodable (Jkind)
+
+  (*******************************************************)
+  (* Conversions with a payload *)
+
+  module Encode = Protocol.Encode
+
+  module Decode = struct
+    include Protocol.Decode
+
+    module Desugaring_error = struct
+      type error =
+        | Wrong_number_of_jkinds of int * Jkind.annotation option list
+
+      let report_error ~loc = function
+        | Wrong_number_of_jkinds (n, _jkinds) ->
+          Location.errorf ~loc
+            "Wrong number of kinds in an kind attribute;@;expecting %i." n
+
+      exception Error of Location.t * error
+
+      let () =
+        Location.register_error_of_exn (function
+          | Error (loc, err) -> Some (report_error ~loc err)
+          | _ -> None)
+
+      let raise ~loc err = raise (Error (loc, err))
+    end
+
+    let bound_vars_from_vars_and_payload ~loc var_names payload =
+      let jkinds = option_list_from_payload ~loc payload in
+      try List.combine var_names jkinds
+      with
+      (* seems silly to check the length in advance when [combine] does *)
+      | Invalid_argument _ ->
+        Desugaring_error.raise ~loc
+          (Wrong_number_of_jkinds (List.length var_names, jkinds))
+  end
 end
 
 (** List and array comprehensions *)
@@ -799,7 +905,7 @@ module N_ary_functions = struct
 
   type function_param_desc =
     | Pparam_val of arg_label * expression option * pattern
-    | Pparam_newtype of string loc * jkind_annotation option
+    | Pparam_newtype of string loc * Jkind.annotation option
 
   type function_param =
     { pparam_desc : function_param_desc;
@@ -831,7 +937,7 @@ module N_ary_functions = struct
       | Top_level
       | Fun_then of after_fun
       | Mode_constraint of Mode_expr.t
-      | Jkind_annotation of const_jkind loc
+      | Jkind_annotation of Jkind.annotation
 
     (* We return an [of_suffix_result] from [of_suffix] rather than having
        [of_suffix] interpret the payload for two reasons:
@@ -893,7 +999,7 @@ module N_ary_functions = struct
       | Expected_constraint_or_coerce
       | Expected_function_cases of Attribute_node.t
       | Expected_fun_or_newtype of Attribute_node.t
-      | Expected_newtype_with_jkind_annotation of jkind_annotation
+      | Expected_newtype_with_jkind_annotation of Jkind.annotation
       | Parameterless_function
 
     let report_error ~loc = function
@@ -1487,35 +1593,36 @@ module Layouts = struct
 
   type nonrec expression =
     | Lexp_constant of constant
-    | Lexp_newtype of string loc * jkind_annotation * expression
+    | Lexp_newtype of string loc * Jkind.annotation * expression
 
   type nonrec pattern = Lpat_constant of constant
 
   type nonrec core_type =
     | Ltyp_var of
         { name : string option;
-          jkind : jkind_annotation
+          jkind : Jkind.annotation
         }
     | Ltyp_poly of
-        { bound_vars : (string loc * jkind_annotation option) list;
+        { bound_vars : (string loc * Jkind.annotation option) list;
           inner_type : core_type
         }
     | Ltyp_alias of
         { aliased_type : core_type;
           name : string option;
-          jkind : jkind_annotation
+          jkind : Jkind.annotation
         }
 
   type nonrec extension_constructor =
     | Lext_decl of
-        (string Location.loc * jkind_annotation option) list
+        (string Location.loc * Jkind.annotation option) list
         * constructor_arguments
         * Parsetree.core_type option
 
-  (*******************************************************)
-  (* Pretty-printing *)
+  type signature_item =
+    | Lsig_kind_abbrev of string Location.loc * Jkind.annotation
 
-  module Pprint = Jkinds_pprint
+  type structure_item =
+    | Lstr_kind_abbrev of string Location.loc * Jkind.annotation
 
   (*******************************************************)
   (* Errors *)
@@ -1863,6 +1970,59 @@ module Layouts = struct
 
   let of_type_declaration =
     Type_declaration.make_of_ast ~of_ast_internal:of_type_declaration_internal
+
+  (*********************************************************)
+  (* Constructing a [signature_item] for kind_abbrev *)
+
+  let attr_name_of name =
+    Location.map
+      (fun s ->
+        let embed = Embedded_name.of_feature feature ["kind_abbrev"; s] in
+        Embedded_name.to_string embed)
+      name
+
+  let of_attr_name attr_name =
+    Location.map
+      (fun s ->
+        match Embedded_name.of_string s with
+        | Some (Ok embed) -> (
+          match Embedded_name.components embed with
+          | _ :: ["kind_abbrev"; name] -> name
+          | _ -> failwith "Malformed [kind_abbrev] attribute")
+        | None | Some (Error _) -> failwith "Malformed [kind_abbrev] attribute")
+      attr_name
+
+  let sig_item_of ~loc = function
+    | Lsig_kind_abbrev (name, jkind) ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
+          let payload = Encode.as_payload jkind in
+          Ast_helper.Sig.attribute
+            (Ast_helper.Attr.mk (attr_name_of name) payload))
+
+  let of_sig_item sigi =
+    match sigi.psig_desc with
+    | Psig_attribute { attr_name; attr_payload; _ } ->
+      Lsig_kind_abbrev
+        ( of_attr_name attr_name,
+          Decode.from_payload ~loc:sigi.psig_loc attr_payload )
+    | _ -> failwith "Malformed [kind_abbrev] in signature"
+
+  let str_item_of ~loc = function
+    | Lstr_kind_abbrev (name, jkind) ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
+          let payload = Encode.as_payload jkind in
+          Ast_helper.Str.attribute
+            (Ast_helper.Attr.mk (attr_name_of name) payload))
+
+  let of_str_item stri =
+    match stri.pstr_desc with
+    | Pstr_attribute { attr_name; attr_payload; _ } ->
+      Lstr_kind_abbrev
+        ( of_attr_name attr_name,
+          Decode.from_payload ~loc:stri.pstr_loc attr_payload )
+    | _ -> failwith "Malformed [kind_abbrev] in structure"
 end
 
 (******************************************************************************)
@@ -2026,24 +2186,32 @@ module Module_type = struct
 end
 
 module Signature_item = struct
-  type t = Jsig_include_functor of Include_functor.signature_item
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+    | Jsig_layout of Layouts.signature_item
 
   let of_ast_internal (feat : Feature.t) sigi =
     match feat with
     | Language_extension Include_functor ->
       Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
+    | Language_extension Layouts ->
+      Some (Jsig_layout (Layouts.of_sig_item sigi))
     | _ -> None
 
   let of_ast = Signature_item.make_of_ast ~of_ast_internal
 end
 
 module Structure_item = struct
-  type t = Jstr_include_functor of Include_functor.structure_item
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+    | Jstr_layout of Layouts.structure_item
 
   let of_ast_internal (feat : Feature.t) stri =
     match feat with
     | Language_extension Include_functor ->
       Some (Jstr_include_functor (Include_functor.of_str_item stri))
+    | Language_extension Layouts ->
+      Some (Jstr_layout (Layouts.of_str_item stri))
     | _ -> None
 
   let of_ast = Structure_item.make_of_ast ~of_ast_internal

@@ -185,9 +185,13 @@ let predef_jkind_annotation const =
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-         { txt = Jane_asttypes.jkind_of_string (Jkind.string_of_const const);
-           loc = Location.none;
-         }
+        let jkind_annot_of_prim_name name =
+          Jane_syntax.Jkind.Primitive_layout_or_abbreviation name
+        in
+        Jkind.string_of_const const
+        |> Location.mknoloc
+        |> jkind_annot_of_prim_name
+        |> Location.mknoloc
        in
        const, user_written)
     const
