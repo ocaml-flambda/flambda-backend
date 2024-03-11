@@ -86,6 +86,8 @@ module Witnesses : sig
 
   val join : t -> t -> t
 
+  val lessequal : t -> t -> bool
+
   val create : Witness.kind -> Debuginfo.t -> t
 
   val print : Format.formatter -> t -> unit
@@ -106,6 +108,8 @@ end = struct
      limit the size of this set. The downside is that it won't get tested as
      much. Only keep witnesses for functions that need checking. *)
   let join = union
+
+  let lessequal = subset
 
   let create kind dbg = singleton (Witness.create dbg kind)
 
@@ -169,7 +173,7 @@ end = struct
     match v1, v2 with
     | Bot, Bot -> true
     | Safe, Safe -> true
-    | Top _, Top _ -> true
+    | Top w1, Top w2 -> Witnesses.lessequal w1 w2
     | Bot, Safe -> true
     | Bot, Top _ -> true
     | Safe, Top _ -> true
@@ -193,11 +197,15 @@ end = struct
     match t with Top w -> w | Bot | Safe -> Witnesses.empty
 
   let diff_witnesses ~expected ~actual =
-    if lessequal actual expected
-    then Witnesses.empty
-    else (
-      assert (expected = Safe);
-      match actual with Bot | Safe -> assert false | Top w -> w)
+    (* If [actual] is Top and [expected] is not Top then return the [actual]
+       witnesses. Otherwise, return empty. *)
+    match actual, expected with
+    | Bot, Bot | Safe, Safe | Bot, Safe -> Witnesses.empty
+    | Bot, Top w | Safe, Top w | Top _, Top w ->
+      assert (Witnesses.is_empty w);
+      Witnesses.empty
+    | Safe, Bot -> Witnesses.empty
+    | Top w, (Bot | Safe) -> w
 
   let is_not_safe = function Top _ -> true | Safe | Bot -> false
 
@@ -321,6 +329,13 @@ module Annotation : sig
 
   val expected_value : t -> Value.t
 
+  (** [valid t value] returns true if and only if the [value] satisfies the annotation,
+      i.e., [value] is less or equal to [expected_value a] when ignoring witnesses. *)
+
+  val valid : t -> Value.t -> bool
+
+  val diff_witnesses : t -> Value.t -> Witnesses.components
+
   val is_assume : t -> bool
 
   val is_strict : t -> bool
@@ -358,6 +373,16 @@ end = struct
   let expected_value t =
     let res = if t.strict then Value.safe else Value.relaxed Witnesses.empty in
     if t.never_returns_normally then { res with nor = V.Bot } else res
+
+  let valid t v =
+    (* Use Value.lessequal but ignore witnesses. *)
+    let expected = expected_value t in
+    let actual = Value.replace_witnesses Witnesses.empty v in
+    Value.lessequal actual expected
+
+  let diff_witnesses t v =
+    let expected = expected_value t in
+    Value.diff_witnesses ~actual:v ~expected
 
   let is_assume t = t.assume
 
@@ -756,10 +781,9 @@ end = struct
       | Some a ->
         Builtin_attributes.mark_property_checked analysis_name
           (Annotation.get_loc a);
-        let expected_value = Annotation.expected_value a in
         if (not (Annotation.is_assume a))
            && S.enabled ()
-           && not (Value.lessequal func_info.value expected_value)
+           && not (Annotation.valid a func_info.value)
         then
           (* CR-soon gyorsh: keeping track of all the witnesses until the end of
              the compilation unit will be expensive. For functions that do not
@@ -770,10 +794,7 @@ end = struct
           (* CR gyorsh: we can add error recovering mode where we sets the
              expected value as the actual value and continue analysis of other
              functions. *)
-          let witnesses =
-            Value.diff_witnesses ~expected:expected_value
-              ~actual:func_info.value
-          in
+          let witnesses = Annotation.diff_witnesses a func_info.value in
           errors
             := { Report.a;
                  fun_name = func_info.name;
