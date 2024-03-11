@@ -547,17 +547,10 @@ module Lattices_mono = struct
         (** Combine an axis with maxima along other axes *)
     | Min_with : ('t, 'r_) axis -> ('r_, 't, 'l * disallowed) morph
         (** Combine an axis with minima along other axes *)
-    (* Idealy we want to merge [Map_comonadic] and [Map_monadic] into a single
-       [Map], but I find it difficult. The benefit (in terms of code reduction)
-       of doing that is also unclear. *)
     | Map_comonadic :
-        ('a0, 'a1, 'd) morph * (Linearity.t, Linearity.t, 'd) morph
+        ('a0, 'a1, 'd) morph
         -> ('a0 comonadic_with, 'a1 comonadic_with, 'd) morph
-        (** Maps the comonads per-axis *)
-    | Map_monadic :
-        (Uniqueness_op.t, Uniqueness_op.t, 'd) morph
-        -> (Monadic_op.t, Monadic_op.t, 'd) morph
-        (** Maps the monads per-axis *)
+        (** Lift an morphism on areality to a morphism on the comonadic fragment   *)
     | Unique_to_linear : (Uniqueness_op.t, Linearity.t, 'l * 'r) morph
         (** Returns the linearity dual to the given uniqueness *)
     | Linear_to_unique : (Linearity.t, Uniqueness_op.t, 'l * 'r) morph
@@ -598,13 +591,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Map_comonadic (f0, f1) ->
-        let f0 = allow_left f0 in
-        let f1 = allow_left f1 in
-        Map_comonadic (f0, f1)
-      | Map_monadic f0 ->
-        let f0 = allow_left f0 in
-        Map_monadic f0
+      | Map_comonadic f ->
+        let f = allow_left f in
+        Map_comonadic f
 
     let rec allow_right :
         type a b l r. (a, b, l * allowed) morph -> (a, b, l * r) morph =
@@ -624,13 +613,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Map_comonadic (f0, f1) ->
-        let f0 = allow_right f0 in
-        let f1 = allow_right f1 in
-        Map_comonadic (f0, f1)
-      | Map_monadic f0 ->
-        let f0 = allow_right f0 in
-        Map_monadic f0
+      | Map_comonadic f ->
+        let f = allow_right f in
+        Map_comonadic f
 
     let rec disallow_left :
         type a b l r. (a, b, l * r) morph -> (a, b, disallowed * r) morph =
@@ -654,13 +639,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Map_comonadic (f0, f1) ->
-        let f0 = disallow_left f0 in
-        let f1 = disallow_left f1 in
-        Map_comonadic (f0, f1)
-      | Map_monadic f0 ->
-        let f0 = disallow_left f0 in
-        Map_monadic f0
+      | Map_comonadic f ->
+        let f = disallow_left f in
+        Map_comonadic f
 
     let rec disallow_right :
         type a b l r. (a, b, l * r) morph -> (a, b, l * disallowed) morph =
@@ -684,13 +665,9 @@ module Lattices_mono = struct
       | Locality_as_regionality -> Locality_as_regionality
       | Regional_to_local -> Regional_to_local
       | Regional_to_global -> Regional_to_global
-      | Map_comonadic (f0, f1) ->
-        let f0 = disallow_right f0 in
-        let f1 = disallow_right f1 in
-        Map_comonadic (f0, f1)
-      | Map_monadic f0 ->
-        let f0 = disallow_right f0 in
-        Map_monadic f0
+      | Map_comonadic f ->
+        let f = disallow_right f in
+        Map_comonadic f
   end)
 
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
@@ -714,11 +691,10 @@ module Lattices_mono = struct
     | Global_to_regional -> Locality
     | Regional_to_local -> Regionality
     | Regional_to_global -> Regionality
-    | Map_comonadic (f0, _) ->
+    | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let src0 = src dst0 f0 in
+      let src0 = src dst0 f in
       comonadic_with_obj src0
-    | Map_monadic _ -> Monadic_op
 
   module Equal_morph = Magic_equal (struct
     type ('a, 'b, 'd) t = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
@@ -764,17 +740,13 @@ module Lattices_mono = struct
         | None -> None
         | Some Refl -> (
           match equal g0 g1 with None -> None | Some Refl -> Some Refl))
-      | Map_comonadic (f0, f1), Map_comonadic (g0, g1) -> (
-        match equal f0 g0, equal f1 g1 with
-        | Some Refl, Some Refl -> Some Refl
-        | None, _ | _, None -> None)
-      | Map_monadic f0, Map_monadic g0 -> (
-        match equal f0 g0 with Some Refl -> Some Refl | None -> None)
+      | Map_comonadic f, Map_comonadic g -> (
+        match equal f g with Some Refl -> Some Refl | None -> None)
       | ( ( Id | Proj _ | Max_with _ | Min_with _ | Meet_with _ | Join_with _
           | Unique_to_linear | Linear_to_unique | Local_to_regional
           | Locality_as_regionality | Global_to_regional | Regional_to_local
-          | Regional_to_global | Compose _ | Map_comonadic _ | Map_monadic _
-          | Imply _ | Subtract _ ),
+          | Regional_to_global | Compose _ | Map_comonadic _ | Imply _
+          | Subtract _ ),
           _ ) ->
         None
   end)
@@ -792,14 +764,9 @@ module Lattices_mono = struct
     | Proj (_, ax) -> Format.fprintf ppf "proj_%a" print_axis ax
     | Max_with ax -> Format.fprintf ppf "max_with_%a" print_axis ax
     | Min_with ax -> Format.fprintf ppf "min_with_%a" print_axis ax
-    | Map_comonadic (f0, f1) ->
+    | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
-      Format.fprintf ppf "map_comonadic(%a,%a)" (print_morph dst0) f0
-        (print_morph dst1) f1
-    | Map_monadic f0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      Format.fprintf ppf "map_monadic(%a)" (print_morph dst0) f0
+      Format.fprintf ppf "map_comonadic(%a)" (print_morph dst0) f
     | Unique_to_linear -> Format.fprintf ppf "unique_to_linear"
     | Linear_to_unique -> Format.fprintf ppf "linear_to_unique"
     | Local_to_regional -> Format.fprintf ppf "local_to_regional"
@@ -843,6 +810,10 @@ module Lattices_mono = struct
     | Locality.Local -> Regionality.Local
     | Locality.Global -> Regionality.Regional
 
+  let min_with dst ax a = update ax a (min dst)
+
+  let max_with dst ax a = update ax a (max dst)
+
   let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f a ->
     match f with
@@ -853,8 +824,8 @@ module Lattices_mono = struct
       f' (g' a)
     | Id -> a
     | Proj (_, ax) -> proj ax a
-    | Max_with ax -> update ax a (max dst)
-    | Min_with ax -> update ax a (min dst)
+    | Max_with ax -> max_with dst ax a
+    | Min_with ax -> min_with dst ax a
     | Meet_with c -> meet dst c a
     | Join_with c -> join dst c a
     | Imply c -> imply dst c a
@@ -866,15 +837,10 @@ module Lattices_mono = struct
     | Locality_as_regionality -> locality_as_regionality a
     | Regional_to_global -> regional_to_global a
     | Global_to_regional -> global_to_regional a
-    | Map_comonadic (f0, f1) ->
+    | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
       let a0, a1 = a in
-      apply dst0 f0 a0, apply dst1 f1 a1
-    | Map_monadic f0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      let a0, () = a in
-      apply dst0 f0 a0, ()
+      apply dst0 f a0, a1
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
@@ -903,24 +869,16 @@ module Lattices_mono = struct
       match eq_axis ax0 ax1 with None -> None | Some Refl -> Some Id)
     | Proj (_, ax0), Min_with ax1 -> (
       match eq_axis ax0 ax1 with None -> None | Some Refl -> Some Id)
-    | Proj (mid, ax), Map_comonadic (f0, f1) -> (
+    | Proj (mid, ax), Map_comonadic f -> (
       let src' = src mid m1 in
       match ax with
-      | Areality -> Some (compose dst f0 (Proj (src', Areality)))
-      | Linearity -> Some (compose dst f1 (Proj (src', Linearity))))
-    | Proj (mid, ax), Map_monadic f0 -> (
-      let src' = src mid m1 in
-      match ax with
-      | Uniqueness -> Some (compose dst f0 (Proj (src', Uniqueness))))
+      | Areality -> Some (compose dst f (Proj (src', Areality)))
+      | Linearity -> Some (Proj (src', Linearity)))
     | Unique_to_linear, Linear_to_unique -> Some Id
     | Linear_to_unique, Unique_to_linear -> Some Id
-    | Map_comonadic (f0, f1), Map_comonadic (g0, g1) ->
+    | Map_comonadic f, Map_comonadic g ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
-      Some (Map_comonadic (compose dst0 f0 g0, compose dst1 f1 g1))
-    | Map_monadic f0, Map_monadic g0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      Some (Map_monadic (compose dst0 f0 g0))
+      Some (Map_comonadic (compose dst0 f g))
     | Regional_to_local, Local_to_regional -> Some Id
     | Regional_to_local, Global_to_regional -> Some (Join_with Locality.Local)
     | Regional_to_local, Locality_as_regionality -> Some Id
@@ -945,7 +903,6 @@ module Lattices_mono = struct
     | Subtract _, _ -> None
     | _, Proj _ -> None
     | Map_comonadic _, _ -> None
-    | Map_monadic _, _ -> None
     | ( Proj _,
         ( Unique_to_linear | Linear_to_unique | Local_to_regional
         | Regional_to_local | Locality_as_regionality | Regional_to_global
@@ -989,16 +946,10 @@ module Lattices_mono = struct
     | Regional_to_global -> Locality_as_regionality
     | Locality_as_regionality -> Regional_to_local
     | Regional_to_local -> Local_to_regional
-    | Map_comonadic (f0, f1) ->
+    | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
-      let f0' = left_adjoint dst0 f0 in
-      let f1' = left_adjoint dst1 f1 in
-      Map_comonadic (f0', f1')
-    | Map_monadic f0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      let f0' = left_adjoint dst0 f0 in
-      Map_monadic f0'
+      let f' = left_adjoint dst0 f in
+      Map_comonadic f'
 
   and right_adjoint :
       type a b r.
@@ -1021,42 +972,10 @@ module Lattices_mono = struct
     | Regional_to_local -> Locality_as_regionality
     | Locality_as_regionality -> Regional_to_global
     | Regional_to_global -> Global_to_regional
-    | Map_comonadic (f0, f1) ->
+    | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let dst1 = proj_obj Linearity dst in
-      let f0' = right_adjoint dst0 f0 in
-      let f1' = right_adjoint dst1 f1 in
-      Map_comonadic (f0', f1')
-    | Map_monadic f0 ->
-      let dst0 = proj_obj Uniqueness dst in
-      let f0' = right_adjoint dst0 f0 in
-      Map_monadic f0'
-
-  (* Description of which component to set in a product.
-      [SAreality]: update the areality in ['a0 comonadic_with] to get ['a1 comonadic_with].
-      [SLinearity]: update the linearity in ['a0 comonadic_with] to get ['a0 comonadic_with].
-      In [('t0, 'r0, 't1, 'r1) saxis], we have these type parameters:
-      * ['t0]: the type of the product before the change
-      * ['r0]: the type of the axis to be changed, before the change
-      * ['t1]: the type of the product after the change
-      * ['r1]: the type of the axis to be changed, after the change
-  *)
-  type ('t0, 'r0, 't1, 'r1) saxis =
-    | SAreality : ('a0 comonadic_with, 'a0, 'a1 comonadic_with, 'a1) saxis
-    | SLinearity
-        : ('a comonadic_with, Linearity.t, 'a comonadic_with, Linearity.t) saxis
-    | SUniqueness
-        : (Monadic_op.t, Uniqueness.t, Monadic_op.t, Uniqueness.t) saxis
-
-  (** Helper functions that returns a [Map_comonadic] or [Map_monadic] that
-  corresponds to lifting *)
-  let lift (type t0 r0 t1 r1 d) :
-      (t0, r0, t1, r1) saxis -> (r0, r1, d) morph -> (t0, t1, d) morph =
-   fun sax f ->
-    match sax, f with
-    | SAreality, f0 -> Map_comonadic (f0, Id)
-    | SLinearity, f1 -> Map_comonadic (Id, f1)
-    | SUniqueness, f -> Map_monadic f
+      let f' = right_adjoint dst0 f in
+      Map_comonadic f'
 end
 
 module C = Lattices_mono
@@ -1290,12 +1209,12 @@ module Comonadic_with_regionality = struct
 
   let join_with_regionality c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SAreality (Join_with c))
+      (Join_with (C.min_with Obj.obj Areality c))
       (S.Positive.disallow_left m)
 
   let meet_with_regionality c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SAreality (Meet_with c))
+      (Meet_with (C.max_with Obj.obj Areality c))
       (S.Positive.disallow_right m)
 
   let linearity m =
@@ -1311,12 +1230,12 @@ module Comonadic_with_regionality = struct
 
   let join_with_linearity c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SLinearity (Join_with c))
+      (Join_with (C.min_with Obj.obj Linearity c))
       (S.Positive.disallow_left m)
 
   let meet_with_linearity c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SLinearity (Meet_with c))
+      (Meet_with (C.max_with Obj.obj Linearity c))
       (S.Positive.disallow_right m)
 
   let zap_to_legacy m =
@@ -1382,12 +1301,12 @@ module Comonadic_with_locality = struct
 
   let join_with_locality c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SAreality (Join_with c))
+      (Join_with (C.min_with Obj.obj Areality c))
       (S.Positive.disallow_left m)
 
   let meet_with_locality c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SAreality (Meet_with c))
+      (Meet_with (C.max_with Obj.obj Areality c))
       (S.Positive.disallow_right m)
 
   let linearity m =
@@ -1403,12 +1322,12 @@ module Comonadic_with_locality = struct
 
   let join_with_linearity c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SLinearity (Join_with c))
+      (Join_with (C.min_with Obj.obj Linearity c))
       (S.Positive.disallow_left m)
 
   let meet_with_linearity c m =
     S.Positive.via_monotone Obj.obj
-      (C.lift SLinearity (Meet_with c))
+      (Meet_with (C.max_with Obj.obj Linearity c))
       (S.Positive.disallow_right m)
 
   let zap_to_legacy m =
@@ -1476,12 +1395,12 @@ module Monadic = struct
 
   let join_with_uniqueness c m =
     S.Negative.via_monotone Obj.obj
-      (C.lift SUniqueness (Meet_with c))
+      (Meet_with (C.max_with Obj.obj Uniqueness c))
       (S.Negative.disallow_left m)
 
   let meet_with_uniqueness c m =
     S.Negative.via_monotone Obj.obj
-      (C.lift SUniqueness (Join_with c))
+      (Join_with (C.min_with Obj.obj Uniqueness c))
       (S.Negative.disallow_right m)
 
   let zap_to_legacy m =
@@ -2108,8 +2027,7 @@ let alloc_as_value m =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (C.lift SAreality Locality_as_regionality)
-      comonadic
+      (Map_comonadic Locality_as_regionality) comonadic
   in
   { comonadic; monadic }
 
@@ -2117,8 +2035,7 @@ let alloc_to_value_l2r m =
   let { comonadic; monadic } = Alloc.disallow_right m in
   let comonadic =
     S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (C.lift SAreality Local_to_regional)
-      comonadic
+      (Map_comonadic Local_to_regional) comonadic
   in
   { comonadic; monadic }
 
@@ -2127,8 +2044,7 @@ let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (C.lift SAreality Regional_to_global)
-      comonadic
+      (Map_comonadic Regional_to_global) comonadic
   in
   { comonadic; monadic }
 
@@ -2136,7 +2052,6 @@ let value_to_alloc_r2l m =
   let { comonadic; monadic } = m in
   let comonadic =
     S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (C.lift SAreality Regional_to_local)
-      comonadic
+      (Map_comonadic Regional_to_local) comonadic
   in
   { comonadic; monadic }
