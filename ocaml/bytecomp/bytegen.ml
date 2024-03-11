@@ -892,7 +892,7 @@ let rec comp_expr stack_info env exp sz cont =
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
         (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler, _) ->
+  | Lstaticcatch (body, (i, vars) , handler, _, _) ->
       let vars = List.map fst vars in
       let nvars = List.length vars in
       let branch1, cont1 = make_branch cont in

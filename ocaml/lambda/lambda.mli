@@ -582,6 +582,10 @@ type lparam = {
 
 type scoped_location = Debuginfo.Scoped_location.t
 
+type pop_region =
+  | Popped_region
+  | Same_region
+
 type lambda =
     Lvar of Ident.t
   | Lmutvar of Ident.t
@@ -598,7 +602,9 @@ type lambda =
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
-  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Lstaticcatch of
+      lambda * (static_label * (Ident.t * layout) list) * lambda
+      * pop_region * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)

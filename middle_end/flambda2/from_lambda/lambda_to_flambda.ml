@@ -127,8 +127,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
        allocation region"
       Continuation.print continuation;
   let rec add_end_regions acc ~region_stack_now =
-    (* This can maybe only be exercised right now using "match with exception",
-       since that causes jumps out of try-regions (but not normal regions). *)
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
@@ -184,7 +182,7 @@ let rec try_to_find_location (lam : L.lambda) =
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
   | Lifthenelse (lam, _, _, _)
-  | Lstaticcatch (lam, _, _, _)
+  | Lstaticcatch (lam, _, _, _, _)
   | Lstaticraise (_, lam :: _)
   | Lwhile { wh_cond = lam; _ }
   | Lsequence (lam, _)
@@ -347,6 +345,7 @@ let rec_catch_for_while_loop env cond body =
                 Lsequence (body, Lstaticraise (cont, [])),
                 Lconst (Const_base (Const_int 0)),
                 Lambda.layout_unit ) ),
+        Same_region,
         Lambda.layout_unit )
   in
   env, lam
@@ -398,6 +397,7 @@ let rec_catch_for_for_loop env loc ident start stop
                             Lstaticraise (cont, [next_value_of_counter]),
                             L.lambda_unit,
                             Lambda.layout_unit ) ),
+                    Same_region,
                     Lambda.layout_unit ),
                 L.lambda_unit,
                 Lambda.layout_unit ) ) )
@@ -424,7 +424,8 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
-    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
+    Env.add_continuation env cont ~push_to_try_stack:is_exn_handler
+      ~pop_region:false Nonrecursive
   in
   let handler_env, params_rev =
     List.fold_left
@@ -1036,12 +1037,18 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         compile_staticfail acc env ccenv ~continuation
           ~args:(List.flatten args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler, layout) ->
+  | Lstaticcatch (body, (static_exn, args), handler, r, layout) ->
     maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
+        let pop_region =
+          match r with
+          | Popped_region -> true
+          | Same_region -> false
+        in
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
-          Env.add_static_exn_continuation env static_exn continuation
+          Env.add_static_exn_continuation env static_exn
+            ~pop_region continuation
         in
         let recursive : Asttypes.rec_flag =
           if Env.is_static_exn_recursive env static_exn
