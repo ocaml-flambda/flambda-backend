@@ -80,22 +80,6 @@ let check_ocaml_value = function
   | _, Unboxed_integer _
   | _, Untagged_int -> Bad_attribute
 
-let is_unboxed = function
-  | _, Same_as_ocaml_repr _
-  | _, Repr_poly
-  | _, Untagged_int -> false
-  | _, Unboxed_float _
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _ -> true
-
-let is_untagged = function
-  | _, Untagged_int -> true
-  | _, Same_as_ocaml_repr _
-  | _, Unboxed_float _
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _
-  | _, Repr_poly -> false
-
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
 let rec make_prim_repr_args arity x =
@@ -268,6 +252,28 @@ let print p osig_val_decl =
   let for_all f =
     List.for_all f p.prim_native_repr_args && f p.prim_native_repr_res
   in
+  let is_unboxed = function
+    | _, Same_as_ocaml_repr Value
+    | _, Repr_poly
+    | _, Untagged_int -> false
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _ -> true
+    | _, Same_as_ocaml_repr _ ->
+      (* We require [@unboxed] for non-value types in upstream-compatible code,
+         but treat it as optional otherwise. We thus print the [@unboxed]
+         attribute only in the case it's required and leave it out when it's
+         not. That's why we call [erasable_extensions_only] here. *)
+      Language_extension.erasable_extensions_only ()
+  in
+  let is_untagged = function
+    | _, Untagged_int -> true
+    | _, Same_as_ocaml_repr _
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _
+    | _, Repr_poly -> false
+  in
   let all_unboxed = for_all is_unboxed in
   let all_untagged = for_all is_untagged in
   let attrs = if p.prim_alloc then [] else [oattr_noalloc] in
@@ -301,12 +307,16 @@ let print p osig_val_decl =
      | Prim_poly -> [oattr_local_opt])
     @
     (match repr with
-     | Same_as_ocaml_repr _
+     | Same_as_ocaml_repr Value
      | Repr_poly -> []
      | Unboxed_float _
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_int -> if all_untagged then [] else [oattr_untagged])
+     | Untagged_int -> if all_untagged then [] else [oattr_untagged]
+     | Same_as_ocaml_repr _->
+      if all_unboxed || not (is_unboxed (m, repr))
+      then []
+      else [oattr_unboxed])
   in
   let type_attrs =
     List.map attrs_of_mode_and_repr p.prim_native_repr_args @

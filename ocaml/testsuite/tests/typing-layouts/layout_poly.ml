@@ -555,7 +555,8 @@ Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
                                             ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+       Only float, int32, int64, nativeint, vector primitives, and
+       concrete unboxed types can be marked unboxed.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
