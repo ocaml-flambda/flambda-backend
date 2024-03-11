@@ -34,6 +34,7 @@ module Witnesses = struct
   type t = unit
 
   let join _ _ = ()
+  let lessequal _ _ = true
   let meet _ _ = ()
   let print _ _ = ()
   let empty = ()

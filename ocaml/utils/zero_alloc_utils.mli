@@ -10,6 +10,8 @@ module type WS = sig
 
   val meet : t -> t -> t
 
+  val lessequal : t -> t -> bool
+
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
