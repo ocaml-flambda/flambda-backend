@@ -421,9 +421,6 @@ module Mode_expr = struct
 
       let to_string s = s
 
-      (* Ideally, we should check that [s] consists of only alphabet and numbers.
-         However, this func *)
-
       let of_string' s = s
 
       let of_string s = Some (of_string' s)
