@@ -349,7 +349,6 @@ and type_with_label ctxt f (label, c) =
   | Labelled s -> pp f "%s:%a" s (maybe_modes_type core_type1 ctxt) c
   | Optional s -> pp f "?%s:%a" s (maybe_modes_type core_type1 ctxt) c
 
-
 and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
   | Primitive_layout_or_abbreviation s ->
@@ -385,7 +384,6 @@ and tyvar_jkind_loc ctxt ~print_quote f (str,jkind) =
   match jkind with
   | None -> pptv f str.txt
   | Some lay -> pp f "(%a : %a)" pptv str.txt (jkind_annotation ctxt) lay
-
 
 and core_type ctxt f x =
   match Jane_syntax.Core_type.of_ast x with

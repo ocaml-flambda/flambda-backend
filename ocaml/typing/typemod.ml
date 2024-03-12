@@ -996,7 +996,7 @@ and approx_sig_jst' env (jitem : Jane_syntax.Signature_item.t) srem =
   match jitem with
   | Jsig_include_functor ifincl -> approx_include_functor env ifincl srem
   | Jsig_layout (Lsig_kind_abbrev _) ->
-    Misc.fatal_error "kind_abbrev not supported!"
+      Misc.fatal_error "kind_abbrev not supported!"
 
 and approx_sig env ssg =
   match ssg with
