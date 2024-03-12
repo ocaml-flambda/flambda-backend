@@ -476,9 +476,4 @@ module type S = sig
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
-
-  module Const : sig
-    (** Returns the linearity dual to the given uniqueness *)
-    val unique_to_linear : Uniqueness.Const.t -> Linearity.Const.t
-  end
 end

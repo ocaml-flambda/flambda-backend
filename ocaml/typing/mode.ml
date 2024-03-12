@@ -1247,10 +1247,6 @@ let locality_as_regionality m =
 let regional_to_global m =
   S.Positive.via_monotone Locality.Obj.obj C.Regional_to_global m
 
-module Const = struct
-  let unique_to_linear a = C.unique_to_linear a
-end
-
 module Comonadic_with_regionality = struct
   module Const = C.Comonadic_with_regionality
 
@@ -2036,26 +2032,31 @@ module Alloc = struct
         { locality; uniqueness; linearity }
     end
 
+    let split { locality; linearity; uniqueness } =
+      let monadic = uniqueness, () in
+      let comonadic = locality, linearity in
+      { comonadic; monadic }
+
+    let merge { comonadic; monadic } =
+      let locality, linearity = comonadic in
+      let uniqueness, () = monadic in
+      { locality; linearity; uniqueness }
+
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =
-      let locality = m.locality in
-      (* uniqueness of the returned function is not constrained *)
-      let uniqueness = Uniqueness.Const.min in
-      let linearity =
-        Linearity.Const.join m.linearity
-          (* In addition, unique argument make the returning function once.
-             In other words, if argument <= unique, returning function >= once.
-             That is, returning function >= (dual of argument) *)
-          (Const.unique_to_linear m.uniqueness)
+      let { monadic; comonadic } = split m in
+      let comonadic =
+        Comonadic.Const.join comonadic
+          (C.monadic_to_comonadic_min Comonadic.Obj.obj monadic)
       in
-      { locality; linearity; uniqueness }
+      let monadic = Monadic.Const.min in
+      merge { comonadic; monadic }
 
     (** See [Alloc.partial_apply] for explanation. *)
     let partial_apply m =
-      let locality = m.locality in
-      let uniqueness = Uniqueness.Const.min in
-      let linearity = m.linearity in
-      { locality; linearity; uniqueness }
+      let { comonadic; _ } = split m in
+      let monadic = Monadic.Const.min in
+      merge { comonadic; monadic }
   end
 
   let of_const = Const.of_const
