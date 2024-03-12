@@ -1173,6 +1173,14 @@ end = struct
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
       in
+      let really_check ~keep_witnesses =
+        if !Flambda_backend_flags.disable_checkmach
+        then
+          (* Do not analyze the body of the function, conservatively assume that
+             the summary is top. *)
+          Unit_info.join_value unit_info fun_name (Value.top Witnesses.empty)
+        else really_check ~keep_witnesses
+      in
       match a with
       | Some a when Annotation.is_assume a ->
         let expected_value = Annotation.expected_value a in
