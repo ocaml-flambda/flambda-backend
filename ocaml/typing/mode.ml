@@ -853,10 +853,8 @@ module Lattices_mono = struct
     | m, Id -> Some m
     | Meet_with c0, Meet_with c1 -> Some (Meet_with (meet dst c0 c1))
     | Join_with c0, Join_with c1 -> Some (Join_with (join dst c0 c1))
-    | Meet_with c0, m1 when (le dst (max dst) c0) ->
-      Some m1
-    | Join_with c0, m1 when (le dst c0 (min dst)) ->
-      Some m1
+    | Meet_with c0, m1 when le dst (max dst) c0 -> Some m1
+    | Join_with c0, m1 when le dst c0 (min dst) -> Some m1
     | Compose (f0, f1), g -> (
       let mid = src dst f0 in
       match maybe_compose mid f1 g with
@@ -905,9 +903,15 @@ module Lattices_mono = struct
     | Global_to_regional, Join_with c ->
       Some (compose dst (Join_with (global_to_regional c)) Global_to_regional)
     | Locality_as_regionality, Meet_with c ->
-      Some (compose dst (Meet_with (locality_as_regionality c)) Locality_as_regionality)
+      Some
+        (compose dst
+           (Meet_with (locality_as_regionality c))
+           Locality_as_regionality)
     | Locality_as_regionality, Join_with c ->
-      Some (compose dst (Join_with (locality_as_regionality c)) Locality_as_regionality)
+      Some
+        (compose dst
+           (Join_with (locality_as_regionality c))
+           Locality_as_regionality)
     | Unique_to_linear, Meet_with c ->
       Some (compose dst (Meet_with (unique_to_linear c)) Unique_to_linear)
     | Unique_to_linear, Join_with c ->
@@ -919,15 +923,17 @@ module Lattices_mono = struct
     | Map_comonadic f, Join_with c ->
       let dst0 = proj_obj Areality dst in
       let areality, linearity = c in
-      Some (compose dst (Join_with (min_with dst Linearity linearity))
-          (Map_comonadic (compose dst0 f (Join_with areality)))
-      )
+      Some
+        (compose dst
+           (Join_with (min_with dst Linearity linearity))
+           (Map_comonadic (compose dst0 f (Join_with areality))))
     | Map_comonadic f, Meet_with c ->
       let dst0 = proj_obj Areality dst in
       let areality, linearity = c in
-      Some (compose dst (Meet_with (max_with dst Linearity linearity))
-          (Map_comonadic (compose dst0 f (Meet_with areality)))
-      )
+      Some
+        (compose dst
+           (Meet_with (max_with dst Linearity linearity))
+           (Map_comonadic (compose dst0 f (Meet_with areality))))
     | Regional_to_global, Locality_as_regionality -> Some Id
     | Regional_to_global, Local_to_regional -> Some (Meet_with Locality.Global)
     | Local_to_regional, Regional_to_local -> None
