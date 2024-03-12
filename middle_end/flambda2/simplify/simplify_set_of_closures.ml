@@ -276,9 +276,11 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
     in
+    let bound_params_and_results =
+      Bound_parameters.append params return_cont_params
+    in
     let params_and_results =
-      Bound_parameters.var_set
-        (Bound_parameters.append params return_cont_params)
+      Bound_parameters.var_set bound_params_and_results
     in
     let typing_env = DE.typing_env join.handler_env in
     let typing_env =
@@ -287,12 +289,12 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
     in
     let results_and_types =
       List.map
-        (fun result ->
-          let name = BP.name result in
-          let kind = K.With_subkind.kind (BP.kind result) in
+        (fun result_or_param ->
+          let name = BP.name result_or_param in
+          let kind = K.With_subkind.kind (BP.kind result_or_param) in
           let ty = TE.find typing_env name (Some kind) in
           name, ty)
-        (Bound_parameters.to_list return_cont_params)
+        (Bound_parameters.to_list bound_params_and_results)
     in
     let env_extension =
       (* This call is important for compilation time performance, to cut down
