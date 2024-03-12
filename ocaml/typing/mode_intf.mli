@@ -314,6 +314,8 @@ module type S = sig
       Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
+
+    val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
   end
 
   (** The mode on arrow types. Compared to [Value], it contains the [Locality]
@@ -453,12 +455,6 @@ module type S = sig
     (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
     val partial_apply : (allowed * 'r) t -> l
   end
-
-  (** Returns the linearity dual to the given uniqueness *)
-  val unique_to_linear : ('l * 'r) Uniqueness.t -> ('r * 'l) Linearity.t
-
-  (** Returns the uniqueness dual to the given linearity *)
-  val linear_to_unique : ('l * 'r) Linearity.t -> ('r * 'l) Uniqueness.t
 
   (** Converts regional to local, identity otherwise *)
   val regional_to_local : ('l * 'r) Regionality.t -> ('l * 'r) Locality.t
