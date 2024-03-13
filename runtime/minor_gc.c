@@ -297,7 +297,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     {
       /* Conflict - fix up what we allocated on the major heap */
       *Hp_val(result) = Make_header(1, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       Field(result, 0) = Val_long(1);
       #endif
@@ -322,7 +322,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     } else {
       /* Conflict - fix up what we allocated on the major heap */
       *Hp_val(result) = Make_header(sz, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       {
         int c;
@@ -344,7 +344,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     if( !try_update_object_header(v, p, result, 0) ) {
       /* Conflict */
       *Hp_val(result) = Make_header(sz, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       for( i = 0; i < sz ; i++ ) {
         Field(result, i) = Val_long(1);
@@ -376,7 +376,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
         goto tail_call;
       } else {
         *Hp_val(result) = Make_header(1, No_scan_tag,
-                                      caml_global_heap_state.MARKED);
+                                      caml_allocation_status());
         #ifdef DEBUG
         Field(result, 0) = Val_long(1);
         #endif
