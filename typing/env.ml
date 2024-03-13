@@ -2977,22 +2977,23 @@ let share_mode ~errors ~env ~loc id vmode shared_context =
         (Once_value_used_in (id, shared_context))
   | Ok () -> Mode.Value.join [Mode.Value.min_with_uniqueness Mode.Uniqueness.shared; vmode]
 
-let closure_mode ~errors ~env ~loc id vmode closure_context comonadic =
+let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
+  closure_context comonadic0 : Mode.Value.l =
   begin
     match
-      Mode.Value.Comonadic.submode vmode.Mode.comonadic comonadic
+      Mode.Value.Comonadic.submode comonadic comonadic0
     with
     | Error e ->
         may_lookup_error errors loc env
           (Value_used_in_closure (id, e, closure_context))
     | Ok () -> ()
   end;
-  let uniqueness =
-    Mode.Uniqueness.join
-      [ Mode.Value.uniqueness vmode;
-        Mode.linear_to_unique (Mode.Value.Comonadic.linearity comonadic) ]
+  let monadic =
+    Mode.Value.Monadic.join
+      [ monadic;
+        Mode.Value.comonadic_to_monadic comonadic0 ]
   in
-  Mode.Value.join [Mode.Value.min_with_uniqueness uniqueness; vmode]
+  {monadic; comonadic}
 
 let exclave_mode ~errors ~env ~loc id vmode =
   match
