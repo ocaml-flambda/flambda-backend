@@ -71,9 +71,7 @@ type out_mutable_or_global =
   | Ogom_global
   | Ogom_immutable
 
-type out_global =
-  | Ogf_global
-  | Ogf_unrestricted
+type out_modality = Ogf_global
 
 (* should be empty if all the jkind annotations are missing *)
 type out_vars_jkinds = (string * out_jkind option) list
@@ -102,7 +100,7 @@ type out_type =
 
 and out_constructor = {
   ocstr_name: string;
-  ocstr_args: (out_type * out_global) list;
+  ocstr_args: (out_type * out_modality list) list;
   ocstr_return_type: (out_vars_jkinds * out_type) option;
 }
 
@@ -176,7 +174,7 @@ and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;
     oext_type_params: string list;
-    oext_args: (out_type * out_global) list;
+    oext_args: (out_type * out_modality list) list;
     oext_ret_type: (out_vars_jkinds * out_type) option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =

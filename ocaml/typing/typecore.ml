@@ -418,39 +418,10 @@ let meet_global mode =
 let meet_unique mode =
   Value.meet [mode; (Value.max_with_uniqueness Uniqueness.unique)]
 
-let meet_many mode =
-  Value.meet [mode; (Value.max_with_linearity Linearity.many)]
-
-let join_shared mode =
-  Value.join [mode; Value.min_with_uniqueness Uniqueness.shared]
-
 let value_regional_to_local mode =
   mode
   |> value_to_alloc_r2l
   |> alloc_as_value
-
-(* Describes how a modality affects field projection. Returns the mode
-   of the projection given the mode of the record. *)
-let modality_unbox_left global_flag mode =
-  let mode = Value.disallow_right mode in
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> Value.meet_with_regionality Regionality.Const.Global
-      |> join_shared
-      |> Value.meet_with_linearity Linearity.Const.Many
-  | Global_flag.Unrestricted -> mode
-
-(* Describes how a modality affects record construction. Gives the
-   expected mode of the field given the expected mode of the record. *)
-let modality_box_right global_flag mode =
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> meet_global
-      |> Value.join_with_uniqueness Uniqueness.Const.max
-      |> meet_many
-  | Global_flag.Unrestricted -> mode
 
 let mode_default mode =
   { position = RNontail;
@@ -486,8 +457,8 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
-let mode_box_modality gf expected_mode =
-  mode_default (modality_box_right gf expected_mode.mode)
+let mode_box_modalities gf expected_mode =
+  mode_default (Modality.Vector.apply_right gf expected_mode.mode)
 
 let mode_global expected_mode =
   let mode = meet_global expected_mode.mode in
@@ -2611,7 +2582,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
+             let alloc_mode = Modality.Vector.apply_left gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2655,7 +2626,7 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         let alloc_mode =
-          modality_unbox_left label.lbl_global alloc_mode.mode
+          Modality.Vector.apply_left label.lbl_modalities alloc_mode.mode
         in
         let alloc_mode = simple_pat_mode alloc_mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -5555,9 +5526,9 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
+                  let mode = Modality.Vector.apply_left lbl.lbl_modalities mode in
                   let argument_mode =
-                    mode_box_modality lbl.lbl_global argument_mode
+                    mode_box_modalities lbl.lbl_modalities argument_mode
                   in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
@@ -5604,7 +5575,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = Modality.Vector.apply_left label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         match label.lbl_repres with
         | Record_float ->
@@ -7099,7 +7070,7 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let arg_mode = mode_box_modality label.lbl_global expected_mode in
+  let arg_mode = mode_box_modalities label.lbl_modalities expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
@@ -7673,7 +7644,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let args =
     List.map2
       (fun e ((ty, gf),t0) ->
-         let argument_mode = mode_box_modality gf argument_mode in
+         let argument_mode = mode_box_modalities gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
