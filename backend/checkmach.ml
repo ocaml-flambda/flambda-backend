@@ -606,8 +606,12 @@ end = struct
       String.Tbl.replace t name func_info
 end
 
-(** Check one function. *)
+(** The analysis involved some fixed point computations.
+    Termination: [Value.t] is a finite height domain and
+    [transfer] is a monotone function w.r.t. [Value.lessequal] order.
+*)
 module Analysis (S : Spec) : sig
+  (** Check one function. *)
   val fundecl :
     Mach.fundecl ->
     future_funcnames:String.Set.t ->
@@ -615,6 +619,8 @@ module Analysis (S : Spec) : sig
     Format.formatter ->
     unit
 
+  (** Resolve all function summaries, check them against user-provided assertions,
+      and record the summaries in Compilenv to be saved in .cmx files *)
   val record_unit : Unit_info.t -> Format.formatter -> unit
 end = struct
   (** Information about the current function under analysis. *)
