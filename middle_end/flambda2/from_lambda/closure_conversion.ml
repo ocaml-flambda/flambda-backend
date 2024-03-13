@@ -2230,7 +2230,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
-  let acc = Acc.with_seen_a_function acc true in
+  let acc =
+    if has_lifted_closure then acc else Acc.with_seen_a_function acc true
+  in
   ( acc,
     ( Function_slot.Map.add function_slot approx by_function_slot,
       function_code_ids ) )
