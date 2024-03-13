@@ -209,10 +209,10 @@ Error: Unrecognized modality foo.
 
 type t = Foo of global_ string @@ global
 [%%expect{|
-Line 1, characters 34-40:
+Line 1, characters 16-23:
 1 | type t = Foo of global_ string @@ global
-                                      ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
+                    ^^^^^^^
+Warning 250 [reduced-modality]: The modalities "global global" is simplified to "global"
 
 type t = Foo of global_ string
 |}]
@@ -238,10 +238,10 @@ type r = {
   global_ x : string @@ global
 }
 [%%expect{|
-Line 2, characters 24-30:
+Line 2, characters 2-9:
 2 |   global_ x : string @@ global
-                            ^^^^^^
-Warning 250 [redundant-modality]: This global modality is redundant.
+      ^^^^^^^
+Warning 250 [reduced-modality]: The modalities "global global" is simplified to "global"
 
 type r = { global_ x : string; }
 |}]

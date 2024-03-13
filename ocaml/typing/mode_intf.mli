@@ -109,14 +109,6 @@ module type S = sig
     val to_string : t -> string
   end
 
-  module Global_flag : sig
-    type t =
-      | Global
-      | Unrestricted
-
-    val compare : t -> t -> int
-  end
-
   type changes
 
   val undo_changes : changes -> unit
@@ -478,4 +470,93 @@ module type S = sig
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
+
+  module Modality : sig
+    type not_id = private Not_id
+
+    type maybe_id = private Maybe_id
+
+    (** [('a, 'b, 'd) t] is a single modality from ['a] to [b']. ['d] could be
+        [not_id] or [maybe_id], suggesting whether it is the identity modality. *)
+    type ('a, 'b, 'd) t =
+      | Global : (Regionality.Const.t, Regionality.Const.t, 'd) t
+      | Id : ('a, 'a, maybe_id) t
+
+    (** Returns the string of a modality. Returns [id] if it's the [Id] modality.
+        For error messages and debugging only. *)
+    val to_string : ?id:string -> ('a, 'b, 'd) t -> string
+
+    (** Sub-modality error, where [left] is the modality on the left, and
+         [right] is the modality on the right. *)
+    type ('a, 'b) sub_error =
+      { left : ('a, 'b, maybe_id) t;
+        right : ('a, 'b, maybe_id) t
+      }
+
+    module Exist : sig
+      type ('a, 'b, 'd) atom = ('a, 'b, 'd) t
+
+      (** Same as [('a, 'b, 'd) t] but erased ['a] and ['b]. *)
+      type 'd t = Exist : (_, _, 'd) atom -> 'd t
+    end
+
+    module Vector : sig
+      type ('a, 'b, 'd) atom = ('a, 'b, 'd) t
+
+      (** A vector of modalities, one for each axis. As a result, we do not
+          support multi-axes modalities. *)
+      type t
+
+      (** Indicates the reduction result of a composition. [Reducible] means
+          [outer] composed after [inner] can reduce to [reduced]. *)
+      type 'a reducible =
+        | Not_reducible
+        | Reducible of
+            { outer : ('a, 'a, not_id) atom;
+              inner : ('a, 'a, not_id) atom;
+              reduced : ('a, 'a, not_id) atom
+            }
+
+      (** The identity modality vector. *)
+      val id : t
+
+      (** Apply a vector on a left mode *)
+      val apply_left : t -> (allowed * _) Value.t -> Value.l
+
+      (** Apply a vector on a right mode *)
+      val apply_right : t -> (_ * allowed) Value.t -> Value.r
+
+      type 'a axis =
+        | Regionality : Regionality.Const.t axis
+        | Uniqueness : Uniqueness.Const.t axis
+        | Linearity : Linearity.Const.t axis
+
+      (** [cons m t] returns the vector that applies [m] after [t]. Also returns
+        the reduction result, which is realized in the returned vector. Note
+        that [m] cannot be [Id] *)
+      val cons : 'a axis -> ('a, 'a, not_id) atom -> t -> t * 'a reducible
+
+      (** [singleton m] returns the vector that applies just [m]. *)
+      val singleton : 'a axis -> ('a, 'a, not_id) atom -> t
+
+      (** Returns the list of modalities represented by the vector. The list is
+          commutative and doesn't contain [Id]. *)
+      val to_list : t -> not_id Exist.t list
+
+      type ('a, 'b) atom_sub_error = ('a, 'b) sub_error
+
+      (** Same as [('a, 'b) sub_error] but erased ['a] and ['b]. *)
+      type sub_error = Sub_error : ('a, 'a) atom_sub_error -> sub_error
+
+      type nonrec equate_error = equate_step * sub_error
+
+      (** [sub t0 t1] checks that [t0 <= t1].
+          Definition: [t0 <= t1] iff [forall a. t0(a) <= t1(a)].*)
+      val sub : t -> t -> (unit, sub_error) Result.t
+
+      (** [equate t0 t1] checks that [t0 = t1].
+          Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
+      val equate : t -> t -> (unit, equate_error) Result.t
+    end
+  end
 end

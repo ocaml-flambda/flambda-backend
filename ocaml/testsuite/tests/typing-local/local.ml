@@ -2504,7 +2504,7 @@ Error: Signature mismatch:
          Bar of int * string
        is not the same as:
          Bar of int * global_ string
-       Locality mismatch at argument position 2 : The second is global and the first is not.
+       Modalities mismatch at argument position 2 : The second is global and the first is not.
 |}]
 
 
@@ -2531,7 +2531,7 @@ Error: Signature mismatch:
          Bar of int * global_ string
        is not the same as:
          Bar of int * string
-       Locality mismatch at argument position 2 : The first is global and the second is not.
+       Modalities mismatch at argument position 2 : The first is global and the second is not.
 |}]
 
 (* global_ binds closer than star *)

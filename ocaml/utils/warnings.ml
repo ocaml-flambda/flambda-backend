@@ -113,7 +113,7 @@ type t =
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
   | Unboxing_impossible                     (* 210 *)
-  | Redundant_modality of string            (* 250 *)
+  | Reduced_modality of string * string * string (* 250 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -199,7 +199,7 @@ let number = function
   | Probe_name_too_long _ -> 190
   | Unchecked_property_attribute _ -> 199
   | Unboxing_impossible -> 210
-  | Redundant_modality _ -> 250
+  | Reduced_modality _ -> 250
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
@@ -564,8 +564,8 @@ let descriptions = [
     description = "The parameter or return value corresponding @unboxed attribute cannot be unboxed.";
     since = since 4 14 };
   { number = 250;
-    names = ["redundant-modality"];
-    description = "The modality is redundant.";
+    names = ["reduced-modality"];
+    description = "The modalities can be simplified.";
     since = since 5 1 };
 ]
 
@@ -1186,8 +1186,8 @@ let message = function
       Printf.sprintf
         "This [@unboxed] attribute cannot be used.\n\
          The type of this value does not allow unboxing."
-  | Redundant_modality s ->
-      Printf.sprintf "This %s modality is redundant." s
+  | Reduced_modality (outer, inner, reduced) ->
+      Printf.sprintf "The modalities \"%s %s\" is simplified to \"%s\"" outer inner reduced
 ;;
 
 let nerrors = ref 0
