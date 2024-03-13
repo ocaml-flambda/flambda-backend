@@ -1395,7 +1395,7 @@ let make_mixed_alloc ~mode dbg shape args =
     values + floats
   in
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    (* CR mixed blocks: Support inline record args to variants. *)
+    (* CR mixed blocks v1: Support inline record args to variants. *)
     set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)

@@ -1648,7 +1648,7 @@ and transl_letrec env bindings cont =
       :: rem ->
         let values = int_const dbg values in
         let floats = int_const dbg floats in
-        Clet(id, op_alloc "caml_alloc_dummy_abstract" [values; floats],
+        Clet(id, op_alloc "caml_alloc_dummy_mixed" [values; floats],
              init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
         Clet (id, Cconst_int (1, dbg), init_blocks rem)

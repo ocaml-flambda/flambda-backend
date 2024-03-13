@@ -60,8 +60,6 @@ let double_tag = Obj.double_tag
 
 let double_array_tag = Obj.double_array_tag
 
-let abstract_tag = Obj.abstract_tag
-
 let custom_tag = Obj.custom_tag
 
 let infix_tag = Obj.infix_tag

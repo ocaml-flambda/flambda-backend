@@ -1040,7 +1040,7 @@ and transl_prim_1 env p arg dbg =
   | Pufloatfield n ->
       get_field env Mutable Punboxed_float (transl env arg) n dbg
   | Pmixedfield (n, shape) ->
-      (* CR mixed blocks v0: a backend person to confirm these are fine to use
+      (* CR mixed blocks: a backend person to confirm these are fine to use
          here. *)
       let ptr = transl env arg in
       begin match shape with
@@ -1770,7 +1770,7 @@ and transl_letrec env bindings cont =
       :: rem ->
         let values = int_const dbg values in
         let floats = int_const dbg floats in
-        Clet(id, op_alloc "caml_alloc_dummy_abstract" [values; floats],
+        Clet(id, op_alloc "caml_alloc_dummy_mixed" [values; floats],
              init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
         Clet (id, Cconst_int (1, dbg), init_blocks rem)

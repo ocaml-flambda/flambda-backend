@@ -48,8 +48,6 @@ val forward_tag : t
 
 val lazy_tag : t
 
-val abstract_tag : t
-
 (** Returns [true] iff the supplied tag is that of a GC-scannable block. *)
 val is_structured_block : t -> bool
 
