@@ -560,7 +560,7 @@ module Lattices_mono = struct
         (** Dualize the comonadic fragment to the monadic fragment. The areality axis is ignored.  *)
     | Monadic_to_comonadic_max
         : (Monadic_op.t, 'a comonadic_with, disallowed * 'r) morph
-        (** Dualize the monadic fragment to the comonadic fragment. The arelity is set to max. *)
+        (** Dualize the monadic fragment to the comonadic fragment. The areality is set to max. *)
     (* Following is a chain of adjunction (complete and cannot extend in
        either direction) *)
     | Local_to_regional : (Locality.t, Regionality.t, 'l * disallowed) morph
