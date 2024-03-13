@@ -474,10 +474,7 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
     p = large_allocate(local, Bsize_wsize(whsize));
     if (!p) return 0;
   }
-  colour =
-    caml_marking_started()
-    ? caml_global_heap_state.MARKED
-    : caml_global_heap_state.UNMARKED;
+  colour = caml_allocation_status();
   Hd_hp (p) = Make_header_with_reserved(wosize, tag, colour, reserved);
 #ifdef DEBUG
   {

@@ -407,7 +407,7 @@ static value intern_alloc_obj(struct caml_intern_state* s, caml_domain_state* d,
       intern_cleanup (s);
       caml_raise_out_of_memory();
     }
-    Hd_hp(p) = Make_header (wosize, tag, caml_global_heap_state.MARKED);
+    Hd_hp(p) = Make_header (wosize, tag, caml_allocation_status());
   }
   return Val_hp(p);
 }
