@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@warning "-fragile-match"]
-
 type t = int
 
 let zero = 0
@@ -372,7 +370,12 @@ let binary_prim_size prim =
     string_or_bigstring_load kind width
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 5 block_loads *) + alloc_size (* complex allocation *)
-  | Bigarray_load (_dims, _kind, _layout) -> 2 (* ~ 2 block loads *)
+  | Bigarray_load
+      ( _dims,
+        ( Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
+        | Int_width_int | Targetint_width_int ),
+        _layout ) ->
+    2 (* ~ 2 block loads *)
   | Phys_equal _op -> 2
   | Int_arith (kind, op) -> binary_int_arith_primitive kind op
   | Int_shift (kind, op) -> binary_int_shift_primitive kind op
@@ -393,7 +396,12 @@ let ternary_prim_size prim =
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)
-  | Bigarray_set (_dims, _kind, _layout) -> 2
+  | Bigarray_set
+      ( _dims,
+        ( Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
+        | Int_width_int | Targetint_width_int ),
+        _layout ) ->
+    2
   (* ~ 1 block_load + 1 block_set *)
   | Atomic_compare_and_set -> does_not_need_caml_c_call_extcall_size
 

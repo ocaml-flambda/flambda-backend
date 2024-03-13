@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "-fragile-match"]
-
 open! Flambda
 module BP = Bound_parameter
 module IR = Closure_conversion_aux.IR
@@ -262,9 +260,10 @@ let find_value_approximation env simple =
 
 let find_value_approximation_through_symbol acc env simple =
   match find_value_approximation env simple with
-  | Value_approximation.Value_symbol sym ->
-    Acc.find_symbol_approximation acc sym
-  | approx -> approx
+  | Value_symbol sym -> Acc.find_symbol_approximation acc sym
+  | ( Value_int _ | Value_unknown | Block_approximation _
+    | Closure_approximation _ ) as approx ->
+    approx
 
 module Inlining = struct
   include Closure_conversion_aux.Inlining
@@ -531,7 +530,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
            && Option.is_none (Apply_cont_expr.trap_action apply_cont)
            && Option.is_none box_return_value ->
       Apply_cont_expr.continuation apply_cont, false
-    | _ -> Continuation.create (), true
+    | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ | Invalid _ ->
+      Continuation.create (), true
   in
   let kind_of_primitive_extern_repr
       ((_, repr) : Primitive.mode * Lambda.extern_repr) =
@@ -589,7 +589,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       if prim_arity <> 1
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
-        match prim_native_repr_args, prim_native_repr_res with
+        match[@ocaml.warning "-fragile-match"]
+          prim_native_repr_args, prim_native_repr_res
+        with
         | [(_, Unboxed_integer Pint64)], (_, Unboxed_float Pfloat64) -> (
           match args with
           | [arg] ->
@@ -759,7 +761,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
     List.fold_left_map (fun acc arg -> find_simples acc env arg) acc args
   in
   let dbg = Debuginfo.from_location loc in
-  match prim, args with
+  match[@ocaml.warning "-fragile-match"] prim, args with
   | Pccall prim, args ->
     let exn_continuation =
       match exn_continuation with
@@ -935,13 +937,18 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
           | Tagged_immediate i ->
             let i = Targetint_31_63.to_int i in
             if i >= Array.length approx then None else Some approx.(i)
-          | _ -> Some Value_approximation.Value_unknown)
+          | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+          | Naked_nativeint _ | Naked_vec128 _ ->
+            Some Value_approximation.Value_unknown)
         ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
     in
     match approx with
     | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
     | Some (Value_int i) -> Field_contents (Simple.const_int i)
-    | Some approx -> Block_but_cannot_simplify approx
+    | Some
+        ((Value_unknown | Block_approximation _ | Closure_approximation _) as
+        approx) ->
+      Block_but_cannot_simplify approx
     | None -> Not_a_block)
 
 type block_static_kind =
@@ -966,7 +973,9 @@ let classify_fields_of_block env fields alloc_mode =
               match Reg_width_const.descr c with
               | Tagged_immediate imm ->
                 Some (Field_of_static_block.Tagged_immediate imm :: fields)
-              | _ -> None)
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+                None)
             ~symbol:(fun s ~coercion:_ ->
               Some (Field_of_static_block.Symbol s :: fields))
             ~var:(fun v ~coercion:_ ->
@@ -986,8 +995,10 @@ let classify_fields_of_block env fields alloc_mode =
   | None -> Dynamic_block
   | Some fields ->
     if List.exists
-         (function
-           | Field_of_static_block.Dynamically_computed _ -> true | _ -> false)
+         (fun (field : Field_of_static_block.t) ->
+           match field with
+           | Dynamically_computed _ -> true
+           | Symbol _ | Tagged_immediate _ -> false)
          fields
     then Computed_static fields
     else Constant fields
@@ -1000,7 +1011,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
     | (id, kind) :: ids_with_kinds, defining_expr :: defining_exprs -> (
       let body_env, var = Env.add_var_like env id user_visible kind in
       let body acc env = cont ids_with_kinds env acc defining_exprs in
-      match defining_expr with
+      match[@ocaml.warning "-fragile-match"] defining_expr with
       | Simple simple ->
         let body_env = Env.add_simple_to_substitute env id simple kind in
         body acc body_env
@@ -1185,7 +1196,9 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
             match (arg_approx : Env.value_approximation) with
             | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
               Env.add_simple_to_substitute env param_id (Simple.symbol s) kind
-            | _ -> env)
+            | Value_int _ | Value_unknown | Block_approximation _
+            | Closure_approximation _ ->
+              env)
           handler_env args
           (List.combine env_params params)
     in
@@ -1319,8 +1332,10 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let known_const_scrutinee =
     match find_value_approximation_through_symbol acc env scrutinee with
-    | Value_approximation.Value_int i -> Some i
-    | _ -> None
+    | Value_int i -> Some i
+    | Value_unknown | Value_symbol _ | Block_approximation _
+    | Closure_approximation _ ->
+      None
   in
   let untag =
     Named.create_prim (Unary (Untag_immediate, scrutinee)) condition_dbg
@@ -2379,7 +2394,7 @@ let close_functions acc external_env ~current_region function_declarations =
           in
           let approx =
             match Function_slot.Map.find function_slot approx_map with
-            | Value_approximation.Closure_approximation
+            | Closure_approximation
                 { code_id;
                   function_slot;
                   all_function_slots;
@@ -2395,7 +2410,9 @@ let close_functions acc external_env ~current_region function_declarations =
                   code;
                   symbol = Some symbol
                 }
-            | _ -> assert false
+            | Value_symbol _ | Value_int _ | Value_unknown
+            | Block_approximation _ ->
+              assert false
             (* see above *)
           in
           let acc = Acc.add_symbol_approximation acc symbol approx in
@@ -2483,7 +2500,7 @@ let close_functions acc external_env ~current_region function_declarations =
           let sym = Function_slot.Map.find function_slot symbol_map in
           let approx =
             match Function_slot.Map.find function_slot approximations with
-            | Value_approximation.Closure_approximation
+            | Closure_approximation
                 { code_id;
                   function_slot;
                   all_function_slots;
@@ -2499,7 +2516,9 @@ let close_functions acc external_env ~current_region function_declarations =
                   code;
                   symbol = Some sym
                 }
-            | _ -> assert false
+            | Value_symbol _ | Value_int _ | Value_unknown
+            | Block_approximation _ ->
+              assert false
             (* see above *)
           in
           sym, approx)
@@ -3092,8 +3111,10 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
     let module_block_simple =
       let simple_var = Simple.var module_block_var in
       match find_value_approximation env simple_var with
-      | Value_approximation.Value_symbol s -> Simple.symbol s
-      | _ -> simple_var
+      | Value_symbol s -> Simple.symbol s
+      | Value_int i -> Simple.const_int i
+      | Value_unknown | Block_approximation _ | Closure_approximation _ ->
+        simple_var
     in
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
@@ -3194,10 +3215,18 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
     (* Module symbol may be rebuilt from a lifted block *)
-    | Some [Value_approximation.Value_symbol s] ->
-      Acc.find_symbol_approximation acc s
-    | Some [approx] -> approx
-    | _ -> Value_approximation.Value_unknown
+    | Some [Value_symbol s] -> Acc.find_symbol_approximation acc s
+    | Some
+        [ (( Value_int _ | Value_unknown | Block_approximation _
+           | Closure_approximation _ ) as approx) ] ->
+      approx
+    | Some []
+    | Some
+        (( Value_symbol _ | Value_int _ | Value_unknown | Block_approximation _
+         | Closure_approximation _ )
+        :: _)
+    | None ->
+      Value_approximation.Value_unknown
   in
   let acc, body =
     bind_code_and_sets_of_closures (Acc.code acc)
