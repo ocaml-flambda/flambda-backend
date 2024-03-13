@@ -119,7 +119,7 @@ module TyVarEnv : sig
 
   val make_poly_univars_jkinds :
     context:(string -> Jkind.annotation_context) ->
-    (string Location.loc * Jane_asttypes.jkind_annotation option) list -> poly_univars
+    (string Location.loc * Jane_syntax.Jkind.annotation option) list -> poly_univars
   (* see mli file *)
 
   val check_poly_univars : Env.t -> Location.t -> poly_univars -> type_expr list

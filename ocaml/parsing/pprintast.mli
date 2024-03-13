@@ -57,3 +57,5 @@ val tyvar: Format.formatter -> string -> unit
   (** Print a type variable name as a valid identifier, taking care of the
       special treatment required for the single quote character in second
       position, or for keywords by escaping them with \#. No-op on "_". *)
+
+val jkind : Format.formatter -> Jane_syntax.Jkind.t -> unit

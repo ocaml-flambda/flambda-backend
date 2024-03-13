@@ -24,14 +24,3 @@
   {{!Compiler_libs}compiler-libs}.
 
 *)
-
-(** [const_jkind] is private to limit confusion with type variables, which
-    are also strings in the parser.
-*)
-type const_jkind
-
-val jkind_of_string : string -> const_jkind
-
-val jkind_to_string : const_jkind -> string
-
-type jkind_annotation = const_jkind Location.loc

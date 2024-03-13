@@ -154,10 +154,10 @@ let typevar_jkind ~print_quote ppf (v, l) =
   in
   match l with
   | None -> fprintf ppf " %a" pptv v
-  | Some (_, lay) ->
+  | Some (_, jkind) ->
       fprintf ppf " (%a : %a)"
         pptv v
-        Jane_syntax.Layouts.Pprint.const_jkind lay.txt
+        Pprintast.jkind jkind.txt
 
 let tuple_component_label i ppf = function
   | None -> line i ppf "Label: None\n"
