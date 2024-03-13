@@ -783,11 +783,19 @@ end = struct
           unresolved v "self-call init"
         | Some approx -> unresolved approx "self-call approx"
       else
-        ((* Call is defined later in the current compilation unit. Summary of
-            this callee is not yet computed, conservatively return Top. Won't be
-            able to prove any recursive functions as non-allocating. *)
-         t.unresolved <- true;
-         unresolved Value.safe)
+        let res =
+          if (* Call is defined later in the current compilation unit. Summary
+                of this callee is not yet computed. *)
+             !Flambda_backend_flags.disable_precise_checkmach
+          then
+            (* Conservatively return Top. Won't be able to prove any recursive
+               functions as non-allocating. *)
+            Value.top w
+          else (
+            t.unresolved <- true;
+            Value.safe)
+        in
+        unresolved res
           "conservative handling of forward or recursive call\nor tailcall"
     else
       (* CR gyorsh: unresolved case here is impossible in the conservative
