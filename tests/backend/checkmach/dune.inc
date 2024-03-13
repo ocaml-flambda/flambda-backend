@@ -754,4 +754,42 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps test_raise_message.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -function-layout topological -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail25.output.corrected)
+ (deps (:ml fail25.ml) filter.sh)
+ (action
+   (with-outputs-to fail25.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -disable-precise-checkmach -function-layout source -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail25.output fail25.output.corrected)
+ (action (diff fail25.output fail25.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail26.output.corrected)
+ (deps (:ml fail26.ml) filter.sh)
+ (action
+   (with-outputs-to fail26.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -disable-checkmach -function-layout source -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail26.output fail26.output.corrected)
+ (action (diff fail26.output fail26.output.corrected)))
