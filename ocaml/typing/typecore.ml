@@ -802,76 +802,35 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(* CR layouts v2.8: use the meet-with-constant morphism when available *)
-(* The approach here works only for 2-element modal axes. *)
+(** Mode cross a left mode *)
 let mode_cross_left env ty mode =
   if not (is_principal ty) then Value.disallow_right mode else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Value.disallow_right mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Value.meet_with_regionality Regionality.Const.min mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Value.meet_with_linearity Linearity.Const.min mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Value.meet_with_uniqueness Uniqueness.Const.min mode
-    else mode
-  in
-  mode
+  let upper_bounds = Const.alloc_as_value upper_bounds in
+  Value.meet_with upper_bounds mode
 
-(* cross the monadic fragment to max, and the comonadic fragment to min *)
-(* CR layouts v2.8: use the meet-with-constant morphism when available *)
+(** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
+    fragment is a left mode. *)
 let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let comonadic =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.Comonadic.meet_with_locality Locality.Const.min comonadic
-    else comonadic
-  in
-  let comonadic =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.Comonadic.meet_with_linearity Linearity.Const.min comonadic
-    else comonadic
-  in
-  let monadic =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.Monadic.join_with_uniqueness Uniqueness.Const.max monadic
-    else monadic
-  in
+  let upper_bounds = Alloc.Const.split upper_bounds in
+  let comonadic = Alloc.Comonadic.meet_with upper_bounds.comonadic comonadic in
+  let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
   { monadic; comonadic }
 
+(** Mode cross a right mode *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = expected_mode.mode in
-  let mode, strictly_local =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Value.join_with_regionality Regionality.Const.max mode, false
-    else mode, expected_mode.strictly_local
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Value.join_with_linearity Linearity.Const.max mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Value.join_with_uniqueness Uniqueness.Const.max mode
-    else mode
-  in
-  { expected_mode with mode; strictly_local }
+  let upper_bounds = Const.alloc_as_value upper_bounds in
+  let mode = Value.imply upper_bounds expected_mode.mode in
+  { expected_mode with mode }
 
 (* Value binding elaboration can insert alloc mode attributes on the forged
    [Pexp_constraint] node. Use this function to detect
@@ -6717,8 +6676,10 @@ and type_function
                   Final_arg
                 | Some fun_alloc_mode ->
                   assert(not is_final_val_param);
-                  (* If the argument cross modes, it crosses to max on monadic
-                     axes, and min on comonadic axes. *)
+                  (* Handle mode crossing of [arg_mode]. Note that [close_over]
+                     uses the [arg_mode.comonadic] as a left mode, and
+                     [arg_mode.monadic] as a right mode, hence they need to be
+                     mode-crossed differently. *)
                   let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
