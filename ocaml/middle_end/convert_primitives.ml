@@ -186,6 +186,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m
   | Pdls_get -> Pdls_get
+  | Pfloat32offloat _
+  | Pfloatoffloat32 _
   | Pobj_magic _
   | Pbytes_to_string
   | Pbytes_of_string
