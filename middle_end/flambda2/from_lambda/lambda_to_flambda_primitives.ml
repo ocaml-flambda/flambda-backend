@@ -286,6 +286,14 @@ let tag_int (arg : H.expr_primitive) : H.expr_primitive =
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Untag_immediate, arg))
 
+let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
+    H.expr_primitive =
+  Unary
+    ( Box_number
+        ( K.Boxable_number.Naked_float32,
+          Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+      Prim arg )
+
 let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
   Unary
@@ -1038,6 +1046,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Tagged_immediate in
     [Unary (Num_conv { src; dst }, unbox_float arg)]
+  | Pfloatoffloat32 mode, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float32 in
+    let dst = K.Standard_int_or_float.Naked_float in
+    [box_float mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
+  | Pfloat32offloat mode, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float in
+    let dst = K.Standard_int_or_float.Naked_float32 in
+    [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pfloatofint (Pfloat64, mode), [[arg]] ->
     let src = K.Standard_int_or_float.Tagged_immediate in
     let dst = K.Standard_int_or_float.Naked_float in
@@ -1713,6 +1729,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _
       | Pintoffloat Pfloat64
       | Pfloatofint (Pfloat64, _)
+      | Pfloatoffloat32 _ | Pfloat32offloat _
       | Pnegfloat (Pfloat64, _)
       | Pabsfloat (Pfloat64, _)
       | Pstringlength | Pbyteslength | Pbintofint _ | Pintofbint _ | Pnegbint _

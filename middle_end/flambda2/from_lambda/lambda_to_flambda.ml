@@ -626,6 +626,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
   | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
   | Pnegfloat (_, _)
   | Pabsfloat (_, _)
   | Paddfloat (_, _)

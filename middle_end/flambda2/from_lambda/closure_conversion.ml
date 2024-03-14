@@ -822,6 +822,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
       | Pintoffloat _
       | Pfloatofint (_, _)
+      | Pfloatoffloat32 _
+      | Pfloat32offloat _
       | Pnegfloat (_, _)
       | Pabsfloat (_, _)
       | Paddfloat (_, _)

@@ -448,6 +448,8 @@ let primitive ppf = function
   | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
+  | Pfloatoffloat32 m -> print_boxed_float "float_of_float32" ppf Pfloat32 m
+  | Pfloat32offloat m -> print_boxed_float "float32_of_float" ppf Pfloat64 m
   | Pintoffloat bf -> fprintf ppf "int_of_%s" (boxed_float_name bf)
   | Pfloatofint (bf,m) ->
       fprintf ppf "%s_of_int%s" (boxed_float_name bf) (alloc_kind m)
@@ -724,6 +726,8 @@ let name_of_primitive = function
   | Pcompare_bints _ -> "Pcompare"
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
+  | Pfloatoffloat32 _ -> "Pfloatoffloat32"
+  | Pfloat32offloat _ -> "Pfloat32offloat"
   | Pintoffloat _ -> "Pintoffloat"
   | Pfloatofint (_, _) -> "Pfloatofint"
   | Pnegfloat (_, _) -> "Pnegfloat"
