@@ -60,6 +60,8 @@ module Mixed_block_kind : sig
 
   val compare : t -> t -> int
 
+  val fold_left : ('a -> Flambda_kind.t -> 'a) -> 'a -> t -> 'a
+
   val element_kind : int -> t -> Flambda_kind.t
 
   val length : t -> int

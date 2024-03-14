@@ -449,14 +449,9 @@ let comp_primitive stack_info p sz args =
          aren't stored flat like they are in native code.
       *)
       Kgetfield n
-  | Psetmixedfield (n, shape, _init) -> begin
-      (* CR layouts: This assumes immediates and floats are the same size (false
-         on 32 bits), and will need reworking when we have other sizes. *)
-      match shape with
-      | Imm -> Ksetfield n
-      (* CR mixed blocks: I think this is wrong. Test case? *)
-      | Float | Float64 -> Ksetfloatfield n
-    end
+  | Psetmixedfield (n, _shape, _init) ->
+      (* See the comment in the [Pmixedfield] case. *)
+      Ksetfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->

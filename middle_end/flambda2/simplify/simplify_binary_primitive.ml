@@ -826,7 +826,7 @@ let[@inline always] simplify_immutable_block_load0
   with
   | _, Mixed _ -> SPR.create_unknown dacc ~result_var result_kind ~original_term
      (* CR mixed blocks: An flambda2 person will see how to do better here for
-        abstract blocks.  Simply extending the existing code would require
+        mixed blocks.  Simply extending the existing code would require
         extending [Block_kind] with [Mixed], but various parts of the code
         seem to assume blocks have uniform element kinds. *)
   | Invalid, _ -> SPR.create_invalid dacc

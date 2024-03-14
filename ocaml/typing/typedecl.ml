@@ -1094,10 +1094,10 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_record_support () =
-  (* CR mixed blocks v0: do this from some central place... *)
+  (* CR mixed blocks: do this from some central place... *)
   if Config.reserved_header_bits < 8 then
     failwith "Need at least 8 reserved header bits to play this game.";
-  (* CR mixed blocks v0: The naked pointer check can be deleted. *)
+  (* CR mixed blocks: The naked pointer check can be deleted. *)
   if Config.naked_pointers then
     failwith "You won't get any useful information from testing this \
               with naked pointers enabled."
@@ -1118,7 +1118,6 @@ let update_decl_jkind env dpath decl =
        bound is exactly [x]. (For example, [values] may be [false] even
        if [imms] is [true].)
     *)
-    (* CR nroberts: imm64? *)
     type element_reprs =
       {  mutable values : bool; (* also includes [imm64] *)
          mutable imms : bool;
@@ -1179,22 +1178,11 @@ let update_decl_jkind env dpath decl =
         classifications;
       let rep =
         match[@warning "+9"] element_reprs with
-            (* (* We store mixed float/float64 records as flat if there are no
-             *     non-float fields.
-             * *)
-             * assert_mixed_record_support ();
-             * let flat_suffix =
-             *   List.map
-             *     (function
-             *       | Float_element -> Float
-             *       | Flat_float64_element -> Float64
-             *       | Element_without_runtime_component -> Imm
-             *       | Flat_imm_element | Value_element ->
-             *           Misc.fatal_error "Expected only floats and float64s")
-             *     classifications
-             *   |> Array.of_list
-             * in
-             * Record_mixed { value_prefix_len = 0; flat_suffix } *)
+        (* CR mixed blocks v1: We said we would allow any mixing of float/ufloat
+           fields, and the result would be stored all-flat. But we haven't
+           implemented this yet. Currently [float] is always stored boxed in a
+           mixed record.
+        *)
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  }
         | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->

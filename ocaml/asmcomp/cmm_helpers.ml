@@ -1028,22 +1028,30 @@ let make_float_alloc ~mode dbg tag args =
   make_alloc_generic ~mode (fun _ -> float_array_set) dbg tag
                      (List.length args * size_float / size_addr) args
 
-let make_abstract_alloc ~mode dbg shape args =
+(* CR mixed blocks: I don't believe this code is run at all. *)
+let make_mixed_alloc ~mode dbg shape args =
+  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
-    match (shape.(idx) : Lambda.flat_element) with
-    | Imm -> int_array_set arr ofs newval dbg
-    | Float | Float64 -> float_array_set arr ofs newval dbg
+    if idx < value_prefix_len
+    then addr_array_init arr ofs newval dbg
+    else
+      match flat_suffix.(idx - value_prefix_len) with
+      | Imm -> int_array_set arr ofs newval dbg
+      | Float | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
-    Array.fold_left
-      (fun sz (shape : Lambda.flat_element) ->
-        match shape with
-        | Imm -> sz + 1
-        | Float | Float64 -> sz + (size_float / size_addr))
-      0 shape
+    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
+    if size_float <> size_addr
+    then
+      Misc.fatal_error
+        "Unable to compile mixed blocks on a platform where a float is not the \
+         same width as a value.";
+    values + floats
   in
-  make_alloc_generic ~mode set_fn dbg Obj.abstract_tag size args
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+    (* CR mixed blocks v1: Support inline record args to variants. *)
+    set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)
 

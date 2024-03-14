@@ -140,6 +140,13 @@ module Mixed_block_kind = struct
       match flat_suffix.(i - value_prefix_len) with
       | Imm -> K.value
       | Float | Float64 -> K.naked_float)
+
+  let fold_left f init t =
+    let result = ref init in
+    for i = 0 to length t - 1 do
+      result := f !result (element_kind i t)
+    done;
+    !result
 end
 
 
@@ -349,7 +356,7 @@ module Block_access_kind = struct
         match field_kind with
         | Imm -> K.value
         | Float | Float64 -> K.naked_float
-        (* CR mixed blocks v0: based on the Naked_floats case I believe
+        (* CR mixed blocks: based on the Naked_floats case I believe
            naked_float is correct here for both Float and Float64, but an
            flambda2 person should check.
         *)
