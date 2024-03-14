@@ -91,6 +91,7 @@ type exttype =
   | XInt
   | XInt32
   | XInt64
+  | XFloat32
   | XFloat
   | XVec128
 
@@ -99,6 +100,7 @@ let machtype_of_exttype = function
   | XInt32 -> typ_int
   | XInt64 -> typ_int
   | XFloat -> typ_float
+  | XFloat32 -> typ_float
   | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
@@ -521,13 +523,16 @@ let equal_exttype left right =
   | XInt, XInt -> true
   | XInt32, XInt32 -> true
   | XInt64, XInt64 -> true
+  | XFloat32, XFloat32 -> true
   | XFloat, XFloat -> true
   | XVec128, XVec128 -> true
-  | XInt, (XInt32 | XInt64 | XFloat | XVec128)
-  | XInt32, (XInt | XInt64 | XFloat | XVec128)
-  | XInt64, (XInt | XInt32 | XFloat | XVec128)
-  | XFloat, (XInt | XInt32 | XInt64 | XVec128)
-  | XVec128, (XInt | XInt32 | XInt64 | XFloat) ->
+  | XInt, (XInt32 | XInt64 | XFloat | XFloat32 | XVec128)
+  | XInt32, (XInt | XInt64 | XFloat | XFloat32 | XVec128)
+  | XInt64, (XInt | XInt32 | XFloat | XFloat32 | XVec128)
+  | XFloat, (XInt | XInt32 | XFloat32 | XInt64 | XVec128)
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32) ->
+    false
+  | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
 
 let equal_float_comparison left right =

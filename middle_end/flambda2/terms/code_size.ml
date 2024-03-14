@@ -89,15 +89,20 @@ let arith_conversion_size src dst =
   | Naked_int64, Naked_int32
   | Naked_int64, (Naked_nativeint | Naked_immediate)
   | Naked_int64, Naked_float
+  | Naked_int64, Naked_float32
     when arch32 ->
     does_not_need_caml_c_call_extcall_size + 1 (* arg *)
   | Tagged_immediate, Naked_int64
   | Naked_int32, Naked_int64
   | (Naked_nativeint | Naked_immediate), Naked_int64
   | Naked_float, Naked_int64
+  | Naked_float32, Naked_int64
     when arch32 ->
     needs_caml_c_call_extcall_size + 1 (* arg *) + 1 (* unbox *)
   | Naked_float, Naked_float -> 0
+  | Naked_float32, Naked_float32 -> 0
+  | Naked_float, Naked_float32 -> 1
+  | Naked_float32, Naked_float -> 1
   | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
       Tagged_immediate ) ->
     1
@@ -112,25 +117,25 @@ let arith_conversion_size src dst =
   | ( Naked_immediate,
       (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) ) ->
     0
-  | Tagged_immediate, Naked_float -> 1
-  | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Naked_float
-    ->
+  | Tagged_immediate, (Naked_float | Naked_float32) -> 1
+  | ( (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint),
+      (Naked_float | Naked_float32) ) ->
     1
-  | Naked_float, Tagged_immediate -> 1
-  | Naked_float, (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-    ->
+  | (Naked_float | Naked_float32), Tagged_immediate -> 1
+  | ( (Naked_float | Naked_float32),
+      (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ) ->
     1
 
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> 1 (* 1 load *)
+  | Naked_float | Naked_float32 | Naked_vec128 -> 1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_vec128 -> alloc_size (* 1 alloc *)
+  | Naked_float | Naked_float32 | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)

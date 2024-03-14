@@ -1348,15 +1348,17 @@ end = struct
             ~const:(fun const ->
               match Reg_width_const.descr const with
               | Tagged_immediate i -> VA.Value_int i
-              | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_immediate _ | Naked_float _ | Naked_float32 _
+              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
+              | Naked_nativeint _ ->
                 VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
           match head with
-          | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | String _ | Array _ ->
+          | Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
+          | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
@@ -1397,8 +1399,9 @@ end = struct
                 in
                 Block_approximation (tag, Array.of_list fields, alloc_mode)
             else Value_unknown))
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+      | Region _ ->
         assert false
     in
     let symbol_ty, _binding_time_and_mode =

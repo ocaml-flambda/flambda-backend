@@ -55,6 +55,24 @@ module Immediate = struct
     }
 end
 
+module Float32 = struct
+  let decider =
+    { param_name = "unboxed_float32";
+      kind = K.Naked_number_kind.Naked_float32;
+      prove_is_a_boxed_number = T.prove_is_a_boxed_float32
+    }
+
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_float32, simple))
+
+  let unboxer =
+    { var_name = "unboxed_float";
+      invalid_const =
+        Const.naked_float32 Numeric_types.Float32_by_bit_pattern.zero;
+      unboxing_prim;
+      prove_simple = T.meet_boxed_float_containing_simple
+    }
+end
+
 module Float = struct
   let decider =
     { param_name = "unboxed_float";

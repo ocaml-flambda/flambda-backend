@@ -85,6 +85,8 @@ let local_closure_header sz = local_block_header Obj.closure_tag sz
 
 let infix_header ofs = block_header Obj.infix_tag ofs
 
+let boxedfloat32_header = block_header Obj.custom_tag 2
+
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 
 let float_local_header =
@@ -691,6 +693,14 @@ let test_bool dbg cmm =
   | c -> Cop (Ccmpi Cne, [c; Cconst_int (1, dbg)], dbg)
 
 (* Float *)
+
+let box_float32 _dbg _mode _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
+
+let unbox_float32 _dbg _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
@@ -3056,6 +3066,9 @@ let emit_boxed_int64_constant_fields n cont =
 let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
 
+let emit_float32_constant symb f cont =
+  emit_block symb boxedfloat32_header (Csingle f :: cont)
+
 let emit_float_constant symb f cont =
   emit_block symb float_header (Cdouble f :: cont)
 
@@ -3076,6 +3089,10 @@ let emit_nativeint_constant symb n cont =
 
 let emit_vec128_constant symb bits cont =
   emit_block symb boxedvec128_header (Cvec128 bits :: cont)
+
+let emit_float32_array_constant _symb _fields _cont =
+  (* CR mslater: (float32) backend support *)
+  assert false
 
 let emit_float_array_constant symb fields cont =
   emit_block symb
@@ -3293,6 +3310,10 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
+let float32 ~dbg:_ _f =
+  (* CR mslater: (float32) backend support *)
+  assert false
+
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
@@ -3354,6 +3375,22 @@ let binary op ~dbg x y = Cop (op, [x; y], dbg)
 let int_of_float = unary Cintoffloat
 
 let float_of_int = unary Cfloatofint
+
+let int_of_float32 ~dbg:_ _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
+
+let float32_of_int ~dbg:_ _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
+
+let float32_of_float ~dbg:_ _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
+
+let float_of_float32 ~dbg:_ _exp =
+  (* CR mslater: (float32) backend support *)
+  assert false
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -3552,6 +3589,8 @@ let infix_field_address ~dbg ptr n =
 (* Data items *)
 
 let cint i = Cmm.Cint i
+
+let cfloat32 f = Cmm.Csingle f
 
 let cfloat f = Cmm.Cdouble f
 

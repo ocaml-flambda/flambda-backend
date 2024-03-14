@@ -256,8 +256,8 @@ let find_value_approximation env simple =
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
-      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_vec128 _ | Naked_nativeint _ ->
+      | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
 
 let find_value_approximation_through_symbol acc env simple =

@@ -320,9 +320,9 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
   | Region head1, Region head2 ->
     let<+ head, env_extension = meet_head_of_kind_region env head1 head2 in
     ET.create_region head, env_extension
-  | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-      | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ | Rec_info _
-      | Region _ ),
+  | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+      | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
+      | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 
@@ -353,6 +353,10 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     | Known { alloc_mode = alloc_mode_immut; _ } ->
       let<+ alloc_mode = meet_alloc_mode alloc_mode_mut alloc_mode_immut in
       TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty)
+  | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
+    let<* n, env_extension = meet env n1 n2 in
+    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+    TG.Head_of_kind_value.create_boxed_float32 n alloc_mode, env_extension
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
@@ -413,9 +417,9 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
       env_extension )
-  | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
-      | String _ | Array _ ),
+  | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+      | Closures _ | String _ | Array _ ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
@@ -1125,6 +1129,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Naked_immediate head1, Naked_immediate head2 ->
         let>+ head = join_head_of_kind_naked_immediate env head1 head2 in
         ET.create_naked_immediate head
+      | Naked_float32 head1, Naked_float32 head2 ->
+        let>+ head = join_head_of_kind_naked_float32 env head1 head2 in
+        ET.create_naked_float32 head
       | Naked_float head1, Naked_float head2 ->
         let>+ head = join_head_of_kind_naked_float env head1 head2 in
         ET.create_naked_float head
@@ -1146,9 +1153,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Region head1, Region head2 ->
         let>+ head = join_head_of_kind_region env head1 head2 in
         ET.create_region head
-      | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-          | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ | Rec_info _
-          | Region _ ),
+      | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+          | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
+          | Rec_info _ | Region _ ),
           _ ) ->
         assert false
     in
@@ -1173,6 +1180,10 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     Known (TG.Head_of_kind_value.create_mutable_block alloc_mode)
+  | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
+    let>+ n = join env n1 n2 in
+    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+    TG.Head_of_kind_value.create_boxed_float32 n alloc_mode
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
@@ -1225,9 +1236,9 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let>+ length = join env length1 length2 in
     TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
       contents alloc_mode
-  | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
-      | String _ | Array _ ),
+  | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+      | Closures _ | String _ | Array _ ),
       _ ) ->
     Unknown
 
@@ -1320,6 +1331,9 @@ and join_head_of_kind_naked_immediate env
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
     else Unknown
   | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+
+and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
+  Known (TG.Head_of_kind_naked_float32.union t1 t2)
 
 and join_head_of_kind_naked_float _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float.union t1 t2)

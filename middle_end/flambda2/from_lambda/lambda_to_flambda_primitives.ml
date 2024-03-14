@@ -646,6 +646,8 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
   match P.Bigarray_kind.element_kind kind with
   | Value -> Fun.id
   | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
+  | Naked_number Naked_float32 ->
+    fun arg -> H.Unary (Box_number (Naked_float32, alloc_mode), Prim arg)
   | Naked_number Naked_float ->
     fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
   | Naked_number Naked_int32 ->
@@ -668,6 +670,8 @@ let bigarray_unbox_or_untag_value_to_store kind =
   | Value -> Fun.id
   | Naked_number Naked_immediate ->
     fun arg -> H.Prim (Unary (Untag_immediate, arg))
+  | Naked_number Naked_float32 ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_float32, arg))
   | Naked_number Naked_float ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_float, arg))
   | Naked_number Naked_int32 ->
