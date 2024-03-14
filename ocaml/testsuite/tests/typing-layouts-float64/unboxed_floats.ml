@@ -498,20 +498,22 @@ let _ =
 (***********************************************)
 (* Test 13: basic (float# + immediate) records *)
 
-(* Copy of test 3, everything is in the record. *)
-type mixedargs = { x0_1 : int;
+(* Copy of test 3, everything is in the record, with boxed float fields
+   necessarily in the prefix of the record.
+*)
+type mixedargs = { x2_1 : float;
+                   x4_1 : float;
+                   x6_1 : float;
+                   x8_1 : float;
+                   x0_1 : int;
                    x0_2 : int;
                    x1 : float#;
-                   x2_1 : float;
                    x2_2 : int;
                    x3 : float#;
-                   x4_1 : float;
                    x4_2 : int;
                    x5 : float#;
-                   x6_1 : float;
                    x6_2 : int;
                    x7 : float#;
-                   x8_1 : float;
                    x8_2 : int;
                    x9 : float# }
 
@@ -571,35 +573,35 @@ let _ = test13 ()
 
 type t14 = { a : float#;
              mutable b : int;
-             c : float;
+             c : float#;
              mutable d : float#;
              e : int;
-             mutable f : float }
+             mutable f : float# }
 
 (* Construction *)
 let t14_1 = { a = Float_u.of_float 3.14;
               b = 13;
-              c = 7.31;
+              c = Float_u.of_float 7.31;
               d = Float_u.of_float 1.41;
               e = 6;
-              f = 27.1
+              f = Float_u.of_float 27.1
             }
 
 let t14_2 = { a = Float_u.of_float (-3.14);
               b = -13;
-              c = -7.31;
+              c = Float_u.of_float (-7.31);
               d = Float_u.of_float (-1.41);
               e = -6;
-              f = -27.1
+              f = Float_u.of_float (-27.1)
             }
 
 let print_t14 t14 =
   print_floatu "  a" t14.a;
   print_int "  b" t14.b;
-  print_float "  c" t14.c;
+  print_floatu "  c" t14.c;
   print_floatu "  d" t14.d;
   print_int "  e" t14.e;
-  print_float "  f" t14.f
+  print_floatu "  f" t14.f
 
 let _ =
   Printf.printf "Test 14, construction:\n";
@@ -612,9 +614,9 @@ let f14_1 {c; d; f; _} r =
   | { a; _ } ->
     { a = (Float_u.of_int r.e);
       b = Float_u.(to_int (a - d));
-      c = r.c +. c;
+      c = Float_u.(r.c + c);
       d = Float_u.(d - (of_int r.b));
-      e = Float_u.(to_int (of_float f + (of_int r.e)));
+      e = Float_u.(to_int (f + (of_int r.e)));
       f = r.f}
 
 let _ =
@@ -624,7 +626,7 @@ let _ =
 (* Record update and mutation *)
 let f14_2 ({a; d; _} as r1) r2 =
   r1.d <- Float_u.of_float 42.0;
-  let r3 = { r2 with c = (Float_u.to_float r1.d);
+  let r3 = { r2 with c = r1.d;
                      d = Float_u.of_float 25.0 }
   in
   r3.b <- Float_u.(to_int (a + d));
@@ -645,23 +647,23 @@ let _ =
 let rec f r =
   r.d <- Float_u.of_int t15_1.b;
   t15_2.b <- 42;
-  t15_1.f <- Float_u.to_float t15_1.a;
+  t15_1.f <- t15_1.a;
   Float_u.(r.a + t15_2.a)
 
 
 and t15_1 = { a = Float_u.of_float 1.1;
               b = 2;
-              c = 3.3;
+              c = Float_u.of_float 3.3;
               d = Float_u.of_float 4.4;
               e = 5;
-              f = 6.6}
+              f = Float_u.of_float 6.6}
 
 and t15_2 = { a = Float_u.of_float (- 5.1);
               b = -6;
-              c = -7.3;
+              c = Float_u.of_float (-7.3);
               d = Float_u.of_float (- 8.4);
               e = -9;
-              f = -10.6}
+              f = Float_u.of_float (-10.6) }
 
 let _ =
   Printf.printf "Test 15, (float#+float+imm) records in recursive groups:\n";

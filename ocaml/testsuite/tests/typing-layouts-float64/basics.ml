@@ -199,14 +199,9 @@ type t5_2_3 = { z : float; y : int; x : t_float64 };;
 type t5_2_3 = { z : float; y : int; x : t_float64; }
 |}];;
 
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
 type t5_2_4 = { y : string; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-43:
-1 | type t5_2_4 = { y : string; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and boxed values.
+type t5_2_4 = { y : string; x : t_float64; }
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -285,10 +280,7 @@ type ('a : float64) t5_13 = { x : 'a; y : float#; }
 
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
-Line 1, characters 0-36:
-1 | type 'a t5_14 = {x : 'a; y : float#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and boxed values.
+type 'a t5_14 = { x : 'a; y : float#; }
 |}];;
 
 type ufref = { mutable contents : float# };;
