@@ -84,7 +84,7 @@ let any_tagged_bool = these_tagged_immediates Targetint_31_63.all_bools
 let any_naked_bool = TG.these_naked_immediates Targetint_31_63.all_bools
 
 let this_boxed_float32 f alloc_mode =
-  TG.box_float (TG.this_naked_float32 f) alloc_mode
+  TG.box_float32 (TG.this_naked_float32 f) alloc_mode
 
 let this_boxed_float f alloc_mode =
   TG.box_float (TG.this_naked_float f) alloc_mode
@@ -117,7 +117,7 @@ let these_boxed_nativeints is alloc_mode =
   TG.box_nativeint (these_naked_nativeints is) alloc_mode
 
 let any_boxed_float32 =
-  TG.box_float TG.any_naked_float32 (Alloc_mode.For_types.unknown ())
+  TG.box_float32 TG.any_naked_float32 (Alloc_mode.For_types.unknown ())
 
 let any_boxed_float =
   TG.box_float TG.any_naked_float (Alloc_mode.For_types.unknown ())

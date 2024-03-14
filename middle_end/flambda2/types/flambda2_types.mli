@@ -695,6 +695,9 @@ val prove_tagging_of_simple :
 val meet_tagging_of_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
+val meet_boxed_float32_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
+
 val meet_boxed_float_containing_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 

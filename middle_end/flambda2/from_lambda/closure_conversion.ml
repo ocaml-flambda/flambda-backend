@@ -512,8 +512,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _, Same_as_ocaml_repr _ -> None
     | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
     | _, Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+      Some (P.Box_number (Naked_float32, alloc_mode))
     | _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))

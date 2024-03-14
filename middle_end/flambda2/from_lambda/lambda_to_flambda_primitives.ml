@@ -142,6 +142,7 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
+  (* CR mslater: (float32) arrays *)
   type t =
     | Immediates
     | Values

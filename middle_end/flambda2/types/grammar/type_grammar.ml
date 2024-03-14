@@ -3066,7 +3066,7 @@ let get_tag_for_block ~block : t =
   Naked_immediate (TD.create (Get_tag (alias_type_of K.value block)))
 
 let boxed_float32_alias_to ~naked_float32 =
-  box_float (Naked_float32 (TD.create_equals (Simple.var naked_float32)))
+  box_float32 (Naked_float32 (TD.create_equals (Simple.var naked_float32)))
 
 let boxed_float_alias_to ~naked_float =
   box_float (Naked_float (TD.create_equals (Simple.var naked_float)))

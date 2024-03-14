@@ -69,7 +69,7 @@ module Float32 = struct
       invalid_const =
         Const.naked_float32 Numeric_types.Float32_by_bit_pattern.zero;
       unboxing_prim;
-      prove_simple = T.meet_boxed_float_containing_simple
+      prove_simple = T.meet_boxed_float32_containing_simple
     }
 end
 
