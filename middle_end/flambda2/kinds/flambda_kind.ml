@@ -610,9 +610,7 @@ module With_subkind = struct
     match vk with
     | Pgenval -> any_value
     | Pboxedfloatval Pfloat64 -> boxed_float
-    | Pboxedfloatval Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Pboxedfloatval Pfloat32 -> boxed_float32
     | Pboxedintval Pint32 -> boxed_int32
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
@@ -649,7 +647,7 @@ module With_subkind = struct
     | Parrayval Pgenarray -> generic_array
     | Parrayval (Punboxedfloatarray Pfloat64) -> float_array
     | Parrayval (Punboxedfloatarray Pfloat32) ->
-      (* CR mslater: (float32) middle end support *)
+      (* CR mslater: (float32) unboxed arrays *)
       assert false
     | Parrayval (Punboxedintarray Pint32) -> unboxed_int32_array
     | Parrayval (Punboxedintarray Pint64) -> unboxed_int64_array
@@ -659,9 +657,7 @@ module With_subkind = struct
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
     | Punboxed_float Pfloat64 -> naked_float
-    | Punboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Punboxed_float Pfloat32 -> naked_float32
     | Punboxed_int Pint32 -> naked_int32
     | Punboxed_int Pint64 -> naked_int64
     | Punboxed_int Pnativeint -> naked_nativeint

@@ -118,9 +118,9 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
     register_const acc (SC.boxed_float (Const c)) "float"
-  | Const_base (Const_float32 _c) ->
-    (* CR mslater: (float32) middle end support *)
-    assert false
+  | Const_base (Const_float32 c) ->
+    let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
+    register_const acc (SC.boxed_float32 (Const c)) "float32"
   | Const_base (Const_int32 c) ->
     register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
@@ -541,9 +541,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           (from_lambda_values_and_unboxed_numbers_only
              (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
-    | Unboxed_float Pfloat32 ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
@@ -633,9 +631,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           match arg_repr with
           | _, Same_as_ocaml_repr _ -> None
           | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
-          | _, Unboxed_float Pfloat32 ->
-            (* CR mslater: (float32) middle end support *)
-            assert false
+          | _, Unboxed_float Pfloat32 -> Some (P.Unbox_number Naked_float32)
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)

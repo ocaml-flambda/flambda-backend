@@ -1780,7 +1780,7 @@ let primitive_result_layout (p : primitive) =
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
       | Pbigarray_float32 ->
-        (* CR mslater: (float32) bigarrays *)
+        (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8

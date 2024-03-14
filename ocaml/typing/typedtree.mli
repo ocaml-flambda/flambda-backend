@@ -33,7 +33,7 @@ type constant =
   | Const_string of string * Location.t * string option
   | Const_float of string
   | Const_float32 of string
-  (* CR mslater: (float32) unboxed float32 *)
+  (* CR mslater: (float32) unboxed *)
   | Const_unboxed_float of string
   | Const_int32 of int32
   | Const_int64 of int64

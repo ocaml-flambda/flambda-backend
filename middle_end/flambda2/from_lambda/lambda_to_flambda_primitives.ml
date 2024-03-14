@@ -130,7 +130,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Pintarray -> Array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 -> Array_kind Naked_floats
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
@@ -142,7 +142,7 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
-  (* CR mslater: (float32) arrays *)
+  (* CR mslater: (float32) unboxed arrays *)
   type t =
     | Immediates
     | Values
@@ -174,7 +174,7 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
   | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
   | Punboxedfloatarray_ref Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
@@ -232,7 +232,7 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
   | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
   | Punboxedfloatarray_set Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
@@ -265,7 +265,7 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     Duplicate_array_kind (Naked_floats { length = None })
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint32 ->
     Duplicate_array_kind (Naked_int32s { length = None })
@@ -1094,7 +1094,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbox_float (Pfloat32, _), _
   | Pcompare_floats Pfloat32, _
   | Punboxed_float_comp (Pfloat32, _), _ ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed *)
     assert false
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in

@@ -2846,7 +2846,7 @@ let arraylength kind arg dbg =
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) array support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg

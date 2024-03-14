@@ -715,7 +715,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Dynamic_size, Punboxedfloatarray Pfloat64 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
     | (Fixed_size | Dynamic_size), Punboxedfloatarray Pfloat32 ->
-        (* CR mslater: (float32) array support *)
+        (* CR mslater: (float32) unboxed arrays *)
         assert false
     | Dynamic_size, Punboxedintarray Pint32 ->
         Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
@@ -815,7 +815,7 @@ let body
     | Punboxedintarray _ ->
         set_element_in_bounds body
     | Punboxedfloatarray Pfloat32 ->
-      (* CR mslater: (float32) array support *)
+      (* CR mslater: (float32) unboxed arrays *)
       assert false
   in
   Lsequence(
