@@ -40,13 +40,23 @@ let enumeration_of_nonempty_list enumeration_of_x =
 type flat_element =
   | Imm
   | Float_u
+  | Float
 
-let all_of_flat_element = [ Imm; Float_u ]
+let flat_element_is_float = function
+  | Float_u | Float -> true
+  | Imm -> false
+
+let flat_element_is = ((=) : flat_element -> flat_element -> bool)
+let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
+
+let all_of_flat_element = [ Imm; Float_u; Float ]
 
 type value_element =
   | Str
   | Float
   | Imm
+
+let value_element_is = ((=) : value_element -> value_element -> bool)
 
 let all_of_value_element = [ Str; Float; Imm ]
 
@@ -78,14 +88,29 @@ let enumeration_of_prefix =
     | ((Str | Float), _) :: _ -> true)
 ;;
 
-let enumeration_of_suffix =
+let enumeration_of_suffix_except_all_floats_mixed : _ Seq.t =
+  let flat_element_except_float =
+    enumeration_of_flat_element
+    |> Seq.filter (flat_element_is_not Float)
+  in
   enumeration_of_nonempty_list
-    (Seq.product enumeration_of_flat_element enumeration_of_mutability)
+    (Seq.product flat_element_except_float enumeration_of_mutability)
   |> Seq.filter (fun suffix ->
-    List.exists (Nonempty_list.to_list suffix) ~f:(function
-      | Float_u, _ -> true
-      | Imm, _ -> false))
+    List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
+      flat_element_is Float_u elem))
 ;;
+
+let enumeration_of_all_floats_mixed_suffix =
+  let float_flat_element =
+    enumeration_of_flat_element
+    |> Seq.filter flat_element_is_float
+  in
+  enumeration_of_nonempty_list
+    (Seq.product float_flat_element enumeration_of_mutability)
+  |> Seq.filter (fun suffix ->
+      let suffix = Nonempty_list.to_list suffix in
+      List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+      && List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float elem))
 
 type block =
   { prefix : prefix
@@ -93,15 +118,23 @@ type block =
   }
 
 let enumeration_of_block =
-  Seq.product enumeration_of_prefix enumeration_of_suffix
-  |> Seq.filter (fun (prefix, suffix) ->
-    List.exists prefix ~f:(fun ((Str | Imm | Float), _) -> true)
-    || List.exists (Nonempty_list.to_list suffix)
-      ~f:(fun ((value : flat_element), _) ->
-      match value with
-      | Imm -> true
-      | Float_u -> false))
-  |> Seq.map (fun (prefix, suffix) -> { prefix; suffix })
+  Seq.append
+    (Seq.product
+      enumeration_of_prefix
+      enumeration_of_suffix_except_all_floats_mixed
+     |> Seq.filter (fun (prefix, suffix) ->
+         let all_float_u_suffix =
+           List.for_all (Nonempty_list.to_list suffix)
+             ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+         in
+         let all_float_prefix =
+           List.for_all prefix
+             ~f:(fun (elem, _) -> value_element_is Float elem)
+         in
+         not all_float_u_suffix || not all_float_prefix)
+     |> Seq.map (fun (prefix, suffix) -> { prefix; suffix }))
+    (enumeration_of_all_floats_mixed_suffix
+     |> Seq.map (fun suffix -> { prefix = []; suffix }))
 ;;
 
 module Named_block = struct

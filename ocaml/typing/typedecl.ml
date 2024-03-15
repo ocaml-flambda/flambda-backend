@@ -3048,10 +3048,10 @@ let report_error ppf = function
       Printtyp.type_expr typ struct_desc
   | Illegal_mixed_record (Flat_field_expected { boxed_lbl; non_value_lbl }) ->
       fprintf ppf
-        "@[Expected all flat fields after non-value field, %a,@]@,\
-       \ @[but found boxed field, %a.]"
-        Ident.print non_value_lbl
-        Ident.print boxed_lbl
+        "@[Expected all flat fields after non-value field, %s,@]@,\
+       \ @[but found boxed field, %s.@]"
+        (Ident.name non_value_lbl)
+        (Ident.name boxed_lbl)
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
