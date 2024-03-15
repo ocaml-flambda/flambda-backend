@@ -43,4 +43,3 @@ let _ = x.Lexing.pos_cnum = y.Lexing.pos_cnum && x.pos_cnum = y.pos_cnum && x.Le
 [%%expect{|
 - : bool = true
 |}]
-

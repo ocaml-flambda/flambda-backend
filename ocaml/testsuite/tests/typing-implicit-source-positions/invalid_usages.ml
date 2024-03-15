@@ -7,7 +7,7 @@ type t = [%call_pos]
 Line 1, characters 11-19:
 1 | type t = [%call_pos]
                ^^^^^^^^
-Error: call_pos can only exist as the type of a labelled argument
+Error: [%call_pos] can only exist as the type of a labelled argument
 |}]
 
 type t = unit -> unit -> [%call_pos]
@@ -15,7 +15,7 @@ type t = unit -> unit -> [%call_pos]
 Line 1, characters 27-35:
 1 | type t = unit -> unit -> [%call_pos]
                                ^^^^^^^^
-Error: call_pos can only exist as the type of a labelled argument
+Error: [%call_pos] can only exist as the type of a labelled argument
 |}]
 
 let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
@@ -24,7 +24,7 @@ let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
 Line 1, characters 37-45:
 1 | let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
                                          ^^^^^^^^
-Error: call_pos can only exist as the type of a labelled argument
+Error: [%call_pos] can only exist as the type of a labelled argument
 |}]
 
 let apply f = f ~call_pos:Lexing.dummy_pos () ;;
