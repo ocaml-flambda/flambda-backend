@@ -87,9 +87,30 @@ let check_i a =
   in
   check_i_upto a (A.length a - 1)
 
+let check_eq_f f arr = A.iteri (fun i x -> assert (x = f i)) arr
 let check_all_the_same v arr = A.iter (fun x -> assert (x = v)) arr
 
+let check_inval f arg =
+  match f arg with
+  | _ -> assert false
+  | exception (Invalid_argument _) -> ()
+  | exception _ -> assert false
+
 let () =
+  (* empty arrays *)
+  let test_empty_array arr =
+    check_inval (fun a -> A.get a 0) arr;
+    check_inval (fun a -> A.get a 1) arr;
+    check_inval (fun a -> A.get a (-1)) arr;
+    check_inval (fun a -> A.set a 0 (I.of_int 0)) arr;
+    check_inval (fun a -> A.set a 1 (I.of_int 0)) arr;
+    check_inval (fun a -> A.set a (-1) (I.of_int 0)) arr
+  in
+  let r : A.t = [||] in
+  test_empty_array r;
+  let r = A.make 0 (I.of_int 0) in
+  test_empty_array r;
+
   (* static blocks *)
   let r = [|
 #0L;#1L;#2L;#3L;#4L;#5L;#6L;#7L;#8L;#9L;#10L;#11L;#12L;#13L;#14L;#15L;#16L;#17L;
@@ -111,6 +132,14 @@ let () =
   check_i r;
   let r = [|-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;-#123L;|] in
   check_all_the_same (I.of_int (-123)) r;
+  let r =
+    [|-#1L; #1L; -#1L; #1L; -#1L; #1L; -#1L; #1L; -#1L;|]
+  in
+  check_eq_f (fun idx -> if (idx mod 2) = 0 then I.of_int (-1) else I.of_int 1) r;
+  let r =
+    [|#1L; -#1L; #1L; -#1L; #1L; -#1L; #1L; -#1L;|]
+  in
+  check_eq_f (fun idx -> if (idx mod 2) = 0 then I.of_int (1) else I.of_int (-1)) r;
   (* dynamic blocks *)
   let[@inline never] f x = x in
   let r = [|
@@ -139,6 +168,14 @@ let () =
   check_all_the_same (I.of_int (-123)) r;
   check_i [| #0L; ((fun x -> x) #1L)|];
   check_i [| #0L; ((fun x -> x) #1L); #2L|];
+  let r =
+    [|f (-#1L);f (#1L);f (-#1L);f (#1L);f (-#1L);f (#1L);f (-#1L);f (#1L);f (-#1L);|]
+  in
+  check_eq_f (fun idx -> if (idx mod 2) = 0 then I.of_int (-1) else I.of_int 1) r;
+  let r =
+    [|f (#1L);f (-#1L);f (#1L);f (-#1L);f (#1L);f (-#1L);f (#1L);f (-#1L);|]
+  in
+  check_eq_f (fun idx -> if (idx mod 2) = 0 then I.of_int (1) else I.of_int (-1)) r;
   ()
 
 
