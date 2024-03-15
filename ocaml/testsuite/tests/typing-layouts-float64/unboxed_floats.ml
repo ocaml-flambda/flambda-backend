@@ -661,7 +661,7 @@ and t15_1 = { a = Float_u.of_float 1.1;
 and t15_2 = { a = Float_u.of_float (- 5.1);
               b = -6;
               c = Float_u.of_float (-7.3);
-              d = Float_u.of_float (- 8.4);
+              d = Float_u.of_float (-8.4);
               e = -9;
               f = Float_u.of_float (-10.6) }
 

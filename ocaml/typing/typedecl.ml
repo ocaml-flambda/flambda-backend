@@ -37,6 +37,12 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
+type mixed_record_violation =
+  | Flat_field_expected of
+      { boxed_lbl : Ident.t;
+        non_value_lbl : Ident.t;
+      }
+
 type error =
     Repeated_parameter
   | Duplicate_constructor of string
@@ -82,8 +88,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
   | Float64_in_block of type_expr * jkind_sort_loc
-  (* CR mixed block: error message? *)
-  | Illegal_mixed_block
+  | Illegal_mixed_record of mixed_record_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1137,8 +1142,7 @@ let update_decl_jkind env dpath decl =
       (* CR layouts v7: Eventually void components will have no runtime width.
       *)
       | Element_without_runtime_component -> Some Imm
-      | Float_element -> Some Float
-      | Value_element -> None
+      | Float_element | Value_element -> None
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1163,13 +1167,14 @@ let update_decl_jkind env dpath decl =
               Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
       in
       let classifications =
-        List.mapi (fun i lbl -> classify lbl jkinds.(i)) lbls
+        List.mapi (fun i lbl -> lbl, classify lbl jkinds.(i)) lbls
       in
       let element_reprs =
         { values = false; imms = false; floats = false; float64s = false }
       in
       List.iter
-        (function
+        (fun (_lbl, repr) ->
+           match repr with
            | Float_element -> element_reprs.floats <- true
            | Flat_imm_element -> element_reprs.imms <- true
            | Flat_float64_element -> element_reprs.float64s <- true
@@ -1178,27 +1183,46 @@ let update_decl_jkind env dpath decl =
         classifications;
       let rep =
         match[@warning "+9"] element_reprs with
-        (* CR mixed blocks v1: We said we would allow any mixing of float/ufloat
-           fields, and the result would be stored all-flat. But we haven't
-           implemented this yet. Currently [float] is always stored boxed in a
-           mixed record.
-        *)
+        | { values = false; imms = false; floats = true ; float64s = true  } ->
+            (* We store mixed float/float64 records as flat if there are no
+                non-float fields.
+            *)
+            assert_mixed_record_support ();
+            let flat_suffix =
+              List.map
+                (fun (_, c) ->
+                  match c with
+                  | Float_element -> Float
+                  | Flat_float64_element -> Float64
+                  | Element_without_runtime_component -> Imm
+                  | Flat_imm_element | Value_element ->
+                      Misc.fatal_error "Expected only floats and float64s")
+                classifications
+              |> Array.of_list
+            in
+            Record_mixed { value_prefix_len = 0; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
-        | { values = _    ; imms = true ; floats = _    ; float64s = true  }
-        | { values = _    ; imms = _    ; floats = true ; float64s = true  } ->
+        | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
             assert_mixed_record_support ();
             let rec find_flat_suffix classifications =
               match classifications with
               | [] -> Misc.fatal_error "Expected at least one Float64"
-              | c :: classifications ->
+              | (non_value_ld, c) :: classifications ->
                   match c with
                   | Flat_float64_element ->
                       let suffix =
-                        List.map (fun repr ->
+                        List.map (fun (repr_ld, repr) ->
                             match element_repr_to_flat repr with
-                            | Some (Float64 | Imm as flat) -> flat
-                            | Some Float | None ->
-                                raise (Error (loc, Illegal_mixed_block)))
+                            | Some flat -> flat
+                            | None ->
+                                let violation =
+                                  Flat_field_expected
+                                    { boxed_lbl = repr_ld.Types.ld_id;
+                                      non_value_lbl = non_value_ld.Types.ld_id;
+                                    }
+                                in
+                                raise (Error (repr_ld.Types.ld_loc,
+                                              Illegal_mixed_record violation)))
                           classifications
                       in
                       `Continue (Float64 :: suffix)
@@ -3014,16 +3038,20 @@ let report_error ppf = function
       match lloc with
       | Cstr_tuple -> "Variants"
       | Record -> "Unboxed records"
-        (* [Record] always means unboxed record here, because illegal boxed records
-           get rejected with the [Illegal_mixed_block] error instead. *)
+        (* [Record] always means unboxed record here, because illegal boxed
+           records get rejected with the [Illegal_mixed_record] error instead.
+        *)
       | External -> assert false
     in
     fprintf ppf
       "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ struct_desc
-  | Illegal_mixed_block  ->
-    fprintf ppf
-      "@[Records may not contain a boxed value following an unboxed value.@]"
+  | Illegal_mixed_record (Flat_field_expected { boxed_lbl; non_value_lbl }) ->
+      fprintf ppf
+        "@[Expected all flat fields after non-value field, %a,@]@,\
+       \ @[but found boxed field, %a.]"
+        Ident.print non_value_lbl
+        Ident.print boxed_lbl
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

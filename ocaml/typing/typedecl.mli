@@ -78,6 +78,12 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
+type mixed_record_violation =
+  | Flat_field_expected of
+      { boxed_lbl : Ident.t;
+        non_value_lbl : Ident.t;
+      }
+
 type error =
     Repeated_parameter
   | Duplicate_constructor of string
@@ -123,7 +129,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
   | Float64_in_block of type_expr * jkind_sort_loc
-  | Illegal_mixed_block
+  | Illegal_mixed_record of mixed_record_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
