@@ -880,3 +880,50 @@ CAMLprim value caml_array_of_iarray(value a)
 {
   return a;
 }
+
+/* We need these pre-declared for [gen_primitives.sh] to work. */
+CAMLprim value caml_array_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_set_indexed_by_int64(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int64(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_set_indexed_by_int32(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int32(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_set_indexed_by_nativeint(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                     \
+  CAMLprim value caml_array_get_indexed_by_##name(value array, value index) \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_get(array, Val_long(idx));                            \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_get_indexed_by_##name(value array,       \
+                                                         value index)       \
+  {                                                                         \
+    return caml_array_unsafe_get(array, Val_long(val_func(index)));         \
+  }                                                                         \
+  CAMLprim value caml_array_set_indexed_by_##name(value array,              \
+                                                  value index,              \
+                                                  value newval)             \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_set(array, Val_long(idx), newval);                    \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_set_indexed_by_##name(value array,       \
+                                                         value index,       \
+                                                         value newval)      \
+  {                                                                         \
+    return caml_array_unsafe_set(array, Val_long(val_func(index)), newval); \
+  }
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
