@@ -495,7 +495,8 @@ let iterator ~transl_exp ~scopes ~loc
                    ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
-                            Lambda.(array_ref_kind alloc_heap iter_arr_kind),
+                            (Lambda.(array_ref_kind alloc_heap iter_arr_kind),
+                            Ptagged_int_index),
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
@@ -776,7 +777,8 @@ let body
   let open Let_binding in
   let set_element_raw elt =
     (* array.(index) <- elt *)
-    Lprim(Parraysetu Lambda.(array_set_kind modify_heap array_kind),
+    Lprim(Parraysetu (Lambda.(array_set_kind modify_heap array_kind),
+                      Ptagged_int_index),
           [array.var; index.var; elt],
           loc)
   in
