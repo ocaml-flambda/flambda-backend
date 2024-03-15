@@ -760,6 +760,17 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 let array_access_validity_condition array array_kind index
     (index_kind : L.array_index_kind) =
   let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
+  (* The reason why we convert the array length instead of the index value is
+     because of edge cases around large negative numbers.
+
+     Given [-9223372036854775807] as a [Naked_int64] index, its bit
+     representation is
+     [0b1000000000000000000000000000000000000000000000000000000000000001]. If we
+     convert that into a [Tagged_immediate], it becomes [0b11] and the bounds
+     check would pass in cases that we should reject.
+
+     This also has the added benefit of producing better assembly code. Usually
+     saving one instruction compared to tagging the index value. *)
   let (comp_kind : I.t), arr_len =
     match index_kind with
     | Ptagged_int_index -> I.Tagged_immediate, arr_len_as_tagged_imm
