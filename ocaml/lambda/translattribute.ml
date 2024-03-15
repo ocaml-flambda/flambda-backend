@@ -53,10 +53,12 @@ let is_loop_attribute =
 let is_opaque_attribute =
   [ ["opaque"; "ocaml.opaque"], true ]
 
+let is_unboxable_attribute =
+  [ ["unboxable"; "ocaml.unboxable"], true ]
 
-let find_attribute p attributes =
+let find_attribute ?mark_used p attributes =
   let inline_attribute =
-    Builtin_attributes.filter_attributes
+    Builtin_attributes.filter_attributes ?mark:mark_used
       (Builtin_attributes.Attributes_filter.create p)
       attributes
   in
@@ -136,6 +138,8 @@ let get_ids_from_exp exp =
   |> Result.map List.rev
 
 
+(* [parse_ids_payload] requires that each element in [cases]
+   the first component (string list) is alphabetically sorted. *)
 let parse_ids_payload txt loc ~default ~empty cases payload =
   let[@local] warn () =
     let ( %> ) f g x = g (f x) in
@@ -270,7 +274,7 @@ let parse_property_attribute attr property =
           Assume { property; strict = true; never_returns_normally = false; loc; };
           ["assume"; "never_returns_normally"],
           Assume { property; strict = false; never_returns_normally = true; loc; };
-          ["assume"; "strict"; "never_returns_normally"],
+          ["assume"; "never_returns_normally"; "strict";],
           Assume { property; strict = true; never_returns_normally = true; loc; };
           ["ignore"], Ignore_assert_all property
         ]
@@ -459,21 +463,24 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let assume_zero_alloc attributes =
+let assume_zero_alloc ?mark_used attributes =
   let p = Zero_alloc in
-  let attr = find_attribute (is_property_attribute p) attributes in
+  let attr = find_attribute ?mark_used (is_property_attribute p) attributes in
   match parse_property_attribute attr p with
   | Default_check -> false
   | Ignore_assert_all _ -> false
   | Assume { property = Zero_alloc; _ } -> true
   | Check { property = Zero_alloc; _ } -> false
 
-let assume_zero_alloc attributes =
-  (* This function is used for "look-ahead" to find attributes
+let get_assume_zero_alloc ~with_warnings attributes =
+  if with_warnings then
+    assume_zero_alloc attributes
+  else
+    (* This function is used for "look-ahead" to find attributes
      that affect [Scoped_location] settings before translation
      of expressions in that scope.
      Warnings will be produced by [add_check_attribute]. *)
-  Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
+    Warnings.without_warnings (fun () -> assume_zero_alloc ~mark_used:false attributes)
 
 let add_check_attribute expr loc attributes =
   let to_string = function
@@ -581,6 +588,21 @@ let add_opaque_attribute expr loc attributes =
       end
   | _ -> expr
 
+let add_unbox_return_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+      let attr = find_attribute is_unboxable_attribute attributes in
+      begin match attr with
+      | None -> expr
+      | Some _ ->
+          if funct.attr.unbox_return then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "unboxable");
+          let attr = { funct.attr with unbox_return = true } in
+          lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
@@ -641,6 +663,9 @@ let add_function_attributes lam loc attr =
   let lam =
     add_tmc_attribute lam loc attr
   in
+  let lam =
+    add_unbox_return_attribute lam loc attr
+  in
   (* last because poll and opaque overrides inline and local *)
   let lam =
     add_poll_attribute lam loc attr
@@ -649,3 +674,10 @@ let add_function_attributes lam loc attr =
     add_opaque_attribute lam loc attr
   in
   lam
+
+let transl_param_attributes pat =
+  let attrs = pat.pat_attributes in
+  let unbox_param =
+    Option.is_some (find_attribute is_unboxable_attribute attrs)
+  in
+  { unbox_param }

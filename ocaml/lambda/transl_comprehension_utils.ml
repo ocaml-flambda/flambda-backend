@@ -36,6 +36,16 @@ module Lambda_utils = struct
 
     let float f = Lconst (Const_base (Const_float (Float.to_string f)))
 
+    let unboxed_float f =
+      Lconst (Const_base (Const_unboxed_float (Float.to_string f)))
+
+    let unboxed_int32 i = Lconst (Const_base (Const_unboxed_int32 i))
+    let unboxed_int64 i = Lconst (Const_base (Const_unboxed_int64 i))
+    let unboxed_nativeint i =
+      (* See CR in typedtree.mli *)
+      let i = i |> Targetint.to_int64 |> Int64.to_nativeint in
+      Lconst (Const_base (Const_unboxed_nativeint i))
+
     let string ~loc s = Lconst (Const_base (Const_string(s, loc, None)))
   end
 
@@ -114,7 +124,7 @@ module Lambda_utils = struct
     (** The Lambda primitive for calling a simple C primitive *)
     (* CR layouts v4: To change when non-values are allowed in arrays. *)
     let c_prim name arity =
-      Pccall (Primitive.simple_on_values ~name ~arity ~alloc:true)
+      Pccall (Lambda.simple_prim_on_values ~name ~arity ~alloc:true)
 
     (** Create a function that produces the Lambda representation for a
         one-argument C primitive when provided with a Lambda argument *)
@@ -139,6 +149,12 @@ module Lambda_utils = struct
       fun ~loc ~length ~init -> make_vect ~loc length init
 
     let make_float_vect = unary "caml_make_float_vect"
+
+    let make_unboxed_int32_vect = unary "caml_make_unboxed_int32_vect"
+
+    let make_unboxed_int64_vect = unary "caml_make_unboxed_int64_vect"
+
+    let make_unboxed_nativeint_vect = unary "caml_make_unboxed_nativeint_vect"
 
     let array_append = binary "caml_array_append"
 

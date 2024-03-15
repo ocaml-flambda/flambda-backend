@@ -70,19 +70,11 @@ module Witness = struct
       fprintf ppf "direct tailcall %s" callee
     | Missing_summary { callee } -> fprintf ppf "missing summary for %s" callee
     | Forward_call { callee } ->
-      fprintf ppf "foward call or tailcall (conservatively handled) %s" callee
+      fprintf ppf "forward call or tailcall (conservatively handled) %s" callee
     | Extcall { callee } -> fprintf ppf "external call to %s" callee
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe %s handler %s" name handler_code_sym
-
-  let get_alloc_dbginfo kind =
-    match kind with
-    | Alloc { bytes = _; dbginfo } -> Some dbginfo
-    | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
-    | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
-      ->
-      None
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
@@ -251,7 +243,7 @@ module Value : sig
 
   val safe : t
 
-  val relaxed : t
+  val relaxed : Witnesses.t -> t
 
   val print : witnesses:bool -> Format.formatter -> t -> unit
 
@@ -316,8 +308,7 @@ end = struct
 
   let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
 
-  let relaxed =
-    { nor = V.Safe; exn = V.Top Witnesses.empty; div = V.Top Witnesses.empty }
+  let relaxed w = { nor = V.Safe; exn = V.Top w; div = V.Top w }
 
   let print ~witnesses ppf { nor; exn; div } =
     let pp = V.print ~witnesses in
@@ -338,6 +329,9 @@ module Annotation : sig
   val is_assume : t -> bool
 
   val is_strict : t -> bool
+
+  val is_check_enabled :
+    Cmm.codegen_option list -> string -> Debuginfo.t -> bool
 end = struct
   (**
    ***************************************************************************
@@ -367,7 +361,7 @@ end = struct
   let get_loc t = t.loc
 
   let expected_value t =
-    let res = if t.strict then Value.safe else Value.relaxed in
+    let res = if t.strict then Value.safe else Value.relaxed Witnesses.empty in
     if t.never_returns_normally then { res with nor = V.Bot } else res
 
   let is_assume t = t.assume
@@ -408,6 +402,14 @@ end = struct
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
+
+  let is_check_enabled codegen_options fun_name dbg =
+    let is_enabled p =
+      match find codegen_options p fun_name dbg with
+      | None -> false
+      | Some { assume; _ } -> not assume
+    in
+    List.exists is_enabled Cmm.all_properties
 end
 
 module Report : sig
@@ -456,10 +458,10 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
-    let print_comballoc (w : Witness.t) =
-      match Witness.get_alloc_dbginfo w.kind with
-      | None | Some [] | Some [_] -> "", []
-      | Some alloc_dbginfo ->
+    let print_comballoc dbg =
+      match dbg with
+      | [] | [_] -> "", []
+      | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
            checkmach is before comballoc. In the future, this may be done in the
@@ -484,15 +486,31 @@ end = struct
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
       let loc = Debuginfo.to_location w.dbg in
-      let comballoc_msg, sub = print_comballoc w in
       let component_msg =
         if String.equal "" component
         then component
         else " on a path to " ^ component
       in
+      let print_main_msg, sub =
+        match w.kind with
+        | Alloc { bytes = _; dbginfo } ->
+          let comballoc_msg, sub = print_comballoc dbginfo in
+          ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
+              comballoc_msg,
+            sub )
+        | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
+        | Missing_summary _ | Forward_call _ | Extcall _ ->
+          ( Format.dprintf "called function may allocate%s (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+        | Arch_specific | Probe _ ->
+          ( Format.dprintf "expression may allocate%s@ (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+      in
       let pp ppf () =
-        Format.fprintf ppf "Unexpected %a%a%s%s" Witness.print_kind w.kind
-          pp_inlined_dbg w.dbg component_msg comballoc_msg
+        print_main_msg ppf;
+        pp_inlined_dbg ppf w.dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
@@ -974,7 +992,7 @@ end = struct
 
   let transform_top t ~next ~exn w desc dbg =
     let effect =
-      if Debuginfo.assume_zero_alloc dbg then Value.safe else Value.top w
+      if Debuginfo.assume_zero_alloc dbg then Value.relaxed w else Value.top w
     in
     transform t ~next ~exn ~effect desc dbg
 
@@ -983,7 +1001,7 @@ end = struct
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let effect =
       if Debuginfo.assume_zero_alloc dbg
-      then Value.safe
+      then Value.relaxed w
       else
         let callee_value, new_dep = find_callee t callee dbg in
         update_deps t callee_value new_dep w desc dbg;
@@ -1020,14 +1038,6 @@ end = struct
     | Istore _ ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
-      (* does not allocate even when it raises because checkbound exception is
-         static. *)
-      transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
-    | Iintop (Icheckalign _) | Iintop_imm (Icheckalign _, _) ->
-      (* does not allocate even when it raises because checkalign exception is
-         static. *)
-      transform t ~next ~exn ~effect:Value.safe "checkalign" dbg
     | Ipoll _
     (* Ignore poll points even though they may trigger an allocations, because
        otherwise all loops would be considered allocating when poll insertion is
@@ -1077,17 +1087,16 @@ end = struct
       transform_top t ~next ~exn w ("external call to " ^ func) dbg
     | Ispecific s ->
       let effect =
+        let w = create_witnesses t Arch_specific dbg in
         if Debuginfo.assume_zero_alloc dbg
         then
           (* Conservatively assume that operation can return normally. *)
           let nor = V.Safe in
-          let exn = if Arch.operation_can_raise s then V.Safe else V.Bot in
+          let exn = if Arch.operation_can_raise s then V.Top w else V.Bot in
           (* Assume that the operation does not diverge. *)
           let div = V.Bot in
           { Value.nor; exn; div }
-        else
-          let w = create_witnesses t Arch_specific dbg in
-          S.transform_specific w s
+        else S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
     | Idls_get -> Misc.fatal_error "Idls_get not supported"
@@ -1114,7 +1123,7 @@ end = struct
       | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
         next
-      | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) ->
+      | Itrywith (_body, _, (_trap_stack, _handler)) ->
         report t next ~msg:"transform" ~desc:"try-with" i.dbg;
         next
     in
@@ -1163,6 +1172,14 @@ end = struct
         report_unit_info ppf unit_info ~msg:"after join value";
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
+      in
+      let really_check ~keep_witnesses =
+        if !Flambda_backend_flags.disable_checkmach
+        then
+          (* Do not analyze the body of the function, conservatively assume that
+             the summary is top. *)
+          Unit_info.join_value unit_info fun_name (Value.top Witnesses.empty)
+        else really_check ~keep_witnesses
       in
       match a with
       | Some a when Annotation.is_assume a ->
@@ -1264,3 +1281,6 @@ let iter_witnesses f =
         (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
 let () = Location.register_error_of_exn Report.print
+
+let is_check_enabled codegen_options fun_name dbg =
+  Annotation.is_check_enabled codegen_options fun_name dbg

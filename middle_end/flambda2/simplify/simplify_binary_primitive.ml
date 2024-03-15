@@ -940,15 +940,21 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
   if dacc == dacc' then result else SPR.with_dacc result dacc'
 
 let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var
-    (P.result_kind' original_prim)
-    ~original_term
+    _dbg ~arg1 ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  if Simple.is_const arg1
+  then SPR.create_invalid dacc
+  else
+    SPR.create_unknown dacc ~result_var
+      (P.result_kind' original_prim)
+      ~original_term
 
-let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
-    ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+let simplify_array_load (array_kind : P.Array_kind.t)
+    (accessor_width : P.array_accessor_width) mutability dacc ~original_term:_
+    dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
   let result_kind =
-    P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+    match accessor_width with
+    | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+    | Vec128 -> K.naked_vec128
   in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
@@ -964,10 +970,14 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
        required at present since they only go into [Duplicate_array]
        operations). *)
     let result_kind' =
-      P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+      match accessor_width with
+      | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+      | Vec128 -> K.naked_vec128
     in
     assert (K.equal result_kind result_kind');
-    let prim : P.t = Binary (Array_load (array_kind, mutability), arg1, arg2) in
+    let prim : P.t =
+      Binary (Array_load (array_kind, accessor_width, mutability), arg1, arg2)
+    in
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
     let dacc = DA.add_variable dacc result_var ty in
@@ -1016,8 +1026,8 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
       simplify_immutable_block_load access_kind ~min_name_mode
     | Block_load (access_kind, Mutable) ->
       simplify_mutable_block_load access_kind ~original_prim
-    | Array_load (array_kind, mutability) ->
-      simplify_array_load array_kind mutability
+    | Array_load (array_kind, width, mutability) ->
+      simplify_array_load array_kind width mutability
     | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op

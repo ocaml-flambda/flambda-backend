@@ -62,6 +62,7 @@ ostype="Unix"
 SO="so"
 toolchain="cc"
 reserved_header_bits=0
+custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
 bootstrapping_flexdll=false
@@ -204,6 +205,7 @@ AC_SUBST([install_bytecode_programs])
 AC_SUBST([install_source_artifacts])
 AC_SUBST([install_ocamlnat])
 AC_SUBST([reserved_header_bits])
+AC_SUBST([custom_ops_struct_size])
 AC_SUBST([frame_pointers])
 AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
@@ -2199,6 +2201,7 @@ AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
 
 AC_DEFINE_UNQUOTED([HEADER_RESERVED_BITS], [$reserved_header_bits])
+AC_DEFINE_UNQUOTED([CUSTOM_OPS_STRUCT_SIZE], [$custom_ops_struct_size])
 
 AS_IF([test x"$enable_installing_bytecode_programs" = "xno"],
   [install_bytecode_programs=false],

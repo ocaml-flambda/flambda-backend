@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "misc.h"
+#include "isa.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -176,6 +177,12 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 
 #define Num_tags (1ull << HEADER_TAG_BITS)
 #define Max_wosize ((1ull << HEADER_WOSIZE_BITS) - 1ull)
+
+// Note that Wosize_val and the other macros that read headers will not
+// be optimized by common subexpression elimination, because of the
+// atomic header loads.  It is best to bind the results of such macros
+// to variables if they will be tested repeatedly, e.g. as the end condition
+// in a for-loop.
 
 #define Wosize_val(val) (Wosize_hd (Hd_val (val)))
 #define Wosize_op(op) (Wosize_val (op))

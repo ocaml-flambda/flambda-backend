@@ -166,7 +166,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -177,16 +177,22 @@ type primitive =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
+  | Pcompare_ints
+  | Pcompare_floats of boxed_float
+  | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint of alloc_mode
-  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
-  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
-  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
-  | Pfloatcomp of float_comparison
-  | Punboxed_float_comp of float_comparison
+  | Pintoffloat of boxed_float
+  | Pfloatofint of boxed_float * alloc_mode
+  | Pnegfloat of boxed_float * alloc_mode
+  | Pabsfloat of boxed_float * alloc_mode
+  | Paddfloat of boxed_float * alloc_mode
+  | Psubfloat of boxed_float * alloc_mode
+  | Pmulfloat of boxed_float * alloc_mode
+  | Pdivfloat of boxed_float * alloc_mode
+  | Pfloatcomp of boxed_float * float_comparison
+  | Punboxed_float_comp of boxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -194,10 +200,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind
-  | Parraysetu of array_set_kind
-  | Parrayrefs of array_ref_kind
-  | Parraysets of array_set_kind
+  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parraysetu of array_set_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -220,6 +226,7 @@ type primitive =
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
+  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -240,14 +247,30 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool * alloc_mode
-  | Pbigstring_load_64 of bool * alloc_mode
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
-  | Pbigstring_set_16 of bool
-  | Pbigstring_set_32 of bool
-  | Pbigstring_set_64 of bool
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+      boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
+  (* load/set SIMD vectors in GC-managed arrays *)
+  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloatarray_set_128 of { unsafe : bool }
+  | Pfloat_array_set_128 of { unsafe : bool }
+  | Pint_array_set_128 of { unsafe : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -267,8 +290,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_float
-  | Pbox_float of alloc_mode
+  | Punbox_float of boxed_float
+  | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   (* Jane Street extensions *)
@@ -278,6 +301,15 @@ type primitive =
   (* Fetching domain-local state *)
   | Pdls_get
 
+and extern_repr =
+  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Unboxed_float of boxed_float
+  | Unboxed_vector of Primitive.boxed_vector
+  | Unboxed_integer of Primitive.boxed_integer
+  | Untagged_int
+
+and external_call_description = extern_repr Primitive.description_gen
+
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
 
@@ -285,7 +317,10 @@ and float_comparison =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
 and value_kind =
-    Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pgenval
+  | Pintval
+  | Pboxedfloatval of boxed_float
+  | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
       non_consts : (int * value_kind list) list;
@@ -296,7 +331,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float
+  | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
   | Punboxed_product of layout list
@@ -317,21 +352,39 @@ and mixed_block_shape = Types.mixed_record_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray of unboxed_float
+  | Punboxedintarray of unboxed_integer
 
 and array_ref_kind =
   | Pgenarray_ref of alloc_mode
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
+  | Punboxedfloatarray_ref of unboxed_float
+  | Punboxedintarray_ref of unboxed_integer
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
+  | Punboxedfloatarray_set of unboxed_float
+  | Punboxedintarray_set of unboxed_integer
+
+and array_index_kind =
+  | Ptagged_int_index
+  | Punboxed_int_index of unboxed_integer
+
+and boxed_float = Primitive.boxed_float =
+  | Pfloat64
+  | Pfloat32
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_float = boxed_float
+
+and unboxed_integer = boxed_integer
 
 and vec128_type =
   | Unknown128
@@ -375,9 +428,17 @@ let vec128_name = function
 
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
+let equal_boxed_float = Primitive.equal_boxed_float
+
 let equal_boxed_vector_size v1 v2 =
   match v1, v2 with
   | Pvec128 _, Pvec128 _ -> true
+
+let compare_boxed_vector = Stdlib.compare
+
+let print_boxed_vector ppf t =
+  match t with
+  | Pvec128 v -> Format.pp_print_string ppf (vec128_name v)
 
 let join_vec128_types v1 v2 =
   match v1, v2 with
@@ -398,7 +459,7 @@ let join_boxed_vector_layout v1 v2 =
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
-  | Pfloatval, Pfloatval -> true
+  | Pboxedfloatval f1, Pboxedfloatval f2 -> equal_boxed_float f1 f2
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
   | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
     equal_boxed_vector_size bi1 bi2
@@ -417,7 +478,7 @@ let rec equal_value_kind x y =
              && List.length fields1 = List.length fields2
              && List.for_all2 equal_value_kind fields1 fields2)
            non_consts1 non_consts2
-  | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+  | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
 
 let equal_layout x y =
@@ -432,7 +493,7 @@ let rec compatible_layout x y =
   | Pbottom, _
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
-  | Punboxed_float, Punboxed_float -> true
+  | Punboxed_float f1, Punboxed_float f2 -> equal_boxed_float f1 f2
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
   | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
@@ -441,7 +502,8 @@ let rec compatible_layout x y =
       && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _), _ ->
+  | (Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ |
+     Punboxed_product _), _ ->
       false
 
 let must_be_value layout =
@@ -557,7 +619,9 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type function_kind = Curried of {nlocal: int} | Tupled
+type curried_function_kind = { nlocal : int } [@@unboxed]
+
+type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 
@@ -585,11 +649,15 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
+  may_fuse_arity: bool;
+  unbox_return: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
 
-type parameter_attribute = No_attributes
+type parameter_attribute = {
+  unbox_param: bool;
+}
 
 type lparam = {
   name : Ident.t;
@@ -740,10 +808,23 @@ let layout_class = Pvalue Pgenval
 let layout_module = Pvalue Pgenval
 let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
-let layout_boxed_float = Pvalue Pfloatval
-let layout_unboxed_float = Punboxed_float
+let layout_boxed_float f = Pvalue (Pboxedfloatval f)
+let layout_unboxed_float f = Punboxed_float f
+let layout_unboxed_nativeint = Punboxed_int Pnativeint
+let layout_unboxed_int32 = Punboxed_int Pint32
+let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
+let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+
+let layout_unboxed_vector (v : Primitive.boxed_vector) =
+  match v with
+  | Pvec128 Int8x16 -> Punboxed_vector (Pvec128 Int8x16)
+  | Pvec128 Int16x8 -> Punboxed_vector (Pvec128 Int16x8)
+  | Pvec128 Int32x4 -> Punboxed_vector (Pvec128 Int32x4)
+  | Pvec128 Int64x2 -> Punboxed_vector (Pvec128 Int64x2)
+  | Pvec128 Float32x4 -> Punboxed_vector (Pvec128 Float32x4)
+  | Pvec128 Float64x2 -> Punboxed_vector (Pvec128 Float64x2)
 
 let layout_boxed_vector : Primitive.boxed_vector -> layout = function
   | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
@@ -775,12 +856,21 @@ let default_function_attribute = {
   is_opaque = false;
   stub = false;
   tmc_candidate = false;
+  (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
+     that runtime arity matches syntactic arity in more situations.
+     Many things compile to functions without having a notion of syntactic arity
+     that survives typechecking, e.g. functors. Multi-arg functors are compiled
+     as nested unary functions, and rely on the arity fusion in simplif to make
+     them multi-argument. So, we keep arity fusion turned on by default for now.
+  *)
+  may_fuse_arity = true;
+  unbox_return = false;
 }
 
 let default_stub_attribute =
   { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
 
-let default_param_attribute = No_attributes
+let default_param_attribute = { unbox_param = false }
 
 (* Build sharing keys *)
 (*
@@ -1465,6 +1555,28 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
+let alloc_mode_of_primitive_description (p : external_call_description) =
+  if not Config.stack_allocation then
+    if p.prim_alloc then Some alloc_heap else None
+  else
+    match p.prim_native_repr_res with
+    | Prim_local, _ ->
+      (* For primitives that might allocate locally, [p.prim_alloc] just says
+         whether [caml_c_call] is required, without telling us anything
+         about local allocation.  (However if [p.prim_alloc = false] we
+         do actually know that the primitive does not allocate on the heap.) *)
+      Some alloc_local
+    | (Prim_global | Prim_poly), _ ->
+      (* For primitives that definitely do not allocate locally,
+         [p.prim_alloc = false] actually tells us that the primitive does
+         not allocate at all.
+
+         No external call that is [Prim_poly] may allocate locally.
+      *)
+      if p.prim_alloc then Some alloc_heap else None
+
+(* Changes to this function may also require changes in Flambda 2 (e.g.
+   closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1487,12 +1599,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Psetmixedfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
-  | Pccall p ->
-     if not p.prim_alloc then None
-     else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some alloc_local
-       | Prim_global, _ -> Some alloc_heap
-     end
+  | Pccall p -> alloc_mode_of_primitive_description p
   | Praise _ -> None
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1500,25 +1607,27 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _
   | Poffsetref _ -> None
-  | Pintoffloat -> None
-  | Pfloatofint m -> Some m
-  | Pnegfloat m | Pabsfloat m
-  | Paddfloat m | Psubfloat m
-  | Pmulfloat m | Pdivfloat m -> Some m
-  | Pfloatcomp _ | Punboxed_float_comp _ -> None
+  | Pintoffloat _ -> None
+  | Pfloatofint (_, m) -> Some m
+  | Pnegfloat (_, m) | Pabsfloat (_, m)
+  | Paddfloat (_, m) | Psubfloat (_, m)
+  | Pmulfloat (_, m) | Pdivfloat (_, m) -> Some m
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _) -> None
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref) -> None
-  | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
-  | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
+  | Parrayrefu ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
+  | Parrayrefs ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1535,7 +1644,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Plslbint (_, m)
   | Plsrbint (_, m)
   | Pasrbint (_, m) -> Some m
-  | Pbintcomp _ -> None
+  | Pbintcomp _ | Punboxed_int_comp _ -> None
   | Pbigarrayset _ | Pbigarraydim _ -> None
   | Pbigarrayref (_, _, _, _) ->
      (* Boxes arising from Bigarray access are always Alloc_heap *)
@@ -1544,13 +1653,27 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
   | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
+  | Pfloatarray_load_128 { mode = m; _ }
+  | Pfloat_array_load_128 { mode = m; _ }
+  | Pint_array_load_128 { mode = m; _ }
+  | Punboxed_float_array_load_128 { mode = m; _ }
+  | Punboxed_int32_array_load_128 { mode = m; _ }
+  | Punboxed_int64_array_load_128 { mode = m; _ }
+  | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
-  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m)
-  | Pbigstring_load_128 { mode = m; _ } -> Some m
+  | Pbigstring_load_32 { mode = m; boxed = true; _ }
+  | Pbigstring_load_64 { mode = m; boxed = true; _ }
+  | Pbigstring_load_128 { mode = m; boxed = true; _ } -> Some m
+  | Pbigstring_load_32 { boxed = false; _ }
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } -> None
   | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pbigstring_set_64 _ | Pbigstring_set_128 _ -> None
+  | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _ -> None
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
@@ -1559,8 +1682,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
-  | Punbox_float | Punbox_int _ -> None
-  | Pbox_float m | Pbox_int (_, m) -> Some m
+  | Punbox_float _ | Punbox_int _ -> None
+  | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
     Misc.fatal_error "Effects-related primitives are not yet supported"
   | Patomic_load _
@@ -1575,30 +1698,41 @@ let constant_layout: constant -> layout = function
   | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
   | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
   | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
-  | Const_float _ -> Pvalue Pfloatval
-  | Const_unboxed_float _ -> Punboxed_float
+  | Const_unboxed_int32 _ -> Punboxed_int Pint32
+  | Const_unboxed_int64 _ -> Punboxed_int Pint64
+  | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
+  | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
+  | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
+  | Const_unboxed_float _ -> Punboxed_float Pfloat64
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
-let layout_of_native_repr : Primitive.native_repr -> _ = function
+let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
-  | Unboxed_float -> layout_boxed_float
+  | Unboxed_float bf -> layout_boxed_float bf
   | Unboxed_integer bi -> layout_boxedint bi
   | Same_as_ocaml_repr s ->
     begin match s with
     | Value -> layout_any_value
-    | Float64 -> layout_unboxed_float
+    | Float64 -> layout_unboxed_float Pfloat64
+    | Word -> layout_unboxed_nativeint
+    | Bits32 -> layout_unboxed_int32
+    | Bits64 -> layout_unboxed_int64
     | Void -> assert false
     end
 
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
-  | Pfloatarray_ref _ -> layout_boxed_float
+  | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
+  | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
   | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
+  | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
+  | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -1610,6 +1744,9 @@ let primitive_result_layout (p : primitive) =
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
@@ -1618,17 +1755,19 @@ let primitive_result_layout (p : primitive) =
   | Pfield _ | Pfield_computed _ -> layout_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
-  | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
-  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pbox_float _ -> layout_boxed_float
-  | Pufloatfield _ | Punbox_float -> layout_unboxed_float
+  | Pfloatfield _ -> layout_boxed_float Pfloat64
+  | Pfloatofint (f, _) | Pnegfloat (f, _) | Pabsfloat (f, _)
+  | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
+  | Pbox_float (f, _) -> layout_boxed_float f
+  | Pufloatfield _ -> Punboxed_float Pfloat64
+  | Punbox_float float_kind -> Punboxed_float float_kind
   | Pmixedfield (_, kind, _) -> begin
       match kind with
       | Projection_imm -> layout_int
-      | Projection_float _ -> layout_boxed_float
-      | Projection_float64 -> layout_unboxed_float
+      | Projection_float _ -> layout_boxed_float Pfloat64
+      | Projection_float64 -> layout_unboxed_float Pfloat64
     end
-  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_native_repr repr_res
+  | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1636,16 +1775,17 @@ let primitive_result_layout (p : primitive) =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Pintoffloat | Pfloatcomp _ | Punboxed_float_comp _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Pintoffloat _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
   | Parraylength _ | Pisint _ | Pisout | Pintofbint _
-  | Pbintcomp _
+  | Pbintcomp _ | Punboxed_int_comp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+  | Parrayrefu (array_ref_kind, _) | Parrayrefs (array_ref_kind, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
@@ -1655,16 +1795,36 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
   | Punbox_int bi -> Punboxed_int bi
-  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
+  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
-  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
+  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
-  | Pstring_load_128 _ | Pbytes_load_128 _ | Pbigstring_load_128 _ ->
+  | Pstring_load_128 _ | Pbytes_load_128 _
+  | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
+  | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
+  | Pbigstring_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector (Pvec128 Int8x16)
+  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
+  | Punboxed_float_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Float64x2)
+  | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
+  | Punboxed_nativeint_array_load_128 _ ->
+    (* 128-bit types are only supported in the x86_64 backend, so we may
+       assume that nativeint is 64 bits. *)
+    layout_boxed_vector (Pvec128 Int64x2)
+  | Punboxed_int32_array_load_128 _ ->
+    layout_boxed_vector (Pvec128 Int32x4)
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float32 | Pbigarray_float64 -> layout_boxed_float
+      | Pbigarray_float32 ->
+        (* CR mslater: (float32) bigarrays *)
+        layout_boxed_float Pfloat64
+      | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16
       | Pbigarray_caml_int -> layout_int
@@ -1739,12 +1899,16 @@ let array_ref_kind mode = function
   | Paddrarray -> Paddrarray_ref
   | Pintarray -> Pintarray_ref
   | Pfloatarray -> Pfloatarray_ref mode
+  | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
+  | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+  | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
+  | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
 
 let is_check_enabled ~opt property =
   match property with
@@ -1754,3 +1918,63 @@ let is_check_enabled ~opt property =
     | Check_all -> true
     | Check_default -> not opt
     | Check_opt_only -> opt
+
+
+let may_allocate_in_region lam =
+  (* loop_region raises, if the lambda might allocate in parent region *)
+  let rec loop_region lam =
+    shallow_iter ~tail:(function
+      | Lexclave body -> loop body
+      | lam -> loop_region lam
+    ) ~non_tail:(fun lam -> loop_region lam) lam
+  and loop = function
+    | Lvar _ | Lmutvar _ | Lconst _ -> ()
+
+    | Lfunction {mode=Alloc_heap} -> ()
+    | Lfunction {mode=Alloc_local} -> raise Exit
+
+    | Lapply {ap_mode=Alloc_local}
+    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
+
+    | Lprim (prim, args, _) ->
+       begin match primitive_may_allocate prim with
+       | Some Alloc_local -> raise Exit
+       | None | Some Alloc_heap ->
+          List.iter loop args
+       end
+    | Lregion (body, _layout) ->
+       (* [body] might allocate in the parent region because of exclave, and thus
+          [Lregion body] might allocate in the current region *)
+      loop_region body
+    | Lexclave _body ->
+      (* [_body] might do local allocations, but not in the current region;
+        rather, it's in the parent region *)
+      ()
+    | Lwhile {wh_cond; wh_body} -> loop wh_cond; loop wh_body
+    | Lfor {for_from; for_to; for_body} -> loop for_from; loop for_to; loop for_body
+    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
+      | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
+      | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
+      | Levent _ | Lifused _) as lam ->
+       iter_head_constructor loop lam
+  in
+  if not Config.stack_allocation then false
+  else begin
+    match loop lam with
+    | () -> false
+    | exception Exit -> true
+  end
+
+let simple_prim_on_values ~name ~arity ~alloc =
+  Primitive.make
+    ~name
+    ~alloc
+    ~c_builtin:false
+    ~effects:Arbitrary_effects
+    ~coeffects:Has_coeffects
+    ~native_name:""
+    ~native_repr_args:
+      (Primitive.make_prim_repr_args arity
+        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
+    ~is_layout_poly:false

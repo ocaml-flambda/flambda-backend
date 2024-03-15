@@ -886,25 +886,26 @@ let rec choice ctx t =
     | Pnegint | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _
     | Pandint | Porint | Pxorint
     | Plslint | Plsrint | Pasrint
-    | Pintcomp _
+    | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
-    | Pintoffloat | Pfloatofint _
-    | Pnegfloat _ | Pabsfloat _
-    | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-    | Pfloatcomp _ | Punboxed_float_comp _
+    | Pintoffloat _ | Pfloatofint (_, _)
+    | Pnegfloat (_, _) | Pabsfloat (_, _)
+    | Paddfloat (_, _) | Psubfloat (_, _)
+    | Pmulfloat (_, _) | Pdivfloat (_, _)
+    | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
     | Pisint _ | Pisout
     | Pignore
-    | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
 
     (* we don't handle effect or DLS primitives *)
     | Prunstack | Pperform | Presume | Preperform | Pdls_get
 
     (* we don't handle atomic primitives *)
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
-    | Punbox_float | Pbox_float _
+    | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)
@@ -943,6 +944,20 @@ let rec choice ctx t =
     | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
     | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
     | Pbigstring_set_64 _ | Pbigstring_set_128 _
+    | Pfloatarray_load_128 _
+    | Pfloat_array_load_128 _
+    | Pint_array_load_128 _
+    | Punboxed_float_array_load_128 _
+    | Punboxed_int32_array_load_128 _
+    | Punboxed_int64_array_load_128 _
+    | Punboxed_nativeint_array_load_128 _
+    | Pfloatarray_set_128 _
+    | Pfloat_array_set_128 _
+    | Pint_array_set_128 _
+    | Punboxed_float_array_set_128 _
+    | Punboxed_int32_array_set_128 _
+    | Punboxed_int64_array_set_128 _
+    | Punboxed_nativeint_array_set_128 _
     | Pget_header _
     | Pctconst _
     | Pbswap16
@@ -1008,9 +1023,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       match lfun.mode, lfun.kind with
       | Alloc_heap, Tupled ->
          (* Support of Tupled function: see [choice_apply]. *)
-         Curried {nlocal=0}
+          Curried {nlocal=0}
       | Alloc_local, (Tupled | Curried _) ->
-         Curried {nlocal=List.length params}
+          Curried {nlocal=List.length params}
       | Alloc_heap, (Curried _ as k) ->
          (* Prepending arguments does not affect nlocal *)
          k

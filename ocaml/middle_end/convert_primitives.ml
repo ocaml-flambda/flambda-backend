@@ -80,20 +80,20 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pasrint -> Pasrint
   | Pintcomp comp -> Pintcomp comp
   | Pcompare_ints -> Pcompare_ints
-  | Pcompare_floats -> Pcompare_floats
+  | Pcompare_floats bf -> Pcompare_floats bf
   | Pcompare_bints bi -> Pcompare_bints bi
   | Poffsetint offset -> Poffsetint offset
   | Poffsetref offset -> Poffsetref offset
-  | Pintoffloat -> Pintoffloat
-  | Pfloatofint m -> Pfloatofint m
-  | Pnegfloat m -> Pnegfloat m
-  | Pabsfloat m -> Pabsfloat m
-  | Paddfloat m -> Paddfloat m
-  | Psubfloat m -> Psubfloat m
-  | Pmulfloat m -> Pmulfloat m
-  | Pdivfloat m -> Pdivfloat m
-  | Pfloatcomp comp -> Pfloatcomp comp
-  | Punboxed_float_comp comp -> Punboxed_float_comp comp
+  | Pintoffloat bf -> Pintoffloat bf
+  | Pfloatofint (bf,m) -> Pfloatofint (bf,m)
+  | Pnegfloat (bf,m) -> Pnegfloat (bf,m)
+  | Pabsfloat (bf,m) -> Pabsfloat (bf,m)
+  | Paddfloat (bf,m) -> Paddfloat (bf,m)
+  | Psubfloat (bf,m) -> Psubfloat (bf,m)
+  | Pmulfloat (bf,m) -> Pmulfloat (bf,m)
+  | Pdivfloat (bf,m) -> Pdivfloat (bf,m)
+  | Pfloatcomp (bf,comp) -> Pfloatcomp (bf,comp)
+  | Punboxed_float_comp (bf,comp) -> Punboxed_float_comp (bf,comp)
   | Pstringlength -> Pstringlength
   | Pstringrefu -> Pstringrefu
   | Pstringrefs -> Pstringrefs
@@ -105,10 +105,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pmakearray (kind, mutability, mode) -> Pmakearray (kind, mutability, mode)
   | Pduparray (kind, mutability) -> Pduparray (kind, mutability)
   | Parraylength kind -> Parraylength kind
-  | Parrayrefu rkind -> Parrayrefu rkind
-  | Parraysetu skind -> Parraysetu skind
-  | Parrayrefs rkind -> Parrayrefs rkind
-  | Parraysets skind -> Parraysets skind
+  | Parrayrefu (rkind, Ptagged_int_index) -> Parrayrefu rkind
+  | Parraysetu (skind, Ptagged_int_index) -> Parraysetu skind
+  | Parrayrefs (rkind, Ptagged_int_index) -> Parrayrefs rkind
+  | Parraysets (skind, Ptagged_int_index) -> Parraysets skind
   | Pisint _ -> Pisint
   | Pisout -> Pisout
   | Pcvtbint (src, dest, m) -> Pcvtbint (src, dest, m)
@@ -128,6 +128,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pdivbint { size; is_safe; mode } -> Pdivbint { size; is_safe; mode }
   | Pmodbint { size; is_safe; mode } -> Pmodbint { size; is_safe; mode }
   | Pbintcomp (bi, comp) -> Pbintcomp (bi, comp)
+  | Punboxed_int_comp (bi, comp) -> Punboxed_int_comp (bi, comp)
   | Pbigarrayref (safe, dims, kind, layout) ->
       Pbigarrayref (safe, dims, kind, layout)
   | Pbigarrayset (safe, dims, kind, layout) ->
@@ -150,17 +151,17 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbytes_set (Thirty_two, convert_unsafety is_unsafe)
   | Pbytes_set_64 is_unsafe ->
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
-  | Pbigstring_load_16 is_unsafe ->
+  | Pbigstring_load_16 { unsafe = is_unsafe } ->
       Pbigstring_load (Sixteen, convert_unsafety is_unsafe, Lambda.alloc_heap)
-  | Pbigstring_load_32 (is_unsafe, m) ->
+  | Pbigstring_load_32 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Thirty_two, convert_unsafety is_unsafe, m)
-  | Pbigstring_load_64 (is_unsafe, m) ->
+  | Pbigstring_load_64 { unsafe = is_unsafe; mode = m; boxed = true } ->
       Pbigstring_load (Sixty_four, convert_unsafety is_unsafe, m)
-  | Pbigstring_set_16 is_unsafe ->
+  | Pbigstring_set_16 { unsafe = is_unsafe } ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
-  | Pbigstring_set_32 is_unsafe ->
+  | Pbigstring_set_32 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Thirty_two, convert_unsafety is_unsafe)
-  | Pbigstring_set_64 is_unsafe ->
+  | Pbigstring_set_64 { unsafe = is_unsafe; boxed = true } ->
       Pbigstring_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigarraydim dim -> Pbigarraydim dim
   | Pbswap16 -> Pbswap16
@@ -174,6 +175,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
   | Pobj_dup ->
     let module P = Primitive in
+    let module L = Lambda in
     Pccall (Primitive.make
       ~name:"caml_obj_dup"
       ~alloc:true
@@ -181,10 +183,11 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~effects:Only_generative_effects
       ~coeffects:Has_coeffects
       ~native_name:"caml_obj_dup"
-      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value]
-      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr Jkind.Sort.Value))
-  | Punbox_float -> Punbox_float
-  | Pbox_float m -> Pbox_float m
+      ~native_repr_args:[P.Prim_global, L.Same_as_ocaml_repr Jkind.Sort.Value]
+      ~native_repr_res:(P.Prim_global, L.Same_as_ocaml_repr Jkind.Sort.Value)
+      ~is_layout_poly:false)
+  | Punbox_float bf -> Punbox_float bf
+  | Pbox_float (bf,m) -> Pbox_float (bf,m)
   | Punbox_int bi -> Punbox_int bi
   | Pbox_int (bi, m) -> Pbox_int (bi, m)
   | Pget_header m -> Pget_header m
@@ -199,11 +202,33 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pgetpredef _
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pbigstring_load_32 _
+  | Pbigstring_set_32 _
+  | Pbigstring_load_64 _
+  | Pbigstring_set_64 _
   | Pbigstring_load_128 _
   | Pbigstring_set_128 _
   | Pstring_load_128 _
   | Pbytes_load_128 _
   | Pbytes_set_128 _
+  | Pfloatarray_load_128 _
+  | Pfloat_array_load_128 _
+  | Pint_array_load_128 _
+  | Punboxed_float_array_load_128 _
+  | Punboxed_int32_array_load_128 _
+  | Punboxed_int64_array_load_128 _
+  | Punboxed_nativeint_array_load_128 _
+  | Pfloatarray_set_128 _
+  | Pfloat_array_set_128 _
+  | Pint_array_set_128 _
+  | Punboxed_float_array_set_128 _
+  | Punboxed_int32_array_set_128 _
+  | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _
+  | Parrayrefu (_, Punboxed_int_index _)
+  | Parraysetu (_, Punboxed_int_index _)
+  | Parrayrefs (_, Punboxed_int_index _)
+  | Parraysets (_, Punboxed_int_index _)
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

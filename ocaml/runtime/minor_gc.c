@@ -139,8 +139,11 @@ void caml_set_minor_heap_size (asize_t wsize)
 
   if (domain_state->young_ptr != domain_state->young_end) {
     CAML_EV_COUNTER (EV_C_FORCE_MINOR_SET_MINOR_HEAP_SIZE, 1);
-    caml_minor_collection();
+    // Don't call caml_minor_collection, since that can run the
+    // caml_domain_external_interrupt_hook, which can allocate.
+    caml_empty_minor_heaps_once();
   }
+  CAMLassert (domain_state->young_ptr == domain_state->young_end);
 
   if(caml_reallocate_minor_heap(wsize) < 0) {
     caml_fatal_error("Fatal error: No memory for minor heap");
@@ -297,7 +300,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     {
       /* Conflict - fix up what we allocated on the major heap */
       *Hp_val(result) = Make_header(1, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       Field(result, 0) = Val_long(1);
       #endif
@@ -333,7 +336,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     } else {
       /* Conflict - fix up what we allocated on the major heap */
       *Hp_val(result) = Make_header(sz, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       {
         /* Don't need to check reserved bits for whether this is a mixed block;
@@ -358,7 +361,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     if( !try_update_object_header(v, p, result, 0) ) {
       /* Conflict */
       *Hp_val(result) = Make_header(sz, No_scan_tag,
-                                    caml_global_heap_state.MARKED);
+                                    caml_allocation_status());
       #ifdef DEBUG
       for( i = 0; i < sz ; i++ ) {
         Field(result, i) = Val_long(1);
@@ -390,7 +393,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
         goto tail_call;
       } else {
         *Hp_val(result) = Make_header(1, No_scan_tag,
-                                      caml_global_heap_state.MARKED);
+                                      caml_allocation_status());
         #ifdef DEBUG
         Field(result, 0) = Val_long(1);
         #endif
@@ -787,7 +790,10 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
 #endif
 
   CAML_EV_END(EV_MINOR_CLEAR);
+
   caml_gc_log("finished stw empty_minor_heap");
+  CAMLassert(domain->young_ptr == domain->young_end);
+
   Caml_state->in_minor_collection = 0;
 }
 
@@ -872,9 +878,12 @@ void caml_alloc_small_dispatch (caml_domain_state * dom_st,
         "minor GC");
     else {
       caml_handle_gc_interrupt();
-      /* In the case of long-running C code that regularly polls with
-         [caml_process_pending_actions], still force a query of all
-         callbacks at every minor collection or major slice. */
+      /* We might be here due to a recently-recorded signal, so we
+         need to remember that we must run signal handlers. In
+         addition, in the case of long-running C code that regularly
+         polls with caml_process_pending_actions, we want to force a
+         query of all callbacks at every minor collection or major
+         slice (similarly to OCaml behaviour). */
       dom_st->action_pending = 1;
     }
 

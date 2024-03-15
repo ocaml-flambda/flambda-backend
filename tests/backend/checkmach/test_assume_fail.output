@@ -1,0 +1,14 @@
+File "test_assume_fail.ml", line 5, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.foo (camlTest_assume_fail.foo_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 5, characters 32-37:
+Error: called function may allocate on a path to exceptional return (direct tailcall camlTest_assume_fail.bar_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 12, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_assume_fail.foo' (camlTest_assume_fail.foo'_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 12, characters 33-39:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53;printf.ml:47,18--43;printf.ml:45,2--31)
+
+File "test_assume_fail.ml", line 12, characters 33-39:
+Error: called function may allocate on a path to exceptional return (indirect call) (test_assume_fail.ml:12,33--39;test_assume_fail.ml:9,25--53)

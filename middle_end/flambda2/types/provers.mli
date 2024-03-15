@@ -114,6 +114,9 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
+val meet_is_int_variant_only :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+
 val prove_get_tag :
   Typing_env.t -> Type_grammar.t -> Tag.Set.t proof_of_property
 
@@ -122,8 +125,11 @@ val prove_unique_fully_constructed_immutable_heap_block :
   Type_grammar.t ->
   (Tag_and_size.t * Simple.t list) proof_of_property
 
-val meet_is_flat_float_array :
-  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+val meet_is_naked_number_array :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Flambda_kind.Naked_number_kind.t ->
+  bool meet_shortcut
 
 val meet_is_immutable_array :
   Typing_env.t ->

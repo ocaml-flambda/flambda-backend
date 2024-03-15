@@ -18,8 +18,6 @@
 type trap_stack =
   | Uncaught
   (** Exceptions escape the current function *)
-  | Generic_trap of trap_stack
-  (** Current handler is a regular Trywith *)
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
   (** Current handler is a delayed/shared Trywith *)
 
@@ -34,8 +32,6 @@ type integer_operation =
   | Ictz of { arg_is_non_zero: bool; }
   | Ipopcnt
   | Icomp of integer_comparison
-  | Icheckbound
-  | Icheckalign of { bytes_pow2 : int }
 
 type float_comparison = Cmm.float_comparison
 
@@ -126,7 +122,8 @@ and instruction_desc =
   | Iswitch of int array * instruction array
   | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
-  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
+  | Itrywith of instruction * Cmm.trywith_shared_label
+      * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =

@@ -12,5 +12,5 @@
    -open
    Flambda2_ui))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O3 -open Int_replace_polymorphic_compare))
  (libraries ocamlcommon flambda2_algorithms flambda2_ui))

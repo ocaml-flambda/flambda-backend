@@ -96,7 +96,7 @@ let defines_a_symbol data =
   match (data : Cmm.data_item) with
   | Cdefine_symbol _ -> true
   | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _ | Cdouble _ | Cvec128 _
-  | Csymbol_address _ | Cstring _ | Cskip _ | Calign _ ->
+  | Csymbol_address _ | Csymbol_offset _ | Cstring _ | Cskip _ | Calign _ ->
     false
 
 let add_to_data_list x l =
@@ -164,12 +164,15 @@ let to_cmm r =
   let r = define_module_symbol_if_missing r in
   (* Make sure we do not forget any current data *)
   let r = archive_data r in
-  (* Sort functions according to debuginfo, to get a stable ordering *)
   let sorted_functions =
-    List.sort
-      (fun (f1 : Cmm.fundecl) (f2 : Cmm.fundecl) ->
-        Debuginfo.compare f1.fun_dbg f2.fun_dbg)
-      r.functions
+    match !Flambda_backend_flags.function_layout with
+    | Topological -> List.rev r.functions
+    | Source ->
+      (* Sort functions according to debuginfo, to get a stable ordering *)
+      List.sort
+        (fun (f1 : Cmm.fundecl) (f2 : Cmm.fundecl) ->
+          Debuginfo.compare f1.fun_dbg f2.fun_dbg)
+        r.functions
   in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
   (* Translate roots to Cmm symbols *)

@@ -80,9 +80,12 @@
     ident
     path
     shape
+    solver_intf
+    solver
+    mode_intf
+    mode
     jkind
     primitive
-    mode
     types
     btype
     lazy_backtrack
@@ -119,7 +122,10 @@
     outcometree
     cmo_format
     cmxs_format
-    debug_event))
+    debug_event
+    solver_intf
+    mode_intf
+    ))
 
 ;(install
 ;  (files
@@ -173,6 +179,7 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/solver.ml)
 (copy_files ../../typing/mode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
@@ -236,6 +243,7 @@
 (copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/solver.mli)
 (copy_files ../../typing/mode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
@@ -260,6 +268,8 @@
 ; .mli-only:
 (copy_files ../../parsing/asttypes.mli)
 (copy_files ../../parsing/parsetree.mli)
+(copy_files ../../typing/solver_intf.mli)
+(copy_files ../../typing/mode_intf.mli)
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
 (copy_files ../../file_formats/cmxs_format.mli)
@@ -341,8 +351,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -420,8 +431,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

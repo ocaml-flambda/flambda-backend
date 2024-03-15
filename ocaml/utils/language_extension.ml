@@ -54,7 +54,7 @@ end
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
-  | Local -> (module Unit)
+  | Mode -> (module Unit)
   | Unique -> (module Unit)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
@@ -63,6 +63,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Layouts -> (module Maturity)
   | SIMD -> (module Unit)
   | Labeled_tuples -> (module Unit)
+  | Small_numbers -> (module Unit)
 
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 
@@ -88,7 +89,7 @@ let pair_of_string_exn extn_name =
 let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   match a, b with
   | Comprehensions, Comprehensions -> Some Refl
-  | Local, Local -> Some Refl
+  | Mode, Mode -> Some Refl
   | Unique, Unique -> Some Refl
   | Include_functor, Include_functor -> Some Refl
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
@@ -97,9 +98,10 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Layouts, Layouts -> Some Refl
   | SIMD, SIMD -> Some Refl
   | Labeled_tuples, Labeled_tuples -> Some Refl
-  | ( ( Comprehensions | Local | Unique | Include_functor
+  | Small_numbers, Small_numbers -> Some Refl
+  | ( ( Comprehensions | Mode | Unique | Include_functor
       | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-      | Layouts | SIMD | Labeled_tuples ),
+      | Layouts | SIMD | Labeled_tuples | Small_numbers ),
       _ ) ->
     None
 
@@ -121,6 +123,8 @@ module Universe : sig
     | Any
 
   val set : t -> bool
+
+  val is : t -> bool
 end = struct
   (** Which extensions can be enabled? *)
   type t =
@@ -178,6 +182,8 @@ end = struct
         ();
     universe := new_universe;
     cmp <> 0
+
+  let is u = compare u !universe = 0
 end
 
 (*****************************************)
@@ -191,11 +197,12 @@ end
    instance, [!universe = No_extensions] implies [!extensions = []]). *)
 
 let default_extensions : extn_pair list =
-  [ Pair (Local, ());
+  [ Pair (Mode, ());
     Pair (Include_functor, ());
     Pair (Polymorphic_parameters, ());
     Pair (Immutable_arrays, ());
-    Pair (Labeled_tuples, ()) ]
+    Pair (Labeled_tuples, ());
+    Pair (Layouts, Stable) ]
 
 let extensions : extn_pair list ref = ref default_extensions
 
@@ -275,6 +282,8 @@ let restrict_to_erasable_extensions () =
       := List.filter
            (fun (Pair (extn, _)) -> Universe.is_allowed extn)
            !extensions
+
+let erasable_extensions_only () = Universe.is Only_erasable
 
 let disallow_extensions () =
   ignore (Universe.set No_extensions : bool);

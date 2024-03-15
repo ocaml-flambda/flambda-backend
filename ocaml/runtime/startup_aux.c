@@ -21,6 +21,7 @@
    and native code. */
 
 #include <stdio.h>
+#include "caml/isa.h"
 #include "caml/backtrace.h"
 #include "caml/memory.h"
 #include "caml/callback.h"
@@ -57,7 +58,9 @@ static void init_startup_params(void)
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
 
 #ifdef DEBUG
-  atomic_store_relaxed(&caml_verb_gc, 0x3F);
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // atomic_store_relaxed(&caml_verb_gc, 0x3F);
 #endif
 #ifndef NATIVE_CODE
   cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
@@ -112,6 +115,7 @@ void caml_parse_ocamlrunparam(void)
       case 'v': scanmult (opt, (uintnat *)&caml_verb_gc); break;
       case 'V': scanmult (opt, &params.verify_heap); break;
       case 'W': scanmult (opt, &caml_runtime_warnings); break;
+      case 'X': scanmult (opt, &caml_skip_arch_extension_check); break;
       case ',': continue;
       }
       while (*opt != '\0'){

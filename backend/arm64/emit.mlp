@@ -188,32 +188,6 @@ let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
   `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
 
-(* Record calls to caml_ml_array_bound_error.
-   In debug mode, we maintain one call to caml_ml_array_bound_error
-   per bound check site. Otherwise, we can share a single call. *)
-
-type bound_error_call =
-  { bd_lbl: label;                    (* Entry label *)
-    bd_frame_lbl: label }             (* Label of frame descriptor *)
-
-let bound_error_sites = ref ([] : bound_error_call list)
-
-let bound_error_label dbg =
-  if !Clflags.debug || !bound_error_sites = [] then begin
-    let lbl_bound_error = new_label() in
-    let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
-    bound_error_sites :=
-      { bd_lbl = lbl_bound_error;
-        bd_frame_lbl = lbl_frame } :: !bound_error_sites;
-    lbl_bound_error
-  end else begin
-    let bd = List.hd !bound_error_sites in bd.bd_lbl
-  end
-
-let emit_call_bound_error bd =
-  `{emit_label bd.bd_lbl}:	bl	{emit_symbol "caml_ml_array_bound_error"}\n`;
-  `{emit_label bd.bd_frame_lbl}:\n`
-
 (* Names of various instructions *)
 
 let name_for_comparison = function
@@ -396,46 +370,28 @@ let emit_load_symbol_addr dst s =
    call GC and bounds check points emitted out-of-line from the function
    body.  See branch_relaxation.mli. *)
 
-let num_call_gc_and_check_bound_points instr =
-  let rec loop instr ((call_gc, check_bound) as totals) =
+let num_call_gc_points instr =
+  let rec loop instr call_gc =
     match instr.desc with
-    | Lend -> totals
+    | Lend -> call_gc
     | Lop (Ialloc _) when !fastcode_flag ->
-      loop instr.next (call_gc + 1, check_bound)
+      loop instr.next (call_gc + 1)
     | Lop (Ipoll _) ->
-      loop instr.next (call_gc + 1, check_bound)
-    | Lop (Iintop Icheckbound)
-    | Lop (Iintop_imm (Icheckbound, _))
-    | Lop (Ispecific (Ishiftcheckbound _)) ->
-      let check_bound =
-        (* When not in debug mode, there is at most one check-bound point. *)
-        if not !Clflags.debug then 1
-        else check_bound + 1
-      in
-      loop instr.next (call_gc, check_bound)
+      loop instr.next (call_gc + 1)
     (* The following four should never be seen, since this function is run
        before branch relaxation. *)
     | Lop (Ispecific (Ifar_alloc _))
-    | Lop (Ispecific (Ifar_poll _))
-    | Lop (Ispecific Ifar_intop_checkbound)
-    | Lop (Ispecific (Ifar_intop_imm_checkbound _))
-    | Lop (Ispecific (Ifar_shiftcheckbound _)) -> assert false
-    | _ -> loop instr.next totals
+    | Lop (Ispecific (Ifar_poll _)) -> assert false
+    | _ -> loop instr.next call_gc
   in
-  loop instr (0, 0)
+  loop instr 0
 
-let max_out_of_line_code_offset ~num_call_gc ~num_check_bound =
-  if num_call_gc < 1 && num_check_bound < 1 then 0
+let max_out_of_line_code_offset ~num_call_gc =
+  if num_call_gc < 1 then 0
   else begin
     let size_of_call_gc = 2 in
-    let size_of_check_bound = 1 in
-    let size_of_last_thing =
-      (* Call-GC points come before check-bound points. *)
-      if num_check_bound >= 1 then size_of_check_bound else size_of_call_gc
-    in
-    let total_size =
-      size_of_call_gc*num_call_gc + size_of_check_bound*num_check_bound
-    in
+    let size_of_last_thing = size_of_call_gc in
+    let total_size = size_of_call_gc*num_call_gc in
     let max_offset = total_size - size_of_last_thing in
     assert (max_offset >= 0);
     max_offset
@@ -463,10 +419,7 @@ module BR = Branch_relaxation.Make (struct
 
     let classify_instr = function
       | Lop (Ialloc _)
-      | Lop (Ipoll _)
-      | Lop (Iintop Icheckbound)
-      | Lop (Iintop_imm (Icheckbound, _))
-      | Lop (Ispecific (Ishiftcheckbound _)) -> Some Bcc
+      | Lop (Ipoll _) -> Some Bcc
       (* The various "far" variants in [specific_operation] don't need to
          return [Some] here, since their code sequences never contain any
          conditional branches that might need relaxing. *)
@@ -543,12 +496,6 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iintop (Icomp _)) -> 2
     | Lop (Icompf _) -> 2
     | Lop (Iintop_imm (Icomp _, _)) -> 2
-    | Lop (Iintop (Icheckbound)) -> 2
-    | Lop (Ispecific (Ifar_intop_checkbound)) -> 3
-    | Lop (Iintop_imm (Icheckbound, _)) -> 2
-    | Lop (Ispecific (Ifar_intop_imm_checkbound _)) -> 3
-    | Lop (Ispecific (Ishiftcheckbound _)) -> 2
-    | Lop (Ispecific (Ifar_shiftcheckbound _)) -> 3
     | Lop (Iintop Imod) -> 2
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
@@ -605,17 +552,6 @@ module BR = Branch_relaxation.Make (struct
 
   let relax_allocation ~num_bytes ~dbginfo =
     Lop (Ispecific (Ifar_alloc { bytes = num_bytes; dbginfo }))
-
-  let relax_intop_checkbound () =
-    Lop (Ispecific (Ifar_intop_checkbound))
-
-  let relax_intop_imm_checkbound ~bound =
-    Lop (Ispecific (Ifar_intop_imm_checkbound { bound; }))
-
-  let relax_specific_op = function
-    | Ishiftcheckbound { shift; } ->
-      Lop (Ispecific (Ifar_shiftcheckbound { shift; }))
-    | _ -> assert false
 end)
 
 let name_for_float_comparison = function
@@ -933,43 +869,6 @@ let emit_instr i =
     | Lop(Iintop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Iintop (Icheckalign _) | Iintop_imm(Icheckalign _, _)) ->
-        (* CR mslater: (SIMD) arm64 *)
-        fatal_error "arm64: got 128 bit alignment check"
-    | Lop(Iintop (Icheckbound)) ->
-        let lbl = bound_error_label i.dbg in
-        `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	b.ls	{emit_label lbl}\n`
-    | Lop(Ispecific Ifar_intop_checkbound) ->
-        let lbl = bound_error_label i.dbg in
-        let lbl2 = new_label () in
-        `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
-        `	b.hi	{emit_label lbl2}\n`;
-        `	b	{emit_label lbl}\n`;
-        `{emit_label lbl2}:\n`;
-    | Lop(Iintop_imm(Icheckbound, n)) ->
-        let lbl = bound_error_label i.dbg in
-        emit_cmpimm i.arg.(0) n;
-        `	b.ls	{emit_label lbl}\n`
-    | Lop(Ispecific(
-          Ifar_intop_imm_checkbound { bound; })) ->
-        let lbl = bound_error_label i.dbg in
-        let lbl2 = new_label () in
-        `	cmp	{emit_reg i.arg.(0)}, #{emit_int bound}\n`;
-        `	b.hi	{emit_label lbl2}\n`;
-        `	b	{emit_label lbl}\n`;
-        `{emit_label lbl2}:\n`;
-    | Lop(Ispecific(Ishiftcheckbound { shift; })) ->
-        let lbl = bound_error_label i.dbg in
-        `	cmp	{emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}, lsr #{emit_int shift}\n`;
-        `	b.cs	{emit_label lbl}\n`
-    | Lop(Ispecific(Ifar_shiftcheckbound { shift; })) ->
-        let lbl = bound_error_label i.dbg in
-        let lbl2 = new_label () in
-        `	cmp	{emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}, lsr #{emit_int shift}\n`;
-        `	b.lo	{emit_label lbl2}\n`;
-        `	b	{emit_label lbl}\n`;
-        `{emit_label lbl2}:\n`;
     | Lop(Iintop Imod) ->
         `	sdiv	{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	msub	{emit_reg i.res.(0)}, {emit_reg reg_tmp1}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
@@ -1179,7 +1078,10 @@ let emit_instr i =
           `	bl	{emit_symbol "caml_raise_exn"}\n`;
           `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
         | Lambda.Raise_reraise ->
-          `	bl	{emit_symbol "caml_reraise_exn"}\n`;
+          if Config.runtime5 then
+            `	bl	{emit_symbol "caml_reraise_exn"}\n`
+          else
+            `	bl	{emit_symbol "caml_raise_exn"}\n`;
           `{record_frame Reg.Set.empty (Dbg_raise i.dbg)}\n`
         | Lambda.Raise_notrace ->
           `	mov	sp, {emit_reg reg_trap_ptr}\n`;
@@ -1207,7 +1109,6 @@ let fundecl fundecl =
   float_literals := [];
   stack_offset := 0;
   call_gc_sites := [];
-  bound_error_sites := [];
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1255,23 +1156,19 @@ let fundecl fundecl =
       `	bcc	{emit_label overflow}\n`
   end;*)
   (* BACKPORT END *)
-  let num_call_gc, num_check_bound =
-    num_call_gc_and_check_bound_points fundecl.fun_body
-  in
+  let num_call_gc = num_call_gc_points fundecl.fun_body in
   let max_out_of_line_code_offset =
     (* BACKPORT BEGIN *)
     (*max_out_of_line_code_offset ~num_call_gc
       stack_check_size +*)
     (* BACKPORT END *)
-    max_out_of_line_code_offset ~num_call_gc ~num_check_bound
+    max_out_of_line_code_offset ~num_call_gc
   in
   BR.relax fundecl.fun_body ~max_out_of_line_code_offset;
 
   emit_all fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
-  List.iter emit_call_bound_error !bound_error_sites;
   assert (List.length !call_gc_sites = num_call_gc);
-  assert (List.length !bound_error_sites = num_check_bound);
   (match fun_end_label with
    | None -> ()
    | Some fun_end_label -> `{emit_label fun_end_label}:\n`);
@@ -1303,6 +1200,7 @@ let emit_item = function
     (* CR mslater: (SIMD) arm64 *)
     Misc.fatal_error "128-bit vectors not supported on this architecture"
   | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
+  | Csymbol_offset (s, o) -> `	.quad	{emit_symbol s.sym_name}+{emit_int o}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`

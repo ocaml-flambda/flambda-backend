@@ -13,7 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Longident
 open Asttypes
 open Parsetree
 open Ast_helper
@@ -78,11 +77,6 @@ open T
 (*
 Some notes:
 
-   * For Pexp_function, we cannot go back to the exact original version
-   when there is a default argument, because the default argument is
-   translated in the typer. The code, if printed, will not be parsable because
-   new generated identifiers are not correct.
-
    * For Pexp_apply, it is unclear whether arguments are reordered, especially
     when there are optional arguments.
 
@@ -104,13 +98,6 @@ let rec lident_of_path = function
   | Path.Pextra_ty (p, _) -> lident_of_path p
 
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
-
-(** Try a name [$name$0], check if it's free, if not, increment and repeat. *)
-let fresh_name s env =
-  let name i = s ^ Int.to_string i in
-  let available i = not (Env.bound_value (name i) env) in
-  let first_i = Misc.find_first_mono available in
-  name first_i
 
 (** Extract the [n] patterns from the case of a letop *)
 let rec extract_letop_patterns n pat =
@@ -140,7 +127,14 @@ let constant = function
   | Const_int64 i -> `Parsetree (Pconst_integer (Int64.to_string i, Some 'L'))
   | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
   | Const_float f -> `Parsetree (Pconst_float (f,None))
+  | Const_float32 f -> `Parsetree (Pconst_float (f, Some 's'))
   | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
+  | Const_unboxed_int32 i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Int32.to_string i, 'l'))
+  | Const_unboxed_int64 i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Int64.to_string i, 'L'))
+  | Const_unboxed_nativeint i ->
+    `Jane_syntax (Jane_syntax.Layouts.Integer (Nativeint.to_string i, 'n'))
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;
@@ -368,13 +362,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
       end
     | Tpat_tuple list ->
-        if List.for_all (fun (label, _) -> Option.is_none label) list then
-          Ppat_tuple (List.map (fun (_, p) -> sub.pat sub p) list)
-        else
-          Jane_syntax.Labeled_tuples.pat_of ~loc
-            (Ltpat_tuple
-              (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.pat_of ~loc
+          (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
+        |> add_jane_syntax_attributes
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -448,6 +438,10 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
+    | Texp_mode_coerce modes ->
+        Jane_syntax.Modes.expr_of ~loc
+          (Coerce (modes, sexp))
+        |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
 
@@ -518,22 +512,63 @@ let expression sub exp =
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
-
-    (* Pexp_function can't have a label, so we split in 3 cases. *)
-    (* One case, no guard: It's a fun. *)
-    | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
-          _ } ->
-        Pexp_fun (arg_label, None, sub.pat sub p, sub.expr sub e)
-    (* No label: it's a function. *)
-    | Texp_function { arg_label = Nolabel; cases; _; } ->
-        Pexp_function (List.map (sub.case sub) cases)
-    (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
-    | Texp_function { arg_label = Labelled s | Optional s as label; cases;
-          _ } ->
-        let name = fresh_name s exp.exp_env in
-        Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
-          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
-                          (List.map (sub.case sub) cases))
+    | Texp_function { params; body } ->
+        let open Jane_syntax.N_ary_functions in
+        let body, constraint_ =
+          match body with
+          | Tfunction_body body ->
+              (* Unlike function cases, the [exp_extra] is placed on the body
+                 itself. *)
+              Pfunction_body (sub.expr sub body), None
+          | Tfunction_cases
+              { fc_cases = cases; fc_loc = loc; fc_exp_extra = exp_extra;
+                fc_attributes = attributes; _ }
+            ->
+              let cases = List.map (sub.case sub) cases in
+              let constraint_ =
+                match exp_extra with
+                | Some (Texp_coerce (ty1, ty2)) ->
+                    Some
+                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
+                | Some (Texp_constraint ty) ->
+                    Some (Pconstraint (sub.typ sub ty))
+                | Some (Texp_poly _ | Texp_newtype _ | Texp_mode_coerce _)
+                | None -> None
+              in
+              let constraint_ =
+                Option.map
+                  (fun x -> { mode_annotations = Jane_syntax.Mode_expr.empty;
+                              type_constraint = x })
+                  constraint_
+              in
+              Pfunction_cases (cases, loc, attributes), constraint_
+        in
+        let params =
+          List.concat_map
+            (fun fp ->
+               let pat, default_arg =
+                 match fp.fp_kind with
+                 | Tparam_pat pat -> pat, None
+                 | Tparam_optional_default (pat, expr, _) -> pat, Some expr
+               in
+               let pat = sub.pat sub pat in
+               let default_arg = Option.map (sub.expr sub) default_arg in
+               let newtypes =
+                 List.map
+                   (fun (x, annot) ->
+                      { pparam_desc = Pparam_newtype (x, Option.map snd annot);
+                        pparam_loc = x.loc;
+                      })
+                   fp.fp_newtypes
+               in
+               let pparam_desc =
+                 Pparam_val (fp.fp_arg_label, default_arg, pat)
+               in
+               { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
+            params
+        in
+        Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
+        |> add_jane_syntax_attributes
     | Texp_apply (exp, list, _, _) ->
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
@@ -546,12 +581,9 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        if (List.for_all Option.is_none (List.map fst list)) then
-          Pexp_tuple (List.map (fun (_, e) -> (sub.expr sub e)) list)
-        else
-          Jane_syntax.Labeled_tuples.expr_of ~loc
-            (Ltexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.expr_of ~loc
+          (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
+        |> add_jane_syntax_attributes
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -975,13 +1007,9 @@ let core_type sub ct =
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->
-        if List.for_all (fun (lbl, _) -> Option.is_none lbl) list then
-          Ptyp_tuple
-            (List.map (fun (_, typ) -> sub.typ sub typ) list)
-        else
-          Jane_syntax.Labeled_tuples.typ_of ~loc
-            (Lttyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list))
-          |> add_jane_syntax_attributes
+        Jane_syntax.Labeled_tuples.typ_of ~loc
+          (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
+        |> add_jane_syntax_attributes
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)
@@ -1046,6 +1074,24 @@ and is_self_pat = function
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 
+(* [Typeclass] adds a [self] parameter to initializers and methods that isn't
+   present in the source program.
+*)
+let remove_fun_self exp =
+  match exp with
+  | { exp_desc =
+        Texp_function
+         ({ params =
+              {fp_arg_label = Nolabel; fp_kind = Tparam_pat pat} :: params
+          ; body
+          } as fun_)
+    }
+    when is_self_pat pat ->
+      (match params, body with
+       | [], Tfunction_body body -> body
+       | _, _ -> { exp with exp_desc = Texp_function { fun_ with params } })
+  | e -> e
+
 let class_field sub cf =
   let loc = sub.location sub cf.cf_loc in
   let attrs = sub.attributes sub cf.cf_attributes in
@@ -1062,21 +1108,9 @@ let class_field sub cf =
     | Tcf_method (lab, priv, Tcfk_virtual cty) ->
         Pcf_method (lab, priv, Cfk_virtual (sub.typ sub cty))
     | Tcf_method (lab, priv, Tcfk_concrete (o, exp)) ->
-        let remove_fun_self = function
-          | { exp_desc =
-              Texp_function { arg_label = Nolabel; cases = [case]; _ } }
-            when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
-          | e -> e
-        in
         let exp = remove_fun_self exp in
         Pcf_method (lab, priv, Cfk_concrete (o, sub.expr sub exp))
     | Tcf_initializer exp ->
-        let remove_fun_self = function
-          | { exp_desc =
-              Texp_function { arg_label = Nolabel; cases = [case]; _ } }
-            when is_self_pat case.c_lhs && case.c_guard = None -> case.c_rhs
-          | e -> e
-        in
         let exp = remove_fun_self exp in
         Pcf_initializer (sub.expr sub exp)
     | Tcf_attribute x -> Pcf_attribute x

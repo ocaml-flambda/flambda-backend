@@ -141,24 +141,57 @@ let make_array ~dbg kind alloc_mode args =
   | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
+  | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
+  | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
+  | Naked_nativeints ->
+    C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
 let make_mixed_block ~dbg shape alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   C.make_mixed_alloc ~mode dbg shape args
 
-let array_length ~dbg arr =
-  (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
-     width of floats is equal to the machine word width (see flambda2.ml). This
-     means that [arraylength] will not use the kind information. *)
-  assert (C.wordsize_shift = C.numfloat_shift);
-  C.arraylength Paddrarray arr dbg
-
-let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
+let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
-  | Immediates -> C.int_array_ref arr index dbg
-  | Values -> C.addr_array_ref arr index dbg
-  | Naked_floats -> C.unboxed_float_array_ref arr index dbg
+  | Immediates | Values | Naked_floats ->
+    (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
+       width of floats is equal to the machine word width (see flambda2.ml). *)
+    assert (C.wordsize_shift = C.numfloat_shift);
+    C.arraylength Paddrarray arr dbg
+  | Naked_int32s -> C.unboxed_int32_array_length arr dbg
+  | Naked_int64s | Naked_nativeints ->
+    (* These need a special case as they are represented by custom blocks, even
+       though the contents are of word width. *)
+    C.unboxed_int64_or_nativeint_array_length arr dbg
+
+let array_load_128 ~dbg arr index element_width_log2 =
+  C.unaligned_load_128 arr
+    (C.lsl_int (C.untag_int index dbg)
+       (Cconst_int (element_width_log2, dbg))
+       dbg)
+    dbg
+
+let array_set_128 ~dbg arr index new_value element_width_log2 =
+  C.unaligned_set_128 arr
+    (C.lsl_int (C.untag_int index dbg)
+       (Cconst_int (element_width_log2, dbg))
+       dbg)
+    new_value dbg
+
+let array_load ~dbg (kind : P.Array_kind.t)
+    (accessor_width : P.array_accessor_width) ~arr ~index =
+  match kind, accessor_width with
+  | Immediates, Scalar -> C.int_array_ref arr index dbg
+  | (Naked_int64s | Naked_nativeints), Scalar ->
+    C.unboxed_int64_or_nativeint_array_ref arr index dbg
+  | Values, Scalar -> C.addr_array_ref arr index dbg
+  | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
+  | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
+  | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
+    array_load_128 ~dbg arr index 3
+  | Naked_int32s, Vec128 -> array_load_128 ~dbg arr index 2
+  | Values, Vec128 ->
+    Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
@@ -166,12 +199,22 @@ let addr_array_store init ~arr ~index ~new_value dbg =
   | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ~dbg (kind : P.Array_set_kind.t) ~arr ~index ~new_value =
+let array_set ~dbg (kind : P.Array_set_kind.t)
+    (accessor_width : P.array_accessor_width) ~arr ~index ~new_value =
   let expr =
-    match kind with
-    | Immediates -> C.int_array_set arr index new_value dbg
-    | Values init -> addr_array_store init ~arr ~index ~new_value dbg
-    | Naked_floats -> C.float_array_set arr index new_value dbg
+    match kind, accessor_width with
+    | Immediates, Scalar -> C.int_array_set arr index new_value dbg
+    | Values init, Scalar -> addr_array_store init ~arr ~index ~new_value dbg
+    | Naked_floats, Scalar -> C.float_array_set arr index new_value dbg
+    | Naked_int32s, Scalar ->
+      C.unboxed_int32_array_set arr ~index ~new_value dbg
+    | (Naked_int64s | Naked_nativeints), Scalar ->
+      C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
+    | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
+      array_set_128 ~dbg arr index new_value 3
+    | Naked_int32s, Vec128 -> array_set_128 ~dbg arr index new_value 2
+    | Values _, Vec128 ->
+      Misc.fatal_error "Attempted to store a SIMD vector to a value array."
   in
   C.return_unit dbg expr
 
@@ -561,11 +604,16 @@ let unary_primitive env res dbg f arg =
   | Duplicate_array _ | Duplicate_block _ | Obj_dup ->
     ( None,
       res,
-      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
+      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false
+        ~effects:Arbitrary_effects ~coeffects:Has_coeffects ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
-  | Array_length -> None, res, array_length ~dbg arg
+  | Array_length (Array_kind array_kind) ->
+    None, res, array_length ~dbg arg array_kind
+  | Array_length Float_array_opt_dynamic ->
+    (* See flambda2.ml (and comment in [array_length], above). *)
+    None, res, array_length ~dbg arg Values
   | Bigarray_length { dimension } ->
     ( None,
       res,
@@ -584,12 +632,11 @@ let unary_primitive env res dbg f arg =
     extra, res, expr
   | Boolean_not -> None, res, C.mk_not dbg arg
   | Reinterpret_int64_as_float ->
-    (* CR-someday mshinwell: We should add support for this operation in the
-       backend. It isn't the identity as there may need to be a move between
-       different register kinds (e.g. integer to XMM registers on x86-64). *)
+    (* Will be translated to MOVQ by backend/amd64/selection.ml. *)
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
+        ~effects:Arbitrary_effects ~coeffects:Has_coeffects
         ~ty_args:[C.exttype_of_kind K.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
@@ -673,7 +720,7 @@ let unary_primitive env res dbg f arg =
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
-  | Array_load (kind, _mut) -> array_load ~dbg kind ~arr:x ~index:y
+  | Array_load (kind, width, _mut) -> array_load ~dbg kind width ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
@@ -698,8 +745,8 @@ let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
   | Block_set (block_access, init) ->
     block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
-  | Array_set array_set_kind ->
-    array_set ~dbg array_set_kind ~arr:x ~index:y ~new_value:z
+  | Array_set (array_set_kind, width) ->
+    array_set ~dbg array_set_kind width ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->

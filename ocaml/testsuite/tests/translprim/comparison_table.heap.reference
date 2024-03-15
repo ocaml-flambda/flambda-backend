@@ -7,7 +7,8 @@
      intlike_cmp =
        (function {nlocal = 0} x[int] y[int] : int (compare_ints x y))
      float_cmp =
-       (function {nlocal = 0} x[float] y[float] : int (compare_floats x y))
+       (function {nlocal = 0} x[float] y[float] : int
+         (compare_floats float x y))
      string_cmp = (function {nlocal = 0} x y : int (caml_string_compare x y))
      int32_cmp =
        (function {nlocal = 0} x[int32] y[int32] : int
@@ -22,7 +23,8 @@
      int_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
      bool_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
      intlike_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
-     float_eq = (function {nlocal = 0} x[float] y[float] : int (==. x y))
+     float_eq =
+       (function {nlocal = 0} x[float] y[float] : int (Float.== x y))
      string_eq = (function {nlocal = 0} x y : int (caml_string_equal x y))
      int32_eq =
        (function {nlocal = 0} x[int32] y[int32] : int (Int32.== x y))
@@ -35,7 +37,8 @@
      int_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
      bool_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
      intlike_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
-     float_ne = (function {nlocal = 0} x[float] y[float] : int (!=. x y))
+     float_ne =
+       (function {nlocal = 0} x[float] y[float] : int (Float.!= x y))
      string_ne = (function {nlocal = 0} x y : int (caml_string_notequal x y))
      int32_ne =
        (function {nlocal = 0} x[int32] y[int32] : int (Int32.!= x y))
@@ -48,7 +51,7 @@
      int_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
      bool_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
      intlike_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
-     float_lt = (function {nlocal = 0} x[float] y[float] : int (<. x y))
+     float_lt = (function {nlocal = 0} x[float] y[float] : int (Float.< x y))
      string_lt = (function {nlocal = 0} x y : int (caml_string_lessthan x y))
      int32_lt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.< x y))
      int64_lt = (function {nlocal = 0} x[int64] y[int64] : int (Int64.< x y))
@@ -59,7 +62,7 @@
      int_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
      bool_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
      intlike_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
-     float_gt = (function {nlocal = 0} x[float] y[float] : int (>. x y))
+     float_gt = (function {nlocal = 0} x[float] y[float] : int (Float.> x y))
      string_gt =
        (function {nlocal = 0} x y : int (caml_string_greaterthan x y))
      int32_gt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.> x y))
@@ -71,7 +74,8 @@
      int_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
      bool_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
      intlike_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
-     float_le = (function {nlocal = 0} x[float] y[float] : int (<=. x y))
+     float_le =
+       (function {nlocal = 0} x[float] y[float] : int (Float.<= x y))
      string_le =
        (function {nlocal = 0} x y : int (caml_string_lessequal x y))
      int32_le =
@@ -85,7 +89,8 @@
      int_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
      bool_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
      intlike_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
-     float_ge = (function {nlocal = 0} x[float] y[float] : int (>=. x y))
+     float_ge =
+       (function {nlocal = 0} x[float] y[float] : int (Float.>= x y))
      string_ge =
        (function {nlocal = 0} x y : int (caml_string_greaterequal x y))
      int32_ge =

@@ -265,7 +265,7 @@ static void scan_native_globals(scanning_action f, void* fdata)
     for(glob = caml_globals[i]; *glob != 0; glob++) {
       glob_block = *glob;
       compute_index_for_global_root_scan(&glob_block, &start, &stop);
-      for (j = start; j < stop; j++) {
+      for (j = start; j < size; j++) {
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }

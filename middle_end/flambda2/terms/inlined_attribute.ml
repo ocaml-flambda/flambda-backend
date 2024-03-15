@@ -20,7 +20,16 @@ module Use_info = struct
     | Unused_because_of_call_site_decision
     | Unused_because_function_unknown
 
-  let equal t1 t2 = t1 = t2
+  let equal t1 t2 =
+    match t1, t2 with
+    | Expected_to_be_used, Expected_to_be_used
+    | Unused_because_of_call_site_decision, Unused_because_of_call_site_decision
+    | Unused_because_function_unknown, Unused_because_function_unknown ->
+      true
+    | ( ( Expected_to_be_used | Unused_because_of_call_site_decision
+        | Unused_because_function_unknown ),
+        _ ) ->
+      false
 
   let explanation t =
     match t with

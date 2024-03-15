@@ -52,5 +52,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
         Iname_for_debugger
           { ident; which_parameter; provenance; is_assignment; regs }
       | Dls_get -> Idls_get
+      | Poll -> Ipoll { return_label = None }
+      | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
     in
     Lop op

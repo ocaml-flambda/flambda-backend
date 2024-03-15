@@ -38,6 +38,7 @@
 #include "caml/stack.h"
 #include "caml/startup_aux.h"
 #include "caml/sys.h"
+#include "caml/isa.h"
 
 extern int caml_parser_trace;
 extern char caml_system__code_begin, caml_system__code_end;
@@ -93,8 +94,13 @@ value caml_startup_common(char_os **argv, int pooling)
   /* Determine options */
   caml_parse_ocamlrunparam();
 
+  // CR mslater: re-enable architecture check
+  // caml_assert_arch_extensions();
+
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;

@@ -93,13 +93,17 @@ let arg b = function
   | Mem addr -> arg_mem b addr
 
 let rec cst b = function
-  | ConstLabel _ | Const _ | ConstThis as c -> scst b c
+  | ConstLabel _ | ConstLabelOffset _  | Const _ | ConstThis as c -> scst b c
   | ConstAdd (c1, c2) -> bprintf b "%a + %a" scst c1 scst c2
   | ConstSub (c1, c2) -> bprintf b "%a - %a" scst c1 scst c2
 
 and scst b = function
   | ConstThis -> Buffer.add_string b "THIS BYTE"
   | ConstLabel l -> Buffer.add_string b l
+  | ConstLabelOffset (l, o) ->
+      Buffer.add_string b l;
+      if o > 0 then bprintf b "+%d" o
+      else if o < 0 then bprintf b "%d" o
   | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0%LxH" n
@@ -375,6 +379,10 @@ let print_instr b = function
   | PMADDWD (arg1, arg2) -> i2 b "pmaddwd" arg1 arg2
   | PMADDUBSW (arg1, arg2) -> i2 b "pmaddubsw" arg1 arg2
   | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
+  | PEXT (arg1, arg2, arg3) -> i3 b "pext" arg1 arg2 arg3
+  | PDEP (arg1, arg2, arg3) -> i3 b "pdep" arg1 arg2 arg3
+  | LZCNT (arg1, arg2) -> i2 b "lzcnt" arg1 arg2
+  | TZCNT (arg1, arg2) -> i2 b "tzcnt" arg1 arg2
 
 let print_line b = function
   | Ins instr -> print_instr b instr
@@ -420,6 +428,7 @@ let print_line b = function
   | Weak _
   | Reloc _
   | Direct_assignment _
+  | Protected _
     -> assert false
 
 let generate_asm oc lines =

@@ -24,8 +24,77 @@
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
 #include "caml/runtime_events.h"
+#include "caml/custom.h"
 
 static const mlsize_t mlsize_t_max = -1;
+
+/* Unboxed arrays */
+
+static int no_polymorphic_compare(value v1, value v2)
+{
+  caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
+}
+
+static intnat no_polymorphic_hash(value v)
+{
+  caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
+}
+
+static void unboxed_array_serialize(value v, uintnat* bsize_32,
+                                    uintnat* bsize_64)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+static uintnat unboxed_array_deserialize(void* dst)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+// Note: if polymorphic comparison and/or hashing are implemented for
+// the int32 unboxed arrays, care needs to be taken with the last word
+// when the array is of odd length -- this is not currently initialized.
+
+CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
+  { "_unboxed_int32_even_array",
+    custom_finalize_default,
+    no_polymorphic_compare,
+    no_polymorphic_hash,
+    unboxed_array_serialize,
+    unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+  { "_unboxed_int32_odd_array",
+    custom_finalize_default,
+    no_polymorphic_compare,
+    no_polymorphic_hash,
+    unboxed_array_serialize,
+    unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+};
+
+CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
+  "_unboxed_int64_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
+  "_unboxed_nativeint_array",
+  custom_finalize_default,
+  no_polymorphic_compare,
+  no_polymorphic_hash,
+  unboxed_array_serialize,
+  unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
 
 /* returns number of elements (either fields or floats) */
 /* [ 'a array -> int ] */
@@ -402,6 +471,36 @@ CAMLprim value caml_make_float_vect(value len)
 #endif
 }
 
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
+
+  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  mlsize_t num_elements = Long_val(len);
+  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
 /* This primitive is used internally by the compiler to compile
    explicit array expressions.
    For float arrays when FLAT_FLOAT_ARRAY is true, it takes an array of
@@ -761,7 +860,8 @@ CAMLprim value caml_array_fill(value array,
       *fp = val;
       if (Is_block(old)) {
         if (Is_young(old)) continue;
-        caml_darken(Caml_state, old, NULL);
+        if (caml_marking_started())
+          caml_darken(Caml_state, old, NULL);
       }
       if (is_val_young_block)
         Ref_table_add(&Caml_state->minor_tables->major_ref, fp);
@@ -780,3 +880,50 @@ CAMLprim value caml_array_of_iarray(value a)
 {
   return a;
 }
+
+/* We need these pre-declared for [gen_primitives.sh] to work. */
+CAMLprim value caml_array_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_set_indexed_by_int64(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int64(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_set_indexed_by_int32(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int32(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_set_indexed_by_nativeint(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                     \
+  CAMLprim value caml_array_get_indexed_by_##name(value array, value index) \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_get(array, Val_long(idx));                            \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_get_indexed_by_##name(value array,       \
+                                                         value index)       \
+  {                                                                         \
+    return caml_array_unsafe_get(array, Val_long(val_func(index)));         \
+  }                                                                         \
+  CAMLprim value caml_array_set_indexed_by_##name(value array,              \
+                                                  value index,              \
+                                                  value newval)             \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_set(array, Val_long(idx), newval);                    \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_set_indexed_by_##name(value array,       \
+                                                         value index,       \
+                                                         value newval)      \
+  {                                                                         \
+    return caml_array_unsafe_set(array, Val_long(val_func(index)), newval); \
+  }
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)

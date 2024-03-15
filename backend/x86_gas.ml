@@ -69,13 +69,14 @@ let arg b = function
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ
 
 let rec cst b = function
-  | ConstLabel _ | Const _ | ConstThis as c -> scst b c
+  | ConstLabel _ | ConstLabelOffset _ | Const _ | ConstThis as c -> scst b c
   | ConstAdd (c1, c2) -> bprintf b "%a + %a" scst c1 scst c2
   | ConstSub (c1, c2) -> bprintf b "%a - %a" scst c1 scst c2
 
 and scst b = function
   | ConstThis -> Buffer.add_string b "."
   | ConstLabel l -> Buffer.add_string b l
+  | ConstLabelOffset (l, o) -> Buffer.add_string b l; opt_displ b o
   | Const n when n <= 0x7FFF_FFFFL && n >= -0x8000_0000L ->
       Buffer.add_string b (Int64.to_string n)
   | Const n -> bprintf b "0x%Lx" n
@@ -378,6 +379,10 @@ let print_instr b = function
   | PMADDWD (arg1, arg2) -> i2 b "pmaddwd" arg1 arg2
   | PMADDUBSW (arg1, arg2) -> i2 b "pmaddubsw" arg1 arg2
   | PMULLD (arg1, arg2) -> i2 b "pmulld" arg1 arg2
+  | PEXT (arg1, arg2, arg3) -> i3 b "pext" arg1 arg2 arg3
+  | PDEP (arg1, arg2, arg3) -> i3 b "pdep" arg1 arg2 arg3
+  | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
+  | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs
@@ -431,7 +436,8 @@ let print_line b = function
         bprintf b "\t.ascii\t\"%s\""
           (string_of_substring_literal i (String.length s - i) s)
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
-  | Global s -> bprintf b "\t.globl\t%s" s;
+  | Global s -> bprintf b "\t.globl\t%s" s
+  | Protected s -> bprintf b "\t.protected\t%s" s;
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
   | Weak s -> bprintf b "\t.weak\t%s" s;
   | Long n -> bprintf b "\t.long\t%a" cst n

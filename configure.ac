@@ -5,9 +5,12 @@ AC_INIT([The Flambda backend for OCaml],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
 
+DUNE_MAX_VERSION=[3.8]
+
 AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
 
 m4_include([autoconf-aux/ax_subdirs_configure.m4])
+m4_include([autoconf-aux/ax_compare_version.m4])
 
 AC_CONFIG_AUX_DIR([autoconf-aux])
 
@@ -18,23 +21,29 @@ AC_ARG_WITH([dune],
     [Path to dune executable (otherwise PATH is searched)])],
   [dune=$with_dune])
 
-dnl Bug here somewhere -- if dune is on the path and an invalid --with-dune is
-dnl specified, then we should stop.
-
 AS_IF([test x"$dune" = "x"],
   [AC_MSG_ERROR([dune not found on PATH; install, or use --with-dune])])
+
+dune_version=`$dune --version | sed -e 's/^\([[0-9]]\.[[0-9]]\).*/\1/'`
+
+AS_IF([test x"$dune_version" = "x"],
+  [AC_MSG_ERROR([unable to execute dune at $dune])])
+
+dnl If dune is too new, keep going but warn at the end
+AX_COMPARE_VERSION([$dune_version], [le], [$DUNE_MAX_VERSION],
+  [dune_version_good=true],
+  [dune_version_good=false])
 
 AC_MSG_NOTICE([Using dune executable: $dune])
 
 AC_ARG_ENABLE([middle-end],
   [AS_HELP_STRING([--enable-middle-end],
-    [Select which middle end to use: closure, flambda or flambda2])],
+    [Select which middle end to use: flambda2 (default) or upstream-closure])],
   [AS_CASE([$enable_middle_end],
-    [closure], [middle_end=closure middle_end_arg=--disable-flambda],
-    [flambda], [middle_end=flambda middle_end_arg=--enable-flambda],
+    [upstream-closure], [middle_end=closure middle_end_arg=--disable-flambda],
     [flambda2], [middle_end=flambda2 middle_end_arg=--enable-flambda2],
-    [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
-  [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
+    [*], [AC_MSG_ERROR([Invalid middle end: must be flambda2 or upstream-closure])])],
+  [middle_end=flambda2 middle_end_arg=--enable-flambda2])
 
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
@@ -57,11 +66,20 @@ AC_ARG_ENABLE([legacy-library-layout],
   [legacy_layout=yes],
   [legacy_layout=no])
 
+AC_ARG_ENABLE([dev],
+  [AS_HELP_STRING([--enable-dev],
+    [Use the dev build profile for dune when building the 2nd stage.
+     Can speed up the compile time by a lot. (WARNING: do not use for
+     production compiler deployments)])],
+  [main_build_profile=dev],
+  [main_build_profile=main])
+
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
 AC_SUBST([coverage])
 AC_SUBST([legacy_layout])
+AC_SUBST([main_build_profile])
 
 # Don't error on options that this configure script doesn't understand but
 # the ocaml/ one does.
@@ -75,3 +93,6 @@ AX_SUBDIRS_CONFIGURE([ocaml],
 
 AC_CONFIG_FILES([Makefile.config])
 AC_OUTPUT
+
+AS_IF([test x"$dune_version_good" = "xfalse"],
+  [AC_MSG_WARN([dune $dune_version found; only dune up to $DUNE_MAX_VERSION known to work])])

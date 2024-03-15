@@ -17,6 +17,7 @@
 
 open Path
 open Types
+open Mode
 open Btype
 
 let builtin_idents = ref []
@@ -32,6 +33,7 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
+and ident_float32 = ident_create "float32"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -47,6 +49,9 @@ and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_unboxed_float = ident_create "float#"
+and ident_unboxed_nativeint = ident_create "nativeint#"
+and ident_unboxed_int32 = ident_create "int32#"
+and ident_unboxed_int64 = ident_create "int64#"
 
 and ident_int8x16 = ident_create "int8x16"
 and ident_int16x8 = ident_create "int16x8"
@@ -59,6 +64,7 @@ let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
+and path_float32 = Pident ident_float32
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -74,6 +80,9 @@ and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_unboxed_float = Pident ident_unboxed_float
+and path_unboxed_nativeint = Pident ident_unboxed_nativeint
+and path_unboxed_int32 = Pident ident_unboxed_int32
+and path_unboxed_int64 = Pident ident_unboxed_int64
 
 and path_int8x16 = Pident ident_int8x16
 and path_int16x8 = Pident ident_int16x8
@@ -86,6 +95,7 @@ let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
+and type_float32 = newgenty (Tconstr(path_float32, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))
@@ -102,6 +112,10 @@ and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
+and type_unboxed_nativeint =
+      newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
+and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
+and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
 and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
@@ -178,6 +192,12 @@ let predef_jkind_annotation const =
        const, user_written)
     const
 
+let option_argument_jkind = Jkind.value ~why:(
+  Type_argument {parent_path = path_option; position = 1; arity = 1})
+
+let list_argument_jkind = Jkind.value ~why:(
+  Type_argument {parent_path = path_list; position = 1; arity = 1})
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Abstract_def)
@@ -219,7 +239,8 @@ let build_initial_env add_type add_extension empty_env =
         *)
         ?jkind_annotation
       ~variance ~separability env =
-    let param = newgenvar (Jkind.value ~why:Type_argument) in
+    let param = newgenvar (Jkind.value ~why:(
+      Type_argument {parent_path = Path.Pident type_ident; position = 1; arity = 1})) in
     let decl =
       {type_params = [param];
        type_arity = 1;
@@ -244,7 +265,7 @@ let build_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple (List.map (fun x -> (x, Unrestricted)) args);
+        ext_args = Cstr_tuple (List.map (fun x -> (x, Global_flag.Unrestricted)) args);
         ext_arg_jkinds = jkinds;
         ext_constant = args = [];
         ext_ret_type = None;
@@ -291,7 +312,7 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| Jkind.value ~why:Type_argument;
+           [| [| |]; [| list_argument_jkind;
                         Jkind.value ~why:Boxed_variant |] |] )
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_nativeint
@@ -300,12 +321,21 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Jkind.value ~why:Type_argument |] |])
+           [| [| |]; [| option_argument_jkind |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))
        ~jkind_annotation:Float64
+  |> add_type ident_unboxed_nativeint
+       ~jkind:(Jkind.word ~why:(Primitive ident_unboxed_nativeint))
+       ~jkind_annotation:Word
+  |> add_type ident_unboxed_int32
+       ~jkind:(Jkind.bits32 ~why:(Primitive ident_unboxed_int32))
+       ~jkind_annotation:Bits32
+  |> add_type ident_unboxed_int64
+       ~jkind:(Jkind.bits64 ~why:(Primitive ident_unboxed_int64))
+       ~jkind_annotation:Bits64
   |> add_type ident_bytes
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
@@ -342,6 +372,11 @@ let add_simd_extension_types add_type env =
   |> add_type ident_int64x2
   |> add_type ident_float32x4
   |> add_type ident_float64x2
+
+let add_small_number_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
+  |> add_type ident_float32
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

@@ -359,3 +359,44 @@ let foo (f : p1) : p2 = (fun id -> f id)
 [%%expect {|
 val foo : p1 -> p2 = <fun>
 |}];;
+
+(* The typing of functions involves an extra step when
+   any parameter includes a GADT pattern. The below tests make sure
+   that this extra step is compatible with polymorphic
+   parameters. *)
+
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+
+[%%expect {|
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+|}];;
+
+let test_gadt1 (type b c) ~(run : 'a. 'a -> b -> b) (Eq : (b, c) eq) (b : b) : c =
+  run () b
+
+[%%expect {|
+val test_gadt1 : run:('a. 'a -> 'b -> 'b) -> ('b, 'c) eq -> 'b -> 'c = <fun>
+|}];;
+
+let test_gadt2 : type b c. run:('a. 'a -> b -> b) -> (b, c) eq -> b -> c =
+  fun ~run Eq b -> run () b
+
+[%%expect {|
+val test_gadt2 : run:('a. 'a -> 'b -> 'b) -> ('b, 'c) eq -> 'b -> 'c = <fun>
+|}];;
+
+let test_gadt_expected_fail : type a. ?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a =
+  fun ?eq:(Eq : (a, int -> int) eq = assert false) id x -> id x
+
+[%%expect {|
+Line 2, characters 2-63:
+2 |   fun ?eq:(Eq : (a, int -> int) eq = assert false) id x -> id x
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The syntactic arity of the function doesn't match the type constraint:
+       This function has 3 syntactic arguments, but its type is constrained to
+         ?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a.
+        Hint: consider splitting the function definition into
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
+|}];;

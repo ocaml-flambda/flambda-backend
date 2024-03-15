@@ -47,6 +47,7 @@ type type_forcing_context =
   | Comprehension_for_start
   | Comprehension_for_stop
   | Comprehension_when
+  | Error_message_attr of string
 
 (* The combination of a type and a "type forcing context". The intent is that it
    describes a type that is "expected" (required) by the context. If unifying
@@ -63,7 +64,7 @@ type pattern_variable =
   {
     pv_id: Ident.t;
     pv_uid: Uid.t;
-    pv_mode: Mode.Value.t;
+    pv_mode: Mode.Value.l;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -151,7 +152,7 @@ val type_argument:
         type_expr -> type_expr -> Typedtree.expression
 
 val option_some:
-  Env.t -> Typedtree.expression -> Mode.Value.t -> Typedtree.expression
+  Env.t -> Typedtree.expression -> ('l * Mode.allowed) Mode.Value.t -> Typedtree.expression
 val option_none:
   Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
@@ -177,7 +178,7 @@ type submode_reason =
 
   | Other (* add more cases here for better hints *)
 
-val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> Mode.Value.t -> unit
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> (Mode.allowed * 'r) Mode.Value.t -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -197,6 +198,11 @@ type error =
   | Expr_type_clash of
       Errortrace.unification_error * type_forcing_context option
       * Parsetree.expression_desc option
+  | Function_arity_type_clash of
+      { syntactic_arity :  int;
+        type_constraint : type_expr;
+        trace : Errortrace.unification_error;
+      }
   | Apply_non_function of {
       funct : Typedtree.expression;
       func_ty : type_expr;
@@ -276,7 +282,7 @@ type error =
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.error
+  | Param_mode_mismatch of type_expr * Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -287,6 +293,7 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Modes_on_pattern
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

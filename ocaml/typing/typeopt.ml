@@ -81,15 +81,15 @@ let is_base_type env ty base_ty_path =
   | _ -> false
 
 let is_always_gc_ignorable env ty =
-  let jkind =
+  let ext : Jkind.Externality.t =
     (* We check that we're compiling to (64-bit) native code before counting
-       immediate64 types as gc_ignorable, because bytecode is intended to be
+       External64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
     if !Clflags.native_code && Sys.word_size = 64
-    then Jkind.immediate64 ~why:Gc_ignorable_check
-    else Jkind.immediate ~why:Gc_ignorable_check
+    then External64
+    else External
   in
-  Result.is_ok (Ctype.check_type_jkind env ty jkind)
+  Ctype.check_type_externality env ty ext
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
@@ -121,6 +121,7 @@ let classify env ty : classification =
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
            || Path.same p Predef.path_nativeint
+           || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
            || Path.same p Predef.path_int64 then Addr
       else begin
@@ -202,7 +203,7 @@ let value_kind_of_value_jkind jkind =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 -> assert false
+  | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -324,7 +325,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
     num_nodes_visited, Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, Pfloatval
+    num_nodes_visited, (Pboxedfloatval Pfloat64)
+  | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
+    num_nodes_visited, (Pboxedfloatval Pfloat32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
     num_nodes_visited, (Pboxedintval Pint32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
@@ -524,19 +527,20 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                  sort (we can get this info from the label.ld_jkind).  For now
                  we rely on the layout check at the top of value_kind to rule
                  out void. *)
-              (* We're using the `Pfloatval` value kind for unboxed floats
+              (* We're using the `Pboxedfloatval` value kind for unboxed floats
                  inside of records.  This is kind of a lie, but that was already
                  happening here due to the float record optimization. *)
               match rep with
               | Record_float | Record_ufloat ->
-                num_nodes_visited, Pfloatval
+                num_nodes_visited, Pboxedfloatval Pfloat64
               | Record_mixed shape ->
                 begin match Types.get_mixed_record_element shape idx with
                 | Value_prefix ->
                     value_kind env ~loc ~visited ~depth ~num_nodes_visited
                       label.ld_type
                 | Flat_suffix Imm -> num_nodes_visited, Pintval
-                | Flat_suffix (Float | Float64) -> num_nodes_visited, Pfloatval
+                | Flat_suffix (Float | Float64) ->
+                    num_nodes_visited, Pboxedfloatval Pfloatval
                 end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited
@@ -573,31 +577,47 @@ let value_kind env loc ty =
   with
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
-let layout env loc sort ty =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue (value_kind env loc ty)
+let[@inline always] layout_of_const_sort_generic ~value_kind ~error
+  : Jkind.Sort.const -> _ = function
+  | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, Some ty)))
-  | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+    Lambda.Punboxed_float Pfloat64
+  | Word when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pnativeint
+  | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint32
+  | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint64
+  | (Void | Float64 | Word | Bits32 | Bits64 as const) ->
+    error const
+
+let layout env loc sort ty =
+  layout_of_const_sort_generic
+    (Jkind.Sort.get_default_value sort)
+    ~value_kind:(lazy (value_kind env loc ty))
+    ~error:(function
+      | Value -> assert false
+      | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Stable, None)))
-  | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+  layout_of_const_sort_generic
+    (Jkind.Sort.get_default_value sort)
+    ~value_kind:(lazy Pgenval)
+    ~error:(function
+    | Value -> assert false
+    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | (Float64 | Word | Bits32 | Bits64 as const) ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
-let layout_of_const_sort (s : Jkind.Sort.const) =
-  match s with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float
-  | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
-  | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
+let layout_of_const_sort s =
+  layout_of_const_sort_generic
+    s
+    ~value_kind:(lazy Pgenval)
+    ~error:(fun const ->
+      Misc.fatal_errorf "layout_of_const_sort: %a encountered"
+        Jkind.Sort.format_const const)
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
@@ -658,7 +678,8 @@ let rec layout_union l1 l2 =
   | l, Pbottom -> l
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
-  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Punboxed_float f1, Punboxed_float f2 ->
+      if equal_boxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
@@ -666,7 +687,8 @@ let rec layout_union l1 l2 =
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
-  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _),
+  | (Ptop | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
+     Punboxed_vector _ | Punboxed_product _),
     _ ->
       Ptop
 

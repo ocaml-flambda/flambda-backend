@@ -57,6 +57,12 @@ module Lambda_utils : sig
         [Float.to_string] *)
     val float  : float -> lambda
 
+    (** Unboxed floats and ints *)
+    val unboxed_float : float -> lambda
+    val unboxed_int32 : Int32.t -> lambda
+    val unboxed_int64 : Int64.t -> lambda
+    val unboxed_nativeint : Targetint.t -> lambda
+
     (** Lambda string literals; these require a location, and are constructed as
         "quoted strings", not {fancy|delimited strings|fancy}. *)
     val string : loc:Location.t -> string -> lambda
@@ -117,6 +123,15 @@ module Lambda_utils : sig
         which creates an unboxed float array of length [len] whose contents are
         uninitialized *)
     val make_float_vect : loc:scoped_location -> lambda -> lambda
+
+    (** Like [make_float_vect] but for unboxed int32 arrays. *)
+    val make_unboxed_int32_vect : loc:scoped_location -> lambda -> lambda
+
+    (** Like [make_float_vect] but for unboxed int64 arrays. *)
+    val make_unboxed_int64_vect : loc:scoped_location -> lambda -> lambda
+
+    (** Like [make_float_vect] but for unboxed nativeint arrays. *)
+    val make_unboxed_nativeint_vect : loc:scoped_location -> lambda -> lambda
 
     (** [array_append a1 a2] calls the [caml_array_append] C primitive, which
         creates a new array by appending [a1] and [a2] *)

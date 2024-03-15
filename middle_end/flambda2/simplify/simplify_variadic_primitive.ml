@@ -92,7 +92,7 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
         args, result)
       (args, Or_bottom.Ok TEE.empty) block_shape
   in
-  if remaining_args <> [] then
+  if not (List.is_empty remaining_args) then
     Misc.fatal_error
       "We already checked that [args] and [block_shape] have the same length";
   match result with

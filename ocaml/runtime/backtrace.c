@@ -278,7 +278,9 @@ CAMLprim value caml_convert_raw_backtrace(value bt)
   if (!caml_debug_info_available())
     caml_failwith("No debug information available");
 
-  for (i = 0, index = 0; i < Wosize_val(bt); ++i)
+  mlsize_t bt_size = Wosize_val(bt);
+
+  for (i = 0, index = 0; i < bt_size; ++i)
   {
     debuginfo dbg;
     for (dbg = caml_debuginfo_extract(Backtrace_slot_val(Field(bt, i)));
@@ -289,7 +291,7 @@ CAMLprim value caml_convert_raw_backtrace(value bt)
 
   array = caml_alloc(index, 0);
 
-  for (i = 0, index = 0; i < Wosize_val(bt); ++i)
+  for (i = 0, index = 0; i < bt_size; ++i)
   {
     debuginfo dbg;
     for (dbg = caml_debuginfo_extract(Backtrace_slot_val(Field(bt, i)));
@@ -359,8 +361,9 @@ CAMLprim value caml_get_exception_backtrace(value unit)
   } else {
     backtrace = caml_get_exception_raw_backtrace(Val_unit);
 
-    arr = caml_alloc(Wosize_val(backtrace), 0);
-    for (i = 0; i < Wosize_val(backtrace); i++) {
+    mlsize_t backtrace_size = Wosize_val(backtrace);
+    arr = caml_alloc(backtrace_size, 0);
+    for (i = 0; i < backtrace_size; i++) {
       backtrace_slot slot = Backtrace_slot_val(Field(backtrace, i));
       debuginfo dbg = caml_debuginfo_extract(slot);
       Store_field(arr, i, caml_convert_debuginfo(dbg));

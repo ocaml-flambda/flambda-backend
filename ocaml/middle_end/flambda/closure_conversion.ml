@@ -123,9 +123,10 @@ let rec declare_const t (const : Lambda.structured_constant)
   match const with
   | Const_base (Const_int c) -> (Const (Int c), Names.const_int)
   | Const_base (Const_char c) -> (Const (Char c), Names.const_char)
-  | Const_base (Const_unboxed_float _) ->
-    (* CR alanechang: implement unboxed float constants in flambda *)
-    Misc.fatal_error "Unboxed float constants are not supported in flambda. Consider using flambda2."
+  | Const_base (Const_unboxed_float _ | Const_unboxed_int32 _
+               | Const_unboxed_int64 _ | Const_unboxed_nativeint _) ->
+    (* CR alanechang: implement unboxed constants in flambda *)
+    Misc.fatal_error "Unboxed constants are not supported in flambda. Consider using flambda2."
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       (Flambda.Allocated_const (Immutable_string s),
@@ -136,6 +137,9 @@ let rec declare_const t (const : Lambda.structured_constant)
     register_const t
       (Allocated_const (Float (float_of_string c)))
       Names.const_float
+  | Const_base (Const_float32 _c) ->
+      (* CR mslater: (float32) middle end support *)
+      assert false
   | Const_base (Const_int32 c) ->
     register_const t (Allocated_const (Int32 c))
       Names.const_int32
@@ -222,7 +226,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let set_of_closures =
       let decl =
         Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
@@ -275,7 +279,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
-            let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+            let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
                 ~closure_bound_var ~kind ~mode ~region
@@ -695,7 +699,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
     let closure_bound_var = Variable.rename let_bound_var in
-    let params = List.map (fun (p : Lambda.lparam) -> let No_attributes = p.attributes in (p.name, p.layout)) params in
+    let params = List.map (fun (p : Lambda.lparam) -> (p.name, p.layout)) params in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
         ~params ~body ~attr ~loc ~return_layout:return

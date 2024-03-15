@@ -41,8 +41,6 @@ let _label s = D.label ~typ:QWORD s
 
 (* Override proc.ml *)
 
-let simd_frontend_disabled () = not (Language_extension.is_enabled SIMD)
-
 let int_reg_name =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9;
      R12; R13; R10; R11; RBP; |]
@@ -53,10 +51,7 @@ let register_name typ r =
   match typ with
   | Int | Val | Addr -> Reg64 (int_reg_name.(r))
   | Float -> Regf (float_reg_name.(r - 100))
-  | Vec128 ->
-    if simd_frontend_disabled ()
-    then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 register.";
-    Regf (float_reg_name.(r - 100))
+  | Vec128 -> assert_simd_enabled (); Regf (float_reg_name.(r - 100))
 
 let phys_rax = phys_reg Int 0
 let phys_rdx = phys_reg Int 4
@@ -111,8 +106,7 @@ let frame_required = ref false
 
 let frame_size () =                     (* includes return address *)
   if !frame_required then begin
-    if simd_frontend_disabled () && (num_stack_slots.(2) > 0)
-    then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 stack slot.";
+    if num_stack_slots.(2) > 0 then assert_simd_enabled ();
     let sz =
       (!stack_offset
        + 8
@@ -128,8 +122,7 @@ let slot_offset loc cl =
   match loc with
   | Incoming n -> frame_size() + n
   | Local n ->
-      if simd_frontend_disabled () && (num_stack_slots.(2) > 0 || cl >= 2)
-      then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 stack slot.";
+      if num_stack_slots.(2) > 0 || cl >= 2 then assert_simd_enabled ();
       (!stack_offset +
         (* Preserves original ordering (int -> float) *)
         match cl with
@@ -454,28 +447,6 @@ type safety_check_sites = {
 let bound_checks = { sc_sites = []; sc_call = 0 }
 let align_checks = { sc_sites = []; sc_call = 0 }
 
-let safety_check_failure_label kind _fdo dbg =
-  if !Clflags.debug then begin
-    let lbl_error = new_label() in
-    let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
-    let info =
-      { sc_lbl = lbl_error;
-        sc_frame = lbl_frame;
-        sc_dbg = dbg } in
-    (match kind with
-    | Bound_check -> bound_checks.sc_sites <- info :: bound_checks.sc_sites
-    | Align_check -> align_checks.sc_sites <- info :: align_checks.sc_sites);
-    lbl_error
-  end else begin
-    match kind with
-    | Bound_check ->
-      if bound_checks.sc_call = 0 then bound_checks.sc_call <- new_label();
-      bound_checks.sc_call
-    | Align_check ->
-      if align_checks.sc_call = 0 then align_checks.sc_call <- new_label();
-      align_checks.sc_call
-  end
-
 let emit_call_safety_error kind sc =
   def_label sc.sc_lbl;
   emit_debug_info sc.sc_dbg;
@@ -737,10 +708,34 @@ let emit_vec128_constant {high; low} lbl =
   D.qword (Const low);
   D.qword (Const high)
 
+let global_maybe_protected sym =
+  D.global sym;
+  if !Flambda_backend_flags.symbol_visibility_protected then
+    match system with
+    | S_macosx
+    | S_win32
+    | S_win64
+    | S_mingw64
+    | S_cygwin
+    | S_mingw
+    | S_unknown -> ()
+    | S_gnu
+    | S_solaris
+    | S_linux_elf
+    | S_bsd_elf
+    | S_beos
+    | S_linux
+    | S_freebsd
+    | S_netbsd
+    | S_openbsd ->
+      (* Global symbols can be marked as being protected. Unlike in C we don't want
+        them to be preempted as we're doing a lot of cross module inlining. *)
+      D.protected sym
+
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
-  D.global lbl;
+  global_maybe_protected lbl;
   _label lbl
 
 let emit_global_label s =
@@ -927,6 +922,31 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+(* ISA Extension Checking *)
+
+module Extension = struct
+  module E = Arch.Extension
+
+  (* Keep in sync with [isa.c] in the runtime. *)
+  let symbol : E.t -> string =
+    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
+
+  let is_nasm_or_masm () =
+    match system with
+    | S_macosx | S_win32 | S_win64 -> true
+    | _ -> false
+
+  let emit_symbols () =
+    if !arch_check_symbols && not (is_nasm_or_masm ()) then
+    List.iter (fun ext ->
+      let name = symbol ext in
+      D.label name;
+      D.weak name
+    ) (E.available ())
+end
+
+(* Emit Code *)
+
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
   let src, dst = match op, size with
   | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
@@ -943,9 +963,9 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.movzx res8 res
 
 let emit_simd_instr op i =
-  (match Simd_selection.register_behavior op with
+  (match Simd_proc.register_behavior op with
   | R_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
   | R_to_RM ->
     assert (Reg.is_reg i.arg.(0))
@@ -954,34 +974,39 @@ let emit_simd_instr op i =
   | R_to_R ->
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.res.(0))
   | R_RM_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0))
-  | R_RM_xmm0_to_fst ->
-    assert (arg i 0 = res i 0);
+  | R_RM_to_R ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_xmm0v ())
+    assert (Reg.is_reg i.res.(0))
+  | R_RM_xmm0_to_fst ->
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
+    assert (Reg.is_reg i.arg.(0));
+    assert (Reg.same_loc i.arg.(2) (phys_xmm0v ()))
   | R_R_to_fst ->
-    assert (arg i 0 = res i 0);
+    assert (Reg.same_loc i.arg.(0) i.res.(0));
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
   | R_RM_rax_rdx_to_rcx ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_rax);
-    assert (i.arg.(3) = phys_rdx);
-    assert (i.res.(0) = phys_rcx)
+    assert (Reg.same_loc (i.arg.(2)) phys_rax);
+    assert (Reg.same_loc (i.arg.(3)) phys_rdx);
+    assert (Reg.same_loc i.res.(0) phys_rcx)
   | R_RM_to_rcx ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.res.(0) = phys_rcx)
+    assert (Reg.same_loc (i.res.(0)) phys_rcx)
   | R_RM_rax_rdx_to_xmm0 ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.arg.(2) = phys_rax);
-    assert (i.arg.(3) = phys_rdx);
-    assert (i.res.(0) = phys_xmm0v ())
+    assert (Reg.same_loc (i.arg.(2)) phys_rax);
+    assert (Reg.same_loc (i.arg.(3)) phys_rdx);
+    assert (Reg.same_loc (i.res.(0)) (phys_xmm0v ()))
   | R_RM_to_xmm0 ->
     assert (Reg.is_reg i.arg.(0));
-    assert (i.res.(0) = phys_xmm0v ())
+    assert (Reg.same_loc i.res.(0) (phys_xmm0v ()))
   );
   match (op : Simd.operation) with
   | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
+  | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
+  | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
   | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
   | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
@@ -1441,22 +1466,6 @@ let emit_instr fallthrough i =
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
-  | Lop(Iintop (Icheckalign { bytes_pow2 })) ->
-      let lbl = safety_check_failure_label Align_check i.fdo i.dbg in
-      let mask = bytes_pow2 - 1 in
-      I.test (Imm (Int64.of_int mask)) (arg i 0);
-      I.jne (label lbl)
-  | Lop(Iintop_imm(Icheckalign { bytes_pow2 }, n)) ->
-      let mask = bytes_pow2 - 1 in
-      if (n land mask) <> 0 then Misc.fatal_errorf "Alignment check on known int failed."
-  | Lop(Iintop (Icheckbound)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (arg i 1) (arg i 0);
-      I.jbe (label lbl)
-  | Lop(Iintop_imm(Icheckbound, n)) ->
-      let lbl = safety_check_failure_label Bound_check i.fdo i.dbg in
-      I.cmp (int n) (arg i 0);
-      I.jbe (label lbl)
   | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
   | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
@@ -1476,9 +1485,9 @@ let emit_instr fallthrough i =
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) when not !fastcode_flag ->
+  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
       I.dec (res i 0)
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
@@ -1566,7 +1575,9 @@ let emit_instr fallthrough i =
          previous experience with similar things, but maybe the change
          should be left for later.
          mshinwell: The current situation is fine for now. *)
-      if arg_is_non_zero then begin
+      if Arch.Extension.enabled LZCNT then begin
+        I.lzcnt (arg i 0) (res i 0)
+      end else if arg_is_non_zero then begin
         (* No need to handle that bsr is undefined on 0 input. *)
         I.bsr (arg i 0) (res i 0);
         (* We need (63 - result_of_bsr), which can be done with xor. *)
@@ -1584,7 +1595,9 @@ let emit_instr fallthrough i =
       end
   | Lop(Iintop(Ictz { arg_is_non_zero; })) ->
     (* CR-someday gyorsh: can we do it at selection? *)
-    if arg_is_non_zero then begin
+    if Arch.Extension.enabled BMI then begin
+      I.tzcnt (arg i 0) (res i 0)
+    end else if arg_is_non_zero then begin
       (* No need to handle that bsf is undefined on 0 input. *)
       I.bsf (arg i 0) (res i 0)
     end else begin
@@ -1595,7 +1608,7 @@ let emit_instr fallthrough i =
       def_label lbl_nz
     end
   | Lop(Iintop Ipopcnt) ->
-      assert (!popcnt_support);
+      assert (Arch.Extension.enabled POPCNT);
       I.popcnt (arg i 0) (res i 0)
   | Lop(Icsel tst) ->
     let len = Array.length i.arg in
@@ -1840,7 +1853,7 @@ let fundecl fundecl =
   then (* PR#4690 *)
     D.private_extern (emit_symbol fundecl.fun_name)
   else
-    D.global (emit_symbol fundecl.fun_name);
+    global_maybe_protected (emit_symbol fundecl.fun_name);
   (* Even if the function name is Local, still emit an
      actual linker symbol for it. This provides symbols
      for perf, gdb, and similar tools *)
@@ -1914,7 +1927,7 @@ let emit_item = function
     | Local ->
       _label (label_name (emit_symbol s.sym_name))
     | Global ->
-      D.global (emit_symbol s.sym_name);
+      global_maybe_protected (emit_symbol s.sym_name);
       add_def_symbol s.sym_name;
       _label (emit_symbol s.sym_name);
       _label (label_name (emit_symbol s.sym_name))
@@ -1930,6 +1943,9 @@ let emit_item = function
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
+  | Csymbol_offset (s, o) ->
+    add_used_symbol s.sym_name;
+    D.qword (ConstLabelOffset (emit_cmm_symbol s, o))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align ~data:true n
@@ -1995,6 +2011,7 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
+  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;
@@ -2018,9 +2035,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
   (* Manufacture stack entry with this register's type *)
   (match r.typ with
    | Int | Val | Addr | Float -> ()
-   | Vec128 ->
-     if simd_frontend_disabled ()
-     then Misc.fatal_error "SIMD types are not enabled, but got a Vec128 register.");
+   | Vec128 -> assert_simd_enabled ());
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to

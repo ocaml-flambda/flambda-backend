@@ -13,7 +13,7 @@ type maturity = Language_extension_kernel.maturity =
     or off, while a [maturity t] can have different maturity settings. *)
 type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
-  | Local : unit t
+  | Mode : unit t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -22,6 +22,7 @@ type 'a t = 'a Language_extension_kernel.t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
+  | Small_numbers : unit t
 
 (** Existentially packed language extension *)
 module Exist : sig
@@ -126,6 +127,10 @@ val restrict_to_erasable_extensions : unit -> unit
     The [is_enabled] function will still work, it will just always return
     [false].*)
 val disallow_extensions : unit -> unit
+
+(** Check if the allowable extensions are restricted to only those that are
+    "erasable". This is true when [restrict_to_erasable_extensions] was called. *)
+val erasable_extensions_only : unit -> bool
 
 (**/**)
 

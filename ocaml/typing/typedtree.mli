@@ -32,10 +32,16 @@ type constant =
   | Const_char of char
   | Const_string of string * Location.t * string option
   | Const_float of string
+  | Const_float32 of string
+  (* CR mslater: (float32) unboxed float32 *)
   | Const_unboxed_float of string
   | Const_int32 of int32
   | Const_int64 of int64
+  (* CR mshinwell: This should use [Targetint.t] not [nativeint] *)
   | Const_nativeint of nativeint
+  | Const_unboxed_int32 of int32
+  | Const_unboxed_int64 of int64
+  | Const_unboxed_nativeint of nativeint
 
 module Uid = Shape.Uid
 
@@ -62,9 +68,9 @@ type _ pattern_category =
   projection, and represents the usage of the record immediately after this
   projection. If it points to unique, that means this projection must be
   borrowed and cannot be moved *)
-type unique_barrier = Mode.Uniqueness.t option
+type unique_barrier = Mode.Uniqueness.r option
 
-type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
+type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 val shared_many_use : unique_use
 
@@ -104,10 +110,10 @@ and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
         (** _ *)
-  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
         (** x *)
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.t
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l
         -> value pattern_desc
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
@@ -203,16 +209,12 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
+  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
+        (** local_ E *)
 
-and fun_curry_state =
-  | More_args of { partial_mode : Mode.Alloc.t }
-        (** [partial_mode] is the mode of the resulting closure
-            if this function is partially applied *)
-  | Final_arg of { partial_mode : Mode.Alloc.t }
-        (** [partial_mode] is relevant for the final arg only
-            because of an optimisation that Simplif does to merge
-            functions, which might result in this arg no longer being
-            final *)
+(* CR modes: Consider fusing [Texp_mode_coerce] and [Texp_constraint] when
+   the syntax changes.
+*)
 
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
@@ -240,33 +242,28 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_mode : Mode.Alloc.t;
-      (* Mode where the function allocates, ie local for a function of
-         type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t
-      (* Mode at which the closure is allocated *)
-    }
-        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
-            See {!Parsetree} for more details.
-
-            [param] is the identifier that is to be used to name the
-            parameter of the function.
-
-            partial =
-              [Partial] if the pattern match is partial
-              [Total] otherwise.
-
-            partial_mode is the mode of the resulting closure if this function
-            is partially applied to a single argument.
-         *)
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.t
+  | Texp_function of
+      { params : function_param list;
+        body : function_body;
+        region : bool;
+        ret_mode : Mode.Alloc.l;
+        (* Mode where the function allocates, ie local for a function of
+           type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
+        ret_sort : Jkind.sort;
+        alloc_mode : Mode.Alloc.r
+        (* Mode at which the closure is allocated *)
+      }
+      (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
+          fun P0 P1 -> E                             (body = Tfunction_body _)
+          This construct has the same arity as the originating
+          {{!Jane_syntax.Expression.Jexp_n_ary_function}[Jexp_n_ary_function]}.
+          Arity determines when side-effects for effectful parameters are run
+          (e.g. optional argument defaults, matching against lazy patterns).
+          Parameters' effects are run left-to-right when an n-ary function is
+          saturated with n arguments.
+      *)
+  | Texp_apply of
+      expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.l
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -293,7 +290,7 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.t
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
         (** [Texp_tuple(el)] represents
             - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
             - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
@@ -301,7 +298,7 @@ and expression_desc =
           *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
-      expression list * Mode.Alloc.t option
+      expression list * Mode.Alloc.r option
         (** C                []
             C E              [E]
             C (E1, ..., En)  [E1;...;En]
@@ -310,7 +307,7 @@ and expression_desc =
             or [None] if the constructor is [Cstr_unboxed] or [Cstr_constant],
             in which case it does not need allocation.
          *)
-  | Texp_variant of label * (expression * Mode.Alloc.t) option
+  | Texp_variant of label * (expression * Mode.Alloc.r) option
         (** [alloc_mode] is the allocation mode of the variant,
             or [None] if the variant has no argument,
             in which case it does not need allocation.
@@ -319,7 +316,7 @@ and expression_desc =
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.t option
+      alloc_mode : Mode.Alloc.r option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -336,15 +333,15 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      unique_use * Mode.Alloc.t option
+      unique_use * Mode.Alloc.r option
     (** [alloc_mode] is the allocation mode of the result; available ONLY
         only when getting a (float) field from a [Record_float] record
       *)
   | Texp_setfield of
-      expression * Mode.Locality.t * Longident.t loc *
+      expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.t
+  | Texp_array of mutable_flag * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -385,7 +382,6 @@ and expression_desc =
       body : value case;
       body_sort : Jkind.sort;
       partial : partial;
-      warnings : Warnings.state;
     }
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
@@ -395,7 +391,69 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
 
-and ident_kind = Id_value | Id_prim of Mode.Locality.t option
+and function_curry =
+  | More_args of { partial_mode : Mode.Alloc.l }
+  | Final_arg
+
+and function_param =
+  {
+    fp_arg_label: arg_label;
+    fp_param: Ident.t;
+    (** [fp_param] is the identifier that is to be used to name the
+        parameter of the function.
+    *)
+    fp_partial: partial;
+    (**
+       [fp_partial] =
+       [Partial] if the pattern match is partial
+       [Total] otherwise.
+    *)
+    fp_kind: function_param_kind;
+    fp_sort: Jkind.sort;
+    fp_mode: Mode.Alloc.l;
+    fp_curry: function_curry;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
+    (** [fp_newtypes] are the new type declarations that come *after* that
+        parameter. The newtypes that come before the first parameter are
+        placed as exp_extras on the Texp_function node. This is just used in
+        {!Untypeast}. *)
+    fp_loc: Location.t;
+    (** [fp_loc] is the location of the entire value parameter, not including
+        the [fp_newtypes].
+    *)
+  }
+
+and function_param_kind =
+  | Tparam_pat of pattern
+  (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
+  | Tparam_optional_default of pattern * expression * Jkind.sort
+  (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
+      default value [e], i.e. [?x:(p = e)]. If the parameter is of type
+      [a option], the pattern and expression are of type [a]. [sort] is the
+      sort of [e]. *)
+
+and function_body =
+  | Tfunction_body of expression
+  | Tfunction_cases of function_cases
+(** The function body binds a final argument in [Tfunction_cases],
+    and this argument is pattern-matched against the cases.
+*)
+
+and function_cases =
+  { fc_cases: value case list;
+    fc_arg_mode: Mode.Alloc.l;
+    fc_arg_sort: Jkind.sort;
+    fc_partial: partial;
+    fc_param: Ident.t;
+    fc_loc: Location.t;
+    fc_exp_extra: exp_extra option;
+    fc_attributes: attributes;
+    (** [fc_attributes] is just used in untypeast. *)
+  }
+
+and ident_kind =
+  | Id_value
+  | Id_prim of Mode.Locality.l option * Jkind.Sort.t option
 
 and meth =
     Tmeth_name of string
@@ -467,9 +525,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : Mode.Alloc.t;
-    mode_arg : Mode.Alloc.t;
-    mode_ret : Mode.Alloc.t;
+  { mode_closure : Mode.Alloc.r;
+    mode_arg : Mode.Alloc.l;
+    mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort }
 
 and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
@@ -645,7 +703,8 @@ and primitive_coercion =
   {
     pc_desc: Primitive.description;
     pc_type: Types.type_expr;
-    pc_poly_mode: Mode.Locality.t option;
+    pc_poly_mode: Mode.Locality.l option;
+    pc_poly_sort: Jkind.Sort.t option;
     pc_env: Env.t;
     pc_loc : Location.t;
   }
@@ -834,7 +893,7 @@ and label_declaration =
      ld_id: Ident.t;
      ld_name: string loc;
      ld_mutable: mutable_flag;
-     ld_global: Types.global_flag;
+     ld_global: Mode.Global_flag.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -852,7 +911,7 @@ and constructor_declaration =
     }
 
 and constructor_arguments =
-  | Cstr_tuple of (core_type * Types.global_flag) list
+  | Cstr_tuple of (core_type * Mode.Global_flag.t) list
   | Cstr_record of label_declaration list
 
 and type_extension =
@@ -995,7 +1054,7 @@ val let_bound_idents_full:
     value_binding list -> (Ident.t * string loc * Types.type_expr * Uid.t) list
 val let_bound_idents_with_modes_and_sorts:
   value_binding list
-  -> (Ident.t * (Location.t * Mode.Value.t * Jkind.sort) list) list
+  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

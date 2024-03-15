@@ -46,6 +46,7 @@ type constant =
   | Const of int64
   | ConstThis
   | ConstLabel of string
+  | ConstLabelOffset of string * int
   | ConstAdd of constant * constant
   | ConstSub of constant * constant
 
@@ -354,6 +355,10 @@ type instruction =
   | PMADDWD of arg * arg
   | PMADDUBSW of arg * arg
   | PMULLD of arg * arg
+  | PEXT of arg * arg * arg
+  | PDEP of arg * arg * arg
+  | TZCNT of arg * arg
+  | LZCNT of arg * arg
 
 (* ELF specific *)
 type reloc_type =
@@ -373,6 +378,7 @@ type asm_line =
   | Bytes of string
   | Comment of string
   | Global of string
+  | Protected of string
   | Hidden of string
   | Weak of string
   | Long of constant

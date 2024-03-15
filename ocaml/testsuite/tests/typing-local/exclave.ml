@@ -182,9 +182,9 @@ val bar : 'a -> string = <fun>
 |}]
 
 (* Ensure that Alias bindings are not substituted by Simplif (PR1448) *)
-type 'a glob = Glob of ('a[@global])
+type 'a glob = Glob of global_ 'a
 
-let[@inline never] return_local a = [%local] (Glob a)
+let[@inline never] return_local a = local_ (Glob a)
 
 let f () =
   let (Glob x) = return_local 1 in
@@ -212,4 +212,35 @@ Line 3, characters 4-19:
         ^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
        when it is partially applied.
+|}]
+
+let f () =
+  exclave_ (
+    (fun x -> function | "a" -> () | _ -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+Line 3, characters 4-45:
+3 |     (fun x -> function | "a" -> () | _ -> ()) : (string -> string -> unit)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied.
+|}]
+
+(* For nested functions, inner functions are not constrained *)
+let f () =
+  exclave_ (
+    (fun x -> fun y -> ()) : (string -> string -> unit)
+  )
+[%%expect{|
+val f : unit -> local_ (string -> (string -> unit)) = <fun>
+|}]
+
+let f : local_ string -> string =
+  fun x -> exclave_ s
+[%%expect{|
+Line 2, characters 11-21:
+2 |   fun x -> exclave_ s
+               ^^^^^^^^^^
+Error: This expression was expected to be not local, but is an exclave expression,
+       which must be local.
 |}]

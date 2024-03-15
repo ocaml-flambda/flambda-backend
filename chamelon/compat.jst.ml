@@ -2,8 +2,8 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_jkind = Jkind.value ~why:Type_argument
-let dummy_value_mode = Value.legacy
+let dummy_jkind = Jkind.value ~why:(Unknown "dummy_layout")
+let dummy_value_mode = Value.disallow_right Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
@@ -16,72 +16,146 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
   Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
-type texp_apply_identifier = apply_position * Locality.t
+type texp_apply_identifier = apply_position * Locality.l
 
-let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
+let mkTexp_apply
+    ?id:(pos, mode = (Default, Locality.disallow_right Locality.legacy))
+    (exp, args) =
   Texp_apply (exp, args, pos, mode)
 
-type texp_tuple_identifier = string option list * Alloc.t
+type texp_tuple_identifier = string option list * Alloc.r
 
 let mkTexp_tuple ?id exps =
   let labels, alloc =
     match id with
-    | None -> (List.map (fun _ -> None) exps, Alloc.legacy)
+    | None -> (List.map (fun _ -> None) exps, Alloc.disallow_left Alloc.legacy)
     | Some id -> id
   in
   let exps = List.combine labels exps in
   Texp_tuple (exps, alloc)
 
-type texp_construct_identifier = Alloc.t option
+type texp_construct_identifier = Alloc.r option
 
-let mkTexp_construct ?id:(mode = Some Alloc.legacy) (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
+    (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
-type texp_function = {
+type texp_function_param_identifier = {
+  param_sort : Jkind.Sort.t;
+  param_mode : Alloc.l;
+  param_curry : function_curry;
+  param_newtypes : (string Location.loc * Jkind.annotation option) list;
+}
+
+type texp_function_param = {
   arg_label : Asttypes.arg_label;
+  pattern : pattern;
   param : Ident.t;
-  cases : value case list;
+  partial : partial;
+  optional_default : expression option;
+  param_identifier : texp_function_param_identifier;
+}
+
+type texp_function_cases_identifier = {
+  last_arg_mode : Alloc.l;
+  last_arg_sort : Jkind.Sort.t;
+  last_arg_exp_extra : exp_extra option;
+  last_arg_attributes : attributes;
+}
+
+type texp_function_body =
+  | Function_body of expression
+  | Function_cases of {
+      cases : value case list;
+      param : Ident.t;
+      partial : partial;
+      function_cases_identifier : texp_function_cases_identifier;
+    }
+
+type texp_function = {
+  params : texp_function_param list;
+  body : texp_function_body;
 }
 
 type texp_function_identifier = {
-  partial : partial;
-  arg_mode : Alloc.t;
-  alloc_mode : Alloc.t;
-  region : bool;
-  curry : fun_curry_state;
-  warnings : Warnings.state;
-  arg_sort : Jkind.sort;
+  alloc_mode : Alloc.r;
   ret_sort : Jkind.sort;
-  ret_mode : Alloc.t;
+  region : bool;
+  ret_mode : Alloc.l;
 }
+
+let texp_function_cases_identifier_defaults =
+  {
+    last_arg_mode = Alloc.disallow_right Alloc.legacy;
+    last_arg_sort = Jkind.Sort.value;
+    last_arg_exp_extra = None;
+    last_arg_attributes = [];
+  }
+
+let texp_function_param_identifier_defaults =
+  {
+    param_sort = Jkind.Sort.value;
+    param_mode = Alloc.disallow_right Alloc.legacy;
+    param_curry = More_args { partial_mode = Alloc.disallow_right Alloc.legacy };
+    param_newtypes = [];
+  }
 
 let texp_function_defaults =
   {
-    partial = Total;
-    arg_mode = Alloc.legacy;
-    alloc_mode = Alloc.legacy;
-    region = false;
-    curry = Final_arg { partial_mode = Alloc.legacy };
-    warnings = Warnings.backup ();
-    arg_sort = Jkind.Sort.value;
+    alloc_mode = Alloc.disallow_left Alloc.legacy;
     ret_sort = Jkind.Sort.value;
-    ret_mode = Alloc.legacy;
+    ret_mode = Alloc.disallow_right Alloc.legacy;
+    region = false;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
-    ({ arg_label; param; cases } : texp_function) =
+    ({ params; body } : texp_function) =
   Texp_function
     {
-      arg_label;
-      param;
-      cases;
-      partial = id.partial;
-      arg_mode = id.arg_mode;
+      params =
+        List.map
+          (fun {
+                 arg_label;
+                 pattern;
+                 param;
+                 partial;
+                 param_identifier = id;
+                 optional_default;
+               } ->
+            {
+              fp_arg_label = arg_label;
+              fp_kind =
+                (match optional_default with
+                | None -> Tparam_pat pattern
+                | Some default ->
+                    Tparam_optional_default (pattern, default, id.param_sort));
+              fp_param = param;
+              fp_partial = partial;
+              fp_sort = id.param_sort;
+              fp_mode = id.param_mode;
+              fp_curry = id.param_curry;
+              fp_newtypes = id.param_newtypes;
+              fp_loc = Location.none;
+            })
+          params;
+      body =
+        (match body with
+        | Function_body expr -> Tfunction_body expr
+        | Function_cases
+            { cases; param; partial; function_cases_identifier = id } ->
+            Tfunction_cases
+              {
+                fc_cases = cases;
+                fc_param = param;
+                fc_partial = partial;
+                fc_arg_mode = id.last_arg_mode;
+                fc_arg_sort = id.last_arg_sort;
+                fc_exp_extra = id.last_arg_exp_extra;
+                fc_attributes = id.last_arg_attributes;
+                fc_loc = Location.none;
+              });
       alloc_mode = id.alloc_mode;
       region = id.region;
-      curry = id.curry;
-      warnings = id.warnings;
-      arg_sort = id.arg_sort;
       ret_sort = id.ret_sort;
       ret_mode = id.ret_mode;
     }
@@ -128,44 +202,62 @@ let view_texp (e : expression_desc) =
   | Texp_tuple (args, mode) ->
       let labels, args = List.split args in
       Texp_tuple (args, (labels, mode))
-  | Texp_function
-      {
-        arg_label;
-        param;
-        cases;
-        partial;
-        arg_mode;
-        alloc_mode;
-        region;
-        curry;
-        warnings;
-        arg_sort;
-        ret_sort;
-        ret_mode;
-      } ->
+  | Texp_function { params; body; alloc_mode; region; ret_sort; ret_mode } ->
+      let params =
+        List.map
+          (fun param ->
+            let pattern, optional_default =
+              match param.fp_kind with
+              | Tparam_optional_default (pattern, optional_default, _) ->
+                  (pattern, Some optional_default)
+              | Tparam_pat pattern -> (pattern, None)
+            in
+            {
+              arg_label = param.fp_arg_label;
+              param = param.fp_param;
+              partial = param.fp_partial;
+              pattern;
+              optional_default;
+              param_identifier =
+                {
+                  param_sort = param.fp_sort;
+                  param_mode = param.fp_mode;
+                  param_curry = param.fp_curry;
+                  param_newtypes = param.fp_newtypes;
+                };
+            })
+          params
+      in
+      let body =
+        match body with
+        | Tfunction_body body -> Function_body body
+        | Tfunction_cases cases ->
+            Function_cases
+              {
+                cases = cases.fc_cases;
+                param = cases.fc_param;
+                partial = cases.fc_partial;
+                function_cases_identifier =
+                  {
+                    last_arg_mode = cases.fc_arg_mode;
+                    last_arg_sort = cases.fc_arg_sort;
+                    last_arg_exp_extra = cases.fc_exp_extra;
+                    last_arg_attributes = cases.fc_attributes;
+                  };
+              }
+      in
       Texp_function
-        ( { arg_label; param; cases },
-          {
-            partial;
-            arg_mode;
-            alloc_mode;
-            region;
-            curry;
-            warnings;
-            arg_sort;
-            ret_sort;
-            ret_mode;
-          } )
+        ({ params; body }, { alloc_mode; region; ret_sort; ret_mode })
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
-type tpat_var_identifier = Value.t
+type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
   Tpat_var (ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_alias_identifier = Value.t
+type tpat_alias_identifier = Value.l
 
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)

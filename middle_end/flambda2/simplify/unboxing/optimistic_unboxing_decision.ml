@@ -87,16 +87,18 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
       then Do_not_unbox Max_depth_exceeded
       else
         match T.prove_unique_tag_and_size tenv param_type with
-        | Proved (tag, size) when unbox_blocks ->
+        | Proved (tag, size) when unbox_blocks -> (
           let fields =
             make_optimistic_fields ~add_tag_to_name:false ~depth ~recursive tenv
               param_type tag size
           in
-          Unbox (Unique_tag_and_size { tag; fields })
+          match fields with
+          | Some fields -> Unbox (Unique_tag_and_size { tag; fields })
+          | None -> Do_not_unbox All_fields_invalid)
         | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
-            when unbox_variants && not recursive ->
+            when unbox_variants && not recursive -> (
             let tag = Extra_param_and_args.create ~name:"tag" in
             let const_ctors : U.const_ctors_decision =
               match const_ctors with
@@ -104,14 +106,24 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
               | Unknown | Known _ -> make_optimistic_const_ctor ()
             in
             let fields_by_tag =
-              Tag.Scannable.Map.mapi
+              Tag.Scannable.Map.filter_map
                 (fun scannable_tag size ->
                   let tag = Tag.Scannable.to_tag scannable_tag in
                   make_optimistic_fields ~add_tag_to_name:true ~depth ~recursive
                     tenv param_type tag size)
                 non_const_ctors_with_sizes
             in
-            Unbox (Variant { tag; const_ctors; fields_by_tag })
+            if Tag.Scannable.Map.is_empty fields_by_tag
+            then Do_not_unbox All_fields_invalid
+            else
+              match
+                const_ctors, Tag.Scannable.Map.get_singleton fields_by_tag
+              with
+              | Zero, Some (scannable_tag, fields) ->
+                let tag = Tag.Scannable.to_tag scannable_tag in
+                Unbox (Unique_tag_and_size { tag; fields })
+              | (Zero | At_least_one _), _ ->
+                Unbox (Variant { tag; const_ctors; fields_by_tag }))
           | Proved _ | Unknown -> (
             match T.prove_single_closures_entry tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
@@ -156,29 +168,26 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
     T.immutable_block ~is_unique:false tag ~field_kind ~fields:field_types
       (Alloc_mode.For_types.unknown ())
   in
-  let env_extension =
-    match T.meet tenv param_type shape with
-    | Ok (_, env_extension) -> env_extension
-    | Bottom ->
-      Misc.fatal_errorf "Meet failed whereas prove previously succeeded"
-    | exception (Misc.Fatal_error as exn) ->
-      Format.eprintf
-        "Context is meet of type: %a@\nwith shape: %a@\nin env: @\n%a@." T.print
-        param_type T.print shape TE.print tenv;
-      raise exn
-  in
-  let tenv = TE.add_env_extension tenv env_extension in
-  let fields =
-    List.map2
-      (fun epa var_type : U.field_decision ->
-        let decision =
-          make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
-            ~param_type:var_type
-        in
-        { epa; decision; kind = field_kind_with_subkind })
-      field_vars field_types
-  in
-  fields
+  match T.meet tenv param_type shape with
+  | Bottom -> None
+  | exception (Misc.Fatal_error as exn) ->
+    Format.eprintf
+      "Context is meet of type: %a@\nwith shape: %a@\nin env: @\n%a@." T.print
+      param_type T.print shape TE.print tenv;
+    raise exn
+  | Ok (_, env_extension) ->
+    let tenv = TE.add_env_extension tenv env_extension in
+    let fields =
+      List.map2
+        (fun epa var_type : U.field_decision ->
+          let decision =
+            make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
+              ~param_type:var_type
+          in
+          { epa; decision; kind = field_kind_with_subkind })
+        field_vars field_types
+    in
+    Some fields
 
 and make_optimistic_vars_within_closure ~depth ~recursive tenv closures_entry =
   let map = T.Closures_entry.value_slot_types closures_entry in

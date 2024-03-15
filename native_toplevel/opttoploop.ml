@@ -26,8 +26,6 @@ open Ast_helper
 
 module Genprintval = Genprintval_native
 
-let any_flambda = Config.flambda || Config.flambda2
-
 type res = Ok of Obj.t | Err of string
 type evaluation_outcome = Result of Obj.t | Exception of exn
 
@@ -69,7 +67,7 @@ let global_symbol comp_unit =
   | Some obj -> obj
 
 let need_symbol sym =
-  Option.is_none (Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol:sym)
+  not (Dynlink.does_symbol_exist ~bytecode_or_asm_symbol:sym)
 
 let dll_run dll entry =
   match (try Result (Obj.magic (ndl_run_toplevel dll entry))
@@ -96,7 +94,7 @@ type directive_info = {
 
 let remembered = ref Ident.empty
 
-let rec remember phrase_name signature =
+let remember phrase_name signature =
   let exported = List.filter Includemod.is_runtime_component signature in
   List.iteri (fun i sg ->
     match sg with
@@ -125,9 +123,7 @@ let close_phrase lam =
   ) (free_variables lam) lam
 
 let toplevel_value id =
-  let glob, pos =
-    if any_flambda then toplevel_value id else Translmod.nat_toplevel_name id
-  in
+  let glob, pos = toplevel_value id in
   (Obj.magic (global_symbol glob)).(pos)
 
 (* Return the value referred to by a path *)
@@ -253,24 +249,6 @@ let run_hooks hook = List.iter (fun f -> f hook) !hooks
 let phrase_seqid = ref 0
 let phrase_name = ref "TOP"
 
-(* CR-soon trefis for mshinwell: copy/pasted from Optmain. Should it be shared
-   or?
-   mshinwell: It should be shared, but after 4.03. *)
-module Backend = struct
-  (* See backend_intf.mli. *)
-
-  let really_import_approx = Import_approx.really_import_approx
-  let import_symbol = Import_approx.import_symbol
-
-  let size_int = Arch.size_int
-  let big_endian = Arch.big_endian
-
-  let max_sensible_number_of_arguments =
-    (* The "-1" is to allow for a potential closure environment parameter. *)
-    Proc.max_arguments_for_tailcalls - 1
-end
-let backend = (module Backend : Backend_intf.S)
-
 let default_load ppf (program : Lambda.program) =
   let dll =
     if !Clflags.keep_asm_file then !phrase_name ^ ext_dll
@@ -278,14 +256,7 @@ let default_load ppf (program : Lambda.program) =
   in
   let filename = Filename.chop_extension dll in
   let pipeline : Asmgen.pipeline =
-    if Config.flambda2 then
-      Direct_to_cmm (Flambda2.lambda_to_cmm ~keep_symbol_tables:true)
-    else
-      let middle_end =
-        if Config.flambda then Flambda_middle_end.lambda_to_clambda
-        else Closure_middle_end.lambda_to_clambda
-      in
-      Via_clambda { middle_end; backend }
+    Direct_to_cmm (Flambda2.lambda_to_cmm ~keep_symbol_tables:true)
   in
   Asmgen.compile_implementation
     (module Unix : Compiler_owee.Unix_intf.S)
@@ -377,7 +348,7 @@ let name_expression ~loc ~attrs sort exp =
   in
   let sg = [Sig_value(id, vd, Exported)] in
   let pat =
-    { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid, Mode.Value.legacy);
+    { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid, Mode.Value.disallow_right Mode.Value.legacy);
       pat_loc = loc;
       pat_extra = [];
       pat_type = exp.exp_type;
@@ -443,17 +414,13 @@ let execute_phrase print_outcome ppf phr =
         | _ -> str, sg', false
       in
       let compilation_unit, res, required_globals, size =
-        if any_flambda then
-          let { Lambda.compilation_unit; main_module_block_size = size;
-                required_globals; code = res } =
-            Translmod.transl_implementation compilation_unit (str, coercion)
-              ~style:Plain_block
-          in
-          remember compilation_unit sg';
-          compilation_unit, close_phrase res, required_globals, size
-        else
-          let size, res = Translmod.transl_store_phrases compilation_unit str in
-          compilation_unit, res, Compilation_unit.Set.empty, size
+        let { Lambda.compilation_unit; main_module_block_size = size;
+              required_globals; code = res } =
+          Translmod.transl_implementation compilation_unit (str, coercion)
+            ~style:Plain_block
+        in
+        remember compilation_unit sg';
+        compilation_unit, close_phrase res, required_globals, size
       in
       Warnings.check_fatal ();
       begin try
@@ -465,12 +432,8 @@ let execute_phrase print_outcome ppf phr =
         let out_phr =
           match res with
           | Result _ ->
-              if any_flambda then
-                (* CR-someday trefis: *)
-                Env.register_import_as_opaque
-                  (Compilation_unit.name compilation_unit)
-              else
-                Compilenv.record_global_approx_toplevel ();
+              Env.register_import_as_opaque
+                (Compilation_unit.name compilation_unit);
               if print_outcome then
                 Printtyp.wrap_printing_env ~error:false oldenv (fun () ->
                 match str.str_items with

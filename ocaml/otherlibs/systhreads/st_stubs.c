@@ -286,7 +286,8 @@ static void restore_runtime_state(caml_thread_t th)
   caml_set_local_arenas(Caml_state, th->local_arenas);
   Caml_state->backtrace_pos = th->backtrace_pos;
   Caml_state->backtrace_buffer = th->backtrace_buffer;
-  Caml_state->backtrace_last_exn = th->backtrace_last_exn;
+  caml_modify_generational_global_root
+    (&Caml_state->backtrace_last_exn, th->backtrace_last_exn);
 #ifndef NATIVE_CODE
   Caml_state->trap_sp_off = th->trap_sp_off;
   Caml_state->trap_barrier_off = th->trap_barrier_off;
@@ -463,6 +464,7 @@ static void caml_thread_remove_and_free(caml_thread_t th)
 
 static void caml_thread_reinitialize(void)
 {
+  struct channel * chan;
   caml_thread_t th, next;
 
   th = Active_thread->next;
@@ -484,6 +486,16 @@ static void caml_thread_reinitialize(void)
      s->lock (busy = 1) */
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Caml_state->id));
   s->reinitialize_after_fork(s->context);
+
+  /* Reinitialize IO mutexes, in case the fork happened while another thread
+     had locked the channel. If so, we're likely in an inconsistent state,
+     but we may be able to proceed anyway. */
+  caml_plat_mutex_init(&caml_all_opened_channels_mutex);
+  for (chan = caml_all_opened_channels;
+       chan != NULL;
+       chan = chan->next) {
+    caml_plat_mutex_init(&chan->mutex);
+  }
 }
 
 CAMLprim value caml_thread_join(value th);

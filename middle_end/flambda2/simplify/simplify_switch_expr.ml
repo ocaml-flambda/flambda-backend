@@ -287,11 +287,21 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   in
   let uacc =
     let fields = List.map Field_of_static_block.tagged_immediate consts in
+    let block_type =
+      T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
+        Alloc_mode.For_types.heap
+        ~fields:
+          (List.map
+             (fun const ->
+               T.alias_type_of K.value
+                 (Simple.const (Reg_width_const.const_int const)))
+             consts)
+    in
     UA.add_lifted_constant uacc
       (LC.create_definition
          (LC.Definition.block_like
             (DA.denv dacc_before_switch)
-            block_sym T.any_block ~symbol_projections:Variable.Map.empty
+            block_sym block_type ~symbol_projections:Variable.Map.empty
             (RSC.create_block rebuilding tag Immutable ~fields)))
   in
   (* CR mshinwell: consider sharing the constants *)

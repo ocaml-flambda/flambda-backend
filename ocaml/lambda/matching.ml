@@ -109,7 +109,7 @@ let dbg = false
 (* CR layouts v5: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let jkind_layout_must_be_value loc jkind =
-  match Jkind.(sub jkind (value ~why:V1_safety_check)) with
+  match Jkind.(sub_or_error jkind (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
@@ -123,7 +123,9 @@ let check_record_field_jkind lbl =
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
-  | (Any | Void) as c, _ -> raise (Error (lbl.lbl_loc, Illegal_record_field c))
+  | (Any | Void | Word | Bits32 | Bits64) as c, _ ->
+    (* CR layouts v2.1: support unboxed ints here *)
+    raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -1172,10 +1174,14 @@ let can_group discr pat =
   | Constant (Const_char _), Constant (Const_char _)
   | Constant (Const_string _), Constant (Const_string _)
   | Constant (Const_float _), Constant (Const_float _)
+  | Constant (Const_float32 _), Constant (Const_float32 _)
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
-  | Constant (Const_nativeint _), Constant (Const_nativeint _) ->
+  | Constant (Const_nativeint _), Constant (Const_nativeint _)
+  | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
+  | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
+  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
       true
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
@@ -1196,7 +1202,9 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
+          | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
+          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
+          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -1907,7 +1915,7 @@ let get_pat_args_lazy p rem =
 *)
 
 let prim_obj_tag =
-  Primitive.simple_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
 
 let get_mod_field modname field =
   lazy
@@ -2227,7 +2235,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       ( Lprim
-          (Parrayrefu ref_kind,
+          (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
@@ -2263,11 +2271,11 @@ let divide_array ~scopes kind ctx pm =
 let strings_test_threshold = 8
 
 let prim_string_notequal =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_notequal" ~arity:2
             ~alloc:false)
 
 let prim_string_compare =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_compare" ~arity:2
             ~alloc:false)
 
 let bind_sw arg layout k =
@@ -2880,13 +2888,17 @@ let combine_constant value_kind loc arg cst partial ctx def
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
     | Const_float _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
-          (Pfloatcomp CFlt) arg
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
+          (Pfloatcomp (Pfloat64, CFlt)) arg
+          const_lambda_list
+    | Const_float32 _ ->
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
+        (Pfloatcomp (Pfloat32, CFlt)) arg
           const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_float_comp CFneq)
-          (Punboxed_float_comp CFlt)
+          (Punboxed_float_comp (Pfloat64, CFneq))
+          (Punboxed_float_comp (Pfloat64, CFlt))
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
@@ -2902,6 +2914,21 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int32 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint32, Cne))
+          (Punboxed_int_comp (Pint32, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int64 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint64, Cne))
+          (Punboxed_int_comp (Pint64, Clt))
+          arg const_lambda_list
+    | Const_unboxed_nativeint _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pnativeint, Cne))
+          (Punboxed_int_comp (Pnativeint, Clt))
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)
@@ -2944,6 +2971,18 @@ let split_extension_cases tag_lambda_list =
        | false, Extension (path,_)-> Right (path, act)
        | _, Ordinary _ -> assert false)
     tag_lambda_list
+
+let transl_match_on_option value_kind arg loc ~if_some ~if_none =
+  (* This case is very frequent, it corresponds to
+      options and lists. *)
+  (* Keeping the Pisint test would make the bytecode
+      slightly worse, but it lets the native compiler generate
+      better code -- see #10681. *)
+  if !Clflags.native_code then
+    Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
+                if_none, if_some, value_kind)
+  else
+    Lifthenelse(arg, if_some, if_none, value_kind)
 
 let combine_constructor value_kind loc arg pat_env cstr partial ctx def
     (descr_lambda_list, total1, pats) =
@@ -3037,16 +3076,8 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
             with
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                (* Keeping the Pisint test would make the bytecode
-                   slightly worse, but it lets the native compiler generate
-                   better code -- see #10681. *)
-                if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
-                              act1, act2, value_kind)
-                else
-                  Lifthenelse(arg, act2, act1, value_kind)
+                transl_match_on_option value_kind arg loc
+                  ~if_none:act1 ~if_some:act2
             | n, 0, _, [] ->
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
@@ -4104,6 +4135,33 @@ let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list parti
     (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list
        partial)
 
+let for_optional_arg_default
+    ~scopes loc pat ~param ~default_arg ~default_arg_sort ~return_layout body
+  : lambda
+  =
+  (* CR layouts v1.5: It's sad to compute [default_arg_layout] here as we
+     immediately go and do it again in [for_let]. We should rework [for_let]
+     so it can take a precomputed layout.
+  *)
+  let default_arg_layout =
+    Typeopt.layout pat.pat_env pat.pat_loc default_arg_sort pat.pat_type
+  in
+  let supplied_or_default =
+    transl_match_on_option
+      default_arg_layout
+      (Lvar param)
+      Loc_unknown
+      ~if_none:default_arg
+      ~if_some:
+        (Lprim
+           (* CR ncik-roberts: Check whether we need something better here. *)
+           (Pfield (0, Pointer, Reads_agree),
+            [ Lvar param ],
+            Loc_unknown))
+  in
+  for_let ~scopes ~arg_sort:default_arg_sort ~return_layout
+    loc supplied_or_default pat body
+
 (* Error report *)
 (* CR layouts v5: This file didn't use to have the report_error infrastructure -
    I added it only for the void sanity checking in this module, which I'm not
@@ -4115,7 +4173,7 @@ let report_error ppf = function
       fprintf ppf
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
-        (Jkind.Violation.report_with_name ~name:"This expression") err
+        (Jkind.Violation.report_with_name ~name:"this expression") err
   | Illegal_record_field c ->
       fprintf ppf
         "Sort %s detected where value was expected in a record field:@ Please \

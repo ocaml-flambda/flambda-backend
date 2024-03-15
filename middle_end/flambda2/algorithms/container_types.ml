@@ -66,14 +66,17 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
 
   let diff_domains t1 t2 =
-    merge
-      (fun _key datum1 datum2 ->
-        match datum1, datum2 with
-        | None, None -> None
-        | Some datum1, None -> Some datum1
-        | None, Some _datum2 -> None
-        | Some _datum1, Some _datum2 -> None)
-      t1 t2
+    if is_empty t2
+    then t1
+    else
+      merge
+        (fun _key datum1 datum2 ->
+          match datum1, datum2 with
+          | None, None -> None
+          | Some datum1, None -> Some datum1
+          | None, Some _datum2 -> None
+          | Some _datum1, Some _datum2 -> None)
+        t1 t2
 
   let inter f t1 t2 =
     merge

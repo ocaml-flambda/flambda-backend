@@ -2,31 +2,29 @@ File "fail19.ml", line 7, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19.foo_HIDE_STAMP)
 
 File "fail19.ml", line 18, characters 5-26:
-Error: Unexpected allocation of 48 bytes (fail19.ml:18,5--26;dep19.ml:1,38--52)
-
-File "fail19.ml", line 18, characters 5-26:
-Error: Unexpected external call to caml_make_array (fail19.ml:18,5--26;dep19.ml:1,38--52)
+Error: called function may allocate (external call to caml_make_vect) (fail19.ml:18,5--26;dep19.ml:1,38--74)
 
 File "fail19.ml", line 10, characters 12-17:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes
 
 File "fail19.ml", line 12, characters 10-15:
-Error: Unexpected direct call camlFail19.bar_HIDE_STAMP
+Error: called function may allocate (direct call camlFail19.bar_HIDE_STAMP)
 
 File "fail19.ml", line 13, characters 13-16:
-Error: Unexpected indirect call
+Error: called function may allocate (indirect call)
 
 File "fail19.ml", line 14, characters 15-44:
-Error: Unexpected probe test handler camlFail19.probe_handler_test_HIDE_STAMP
+Error: expression may allocate
+       (probe test handler camlFail19.probe_handler_test_HIDE_STAMP)
 
 File "fail19.ml", line 14, characters 46-54:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes
 
 File "fail19.ml", line 15, characters 11-20:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes
 
 File "fail19.ml", line 17, characters 10-15:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes
 
 File "fail19.ml", line 18, characters 2-27:
-Error: Unexpected allocation of 24 bytes
+Error: allocation of 24 bytes

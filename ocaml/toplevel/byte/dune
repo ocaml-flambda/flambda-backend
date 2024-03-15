@@ -50,15 +50,20 @@
                     stdlib__Ephemeron
                     stdlib__Filename
                     stdlib__Float
+                    stdlib__Float_u
                     stdlib__Format
                     stdlib__Fun
                     stdlib__Gc
                     stdlib__Genlex
                     stdlib__Hashtbl
+                    stdlib__Iarray
+                    stdlib__IarrayLabels
                     stdlib__In_channel
                     stdlib__Int
                     stdlib__Int32
+                    stdlib__Int32_u
                     stdlib__Int64
+                    stdlib__Int64_u
                     stdlib__Lazy
                     stdlib__Lexing
                     stdlib__List
@@ -67,6 +72,7 @@
                     stdlib__Marshal
                     stdlib__MoreLabels
                     stdlib__Nativeint
+                    stdlib__Nativeint_u
                     stdlib__Obj
                     stdlib__Oo
                     stdlib__Option

@@ -311,7 +311,7 @@ let rec print_list pr sep ppf =
 let pr_present =
   print_list (fun ppf s -> fprintf ppf "`%s" s) (fun ppf -> fprintf ppf "@ ")
 
-let pr_var = Printast.tyvar
+let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
@@ -420,10 +420,6 @@ let mode_agree expected real =
   uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
   linearity_agree expected.oam_linearity real.oam_linearity
 
-let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
-  | Olay_var v     -> fprintf ppf "%s" v
-
 let is_local mode =
   match mode.oam_locality with
   | Olm_local -> true
@@ -472,32 +468,26 @@ and print_out_type_mode ~arg mode ppf ty =
     is_initially_labeled_tuple ty
     && (arg || is_local || is_unique || is_once)
   in
-  if (not is_local || Language_extension.is_enabled Local) &&
-     (not is_unique || Language_extension.is_enabled Unique) &&
-     (not is_once || Language_extension.is_enabled Unique)
-  (* this branch does not need attributes at all *)
-  then begin
-    if is_local then begin
-      pp_print_string ppf "local_";
-      pp_print_space ppf () end;
-    if is_unique then begin
-      pp_print_string ppf "unique_";
-      pp_print_space ppf () end;
-    if is_once then begin
-      pp_print_string ppf "once_";
-      pp_print_space ppf () end;
-    if parens then
-      pp_print_char ppf '(';
-    print_out_type_2 mode ppf ty;
-    if parens then
-      pp_print_char ppf ')' end
-  else
-    (* otherwise we would rather print everything in attributes
-       even if extensions are enabled *)
-    let ty = if is_unique then Otyp_attribute (ty, {oattr_name="unique"}) else ty in
-    let ty = if is_local then Otyp_attribute (ty, {oattr_name="local"}) else ty in
-    let ty = if is_once then Otyp_attribute (ty, {oattr_name="once"}) else ty in
-    print_out_type ppf ty
+  (* NON-LEGACY MODES
+     Here, we are printing mode annotations even if the mode extension is
+     disabled. Mode extension being disabled means mode annotations are
+     disallowed in parsing of this file, but non-legacy modes might still pop
+     up. For example, the current file might cite values from other files that
+     mention non-legacy modes *)
+  if is_local then begin
+    pp_print_string ppf "local_";
+    pp_print_space ppf () end;
+  if is_unique then begin
+    pp_print_string ppf "unique_";
+    pp_print_space ppf () end;
+  if is_once then begin
+    pp_print_string ppf "once_";
+    pp_print_space ppf () end;
+  if parens then
+    pp_print_char ppf '(';
+  print_out_type_2 mode ppf ty;
+  if parens then
+    pp_print_char ppf ')'
 
 and print_out_type_1 mode ppf =
   function
@@ -629,20 +619,14 @@ and print_typargs ppf =
       pp_close_box ppf ();
       pp_print_space ppf ()
 and print_out_label ppf (name, mut_or_gbl, arg) =
-  if Language_extension.is_enabled Local then
-    let flag =
-      match mut_or_gbl with
-      | Ogom_mutable -> "mutable "
-      | Ogom_global -> "global_ "
-      | Ogom_immutable -> ""
-    in
-    fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
-  else
+  (* See the notes [NON-LEGACY MODES] *)
+  let flag =
     match mut_or_gbl with
-    | Ogom_mutable -> fprintf ppf "@[mutable %s :@ %a@];" name print_out_type arg
-    | Ogom_immutable -> fprintf ppf "@[%s :@ %a@];" name print_out_type arg
-    | Ogom_global -> fprintf ppf "@[%s :@ %a@];" name print_out_type
-                       (Otyp_attribute (arg, {oattr_name="global"}))
+    | Ogom_mutable -> "mutable "
+    | Ogom_global -> "global_ "
+    | Ogom_immutable -> ""
+  in
+  fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
 
 let out_label = ref print_out_label
 
@@ -979,16 +963,12 @@ and print_out_type_decl kwd ppf td =
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
-  let locals_enabled = Language_extension.is_enabled Local in
   match gf with
   | Ogf_global ->
-    if locals_enabled then begin
+      (* See the notes [NON-LEGACY MODES] *)
       pp_print_string ppf "global_";
       pp_print_space ppf ();
       print_simple_out_type ppf ty
-    end else begin
-      print_out_type ppf (Otyp_attribute (ty, {oattr_name="global"}))
-    end
   | Ogf_unrestricted ->
     print_simple_out_type ppf ty
 

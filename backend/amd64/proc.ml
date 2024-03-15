@@ -23,8 +23,6 @@ open Cmm
 open Reg
 open Mach
 
-let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD || !simd_regalloc)
-
 let fp = Config.with_frame_pointers
 
 (* Which ABI to use *)
@@ -105,10 +103,7 @@ let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
   | Float -> 1
-  | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    1
+  | Vec128 -> assert_simd_enabled (); 1
 
 let num_stack_slot_classes = 3
 
@@ -116,19 +111,13 @@ let stack_slot_class typ =
   match typ with
   | Val | Addr | Int -> 0
   | Float -> 1
-  | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    2
+  | Vec128 -> assert_simd_enabled (); 2
 
 let stack_class_tag c =
   match c with
   | 0 -> "i"
   | 1 -> "f"
-  | 2 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
-    "x"
+  | 2 -> assert_simd_enabled (); "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers = [| 13; 16 |]
@@ -143,8 +132,7 @@ let register_name ty r =
   | Float ->
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
-    if simd_regalloc_disabled ()
-    then Misc.fatal_error "SIMD register allocation is not enabled.";
+    assert_simd_enabled ();
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -166,15 +154,13 @@ let hard_float_reg =
 let hard_vec128_reg =
   let v = Array.make 16 Reg.dummy in
   for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
-  fun () -> if simd_regalloc_disabled ()
-            then Misc.fatal_error "SIMD register allocation is not enabled."
-            else v
+  fun () -> assert_simd_enabled (); v
 
 let all_phys_regs =
   let basic_regs = Array.append hard_int_reg hard_float_reg in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (hard_vec128_reg ())
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (hard_vec128_reg ())
+            else basic_regs
 
 let phys_reg ty n =
   match ty with
@@ -184,15 +170,16 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
+let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
-let destroy_xmm15 () =
-  if simd_regalloc_disabled ()
-  then [| phys_reg Float 115 |]
-  else [| phys_reg Float 115; phys_reg Vec128 115 |]
+let destroy_xmm n =
+  if Language_extension.is_enabled SIMD
+  then [| phys_reg Float (100 + n); phys_reg Vec128 (100 + n) |]
+  else [| phys_reg Float (100 + n) |]
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -204,9 +191,7 @@ let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 let stack_slot slot ty =
   (match ty with
    | Float | Int | Addr | Val -> ()
-   | Vec128 ->
-     if simd_regalloc_disabled ()
-     then Misc.fatal_error "SIMD register allocation is not enabled.");
+   | Vec128 -> assert_simd_enabled ());
   Reg.at_location ty (Stack slot)
 
 (* Instruction selection *)
@@ -383,9 +368,9 @@ let destroyed_at_c_call_win64 =
     (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
+            else basic_regs
 
 let destroyed_at_c_call_unix =
   (* Unix: rbx, rbp, r12-r15 preserved *)
@@ -393,9 +378,9 @@ let destroyed_at_c_call_unix =
       (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
-  fun () -> if simd_regalloc_disabled ()
-            then basic_regs
-            else Array.append basic_regs (hard_vec128_reg ())
+  fun () -> if Language_extension.is_enabled SIMD
+            then Array.append basic_regs (hard_vec128_reg ())
+            else basic_regs
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered
@@ -415,6 +400,21 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
+let destroyed_by_simd_op op =
+  match Simd_proc.register_behavior op with
+  | R_RM_rax_rdx_to_xmm0
+  | R_RM_to_xmm0 -> destroy_xmm 0
+  | R_RM_rax_rdx_to_rcx
+  | R_RM_to_rcx -> [| rcx |]
+  | R_to_fst
+  | R_to_R
+  | R_to_RM
+  | RM_to_R
+  | R_R_to_fst
+  | R_RM_to_fst
+  | R_RM_to_R
+  | R_RM_xmm0_to_fst -> [||]
+
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _) ->
@@ -426,7 +426,7 @@ let destroyed_at_oper = function
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _))
-        -> destroy_xmm15 ()
+        -> destroy_xmm 15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
@@ -436,15 +436,15 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
+  | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause | Iprefetch _ | Isimd _
+                 | Ipause | Iprefetch _
                  | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound | Icheckalign _))
+              | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
-                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
-                   | Icheckbound | Icheckalign _),_))
+                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_))
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
@@ -482,14 +482,15 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
   | Op(Store(Single, _, _)) ->
-    destroy_xmm15 ()
+    destroy_xmm 15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
     [| rax; rdx |]
-  | Op (Intop (Icheckbound | Icheckalign _)
-  | Intop_imm ((Icheckbound | Icheckalign _), _)) ->
-    assert false
+  | Op Poll -> destroyed_at_alloc_or_poll
+  | Op (Alloc _) ->
+    destroyed_at_alloc_or_poll
+  | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
@@ -514,7 +515,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ | Isimd _
+                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
@@ -526,11 +527,9 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | Prim {op = Alloc _; _} ->
-    destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = Checkbound _ | Checkalign _ | Probe _; _}
+  | Prim {op = Probe _; _}
   ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
@@ -547,7 +546,6 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
-  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns
@@ -558,11 +556,9 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
 let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | Prim {op = Alloc _; _} ->
-    false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | Prim {op = (Checkbound _ | Checkalign _) | Probe _; _} ->
+  | Prim {op = Probe _; _} ->
     false
   | Switch _ ->
     false
@@ -580,7 +576,6 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                        | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
-  | Poll_and_jump _ -> false
 
 (* Maximal register pressure *)
 
@@ -619,10 +614,24 @@ let max_register_pressure =
     consumes ~int:1 ~float:0
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
+  | Ispecific(Isimd op) ->
+    (match Simd_proc.register_behavior op with
+    | R_RM_rax_rdx_to_xmm0
+    | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
+    | R_RM_rax_rdx_to_rcx
+    | R_RM_to_rcx -> consumes ~int:1 ~float:0
+    | R_to_fst
+    | R_to_R
+    | R_to_RM
+    | RM_to_R
+    | R_R_to_fst
+    | R_RM_to_fst
+    | R_RM_to_R
+    | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _|Icheckbound|Icheckalign _)
+           | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound|Icheckalign _), _)
+                | Iasr | Ipopcnt | Iclz _| Ictz _), _)
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
@@ -636,7 +645,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
-             | Ilfence | Isfence | Imfence | Isimd _
+             | Ilfence | Isfence | Imfence
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
@@ -716,7 +725,7 @@ let precolored_regs () =
   if fp then Reg.Set.remove rbp phys_regs else phys_regs
 
 let operation_supported = function
-  | Cpopcnt -> !popcnt_support
+  | Cpopcnt -> Arch.Extension.enabled POPCNT
   | Cprefetch _ | Catomic _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
@@ -730,8 +739,6 @@ let operation_supported = function
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _
-  | Ccheckbound
-  | Ccheckalign _
   | Cvectorcast _ | Cscalarcast _
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
   | Ctuple_field _

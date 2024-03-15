@@ -18,7 +18,7 @@ open Lambda
 open Format
 
 val integer_comparison: formatter -> integer_comparison -> unit
-val float_comparison: formatter -> float_comparison -> unit
+val float_comparison: float_comparison -> string
 val structured_constant: formatter -> structured_constant -> unit
 val lambda: formatter -> lambda -> unit
 val program: formatter -> program -> unit

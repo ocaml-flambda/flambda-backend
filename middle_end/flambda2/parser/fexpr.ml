@@ -76,6 +76,8 @@ type mutability = Mutability.t =
   | Immutable
   | Immutable_unique
 
+type empty_array_kind = Empty_array_kind.t
+
 type 'a or_variable =
   | Const of 'a
   | Var of variable
@@ -94,7 +96,7 @@ type static_data =
   | Immutable_float_block of float or_variable list
   | Immutable_float_array of float or_variable list
   | Immutable_value_array of field_of_block list
-  | Empty_array
+  | Empty_array of empty_array_kind
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
@@ -175,6 +177,9 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Immediates
   | Values
   | Naked_floats
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float
@@ -257,8 +262,12 @@ type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
   | Swap_byte_endianness
 
+type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =
+  | Array_kind of array_kind
+  | Float_array_opt_dynamic
+
 type unop =
-  | Array_length
+  | Array_length of array_kind_for_length
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
@@ -318,6 +327,10 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
+type array_accessor_width = Flambda_primitive.array_accessor_width =
+  | Scalar
+  | Vec128
+
 type string_like_value = Flambda_primitive.string_like_value =
   | String
   | Bytes
@@ -335,7 +348,7 @@ type infix_binop =
   | Float_comp of unit comparison_behaviour
 
 type binop =
-  | Array_load of array_kind * mutability
+  | Array_load of array_kind * array_accessor_width * mutability
   | Block_load of block_access_kind * mutability
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
@@ -346,7 +359,8 @@ type binop =
   | Bigarray_get_alignment of int
 
 type ternop =
-  | Array_set of array_kind * init_or_assign
+  (* CR mshinwell: Array_set should use "array_set_kind" *)
+  | Array_set of array_kind * array_accessor_width * init_or_assign
   | Block_set of block_access_kind * init_or_assign
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 

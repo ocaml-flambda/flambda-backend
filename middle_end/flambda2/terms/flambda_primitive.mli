@@ -43,14 +43,23 @@ module Array_kind : sig
     | Naked_floats
         (** An array consisting of naked floats, represented using
             [Double_array_tag]. *)
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val to_lambda : t -> Lambda.array_kind
-
   val element_kind : t -> Flambda_kind.With_subkind.t
+
+  val for_empty_array : t -> Empty_array_kind.t
+end
+
+module Array_kind_for_length : sig
+  type t =
+    | Array_kind of Array_kind.t
+    | Float_array_opt_dynamic
 end
 
 module Mixed_block_kind : sig
@@ -80,18 +89,21 @@ module Array_set_kind : sig
     | Immediates  (** An array consisting only of immediate values. *)
     | Values of Init_or_assign.t
         (** An array consisting of elements of kind [value]. With the float
-            array optimisation enabled, such elements must never be [float]s. *)
+        array optimisation enabled, such elements must never be [float]s. *)
     | Naked_floats
         (** An array consisting of naked floats, represented using
-            [Double_array_tag]. *)
+        [Double_array_tag]. *)
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val to_lambda : t -> Lambda.array_set_kind
-
   val array_kind : t -> Array_kind.t
+
+  val init_or_assign : t -> Init_or_assign.t
 
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
@@ -115,6 +127,9 @@ module Duplicate_array_kind : sig
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
+    | Naked_int32s of { length : Targetint_31_63.t option }
+    | Naked_int64s of { length : Targetint_31_63.t option }
+    | Naked_nativeints of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -225,6 +240,10 @@ val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
 
+type array_accessor_width =
+  | Scalar
+  | Vec128
+
 type string_like_value =
   | String
   | Bytes
@@ -291,7 +310,7 @@ type unary_primitive =
       }
   | Is_int of { variant_only : bool }
   | Get_tag
-  | Array_length
+  | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -397,7 +416,7 @@ type binary_float_arith_op =
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * Mutability.t
+  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -415,7 +434,7 @@ type binary_primitive =
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t
+  | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set

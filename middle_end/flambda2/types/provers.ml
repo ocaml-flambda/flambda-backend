@@ -77,8 +77,8 @@ let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
       | simple -> Proved simple)
 
 (* Note: this function is used for simplifying Obj.is_int, so should not assume
-   that the argument represents a variant *)
-let prove_is_int_generic env t : bool generic_proof =
+   that the argument represents a variant, unless [variant_only] is [true] *)
+let prove_is_int_generic ~variant_only env t : bool generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.blocks, blocks_imms.immediates with
@@ -93,19 +93,23 @@ let prove_is_int_generic env t : bool generic_proof =
       else if is_bottom env imms
       then Proved false
       else Unknown)
+  | Value (Ok (Mutable_block _)) -> Proved false
   | Value
       (Ok
-        ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-          )) ->
-    Proved false
+        ( Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
+        | Boxed_nativeint _ | Closures _ | String _ | Array _ )) ->
+    if variant_only then Invalid else Proved false
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
     wrong_kind "Value" t
 
-let prove_is_int env t = as_property (prove_is_int_generic env t)
+let prove_is_int env t =
+  as_property (prove_is_int_generic ~variant_only:false env t)
+
+let meet_is_int_variant_only env t =
+  as_meet_shortcut (prove_is_int_generic ~variant_only:true env t)
 
 (* Note: this function returns a generic proof because we want to propagate the
    Invalid cases to prove_naked_immediates_generic, but it's not suitable for
@@ -152,7 +156,7 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   | Naked_immediate (Ok (Naked_immediates is)) ->
     if Targetint_31_63.Set.is_empty is then Invalid else Proved is
   | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
-    match prove_is_int_generic env scrutinee_ty with
+    match prove_is_int_generic ~variant_only:true env scrutinee_ty with
     | Proved true ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_true)
     | Proved false ->
@@ -516,7 +520,7 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
     | Unknown -> Unknown
     | Proved simples -> Proved (tag_and_size, List.rev simples))
 
-let meet_is_flat_float_array env t : bool meet_shortcut =
+let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
@@ -529,11 +533,10 @@ let meet_is_flat_float_array env t : bool meet_shortcut =
   | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.kind element_kind with
     | Value -> Known_result false
-    | Naked_number Naked_float -> Known_result true
-    | Naked_number
-        ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-        | Naked_vec128 )
-    | Region | Rec_info ->
+    | Naked_number naked_number_kind'
+      when K.Naked_number_kind.equal naked_number_kind naked_number_kind' ->
+      Known_result true
+    | Naked_number _ | Region | Rec_info ->
       Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
         element_kind)
   | Value
@@ -561,7 +564,8 @@ let prove_is_immediates_array env t : unit proof_of_property =
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Value_array | Generic_array | Unboxed_int32_array | Unboxed_int64_array
+    | Unboxed_nativeint_array ->
       Unknown)
   | Value
       (Ok

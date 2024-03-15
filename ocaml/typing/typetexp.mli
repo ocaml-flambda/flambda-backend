@@ -18,6 +18,8 @@
 open Types
 open Mode
 
+type jkind_initialization_choice = Sort | Any
+
 module TyVarEnv : sig
   (* this is just the subset of [TyVarEnv] that is needed outside
      of [Typetexp]. See the ml file for more. *)
@@ -57,8 +59,31 @@ end
 
 val valid_tyvar_name : string -> bool
 
+(* Note about [new_var_jkind]
+
+   This is exposed as an option because the same initialization doesn't work in all
+   typing contexts.
+
+   If it's always [Sort], then it becomes difficult to get a type variable with jkind
+   any in type annotations on expressions and patterns due to the lack of explicit
+   binding sites.
+
+   If it's always [Any], then we risk breaking backwards compatibility with examples
+   such as:
+
+   [external to_bytes : 'a -> extern_flags list -> bytes = "caml_output_value_to_bytes"]
+
+   The general rule for selecting between [Sort] and [Any] is to use [Sort] in places
+   that allows users to explictly binding type variables to certain jkinds and [Any]
+   otherwise.
+
+   There are some exceptions made around type manifests and type constraints to not
+   constrain the type parameters to representable jkinds unnecessarily while maintaining
+   the most amount of backwards compatibility. It is for this reason, the left hand side
+   of a constraint is typed using [Any] while the right hand side uses [Sort]. *)
 val transl_simple_type:
-        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
+        Env.t -> new_var_jkind:jkind_initialization_choice
+        -> ?univars:TyVarEnv.poly_univars -> closed:bool -> Alloc.Const.t
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
@@ -66,8 +91,9 @@ val transl_simple_type_delayed
   :  Env.t -> Alloc.Const.t
   -> Parsetree.core_type
   -> Typedtree.core_type * type_expr * (unit -> unit)
-        (* Translate a type, but leave type variables unbound. Returns
-           the type, an instance of the corresponding type_expr, and a
+        (* Translate a type using [Any] as the [jkind_initialization_choice],
+           but leave type variables unbound.
+           Returns the type, an instance of the corresponding type_expr, and a
            function that binds the type variable. *)
 val transl_type_scheme:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
@@ -84,7 +110,7 @@ val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
 exception Already_bound
 
 type value_loc =
-    Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Object_field
 
 type sort_loc =
     Fun_arg | Fun_ret
@@ -132,3 +158,7 @@ val transl_modtype_longident:  (* from Typemod *)
     (Location.t -> Env.t -> Longident.t -> Path.t) ref
 val transl_modtype: (* from Typemod *)
     (Env.t -> Parsetree.module_type -> Typedtree.module_type) ref
+val check_package_with_type_constraints: (* from Typemod *)
+    (Location.t -> Env.t -> Types.module_type ->
+     (Longident.t Asttypes.loc * Typedtree.core_type) list ->
+     Types.module_type) ref

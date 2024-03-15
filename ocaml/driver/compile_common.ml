@@ -63,7 +63,10 @@ let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
   let tsg =
     ast
-    |> Typemod.type_interface info.module_name info.env
+    |> Typemod.type_interface
+        ~sourcefile:info.source_file
+        info.module_name
+        info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let sg = tsg.Typedtree.sig_type in
@@ -117,7 +120,7 @@ let typecheck_impl i parsetree =
   parsetree
   |> Profile.(record typing)
     (Typemod.type_implementation
-       i.source_file i.output_prefix i.module_name i.env)
+       ~sourcefile:i.source_file i.output_prefix i.module_name i.env)
   |> print_if i.ppf_dump Clflags.dump_typedtree
     Printtyped.implementation_with_coercion
   |> print_if i.ppf_dump Clflags.dump_shape
@@ -139,6 +142,6 @@ let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
         backend info typed
       end;
     end;
-    Builtin_attributes.warn_unused ();
+    Builtin_attributes.warn_unchecked_property ();
     Warnings.check_fatal ();
   )

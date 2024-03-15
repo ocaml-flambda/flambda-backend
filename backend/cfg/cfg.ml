@@ -45,28 +45,44 @@ type basic_block =
     mutable cold : bool
   }
 
+type codegen_option =
+  | Reduce_code_size
+  | No_CSE
+
+let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
+ fun cmm_options ->
+  match cmm_options with
+  | [] -> []
+  | hd :: tl -> (
+    match hd with
+    | No_CSE -> No_CSE :: of_cmm_codegen_option tl
+    | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
+    | Use_linscan_regalloc | Ignore_assert_all Zero_alloc | Assume _ | Check _
+      ->
+      of_cmm_codegen_option tl)
+
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;
     fun_args : Reg.t array;
+    fun_codegen_options : codegen_option list;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
-    fun_fast : bool;
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int array
   }
 
-let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
+let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     ~fun_num_stack_slots =
   { fun_name;
     fun_args;
+    fun_codegen_options;
     fun_dbg;
     entry_label = 1;
     (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
        currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
-    fun_fast;
     fun_contains_calls;
     fun_num_stack_slots
   }
@@ -92,7 +108,6 @@ let successor_labels_normal ti =
   | Prim { op = _; label_after }
   | Specific_can_raise { op = _; label_after } ->
     Label.Set.singleton label_after
-  | Poll_and_jump return_label -> Label.Set.singleton return_label
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -143,7 +158,6 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Tailcall_func (Direct _)
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
-      | Poll_and_jump return_label -> Poll_and_jump (f return_label)
       | Call { op; label_after } -> Call { op; label_after = f label_after }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
       | Specific_can_raise { op; label_after } ->
@@ -239,7 +253,6 @@ let intop (op : Mach.integer_operation) =
   | Iclz _ -> " clz "
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
-  | Icheckbound | Icheckalign _ -> assert false
 
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
@@ -281,6 +294,11 @@ let dump_op ppf = function
   | End_region -> Format.fprintf ppf "endregion"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
   | Dls_get -> Format.fprintf ppf "dls_get"
+  | Poll -> Format.fprintf ppf "poll"
+  | Alloc { bytes; dbginfo = _; mode = Alloc_heap } ->
+    Format.fprintf ppf "alloc %i" bytes
+  | Alloc { bytes; dbginfo = _; mode = Alloc_local } ->
+    Format.fprintf ppf "alloc_local %i" bytes
 
 let dump_basic ppf (basic : basic) =
   let open Format in
@@ -375,21 +393,12 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
         Mach.Iextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
-      | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
-      | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
-      | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
-      | Checkalign { bytes_pow2; immediate = Some x } ->
-        Mach.Iintop_imm (Icheckalign { bytes_pow2 }, x)
-      | Checkalign { bytes_pow2; immediate = None } ->
-        Mach.Iintop (Icheckalign { bytes_pow2 })
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
     Format.fprintf ppf "%sgoto %d" sep label_after
-  | Poll_and_jump return_label ->
-    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -430,16 +439,11 @@ let print_instruction ppf i = print_instruction' ppf i
 let can_raise_terminator (i : terminator) =
   match i with
   | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-  | Prim
-      { op = External _ | Checkbound _ | Checkalign _ | Probe _;
-        label_after = _
-      } ->
+  | Prim { op = External _ | Probe _; label_after = _ } ->
     true
-  | Prim { op = Alloc _; label_after = _ } -> false
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
-  | Poll_and_jump _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -455,7 +459,6 @@ let is_pure_terminator desc =
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     false
-  | Poll_and_jump _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -500,6 +503,8 @@ let is_pure_operation : operation -> bool = function
     Arch.operation_is_pure s
   | Name_for_debugger _ -> false
   | Dls_get -> true
+  | Poll -> false
+  | Alloc _ -> false
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
@@ -545,7 +550,7 @@ let is_noop_move instr =
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
       | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get )
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

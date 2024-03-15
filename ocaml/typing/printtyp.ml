@@ -622,6 +622,10 @@ and labeled_type ppf (label, ty) =
 
 and raw_type_list tl = raw_list raw_type tl
 and labeled_type_list tl = raw_list labeled_type tl
+and raw_lid_type_list tl =
+  raw_list (fun ppf (lid, typ) ->
+             fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
+    tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%s)" print_name name
@@ -629,8 +633,8 @@ and raw_type_desc ppf = function
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
-        (Alloc.print' ~verbose:true) arg
-        (Alloc.print' ~verbose:true) ret
+        (Alloc.print ~verbose:true ()) arg
+        (Alloc.print ~verbose:true ()) ret
         raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
@@ -678,8 +682,8 @@ and raw_type_desc ppf = function
           | Some(p,tl) ->
               fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
   | Tpackage (p, fl) ->
-      fprintf ppf "@[<hov1>Tpackage(@,%a@,%a)@]" path p
-        raw_type_list (List.map snd fl)
+      fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
+        raw_lid_type_list fl
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -1241,7 +1245,9 @@ let out_jkind_option_of_jkind jkind =
     else None
 
 let tree_of_mode mode =
-  let {locality; uniqueness; linearity} = Alloc.check_const mode in
+  let {locality; linearity; uniqueness} : Alloc.Const.Option.t
+    = Alloc.check_const mode
+  in
   let oam_locality =
     match locality with
     | Some Global -> Olm_global
@@ -1423,8 +1429,8 @@ and tree_of_labeled_typlist mode tyl =
 and tree_of_typ_gf (ty, gf) =
   let gf =
     match gf with
-    | Global -> Ogf_global
-    | Unrestricted -> Ogf_unrestricted
+    | Global_flag.Global -> Ogf_global
+    | Global_flag.Unrestricted -> Ogf_unrestricted
   in
   (tree_of_typexp Type ty, gf)
 
@@ -2825,11 +2831,14 @@ let explanation (type variety) intro prev env
               (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
-      let fmt_history t =
-        Jkind.format_history ~intro:(fun ppf -> type_expr ppf t)
+      let fmt_history t l ppf =
+        Jkind.(format_history ~intro:(
+          dprintf "The layout of %a is %a" type_expr t format l) ppf l)
       in
-      Some (dprintf "@ because their layouts are different.@[<v>%a%a@]"
-              (fmt_history t1) l1 (fmt_history t2) l2)
+      Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"
+              (fmt_history t1 l1) (fmt_history t2 l2))
+  | Errortrace.Unequal_var_jkinds_with_no_history ->
+      Some (dprintf "@ because their layouts are different.")
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -2892,7 +2901,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
+           | Unequal_var_jkinds_with_no_history) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)

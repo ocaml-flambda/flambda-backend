@@ -172,7 +172,7 @@ let lsequence (lam1, lam2) =
   [@@ocaml.warning "-fragile-match"]
 
 let caml_update_dummy_prim =
-  Primitive.simple_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
+  Lambda.simple_prim_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
 
 let update_dummy var expr =
   Lprim (Pccall caml_update_dummy_prim, [Lvar var; expr], Loc_unknown)
@@ -573,7 +573,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
   in
   let preallocations =
     let alloc_normal_dummy cfun size =
-      let desc = Primitive.simple_on_values ~name:cfun ~arity:1 ~alloc:true in
+      let desc = Lambda.simple_prim_on_values ~name:cfun ~arity:1 ~alloc:true in
       let size : lambda = Lconst (Const_base (Const_int size)) in
       Lprim (Pccall desc, [size], Loc_unknown)
     in
@@ -583,7 +583,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
         Lconst (Const_base (Const_int shape.value_prefix_len))
       in
       let desc =
-        Primitive.simple_on_values ~name:cfun ~arity:2 ~alloc:true
+        Lambda.simple_prim_on_values ~name:cfun ~arity:2 ~alloc:true
       in
       Lprim (Pccall desc, [size; value_prefix_len], Loc_unknown)
     in

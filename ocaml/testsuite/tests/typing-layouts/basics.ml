@@ -1,6 +1,5 @@
 (* TEST
    * expect
-   flags = "-extension layouts"
    * expect
    flags = "-extension layouts_beta"
 *)
@@ -29,30 +28,296 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-(************************************************************)
-(* Test 1: Disallow non-representable function args/returns *)
+(******************************************************************)
+(* Test 1: Allow non-representable function args/returns in types *)
 
 module type S1 = sig
   val f : int -> t_any
 end;;
 [%%expect {|
-Line 2, characters 17-22:
-2 |   val f : int -> t_any
-                     ^^^^^
-Error: Function return types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : int -> t_any end
 |}];;
 
 module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
-Line 2, characters 10-15:
-2 |   val f : t_any -> int
-              ^^^^^
-Error: Function argument types must have a representable layout.
-        t_any has layout any, which is not representable.
+module type S1 = sig val f : t_any -> int end
 |}];;
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = 'a -> int constraint 'a = t
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type 'a s = 'a -> int constraint 'a = t type q = t s end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type 'a s = 'a -> int constraint 'a = t
+
+  type q = t s
+end;;
+[%%expect{|
+Line 4, characters 35-41:
+4 |   type 'a s = 'a -> int constraint 'a = t
+                                       ^^^^^^
+Error: The type constraints are not consistent.
+       Type ('a : '_representable_layout_1) is not compatible with type t
+       The layout of t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of t must be representable, because
+         it instantiates an unannotated type parameter of s.
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = int -> 'a constraint 'a = t
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig type t : any type 'a s = int -> 'a constraint 'a = t type q = t s end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = { a: 'a -> 'a }
+
+  type q = t s
+
+  let f1 () : 'a s = { a = fun x -> Stdlib__Float_u.abs x }
+  let f2 () : 'a s = { a = fun x -> x ^ "!" }
+  let f3 () : 'a s = { a = fun x -> x + 1 }
+end;;
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = { a : 'a -> 'a; }
+    type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
+  end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A of ('a -> 'a)
+
+  type q = t s
+
+  let f1 () : 'a s = A (fun x -> Stdlib__Float_u.abs x)
+  let f2 () : 'a s = A (fun x -> x ^ "!")
+  let f3 () : 'a s = A (fun x -> x + 1)
+end;;
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A of ('a -> 'a)
+    type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
+  end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A of { a: 'a -> 'a }
+
+  type q = t s
+
+  let f1 () : 'a s = A { a = fun x -> Stdlib__Float_u.abs x }
+  let f2 () : 'a s = A { a = fun x -> x ^ "!" }
+  let f3 () : 'a s = A { a = fun x -> x + 1 }
+end;;
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A of { a : 'a -> 'a; }
+    type q = t s
+    val f1 : unit -> float# s
+    val f2 : unit -> string s
+    val f3 : unit -> int s
+  end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
+
+  type q = t s
+
+  let f0 () = A {a = (fun x y -> x)}
+  let f1 () = A {a = (fun x y -> x + 1)}
+  let f2 () = A {a = (fun x y -> x ^ "!")}
+  let f3 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+  let f4 () = A {a = (fun x y -> x + y)}
+  let f5 () = A {a = (fun x y -> x ^ y)}
+end;;
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a : any) 'b. { a : 'a -> 'b -> 'a; } -> 'a s
+    type q = t s
+    val f0 : unit -> 'a s
+    val f1 : unit -> int s
+    val f2 : unit -> string s
+    val f3 : unit -> float# s
+    val f4 : unit -> int s
+    val f5 : unit -> string s
+  end
+|}]
+
+module M1 = struct
+  type t : any
+
+  type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+
+  type q = t s
+
+  let f0 () = A (fun x y -> x)
+  let f1 () = A (fun x y -> x + 1)
+  let f2 () = A (fun x y -> x ^ "!")
+  let f3 () = A (fun x y -> Stdlib__Float_u.abs x)
+  let f4 () = A (fun x y -> x + y)
+  let f5 () = A (fun x y -> x ^ y)
+end
+[%%expect{|
+module M1 :
+  sig
+    type t : any
+    type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+    type q = t s
+    val f0 : unit -> 'a s
+    val f1 : unit -> int s
+    val f2 : unit -> string s
+    val f3 : unit -> float# s
+    val f4 : unit -> int s
+    val f5 : unit -> string s
+  end
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig
+    type t : any
+    type ('a : any) s = A : { a : 'a -> 'b -> 'a; } -> 'a s
+    type q = t s
+  end
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : { a: 'a -> 'b -> 'a } -> 'a s
+
+  let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+end;;
+
+[%%expect{|
+Line 4, characters 53-54:
+4 |   let f1 () = A {a = (fun x y -> Stdlib__Float_u.abs x)}
+                                                         ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of the definition of s at line 2, characters 2-55.
+|}]
+
+module type S1 = sig
+  type t : any
+
+  type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+
+  type q = t s
+end;;
+[%%expect{|
+module type S1 =
+  sig
+    type t : any
+    type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+    type q = t s
+  end
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a -> 'b -> 'a) -> 'a s
+
+  let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
+end;;
+
+[%%expect{|
+Line 4, characters 48-49:
+4 |   let f1 () = A (fun x y -> Stdlib__Float_u.abs x)
+                                                    ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of the definition of s at line 2, characters 2-50.
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a : any) 'b. { a: 'a -> 'b -> 'a } -> 'a s
+
+  let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
+end;;
+
+[%%expect{|
+Line 4, characters 55-56:
+4 |   let f6 () = A {a = (fun x y -> Stdlib__Float_u.add x y)}
+                                                           ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of the definition of s at line 2, characters 2-70.
+|}]
+
+module M1 = struct
+  type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
+
+  let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
+end;;
+
+[%%expect{|
+Line 4, characters 50-51:
+4 |   let f6 () = A (fun x y -> Stdlib__Float_u.add x y)
+                                                      ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         of the definition of s at line 2, characters 2-65.
+|}]
 
 module type S1 = sig
   type t : any
@@ -64,8 +329,11 @@ Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_1) is not compatible with type t
-       t has layout any, which is not representable.
+       Type ('a : '_representable_layout_2) is not compatible with type t
+       The layout of t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of t must be representable, because
+         it instantiates an unannotated type parameter of s.
 |}]
 
 module type S1 = sig
@@ -78,8 +346,11 @@ Line 4, characters 35-41:
 4 |   type 'a s = int -> 'a constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : '_representable_layout_2) is not compatible with type t
-       t has layout any, which is not representable.
+       Type ('a : '_representable_layout_3) is not compatible with type t
+       The layout of t is any, because
+         of the definition of t at line 2, characters 2-14.
+       But the layout of t must be representable, because
+         it instantiates an unannotated type parameter of s.
 |}]
 
 let f1 () : t_any = assert false;;
@@ -88,8 +359,11 @@ Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
                         ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_3)
-       t_any has layout any, which is not representable.
+         ('a : '_representable_layout_4)
+       The layout of t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a function result.
 |}];;
 
 let f1 (x : t_any) = ();;
@@ -99,8 +373,11 @@ Line 1, characters 7-18:
            ^^^^^^^^^^^
 Error: This pattern matches values of type t_any
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_4)
-       t_any has layout any, which is not representable.
+         ('a : '_representable_layout_5)
+       The layout of t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a function argument.
 |}];;
 
 (*****************************************************)
@@ -164,7 +441,10 @@ Line 1, characters 27-36:
 1 | module F2 (X : sig val x : t_float64 end) = struct
                                ^^^^^^^^^
 Error: This type signature for x is not a value type.
-       x has layout float64, which is not a sublayout of value.
+       The layout of type t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of type t_float64 must be a sublayout of value, because
+         it's the type of something stored in a module structure.
 |}];;
 (* CR layouts v5: the test above should be made to work *)
 
@@ -201,7 +481,10 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of imm_id at line 1, characters 0-33.
 |}];;
 
 let id_for_imms (x : 'a imm_id) = x
@@ -221,7 +504,10 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
 (************************************)
@@ -234,7 +520,10 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}];;
 
 type s4 = string t4
@@ -245,7 +534,10 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
 
 type s4 = int t4
@@ -275,9 +567,11 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       s5 has layout value, which is not a sublayout of immediate.
+       The layout of s5 is value, because
+         it is the primitive value type string.
+       But the layout of s5 must be a sublayout of immediate, because
+         of the annotation on 'a in the declaration of the type t4.
 |}]
-(* CR layouts v2.9: improve error, which requires layout histories *)
 
 type ('a : any) t4 = 'a
 and s4 = string t4;;
@@ -304,7 +598,14 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-type 'a any4 = Any4 of 'a
+Line 1, characters 23-33:
+1 | type ('a : any) any4 = Any4 of 'a
+                           ^^^^^^^^^^
+Error: Constructor argument types must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on 'a in the declaration of the type any4.
+       But the layout of 'a must be representable, because
+         it's the type of a constructor field.
 |}];;
 
 (************************************************************)
@@ -336,7 +637,10 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 let o6 = object
@@ -349,7 +653,10 @@ Line 3, characters 4-34:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
-       'a has layout value, which is not a sublayout of immediate.
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of immediate, because
+         of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -367,7 +674,10 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type int * int should be an instance of type ('a : immediate)
-       int * int has layout value, which is not a sublayout of immediate.
+       The layout of int * int is value, because
+         it's a tuple type.
+       But the layout of int * int must be a sublayout of immediate, because
+         of the definition of t7 at line 1, characters 0-37.
 |}]
 
 (**********************************************************)
@@ -383,7 +693,10 @@ Line 2, characters 40-49:
 2 |   type foo1 = [ `Foo1 of int | `Baz1 of t_float64 | `Bar1 of string ];;
                                             ^^^^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 module M8_2f = struct
@@ -399,7 +712,10 @@ Line 5, characters 16-17:
                     ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
-       float# has layout float64, which is not a sublayout of value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 module M8_3f = struct
@@ -412,7 +728,10 @@ Line 4, characters 13-22:
 4 |   type bad = t_float64 t
                  ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-42.
 |}];;
 
 module M8_4f = struct
@@ -424,7 +743,10 @@ Line 2, characters 54-68:
                                                           ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}];;
 
 module type S8_5f = sig
@@ -435,7 +757,10 @@ Line 2, characters 17-26:
 2 |   val x : [`A of t_float64]
                      ^^^^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}]
 
 (************************************************)
@@ -450,7 +775,10 @@ Line 2, characters 20-29:
 2 |   type foo1 = int * t_float64 * [ `Foo1 of int | `Bar1 of string ];;
                         ^^^^^^^^^
 Error: Tuple element types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_2f = struct
@@ -461,7 +789,10 @@ Line 2, characters 31-40:
 2 |   type result = V of (string * t_float64) | I of int
                                    ^^^^^^^^^
 Error: Tuple element types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_4f = struct
@@ -477,7 +808,10 @@ Line 6, characters 21-22:
                          ^
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
-       float# has layout float64, which is not a sublayout of value.
+       The layout of float# is float64, because
+         it is the primitive float64 type float#.
+       But the layout of float# must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module M9_5f = struct
@@ -490,7 +824,10 @@ Line 4, characters 13-22:
 4 |   type bad = t_float64 t
                  ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-24.
 |}];;
 
 module M9_6f = struct
@@ -502,7 +839,10 @@ Line 2, characters 34-48:
                                       ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 module type S9_7f = sig
@@ -513,7 +853,10 @@ Line 2, characters 16-25:
 2 |   val x : int * t_float64
                     ^^^^^^^^^
 Error: Tuple element types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}];;
 
 (*************************************************)
@@ -553,7 +896,10 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of x at line 8, characters 10-26.
 |}];;
 
 (* This hits the second linktype in moregen (requires expansion to see it's a
@@ -591,7 +937,10 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       string has layout value, which is not a sublayout of immediate.
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of immediate, because
+         of the definition of x at line 8, characters 10-26.
 |}]
 
 (**********************************************************************)
@@ -622,8 +971,11 @@ end;;
 Line 5, characters 4-5:
 5 |     x # baz11
         ^
-Error: Method types must have layout value.
-       This expression has layout float64, which does not overlap with value.
+Error: Object types must have layout value.
+       The layout of the type of this expression is float64, because
+         of the definition of t at line 2, characters 2-28.
+       But the layout of the type of this expression must overlap with value, because
+         it's the type of an object.
 |}]
 
 module M11_2f = struct
@@ -637,7 +989,10 @@ Line 4, characters 19-33:
                        ^^^^^^^^^^^^^^
 Error: This expression has type ('a : value)
        but an expression was expected of type 'b t = ('b : float64)
-       'a t has layout float64, which does not overlap with value.
+       The layout of 'a t is float64, because
+         of the definition of f_id at line 3, characters 11-25.
+       But the layout of 'a t must overlap with value, because
+         it's the type of an object field.
 |}];;
 
 module M11_3f = struct
@@ -661,7 +1016,10 @@ Line 2, characters 12-25:
 2 |   val x : < l : t_float64 >
                 ^^^^^^^^^^^^^
 Error: Object field types must have layout value.
-        t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 module M11_5f = struct
@@ -673,7 +1031,10 @@ Line 3, characters 2-27:
 3 |   and ('a : float64) s = 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       'a s has layout float64, which does not overlap with value.
+       The layout of 'a s is float64, because
+         of the annotation on 'a in the declaration of the type s.
+       But the layout of 'a s must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 module M11_6f = struct
@@ -685,7 +1046,10 @@ Line 2, characters 36-50:
                                         ^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of an object field.
 |}];;
 
 (*******************************************************************)
@@ -723,7 +1087,10 @@ Line 5, characters 10-13:
 5 |       val bar = f u
               ^^^
 Error: Variables bound in a class must have layout value.
-       bar has layout float64, which does not overlap with value.
+       The layout of bar is float64, because
+         of the definition of f at line 2, characters 6-7.
+       But the layout of bar must overlap with value, because
+         it's the type of a class field.
 |}];;
 
 (* Hits the Cfk_virtual case of Pcf_val *)
@@ -738,7 +1105,10 @@ Line 4, characters 18-21:
 4 |       val virtual bar : t_float64
                       ^^^
 Error: Variables bound in a class must have layout value.
-       bar has layout float64, which is not a sublayout of value.
+       The layout of bar is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of bar must be a sublayout of value, because
+         it's the type of a class field.
 |}];;
 
 module M12_4f = struct
@@ -754,7 +1124,10 @@ Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with float64.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with float64, because
+         of the definition of t at line 2, characters 2-23.
 |}];;
 
 module M12_5f = struct
@@ -770,7 +1143,10 @@ Line 6, characters 26-28:
 6 |       method void_id (a : 'a t) : 'a t = a
                               ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with float64.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with float64, because
+         of the definition of t at line 2, characters 2-28.
 |}];;
 
 module type S12_6f = sig
@@ -787,7 +1163,10 @@ Line 5, characters 4-6:
 5 |     'a t ->
         ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
-       'a has layout value, which does not overlap with float64.
+       The layout of 'a is value, because
+         it's a type argument to a class constructor.
+       But the layout of 'a must overlap with float64, because
+         of the definition of t at line 2, characters 2-28.
 |}];;
 
 module type S12_7f = sig
@@ -801,7 +1180,10 @@ Line 4, characters 6-25:
 4 |       val baz : t_float64
           ^^^^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
-       baz has layout float64, which is not a sublayout of value.
+       The layout of baz is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of baz must be a sublayout of value, because
+         it's the type of an instance variable.
 |}];;
 
 (***********************************************************)
@@ -816,7 +1198,10 @@ Line 1, characters 12-21:
 1 | type t13f = t_float64 Lazy.t;;
                 ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of Lazy.t has this layout.
 |}];;
 
 let x13f (v : t_float64) = lazy v;;
@@ -826,7 +1211,10 @@ Line 1, characters 32-33:
                                     ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a lazy expression.
 |}];;
 
 let f_id (x : t_float64) = x
@@ -840,7 +1228,10 @@ Line 4, characters 19-20:
                        ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a lazy expression.
 |}];;
 
 (* option *)
@@ -851,7 +1242,10 @@ Line 1, characters 12-21:
 1 | type t13f = t_float64 option;;
                 ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 let x13f (v : t_float64) = Some v;;
@@ -861,7 +1255,10 @@ Line 1, characters 32-33:
                                     ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 let x13f v =
@@ -874,7 +1271,10 @@ Line 3, characters 19-20:
                        ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of option has layout value.
 |}];;
 
 (* list *)
@@ -884,7 +1284,10 @@ Line 1, characters 12-21:
 1 | type t13f = t_float64 list;;
                 ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let x13 (v : t_float64) = [v];;
@@ -894,7 +1297,10 @@ Line 1, characters 27-28:
                                ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 let x13 v =
@@ -907,7 +1313,10 @@ Line 3, characters 16-17:
                     ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (* array *)
@@ -917,7 +1326,10 @@ Line 1, characters 12-21:
 1 | type t13f = t_float64 array;;
                 ^^^^^^^^^
 Error: This type t_float64 should be an instance of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of array has layout value.
 |}];;
 
 let x13f (v : t_float64) = [| v |];;
@@ -927,7 +1339,10 @@ Line 1, characters 30-31:
                                   ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of an array element.
 |}];;
 
 let x13f v =
@@ -940,7 +1355,10 @@ Line 3, characters 20-21:
                         ^
 Error: This expression has type ('a : value)
        but an expression was expected of type t_float64
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of an array element.
 |}];;
 
 (****************************************************************************)
@@ -962,7 +1380,10 @@ Line 2, characters 0-21:
 2 | and foo14 = t_float64;;
     ^^^^^^^^^^^^^^^^^^^^^
 Error:
-       foo14 has layout float64, which is not a sublayout of value.
+       The layout of foo14 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of foo14 must be a sublayout of value, because
+         the type argument of list has layout value.
 |}];;
 
 (****************************************************)
@@ -1090,7 +1511,7 @@ val f : ('a : float64). unit -> 'a t22f t22f = <fun>
 
 (* CR layouts v5: bring void version here from layouts_alpha *)
 
-type (_ : any, _ : any) eq = Refl : ('a, 'a) eq
+type (_ : any, _ : any) eq = Refl : ('a : any). ('a, 'a) eq
 
 module Mf : sig
   type t_float64 : float64
@@ -1115,8 +1536,10 @@ Line 15, characters 4-8:
 Error: This pattern matches values of type (Mf.t_float64, Mf.t_float64) eq
        but a pattern was expected which matches values of type
          (Mf.t_float64, Mf.t_imm) eq
-       Mf.t_float64 has layout float64,
-         which does not overlap with immediate.
+       The layout of Mf.t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 2-26.
+       But the layout of Mf.t_float64 must overlap with immediate, because
+         of the definition of t_imm at line 5, characters 2-24.
 |}]
 
 (*****************************************************)
@@ -1147,7 +1570,10 @@ Line 2, characters 15-16:
                    ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         the type argument of option has layout value.
 |}]
 
 (*********************************************************)
@@ -1197,7 +1623,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1209,7 +1635,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1287,7 +1713,10 @@ Line 4, characters 9-22:
              ^^^^^^^^^^^^^
 Error: This pattern matches values of type t_float64
        but a pattern was expected which matches values of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of a tuple element.
 |}]
 
 (*******************************************)
@@ -1307,7 +1736,10 @@ Line 3, characters 14-29:
                   ^^^^^^^^^^^^^^^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         of the definition of eq at line 1, characters 0-41.
 |}]
 
 (**************************************)
@@ -1330,7 +1762,10 @@ Line 7, characters 28-29:
                                 ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         of the definition of f at line 2, characters 2-18.
 |}]
 
 (**************************************************)
@@ -1347,7 +1782,10 @@ Line 1, characters 44-46:
 1 | type ('a : float64) poly_var = [`A of int * 'a | `B]
                                                 ^^
 Error: This type ('a : value) should be an instance of type ('a0 : float64)
-       'a has layout float64, which does not overlap with value.
+       The layout of 'a is float64, because
+         of the annotation on 'a in the declaration of the type poly_var.
+       But the layout of 'a must overlap with value, because
+         it's the type of a tuple element.
 |}]
 
 (*********************************************************)
@@ -1363,7 +1801,10 @@ Line 1, characters 14-40:
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
-       t_float64 has layout float64, which is not a sublayout of value.
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         it's the type of the field of a polymorphic variant.
 |}]
 
 (******************************************************)
@@ -1376,7 +1817,36 @@ Line 1, characters 17-22:
 1 | external foo33 : t_any = "foo33";;
                      ^^^^^
 Error: This type signature for foo33 is not a value type.
-       foo33 has layout any, which is not a sublayout of value.
+       The layout of type t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of type t_any must be a sublayout of value, because
+         it's the type of something stored in a module structure.
+|}]
+
+external foo44 : ('a : any). 'a -> unit = "foo44";;
+
+[%%expect{|
+Line 1, characters 29-31:
+1 | external foo44 : ('a : any). 'a -> unit = "foo44";;
+                                 ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of an argument in an external declaration.
+|}]
+
+external foo55 : ('a : any). unit -> 'a = "foo55";;
+
+[%%expect{|
+Line 1, characters 37-39:
+1 | external foo55 : ('a : any). unit -> 'a = "foo55";;
+                                         ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of the result of an external declaration.
 |}]
 
 (****************************************************)
@@ -1397,8 +1867,11 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         'a has layout value, which is not a sublayout of immediate.
-       The fix will likely be to add a layout annotation on a parameter to
+         The layout of 'a is value, because
+           of the annotation on the universal variable 'a.
+         But the layout of 'a must be a sublayout of immediate, because
+           of the definition of t2_imm at line 1, characters 0-28.
+       A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
 
@@ -1414,7 +1887,10 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       'a -> 'b has layout value, which is not a sublayout of immediate.
+       The layout of 'a -> 'b is value, because
+         it's a function type.
+       But the layout of 'a -> 'b must be a sublayout of immediate, because
+         of the definition of t35 at line 1, characters 0-30.
 |}]
 
 (**************************************************)
@@ -1431,9 +1907,12 @@ Line 1, characters 10-22:
 1 | let () = (assert false : t_any); ()
               ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_5)
+         ('a : '_representable_layout_6)
        because it is in the left-hand side of a sequence
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = while false do (assert false : t_any); done
@@ -1447,9 +1926,12 @@ Line 1, characters 25-37:
 1 | let () = while false do (assert false : t_any); done
                              ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_6)
+         ('a : '_representable_layout_7)
        because it is in the body of a while-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
 |}]
 
 let () = for i = 0 to 0 do (assert false : t_any); done
@@ -1463,7 +1945,557 @@ Line 1, characters 28-40:
 1 | let () = for i = 0 to 0 do (assert false : t_any); done
                                 ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_7)
+         ('a : '_representable_layout_8)
        because it is in the body of a for-loop
-       t_any has layout any, which is not representable.
+       The layout of t_any is any, because
+         of the definition of t_any at line 5, characters 0-18.
+       But the layout of t_any must be representable, because
+         it's the type of a statement.
+|}]
+
+(******************************************************)
+(* Test 37: Ensure signature inclusion checks layouts *)
+
+module M1 : sig
+  val f : ('a : any). 'a -> 'a
+end = struct
+  let f x = x
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   let f x = x
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         sig val f : ('a : any). 'a -> 'a end
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : any). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is any, because
+         of the definition of f at line 2, characters 2-30.
+       But the layout of 'a must be representable, because
+         of the definition of f at line 4, characters 8-13.
+|}]
+
+module M1 : sig
+  val f : unit -> 'a -> 'a
+end = struct
+  let rec f : type (a : any). unit -> a -> a = fun _ -> f ()
+end
+
+[%%expect{|
+module M1 : sig val f : unit -> 'a -> 'a end
+|}]
+
+module type S_any = sig
+  val f : ('a : any). 'a -> 'a
+end
+
+module type S_value = sig
+  val f : 'a -> 'a
+end
+
+module type S_float64 = sig
+  val f : ('a : float64). 'a -> 'a
+end
+
+[%%expect{|
+module type S_any = sig val f : ('a : any). 'a -> 'a end
+module type S_value = sig val f : 'a -> 'a end
+module type S_float64 = sig val f : ('a : float64). 'a -> 'a end
+|}]
+
+module F (X : S_any) : S_value = X
+
+[%%expect{|
+module F : functor (X : S_any) -> S_value
+|}]
+
+module F (X : S_value) : S_any = X
+
+[%%expect{|
+Line 1, characters 33-34:
+1 | module F (X : S_value) : S_any = X
+                                     ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_any
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : any). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is any, because
+         of the definition of f at line 2, characters 2-30.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 6, characters 2-18.
+|}]
+
+module F (X : S_value) : S_float64 = X
+
+[%%expect{|
+Line 1, characters 37-38:
+1 | module F (X : S_value) : S_float64 = X
+                                         ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_float64
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : ('a : float64). 'a -> 'a
+       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The layout of 'a is float64, because
+         of the definition of f at line 10, characters 2-34.
+       But the layout of 'a must be a sublayout of value, because
+         of the definition of f at line 6, characters 2-18.
+|}]
+
+module M2 : sig
+  type ('a : any) t = 'a
+end = struct
+  type ('a : value) t = 'a
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a end
+       is not included in
+         sig type ('a : any) t = 'a end
+       Type declarations do not match:
+         type 'a t = 'a
+       is not included in
+         type ('a : any) t = 'a
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
+|}]
+
+module M3 : sig
+  type ('a : any) t = 'a -> 'a
+end = struct
+  type 'a t = 'a -> 'a
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = 'a -> 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a -> 'a end
+       is not included in
+         sig type ('a : any) t = 'a -> 'a end
+       Type declarations do not match:
+         type 'a t = 'a -> 'a
+       is not included in
+         type ('a : any) t = 'a -> 'a
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
+|}]
+
+module M4 : sig
+  type t = { f : ('a : any). 'a -> 'a }
+end = struct
+  type t = { f : 'a. 'a -> 'a }
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { f : 'a. 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { f : 'a. 'a -> 'a; } end
+       is not included in
+         sig type t = { f : ('a : any). 'a -> 'a; } end
+       Type declarations do not match:
+         type t = { f : 'a. 'a -> 'a; }
+       is not included in
+         type t = { f : ('a : any). 'a -> 'a; }
+       Fields do not match:
+         f : 'a. 'a -> 'a;
+       is not the same as:
+         f : ('a : any). 'a -> 'a;
+       The type 'a. 'a -> 'a is not equal to the type ('a : any). 'a -> 'a
+       Type 'a is not equal to type 'a0
+|}]
+
+module M5 : sig
+  type t = { f : 'a. 'a -> 'a }
+end = struct
+  type t = { f : ('a : any). 'a -> 'a }
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { f : ('a : any). 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { f : ('a : any). 'a -> 'a; } end
+       is not included in
+         sig type t = { f : 'a. 'a -> 'a; } end
+       Type declarations do not match:
+         type t = { f : ('a : any). 'a -> 'a; }
+       is not included in
+         type t = { f : 'a. 'a -> 'a; }
+       Fields do not match:
+         f : ('a : any). 'a -> 'a;
+       is not the same as:
+         f : 'a. 'a -> 'a;
+       The type ('a : any). 'a -> 'a is not equal to the type 'a. 'a -> 'a
+       Type 'a is not equal to type 'a0
+|}]
+
+module M6 : sig
+  val f : ('a. 'a -> unit) -> unit
+end = struct
+  let f (g : ('a : any). 'a -> unit) =
+    ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+end
+
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let f (g : ('a : any). 'a -> unit) =
+5 |     ignore (g (Stdlib__Float_u.of_float 3.14)); ignore (g "hello"); ignore (g 5); ()
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : (('a : any). 'a -> unit) -> unit end
+       is not included in
+         sig val f : ('a. 'a -> unit) -> unit end
+       Values do not match:
+         val f : (('a : any). 'a -> unit) -> unit
+       is not included in
+         val f : ('a. 'a -> unit) -> unit
+       The type (('a : any). 'a -> unit) -> unit
+       is not compatible with the type ('a. 'a -> unit) -> unit
+       Type 'a is not compatible with type 'a0
+|}]
+
+module M7 : sig
+  val f : (('a : any). 'a -> 'a) -> unit
+end = struct
+  let f (g : 'a. 'a -> 'a) =
+    ignore (g "hello"); ()
+end
+
+[%%expect{|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   let f (g : 'a. 'a -> 'a) =
+5 |     ignore (g "hello"); ()
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : ('a. 'a -> 'a) -> unit end
+       is not included in
+         sig val f : (('a : any). 'a -> 'a) -> unit end
+       Values do not match:
+         val f : ('a. 'a -> 'a) -> unit
+       is not included in
+         val f : (('a : any). 'a -> 'a) -> unit
+       The type ('a. 'a -> 'a) -> unit is not compatible with the type
+         (('a : any). 'a -> 'a) -> unit
+       Type 'a is not compatible with type 'a0
+|}]
+
+module M8 : sig
+  type ('a : any) t = K of ('a -> 'a)
+end = struct
+  type 'a t = K of ('a -> 'a)
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = K of ('a -> 'a)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = K of ('a -> 'a) end
+       is not included in
+         sig type ('a : any) t = K of ('a -> 'a) end
+       Type declarations do not match:
+         type 'a t = K of ('a -> 'a)
+       is not included in
+         type ('a : any) t = K of ('a -> 'a)
+       Their parameters differ:
+       The type ('a : value) is not equal to the type ('a0 : any)
+       because their layouts are different.
+|}]
+
+module M9 : sig
+  type 'a t = K of ('a -> 'a)
+end = struct
+  type ('a : any) t = K of ('a -> 'a)
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : any) t = K of ('a -> 'a)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type ('a : any) t = K of ('a -> 'a) end
+       is not included in
+         sig type 'a t = K of ('a -> 'a) end
+       Type declarations do not match:
+         type ('a : any) t = K of ('a -> 'a)
+       is not included in
+         type 'a t = K of ('a -> 'a)
+       Their parameters differ:
+       The type ('a : any) is not equal to the type ('a0 : value)
+       because their layouts are different.
+|}]
+(* CR layouts: This one should be fine to accept *)
+
+(*****************************************************)
+(* Test 38: Ensure Univar unification checks layouts *)
+
+let poly : ('a. 'a -> 'a) -> int * bool =
+  fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
+
+[%%expect{|
+Line 2, characters 7-38:
+2 |   fun (id : ('a : immediate). 'a -> 'a) -> id 3, id true
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type ('a : immediate). 'a -> 'a
+       but a pattern was expected which matches values of type 'a. 'a -> 'a
+       Type 'a is not compatible with type 'a0
+|}]
+(* CR layouts: This one should be fine to accept *)
+
+type ('a : any) foo = 'a
+type ('a : any) bar
+
+let f (x : < foo : ('a : float64) . 'a foo bar >)
+  : < foo : 'a . 'a foo bar > = x
+
+[%%expect{|
+type ('a : any) foo = 'a
+type ('a : any) bar
+Line 5, characters 32-33:
+5 |   : < foo : 'a . 'a foo bar > = x
+                                    ^
+Error: This expression has type < foo : ('a : float64). 'a foo bar >
+       but an expression was expected of type < foo : 'a. 'a foo bar >
+       Type 'a foo = 'a is not compatible with type 'a0 foo = 'a0
+       Types for method foo are incompatible
+|}]
+
+(*************************************************************)
+(* Test 39: Inference of functions that don't bind arguments *)
+
+let rec f () : 'a -> 'a = f ()
+
+[%%expect{|
+val f : ('a : any). unit -> 'a -> 'a = <fun>
+|}]
+
+module M = struct
+  let rec f () : 'a -> 'a = f ()
+end
+
+[%%expect{|
+module M : sig val f : ('a : any). unit -> 'a -> 'a end
+|}]
+
+let rec f () : 'a -> 'a = f ()
+let g : ('a : any). unit -> 'a -> 'a = f
+
+[%%expect{|
+val f : ('a : any). unit -> 'a -> 'a = <fun>
+val g : ('a : any). unit -> 'a -> 'a = <fun>
+|}]
+
+module M : sig
+  val f : ('a : any). unit -> 'a -> 'a
+end = struct
+  let rec f () : 'a -> 'a = f ()
+end
+
+[%%expect{|
+module M : sig val f : ('a : any). unit -> 'a -> 'a end
+|}]
+
+let rec f : ('a : any). unit -> 'a -> 'a = fun () -> f ()
+
+[%%expect{|
+val f : ('a : any). unit -> 'a -> 'a = <fun>
+|}]
+
+(****************************************************************)
+(* Test 40: unannotated type parameter defaults to layout value *)
+
+type 'a t40 = 'a
+let f40 (x: t_float64): 'a t40 = x
+
+[%%expect{|
+type 'a t40 = 'a
+Line 2, characters 33-34:
+2 | let f40 (x: t_float64): 'a t40 = x
+                                     ^
+Error: This expression has type t_float64
+       but an expression was expected of type 'a t40 = ('a : value)
+       The layout of t_float64 is float64, because
+         of the definition of t_float64 at line 4, characters 0-24.
+       But the layout of t_float64 must be a sublayout of value, because
+         of the definition of t40 at line 1, characters 0-16.
+|}]
+
+(**********************************************************************)
+(* Test 41: constraints in manifests in mutually recursive typedecls. *)
+
+(* This example must be rejected. *)
+type t1 = string t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 28-37.
+|}]
+
+(* This example is unfortunately rejected as a consequence of the fix for the
+   above in typedecl. If we ever change that so that the below starts working,
+   make sure [t1]'s parameter is immediate! Previously this was allowed and t1's
+   parameter was just value (a bug). *)
+type 'a t1 = 'a t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 27-36.
+|}]
+
+(* This one also unfortunately rejected for the same reason. *)
+type t1 = int t2 as (_ : immediate)
+and 'a t2 = 'a
+
+[%%expect{|
+Line 2, characters 0-14:
+2 | and 'a t2 = 'a
+    ^^^^^^^^^^^^^^
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 25-34.
+|}]
+
+(**********************************************************************)
+(* Test 42: Externals for built-in primitives have some safety checks *)
+
+(* oops the argument/return got swapped *)
+external f : float# -> float = "%unbox_float";;
+[%%expect{|
+Line 1, characters 13-28:
+1 | external f : float# -> float = "%unbox_float";;
+                 ^^^^^^^^^^^^^^^
+Error: The primitive [%unbox_float] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* using the wrong primitive *)
+external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+[%%expect{|
+Line 1, characters 13-39:
+1 | external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%box_int32] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* can't use primitives for jkind conversions *)
+external f : float# -> int32# = "%identity";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%identity";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%identity] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%opaque";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%opaque";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%opaque] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%obj_magic";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%obj_magic";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%obj_magic] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* not smart enough to stop this
+   but the middle end should error in this case *)
+external f : (float# -> int32#) -> int32# -> int32# = "%apply";;
+[%%expect{|
+external f : (float# -> int32#) -> int32# -> int32# = "%apply"
+|}]
+
+external f : float# -> int -> int = "%send";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : float# -> int -> int = "%send";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%send] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> int -> float# = "%sendself";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : int -> int -> float# = "%sendself";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendself] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> float# -> int -> int -> int = "%sendcache";;
+[%%expect{|
+Line 1, characters 13-47:
+1 | external f : int -> float# -> int -> int -> int = "%sendcache";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendcache] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]

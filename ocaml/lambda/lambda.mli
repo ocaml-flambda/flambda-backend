@@ -127,7 +127,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -139,16 +139,22 @@ type primitive =
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
   (* Comparisons that return int (not bool like above) for ordering *)
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
+  | Pcompare_ints
+  | Pcompare_floats of boxed_float
+  | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint of alloc_mode
-  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
-  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
-  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
-  | Pfloatcomp of float_comparison
-  | Punboxed_float_comp of float_comparison
+  | Pintoffloat of boxed_float
+  | Pfloatofint of boxed_float * alloc_mode
+  | Pnegfloat of boxed_float * alloc_mode
+  | Pabsfloat of boxed_float * alloc_mode
+  | Paddfloat of boxed_float * alloc_mode
+  | Psubfloat of boxed_float * alloc_mode
+  | Pmulfloat of boxed_float * alloc_mode
+  | Pdivfloat of boxed_float * alloc_mode
+  | Pfloatcomp of boxed_float * float_comparison
+  | Punboxed_float_comp of boxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -159,10 +165,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind
-  | Parraysetu of array_set_kind
-  | Parrayrefs of array_ref_kind
-  | Parraysets of array_set_kind
+  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parraysetu of array_set_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -185,6 +191,7 @@ type primitive =
   | Plsrbint of boxed_integer * alloc_mode
   | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
+  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -205,14 +212,30 @@ type primitive =
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool * alloc_mode
-  | Pbigstring_load_64 of bool * alloc_mode
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode }
-  | Pbigstring_set_16 of bool
-  | Pbigstring_set_32 of bool
-  | Pbigstring_set_64 of bool
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool }
+  | Pbigstring_load_16 of { unsafe : bool }
+  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+      boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool }
+  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
+  (* load/set SIMD vectors in GC-managed arrays *)
+  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Pfloatarray_set_128 of { unsafe : bool }
+  | Pfloat_array_set_128 of { unsafe : bool }
+  | Pint_array_set_128 of { unsafe : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -232,8 +255,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_float
-  | Pbox_float of alloc_mode
+  | Punbox_float of boxed_float
+  | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   (* Jane Street extensions *)
@@ -249,6 +272,17 @@ type primitive =
   (* Fetching domain-local state *)
   | Pdls_get
 
+(** This is the same as [Primitive.native_repr] but with [Repr_poly]
+    compiled away. *)
+and extern_repr =
+  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Unboxed_float of boxed_float
+  | Unboxed_vector of Primitive.boxed_vector
+  | Unboxed_integer of Primitive.boxed_integer
+  | Untagged_int
+
+and external_call_description = extern_repr Primitive.description_gen
+
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
 
@@ -257,6 +291,8 @@ and float_comparison =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Punboxedfloatarray of unboxed_float
+  | Punboxedintarray of unboxed_integer
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -265,6 +301,8 @@ and array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
+  | Punboxedfloatarray_ref of unboxed_float
+  | Punboxedintarray_ref of unboxed_integer
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -273,9 +311,18 @@ and array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
+  | Punboxedfloatarray_set of unboxed_float
+  | Punboxedintarray_set of unboxed_integer
+
+and array_index_kind =
+  | Ptagged_int_index
+  | Punboxed_int_index of unboxed_integer
 
 and value_kind =
-    Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pgenval
+  | Pintval
+  | Pboxedfloatval of boxed_float
+  | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
       non_consts : (int * value_kind list) list;
@@ -291,7 +338,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float
+  | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
   | Punboxed_product of layout list
@@ -311,8 +358,16 @@ and mixed_block_shape =
     flat_suffix : flat_element array;
   }
 
+and boxed_float = Primitive.boxed_float =
+  | Pfloat64
+  | Pfloat32
+
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_float = boxed_float
+
+and unboxed_integer = boxed_integer
 
 and vec128_type =
   | Unknown128
@@ -355,19 +410,25 @@ val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
 
+val equal_boxed_float : boxed_float -> boxed_float -> bool
+
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
+val compare_boxed_vector : boxed_vector -> boxed_vector -> int
+
+val print_boxed_vector : Format.formatter -> boxed_vector -> unit
+
 val must_be_value : layout -> value_kind
 
 (* This is the layout of ocaml values used as arguments to or returned from
-   primitives for this [native_repr].  So the legacy [Unboxed_float] - which is
+   primitives for this [extern_repr].  So the legacy [Unboxed_float] - which is
    a float that is unboxed before being passed to a C function - is mapped to
    [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
    [layout_unboxed_float].
 *)
-val layout_of_native_repr : Primitive.native_repr -> layout
+val layout_of_extern_repr : extern_repr -> layout
 
 type structured_constant =
     Const_base of constant
@@ -450,10 +511,12 @@ type loop_attribute =
   | Never_loop (* [@loop never] *)
   | Default_loop (* no [@loop] attribute *)
 
-type function_kind = Curried of {nlocal: int} | Tupled
+type curried_function_kind = { nlocal: int } [@@unboxed]
 (* [nlocal] determines how many arguments may be partially applied
-   before the resulting closure must be locally allocated.
-   See [lfunction] for details *)
+    before the resulting closure must be locally allocated.
+    See [lfunction] for details *)
+
+type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
@@ -485,9 +548,15 @@ type function_attribute = {
   is_opaque: bool;
   stub: bool;
   tmc_candidate: bool;
+  (* [may_fuse_arity] is true if [simplif.ml] is permitted to fuse arity, i.e.,
+     to perform the rewrite [fun x -> fun y -> e] to [fun x y -> e] *)
+  may_fuse_arity: bool;
+  unbox_return: bool;
 }
 
-type parameter_attribute = No_attributes
+type parameter_attribute = {
+  unbox_param: bool;
+}
 
 type lparam = {
   name : Ident.t;
@@ -628,8 +697,8 @@ val layout_module : layout
 val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
-val layout_boxed_float : layout
-val layout_unboxed_float : layout
+val layout_boxed_float : boxed_float -> layout
+val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a block *)
@@ -778,6 +847,10 @@ val primitive_may_allocate : primitive -> alloc_mode option
       revised.
   *)
 
+val alloc_mode_of_primitive_description :
+  external_call_description -> alloc_mode option
+  (** Like [primitive_may_allocate], for [external] calls. *)
+
 (***********************)
 (* For static failures *)
 (***********************)
@@ -821,3 +894,14 @@ val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 val is_check_enabled : opt:bool -> property -> bool
+
+(* Returns true if the given lambda can allocate on the local stack *)
+val may_allocate_in_region : lambda -> bool
+
+(* Returns [external_call_description] for [Pccall] assuming arguments
+   and result all have layout [value] *)
+val simple_prim_on_values
+:  name:string
+-> arity:int
+-> alloc:bool
+-> external_call_description

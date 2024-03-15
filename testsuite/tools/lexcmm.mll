@@ -41,7 +41,6 @@ let keyword_table =
     "byte", BYTE;
     "case", CASE;
     "catch", CATCH;
-    "checkbound", CHECKBOUND;
     "data", DATA;
     "exit", EXIT;
     "extcall", EXTCALL;

@@ -82,11 +82,12 @@ PARSING_CMI = \
   parsing/parsetree.cmi
 
 TYPING = \
+  typing/solver.cmo \
   typing/path.cmo \
+  typing/mode.cmo \
   typing/jkind.cmo \
   typing/primitive.cmo \
   typing/shape.cmo \
-  typing/mode.cmo \
   typing/types.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
@@ -115,6 +116,7 @@ TYPING = \
   typing/untypeast.cmo \
   typing/includemod.cmo \
   typing/includemod_errorprinter.cmo \
+  typing/typemode.cmo \
   typing/typetexp.cmo \
   typing/printpat.cmo \
   typing/patterns.cmo \

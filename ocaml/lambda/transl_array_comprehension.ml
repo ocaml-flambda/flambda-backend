@@ -495,7 +495,8 @@ let iterator ~transl_exp ~scopes ~loc
                    ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
-                            Lambda.(array_ref_kind alloc_heap iter_arr_kind),
+                            (Lambda.(array_ref_kind alloc_heap iter_arr_kind),
+                            Ptagged_int_index),
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
@@ -565,6 +566,7 @@ let clause ~transl_exp ~scopes ~loc = function
     ([Fixed_size]); otherwise, we cannot ([Dynamic_size]), and we have to
     dynamically grow the array as we iterate and shrink it to size at the
     end. *)
+
 type array_sizing =
   | Fixed_size
   | Dynamic_size
@@ -696,13 +698,33 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Fixed_size, (Pintarray | Paddrarray) ->
         Immutable StrictOpt,
         make_vect ~loc ~length:array_size.var ~init:(int 0)
-    | Fixed_size, Pfloatarray ->
+    | Fixed_size, (Pfloatarray | Punboxedfloatarray Pfloat64) ->
+        (* The representations of these two are the same, it's only
+           accesses that differ. *)
         Immutable StrictOpt, make_float_vect ~loc array_size.var
+    | Fixed_size , Punboxedintarray Pint32 ->
+        Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
+    | Fixed_size, Punboxedintarray Pint64 ->
+        Immutable StrictOpt, make_unboxed_int64_vect ~loc array_size.var
+    | Fixed_size, Punboxedintarray Pnativeint ->
+        Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
         Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
+    | Dynamic_size, Punboxedfloatarray Pfloat64 ->
+        Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
+    | (Fixed_size | Dynamic_size), Punboxedfloatarray Pfloat32 ->
+        (* CR mslater: (float32) array support *)
+        assert false
+    | Dynamic_size, Punboxedintarray Pint32 ->
+        Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
+    | Dynamic_size, Punboxedintarray Pint64 ->
+        Mutable, Resizable_array.make ~loc array_kind (unboxed_int64 0L)
+    | Dynamic_size, Punboxedintarray Pnativeint ->
+        Mutable, Resizable_array.make ~loc array_kind
+          (unboxed_nativeint Targetint.zero)
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -755,7 +777,8 @@ let body
   let open Let_binding in
   let set_element_raw elt =
     (* array.(index) <- elt *)
-    Lprim(Parraysetu Lambda.(array_set_kind modify_heap array_kind),
+    Lprim(Parraysetu (Lambda.(array_set_kind modify_heap array_kind),
+                      Ptagged_int_index),
           [array.var; index.var; elt],
           loc)
   in
@@ -790,15 +813,33 @@ let body
                Lassign(array.id, make_array),
                set_element_in_bounds elt.var,
                (Pvalue Pintval) (* [unit] is immediate *)))
-    | Pintarray | Paddrarray | Pfloatarray ->
+    | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray Pfloat64
+    | Punboxedintarray _ ->
         set_element_in_bounds body
+    | Punboxedfloatarray Pfloat32 ->
+      (* CR mslater: (float32) array support *)
+      assert false
   in
   Lsequence(
     set_element_known_kind_in_bounds,
     Lassign(index.id, index.var + l1))
 
 let comprehension
-      ~transl_exp ~scopes ~loc ~array_kind { comp_body; comp_clauses } =
+      ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
+      { comp_body; comp_clauses } =
+  (match array_kind with
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
+    if not !Clflags.native_code then
+      Misc.fatal_errorf
+        "Array comprehensions for kind %s are not allowed in bytecode"
+        (Printlambda.array_kind array_kind);
+    if Targetint.size <> 64 then
+      Misc.fatal_errorf
+        "Array comprehensions for kind %s can only be compiled for \
+         64-bit native targets"
+        (Printlambda.array_kind array_kind)
+  );
   let { array_sizing_info; array_size; make_comprehension } =
     clauses ~transl_exp ~scopes ~loc comp_clauses
   in

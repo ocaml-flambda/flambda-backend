@@ -92,6 +92,7 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
+val warn_unchecked_property : unit -> unit
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -158,6 +159,7 @@ end
     count as misplaced if the compiler could use it in some configuration.
 *)
 val filter_attributes :
+  ?mark:bool ->
   Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
@@ -170,27 +172,11 @@ val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_local_opt: Parsetree.attributes -> bool
+val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
 
-(* These functions report Error if the builtin extension.* attributes
-   are present despite the extension being disabled *)
-val has_local: Parsetree.attributes -> (bool,unit) result
-val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-
-val has_unique: Parsetree.attributes -> (bool,unit) result
-
-val has_once : Parsetree.attributes -> (bool, unit) result
-
-(** This filter selects attributes corresponding to mode annotations on
-    let-bindings.
-
-    This filter is used principally by the type-checker when it copies [local_],
-    [unique_], and [once_] mode annotation attributes from let-bindings to both
-    the let-bound expression and its pattern.
-*)
-val mode_annotation_attributes_filter : Attributes_filter.t
 
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)
@@ -206,3 +192,10 @@ val jkind_attribute_of_string : string -> jkind_attribute option
    as the attribute mechanism predates layouts.
 *)
 val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
+
+(** Finds the first "error_message" attribute, marks it as used, and returns its
+    string payload. Returns [None] if no such attribute is present.
+
+    There should be at most one "error_message" attribute, additional ones are sliently
+    ignored. **)
+val error_message_attr : Parsetree.attributes -> string option

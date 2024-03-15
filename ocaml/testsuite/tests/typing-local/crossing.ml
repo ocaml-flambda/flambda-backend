@@ -54,6 +54,7 @@ Line 2, characters 14-15:
 2 |   fun x -> f' x
                   ^
 Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* 2. constructor argument crosses mode at construction *)
@@ -214,6 +215,7 @@ Line 6, characters 6-22:
 6 |     g (local_ "world")
           ^^^^^^^^^^^^^^^^
 Error: This value escapes its region
+  Hint: This argument cannot be local, because it is an argument in a tail call
 |}]
 
 (* the result of function application crosses mode *)
@@ -345,7 +347,7 @@ val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
 
-(* This test needs the snapshotting in [is_immediate] to prevent a type error
+(* This test needs the snapshotting in [type_jkind_purely] to prevent a type error
    from the use of the gadt equation in the inner scope. *)
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a }
@@ -438,6 +440,28 @@ Line 1, characters 12-39:
 Error: Type int -> local_ int is not a subtype of local_ int -> int
 |}]
 
+(* Testing mode crossing in [enlarge_type] *)
+module M : sig
+  val foo : (int -> unit) -> (local_ int -> unit)
+end = struct
+  let foo f = (f :> local_ int -> unit)
+end
+[%%expect{|
+module M : sig val foo : (int -> unit) -> local_ int -> unit end
+|}]
+
+(* Same, but in opposite variance.
+   The following coercion is still strenghthening *)
+module M : sig
+  val foo : ((local_ int -> int) -> unit) -> ((int -> int) -> unit)
+end = struct
+  let foo f = (f :> (int -> int) -> unit)
+end
+[%%expect{|
+module M :
+  sig val foo : ((local_ int -> int) -> unit) -> (int -> int) -> unit end
+|}]
+
 (* Mode crossing at identifiers - in the following, x and y are added to the
 environment at mode local, but they cross to global when they are refered to
 again. Note that ref is polymorphic and thus doesn't trigger crossing. *)
@@ -447,4 +471,13 @@ let foo () =
   ()
 [%%expect{|
 val foo : unit -> unit = <fun>
+|}]
+
+(* Values crosses modes when pattern-matching, an implication is that, closing
+   over [local int] won't force the closure to be [local]. *)
+let foo (local_ x : int) =
+  let bar y = x + y in
+  ref bar
+[%%expect{|
+val foo : local_ int -> (int -> int) ref = <fun>
 |}]

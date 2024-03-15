@@ -910,8 +910,6 @@ module Extended_machtype = struct
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
-  let typ_int64 = [| Extended_machtype_component.Any_int |]
-
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_void = [||]
@@ -930,13 +928,16 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
+    | Punboxed_float Pfloat32 ->
+      Misc.fatal_error "float32 is not supported in the upstream compiler build."
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
     | Pvalue Pintval -> typ_tagged_int
     | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Pvalue _ -> typ_val
     | Punboxed_product _ -> failwith "TODO"
 end
@@ -1597,7 +1598,7 @@ let box_sized size mode dbg exp =
 (* Simplification of some primitives into C calls *)
 
 let default_prim name =
-  Primitive.simple_on_values ~name ~arity:0(*ignored*) ~alloc:true
+  Lambda.simple_prim_on_values ~name ~arity:0(*ignored*) ~alloc:true
 
 let simplif_primitive p : Clambda_primitives.primitive =
   match (p : Clambda_primitives.primitive) with
@@ -2538,6 +2539,8 @@ let arraylength kind arg dbg =
       Cop(Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let bbswap bi arg dbg =
   let prim, tyarg = match (bi : Primitive.boxed_integer) with
@@ -2728,6 +2731,8 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
       int_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode ->
       float_array_ref mode arg1 arg2 dbg
+  | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let arrayref_safe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
@@ -2781,6 +2786,8 @@ let arrayref_safe rkind arg1 arg2 dbg =
                 (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
+  | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -2831,6 +2838,8 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
       int_array_set arg1 arg2 arg3 dbg
   | Pfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
+  | Punboxedfloatarray_set _ | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let arrayset_safe skind arg1 arg2 arg3 dbg =
@@ -2894,6 +2903,8 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           float_array_set arr idx newval dbg))))
+  | Punboxedfloatarray_set _ | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
@@ -3224,12 +3235,17 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat32)
+  | Punboxed_float Pfloat32 ->
+    Misc.fatal_error "float32 is not supported in the upstream compiler build."
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
+  | Ptop | Pbottom | Punboxed_float Pfloat64
+  | Punboxed_int _ | Punboxed_product _ -> Any
   | Pvalue (Pboxedvectorval _)
   | Punboxed_vector _ ->
-    Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    Misc.fatal_error
+      "SIMD vectors are not supported in the upstream compiler build."
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l

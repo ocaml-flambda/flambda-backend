@@ -2,10 +2,10 @@ File "test_never_returns_normally.ml", line 9, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_never_returns_normally.foo (camlTest_never_returns_normally.foo_HIDE_STAMP)
 
 File "test_never_returns_normally.ml", line 9, characters 25-41:
-Error: Unexpected indirect tailcall
+Error: called function may allocate (indirect tailcall)
 
 File "test_never_returns_normally.ml", line 10, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_never_returns_normally.bar (camlTest_never_returns_normally.bar_HIDE_STAMP)
 
 File "test_never_returns_normally.ml", line 10, characters 27-50:
-Error: Unexpected indirect tailcall
+Error: called function may allocate (indirect tailcall)
