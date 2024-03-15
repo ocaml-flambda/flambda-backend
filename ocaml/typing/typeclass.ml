@@ -1403,12 +1403,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let (args, cty) =
         let (_, ty_fun0) = Ctype.instance_class [] cl.cl_type in
-        (* XXX jrodri for jrodri: Think more about this later... 
-
-           jrodri: I think this is already impemented/the cr src_pos is fine to delete.
-        *)
-        (* XCR src_pos: Implement Position arguments for classes, and pass a
-           reasonable type to translate the labels below *)
         let sargs = List.map (fun (label, e) -> transl_label label None, e) sargs in
         type_args [] [] cl.cl_type ty_fun0 sargs
       in
