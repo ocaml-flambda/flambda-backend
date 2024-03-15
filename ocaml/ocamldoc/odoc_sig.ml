@@ -1850,7 +1850,8 @@ module Analyser =
       | (Parsetree.Pcty_arrow (parse_label, _, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
           (* label = string. In signature, there is no parameter names inside tuples *)
           (* if label = "", no label . Here we have the information to determine if a label is explicit or not. *)
-          (* CR src_pos: Implement Position arguments for classes, and pass a
+          (* XXX jrodri for jrodri: Think more about this... *)
+          (* XCR src_pos: Implement Position arguments for classes, and pass a
              reasonable type to translate the label below *)
           if (Typetexp.transl_label parse_label None) = label then
             (

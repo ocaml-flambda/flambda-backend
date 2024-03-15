@@ -444,7 +444,7 @@ and class_type_aux env virt self_scope scty =
       let l = transl_label l (Some sty) in
       let cty =
         match l with
-        | Position _ -> ctyp Ttyp_src_pos (Ctype.newconstr Predef.path_lexing_position [])
+        | Position _ -> ctyp Ttyp_call_pos (Ctype.newconstr Predef.path_lexing_position [])
         | Optional _ | Labelled _ | Nolabel ->
           transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty 
       in
@@ -1403,7 +1403,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let (args, cty) =
         let (_, ty_fun0) = Ctype.instance_class [] cl.cl_type in
-        (* CR src_pos: Implement Position arguments for classes, and pass a
+        (* XXX jrodri for jrodri: Think more about this later... *)
+        (* XCR src_pos: Implement Position arguments for classes, and pass a
            reasonable type to translate the labels below *)
         let sargs = List.map (fun (label, e) -> transl_label label None, e) sargs in
         type_args [] [] cl.cl_type ty_fun0 sargs

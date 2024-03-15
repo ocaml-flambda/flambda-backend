@@ -506,7 +506,7 @@ and print_out_type_1 mode ppf =
           pp_print_string ppf l; pp_print_char ppf ':'; print_type ()
       | Position l ->
           pp_print_string ppf l;
-          pp_print_string ppf ":[%src_pos]"
+          pp_print_string ppf ":[%call_pos]"
       | Optional l ->
           pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_string ppf " ->";
@@ -698,7 +698,7 @@ let rec print_out_class_type ppf =
       let label, print_type = match lab with
         | Nolabel -> "", print_type
         | Labelled l -> l ^ ":", print_type
-        | Position l -> l ^ ":", fun ppf _ -> pp_print_string ppf "[%src_pos]"
+        | Position l -> l ^ ":", fun ppf _ -> pp_print_string ppf "[%call_pos]"
         | Optional l -> "?" ^ l ^ ":", print_type
       in
       fprintf ppf "@[%s%a ->@ %a@]"

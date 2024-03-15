@@ -638,9 +638,9 @@ let check_arg_type styp =
 let transl_label (label : Parsetree.arg_label)
     (arg_opt : Parsetree.core_type option) =
   match label, arg_opt with
-  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _}
+  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _}
       -> Position l
-  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _} as arg)
+  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _} as arg)
       -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
   | Labelled l, _ -> Labelled l
   | Optional l, _ -> Optional l
@@ -709,9 +709,12 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
           let l = transl_label l (Some arg) in
           let arg_cty =
             if Btype.is_position l then
-              (* CR src_pos: Consider bundling argument types into arg_labels, so there
+              (* XXX jrodri: Hmm, I think that I do not understand the below CR src_pos.
+                 Is it referring to changing the arg_label type to also include the type?
+                 If so, then I think I still don't understand how this would work. *)
+              (* XCR src_pos: Consider bundling argument types into arg_labels, so there
                  is no need to create this redundant type *)
-              ctyp Ttyp_src_pos (newconstr Predef.path_lexing_position [])
+              ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
             else transl_type env ~policy ~row_context arg_mode arg
           in
           let acc_mode =

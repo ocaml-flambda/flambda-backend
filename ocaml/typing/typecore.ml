@@ -7583,7 +7583,8 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
           let arg = src_pos (Location.ghostify app_loc) [] env in
-          (* CR src_pos: Confirm that global value mode is correct *)
+          (* XXX jrodri: I think using [Mode.Value.legacy] here is correct, although would
+             like to double check during review as I am not too too familiar with modes. *)
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
@@ -9866,7 +9867,7 @@ let report_error ~loc env = function
       let label ~long l =
         match l with
         | Nolabel -> "unlabeled"
-        | Position l -> sprintf "~(%s:[%%src_pos])" l
+        | Position l -> sprintf "~(%s:[%%call_pos])" l
         | Labelled _ | Optional _ ->
             (if long then "labeled " else "") ^ prefixed_label_name l
       in

@@ -2,41 +2,41 @@
    * expect
 *)
 
-type t = [%src_pos]
+type t = [%call_pos]
 [%%expect {|
-Line 1, characters 11-18:
-1 | type t = [%src_pos]
-               ^^^^^^^
-Error: Uninterpreted extension 'src_pos'.
+Line 1, characters 11-19:
+1 | type t = [%call_pos]
+               ^^^^^^^^
+Error: Uninterpreted extension 'call_pos'.
 |}]
-(* CR src_pos: Improve this error message to notify that [%src_pos] may only
+(* CR src_pos: Improve this error message to notify that [%call_pos] may only
    be used in arguments *)
 
-type t = unit -> unit -> [%src_pos]
+type t = unit -> unit -> [%call_pos]
 [%%expect {|
-Line 1, characters 27-34:
-1 | type t = unit -> unit -> [%src_pos]
-                               ^^^^^^^
-Error: Uninterpreted extension 'src_pos'.
+Line 1, characters 27-35:
+1 | type t = unit -> unit -> [%call_pos]
+                               ^^^^^^^^
+Error: Uninterpreted extension 'call_pos'.
 |}]
 
-let f ~(src_pos:[%src_pos]) () : [%src_pos] = src_pos
+let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
 
 [%%expect{|
-Line 1, characters 35-42:
-1 | let f ~(src_pos:[%src_pos]) () : [%src_pos] = src_pos
-                                       ^^^^^^^
-Error: Uninterpreted extension 'src_pos'.
+Line 1, characters 37-45:
+1 | let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
+                                         ^^^^^^^^
+Error: Uninterpreted extension 'call_pos'.
 |}]
 
-let apply f = f ~src_pos:Lexing.dummy_pos () ;;
+let apply f = f ~call_pos:Lexing.dummy_pos () ;;
 [%%expect {|
-val apply : (src_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
+val apply : (call_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
 |}]
 
-let g = fun ~(src_pos:[%src_pos]) () -> ()
+let g = fun ~(call_pos:[%call_pos]) () -> ()
 [%%expect{|
-val g : src_pos:[%src_pos] -> unit -> unit = <fun>
+val g : call_pos:[%call_pos] -> unit -> unit = <fun>
 |}]
 
 let _ = apply g ;;
@@ -44,42 +44,42 @@ let _ = apply g ;;
 Line 1, characters 14-15:
 1 | let _ = apply g ;;
                   ^
-Error: This expression has type src_pos:[%src_pos] -> unit -> unit
+Error: This expression has type call_pos:[%call_pos] -> unit -> unit
        but an expression was expected of type
-         src_pos:Lexing.position -> (unit -> 'a)
+         call_pos:Lexing.position -> (unit -> 'a)
 |}]
 
-let h ?(src_pos:[%src_pos]) () = ()
+let h ?(call_pos:[%call_pos]) () = ()
 [%%expect{|
-Line 1, characters 16-26:
-1 | let h ?(src_pos:[%src_pos]) () = ()
-                    ^^^^^^^^^^
+Line 1, characters 17-28:
+1 | let h ?(call_pos:[%call_pos]) () = ()
+                     ^^^^^^^^^^^
 Error: A position argument must not be optional.
 |}]
 
-let j (src_pos:[%src_pos]) () = ()
+let j (call_pos:[%call_pos]) () = ()
 [%%expect{|
-Line 1, characters 15-25:
-1 | let j (src_pos:[%src_pos]) () = ()
-                   ^^^^^^^^^^
+Line 1, characters 16-27:
+1 | let j (call_pos:[%call_pos]) () = ()
+                    ^^^^^^^^^^^
 Error: A position argument must not be unlabelled.
 |}]
 
-let k : src_pos:[%src_pos] -> unit -> unit =
-   fun ~src_pos () -> ()
+let k : call_pos:[%call_pos] -> unit -> unit =
+   fun ~call_pos () -> ()
 (* CR src_pos: Improve this error message *)
 [%%expect{|
-Line 2, characters 3-24:
-2 |    fun ~src_pos () -> ()
-       ^^^^^^^^^^^^^^^^^^^^^
-Error: This function should have type src_pos:[%src_pos] -> unit -> unit
-       but its first argument is labeled ~src_pos
-       instead of ~(src_pos:[%src_pos])
+Line 2, characters 3-25:
+2 |    fun ~call_pos () -> ()
+       ^^^^^^^^^^^^^^^^^^^^^^
+Error: This function should have type call_pos:[%call_pos] -> unit -> unit
+       but its first argument is labeled ~call_pos
+       instead of ~(call_pos:[%call_pos])
 |}]
 
-let n = fun ~(src_pos:[%src_pos]) () -> src_pos
+let n = fun ~(call_pos:[%call_pos]) () -> call_pos
 [%%expect{|
-val n : src_pos:[%src_pos] -> unit -> lexing_position = <fun>
+val n : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
 |}]
 
 let _ = n Lexing.dummy_pos ();;
@@ -88,45 +88,45 @@ Line 1, characters 27-29:
 1 | let _ = n Lexing.dummy_pos ();;
                                ^^
 Error: The function applied to this argument has type
-         src_pos:[%src_pos] -> lexing_position
+         call_pos:[%call_pos] -> lexing_position
 This argument cannot be applied without label
 |}]
 
-class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+class this_class_has_an_unerasable_argument ~(pos : [%call_pos]) = object end
 
 [%%expect{|
 Line 1, characters 46-49:
-1 | class this_class_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+1 | class this_class_has_an_unerasable_argument ~(pos : [%call_pos]) = object end
                                                   ^^^
 Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
 
-class this_class_has_an_unerasable_argument : pos:[%src_pos] -> object  end
+class this_class_has_an_unerasable_argument : pos:[%call_pos] -> object  end
 |}]
 
 class c = object 
-  method this_method_has_an_unerasable_argument ~(pos : [%src_pos]) = pos
+  method this_method_has_an_unerasable_argument ~(pos : [%call_pos]) = pos
 end
 [%%expect{|
 Line 2, characters 50-53:
-2 |   method this_method_has_an_unerasable_argument ~(pos : [%src_pos]) = pos
+2 |   method this_method_has_an_unerasable_argument ~(pos : [%call_pos]) = pos
                                                       ^^^
 Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
 
 class c :
   object
     method this_method_has_an_unerasable_argument :
-      pos:[%src_pos] -> lexing_position
+      pos:[%call_pos] -> lexing_position
   end
 |}]
 
-let this_object_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+let this_object_has_an_unerasable_argument ~(pos : [%call_pos]) = object end
 
 [%%expect{|
 Line 1, characters 45-48:
-1 | let this_object_has_an_unerasable_argument ~(pos : [%src_pos]) = object end
+1 | let this_object_has_an_unerasable_argument ~(pos : [%call_pos]) = object end
                                                  ^^^
 Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
 
-val this_object_has_an_unerasable_argument : pos:[%src_pos] -> <  > = <fun>
+val this_object_has_an_unerasable_argument : pos:[%call_pos] -> <  > = <fun>
 |}]
 

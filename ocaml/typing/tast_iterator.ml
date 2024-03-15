@@ -624,7 +624,7 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
       sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
-  | Ttyp_src_pos -> ()
+  | Ttyp_call_pos -> ()
 
 let class_structure sub {cstr_self; cstr_fields; _} =
   sub.pat sub cstr_self;
