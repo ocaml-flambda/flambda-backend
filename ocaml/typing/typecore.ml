@@ -9875,14 +9875,21 @@ let report_error ~loc env = function
         | Nolabel, _ | _, Nolabel -> true
         | _                       -> false
       in
+      let maybe_positional_argument_hint = 
+        match got, expected with
+        | Labelled _, Position _ ->
+          "\nHint: Consider explicitly annotating the label with '[%call_pos]'"
+        | _ -> ""
+      in
       Location.errorf ~loc
         "@[<v>@[<2>This function should have type@ %a%t@]@,\
-         @[but its first argument is %s@ instead of %s%s@]@]"
+         @[but its first argument is %s@ instead of %s%s@]%s@]"
         Printtyp.type_expr expected_type
         (report_type_expected_explanation_opt explanation)
         (label ~long:true got)
         (if second_long then "being " else "")
         (label ~long:second_long expected)
+        maybe_positional_argument_hint
   | Scoping_let_module(id, ty) ->
       Location.errorf ~loc
         "This `let module' expression has type@ %a@ \

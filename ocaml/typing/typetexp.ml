@@ -709,10 +709,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
           let l = transl_label l (Some arg) in
           let arg_cty =
             if Btype.is_position l then
-              (* XXX jrodri: Hmm, I think that I do not understand the below CR src_pos.
-                 Is it referring to changing the arg_label type to also include the type?
-                 If so, then I think I still don't understand how this would work. *)
-              (* XCR src_pos: Consider bundling argument types into arg_labels, so there
+              (* XXX jrodri for goldfirere: Hmm, I think that I do not understand the
+                 below CR src_pos. Is it referring to changing the arg_label type to also
+                 include the type? If so, then I think I still don't understand how this
+                 would work. *)
+              (* CR src_pos: Consider bundling argument types into arg_labels, so there
                  is no need to create this redundant type *)
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
             else transl_type env ~policy ~row_context arg_mode arg

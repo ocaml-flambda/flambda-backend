@@ -7,17 +7,15 @@ type t = [%call_pos]
 Line 1, characters 11-19:
 1 | type t = [%call_pos]
                ^^^^^^^^
-Error: Uninterpreted extension 'call_pos'.
+Error: call_pos can only exist as the type of a labelled argument
 |}]
-(* CR src_pos: Improve this error message to notify that [%call_pos] may only
-   be used in arguments *)
 
 type t = unit -> unit -> [%call_pos]
 [%%expect {|
 Line 1, characters 27-35:
 1 | type t = unit -> unit -> [%call_pos]
                                ^^^^^^^^
-Error: Uninterpreted extension 'call_pos'.
+Error: call_pos can only exist as the type of a labelled argument
 |}]
 
 let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
@@ -26,7 +24,7 @@ let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
 Line 1, characters 37-45:
 1 | let f ~(call_pos:[%call_pos]) () : [%call_pos] = call_pos
                                          ^^^^^^^^
-Error: Uninterpreted extension 'call_pos'.
+Error: call_pos can only exist as the type of a labelled argument
 |}]
 
 let apply f = f ~call_pos:Lexing.dummy_pos () ;;
@@ -67,7 +65,6 @@ Error: A position argument must not be unlabelled.
 
 let k : call_pos:[%call_pos] -> unit -> unit =
    fun ~call_pos () -> ()
-(* CR src_pos: Improve this error message *)
 [%%expect{|
 Line 2, characters 3-25:
 2 |    fun ~call_pos () -> ()
@@ -75,6 +72,7 @@ Line 2, characters 3-25:
 Error: This function should have type call_pos:[%call_pos] -> unit -> unit
        but its first argument is labeled ~call_pos
        instead of ~(call_pos:[%call_pos])
+Hint: Consider explicitly annotating the label with '[%call_pos]'
 |}]
 
 let n = fun ~(call_pos:[%call_pos]) () -> call_pos
