@@ -7583,9 +7583,6 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
           let arg = src_pos (Location.ghostify app_loc) [] env in
-          (* XXX jrodri for goldfirere: I think using [Mode.Value.legacy] here is correct,
-             although would like to double check during review as I am not too too
-             familiar with modes. *)
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
