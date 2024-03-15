@@ -91,7 +91,7 @@ type error =
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
-  | Invalid_label_for_src_pos of Parsetree.arg_label
+  | Invalid_label_for_call_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -641,7 +641,7 @@ let transl_label (label : Parsetree.arg_label)
   | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _}
       -> Position l
   | _, Some ({ ptyp_desc = Ptyp_extension ({txt="call_pos"; _}, _); _} as arg)
-      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
+      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_call_pos label))
   | Labelled l, _ -> Labelled l
   | Optional l, _ -> Optional l
   | Nolabel, _ -> Nolabel
@@ -1569,7 +1569,7 @@ let report_error env ppf = function
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid
-  | Invalid_label_for_src_pos arg_label ->
+  | Invalid_label_for_call_pos arg_label ->
       fprintf ppf "A position argument must not be %s."
         (match arg_label with
         | Nolabel -> "unlabelled"

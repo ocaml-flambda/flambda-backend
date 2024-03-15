@@ -169,7 +169,7 @@ type error =
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Did_you_mean_unboxed of Longident.t
-  | Invalid_label_for_src_pos of Parsetree.arg_label
+  | Invalid_label_for_call_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 
