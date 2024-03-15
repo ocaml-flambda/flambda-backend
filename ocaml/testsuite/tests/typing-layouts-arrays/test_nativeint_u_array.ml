@@ -33,10 +33,9 @@ end
 module _ = Test_gen_u_array.Test (Nativeint_array)
 
 
-module Nativeint_u_array0 :
-  Gen_u_array.S0
-  with type element_t = nativeint#
-  and type ('a : any) array_t = 'a array = struct
+module Nativeint_u_array0 : Gen_u_array.S0
+                            with type element_t = nativeint#
+                            and type ('a : any) array_t = 'a array = struct
 
   type element_t = nativeint#
   type ('a : any) array_t = 'a array

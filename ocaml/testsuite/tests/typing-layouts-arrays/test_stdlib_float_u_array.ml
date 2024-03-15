@@ -310,7 +310,7 @@ module Test (A : S) : sig end = struct
   check_i b;
   assert (A.length b = 200);
   let b = A.sub a 1000 0 in
-  check_i (A.sub a 1000 0);
+  check_i b;
   assert  (A.length b = 0);
   check_inval (A.sub a (-1)) 0;
   check_inval (A.sub a 0) (-1);

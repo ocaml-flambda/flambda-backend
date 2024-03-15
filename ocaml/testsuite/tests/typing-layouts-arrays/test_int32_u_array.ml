@@ -32,10 +32,10 @@ module Int32_array : Test_gen_u_array.S = struct
 end
 module _ = Test_gen_u_array.Test (Int32_array)
 
-module Int32_u_array0 :
-  Gen_u_array.S0
-  with type element_t = int32#
-  and type ('a : any) array_t = 'a array = struct
+module Int32_u_array0 : Gen_u_array.S0
+                        with type element_t = int32#
+                        and type ('a : any) array_t = 'a array = struct
+
   type element_t = int32#
   type ('a : any) array_t = 'a array
   type element_arg = unit -> element_t
