@@ -1584,8 +1584,8 @@ let prim_mode mvar = function
 let with_locality locality m =
   let m' = Alloc.newvar () in
   Locality.equate_exn (Alloc.locality m') locality;
-  Alloc.submode_exn m' (Alloc.join_with_locality Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with_locality Locality.Const.min m) m';
+  Alloc.sub_exn m' (Alloc.join_with_locality Locality.Const.max m);
+  Alloc.sub_exn (Alloc.meet_with_locality Locality.Const.min m) m';
   m'
 
 let rec instance_prim_locals locals mvar macc finalret ty =
@@ -4544,8 +4544,8 @@ let moregen_alloc_mode v a1 a2 =
   match
     match v with
     | Invariant -> Result.map_error ignore (Alloc.equate a1 a2)
-    | Covariant -> Result.map_error ignore (Alloc.submode a1 a2)
-    | Contravariant -> Result.map_error ignore (Alloc.submode a2 a1)
+    | Covariant -> Result.map_error ignore (Alloc.sub a1 a2)
+    | Contravariant -> Result.map_error ignore (Alloc.sub a2 a1)
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
@@ -5808,7 +5808,7 @@ let subtype_error ~env ~trace ~unification_trace =
                     ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
-  match Alloc.submode a1 a2 with
+  match Alloc.sub a1 a2 with
   | Ok () -> ()
   | Error _ -> subtype_error ~env ~trace ~unification_trace:[]
 

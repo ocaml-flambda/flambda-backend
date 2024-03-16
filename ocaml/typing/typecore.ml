@@ -401,7 +401,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
        ap_mode is local, the application allocates in the outer
        region, and thus [region_mode] needs to be marked local as well*)
       match
-        Regionality.submode (locality_as_regionality ap_mode) region_mode
+        Regionality.sub (locality_as_regionality ap_mode) region_mode
       with
       | Ok () -> ()
       | Error _ -> raise (Error (loc, env, Tail_call_local_returning))
@@ -564,7 +564,7 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   | _, _, (Nontail | Default) ->
      mode_default vmode, vmode
   | _, _, Tail -> begin
-    Regionality.submode_exn (Value.regionality vmode) Regionality.regional;
+    Regionality.sub_exn (Value.regionality vmode) Regionality.regional;
     mode_tailcall_argument vmode, vmode
   end
 
@@ -577,8 +577,8 @@ let mode_lazy expected_mode =
 let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   let res =
     match expected_mode.tuple_modes with
-    | [] -> Value.submode mode expected_mode.mode
-    | ts -> Value.submode mode (Value.meet ts)
+    | [] -> Value.sub mode expected_mode.mode
+    | ts -> Value.sub mode (Value.meet ts)
   in
   match res with
   | Ok () -> ()
@@ -3434,7 +3434,7 @@ let check_local_application_complete ~env ~app_loc args =
         | _ -> false
       in
       let submode m1 m2 =
-        match Alloc.submode m1 m2 with
+        match Alloc.sub m1 m2 with
         | Ok () -> ()
         | Error _ ->
           let loc, loc_kind =
@@ -4662,12 +4662,12 @@ let unique_use ~loc ~env mode_l mode_r  =
     (* if unique extension is not enabled, we will not run uniqueness analysis;
        instead, we force all uses to be shared and many. This is equivalent to
        running a UA which forces everything *)
-    (match Uniqueness.submode Uniqueness.shared uniqueness with
+    (match Uniqueness.sub Uniqueness.shared uniqueness with
     | Ok () -> ()
     | Error e ->
         raise (Error(loc, env, Submode_failed(`Uniqueness e, Other, None, None)))
     );
-    (match Linearity.submode linearity Linearity.many with
+    (match Linearity.sub linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         raise (Error (loc, env, Submode_failed(`Linearity e, Other, None, None)))
@@ -4756,7 +4756,7 @@ let split_function_ty
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
+    Locality.sub_exn Locality.local (Alloc.locality alloc_mode);
   let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
     in_function
   in
@@ -4821,7 +4821,7 @@ let split_function_ty
         else begin
           (* if the function has no region, we force the ret_mode to be local *)
           match
-            Locality.submode Locality.local (Alloc.locality ret_mode)
+            Locality.sub Locality.local (Alloc.locality ret_mode)
           with
           | Ok () -> mode_default ret_value_mode
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
@@ -5212,7 +5212,7 @@ and type_expect_
         | RTail (regionality, _) ->
           (* The middle-end relies on all functions which allocate into their
              parent's region having a return mode of local. *)
-          (match Regionality.submode Regionality.local regionality with
+          (match Regionality.sub Regionality.local regionality with
           | Ok () -> ()
           | Error _ -> raise (Error(loc, env, Exclave_returns_not_local))
           );
@@ -6656,14 +6656,14 @@ and type_function
                      mode-crossed differently. *)
                   let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
-                    Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
+                    Alloc.sub (Alloc.close_over arg_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
                       raise (Error(loc_fun, env, Uncurried_function_escapes e))
                   end;
                   begin match
-                    Alloc.submode (Alloc.partial_apply alloc_mode) fun_alloc_mode
+                    Alloc.sub (Alloc.partial_apply alloc_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
@@ -7301,7 +7301,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
-      Regionality.submode_exn (Value.regionality eta_mode) Regionality.regional;
+      Regionality.sub_exn (Value.regionality eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test

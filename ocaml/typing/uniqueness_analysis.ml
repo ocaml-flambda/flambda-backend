@@ -93,10 +93,10 @@ end = struct
       (* values being multi-used means two things:
          - the expected mode must be higher than [shared]
          - the access mode must be lower than [many] *)
-      match Linearity.submode lin Linearity.many with
+      match Linearity.sub lin Linearity.many with
       | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
-        match Uniqueness.submode Uniqueness.shared uni with
+        match Uniqueness.sub Uniqueness.shared uni with
         | Ok () -> Ok ()
         | Error _ -> Error { occ; axis = Uniqueness })
     in

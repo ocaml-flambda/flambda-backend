@@ -104,7 +104,7 @@ let value_descriptions ~loc env name
          let ty2_global =
            let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
-             (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
+             (fun m -> Mode.Locality.sub_exn m Mode.Locality.global)
              mode2;
            ty2
          in
@@ -114,7 +114,7 @@ let value_descriptions ~loc env name
          let ty2_local =
            let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
-             (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
+             (fun m -> Mode.Locality.sub_exn Mode.Locality.local m)
              mode2;
            ty2
          in

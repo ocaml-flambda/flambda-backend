@@ -210,9 +210,9 @@ module type Solver_polarized = sig
      morphism it contains. See comments for [morph] for the format of ['d].
 
       A [mode] that is [allowed] on the left means it can appear as the lower
-      mode in a [submode] call. This is useful for a mode that is inferred of an
+      mode in a [sub] call. This is useful for a mode that is inferred of an
       expression.  On the other hand, a [mode] that is [allowed] on the right
-      means it can appear as the upper mode in a [submode] call. This is useful
+      means it can appear as the upper mode in a [sub] call. This is useful
       for a mode that is *expected* as the mode of an expression.  *)
   type ('a, 'd) mode constraint 'd = 'l * 'r
 
@@ -242,7 +242,7 @@ module type Solver_polarized = sig
   val newvar : 'a obj -> ('a, 'l * 'r) mode
 
   (** Try to constrain the first mode below the second mode. *)
-  val submode :
+  val sub :
     'a obj ->
     ('a, allowed * 'r) mode ->
     ('a, 'l * allowed) mode ->
@@ -301,9 +301,9 @@ module type Solver_polarized = sig
 end
 
 module type S = sig
-  (** Error returned by failed [submode a b]. [left] will be the lowest mode [a]
+  (** Error returned by failed [sub a b]. [left] will be the lowest mode [a]
    can be, and [right] will be the highest mode [b] can be. And [left <= right]
-   will be false, which is why the submode failed. *)
+   will be false, which is why the sub failed. *)
   type 'a error =
     { left : 'a;
       right : 'a

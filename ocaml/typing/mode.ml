@@ -1103,13 +1103,11 @@ module type Obj = sig
   val obj : const C.obj
 end
 
-let equate_from_submode submode m0 m1 =
-  match submode m0 m1 with
+let equate_from_sub sub m0 m1 =
+  match sub m0 m1 with
   | Error e -> Error (Left_le_right, e)
   | Ok () -> (
-    match submode m1 m0 with
-    | Error e -> Error (Right_le_left, e)
-    | Ok () -> Ok ())
+    match sub m1 m0 with Error e -> Error (Right_le_left, e) | Ok () -> Ok ())
   [@@inline]
 
 module Common (Obj : Obj) = struct
@@ -1147,15 +1145,15 @@ module Common (Obj : Obj) = struct
 
   let newvar_below m = Solver.newvar_below obj m
 
-  let submode m0 m1 : (unit, error) result = Solver.submode obj m0 m1
+  let sub m0 m1 : (unit, error) result = Solver.sub obj m0 m1
 
   let join l = Solver.join obj l
 
   let meet l = Solver.meet obj l
 
-  let submode_exn m0 m1 = assert (submode m0 m1 |> Result.is_ok)
+  let sub_exn m0 m1 = assert (sub m0 m1 |> Result.is_ok)
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
@@ -1349,8 +1347,8 @@ module Comonadic_with_regionality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = reg0, lin0; right = reg1, lin1 } ->
       if Regionality.Const.le reg0 reg1
@@ -1361,7 +1359,7 @@ module Comonadic_with_regionality = struct
       else Error (`Regionality { left = reg0; right = reg1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1447,8 +1445,8 @@ module Comonadic_with_locality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = loc0, lin0; right = loc1, lin1 } ->
       if Locality.Const.le loc0 loc1
@@ -1459,7 +1457,7 @@ module Comonadic_with_locality = struct
       else Error (`Locality { left = loc0; right = loc1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1525,8 +1523,8 @@ module Monadic = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
       if Uniqueness.Const.le uni0 uni1
@@ -1534,7 +1532,7 @@ module Monadic = struct
       else Error (`Uniqueness { left = uni0; right = uni1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1625,23 +1623,21 @@ module Value = struct
   type equate_error = equate_step * error
 
   (* NB: state mutated when error *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
+  let sub { monadic = monadic0; comonadic = comonadic0 }
       { monadic = monadic1; comonadic = comonadic1 } =
     (* comonadic before monadic, so that locality errors dominate
        (error message backward compatibility) *)
-    match Comonadic.submode comonadic0 comonadic1 with
+    match Comonadic.sub comonadic0 comonadic1 with
     | Error e -> Error e
     | Ok () -> (
-      match Monadic.submode monadic0 monadic1 with
+      match Monadic.sub monadic0 monadic1 with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
-  let submode_exn m0 m1 =
-    match submode m0 m1 with
-    | Ok () -> ()
-    | Error _ -> invalid_arg "submode_exn"
+  let sub_exn m0 m1 =
+    match sub m0 m1 with Ok () -> () | Error _ -> invalid_arg "sub_exn"
 
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
@@ -1929,21 +1925,19 @@ module Alloc = struct
 
   (* NB: state mutated when error - should be fine as this always indicates type
      error in typecore.ml which triggers backtracking. *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
+  let sub { monadic = monadic0; comonadic = comonadic0 }
       { monadic = monadic1; comonadic = comonadic1 } =
-    match Monadic.submode monadic0 monadic1 with
+    match Monadic.sub monadic0 monadic1 with
     | Error e -> Error e
     | Ok () -> (
-      match Comonadic.submode comonadic0 comonadic1 with
+      match Comonadic.sub comonadic0 comonadic1 with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
-  let submode_exn m0 m1 =
-    match submode m0 m1 with
-    | Ok () -> ()
-    | Error _ -> invalid_arg "submode_exn"
+  let sub_exn m0 m1 =
+    match sub m0 m1 with Ok () -> () | Error _ -> invalid_arg "sub_exn"
 
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
@@ -2387,7 +2381,7 @@ module Modality = struct
 
     type equate_error = equate_step * sub_error
 
-    let equate m0 m1 = equate_from_submode sub m0 m1
+    let equate m0 m1 = equate_from_sub sub m0 m1
 
     let id = { regionality = Id; linearity = Id; uniqueness = Id }
 

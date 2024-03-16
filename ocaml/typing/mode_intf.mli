@@ -67,11 +67,11 @@ module type Common = sig
 
   val newvar : unit -> ('l * 'r) t
 
-  val submode : (allowed * 'r) t -> ('l * allowed) t -> (unit, error) result
+  val sub : (allowed * 'r) t -> ('l * allowed) t -> (unit, error) result
 
   val equate : lr -> lr -> (unit, equate_error) result
 
-  val submode_exn : (allowed * 'r) t -> ('l * allowed) t -> unit
+  val sub_exn : (allowed * 'r) t -> ('l * allowed) t -> unit
 
   val equate_exn : lr -> lr -> unit
 
