@@ -781,3 +781,32 @@ Line 4, characters 20-21:
 
 |}]
 
+type r = {x : float; y : float}
+
+let foo () =
+  let r = {x = 3.0; y = 5.0} in
+  let x = r.x in
+  ignore (unique_id r);
+  (* [x] is allocated fresh, unrelated to [r]. *)
+  ignore (unique_id x)
+[%%expect{|
+type r = { x : float; y : float; }
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let r = {x = 3.0; y = 5.0} in
+  ignore (unique_id r);
+  (* but projection still uses [r]'s mem block, of course *)
+  let x = r.x in
+  ignore (unique_id x)
+[%%expect{|
+Line 5, characters 10-11:
+5 |   let x = r.x in
+              ^
+Error: This value is read from here, but it has already been used as unique:
+Line 3, characters 20-21:
+3 |   ignore (unique_id r);
+                        ^
+
+|}]
