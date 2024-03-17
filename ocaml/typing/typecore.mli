@@ -152,10 +152,10 @@ val type_argument:
         type_expr -> type_expr -> Typedtree.expression
 
 val option_some:
-  Env.t -> Typedtree.expression -> ('l * Mode.allowed) Mode.Value.t -> Typedtree.expression
+        Env.t -> Parsetree.expression ->
+        type_expr-> type_expr -> Typedtree.expression
 val option_none:
-  Env.t -> type_expr -> Location.t -> Typedtree.expression
-val extract_option_type: Env.t -> type_expr -> type_expr
+        Env.t -> type_expr -> Location.t -> Typedtree.expression
 val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit

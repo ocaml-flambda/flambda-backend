@@ -740,13 +740,6 @@ let option_none env ty loc =
   let cnone = Env.find_ident_constructor Predef.ident_none env in
   mkexp (Texp_construct(mknoloc lid, cnone, [], None)) ty loc env
 
-let option_some env texp mode =
-  let alloc_mode  = register_allocation_value_mode mode in
-  let lid = Longident.Lident "Some" in
-  let csome = Env.find_ident_constructor Predef.ident_some env in
-  mkexp (Texp_construct(mknoloc lid , csome, [texp], Some (Alloc.disallow_left alloc_mode)))
-    (type_option texp.exp_type) texp.exp_loc texp.exp_env
-
 let extract_option_type env ty =
   match get_desc (expand_head env ty) with
     Tconstr(path, [ty], _) when Path.same path Predef.path_option -> ty
@@ -7103,6 +7096,16 @@ and type_format loc str env =
   with Failure msg ->
     raise (Error (loc, env, Invalid_format msg))
 
+and option_some env expected_mode sarg ty ty0 =
+  let ty' = extract_option_type env ty in
+  let ty0' = extract_option_type env ty0 in
+  let alloc_mode, argument_mode = register_allocation expected_mode in
+  let arg = type_argument env argument_mode sarg ty' ty0' in
+  let lid = Longident.Lident "Some" in
+  let csome = Env.find_ident_constructor Predef.ident_some env in
+  mkexp (Texp_construct(mknoloc lid , csome, [arg], Some alloc_mode))
+    (type_option arg.exp_type) arg.exp_loc arg.exp_env
+
 and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
@@ -7406,11 +7409,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         if vars = [] then begin
           let ty_arg0' = tpoly_get_mono ty_arg0 in
           if wrapped_in_some then begin
-            option_some env
-              (type_argument env (mode_subcomponent expected_mode) sarg
-                 (extract_option_type env ty_arg')
-                 (extract_option_type env ty_arg0'))
-              expected_mode.mode
+            option_some env expected_mode sarg ty_arg' ty_arg0'
           end else begin
             type_argument env expected_mode sarg ty_arg' ty_arg0'
           end
@@ -10117,4 +10116,8 @@ let type_exp env e =
 
 let type_argument env e t1 t2 =
   let exp = type_argument env mode_legacy e t1 t2 in
+  maybe_check_uniqueness_exp exp; exp
+
+let option_some env e t1 t2 =
+  let exp = option_some env mode_legacy e t1 t2 in
   maybe_check_uniqueness_exp exp; exp
