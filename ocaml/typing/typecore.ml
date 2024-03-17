@@ -3739,7 +3739,7 @@ let rec is_nonexpansive exp =
            | Kept _ -> true)
         fields
       && is_nonexpansive_opt extended_expression
-  | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_field(exp, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -5029,11 +5029,6 @@ and type_expect_
       unify_exp ~sdesc_for_hint:desc env (re exp) (instance ty_expected));
     exp
   in
-  let ruem ~mode ~expected_mode exp =
-    let exp = rue exp in
-    submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
-    exp
-  in
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
@@ -5605,28 +5600,31 @@ and type_expect_
       let (record, rmode, label, _) =
         type_label_access env srecord Env.Projection lid
       in
-      let alloc_mode = match label.lbl_repres with
-      (* projecting out of packed-float-record needs allocation *)
-        | Record_float -> Some (register_allocation expected_mode)
-        | _ -> None
-      in
-      let mode = modality_unbox_left label.lbl_global rmode in
       let ty_arg =
         with_local_level_if_principal begin fun () ->
-          (* ty_arg is the type of field *)
-          (* ty_res is the type of record *)
-          (* they could share type variables *)
-          (* which are now instantiated *)
+          (* [ty_arg] is the type of field, [ty_res] is the type of record, they
+           could share type variables, which are now instantiated *)
           let (_, ty_arg, ty_res) = instance_label false label in
           (* we now link the two record types *)
           unify_exp env record ty_res;
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = mode_cross_left env ty_arg mode in
-      let uu = unique_use ~loc ~env mode expected_mode.mode in
-      ruem ~mode ~expected_mode {
-        exp_desc = Texp_field(record, lid, label, uu, alloc_mode);
+      let float =
+        match label.lbl_repres with
+        | Record_float ->
+          ignore rmode;
+          let alloc_mode, _ = register_allocation expected_mode in
+          Float alloc_mode
+        | _ ->
+          let mode = modality_unbox_left label.lbl_global rmode in
+          let mode = mode_cross_left env ty_arg mode in
+          submode ~loc ~env mode expected_mode;
+          let uu = unique_use ~loc ~env mode expected_mode.mode in
+          Non_float uu
+      in
+      rue {
+        exp_desc = Texp_field(record, lid, label, float);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;

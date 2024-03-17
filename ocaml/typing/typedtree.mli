@@ -72,6 +72,13 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type texp_field_float =
+  | Float of Mode.Alloc.r
+  (** Projecting out of a float record, which requires allocation described by
+      the mode.  *)
+  | Non_float of unique_use
+  (** Projecting out of a normal record. *)
+
 val shared_many_use : unique_use
 
 type pattern = value general_pattern
@@ -333,10 +340,9 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      unique_use * Mode.Alloc.r option
-    (** [alloc_mode] is the allocation mode of the result; available ONLY
-        only when getting a (float) field from a [Record_float] record
-      *)
+      texp_field_float
+    (** [texp_field_float] provides extra information depending on whether it is
+      an float record. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression

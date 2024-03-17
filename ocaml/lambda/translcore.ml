@@ -539,7 +539,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode_r alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, _, alloc_mode) ->
+  | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
@@ -554,7 +554,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
-          let mode = transl_alloc_mode_r (Option.get alloc_mode) in
+          let alloc_mode =
+            match float with
+            | Float alloc_mode -> alloc_mode
+            | Non_float _ -> assert false
+          in
+          let mode = transl_alloc_mode_r alloc_mode in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_ufloat ->

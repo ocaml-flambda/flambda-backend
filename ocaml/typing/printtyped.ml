@@ -467,9 +467,8 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf extended_expression;
-  | Texp_field (e, li, _, _, am) ->
+  | Texp_field (e, li, _, _) ->
       line i ppf "Texp_field\n";
-      alloc_mode_option i ppf am;
       expression i ppf e;
       longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->
