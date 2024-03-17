@@ -429,11 +429,6 @@ let value_regional_to_local mode =
   |> value_to_alloc_r2l
   |> alloc_as_value
 
-let value_regional_to_global mode =
-  mode
-  |> value_to_alloc_r2g
-  |> alloc_as_value
-
 (* Describes how a modality affects field projection. Returns the mode
    of the projection given the mode of the record. *)
 let modality_unbox_left global_flag mode =
@@ -490,10 +485,6 @@ let mode_with_position mode position =
 
 let mode_max_with_position position =
   { mode_max with position }
-
-let mode_subcomponent expected_mode =
-  let mode = alloc_as_value (value_to_alloc_r2g expected_mode.mode) in
-  mode_default mode
 
 let mode_box_modality gf expected_mode =
   mode_default (modality_box_right gf expected_mode.mode)
@@ -624,10 +615,15 @@ let register_allocation_mode alloc_mode =
 let register_allocation_value_mode mode =
   let alloc_mode = value_to_alloc_r2g mode in
   register_allocation_mode alloc_mode;
-  alloc_mode
+  let mode = alloc_as_value alloc_mode in
+  alloc_mode, mode
 
+(** Register as allocation the expression constrained by the given
+    [expected_mode]. Returns the mode of the allocation, and the expected mode
+    of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
-  register_allocation_value_mode expected_mode.mode
+  let alloc_mode, mode = register_allocation_value_mode expected_mode.mode in
+  alloc_mode, mode_default mode
 
 let optimise_allocations () =
   List.iter
@@ -4766,18 +4762,17 @@ let split_function_ty
     ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
   let alloc_mode =
-      let alloc_mode = value_to_alloc_r2g expected_mode.mode in
       (* Unlike most allocations which can be the highest mode allowed by
          [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
          functions have more constraints. For example, an outer function needs
          to be made global if its inner function is global. As a result, a
          function deserves a separate allocation mode.
       *)
-      fst (Alloc.newvar_below alloc_mode)
+      let mode, _ = Value.newvar_below expected_mode.mode in
+      fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
-  register_allocation_mode alloc_mode;
   let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
     in_function
   in
@@ -5349,7 +5344,7 @@ and type_expect_
           simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
           let modes = List.init arity (fun _ -> Value.newvar ()) in
-          let mode, _ = Value.newvar_above (Value.join (Value.List.disallow_right modes)) in
+          let mode, _ = Value.newvar_above (Value.join modes) in
           let mode = value_regional_to_local mode in
           tuple_pat_mode mode modes, mode_tuple mode modes
       in
@@ -5403,7 +5398,6 @@ and type_expect_
       (* Keep sharing *)
       let ty_expected1 = protect_expansion env ty_expected in
       let ty_expected0 = instance ty_expected in
-      let argument_mode = mode_subcomponent expected_mode in
       begin try match
         sarg, get_desc (expand_head env ty_expected1),
         get_desc (expand_head env ty_expected0)
@@ -5414,8 +5408,8 @@ and type_expect_
             row_field_repr (get_row_field l row0)
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
+              let alloc_mode, argument_mode = register_allocation expected_mode in
               let arg = type_argument env argument_mode sarg ty ty0 in
-              let alloc_mode = register_allocation expected_mode in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
@@ -5431,10 +5425,10 @@ and type_expect_
             let ty_expected =
               newvar (Jkind.value ~why:Polymorphic_variant_field)
             in
+            let alloc_mode, argument_mode = register_allocation expected_mode in
             let arg =
               type_expect env argument_mode sarg (mk_expected ty_expected)
             in
-            let alloc_mode = register_allocation expected_mode in
             Some (arg, alloc_mode)
         in
         let arg_type = Option.map (fun (arg, _) -> arg.exp_type) arg in
@@ -7294,11 +7288,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       in
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
       if args = [] then texp else begin
-      (* In this case, we're allocating a new closure, so [sarg] needs
-         to be valid at [mode_subcomponent mode], not just [mode] *)
-      let alloc_mode = register_allocation mode in
+      let alloc_mode, mode_subcomponent = register_allocation mode in
       submode ~loc:sarg.pexp_loc ~env ~reason:Other
-        exp_mode (mode_subcomponent mode);
+        exp_mode mode_subcomponent;
       (* eta-expand to avoid side effects *)
       let var_pair ~(mode : Value.lr) name ty =
         let id = Ident.create_local name in
@@ -7364,7 +7356,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                   };
               ret_mode = Alloc.disallow_right mret;
               ret_sort;
-              alloc_mode = Alloc.disallow_left alloc_mode;
+              alloc_mode;
               region = false;
             }
         }
@@ -7560,7 +7552,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     ~explanation ~attributes sexpl =
   let arity = List.length sexpl in
   assert (arity >= 2);
-  let alloc_mode = register_allocation expected_mode in
+  let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
@@ -7573,10 +7565,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let argument_modes =
     if List.compare_length_with expected_mode.tuple_modes arity = 0 then
       expected_mode.tuple_modes
-    else begin
-      let arg_mode = value_regional_to_global expected_mode.mode in
-      List.init arity (fun _ -> arg_mode)
-    end
+    else List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
   let expl =
@@ -7696,8 +7685,8 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     | Variant_unboxed -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
-       mode_subcomponent expected_mode,
-       Some (register_allocation expected_mode)
+       let alloc_mode, argument_mode = register_allocation expected_mode in
+       argument_mode, Some alloc_mode
   in
   let args =
     List.map2
@@ -8577,17 +8566,17 @@ and type_generic_array
       ~attributes
       sargl
   =
-  let type_, base_argument_mode = match mutability with
+  let alloc_mode, argument_mode = register_allocation expected_mode in
+  let type_, argument_mode = match mutability with
     | Mutable -> Predef.type_array, mode_default Value.legacy
-    | Immutable -> Predef.type_iarray, mode_subcomponent expected_mode
+    | Immutable -> Predef.type_iarray, argument_mode
   in
-  let alloc_mode = register_allocation expected_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross env ty base_argument_mode in
+  let argument_mode = expect_mode_cross env ty argument_mode in
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
