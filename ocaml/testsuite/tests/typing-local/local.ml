@@ -2945,3 +2945,16 @@ let () = foo (local_ M_constructor)
 let () = foo_f (local_ (fun M_constructor -> ()))
 [%%expect{|
 |}]
+
+type r = {global_ x : string; y : string}
+
+let foo () =
+  let local_ y = "world" in
+  let local_ r = {x = "hello"; y} in
+  (* Only using r.x, which is global. So the whole return is global and OK. *)
+  {r with y = "foo!" }
+[%%expect{|
+type r = { global_ x : string; y : string; }
+val foo : unit -> r = <fun>
+|}]
+

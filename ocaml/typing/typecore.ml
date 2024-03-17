@@ -2135,17 +2135,14 @@ let map_fold_cont f xs k =
   List.fold_right (fun x k ys -> f x (fun y -> k (y :: ys)))
     xs (fun ys -> k (List.rev ys)) []
 
-let type_label_a_list loc closed env usage type_lbl_a expected_type lid_a_list =
+let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
   let lbl_a_list =
     disambiguate_lid_a_list loc closed env usage expected_type lid_a_list
   in
   (* Invariant: records are sorted in the typed tree *)
-  let lbl_a_list =
-    List.sort
-      (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
-      lbl_a_list
-  in
-  List.map type_lbl_a lbl_a_list
+  List.sort
+    (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
+    lbl_a_list
 
 (* Checks over the labels mentioned in a record pattern:
    no duplicate definitions (error); properly closed (warning) *)
@@ -2682,10 +2679,10 @@ and type_pat_aux
       let lbl_a_list =
         wrap_disambiguate "This record pattern is expected to have"
           (mk_expected expected_ty)
-          (type_label_a_list loc false !env Env.Projection
-             type_label_pat expected_type)
+          (disambiguate_sort_lid_a_list loc false !env Env.Projection expected_type)
           lid_sp_list
       in
+      let lbl_a_list = List.map type_label_pat lbl_a_list in
       rvp @@ solve_expected (make_record_pat lbl_a_list)
   | Ppat_array spl ->
       type_pat_array Mutable spl sp.ppat_attributes
@@ -5448,9 +5445,7 @@ and type_expect_
         | Some sexp ->
             let exp, mode =
               with_local_level_if_principal begin fun () ->
-                (* TODO: mode can be more relaxed than this if fields are global *)
                 let mode = Value.newvar () in
-                submode ~loc ~env mode (mode_subcomponent expected_mode);
                 let exp = type_exp ~recarg env (mode_default mode) sexp in
                 exp, mode
               end ~post:(fun (exp, _) -> generalize_structure_exp exp)
@@ -5493,29 +5488,31 @@ and type_expect_
             ty, opt_exp_opath
       in
       let closed = (opt_sexp = None) in
-      let lbl_exp_list =
+      let lbl_a_list =
         wrap_disambiguate "This record expression is expected to have"
           (mk_expected ty_record)
-          (type_label_a_list loc closed env Env.Construct
-             (type_label_exp true env expected_mode loc ty_record)
-             expected_type)
+          (disambiguate_sort_lid_a_list loc closed env Env.Construct expected_type)
           lid_sexp_list
+      in
+      let alloc_mode, argument_mode =
+        if List.exists
+            (fun (_, {lbl_repres; _}, _) ->
+              match lbl_repres with
+              | Record_unboxed | Record_inlined (_, Variant_unboxed) -> false
+              | _ -> true)
+            lbl_a_list then
+          let alloc_mode, argument_mode = register_allocation expected_mode in
+          Some alloc_mode, argument_mode
+        else
+          None, expected_mode
+      in
+      let lbl_exp_list =
+        List.map (type_label_exp true env argument_mode loc ty_record) lbl_a_list
       in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
-      let alloc_mode =
-        if List.exists
-            (function
-              | _, { lbl_repres = Record_unboxed; _ }, _ -> false
-              | _ -> true)
-            lbl_exp_list then
-          Some (register_allocation expected_mode)
-        else
-          None
-      in
-      (* type_label_a_list returns a list of labels sorted by lbl_num *)
       (* note: check_duplicates would better be implemented in
-         type_label_a_list directly *)
+         disambiguate_sort_lid_a_list directly *)
       let rec check_duplicates = function
         | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
           raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
@@ -5570,16 +5567,12 @@ and type_expect_
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   let mode = modality_unbox_left lbl.lbl_global mode in
-                  let rmode =
-                    (* We skip a potential [mode_subcomponent] since
-                       it does not affect uniqueness. *)
-                    expected_mode
+                  let argument_mode =
+                    mode_box_modality lbl.lbl_global argument_mode
                   in
-                  let expected_mode =
-                    mode_box_modality lbl.lbl_global rmode
-                  in
+                  submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode expected_mode.mode)
+                        unique_use ~loc ~env mode argument_mode.mode)
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
@@ -7106,17 +7099,13 @@ and option_some env expected_mode sarg ty ty0 =
   mkexp (Texp_construct(mknoloc lid , csome, [arg], Some alloc_mode))
     (type_option arg.exp_type) arg.exp_loc arg.exp_env
 
+(* [expected_mode] is the expected mode of the field. It's already adjusted for
+   allocation but not modality *)
 and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let rmode =
-    match label.lbl_repres with
-    | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
-      expected_mode
-    | _ -> mode_subcomponent expected_mode
-  in
-  let arg_mode = mode_box_modality label.lbl_global rmode in
+  let arg_mode = mode_box_modality label.lbl_global expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
