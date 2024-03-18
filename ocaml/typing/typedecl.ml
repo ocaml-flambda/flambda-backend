@@ -1,4 +1,4 @@
-(**************************************************************************)
+(******************************u*******************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
@@ -43,6 +43,11 @@ and reaching_type_step =
   | Contains of type_expr * type_expr
 
 type mixed_record_violation =
+  | Runtime_support_not_enabled
+  | Value_prefix_too_long of
+      { value_prefix_len : int;
+        max_value_prefix_len : int;
+      }
   | Flat_field_expected of
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
@@ -1095,14 +1100,21 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
-let assert_mixed_record_support () =
-  (* CR mixed blocks: do this from some central place... *)
-  if Config.reserved_header_bits < 8 then
-    failwith "Need at least 8 reserved header bits to play this game.";
-  (* CR mixed blocks: The naked pointer check can be deleted. *)
-  if Config.naked_pointers then
-    failwith "You won't get any useful information from testing this \
-              with naked pointers enabled."
+let assert_mixed_record_support =
+  let required_reserved_header_bits = 8 in
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
+  fun loc ~value_prefix_len ->
+    if Config.reserved_header_bits < required_reserved_header_bits then
+      raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
+    if value_prefix_len > max_value_prefix_len then
+      raise
+        (Error (loc,
+                Illegal_mixed_record
+                  (Value_prefix_too_long
+                     { value_prefix_len; max_value_prefix_len })))
 
 (* This function updates jkind stored in kinds with more accurate jkinds.
    It is called after the circularity checks and the delayed jkind checks
@@ -1187,7 +1199,6 @@ let update_decl_jkind env dpath decl =
             (* We store mixed float/float64 records as flat if there are no
                 non-float fields.
             *)
-            assert_mixed_record_support ();
             let flat_suffix =
               List.map
                 (fun (_, c) ->
@@ -1200,10 +1211,10 @@ let update_decl_jkind env dpath decl =
                 classifications
               |> Array.of_list
             in
+            assert_mixed_record_support loc ~value_prefix_len:0;
             Record_mixed { value_prefix_len = 0; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
-            assert_mixed_record_support ();
             let rec find_flat_suffix classifications =
               match classifications with
               | [] -> Misc.fatal_error "Expected at least one Float64"
@@ -1248,6 +1259,7 @@ let update_decl_jkind env dpath decl =
             let value_prefix_len =
               Array.length jkinds - Array.length flat_suffix
             in
+            assert_mixed_record_support loc ~value_prefix_len;
             Record_mixed { value_prefix_len; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = false }
         | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
@@ -3288,12 +3300,24 @@ let report_error ppf = function
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
-  | Illegal_mixed_record (Flat_field_expected { boxed_lbl; non_value_lbl }) ->
-      fprintf ppf
-        "@[Expected all flat fields after non-value field, %s,@]@,\
-        \ @[but found boxed field, %s.@]"
-        (Ident.name non_value_lbl)
-        (Ident.name boxed_lbl)
+  | Illegal_mixed_record error -> begin
+      match error with
+      | Flat_field_expected { boxed_lbl; non_value_lbl } ->
+          fprintf ppf
+            "@[Expected all flat fields after non-value field, %s,@]@,\
+            \ @[but found boxed field, %s.@]"
+            (Ident.name non_value_lbl)
+            (Ident.name boxed_lbl)
+      | Runtime_support_not_enabled ->
+          fprintf ppf
+            "[@This OCaml runtime doesn't support mixed records. Contact\
+            \ Jane Street compiler devs if you see this error.@]"
+      | Value_prefix_too_long { value_prefix_len; max_value_prefix_len } ->
+          fprintf ppf
+            "[@Mixed records may contain at most %d value fields, but this\
+            \ one contains %d.@]"
+            max_value_prefix_len value_prefix_len
+    end
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

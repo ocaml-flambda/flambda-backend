@@ -208,7 +208,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
-  | Abstract_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -392,11 +392,11 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses float# representation"
-  | Abstract_representation ord ->
+  | Mixed_representation ord ->
       (* CR layouts: As above. *)
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
-        "uses abstract representation"
+        "uses mixed representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -688,9 +688,9 @@ module Record_diffing = struct
 
      | Record_mixed _, Record_mixed _ -> None
      | Record_mixed _, _ ->
-        Some (Record_mismatch (Abstract_representation First))
+        Some (Record_mismatch (Mixed_representation First))
      | _, Record_mixed _ ->
-        Some (Record_mismatch (Abstract_representation Second))
+        Some (Record_mismatch (Mixed_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None
 

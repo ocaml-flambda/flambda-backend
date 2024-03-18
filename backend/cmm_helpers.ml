@@ -90,11 +90,15 @@ module Mixed_block_support : sig
 
   val make_header : Nativeint.t -> scannable_prefix:int -> Nativeint.t
 end = struct
+  (* CR mixed blocks v1: This "8" is duplicated in [typedecl.ml]. We should fix
+     up this duplication when we make the "8" configurable. *)
   let required_reserved_header_bits = 8
 
   let required_addr_size_bits = 64
 
-  (* CR mixed blocks: this needs to be consumed by the frontend. *)
+  (* Many of these checks are duplicated *)
+
+  (* CR mixed blocks v1: This is also duplicated in [typedecl.ml]. *)
   (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
      the prefix. But the all-0 prefix means "not a mixed block", so we can't use
      the all-0 pattern, and we must subtract 2 instead. *)
@@ -109,7 +113,7 @@ end = struct
       (if not Config.runtime5
        then Misc.fatal_error "Mixed blocks are only supported in runtime5";
        if not Config.native_compiler
-       then Misc.fatal_error "Mixed blocks are only supported in bytecode";
+       then Misc.fatal_error "Mixed blocks are only supported in native code";
        let reserved_header_bits = Config.reserved_header_bits in
        let addr_size_bits = Arch.size_addr * 8 in
        match
@@ -134,6 +138,9 @@ end = struct
     then
       Misc.fatal_errorf "Scannable prefix too big (%d > %d)" scannable_prefix
         max_scannable_prefix;
+    (* This means we crash the compiler if someone tries to write a mixed record
+       with too many fields, but you effectively can't: you'd need something
+       like 2^46 fields. *)
     if header > max_header
     then
       Misc.fatal_errorf
@@ -1507,7 +1514,10 @@ let make_mixed_alloc ~mode dbg shape args =
   in
   make_alloc_generic
     ~scannable_prefix:
-      (* CR mixed blocks: A bit weird to actually not do a mixed block, but only
+      (* CR mixed blocks: It's a bit weird for this stage to decide
+         to not do a mixed block if we're in bytecode, given that
+         an earlier stage indicated:q
+
          at this stage. Should we do the bytecode check earlier, in
          translcore? *)
       (Scannable_prefix.scan_prefix_if_native_code value_prefix_len)

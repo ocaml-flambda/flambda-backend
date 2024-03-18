@@ -914,7 +914,7 @@ let rec choice ctx t =
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
 
-    (* we don't handle all-float records or abstract blocks *)
+    (* we don't handle all-float records or mixed blocks *)
     | Pmakefloatblock _
     | Pmakeufloatblock _
     | Pmakemixedblock _

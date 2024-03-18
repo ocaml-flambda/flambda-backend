@@ -564,10 +564,9 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
-  | Mixed _ ->
-      (* CR mixed blocks: *)
-    Misc.fatal_errorf "TODO: Block_access_kind: %a"
-      Flambda_primitive.Block_access_kind.print bk
+  | Mixed { size = s; field_kind } ->
+    let size = s |> size in
+    Mixed { size; field_kind }
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with

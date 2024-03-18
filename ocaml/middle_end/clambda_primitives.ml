@@ -48,8 +48,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pabstractfield of int * flat_element * alloc_mode
-  | Psetabstractfield of int * flat_element * initialization_or_assignment
+  | Pmixedfield of int * flat_element * alloc_mode
+  | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -272,7 +272,7 @@ let result_layout (p : primitive) =
   | Pbox_float (bf, _) -> Lambda.layout_boxed_float bf
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float bf -> Punboxed_float bf
-  | Pabstractfield (_, shape, _) -> begin
+  | Pmixedfield (_, shape, _) -> begin
       match shape with
       | Imm | Float -> Lambda.layout_any_value
       | Float64 -> Lambda.layout_unboxed_float

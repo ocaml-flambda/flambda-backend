@@ -48,9 +48,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  (* CR mixed blocks: Pmixedfield *)
-  | Pabstractfield of int * flat_element * alloc_mode
-  | Psetabstractfield of int * flat_element * initialization_or_assignment
+  | Pmixedfield of int * flat_element * alloc_mode
+  | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack

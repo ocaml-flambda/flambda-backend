@@ -87,6 +87,11 @@ and reaching_type_step =
   | Contains of type_expr * type_expr
 
 type mixed_record_violation =
+  | Runtime_support_not_enabled
+  | Value_prefix_too_long of
+      { value_prefix_len : int;
+        max_value_prefix_len : int;
+      }
   | Flat_field_expected of
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;

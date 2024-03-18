@@ -205,13 +205,13 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
   | Pfloatfield (n, Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
   | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
-  | Pabstractfield (n, shape, mode) ->
+  | Pmixedfield (n, shape, mode) ->
     let mode =
       match mode with
       | Alloc_heap -> ""
       | Alloc_local -> "local"
     in
-    fprintf ppf "abstractfield%s %i %a"
+    fprintf ppf "mixedfield%s %i %a"
       mode n Printlambda.flat_element shape
   | Psetfloatfield (n, init) ->
       let init =
@@ -231,7 +231,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
-  | Psetabstractfield (n, shape, init) ->
+  | Psetmixedfield (n, shape, init) ->
       let init =
         match init with
         | Heap_initialization -> "(heap-init)"
