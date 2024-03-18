@@ -28,6 +28,7 @@ type native_repr_kind = Unboxed | Untagged
 
 type jkind_sort_loc =
   | Cstr_tuple
+  | Record
   | Unboxed_record
   | External
   | External_with_layout_poly
@@ -3280,6 +3281,7 @@ let report_error ppf = function
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"
+      | Record -> "Records"
       | Unboxed_record -> "Unboxed records"
       | External | External_with_layout_poly -> assert false
     in

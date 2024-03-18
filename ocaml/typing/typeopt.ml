@@ -540,7 +540,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                       label.ld_type
                 | Flat_suffix Imm -> num_nodes_visited, Pintval
                 | Flat_suffix (Float | Float64) ->
-                    num_nodes_visited, Pboxedfloatval Pfloatval
+                    num_nodes_visited, Pboxedfloatval Pfloat64
                 end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited

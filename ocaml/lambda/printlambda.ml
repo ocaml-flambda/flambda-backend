@@ -306,7 +306,7 @@ let flat_element ppf : flat_element -> unit = function
 
 let flat_element_projection ppf : flat_element_projection -> unit = function
   | Projection_imm -> pp_print_string ppf "int"
-  | Projection_float m -> fprintf ppf "float[%s]" (alloc_mode m)
+  | Projection_float m -> fprintf ppf "float[%a]" alloc_mode m
   | Projection_float64 -> pp_print_string ppf "float64"
 
 let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
@@ -388,14 +388,14 @@ let primitive ppf = function
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode_if_local mode)
   | Pmakemixedblock (Immutable, abs, mode) ->
-      fprintf ppf "make%smixedblock Immutable%a"
-        (alloc_mode mode) mixed_block_shape abs
+      fprintf ppf "make%amixedblock Immutable%a"
+        alloc_mode mode mixed_block_shape abs
   | Pmakemixedblock (Immutable_unique, abs, mode) ->
-     fprintf ppf "make%smixedblock Immutable_unique%a"
-        (alloc_mode mode) mixed_block_shape abs
+     fprintf ppf "make%amixedblock Immutable_unique%a"
+        alloc_mode mode mixed_block_shape abs
   | Pmakemixedblock (Mutable, abs, mode) ->
-     fprintf ppf "make%smixedblock Mutable%a"
-        (alloc_mode mode) mixed_block_shape abs
+     fprintf ppf "make%amixedblock Mutable%a"
+        alloc_mode mode mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with

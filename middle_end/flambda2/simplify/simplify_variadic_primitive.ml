@@ -92,9 +92,13 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
         args, result)
       (args, Or_bottom.Ok TEE.empty) block_shape
   in
-  if not (List.is_empty remaining_args) then
-    Misc.fatal_error
-      "We already checked that [args] and [block_shape] have the same length";
+  let () =
+    match remaining_args with
+    | [] -> ()
+    | _ :: _ ->
+      Misc.fatal_error
+        "We already checked that [args] and [block_shape] have the same length"
+  in
   match result with
   | Bottom -> SPR.create_invalid dacc
   | Ok env_extension ->

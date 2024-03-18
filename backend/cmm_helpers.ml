@@ -146,6 +146,7 @@ end = struct
       header
 end
 
+(* CR mshinwell: update to use NOT_MARKABLE terminology *)
 let block_header ?(scannable_prefix = Scannable_prefix.scan_all) tag sz =
   let hdr =
     Nativeint.add
@@ -156,12 +157,6 @@ let block_header ?(scannable_prefix = Scannable_prefix.scan_all) tag sz =
   | Scan_all -> hdr
   | Scan_prefix scannable_prefix ->
     Mixed_block_support.make_header hdr ~scannable_prefix
-
-(* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header tag sz =
-  Nativeint.add
-    (Nativeint.shift_left (Nativeint.of_int sz) 10)
-    (Nativeint.of_int tag)
 
 (* Static data corresponding to "value"s must be marked black in case we are in
    no-naked-pointers mode. See [caml_darken] and the code below that emits

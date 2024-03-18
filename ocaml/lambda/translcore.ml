@@ -575,7 +575,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               | Float64 -> Projection_float64
               | Float ->
                  (match alloc_mode with
-                  | Some mode -> Projection_float (transl_alloc_mode mode)
+                  | Some mode -> Projection_float (transl_alloc_mode_r mode)
                   | None ->
                       Misc.fatal_error
                         "expected typechecking to make [alloc_mode] present \
