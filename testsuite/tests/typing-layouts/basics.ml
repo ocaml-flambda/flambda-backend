@@ -1186,8 +1186,8 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* CR layouts v5: Bring the void versions over from basics_alpha *)
 
@@ -1322,27 +1322,12 @@ Error: This expression has type ('a : value)
 (* array *)
 type t13f = t_float64 array;;
 [%%expect{|
-Line 1, characters 12-21:
-1 | type t13f = t_float64 array;;
-                ^^^^^^^^^
-Error: This type t_float64 should be an instance of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13f = t_float64 array
 |}];;
 
 let x13f (v : t_float64) = [| v |];;
 [%%expect{|
-Line 1, characters 30-31:
-1 | let x13f (v : t_float64) = [| v |];;
-                                  ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 -> t_float64 array = <fun>
 |}];;
 
 let x13f v =
@@ -1350,15 +1335,7 @@ let x13f v =
   | [| v |] -> f_id v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 20-21:
-3 |   | [| v |] -> f_id v
-                        ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_float64
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 array -> t_float64 = <fun>
 |}];;
 
 (****************************************************************************)
