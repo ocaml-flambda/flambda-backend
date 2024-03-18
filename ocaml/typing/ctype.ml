@@ -4304,12 +4304,12 @@ let add_method env label priv virt ty sign =
   sign.csig_meths <- meths
 
 type add_instance_variable_failure =
-  | Mutability_mismatch of mutable_flag
+  | Mutability_mismatch of Asttypes.mutable_flag
   | Type_mismatch of Errortrace.unification_error
 
 exception Add_instance_variable_failed of add_instance_variable_failure
 
-let check_mutability mut mut' =
+let check_mutability (mut:Asttypes.mutable_flag) (mut':Asttypes.mutable_flag) =
   match mut, mut' with
   | Mutable, Mutable -> ()
   | Immutable, Immutable -> ()
@@ -5286,10 +5286,10 @@ let match_class_sig_shape ~strict sign1 sign2 =
   in
   let errors =
     Vars.fold
-      (fun lab (mut, vr, _) err ->
+      (fun lab ((mut:Asttypes.mutable_flag), vr, _) err ->
          match Vars.find lab sign1.csig_vars with
          | exception Not_found -> CM_Missing_value lab::err
-         | (mut', vr', _) ->
+         | ((mut':Asttypes.mutable_flag), vr', _) ->
              match mut', mut with
              | Immutable, Mutable -> CM_Non_mutable_value lab::err
              | _, _ ->

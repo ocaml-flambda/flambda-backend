@@ -19,6 +19,14 @@ open Asttypes
 
 type jkind = Jkind.t
 
+type mutable_flag =
+  | Immutable
+  | Mutable of Mode.Alloc.Const.t
+
+let is_mutable = function
+  | Immutable -> false
+  | Mutable _ -> true
+
 (* Type expressions for the core language *)
 
 type transient_expr =
@@ -110,7 +118,7 @@ module Vars = Misc.Stdlib.String.Map
 type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
-  | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
+  | Val_ivar of Asttypes.mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of
       class_signature * self_meths * Ident.t Vars.t * string
                                         (* Self *)
@@ -124,7 +132,7 @@ and self_meths =
 and class_signature =
   { csig_self: type_expr;
     mutable csig_self_row: type_expr;
-    mutable csig_vars: (mutable_flag * virtual_flag * type_expr) Vars.t;
+    mutable csig_vars: (Asttypes.mutable_flag * virtual_flag * type_expr) Vars.t;
     mutable csig_meths: (method_privacy * virtual_flag * type_expr) Meths.t; }
 
 and method_privacy =

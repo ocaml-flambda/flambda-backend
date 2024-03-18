@@ -369,7 +369,7 @@ and class_field_desc =
       override_flag * class_expr * string option * (string * Ident.t) list *
         (string * Ident.t) list
     (* Inherited instance variables and concrete methods *)
-  | Tcf_val of string loc * mutable_flag * Ident.t * class_field_kind * bool
+  | Tcf_val of string loc * Asttypes.mutable_flag * Ident.t * class_field_kind * bool
   | Tcf_method of string loc * private_flag * class_field_kind
   | Tcf_constraint of core_type * core_type
   | Tcf_initializer of expression
@@ -751,7 +751,7 @@ and class_type_field = {
 
 and class_type_field_desc =
   | Tctf_inherit of class_type
-  | Tctf_val of (string * mutable_flag * virtual_flag * core_type)
+  | Tctf_val of (string * Asttypes.mutable_flag * virtual_flag * core_type)
   | Tctf_method of (string * private_flag * virtual_flag * core_type)
   | Tctf_constraint of (core_type * core_type)
   | Tctf_attribute of attribute

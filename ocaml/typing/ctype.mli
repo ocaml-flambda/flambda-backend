@@ -414,13 +414,13 @@ val add_method : Env.t ->
   label -> private_flag -> virtual_flag -> type_expr -> class_signature -> unit
 
 type add_instance_variable_failure =
-  | Mutability_mismatch of mutable_flag
+  | Mutability_mismatch of Asttypes.mutable_flag
   | Type_mismatch of Errortrace.unification_error
 
 exception Add_instance_variable_failed of add_instance_variable_failure
 
 val add_instance_variable : strict:bool -> Env.t ->
-  label -> mutable_flag -> virtual_flag -> type_expr -> class_signature -> unit
+  label -> Asttypes.mutable_flag -> virtual_flag -> type_expr -> class_signature -> unit
 
 type inherit_class_signature_failure =
   | Self_type_mismatch of Errortrace.unification_error

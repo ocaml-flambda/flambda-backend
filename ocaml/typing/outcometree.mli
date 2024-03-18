@@ -66,11 +66,6 @@ type out_type_param =
     oparam_injectivity : Asttypes.injectivity;
     oparam_jkind : out_jkind option }
 
-type out_mutable_or_global =
-  | Ogom_mutable
-  | Ogom_global
-  | Ogom_immutable
-
 type out_global =
   | Ogf_global
   | Ogf_unrestricted
@@ -87,7 +82,7 @@ type out_type =
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
-  | Otyp_record of (string * out_mutable_or_global * out_type) list
+  | Otyp_record of (string * bool * out_type * out_global) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list
