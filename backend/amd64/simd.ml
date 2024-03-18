@@ -699,20 +699,13 @@ let print_operation_sse2 printreg op ppf arg =
   | Cmpgt_i8 -> fprintf ppf "cmpgt_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i16 -> fprintf ppf "cmpgt_i16 %a %a" printreg arg.(0) printreg arg.(1)
   | Cmpgt_i32 -> fprintf ppf "cmpgt_i32 %a %a" printreg arg.(0) printreg arg.(1)
-  | Cast_scalar_f64_i64 ->
-    fprintf ppf "cast_scalar_f64_i64 %a" printreg arg.(0)
-  | I32_to_f64 ->
-    fprintf ppf "i32_to_f64 %a" printreg arg.(0)
-  | I32_to_f32 ->
-    fprintf ppf "i32_to_f32 %a" printreg arg.(0)
-  | F64_to_i32 ->
-    fprintf ppf "f64_to_i32 %a" printreg arg.(0)
-  | F64_to_f32 ->
-    fprintf ppf "f64_to_f32 %a" printreg arg.(0)
-  | F32_to_i32 ->
-    fprintf ppf "f32_to_i32 %a" printreg arg.(0)
-  | F32_to_f64 ->
-    fprintf ppf "f32_to_f64 %a" printreg arg.(0)
+  | Cast_scalar_f64_i64 -> fprintf ppf "cast_scalar_f64_i64 %a" printreg arg.(0)
+  | I32_to_f64 -> fprintf ppf "i32_to_f64 %a" printreg arg.(0)
+  | I32_to_f32 -> fprintf ppf "i32_to_f32 %a" printreg arg.(0)
+  | F64_to_i32 -> fprintf ppf "f64_to_i32 %a" printreg arg.(0)
+  | F64_to_f32 -> fprintf ppf "f64_to_f32 %a" printreg arg.(0)
+  | F32_to_i32 -> fprintf ppf "f32_to_i32 %a" printreg arg.(0)
+  | F32_to_f64 -> fprintf ppf "f32_to_f64 %a" printreg arg.(0)
   | I16_to_i8 -> fprintf ppf "i16_to_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | I32_to_i16 ->
     fprintf ppf "i32_to_i16 %a %a" printreg arg.(0) printreg arg.(1)
@@ -757,10 +750,8 @@ let print_operation_sse2 printreg op ppf arg =
       printreg arg.(1)
   | Shuffle_64 i ->
     fprintf ppf "shuffle_64[%d] %a %a" i printreg arg.(0) printreg arg.(1)
-  | Shuffle_high_16 i ->
-    fprintf ppf "shuffle_high_16[%d] %a" i printreg arg.(0)
-  | Shuffle_low_16 i ->
-    fprintf ppf "shuffle_low_16[%d] %a" i printreg arg.(0)
+  | Shuffle_high_16 i -> fprintf ppf "shuffle_high_16[%d] %a" i printreg arg.(0)
+  | Shuffle_low_16 i -> fprintf ppf "shuffle_low_16[%d] %a" i printreg arg.(0)
 
 let print_operation_sse3 printreg op ppf arg =
   match op with
@@ -772,12 +763,9 @@ let print_operation_sse3 printreg op ppf arg =
   | Hadd_f64 -> fprintf ppf "hadd_f64 %a %a" printreg arg.(0) printreg arg.(1)
   | Hsub_f32 -> fprintf ppf "hsub_f32 %a %a" printreg arg.(0) printreg arg.(1)
   | Hsub_f64 -> fprintf ppf "hsub_f64 %a %a" printreg arg.(0) printreg arg.(1)
-  | Dup_low_64 ->
-    fprintf ppf "dup_low_64 %a" printreg arg.(0)
-  | Dup_odd_32 ->
-    fprintf ppf "dup_odd_32 %a" printreg arg.(0)
-  | Dup_even_32 ->
-    fprintf ppf "dup_even_32 %a" printreg arg.(0)
+  | Dup_low_64 -> fprintf ppf "dup_low_64 %a" printreg arg.(0)
+  | Dup_odd_32 -> fprintf ppf "dup_odd_32 %a" printreg arg.(0)
+  | Dup_even_32 -> fprintf ppf "dup_even_32 %a" printreg arg.(0)
 
 let print_operation_ssse3 printreg op ppf arg =
   match op with
@@ -820,21 +808,15 @@ let print_operation_sse41 printreg op ppf arg =
   | I8_sx_i16 -> fprintf ppf "i8_sx_i16 %a" printreg arg.(0)
   | I8_sx_i32 -> fprintf ppf "i8_sx_i32 %a" printreg arg.(0)
   | I8_sx_i64 -> fprintf ppf "i8_sx_i64 %a" printreg arg.(0)
-  | I16_sx_i32 ->
-    fprintf ppf "i16_sx_i32 %a" printreg arg.(0)
-  | I16_sx_i64 ->
-    fprintf ppf "i16_sx_i64 %a" printreg arg.(0)
-  | I32_sx_i64 ->
-    fprintf ppf "i32_sx_i64 %a" printreg arg.(0)
+  | I16_sx_i32 -> fprintf ppf "i16_sx_i32 %a" printreg arg.(0)
+  | I16_sx_i64 -> fprintf ppf "i16_sx_i64 %a" printreg arg.(0)
+  | I32_sx_i64 -> fprintf ppf "i32_sx_i64 %a" printreg arg.(0)
   | I8_zx_i16 -> fprintf ppf "I8_zx_i16 %a" printreg arg.(0)
   | I8_zx_i32 -> fprintf ppf "I8_zx_i32 %a" printreg arg.(0)
   | I8_zx_i64 -> fprintf ppf "I8_zx_i64 %a" printreg arg.(0)
-  | I16_zx_i32 ->
-    fprintf ppf "I16_zx_i32 %a" printreg arg.(0)
-  | I16_zx_i64 ->
-    fprintf ppf "I16_zx_i64 %a" printreg arg.(0)
-  | I32_zx_i64 ->
-    fprintf ppf "I32_zx_i64 %a" printreg arg.(0)
+  | I16_zx_i32 -> fprintf ppf "I16_zx_i32 %a" printreg arg.(0)
+  | I16_zx_i64 -> fprintf ppf "I16_zx_i64 %a" printreg arg.(0)
+  | I32_zx_i64 -> fprintf ppf "I32_zx_i64 %a" printreg arg.(0)
   | Max_i8 -> fprintf ppf "max_i8 %a %a" printreg arg.(0) printreg arg.(1)
   | Max_i32 -> fprintf ppf "max_i32 %a %a" printreg arg.(0) printreg arg.(1)
   | Max_unsigned_i16 ->
@@ -869,8 +851,7 @@ let print_operation_sse41 printreg op ppf arg =
   | Multi_sad_unsigned_i8 i ->
     fprintf ppf "multi_sad_unsigned_i8[%d] %a %a" i printreg arg.(0) printreg
       arg.(1)
-  | Minpos_unsigned_i16 ->
-    fprintf ppf "minpos_unsigned_i16 %a" printreg arg.(0)
+  | Minpos_unsigned_i16 -> fprintf ppf "minpos_unsigned_i16 %a" printreg arg.(0)
   | Mullo_i32 -> fprintf ppf "mullo_i32 %a %a" printreg arg.(0) printreg arg.(1)
 
 let print_operation_sse42 printreg op ppf arg =
