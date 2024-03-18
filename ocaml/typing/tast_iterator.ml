@@ -336,9 +336,9 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       iter_loc sub lid;
       sub.expr sub exp1;
       sub.expr sub exp2
-  | Texp_array (_, list, _) -> List.iter (sub.expr sub) list
+  | Texp_array (_, _, list, _) -> List.iter (sub.expr sub) list
   | Texp_list_comprehension { comp_body; comp_clauses }
-  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
       sub.expr sub comp_body;
       List.iter
         (function
