@@ -542,9 +542,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
-        match lbl.lbl_mut with
-        | Immutable -> Reads_agree
-        | Mutable -> Reads_vary
+        if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
@@ -610,16 +608,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       in
       let imm_array = makearray Immutable in
       let lambda_arr_mut : Lambda.mutable_flag =
-        match (amut : Asttypes.mutable_flag) with
-        | Mutable   -> Mutable
-        | Immutable -> Immutable
+        if Types.is_mutable amut then Mutable else Immutable
       in
       begin try
         (* For native code the decision as to which compilation strategy to
            use is made later.  This enables the Flambda passes to lift certain
            kinds of array definitions to symbols. *)
         (* Deactivate constant optimization if array is small enough *)
-        if amut = Asttypes.Mutable &&
+        if Types.is_mutable amut &&
            List.length ll <= use_dup_for_constant_mutable_arrays_bigger_than
         then begin
           raise Not_constant
@@ -628,7 +624,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if is_local_mode mode then raise Not_constant;
         begin match List.map extract_constant ll with
         | exception Not_constant
-          when kind = Pfloatarray && amut = Asttypes.Mutable ->
+          when kind = Pfloatarray && Types.is_mutable amut ->
             (* We cannot currently lift mutable [Pintarray] arrays safely in
                Flambda because [caml_modify] might be called upon them
                (e.g. from code operating on polymorphic arrays, or functions
@@ -657,9 +653,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 | Punboxedfloatarray _ | Punboxedintarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
-            match amut with
-            | Mutable   -> duparray_to_mutable const
-            | Immutable -> const
+            if Types.is_mutable amut then duparray_to_mutable const else const
         end
       with Not_constant ->
         makearray lambda_arr_mut
@@ -1627,9 +1621,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
                in
                let sem =
-                 match mut with
-                 | Immutable -> Reads_agree
-                 | Mutable -> Reads_vary
+                 if Types.is_mutable mut then Reads_vary else Reads_agree
                in
                let access =
                  match repres with
@@ -1655,7 +1647,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     in
     let ll, shape = List.split (Array.to_list lv) in
     let mut : Lambda.mutable_flag =
-      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Asttypes.Mutable) fields
+      if Array.exists (fun (lbl, _) -> Types.is_mutable lbl.lbl_mut) fields
       then Mutable
       else Immutable in
     let lam =

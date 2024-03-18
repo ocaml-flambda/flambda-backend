@@ -543,11 +543,20 @@ module Record_diffing = struct
   let compare_labels env params1 params2
         (ld1 : Types.label_declaration)
         (ld2 : Types.label_declaration) =
-        if ld1.ld_mutable <> ld2.ld_mutable
-        then
-          let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-          Some (Mutability ord)
-        else begin
+        let mut =
+          match ld1.ld_mutable, ld2.ld_mutable with
+          | Immutable, Immutable -> None
+          | Mutable _, Immutable -> Some First
+          | Immutable, Mutable _ -> Some Second
+          | Mutable m1, Mutable m2 ->
+              if Misc.eq_from_le Mode.Alloc.Const.le m1 m2 then None
+              else
+                Misc.fatal_errorf "Unexpected mutable(%a) = mutable(%a)"
+                  Mode.Alloc.Const.print m1 Mode.Alloc.Const.print m2
+        in
+        begin match mut with
+        | Some mut -> Some (Mutability mut)
+        | None ->
           match compare_global_flags ld1.ld_global ld2.ld_global with
           | None ->
             let tl1 = params1 @ [ld1.ld_type] in

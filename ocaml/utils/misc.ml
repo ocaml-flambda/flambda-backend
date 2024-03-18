@@ -1429,3 +1429,5 @@ end
 module type T4 = sig
   type ('a, 'b, 'c, 'd) t
 end
+
+let eq_from_le le a b = le a b && le b a

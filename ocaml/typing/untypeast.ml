@@ -274,11 +274,22 @@ let constructor_declaration sub cd =
     ~info:Docstrings.empty_info
     (map_loc sub cd.cd_name)
 
+let mutable_ (mut : Types.mutable_flag) : Asttypes.mutable_flag =
+  match mut with
+  | Immutable -> Immutable
+  | Mutable m ->
+      if Misc.eq_from_le Mode.Alloc.Const.le m Mode.Alloc.Const.legacy then
+        Mutable
+      else
+        Misc.fatal_errorf "unexpected mutable(%a)"
+          Mode.Alloc.Const.print m
+
 let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in
   let attrs = sub.attributes sub ld.ld_attributes in
+  let mut = mutable_ ld.ld_mutable in
   Type.field ~loc ~attrs
-    ~mut:ld.ld_mutable
+    ~mut
     (map_loc sub ld.ld_name)
     (sub.typ sub ld.ld_type)
 
@@ -394,9 +405,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
             map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, _, list) -> begin
         let pats = List.map (sub.pat sub) list in
-        match am with
-        | Mutable   -> Ppat_array pats
-        | Immutable ->
+        if Types.is_mutable am then Ppat_array pats
+        else
           Jane_syntax.Immutable_arrays.pat_of
             ~loc
             (Iapat_immutable_array pats)
@@ -610,10 +620,8 @@ let expression sub exp =
     | Texp_array (amut, _, list, _) -> begin
         (* Can be inlined when we get to upstream immutable arrays *)
         let plist = List.map (sub.expr sub) list in
-        match amut with
-        | Mutable ->
-            Pexp_array plist
-        | Immutable ->
+        if Types.is_mutable amut then Pexp_array plist
+        else
             Jane_syntax.Immutable_arrays.expr_of
               ~loc (Iaexp_immutable_array plist)
             |> add_jane_syntax_attributes
@@ -623,6 +631,7 @@ let expression sub exp =
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
         |> add_jane_syntax_attributes
     | Texp_array_comprehension (amut, _, comp) ->
+        let amut = mutable_ amut in
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
         |> add_jane_syntax_attributes
