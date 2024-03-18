@@ -236,10 +236,14 @@ module type S = sig
         uniqueness : 'c
       }
 
-    module Const :
-      Lattice
-        with type t =
-          (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+    module Const : sig
+      include
+        Lattice
+          with type t =
+            (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+      val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+    end
 
     type error =
       [ `Regionality of Regionality.error

@@ -1577,13 +1577,21 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
-  let gom =
-    match l.ld_mutable, l.ld_global with
-    | Mutable, _ -> Ogom_mutable
-    | Immutable, Global -> Ogom_global
-    | Immutable, Unrestricted -> Ogom_immutable
+  let gbl =
+    match l.ld_global with
+    | Global -> Ogf_global
+    | Unrestricted -> Ogf_unrestricted
   in
-  (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
+  let mut =
+    match l.ld_mutable with
+    | Immutable -> false
+    | Mutable m ->
+        if Misc.eq_from_le Alloc.Const.le m Alloc.Const.legacy then
+          true
+        else
+          Misc.fatal_errorf "Unexpected mutable(%a)" Alloc.Const.print m
+  in
+  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
@@ -2024,7 +2032,7 @@ let rec tree_of_class_type mode params =
       let csil =
         List.fold_left
           (fun csil (l, m, v, t) ->
-            Ocsg_value (l, m = Mutable, v = Virtual, tree_of_typexp mode t)
+            Ocsg_value (l, m = Asttypes.Mutable, v = Virtual, tree_of_typexp mode t)
             :: csil)
           csil all_vars
       in
