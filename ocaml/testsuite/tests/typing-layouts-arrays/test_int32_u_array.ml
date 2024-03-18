@@ -107,7 +107,7 @@ let () =
   in
   let r : A.t = [||] in
   test_empty_array r;
-  let r = A.make 0 (I.of_int 0) in
+  let r = A.make (Sys.opaque_identity 0) (I.of_int 0) in
   test_empty_array r;
 
   (* static blocks *)
