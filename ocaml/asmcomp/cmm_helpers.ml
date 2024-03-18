@@ -1006,53 +1006,26 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
     let id = V.create_local "*alloc*" in
     let rec fill_fields idx = function
       [] -> Cvar id
-    | e1::el ->
-      let ofs = 1 + (idx * 2) in
-      Csequence(set_fn idx (Cvar id) (Cconst_int (ofs, dbg)) e1 dbg,
-                fill_fields (idx + 1) el) in
+    | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
+                          fill_fields (idx + 2) el) in
     Clet(VP.create id,
          Cop(Cextcall((if Config.runtime5
                        then "caml_alloc_shr_check_gc"
                        else "caml_alloc"), typ_val, [], true),
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
-         fill_fields 0 args)
+         fill_fields 1 args)
   end
 
 let make_alloc ~mode dbg tag args =
-  let addr_array_init _ arr ofs newval dbg =
+  let addr_array_init arr ofs newval dbg =
     Cop(Cextcall("caml_initialize", typ_void, [], false),
         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
   in
   make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode (fun _ -> float_array_set) dbg tag
+  make_alloc_generic ~mode float_array_set dbg tag
                      (List.length args * size_float / size_addr) args
-
-(* CR mixed blocks: I don't believe this code is run at all. *)
-let make_mixed_alloc ~mode dbg shape args =
-  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
-  (* args with shape [Float] must already have been unboxed. *)
-  let set_fn idx arr ofs newval dbg =
-    if idx < value_prefix_len
-    then addr_array_init arr ofs newval dbg
-    else
-      match flat_suffix.(idx - value_prefix_len) with
-      | Imm -> int_array_set arr ofs newval dbg
-      | Float | Float64 -> float_array_set arr ofs newval dbg
-  in
-  let size =
-    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
-    if size_float <> size_addr
-    then
-      Misc.fatal_error
-        "Unable to compile mixed blocks on a platform where a float is not the \
-         same width as a value.";
-    values + floats
-  in
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    (* CR mixed blocks v1: Support inline record args to variants. *)
-    set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Bounds checking *)
 

@@ -911,7 +911,9 @@ let rec comp_expr stack_info env exp sz cont =
       let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
-        (* CR mixed blocks: correct the tag *)
+        (* CR mixed blocks v1: We will need to use the actual tag instead of [0]
+           once mixed blocks can have non-zero tags.
+        *)
         (Kmakeblock (total_len, 0) :: cont)
   | Lprim((Pmakearray (kind, _, _)) as p, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
