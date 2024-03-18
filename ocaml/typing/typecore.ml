@@ -830,6 +830,10 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   let mode = Value.imply upper_bounds expected_mode.mode in
+  (* - [strict_local] doesn't need to be updated, because it's only relavant for
+     functions, which don't cross locality.
+     - [mode_tuples] doesn't need to be updated, because [mode] being higher
+     won't violate the invariant. *)
   { expected_mode with mode }
 
 (* Value binding elaboration can insert alloc mode attributes on the forged
