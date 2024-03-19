@@ -634,7 +634,6 @@ runtime4_COMMON_C_SOURCES = \
   interp \
   ints \
   io \
-  isa \
   lexing \
   main \
   major_gc \
@@ -704,7 +703,6 @@ runtime_COMMON_C_SOURCES = \
   intern \
   ints \
   io \
-  isa \
   lexing \
   lf_skiplist \
   main \
