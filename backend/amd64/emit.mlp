@@ -2309,7 +2309,11 @@ let emit_probe_notes0 () =
       D.word (const 0); (* for systemtap probes *)
       D.word (const (Bool.to_int enabled_at_init)); (* for ocaml probes *)
       add_def_symbol label)
-    !probe_semaphores
+    !probe_semaphores;
+  (* ptrace peek/poke to read/write a semaphores accesses 8 bytes,
+     but the size of the semaphore is only 4 bytes.
+     Add padding to avoid illegal accesses when reading the last semaphore. *)
+  D.align ~data:true 8
 
 let emit_probe_notes () =
   match !probes with
