@@ -181,6 +181,22 @@ Line 2, characters 45-46:
 Error: This value escapes its region
 |}]
 
+type r = {x : float; y : float}
+
+let foo () =
+  let local_ r = {x = 3.0; y = 4.0} in
+  (* [r.x] is allocated global and can escape. *)
+  r.x
+
+(* CR layouts v2.8: this should succeed *)
+[%%expect{|
+type r = { x : float; y : float; }
+Line 6, characters 2-5:
+6 |   r.x
+      ^^^
+Error: This value escapes its region
+|}]
+
 let function_escape = let local_ x : int -> int = fun y -> y in x
 
 [%%expect{|

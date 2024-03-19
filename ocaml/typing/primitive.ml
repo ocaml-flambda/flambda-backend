@@ -600,6 +600,66 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+
+    (* Bigstring primitives *)
+    | "%caml_bigstring_get32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+    | "%caml_bigstring_get64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_getu128#" ->
+    | "%caml_bigstring_getu128u#" ->
+    | "%caml_bigstring_geta128#" ->
+    | "%caml_bigstring_geta128u#" -> *)
+
+    | "%caml_bigstring_set32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_setu128#" ->
+    | "%caml_bigstring_setu128u#" ->
+    | "%caml_bigstring_seta128#" ->
+    | "%caml_bigstring_seta128u#" -> *)
+
     | name when is_builtin_prim_name name ->
       no_non_value_repr
 

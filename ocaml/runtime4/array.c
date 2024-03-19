@@ -393,36 +393,6 @@ CAMLprim value caml_floatarray_create_local(value len)
   return caml_alloc_local (wosize, Double_array_tag);
 }
 
-CAMLprim value caml_make_unboxed_int32_vect(value len)
-{
-  /* This is only used on 64-bit targets. */
-
-  mlsize_t num_elements = Long_val(len);
-  /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = (num_elements + 1) / 2;
-
-  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
-                           num_fields * sizeof(value), 0, 0);
-}
-
-CAMLprim value caml_make_unboxed_int64_vect(value len)
-{
-  mlsize_t num_elements = Long_val(len);
-  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
-
-  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
-}
-
-CAMLprim value caml_make_unboxed_nativeint_vect(value len)
-{
-  /* This is only used on 64-bit targets. */
-
-  mlsize_t num_elements = Long_val(len);
-  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
-
-  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
-}
-
 /* [len] is a [value] representing number of words or floats */
 static value make_vect_gen(value len, value init, int local)
 {
@@ -503,6 +473,58 @@ CAMLprim value caml_make_float_vect(value len)
 #endif
 }
 
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = (num_elements + 1) / 2;
+
+  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int32(0));
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+
+CAMLprim value caml_make_unboxed_int64_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int64(0));
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_nativeint(0));
+}
+
 /* This primitive is used internally by the compiler to compile
    explicit array expressions.
    For float arrays when FLAT_FLOAT_ARRAY is true, it takes an array of
@@ -567,6 +589,36 @@ CAMLprim value caml_floatarray_blit(value a1, value ofs1, value a2, value ofs2,
   memmove((double *)a2 + Long_val(ofs2),
           (double *)a1 + Long_val(ofs1),
           Long_val(n) * sizeof(double));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_int32_vect_blit(value a1, value ofs1, value a2,
+                                            value ofs2, value n)
+{
+  // Need to skip the custom_operations field
+  memmove((int32_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int32_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int32_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_int64_vect_blit(value a1, value ofs1, value a2, value ofs2,
+                                            value n)
+{
+  // Need to skip the custom_operations field
+  memmove((int64_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int64_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int64_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_nativeint_vect_blit(value a1, value ofs1, value a2,
+                                                value ofs2, value n)
+{
+  // Need to skip the custom_operations field
+  memmove((uintnat *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (uintnat *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(uintnat));
   return Val_unit;
 }
 

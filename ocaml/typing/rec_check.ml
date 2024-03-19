@@ -515,7 +515,7 @@ let (>>) : bind_judg -> term_judg -> term_judg =
   fun binder term mode -> binder mode (term mode)
 
 (* Compute the appropriate [mode] for an array expression *)
-let array_mode exp = match Typeopt.array_kind exp with
+let array_mode exp elt_sort = match Typeopt.array_kind exp elt_sort with
   | Lambda.Pfloatarray ->
     (* (flat) float arrays unbox their elements *)
     Dereference
@@ -609,13 +609,13 @@ let rec expression : Typedtree.expression -> term_judg =
         join [expression e; list arg args] << app_mode
     | Texp_tuple (exprs, _) ->
       list expression (List.map snd exprs) << Guard
-    | Texp_array (_, exprs, _) ->
-      list expression exprs << array_mode exp
+    | Texp_array (_, elt_sort, exprs, _) ->
+      list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->
       join ((expression comp_body << Guard) ::
             comprehension_clauses comp_clauses)
-    | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
-      join ((expression comp_body << array_mode exp) ::
+    | Texp_array_comprehension (_, elt_sort, { comp_body; comp_clauses }) ->
+      join ((expression comp_body << array_mode exp elt_sort) ::
             comprehension_clauses comp_clauses)
     | Texp_construct (_, desc, exprs, _) ->
       let access_constructor =
@@ -721,7 +721,7 @@ let rec expression : Typedtree.expression -> term_judg =
       join [
         expression e1 << Dereference
       ]
-    | Texp_field (e, _, _, _, _) ->
+    | Texp_field (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------

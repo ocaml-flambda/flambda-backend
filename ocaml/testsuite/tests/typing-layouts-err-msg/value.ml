@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha"
+   flags = "-extension layouts_alpha -extension comprehensions"
    * expect
 *)
 
@@ -305,18 +305,18 @@ Error:
 (* Existential_type_variable *)
 (* See [gadt_existential.ml] *)
 
-(* Array_element *)
-let f (x : t_float64) = [| x |]
+(* Array_comprehension_element *)
+let f (x : t_float64) = [| x for i = 0 to 1 |]
 [%%expect{|
 Line 1, characters 27-28:
-1 | let f (x : t_float64) = [| x |]
+1 | let f (x : t_float64) = [| x for i = 0 to 1 |]
                                ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+         it's the element type of array comprehension.
 |}];;
 
 (* Lazy_expression *)

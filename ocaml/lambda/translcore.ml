@@ -539,7 +539,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode_r alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, _, alloc_mode) ->
+  | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
@@ -554,7 +554,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
-          let mode = transl_alloc_mode_r (Option.get alloc_mode) in
+          let alloc_mode =
+            match float with
+            | Boxing (alloc_mode, _) -> alloc_mode
+            | Non_boxing _ -> assert false
+          in
+          let mode = transl_alloc_mode_r alloc_mode in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_ufloat ->
@@ -574,12 +579,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               | Imm -> Projection_imm
               | Float64 -> Projection_float64
               | Float ->
-                 (match alloc_mode with
-                  | Some mode -> Projection_float (transl_alloc_mode_r mode)
-                  | None ->
+                 (match float with
+                  | Boxing (mode, _) ->
+                      Projection_float (transl_alloc_mode_r mode)
+                  | Non_boxing _ ->
                       Misc.fatal_error
-                        "expected typechecking to make [alloc_mode] present \
-                          for float field projection")
+                        "expected typechecking to make [float] boxing mode\
+                        \ present for float field projection")
             in
             Lprim (Pmixedfield (lbl.lbl_pos, flat_projection, sem), [targ], loc)
       end
@@ -620,12 +626,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
-  | Texp_array (amut, expr_list, alloc_mode) ->
+  | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode_r alloc_mode in
-      let kind = array_kind e in
+      let kind = array_kind e element_sort in
       let ll =
         transl_list ~scopes
-          (List.map (fun e -> (e, Jkind.Sort.for_array_element)) expr_list)
+          (List.map (fun e -> (e, element_sort)) expr_list)
       in
       let loc = of_location ~scopes e.exp_loc in
       let makearray mutability =
@@ -694,12 +700,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
         ~transl_exp ~scopes ~loc comp
-  | Texp_array_comprehension (_amut, comp) ->
+  | Texp_array_comprehension (_amut, elt_sort, comp) ->
       (* We can ignore mutability here since we've already checked in in the
          type checker; both mutable and immutable arrays are created the same
          way *)
       let loc = of_location ~scopes e.exp_loc in
-      let array_kind = Typeopt.array_kind e in
+      let array_kind = Typeopt.array_kind e elt_sort in
       Transl_array_comprehension.comprehension
         ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->

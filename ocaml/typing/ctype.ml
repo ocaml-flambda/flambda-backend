@@ -5559,10 +5559,8 @@ let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
 
-(* CR layouts v2.8: use the meet-with-constant morphism when available *)
 (* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
    [Alloc] get unified *)
-(* The approach here works only for 2-element modal axes. *)
 let mode_cross_left env ty mode =
   (* CR layouts v2.8: The old check didn't check for principality, and so
      this one doesn't either. I think it should. But actually test results
@@ -5571,49 +5569,16 @@ let mode_cross_left env ty mode =
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Alloc.disallow_right mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.meet_with_locality Locality.Const.min mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.meet_with_linearity Linearity.Const.min mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.meet_with_uniqueness Uniqueness.Const.min mode
-    else mode
-  in
-  mode
+  Alloc.meet_with upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
    and [Alloc] get unified *)
-(* The approach here works only for 2-element modal axes. *)
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let mode = Alloc.disallow_left mode in
-  let mode =
-    if Locality.Const.le upper_bounds.locality Locality.Const.min
-    then Alloc.join_with_locality Locality.Const.max mode
-    else mode
-  in
-  let mode =
-    if Linearity.Const.le upper_bounds.linearity Linearity.Const.min
-    then Alloc.join_with_linearity Linearity.Const.max mode
-    else mode
-  in
-  let mode =
-    if Uniqueness.Const.le upper_bounds.uniqueness Uniqueness.Const.min
-    then Alloc.join_with_uniqueness Uniqueness.Const.max mode
-    else mode
-  in
-  mode
+  Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
