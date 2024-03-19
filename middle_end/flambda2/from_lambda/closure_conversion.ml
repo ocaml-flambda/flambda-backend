@@ -795,9 +795,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
-  | ( Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _
-    | Pmakemixedblock _ ), []
-    ->
+  | ( ( Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _
+      | Pmakemixedblock _ ),
+      [] ) ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
@@ -825,11 +825,10 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
-      | Pmixedfield _ | Psetmixedfield _
-      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
-      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat _
+      | Pmixedfield _ | Psetmixedfield _ | Paddint | Psubint | Pmulint
+      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
+      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
       | Pfloatofint (_, _)
       | Pnegfloat (_, _)
       | Pabsfloat (_, _)

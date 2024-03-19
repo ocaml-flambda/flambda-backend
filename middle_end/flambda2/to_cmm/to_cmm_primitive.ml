@@ -100,14 +100,12 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Values { field_kind = Immediate; _ } ->
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
-  | Mixed { field_kind; _ } -> begin
-      (* CR mixed blocks: a backend person should confirm I can just use
-         these and not add new cmm code *)
-      match field_kind with
-      | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-      | Float | Float64 -> C.unboxed_float_array_ref block index dbg
-    end
-
+  | Mixed { field_kind; _ } -> (
+    (* CR mixed blocks: a backend person should confirm I can just use these and
+       not add new cmm code *)
+    match field_kind with
+    | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
+    | Float | Float64 -> C.unboxed_float_array_ref block index dbg)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
@@ -119,15 +117,13 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     | Values { field_kind = Immediate; _ } ->
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
-    | Mixed { field_kind; _ } -> begin
-        (* CR mixed blocks: a backend person should confirm I can just use
-           these and not add new cmm code *)
-        match field_kind with
-        | Imm ->
-          C.setfield_computed Immediate init_or_assign block index new_value dbg
-        | Float | Float64 -> C.float_array_set block index new_value dbg
-      end
-
+    | Mixed { field_kind; _ } -> (
+      (* CR mixed blocks: a backend person should confirm I can just use these
+         and not add new cmm code *)
+      match field_kind with
+      | Imm ->
+        C.setfield_computed Immediate init_or_assign block index new_value dbg
+      | Float | Float64 -> C.float_array_set block index new_value dbg)
   in
   C.return_unit dbg expr
 
@@ -879,8 +875,7 @@ let prim_simple env res dbg p =
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
   | Variadic
-      (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic),
-       l) ->
+      (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
@@ -916,8 +911,7 @@ let prim_complex env res dbg p =
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
     | Variadic
-        (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic),
-         l) ->
+        (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =
         arg_list' ?consider_inlining_effectful_expressions ~dbg env res l

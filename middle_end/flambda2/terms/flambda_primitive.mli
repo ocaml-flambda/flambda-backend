@@ -148,7 +148,10 @@ module Block_access_field_kind : sig
 end
 
 module Mixed_block_access_field_kind : sig
-  type t = Lambda.flat_element = Imm | Float | Float64
+  type t = Lambda.flat_element =
+    | Imm
+    | Float
+    | Float64
 
   val print : Format.formatter -> t -> unit
 
@@ -163,8 +166,10 @@ module Block_access_kind : sig
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
-    | Mixed of { size : Targetint_31_63.t Or_unknown.t;
-                 field_kind : Mixed_block_access_field_kind.t }
+    | Mixed of
+        { size : Targetint_31_63.t Or_unknown.t;
+          field_kind : Mixed_block_access_field_kind.t
+        }
 
   val print : Format.formatter -> t -> unit
 

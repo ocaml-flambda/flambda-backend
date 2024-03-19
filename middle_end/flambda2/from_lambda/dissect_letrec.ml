@@ -582,22 +582,19 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
       let value_prefix_len =
         Lconst (Const_base (Const_int shape.value_prefix_len))
       in
-      let desc =
-        Lambda.simple_prim_on_values ~name:cfun ~arity:2 ~alloc:true
-      in
+      let desc = Lambda.simple_prim_on_values ~name:cfun ~arity:2 ~alloc:true in
       Lprim (Pccall desc, [size; value_prefix_len], Loc_unknown)
     in
     List.map
       (fun (id, { block_type; size }) ->
-         let ccall =
-           match block_type with
-           | Normal _tag -> alloc_normal_dummy "caml_alloc_dummy" size
-           | Flat_float_record ->
-             alloc_normal_dummy "caml_alloc_dummy_float" size
-           | Mixed shape ->
-             alloc_mixed_dummy "caml_alloc_dummy_mixed" shape size
-         in
-         id, ccall)
+        let ccall =
+          match block_type with
+          | Normal _tag -> alloc_normal_dummy "caml_alloc_dummy" size
+          | Flat_float_record ->
+            alloc_normal_dummy "caml_alloc_dummy_float" size
+          | Mixed shape -> alloc_mixed_dummy "caml_alloc_dummy_mixed" shape size
+        in
+        id, ccall)
       letrec.blocks
   in
   let body = if not letrec.needs_region then body else Lexclave body in
