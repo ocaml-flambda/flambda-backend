@@ -64,26 +64,9 @@ let mk_load_atomic memory_chunk =
 
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
-module Scannable_prefix : sig
-  type t = private
-    | Scan_all
-    | Scan_prefix of int
-
-  val scan_all : t
-
-  (* We guard construction of [Scan_prefix] with this check because mixed
-     records are not *)
-  val scan_prefix_if_native_code : int -> t
-end = struct
-  type t =
-    | Scan_all
-    | Scan_prefix of int
-
-  let scan_all = Scan_all
-
-  let scan_prefix_if_native_code i =
-    if !Clflags.native_code then Scan_prefix i else Scan_all
-end
+type t =
+  | Scan_all
+  | Scan_prefix of int
 
 module Mixed_block_support : sig
   val assert_mixed_block_support : unit -> unit
@@ -154,13 +137,13 @@ end = struct
 end
 
 (* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header ?(scannable_prefix = Scannable_prefix.scan_all) tag sz =
+let block_header ?(scannable_prefix = Scan_all) tag sz =
   let hdr =
     Nativeint.add
       (Nativeint.shift_left (Nativeint.of_int sz) 10)
       (Nativeint.of_int tag)
   in
-  match (scannable_prefix : Scannable_prefix.t) with
+  match scannable_prefix with
   | Scan_all -> hdr
   | Scan_prefix scannable_prefix ->
     Mixed_block_support.make_header hdr ~scannable_prefix
@@ -1414,8 +1397,8 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ?(scannable_prefix = Scannable_prefix.scan_all) ~mode
-    set_fn dbg tag wordsize args =
+let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
+    wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
@@ -1437,7 +1420,7 @@ let make_alloc_generic ?(scannable_prefix = Scannable_prefix.scan_all) ~mode
             fill_fields (idx + 1) el )
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, (scannable_prefix : Scannable_prefix.t) with
+      match Config.runtime5, scannable_prefix with
       | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
       | false, Scan_all -> "caml_alloc", [wordsize; tag]
       | true, Scan_prefix prefix_len ->
@@ -1512,16 +1495,7 @@ let make_mixed_alloc ~mode dbg shape args =
          same width as a value.";
     values + floats
   in
-  make_alloc_generic
-    ~scannable_prefix:
-      (* CR mixed blocks: It's a bit weird for this stage to decide
-         to not do a mixed block if we're in bytecode, given that
-         an earlier stage indicated:q
-
-         at this stage. Should we do the bytecode check earlier, in
-         translcore? *)
-      (Scannable_prefix.scan_prefix_if_native_code value_prefix_len)
-    ~mode
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
     (* CR mixed blocks v1: Support inline record args to variants. *)
     set_fn dbg Obj.first_non_constant_constructor_tag size args
 
