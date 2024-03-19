@@ -78,8 +78,7 @@ let rec static_float_array_updates symb env res acc i = function
   | [] -> env, res, acc
   | sv :: r -> (
     match (sv : _ Or_variable.t) with
-    | Const _ ->
-      static_float_array_updates symb env res acc (i + 1) r
+    | Const _ -> static_float_array_updates symb env res acc (i + 1) r
     | Var (var, dbg) ->
       let env, res, acc =
         C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var
@@ -270,9 +269,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let static_fields = List.map aux fields in
     let sym = R.symbol res s in
     let float_array = C.emit_float_array_constant sym static_fields in
-    let env, res, e =
-      static_float_array_updates sym env res updates 0 fields
-    in
+    let env, res, e = static_float_array_updates sym env res updates 0 fields in
     env, R.update_data res float_array, e
   | Block_like _s, Immutable_float32_array _fields ->
     (* CR mslater: (float32) unboxed arrays *)
