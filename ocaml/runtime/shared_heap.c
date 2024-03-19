@@ -808,10 +808,7 @@ static void verify_object(struct heap_verify_state* st, value v) {
     if (Tag_val(v) == Closure_tag) {
       i = Start_env_closinfo(Closinfo_val(v));
     }
-    mlsize_t scannable_wosize =
-      Is_mixed_block_reserved(Reserved_val(v))
-      ? Mixed_block_scannable_wosize_reserved(Reserved_val(v))
-      : Wosize_val(v);
+    mlsize_t scannable_wosize = Scannable_wosize_val(v);
     for (; i < scannable_wosize; i++) {
       value f = Field(v, i);
       if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
@@ -912,11 +909,8 @@ static void compact_update_block(header_t* p)
     }
 
     if (tag < No_scan_tag) {
-      mlsize_t wosz =
-        Is_mixed_block_reserved(Reserved_hd(hd))
-        ? Mixed_block_scannable_wosize_reserved(Reserved_hd(hd))
-        : Wosize_hd(hd);
-      for (mlsize_t i = offset; i < wosz; i++) {
+      mlsize_t scannable_wosz = Scannable_wosize_hd(hd);
+      for (mlsize_t i = offset; i < scannable_wosz; i++) {
         compact_update_value_at(&Field(Val_hp(p), i));
       }
     }

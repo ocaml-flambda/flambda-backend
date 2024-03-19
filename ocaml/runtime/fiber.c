@@ -339,6 +339,8 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     if (Color_hd(hd) == NOT_MARKABLE) {
       /* Local allocation, not marked */
 #ifdef DEBUG
+      /* We don't check the reserved bits here because this is OK even for mixed
+         blocks. */
       for (i = 0; i < Wosize_hd(hd); i++)
         Field(Val_hp(hp), i) = Debug_free_local;
 #endif
@@ -350,7 +352,6 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     *hp = hd;
     CAMLassert(Tag_hd(hd) != Infix_tag);  /* start of object, no infix */
     CAMLassert(Tag_hd(hd) != Cont_tag);   /* no local continuations */
-    // CR nroberts: mixed blocks
     if (Tag_hd(hd) >= No_scan_tag) {
       sp += Bhsize_hd(hd);
       continue;
@@ -358,7 +359,10 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     i = 0;
     if (Tag_hd(hd) == Closure_tag)
       i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
-    for (; i < Wosize_hd(hd); i++) {
+
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+
+    for (; i < scannable_wosize; i++) {
       value *p = Op_val(Val_hp(hp)) + i;
       int marked_ix = visit(f, fdata, loc, colors, p);
       if (marked_ix != -1) {

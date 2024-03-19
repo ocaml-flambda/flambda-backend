@@ -155,6 +155,14 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)(res)) - 1)
 #define Reserved_mixed_block_scannable_wosize(sz)  (((mlsize_t)(sz)) + 1)
 
+Caml_inline mlsize_t Scannable_wosize_hd(header_t hd) {
+  reserved_t res = Reserved_hd(hd);
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved(res)
+    : Wosize_hd(hd);
+}
+
 /* Color values are pre-shifted */
 
 #define Color_hd(hd) ((hd) & HEADER_COLOR_MASK)
@@ -207,6 +215,8 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
 
 #define Reserved_val(val) (Reserved_hd (Hd_val (val)))
+
+#define Scannable_wosize_val(val) (Scannable_wosize_hd (Hd_val (val)))
 
 #ifdef ARCH_BIG_ENDIAN
 #define Tag_val(val) (((volatile unsigned char *) (val)) [-1])

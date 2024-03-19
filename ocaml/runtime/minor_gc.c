@@ -324,8 +324,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
            scannable so we *must* stop here.
          */
         if (Is_mixed_block_reserved(Reserved_hd(hd))) {
-          CAMLassert(
-            Mixed_block_scannable_wosize_reserved(Reserved_hd(hd)) == 0);
+          CAMLassert(Scannable_wosize_hd(hd) == 0);
           Field(result, 0) = field0;
           return;
         }
@@ -428,10 +427,7 @@ again:
     new_v = Field(v, 0);                 /* Follow forward pointer. */
     st->todo_list = Field (new_v, 1);    /* Remove from list. */
 
-    mlsize_t scannable_wosize =
-      Is_mixed_block_reserved(Reserved_val(new_v))
-      ? Mixed_block_scannable_wosize_reserved(Reserved_val(new_v))
-      : Wosize_val(new_v);
+    mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
 
     f = Field(new_v, 0);
     CAMLassert (scannable_wosize != 0 || !Is_debug_tag(f));

@@ -205,6 +205,7 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
       h = caml_hash_mix_intnat(h, v);
       num--;
     } else {
+      // CR mixed blocks: should raise
       if (Is_mixed_block_reserved(Reserved_val(v))) {
         /* Block contents unknown.  Do nothing. */
         break;

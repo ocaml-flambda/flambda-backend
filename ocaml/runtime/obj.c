@@ -161,10 +161,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc_small(sz, tg);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
-    mlsize_t scannable_sz =
-      Is_mixed_block_reserved(Reserved_val(arg))
-      ? Mixed_block_scannable_wosize_reserved(Reserved_val(arg))
-      : sz;
+    mlsize_t scannable_sz = Scannable_wosize_val(arg);
 
     res = caml_alloc_shr(sz, tg);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]

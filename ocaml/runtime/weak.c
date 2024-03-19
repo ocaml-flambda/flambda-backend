@@ -305,17 +305,13 @@ static void ephe_copy_and_darken(value from, value to)
     scan_from = Wosize_val(from);
     scan_to = scan_from;
   }
-  else if (Is_mixed_block_reserved(Reserved_val(from))) {
-    scan_from = 0;
-    scan_to = Mixed_block_scannable_wosize_reserved(Reserved_val(from));
-  }
   else if (Tag_val(from) == Closure_tag) {
     scan_from = Start_env_closinfo(Closinfo_val(from));
-    scan_to = Wosize_val(from);
+    scan_to = Scannable_wosize_val(from);
   }
   else {
     scan_from = 0;
-    scan_to = Wosize_val(from);
+    scan_to = Scannable_wosize_val(from);
   }
 
   /* Copy non-scannable prefix */

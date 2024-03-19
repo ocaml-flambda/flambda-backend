@@ -101,7 +101,7 @@ let () = print_endline " - Running checks";;
 let () = run_checks t0;;
 
 (* Testing local allocation *)
-external opaque_ignore : ('a [@local_opt]) -> unit = "%ignore"
+external opaque_ignore : ('a [@local_opt]) -> unit = "%opaque"
 let go () =
   let local_ t0 : t0 = { str0 = create_string (); float_u1 = create_float_u () } in
     let module _ = struct

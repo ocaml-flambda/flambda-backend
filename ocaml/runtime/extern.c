@@ -1496,10 +1496,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
            */
           uintnat i =
             tag == Closure_tag ? Start_env_closinfo(Closinfo_val(v)) : 0;
-          uintnat j =
-            Is_mixed_block_reserved(Reserved_val(v))
-            ? Mixed_block_scannable_wosize_reserved(Reserved_val(v))
-            : sz;
+          uintnat j = Scannable_wosize_hd(hd);
           if (i < j) {
             if (i < j - 1) {
               /* Remember that we need to count fields i + 1 ... j - 1 */

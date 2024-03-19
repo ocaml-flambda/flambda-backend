@@ -233,12 +233,7 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
       *stop = Wosize_val(*glob_block);
     }
     else {
-      reserved_t reserved = Reserved_val(*glob_block);
-      if (Is_mixed_block_reserved(reserved)) {
-        *stop = Mixed_block_scannable_wosize_reserved(reserved);
-      } else {
-        *stop = Wosize_val(*glob_block);
-      }
+      *stop = Scannable_wosize_val(*glob_block);
     }
   }
   else {

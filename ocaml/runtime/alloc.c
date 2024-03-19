@@ -417,7 +417,7 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
     size = Wosize_val(newval);
-    // CR mixed block: scannable size!
+    // CR mixed blocks: scannable size!
     CAMLassert (size == Wosize_val(dummy));
     /* See comment above why this is safe even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers. */

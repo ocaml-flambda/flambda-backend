@@ -462,7 +462,7 @@ let check_reachable_words expected actual message =
   run_checks ();
   line "";
   line "(* Testing local allocation *)";
-  line {|external opaque_ignore : ('a [@local_opt]) -> unit = "%%ignore"|};
+  line {|external opaque_ignore : ('a [@local_opt]) -> unit = "%%opaque"|};
   print_endline "let go () =";
   let () =
     let indent = 2 in
