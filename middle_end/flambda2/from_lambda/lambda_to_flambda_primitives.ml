@@ -286,6 +286,9 @@ let tag_int (arg : H.expr_primitive) : H.expr_primitive =
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Untag_immediate, arg))
 
+let unbox_float32 (arg : H.simple_or_prim) : H.simple_or_prim =
+  Prim (Unary (Unbox_number K.Boxable_number.Naked_float32, arg))
+
 let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
   Unary
@@ -1042,10 +1045,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ tag_int
         (Binary (convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
     ]
-  | Pintoffloat Pfloat64, [[arg]] ->
-    let src = K.Standard_int_or_float.Naked_float in
-    let dst = K.Standard_int_or_float.Tagged_immediate in
-    [Unary (Num_conv { src; dst }, unbox_float arg)]
   | Pfloatoffloat32 mode, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float32 in
     let dst = K.Standard_int_or_float.Naked_float in
@@ -1054,6 +1053,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Naked_float32 in
     [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
+  | Pintoffloat Pfloat64, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float in
+    let dst = K.Standard_int_or_float.Tagged_immediate in
+    [Unary (Num_conv { src; dst }, unbox_float arg)]
   | Pfloatofint (Pfloat64, mode), [[arg]] ->
     let src = K.Standard_int_or_float.Tagged_immediate in
     let dst = K.Standard_int_or_float.Naked_float in
@@ -1097,8 +1100,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Naked_float,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
-  | Pintoffloat Pfloat32, _
-  | Pfloatofint (Pfloat32, _), _
+  | Pintoffloat Pfloat32, _ ->
+    let src = K.Standard_int_or_float.Naked_float32 in
+    let dst = K.Standard_int_or_float.Tagged_immediate in
+    [Unary (Num_conv { src; dst }, unbox_float32 arg)]
+  | Pfloatofint (Pfloat32, _), _ ->
+    let src = K.Standard_int_or_float.Tagged_immediate in
+    let dst = K.Standard_int_or_float.Naked_float32 in
+    [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pnegfloat (Pfloat32, _), _
   | Pabsfloat (Pfloat32, _), _
   | Paddfloat (Pfloat32, _), _
