@@ -65,7 +65,7 @@ module Float32 = struct
   let unboxing_prim simple = P.(Unary (Unbox_number Naked_float32, simple))
 
   let unboxer =
-    { var_name = "unboxed_float";
+    { var_name = "unboxed_float32";
       invalid_const =
         Const.naked_float32 Numeric_types.Float32_by_bit_pattern.zero;
       unboxing_prim;
