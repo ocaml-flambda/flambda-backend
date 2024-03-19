@@ -190,7 +190,8 @@ method! reload_operation op arg res =
                | Ipause
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)
-  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
+  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float32 _|Iconst_float _
+  | Iconst_vec128 _|Icall_ind|Icall_imm _
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _

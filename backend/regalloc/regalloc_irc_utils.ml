@@ -112,6 +112,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false
+    | Const_float32 _ -> false
     | Const_float _ -> false
     | Const_symbol _ -> false
     | Const_vec128 _ -> false

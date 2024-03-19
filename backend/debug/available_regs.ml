@@ -222,7 +222,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
         Some (ok avail_across), ok avail_after
       | Iop
           (( Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
-           | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _
+           | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+           | Iconst_vec128 _ | Iconst_symbol _
            | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
            | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
            | Isubf | Imulf | Idivf | Icsel _ | Ivalueofint | Iintofvalue
@@ -284,7 +285,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                   instr.live <- Reg.Set.add (RD.reg reg) instr.live;
                   false))
               avail_before
-          | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
+          | Imove | Ispill | Ireload
+          | Iconst_int _ | Iconst_float32 _ | Iconst_float _
           | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
           | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf

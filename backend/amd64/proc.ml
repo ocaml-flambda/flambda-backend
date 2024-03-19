@@ -454,7 +454,8 @@ let destroyed_at_oper = function
        | Icsel _
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
-       | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+       | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+       | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
@@ -491,7 +492,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_alloc_or_poll
   | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
-       | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
+       | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
+       | Const_vec128 _
        | Stackoffset _
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
@@ -585,7 +587,8 @@ let safe_register_pressure = function
   | Ivalueofint | Iintofvalue | Ivectorcast _
   | Icompf _ | Iscalarcast _
   | Icsel _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _ | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
@@ -638,7 +641,8 @@ let max_register_pressure =
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause

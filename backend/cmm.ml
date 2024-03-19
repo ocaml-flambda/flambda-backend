@@ -271,6 +271,7 @@ let global_symbol sym_name = { sym_name; sym_global = Global }
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -370,6 +371,7 @@ let iter_shallow_tail f = function
       true
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -413,6 +415,7 @@ let map_shallow_tail ?kind f = function
       cmm
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -425,6 +428,7 @@ let map_tail ?kind f =
   let rec loop = function
     | Cconst_int _
     | Cconst_natint _
+    | Cconst_float32 _
     | Cconst_float _
     | Cconst_symbol _
     | Cvar _
@@ -464,6 +468,7 @@ let iter_shallow f = function
       f e1; f e2
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -500,6 +505,7 @@ let map_shallow f = function
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _

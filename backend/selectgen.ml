@@ -214,6 +214,7 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
+    | Cconst_float32 _ -> Arch.size_float
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -461,6 +462,7 @@ class virtual selector_generic = object (self : 'self)
 method is_simple_expr = function
     Cconst_int _ -> true
   | Cconst_natint _ -> true
+  | Cconst_float32 _ -> true
   | Cconst_float _ -> true
   | Cconst_symbol _ -> true
   | Cconst_vec128 _ -> true
@@ -511,8 +513,8 @@ method is_simple_expr = function
 method effects_of exp =
   let module EC = Effect_and_coeffect in
   match exp with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
-  | Cvar _ -> EC.none
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ -> EC.none
   | Ctuple el -> EC.join_list_map el self#effects_of
   | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
     EC.join (self#effects_of arg) (self#effects_of body)
@@ -830,6 +832,9 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
   | Cconst_natint (n, _dbg) ->
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_int n) [||] r)
+  | Cconst_float32 (n, _dbg) ->
+      let r = self#regs_for typ_float in
+      ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
       ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
@@ -1713,7 +1718,8 @@ method emit_tail (env:environment) exp =
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
   | Cop _
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _
   | Cassign _
   | Ctuple _

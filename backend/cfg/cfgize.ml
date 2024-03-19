@@ -120,6 +120,7 @@ let basic_or_terminator_of_operation :
   | Ispill -> Basic (Op Spill)
   | Ireload -> Basic (Op Reload)
   | Iconst_int i -> Basic (Op (Const_int i))
+  | Iconst_float32 f -> Basic (Op (Const_float32 f))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
   | Iconst_vec128 bits -> Basic (Op (Const_vec128 bits))
@@ -626,7 +627,8 @@ module Stack_offset_and_exn = struct
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
-        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
+        ( Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _
         | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
         | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
         | Valueofint | Csel _ | Intofvalue | Scalarcast _ | Vectorcast _

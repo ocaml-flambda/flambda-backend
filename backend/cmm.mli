@@ -271,6 +271,7 @@ val global_symbol : string -> symbol
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t

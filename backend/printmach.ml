@@ -158,6 +158,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ispill -> fprintf ppf "%a (spill)" regs arg
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
+  | Iconst_float32 f -> fprintf ppf "%Fs" (Int32.float_of_bits f)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low

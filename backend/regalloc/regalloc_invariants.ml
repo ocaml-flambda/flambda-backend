@@ -15,6 +15,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Spill -> fatal "instruction %d is a spill" id
       | Reload -> fatal "instruction %d is a reload" id
       | Const_int _ -> ()
+      | Const_float32 _ -> ()
       | Const_float _ -> ()
       | Const_symbol _ -> ()
       | Const_vec128 _ -> ()

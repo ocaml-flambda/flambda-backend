@@ -44,8 +44,9 @@ let rec find_next_allocation : cell option -> allocation option =
     match instr.desc with
     | Op (Alloc { bytes; dbginfo; mode }) -> Some { bytes; dbginfo; mode; cell }
     | Op
-        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+        ( Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _
+        | Stackoffset _ | Load _ | Store _ | Intop _
         | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf
         | Compf _ | Csel _ | Valueofint | Intofvalue | Vectorcast _
         | Scalarcast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
@@ -99,7 +100,8 @@ let find_compatible_allocations :
       | Op
           ( Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
           | Valueofint | Intofvalue | Vectorcast _ | Opaque | Const_int _
-          | Const_float _ | Const_vec128 _ | Const_symbol _ | Stackoffset _
+          | Const_float32 _ | Const_float _ | Const_vec128 _
+          | Const_symbol _ | Stackoffset _
           | Load _
           | Store (_, _, _)
           | Compf _ | Csel _ | Specific _ | Name_for_debugger _

@@ -1260,6 +1260,15 @@ let emit_instr fallthrough i =
           I.mov (nat n) (res i 0)
       end else
         I.mov (nat n) (res i 0)
+  | Lop(Iconst_float32 f) ->
+      begin match f with
+      | 0x0000_0000l ->       (* +0.0 *)
+          I.xorpd (res i 0) (res i 0)
+      | _ ->
+          (* float32 constants still take up 8 bytes; we load the lower half. *)
+          let lbl = add_float_constant (Int64.of_int32 f) in
+          I.movss (mem64_rip REAL4 (emit_label lbl)) (res i 0)
+      end
   | Lop(Iconst_float f) ->
       begin match f with
       | 0x0000_0000_0000_0000L ->       (* +0.0 *)

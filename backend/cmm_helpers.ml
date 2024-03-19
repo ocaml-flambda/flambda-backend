@@ -3340,10 +3340,10 @@ let letin v ~defining_expr ~body =
   match body with
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
-  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ ->
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _
+  | Cassign _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _
+  | Ccatch _ | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3636,8 +3636,8 @@ let cmm_arith_size (e : Cmm.expression) =
     | _ -> 0
   in
   match e with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-  | Cconst_vec128 _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
