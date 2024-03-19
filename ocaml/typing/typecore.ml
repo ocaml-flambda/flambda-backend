@@ -879,8 +879,6 @@ let project_mutable m0 m =
      Value.Monadic.of_const m0.monadic]
   in
   {monadic; comonadic}
-    (* CR zqian: decouple mutable and global. *)
-    |> modality_unbox_left Global
 
 let project_maybe_mutable mut m =
   match mut with
@@ -906,8 +904,6 @@ let construct_mutable m0 m =
       which is min, so this call cannot fail."
   );
   m |> Value.disallow_left
-    (* CR zqian: decouple mutable and global *)
-    |> modality_box_right Global
 
 let _construct_maybe_mutable mut m =
   match mut with
@@ -920,8 +916,6 @@ let _construct_maybe_mutable mut m =
 let mutate_mutable m0 (_ : (allowed * _) Value.t) =
   let m0 = Const.alloc_as_value m0 in
   m0 |> Value.of_const |> Value.disallow_left
-    (* CR zqian: decouple mutable and global. *)
-     |> modality_box_right Global
 
 (* Typing of patterns *)
 

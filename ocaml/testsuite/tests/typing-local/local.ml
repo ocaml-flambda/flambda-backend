@@ -1,6 +1,20 @@
 (* TEST
    * expect *)
 
+(* CR zqian: This files uses [ref]'s old behaviour that mutable implies global
+  modality. We Should use the [ref] from stdlib instead and update the tests. *)
+type 'a ref = {mutable contents : 'a @@ global}
+
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
+[%%expect{|
+type 'a ref = { mutable global_ contents : 'a; }
+external ref : 'a -> ('a ref [@local_opt]) = "%makemutable"
+external ( ! ) : ('a ref [@local_opt]) -> 'a = "%field0"
+external ( := ) : ('a ref [@local_opt]) -> 'a -> unit = "%setfield0"
+|}]
+
 let leak n =
   let r = local_ ref n in
   r
@@ -1513,11 +1527,9 @@ val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
 (* Fields have the same mode unless they are global or mutable *)
 
 type 'a imm = { imm : 'a }
-type 'a mut = { mutable mut : 'a }
 type 'a gbl = { global_ gbl : 'a }
 [%%expect{|
 type 'a imm = { imm : 'a; }
-type 'a mut = { mutable mut : 'a; }
 type 'a gbl = { global_ gbl : 'a; }
 |}]
 
@@ -1534,16 +1546,6 @@ Line 3, characters 2-7:
       ^^^^^
 Error: This value escapes its region
   Hint: Cannot return a local value without an "exclave_" annotation
-|}]
-let foo (local_ x) = x.mut
-[%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
-|}]
-let foo y =
-  let x = local_ { mut = y } in
-  x.mut
-[%%expect{|
-val foo : 'a -> 'a = <fun>
 |}]
 let foo (local_ x) = x.gbl
 [%%expect{|
@@ -1570,16 +1572,6 @@ Line 3, characters 2-5:
 Error: This value escapes its region
   Hint: Cannot return a local value without an "exclave_" annotation
 |}]
-let foo (local_ { mut }) = mut
-[%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
-|}]
-let foo y =
-  let { mut } = local_ { mut = y } in
-  mut
-[%%expect{|
-val foo : 'a -> 'a = <fun>
-|}]
 let foo (local_ { gbl }) = gbl
 [%%expect{|
 val foo : local_ 'a gbl -> 'a = <fun>
@@ -1603,25 +1595,6 @@ let foo () =
   ()
 [%%expect{|
 val foo : unit -> unit = <fun>
-|}]
-let foo (local_ mut) =
-  let _ = { mut } in
-  ()
-[%%expect{|
-Line 2, characters 12-15:
-2 |   let _ = { mut } in
-                ^^^
-Error: This value escapes its region
-|}]
-let foo () =
-  let mut = local_ ref 5 in
-  let _ = { mut } in
-  ()
-[%%expect{|
-Line 3, characters 12-15:
-3 |   let _ = { mut } in
-                ^^^
-Error: This value escapes its region
 |}]
 let foo (local_ gbl) =
   let _ = { gbl } in
@@ -2504,7 +2477,7 @@ Error: Signature mismatch:
          Bar of int * string
        is not the same as:
          Bar of int * global_ string
-       Locality mismatch at argument position 2 : The second is global and the first is not.
+       Modalities mismatch at argument position 2 : The second is global and the first is not.
 |}]
 
 
@@ -2531,7 +2504,7 @@ Error: Signature mismatch:
          Bar of int * global_ string
        is not the same as:
          Bar of int * string
-       Locality mismatch at argument position 2 : The first is global and the second is not.
+       Modalities mismatch at argument position 2 : The first is global and the second is not.
 |}]
 
 (* global_ binds closer than star *)
@@ -2682,33 +2655,6 @@ let f (a : string iarray) =
   | _ -> ref "foo"
 [%%expect{|
 val f : string iarray -> string ref = <fun>
-|}]
-
-(* Mutable array, like references, is dangerous. They must contain global
-    elements regardless of the array's mode. *)
-
-(* constructing local array from local elements is rejected *)
-let f (local_ x : string) = local_ [| x |]
-[%%expect{|
-Line 1, characters 38-39:
-1 | let f (local_ x : string) = local_ [| x |]
-                                          ^
-Error: This value escapes its region
-|}]
-
-(* constructing local array from global elements is allowed *)
-let f (x : string) = local_ [| x |]
-[%%expect{|
-val f : string -> local_ string array = <fun>
-|}]
-
-(* projecting out of local array gives global elements *)
-let f (local_ a : string array) =
-  match a with
-  | [| x |] -> ref x
-  | _ -> ref "foo"
-[%%expect{|
-val f : local_ string array -> string ref = <fun>
 |}]
 
 (* reported internal to Jane Street as TANDC-1742 *)
@@ -2956,4 +2902,16 @@ let foo () =
 [%%expect{|
 type r = { global_ x : string; y : string; }
 val foo : unit -> r = <fun>
+|}]
+
+
+type r = {x : float; y : float}
+
+let foo () =
+  let local_ r = {x = 3.0; y = 4.0} in
+  (* [r.x] is allocated global and can escape. *)
+  r.x
+[%%expect{|
+type r = { x : float; y : float; }
+val foo : unit -> float = <fun>
 |}]

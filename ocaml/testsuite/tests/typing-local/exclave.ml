@@ -3,9 +3,7 @@
 
 (* typing tests *)
 
-let escape x =
-  let _ = ref x in
-  ()
+let escape : 'a -> unit = fun _ -> ()
 [%%expect{|
 val escape : 'a -> unit = <fun>
 |}]
@@ -56,11 +54,11 @@ let foo x =
   exclave_
     let local_ y = None in
     (* y is not global *)
-    ref y
+    escape y
 [%%expect{|
-Line 5, characters 8-9:
-5 |     ref y
-            ^
+Line 5, characters 11-12:
+5 |     escape y
+               ^
 Error: This value escapes its region
 |}]
 
