@@ -1205,6 +1205,7 @@ module Linearity = struct
   end
 
   include Common (Obj)
+  open Obj
 
   let many = of_const Many
 
@@ -1213,6 +1214,8 @@ module Linearity = struct
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
+  
+  let meet_with c m = Solver.via_monotone obj (Meet_with c) (disallow_right m)
 end
 
 module Uniqueness = struct
@@ -1228,6 +1231,7 @@ module Uniqueness = struct
   end
 
   include Common (Obj)
+  open Obj
 
   let shared = of_const Shared
 
@@ -1236,7 +1240,10 @@ module Uniqueness = struct
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_ceil
+
+  let meet_with c m = Solver.via_monotone obj (Join_with c) (disallow_right m)
 end
+
 
 let regional_to_local m =
   S.Positive.via_monotone Locality.Obj.obj C.Regional_to_local m

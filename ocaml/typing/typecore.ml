@@ -791,32 +791,32 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(** Mode cross a left mode *)
-let mode_cross_left env ty mode =
-  if not (is_principal ty) then Value.disallow_right mode else
+let get_modal_upper_bounds env ty =
+  if not (is_principal ty) then Alloc.Const.max else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Jkind.get_modal_upper_bounds jkind
+
+(** Mode cross a left mode *)
+let mode_cross_left upper_bounds mode =
   let upper_bounds = Const.alloc_as_value upper_bounds in
   Value.meet_with upper_bounds mode
 
+let mode_cross_left_ty env ty mode =
+  mode_cross_left (get_modal_upper_bounds env ty) mode
+
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
-let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
-  let monadic = Alloc.Monadic.disallow_left monadic in
-  let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+let alloc_mode_cross_to_max_min upper_bounds { monadic; comonadic } =
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_with upper_bounds.comonadic comonadic in
   let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
   { monadic; comonadic }
 
+let alloc_mode_cross_to_max_min_ty env ty t =
+  alloc_mode_cross_to_max_min (get_modal_upper_bounds env ty) t
+
 (** Mode cross a right mode *)
-let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+let expect_mode_cross upper_bounds (expected_mode : expected_mode) =
   let upper_bounds = Const.alloc_as_value upper_bounds in
   let mode = Value.imply upper_bounds expected_mode.mode in
   (* - [strict_local] doesn't need to be updated, because it's only relavant for
@@ -824,6 +824,9 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
      - [mode_tuples] doesn't need to be updated, because [mode] being higher
      won't violate the invariant. *)
   { expected_mode with mode }
+
+let expect_mode_cross_ty env ty t =
+  expect_mode_cross (get_modal_upper_bounds env ty) t
 
 (* Value binding elaboration can insert alloc mode attributes on the forged
    [Pexp_constraint] node. Use this function to detect
@@ -2439,7 +2442,9 @@ and type_pat_aux
         pat_env = !env }
   | Ppat_var name ->
       let ty = instance expected_ty in
-      let alloc_mode = mode_cross_left !env expected_ty alloc_mode.mode in
+      let alloc_mode =
+        mode_cross_left_ty !env expected_ty alloc_mode.mode
+      in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
       in
@@ -2478,7 +2483,7 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~refine ~mode:alloc_mode.mode env q in
-      let mode = mode_cross_left !env expected_ty mode in
+      let mode = mode_cross_left_ty !env expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
@@ -4656,18 +4661,16 @@ let with_explanation explanation f =
         raise (Error (loc', env', err))
 
 let unique_use ~loc ~env mode_l mode_r  =
-  let uniqueness = Uniqueness.disallow_left (Value.uniqueness mode_r) in
-  let linearity = Linearity.disallow_right (Value.linearity mode_l) in
   if not (Language_extension.is_enabled Unique) then begin
     (* if unique extension is not enabled, we will not run uniqueness analysis;
        instead, we force all uses to be shared and many. This is equivalent to
        running a UA which forces everything *)
-    (match Uniqueness.submode Uniqueness.shared uniqueness with
+    (match Uniqueness.submode Uniqueness.shared (Value.uniqueness mode_r) with
     | Ok () -> ()
     | Error e ->
         raise (Error(loc, env, Submode_failed(`Uniqueness e, Other, None, None)))
     );
-    (match Linearity.submode linearity Linearity.many with
+    (match Linearity.submode (Value.linearity mode_l) Linearity.many with
     | Ok () -> ()
     | Error e ->
         raise (Error (loc, env, Submode_failed(`Linearity e, Other, None, None)))
@@ -4675,7 +4678,9 @@ let unique_use ~loc ~env mode_l mode_r  =
     (Uniqueness.disallow_left Uniqueness.shared,
      Linearity.disallow_right Linearity.many)
   end
-  else (uniqueness, linearity)
+  else
+    Uniqueness.disallow_left (Value.uniqueness mode_r),
+    Linearity.disallow_right (Value.linearity mode_l)
 
 (** The body of a constraint or coercion. The "body" may be either an expression
     or a list of function cases. This type is polymorphic in the data returned
@@ -4827,7 +4832,7 @@ let split_function_ty
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
         end
       in
-      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
+      let ret_value_mode = expect_mode_cross_ty env ty_ret ret_value_mode in
       ret_value_mode
   in
   let ty_arg_mono =
@@ -5609,12 +5614,14 @@ and type_expect_
         match label.lbl_repres with
         | Record_float ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left env Predef.type_unboxed_float mode in
+          let upper_bounds = get_modal_upper_bounds env Predef.type_unboxed_float in
+          let mode = mode_cross_left upper_bounds mode in
           submode ~loc ~env mode argument_mode;
           let uu = unique_use ~loc ~env mode argument_mode.mode in
-          Boxing (alloc_mode, uu)
+          let ub = upper_bounds.uniqueness, upper_bounds.linearity in
+          Boxing (alloc_mode, (uu, ub))
         | _ ->
-          let mode = mode_cross_left env ty_arg mode in
+          let mode = mode_cross_left_ty env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode expected_mode.mode in
           Non_boxing uu
@@ -6425,7 +6432,7 @@ and type_ident env ?(recarg=Rejected) lid =
   (* Mode crossing here is needed only because of the strange behaviour of
   [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
   identifiers would be mode crossed when being added to the environment. *)
-  let mode = mode_cross_left env desc.val_type mode in
+  let mode = mode_cross_left_ty env desc.val_type mode in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -6654,7 +6661,7 @@ and type_function
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
                      mode-crossed differently. *)
-                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
+                  let arg_mode = alloc_mode_cross_to_max_min_ty env ty_arg arg_mode in
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
@@ -7364,7 +7371,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
-      let mode = expect_mode_cross env ty_expected' mode in
+      let mode = expect_mode_cross_ty env ty_expected' mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
@@ -7467,7 +7474,7 @@ and type_application env app_loc expected_mode position_and_mode
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ap_mode = Locality.disallow_right (Alloc.locality ret_mode) in
       let mode_res =
-        mode_cross_left env ty_ret (alloc_as_value ret_mode)
+        mode_cross_left_ty env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -7522,7 +7529,7 @@ and type_application env app_loc expected_mode position_and_mode
       in
       let ap_mode = Locality.disallow_right (Alloc.locality mode_ret) in
       let mode_ret =
-        mode_cross_left env ty_ret (alloc_as_value mode_ret)
+        mode_cross_left_ty env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
@@ -7554,7 +7561,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
         let argument_mode = mode_default argument_mode in
-        let argument_mode = expect_mode_cross env ty argument_mode in
+        let argument_mode = expect_mode_cross_ty env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
       sexpl types_and_modes
   in
@@ -8558,7 +8565,7 @@ and type_generic_array
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross env ty argument_mode in
+  let argument_mode = expect_mode_cross_ty env ty argument_mode in
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
@@ -8604,7 +8611,7 @@ and type_mode_expr
       match modes.uniqueness with
       | Some Unique ->
           let expected_mode = mode_unique expected_mode in
-          expect_mode_cross env ty_expected expected_mode
+          expect_mode_cross_ty env ty_expected expected_mode
       | Some m ->
           Misc.fatal_errorf "The mode %a should not interpret" Uniqueness.Const.print m
       | None -> expected_mode
@@ -8612,7 +8619,7 @@ and type_mode_expr
     let expected_mode =
       match modes.linearity with
       | Some Once ->
-          let expected_mode = expect_mode_cross env ty_expected expected_mode in
+          let expected_mode = expect_mode_cross_ty env ty_expected expected_mode in
           submode ~loc ~env ~reason:Other
             (Value.min_with_linearity Linearity.once) expected_mode;
           mode_once expected_mode
@@ -8623,7 +8630,7 @@ and type_mode_expr
     let expected_mode =
       match modes.locality with
       | Some Local ->
-          let expected_mode = expect_mode_cross env ty_expected expected_mode in
+          let expected_mode = expect_mode_cross_ty env ty_expected expected_mode in
           submode ~loc ~env ~reason:Other
             (Value.min_with_regionality Regionality.local) expected_mode;
           mode_strictly_local expected_mode

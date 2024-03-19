@@ -42,7 +42,7 @@ module Maybe_unique : sig
   val extract_occurrence : t -> Occurrence.t
 
   (** construct a single usage *)
-  val singleton : unique_use -> Occurrence.t -> t
+  val singleton : unique_use -> ?unique_bounds:unique_bounds -> Occurrence.t -> t
 
   val meet : t -> t -> t
 
@@ -57,8 +57,14 @@ module Maybe_unique : sig
       axis : axis
     }
 
-  (** Call this function to indicate that this is used multiple times *)
-  val mark_multi_use : t -> (unit, cannot_force) result
+  (** Call this function to indicate that this is used multiple times.
+      [unique_bounds] is potentially the other use site with better
+      unique_bounds information for mode crossing. *)
+  val mark_multi_use : ?unique_bounds:unique_bounds -> t -> (unit, cannot_force) result
+
+
+  (** Returns the [unique_bounds] as known by this use sites. *)
+  val unique_bounds : t -> unique_bounds
 
   (** Returns the uniqueness represented by this usage. If this identifier is
       expected to be unique in any branch, it will return unique. If the current
@@ -73,11 +79,13 @@ end = struct
       modes in the lists. (recall that shared > unique). Therefore, if this
       virtual mode needs to be forced shared, the whole list needs to be forced
       shared. *)
-  type t = (unique_use * Occurrence.t) list
+  type t = (unique_use * Occurrence.t) list * unique_bounds
 
-  let singleton unique_use occ : t = [unique_use, occ]
+  let singleton unique_use ?(unique_bounds = Typedtree.unique_bounds) occ : t = [unique_use, occ], unique_bounds
 
-  let uniqueness l = Uniqueness.meet (List.map (fun ((uniq, _), _) -> uniq) l)
+  let uniqueness (l, _) = Uniqueness.meet (List.map (fun ((uniq, _), _) -> uniq) l)
+
+  let unique_bounds (_, b) = b
 
   type axis =
     | Uniqueness
@@ -88,23 +96,26 @@ end = struct
       axis : axis
     }
 
-  let mark_multi_use l =
+  let mark_multi_use ?(unique_bounds=Typedtree.unique_bounds) (l, ub) =
+    let upper_uniqueness, upper_linearity = meet_unique_bounds unique_bounds ub in
     let force_one ((uni, lin), occ) =
       (* values being multi-used means two things:
          - the expected mode must be higher than [shared]
          - the access mode must be lower than [many] *)
-      match Linearity.submode lin Linearity.many with
+      match Linearity.submode (Linearity.meet_with upper_linearity lin) Linearity.many with
       | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
-        match Uniqueness.submode Uniqueness.shared uni with
+        match Uniqueness.submode (Uniqueness.meet_with upper_uniqueness Uniqueness.shared) uni with
         | Ok () -> Ok ()
         | Error _ -> Error { occ; axis = Uniqueness })
     in
     iter_error force_one l
 
-  let extract_occurrence = function [] -> assert false | (_, occ) :: _ -> occ
+  let extract_occurrence (l, _) =
+    match l with
+    | [] -> assert false | (_, occ) :: _ -> occ
 
-  let meet l0 l1 = l0 @ l1
+  let meet (l0, b0) (l1, b1) = l0 @ l1, meet_unique_bounds b0 b1
 end
 
 module Maybe_shared : sig
@@ -211,7 +222,7 @@ module Usage : sig
 
   val shared : Occurrence.t -> Shared.reason -> t
 
-  val maybe_unique : unique_use -> Occurrence.t -> t
+  val maybe_unique : unique_use -> ?unique_bounds:unique_bounds -> Occurrence.t -> t
 
   (** Extract an arbitrary occurrence from a usage *)
   val extract_occurrence : t -> Occurrence.t option
@@ -299,8 +310,8 @@ end = struct
 
   let shared occ reason = Shared (Shared.singleton occ reason)
 
-  let maybe_unique unique_use occ =
-    Maybe_unique (Maybe_unique.singleton unique_use occ)
+  let maybe_unique unique_use ?(unique_bounds = Typedtree.unique_bounds) occ =
+    Maybe_unique (Maybe_unique.singleton unique_use ~unique_bounds occ)
 
   let extract_occurrence = function
     | Unused -> None
@@ -330,8 +341,8 @@ end = struct
 
   exception Error of error
 
-  let force_shared_multiuse t there first_or_second =
-    match Maybe_unique.mark_multi_use t with
+  let force_shared_multiuse t ?(unique_bounds = Typedtree.unique_bounds) there first_or_second =
+    match Maybe_unique.mark_multi_use ~unique_bounds t with
     | Ok () -> ()
     | Error cannot_force ->
       raise (Error { cannot_force; there; first_or_second })
@@ -428,8 +439,10 @@ end = struct
       force_shared_multiuse l m0 Second;
       m0
     | Maybe_unique l0, Maybe_unique l1 ->
-      force_shared_multiuse l0 m1 First;
-      force_shared_multiuse l1 m0 Second;
+      let ub0 = Maybe_unique.unique_bounds l0 in
+      let ub1 = Maybe_unique.unique_bounds l1 in
+      force_shared_multiuse l0 ~unique_bounds:ub1 m1 First;
+      force_shared_multiuse l1 ~unique_bounds:ub0 m0 Second;
       shared (Maybe_unique.extract_occurrence l0) Shared.Forced
 end
 
@@ -1407,8 +1420,8 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
         match float with
         | Non_boxing unique_use ->
           UF.unused, Value.existing paths unique_use occ
-        | Boxing (_, unique_use) ->
-          Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
+        | Boxing (_, (unique_use, unique_bounds)) ->
+          Paths.mark (Usage.maybe_unique unique_use ~unique_bounds occ) paths, Value.fresh
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
   (* CR-someday anlorenzen: This could also support let-bindings. *)
@@ -1510,7 +1523,7 @@ and check_uniqueness_comprehension_clause_binding ienv cbs =
 and check_uniqueness_binding_op ienv bo =
   let occ = Occurrence.mk bo.bop_loc in
   let uf_path =
-    match value_of_ident ienv shared_many_use occ bo.bop_op_path with
+    match value_of_ident ienv Typedtree.unique_use occ bo.bop_op_path with
     | Some value -> Value.mark_maybe_unique value
     | None -> UF.unused
   in
