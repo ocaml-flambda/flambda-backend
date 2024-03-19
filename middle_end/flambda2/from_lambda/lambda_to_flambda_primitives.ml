@@ -1110,7 +1110,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbox_float (Pfloat32, _), _
   | Pcompare_floats Pfloat32, _
   | Punboxed_float_comp (Pfloat32, _), _ ->
-    (* CR mslater: (float32) unboxed *)
+    (* CR mslater: (float32) runtime *)
     assert false
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in

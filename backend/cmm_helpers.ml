@@ -3664,10 +3664,7 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
-  | Pvalue (Pboxedfloatval Pfloat32) ->
-    (* CR mslater: (float32) backend support *)
-    assert false
+  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
