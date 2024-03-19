@@ -1048,11 +1048,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pfloatoffloat32 mode, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float32 in
     let dst = K.Standard_int_or_float.Naked_float in
-    [box_float mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
+    [ box_float mode
+        (Unary (Num_conv { src; dst }, unbox_float32 arg))
+        ~current_region ]
   | Pfloat32offloat mode, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Naked_float32 in
-    [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
+    [ box_float32 mode
+        (Unary (Num_conv { src; dst }, unbox_float arg))
+        ~current_region ]
   | Pintoffloat Pfloat64, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Tagged_immediate in

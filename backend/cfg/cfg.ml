@@ -259,7 +259,8 @@ let dump_op ppf = function
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
-  | Const_float32 f -> Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
+  | Const_float32 f ->
+    Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
   | Const_vec128 { high; low } ->
@@ -550,12 +551,11 @@ let is_noop_move instr =
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-      | Const_vec128 _
-      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Opaque | Valueofint | Intofvalue | Scalarcast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Begin_region | End_region | Dls_get
-      | Poll | Alloc _ )
+      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+      | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf
+      | Compf _ | Opaque | Valueofint | Intofvalue | Scalarcast _
+      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
+      | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

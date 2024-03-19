@@ -449,6 +449,9 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Imove | Ispill | Ireload) -> 1
     | Lop (Iconst_int n) ->
       num_instructions_for_intconst n
+    | Lop (Iconst_float32 _) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop (Iconst_float _) -> 2
     | Lop (Iconst_symbol _) -> 2
     | Lop (Iconst_vec128 _) ->
@@ -723,6 +726,9 @@ let emit_instr i =
         end
     | Lop(Iconst_int n) ->
         emit_intconst i.res.(0) n
+    | Lop (Iconst_float32 _) ->
+      (* CR mslater: (float32) arm64 *)
+      Misc.fatal_error "float32 is not supported on this architecture"
     | Lop(Iconst_float f) ->
         if f = 0L then
           `	fmov	{emit_reg i.res.(0)}, xzr\n`
