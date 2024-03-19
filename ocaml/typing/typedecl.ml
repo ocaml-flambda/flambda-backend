@@ -3310,12 +3310,12 @@ let report_error ppf = function
             (Ident.name boxed_lbl)
       | Runtime_support_not_enabled ->
           fprintf ppf
-            "[@This OCaml runtime doesn't support mixed records. Contact\
+            "@[This OCaml runtime doesn't support mixed records. Contact\
             \ Jane Street compiler devs if you see this error.@]"
       | Value_prefix_too_long { value_prefix_len; max_value_prefix_len } ->
           fprintf ppf
-            "[@Mixed records may contain at most %d value fields, but this\
-            \ one contains %d.@]"
+            "@[Mixed records may contain at most %d value fields prior to the\
+            \ flat suffix, but this one contains %d.@]"
             max_value_prefix_len value_prefix_len
     end
   | Bad_unboxed_attribute msg ->
