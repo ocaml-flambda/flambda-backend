@@ -295,6 +295,11 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
       meet_head_of_kind_naked_immediate env head1 head2
     in
     ET.create_naked_immediate head, env_extension
+  | Naked_float32 head1, Naked_float32 head2 ->
+    let<+ head, env_extension =
+      meet_head_of_kind_naked_float32 env head1 head2
+    in
+    ET.create_naked_float32 head, env_extension
   | Naked_float head1, Naked_float head2 ->
     let<+ head, env_extension = meet_head_of_kind_naked_float env head1 head2 in
     ET.create_naked_float head, env_extension
@@ -572,6 +577,10 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
        the actual meet with Naked_immediates, or just give up and return one of
        the arguments. N.B. Also see comment in meet_and_join_new.ml *)
     Ok (t1, TEE.empty)
+
+and meet_head_of_kind_naked_float32 _env t1 t2 : _ Or_bottom.t =
+  let<+ head = TG.Head_of_kind_naked_float32.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_float _env t1 t2 : _ Or_bottom.t =
   let<+ head = TG.Head_of_kind_naked_float.inter t1 t2 in
