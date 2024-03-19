@@ -417,12 +417,21 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
     CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
     size = Wosize_val(newval);
-    // CR mixed blocks: scannable size!
     CAMLassert (size == Wosize_val(dummy));
+    mlsize_t scannable_size = Scannable_wosize_val(newval);
+    CAMLassert (scannable_size == Scannable_wosize_val(dummy));
     /* See comment above why this is safe even if [tag == Closure_tag]
-       and some of the "values" being copied are actually code pointers. */
-    for (i = 0; i < size; i++){
+       and some of the "values" being copied are actually code pointers.
+
+       This reasoning does not apply to arbitrary flat fields, which might have
+       the same shape as pointers into the minor heap, so we need to handle the
+       non-scannable suffix of mixed blocks specially.
+    */
+    for (i = 0; i < scannable_size; i++){
       caml_modify (&Field(dummy, i), Field(newval, i));
+    }
+    for (i = scannable_size; i < size; i++) {
+      Field(dummy, i) = Field(newval, i);
     }
   }
   return Val_unit;
