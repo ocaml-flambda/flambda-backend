@@ -284,8 +284,8 @@ let dump_op ppf = function
   | Scalarcast (Float_to_int Pfloat64) -> Format.fprintf ppf "intoffloat"
   | Scalarcast (Float_of_int Pfloat32) -> Format.fprintf ppf "float32toint"
   | Scalarcast (Float_to_int Pfloat32) -> Format.fprintf ppf "intoffloat32"
-  | Scalarcast (Float_of_float32) -> Format.fprintf ppf "floatoffloat32"
-  | Scalarcast (Float_to_float32) -> Format.fprintf ppf "float32offloat"
+  | Scalarcast Float_of_float32 -> Format.fprintf ppf "floatoffloat32"
+  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float32offloat"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
   | Scalarcast (V128_to_scalar ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
@@ -550,9 +550,9 @@ let is_noop_move instr =
       ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Opaque | Valueofint | Intofvalue | Scalarcast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ | Begin_region | End_region | Dls_get
+      | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

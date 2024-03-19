@@ -705,11 +705,11 @@ let test_bool dbg cmm =
 
 let box_float32 dbg mode exp =
   Cop
-  ( Calloc mode,
-    [ alloc_boxedfloat32_header mode dbg;
-      Cconst_symbol (global_symbol caml_float32_ops, dbg);
-      exp ],
-    dbg )
+    ( Calloc mode,
+      [ alloc_boxedfloat32_header mode dbg;
+        Cconst_symbol (global_symbol caml_float32_ops, dbg);
+        exp ],
+      dbg )
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
@@ -3392,9 +3392,9 @@ let int_of_float32 = unary (Cscalarcast (Float_to_int Pfloat32))
 
 let float32_of_int = unary (Cscalarcast (Float_of_int Pfloat32))
 
-let float32_of_float = unary (Cscalarcast (Float_to_float32))
+let float32_of_float = unary (Cscalarcast Float_to_float32)
 
-let float_of_float32 = unary (Cscalarcast (Float_of_float32))
+let float_of_float32 = unary (Cscalarcast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
