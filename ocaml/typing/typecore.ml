@@ -5610,21 +5610,23 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let float =
+      let mode = modality_unbox_left label.lbl_global rmode in
+      let boxing : texp_field_boxing =
         match label.lbl_repres with
         | Record_float ->
-          ignore rmode;
-          let alloc_mode, _ = register_allocation expected_mode in
-          Float alloc_mode
+          let alloc_mode, argument_mode = register_allocation expected_mode in
+          let mode = mode_cross_left env Predef.type_unboxed_float mode in
+          submode ~loc ~env mode argument_mode;
+          let uu = unique_use ~loc ~env mode argument_mode.mode in
+          Boxing (alloc_mode, uu)
         | _ ->
-          let mode = modality_unbox_left label.lbl_global rmode in
           let mode = mode_cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode expected_mode.mode in
-          Non_float uu
+          Non_boxing uu
       in
       rue {
-        exp_desc = Texp_field(record, lid, label, float);
+        exp_desc = Texp_field(record, lid, label, boxing);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;

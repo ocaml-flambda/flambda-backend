@@ -556,8 +556,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_float ->
           let alloc_mode =
             match float with
-            | Float alloc_mode -> alloc_mode
-            | Non_float _ -> assert false
+            | Boxing (alloc_mode, _) -> alloc_mode
+            | Non_boxing _ -> assert false
           in
           let mode = transl_alloc_mode_r alloc_mode in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],

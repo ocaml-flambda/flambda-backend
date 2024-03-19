@@ -1401,16 +1401,16 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       (* accessing the field meaning borrowing the parent record's mem
          block. Note that the field itself is not borrowed or used *)
       let uf_read = Value.mark_implicit_borrow_memory_address Read value in
-      let uf = UF.seq uf uf_read in
-      let value =
+      let uf_boxing, value =
+        let occ = Occurrence.mk loc in
+        let paths = Paths.record_field l.lbl_global l.lbl_name paths in
         match float with
-        | Non_float unique_use ->
-          let occ = Occurrence.mk loc in
-          let paths = Paths.record_field l.lbl_global l.lbl_name paths in
-          Value.existing paths unique_use occ
-        | Float _ -> Value.fresh
+        | Non_boxing unique_use ->
+          UF.unused, Value.existing paths unique_use occ
+        | Boxing (_, unique_use) ->
+          Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
       in
-      value, uf)
+      value, UF.seqs [uf; uf_read; uf_boxing])
   (* CR-someday anlorenzen: This could also support let-bindings. *)
   | _ -> Value.fresh, check_uniqueness_exp ienv exp
 

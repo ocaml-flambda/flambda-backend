@@ -53,9 +53,9 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
-type texp_field_float =
-  | Float of Mode.Alloc.r
-  | Non_float of unique_use
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use
+  | Non_boxing of unique_use
 
 let shared_many_use =
   ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
@@ -156,7 +156,7 @@ and expression_desc =
       alloc_mode : Mode.Alloc.r option
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * texp_field_float
+      expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r

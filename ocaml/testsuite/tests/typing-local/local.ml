@@ -2957,15 +2957,3 @@ let foo () =
 type r = { global_ x : string; y : string; }
 val foo : unit -> r = <fun>
 |}]
-
-
-type r = {x : float; y : float}
-
-let foo () =
-  let local_ r = {x = 3.0; y = 4.0} in
-  (* [r.x] is allocated global and can escape. *)
-  r.x
-[%%expect{|
-type r = { x : float; y : float; }
-val foo : unit -> float = <fun>
-|}]

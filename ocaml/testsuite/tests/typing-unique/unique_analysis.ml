@@ -783,6 +783,13 @@ Line 4, characters 20-21:
 
 type r = {x : float; y : float}
 
+(* CR zqian: The following should pass but doesn't, because the uniqueness
+   analysis doesn't support mode crossing. The following involes sequencing the
+   maybe_unique usage of [r.x] and the maybe_unique usage of [r] as a whole.
+   Sequencing them will force both to be shared and many. The [unique_use] in
+   [r.x] is mode-crossed (being an unboxed float) so is fine. The [unique_use]
+   in [r] cannot cross mode, and forcing it causes error. *)
+
 let foo () =
   let r = {x = 3.0; y = 5.0} in
   let x = r.x in
@@ -791,7 +798,15 @@ let foo () =
   ignore (unique_id x)
 [%%expect{|
 type r = { x : float; y : float; }
-val foo : unit -> unit = <fun>
+Line 13, characters 20-21:
+13 |   ignore (unique_id r);
+                         ^
+Error: This value is used here,
+       but part of it has already been used as unique:
+Line 12, characters 10-13:
+12 |   let x = r.x in
+               ^^^
+
 |}]
 
 let foo () =

@@ -72,12 +72,13 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
-type texp_field_float =
-  | Float of Mode.Alloc.r
-  (** Projecting out of a float record, which requires allocation described by
-      the mode.  *)
-  | Non_float of unique_use
-  (** Projecting out of a normal record. *)
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use
+  (** Projection requires boxing. [unique_use] describes the usage of the
+      unboxed field as argument to boxing. *)
+  | Non_boxing of unique_use
+  (** Projection does not require boxing. [unique_use] describes the usage of
+      the field as the result of direct projection. *)
 
 val shared_many_use : unique_use
 
@@ -340,9 +341,9 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      texp_field_float
-    (** [texp_field_float] provides extra information depending on whether it is
-      an float record. *)
+      texp_field_boxing
+    (** [texp_field_boxing] provides extra information depending on if the
+        projection requires boxing. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
