@@ -103,7 +103,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     | Naked_float32 ->
       ( T.boxed_float32_alias_to ~naked_float32:result_var'
           (Alloc_mode.For_types.unknown ()),
-        K.naked_float )
+        K.naked_float32 )
     | Naked_int32 ->
       ( T.boxed_int32_alias_to ~naked_int32:result_var'
           (Alloc_mode.For_types.unknown ()),
