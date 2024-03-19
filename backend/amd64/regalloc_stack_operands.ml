@@ -239,7 +239,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Prologue ->
     (* no rewrite *)
     May_still_have_spilled_registers
-  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ ), _)) ->
+  | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ ), _)) | Stack_check _ ->
     (* should not happen *)
     fatal "unexpected instruction"
   end

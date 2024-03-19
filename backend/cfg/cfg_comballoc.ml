@@ -51,7 +51,7 @@ let rec find_next_allocation : cell option -> allocation option =
         | Vectorcast _ | Scalarcast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
         | Poll )
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       find_next_allocation (DLL.next cell))
 
 (* [find_compatible_allocations cell ~curr_mode ~curr_size] returns the
@@ -93,7 +93,7 @@ let find_compatible_allocations :
         | Lambda.Alloc_heap ->
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
-      | Reloadretaddr | Poptrap | Prologue | Pushtrap _ ->
+      | Reloadretaddr | Poptrap | Prologue | Pushtrap _ | Stack_check _ ->
         (* CR-soon xclerc for xclerc: is it too conservative? (note: only the
            `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
