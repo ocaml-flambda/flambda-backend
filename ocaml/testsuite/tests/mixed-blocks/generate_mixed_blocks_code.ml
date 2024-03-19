@@ -336,6 +336,9 @@ let try_compare x y =
 let try_marshal t =
   expect_failure (fun () -> output_value oc t)|}
   else
+    (* In bytecode, polymorphic comparison and marshaling don't
+       raise, as mixed records are represented as normal non-mixed blocks.
+     *)
     line
       {|
 let try_compare x y =
