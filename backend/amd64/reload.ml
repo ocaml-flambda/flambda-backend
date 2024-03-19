@@ -127,7 +127,8 @@ method! reload_operation op arg res =
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
-  | Ifloatofint | Iintoffloat ->
+  | Iscalarcast (Float_to_int _ | Float_of_int _ |
+                 Float_of_float32 | Float_to_float32) ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iconst_int n ->

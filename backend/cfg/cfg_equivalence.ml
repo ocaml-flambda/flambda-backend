@@ -248,8 +248,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
   | Compf left_comp, Compf right_comp
     when Cmm.equal_float_comparison left_comp right_comp ->
     ()
-  | Floatofint, Floatofint -> ()
-  | Intoffloat, Intoffloat -> ()
+  | Scalarcast left_scalar, Scalarcast right_scalar
+    when Cmm.equal_scalar_cast left_scalar right_scalar -> ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
   | ( Probe_is_enabled { name = expected_name },

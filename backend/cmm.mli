@@ -175,6 +175,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_float32
+  | Float_of_float32
+  | Float_to_int of Primitive.boxed_float
+  | Float_of_int of Primitive.boxed_float
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -216,7 +220,6 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
@@ -377,6 +380,7 @@ val map_shallow: (expression -> expression) -> expression -> expression
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 val equal_exttype : exttype -> exttype -> bool
+val equal_scalar_cast : scalar_cast -> scalar_cast -> bool
 val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool

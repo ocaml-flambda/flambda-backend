@@ -221,8 +221,12 @@ let operation d = function
   | Cdivf -> "/f"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cfloatofint -> "floatofint"
-  | Cintoffloat -> "intoffloat"
+  | Cscalarcast (Float_of_int Pfloat64) -> "floatofint"
+  | Cscalarcast (Float_of_int Pfloat32) -> "float32ofint"
+  | Cscalarcast (Float_to_int Pfloat64) -> "intoffloat"
+  | Cscalarcast (Float_to_int Pfloat32) -> "intoffloat32"
+  | Cscalarcast (Float_of_float32) -> "floatoffloat32"
+  | Cscalarcast (Float_to_float32) -> "float32offloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->

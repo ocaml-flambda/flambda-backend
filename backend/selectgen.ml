@@ -172,8 +172,10 @@ let oper_result_type = function
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Ccsel ty -> ty
-  | Cfloatofint -> typ_float
-  | Cintoffloat -> typ_int
+  | Cscalarcast (Float_of_float32) -> typ_float
+  | Cscalarcast (Float_to_float32) -> typ_float
+  | Cscalarcast (Float_of_int _) -> typ_float
+  | Cscalarcast (Float_to_int _) -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
@@ -485,7 +487,7 @@ method is_simple_expr = function
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cabsf | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -543,7 +545,7 @@ method effects_of exp =
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -668,8 +670,6 @@ method select_operation op args _dbg =
   | (Csubf, _) -> (Isubf, args)
   | (Cmulf, _) -> (Imulf, args)
   | (Cdivf, _) -> (Idivf, args)
-  | (Cfloatofint, _) -> (Ifloatofint, args)
-  | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)

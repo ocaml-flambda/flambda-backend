@@ -195,6 +195,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_float32
+  | Float_of_float32
+  | Float_to_int of Primitive.boxed_float
+  | Float_of_int of Primitive.boxed_float
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -231,7 +235,6 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
@@ -534,6 +537,28 @@ let equal_exttype left right =
     false
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
+
+let equal_scalar_cast left right =
+  match left, right with
+  | Float_to_float32, Float_to_float32 -> true
+  | Float_of_float32, Float_of_float32 -> true
+  | Float_to_int f1, Float_to_int f2 -> Primitive.equal_boxed_float f1 f2
+  | Float_of_int f1, Float_of_int f2 -> Primitive.equal_boxed_float f1 f2
+  | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_of_scalar _)
+  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_to_scalar _)
+    -> false
 
 let equal_float_comparison left right =
   match left, right with

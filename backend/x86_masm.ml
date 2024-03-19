@@ -136,10 +136,13 @@ let print_instr b = function
   | COMISD (arg1, arg2) -> i2 b "comisd" arg1 arg2
   | CQO -> i0 b "cqo"
   | CRC32 (arg1, arg2) -> i2 b "crc32q" arg1 arg2
+  | CVTSS2SI (arg1, arg2) -> i2 b "cvtss2si" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
+  | CVTSI2SS (arg1, arg2) -> i2 b "cvtsi2ss" arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b "cvtsi2sd" arg1 arg2
   | CVTSS2SD (arg1, arg2) -> i2 b "cvtss2sd" arg1 arg2
+  | CVTTSS2SI (arg1, arg2) -> i2 b "cvttss2si" arg1 arg2
   | CVTTSD2SI (arg1, arg2) -> i2 b "cvttsd2si" arg1 arg2
   | DEC arg -> i1 b "dec" arg
   | DIVSD (arg1, arg2) -> i2 b "divsd" arg1 arg2

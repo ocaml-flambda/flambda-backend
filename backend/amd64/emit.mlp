@@ -1506,12 +1506,20 @@ let emit_instr fallthrough i =
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
   | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
-  | Lop(Ifloatofint) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iintoffloat) ->
-      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast (Float_of_float32)) ->
+      I.cvtss2sd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_float32)) ->
+      I.cvtsd2ss (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Pfloat32)) ->
+      I.cvtsi2ss (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_int Pfloat32)) ->
+      I.cvttss2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Pfloat64)) ->
+      I.cvtsi2sd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_int Pfloat64)) ->
+      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->

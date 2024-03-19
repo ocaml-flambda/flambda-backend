@@ -81,8 +81,6 @@ module S = struct
     | Divf
     | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Csel of Mach.test
-    | Floatofint
-    | Intoffloat
     | Valueofint
     | Intofvalue
     | Vectorcast of Cmm.vector_cast
