@@ -280,7 +280,7 @@ let dump_op ppf = function
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
-  | Scalarcast (Float_of_int Pfloat64) -> Format.fprintf ppf "floattoint"
+  | Scalarcast (Float_of_int Pfloat64) -> Format.fprintf ppf "floatofint"
   | Scalarcast (Float_to_int Pfloat64) -> Format.fprintf ppf "intoffloat"
   | Scalarcast (Float_of_int Pfloat32) -> Format.fprintf ppf "float32toint"
   | Scalarcast (Float_to_int Pfloat32) -> Format.fprintf ppf "intoffloat32"
