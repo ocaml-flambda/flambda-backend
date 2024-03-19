@@ -3090,10 +3090,6 @@ let emit_nativeint_constant symb n cont =
 let emit_vec128_constant symb bits cont =
   emit_block symb boxedvec128_header (Cvec128 bits :: cont)
 
-let emit_float32_array_constant _symb _fields _cont =
-  (* CR mslater: (float32) backend support *)
-  assert false
-
 let emit_float_array_constant symb fields cont =
   emit_block symb
     (floatarray_header (List.length fields))

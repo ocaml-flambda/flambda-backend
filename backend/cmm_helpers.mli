@@ -535,9 +535,6 @@ val emit_nativeint_constant :
 val emit_vec128_constant :
   symbol -> Cmm.vec128_bits -> data_item list -> data_item list
 
-val emit_float32_array_constant :
-  symbol -> float list -> data_item list -> data_item list
-
 val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
 
