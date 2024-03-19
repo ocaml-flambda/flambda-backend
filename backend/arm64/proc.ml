@@ -338,6 +338,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
+  | Stack_check _ -> assert false (* not supported *)
 
 (* note: keep this function in sync with `destroyed_at_oper` above,
    and `is_destruction_point` below. *)
