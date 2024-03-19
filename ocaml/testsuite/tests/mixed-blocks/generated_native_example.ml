@@ -44,6 +44,9 @@ let try_compare x y =
   expect_failure (fun () -> ignore (compare (T x) (T y) : int));
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
 
+let try_hash x =
+  expect_failure (fun () -> ignore (Hashtbl.hash x : int))
+
 let try_marshal t =
   expect_failure (fun () -> output_value oc t)
 
@@ -70,7 +73,7 @@ let t_orig0 = { t0 with str0 = t0.str0 };;
   print_endline "    - Marshaling";
   try_marshal t0;
   print_endline "    - Hashing";
-  ignore (Hashtbl.hash t0 : int);
+  try_hash t0;
   print_endline "    - Checking field values";
   check_string t0.str0 t_orig0.str0 ~message:"t0.str0";
   check_float (Stdlib__Float_u.to_float t0.float_u1) (Stdlib__Float_u.to_float t_orig0.float_u1) ~message:"t0.float_u1";

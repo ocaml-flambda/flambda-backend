@@ -185,6 +185,8 @@ module Named_block = struct
           let field =
             match elem with
             | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
+            | Float ->
+                { type_ = Float; name = sprintf "float%d" i; mutable_ }
             | Float_u ->
                 { type_ = Float_u; name = sprintf "float_u%d" i; mutable_ }
           in
@@ -333,10 +335,13 @@ let try_compare x y =
   expect_failure (fun () -> ignore (compare (T x) (T y) : int));
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
 
+let try_hash x =
+  expect_failure (fun () -> ignore (Hashtbl.hash x : int))
+
 let try_marshal t =
   expect_failure (fun () -> output_value oc t)|}
   else
-    (* In bytecode, polymorphic comparison and marshaling don't
+    (* In bytecode, polymorphic comparison/hash/marshaling don't
        raise, as mixed records are represented as normal non-mixed blocks.
      *)
     line
@@ -344,6 +349,9 @@ let try_marshal t =
 let try_compare x y =
   ignore (compare (T x) (T y) : int);
   ignore ((T x) = (T y) : bool)
+
+let try_hash x =
+  ignore (Hashtbl.hash x : int)
 
 let try_marshal t = output_value oc t;;|};
   line
@@ -391,8 +399,7 @@ let check_reachable_words expected actual message =
     seq_print_in_test "    - Marshaling";
     per_type (fun t -> line "try_marshal %s;" (Named_block.value t));
     seq_print_in_test "    - Hashing";
-    per_type (fun t ->
-        line "ignore (Hashtbl.hash %s : int);" (Named_block.value t));
+    per_type (fun t -> line "try_hash %s;" (Named_block.value t));
     if n > 1
     then (
       seq_print_in_test "    - Comparing";
