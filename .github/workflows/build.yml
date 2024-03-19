@@ -72,7 +72,7 @@ jobs:
             check_arch: true
 
           - name: irc_frame_pointers
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
