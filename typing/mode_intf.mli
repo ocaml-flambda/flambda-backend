@@ -127,6 +127,8 @@ module type S = sig
 
   type nonrec disallowed = disallowed
 
+  type nonrec equate_step = equate_step
+
   type ('a, 'b) monadic_comonadic =
     { monadic : 'a;
       comonadic : 'b
