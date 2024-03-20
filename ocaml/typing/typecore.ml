@@ -3837,13 +3837,15 @@ and is_nonexpansive_arg = function
 
 let maybe_expansive e = not (is_nonexpansive e)
 
-let check_recursive_bindings env valbinds =
+let annotate_recursive_bindings env valbinds =
   let ids = let_bound_idents valbinds in
-  List.iter
-    (fun {vb_expr} ->
-       if not (Rec_check.is_valid_recursive_expression ids vb_expr) then
+  List.map
+    (fun {vb_pat; vb_expr; vb_rec_kind = _; vb_sort; vb_attributes; vb_loc} ->
+       match (Rec_check.is_valid_recursive_expression ids vb_expr) with
+       | None ->
          raise(Error(vb_expr.exp_loc, env, Illegal_letrec_expr))
-    )
+       | Some vb_rec_kind ->
+         { vb_pat; vb_expr; vb_rec_kind; vb_sort; vb_attributes; vb_loc})
     valbinds
 
 let check_recursive_class_bindings env ids exprs =
@@ -5143,9 +5145,9 @@ and type_expect_
             type_expect
               new_env expected_mode sbody ty_expected_explained
           in
-          let () =
-            if rec_flag = Recursive then
-              check_recursive_bindings env pat_exp_list
+          let pat_exp_list = match rec_flag with
+            | Recursive -> annotate_recursive_bindings env pat_exp_list
+            | Nonrecursive -> pat_exp_list
           in
           (* The "bound expressions" component of the scope escape check.
 
@@ -7359,6 +7361,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                Texp_let (Nonrecursive,
                          [{vb_pat=let_pat; vb_expr=texp; vb_sort=arg_sort;
                            vb_attributes=[]; vb_loc=Location.none;
+                           vb_rec_kind = Not_recursive;
                           }],
                          func let_var) }
       end
@@ -8335,8 +8338,9 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let l =
     List.map2
       (fun (s, ((_,p,_), (e, _))) pvb ->
+        (* vb_rec_kind will be computed later for recursive bindings *)
         {vb_pat=p; vb_expr=e; vb_sort = s; vb_attributes=pvb.pvb_attributes;
-         vb_loc=pvb.pvb_loc;
+         vb_loc=pvb.pvb_loc; vb_rec_kind = Not_recursive;
         })
       l spat_sexp_list
   in
