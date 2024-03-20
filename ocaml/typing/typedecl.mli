@@ -96,6 +96,8 @@ type mixed_record_violation =
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
       }
+  | Insufficient_level of
+      { required_layouts_level : Language_extension.maturity }
 
 type bad_jkind_inference_location =
   | Check_constraints

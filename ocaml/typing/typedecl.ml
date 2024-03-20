@@ -52,6 +52,8 @@ type mixed_record_violation =
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
       }
+  | Insufficient_level of
+      { required_layouts_level : Language_extension.maturity }
 
 type bad_jkind_inference_location =
   | Check_constraints
@@ -1107,6 +1109,10 @@ let assert_mixed_record_support =
      the all-0 pattern, and we must subtract 2 instead. *)
   let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
   fun loc ~value_prefix_len ->
+    let required_layouts_level = Language_extension.Alpha in
+    if not (Language_extension.is_at_least Layouts required_layouts_level) then
+      raise (Error (loc, Illegal_mixed_record
+                          (Insufficient_level { required_layouts_level })));
     if Config.reserved_header_bits < required_reserved_header_bits then
       raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
     if value_prefix_len > max_value_prefix_len then
@@ -3317,6 +3323,21 @@ let report_error ppf = function
             "@[Mixed records may contain at most %d value fields prior to the\
             \ flat suffix, but this one contains %d.@]"
             max_value_prefix_len value_prefix_len
+      | Insufficient_level { required_layouts_level } -> (
+        let hint ppf =
+          Format.fprintf ppf "You must enable -extension %s to use this feature."
+            (Language_extension.to_command_line_string Layouts
+               required_layouts_level)
+        in
+        match Language_extension.is_enabled Layouts with
+        | false ->
+          fprintf ppf
+            "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
+        | true ->
+          fprintf ppf
+            "@[<v>The enabled layouts extension does not allow for mixed records.@;\
+             %t@]"
+            hint)
     end
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg

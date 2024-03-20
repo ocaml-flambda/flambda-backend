@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+   flags = "-extension layouts_alpha"
+ *)
 
 type t = { t : t; flt : float# }
 

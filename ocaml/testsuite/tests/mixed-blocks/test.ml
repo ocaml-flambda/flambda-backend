@@ -27,7 +27,7 @@
       output = "${test_source_directory}/generated_native.ml"
    **** ocamlopt.opt
       all_modules = "${test_source_directory}/generated_native.ml"
-      flags = "-extension layouts"
+      flags = "-extension layouts_alpha"
    ***** run
       stdout = "${test_source_directory}/generated_native_output.ml"
       stderr = "${test_source_directory}/generated_native_output.ml"
@@ -52,7 +52,7 @@
       output = "${test_source_directory}/generated_byte.ml"
    **** ocamlc.opt
          all_modules = "${test_source_directory}/generated_byte.ml"
-         flags = "-extension layouts"
+         flags = "-extension layouts_alpha"
    ***** run
       stdout = "${test_source_directory}/generated_byte_output.ml"
       stderr = "${test_source_directory}/generated_byte_output.ml"

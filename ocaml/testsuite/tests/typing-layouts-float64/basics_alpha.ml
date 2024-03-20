@@ -1,8 +1,13 @@
 (* TEST
    * flambda2
    ** expect
-   ** expect
-     flags = "-extension layouts_beta"
+     flags = "-extension layouts_alpha"
+*)
+
+(* This test is almost entirely a copy of [basics.ml], except
+   with different output for some layouts-alpha features.
+   You should diff this file against [basics.ml] to see what's
+   different.
 *)
 
 (* This file contains typing tests for the layout [float64].
@@ -205,38 +210,22 @@ type t5_1 = { x : t_float64; }
 
 type t5_2_1 = { y : int; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-40:
-1 | type t5_2_1 = { y : int; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type t5_2_1 = { y : int; x : t_float64; }
 |}];;
 
 type t5_2_2 = { y : float; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-42:
-1 | type t5_2_2 = { y : float; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type t5_2_2 = { y : float; x : t_float64; }
 |}];;
 
 type t5_2_3 = { z : float; y : int; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-51:
-1 | type t5_2_3 = { z : float; y : int; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type t5_2_3 = { z : float; y : int; x : t_float64; }
 |}];;
 
 type t5_2_4 = { y : string; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-43:
-1 | type t5_2_4 = { y : string; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type t5_2_4 = { y : string; x : t_float64; }
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -318,11 +307,7 @@ type ('a : float64) t5_13 = { x : 'a; y : float#; }
 
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
-Line 1, characters 0-36:
-1 | type 'a t5_14 = {x : 'a; y : float#};;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type 'a t5_14 = { x : 'a; y : float#; }
 |}];;
 
 type ufref = { mutable contents : float# };;
