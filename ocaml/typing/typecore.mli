@@ -282,7 +282,7 @@ type error =
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.equate_error
+  | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local

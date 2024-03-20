@@ -23,6 +23,8 @@ type nonrec allowed = allowed
 
 type nonrec disallowed = disallowed
 
+type nonrec equate_step = equate_step
+
 module Axis = struct
   type t =
     [ `Locality
@@ -149,8 +151,8 @@ module Lattices = struct
         | Local, Local -> Local
 
       let print ppf = function
-        | Global -> Format.fprintf ppf "Global"
-        | Local -> Format.fprintf ppf "Local"
+        | Global -> Format.fprintf ppf "global"
+        | Local -> Format.fprintf ppf "local"
     end)
 
     let _is_areality = ()
@@ -190,9 +192,9 @@ module Lattices = struct
         | Regional, Regional -> true
 
       let print ppf = function
-        | Global -> Format.fprintf ppf "Global"
-        | Regional -> Format.fprintf ppf "Regional"
-        | Local -> Format.fprintf ppf "Local"
+        | Global -> Format.fprintf ppf "global"
+        | Regional -> Format.fprintf ppf "regional"
+        | Local -> Format.fprintf ppf "local"
     end)
 
     let _is_areality = ()
@@ -228,8 +230,8 @@ module Lattices = struct
         | Shared, Shared -> Shared
 
       let print ppf = function
-        | Shared -> Format.fprintf ppf "Shared"
-        | Unique -> Format.fprintf ppf "Unique"
+        | Shared -> Format.fprintf ppf "shared"
+        | Unique -> Format.fprintf ppf "unique"
     end)
   end
 
@@ -259,8 +261,8 @@ module Lattices = struct
         match a, b with Many, _ | _, Many -> Many | Once, Once -> Once
 
       let print ppf = function
-        | Once -> Format.fprintf ppf "Once"
-        | Many -> Format.fprintf ppf "Many"
+        | Once -> Format.fprintf ppf "once"
+        | Many -> Format.fprintf ppf "many"
     end)
   end
 
