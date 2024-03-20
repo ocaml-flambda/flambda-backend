@@ -268,7 +268,7 @@ let record_primitive = function
    at present, which uses the new [Dissect_letrec] module, planned to be
    upstreamed.  At that point this helper can move into that module. *)
 
-let preallocate_letrec ~bindings ~body =
+let preallocate_class_letrec ~bindings ~body =
   assert (Clflags.is_flambda2 ());
   let caml_update_dummy_prim =
     Lambda.simple_prim_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
@@ -279,16 +279,16 @@ let preallocate_letrec ~bindings ~body =
   let bindings = List.rev bindings in
   let body_with_initialization =
     List.fold_left
-      (fun body (id, def, _size) -> Lsequence (update_dummy id def, body))
+      (fun body { id; def; rkind = _} -> Lsequence (update_dummy id def, body))
       body bindings
   in
   List.fold_left
-    (fun body (id, _def, size) ->
+    (fun body { id; _ } ->
        let desc =
          Lambda.simple_prim_on_values ~name:"caml_alloc_dummy" ~arity:1
            ~alloc:true
        in
-       let size : lambda = Lconst (Const_base (Const_int size)) in
+       let size : lambda = Lconst (Const_base (Const_int 4)) in
        Llet (Strict, Lambda.layout_block, id,
              Lprim (Pccall desc, [size], Loc_unknown), body))
     body_with_initialization bindings
@@ -516,14 +516,13 @@ let compile_recmodule ~scopes compile_rhs bindings cont =
 
 (* Code to translate class entries in a structure *)
 
-let class_block_size = 4
-
 let transl_class_bindings ~scopes cl_list =
   let ids = List.map (fun (ci, _) -> ci.ci_id_class) cl_list in
   (ids,
    List.map
      (fun ({ci_id_class=id; ci_expr=cl; ci_virt=vf}, meths) ->
-       (id, transl_class ~scopes ids id meths cl vf, class_block_size))
+       let def = transl_class ~scopes ids id meths cl vf in
+       { id; rkind = Static; def})
      cl_list)
 
 (* Compile one or more functors, merging curried functors to produce
@@ -817,11 +816,8 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
               cc rootpath final_env rem
           in
           if Clflags.is_flambda2 () then
-            preallocate_letrec ~bindings:class_bindings ~body, size
+            preallocate_class_letrec ~bindings:class_bindings ~body, size
           else
-            let class_bindings =
-              List.map (fun (id, lam, _) -> id, lam) class_bindings
-            in
             Lletrec(class_bindings, body), size
       | Tstr_include incl ->
           let ids = bound_value_identifiers incl.incl_type in
@@ -1311,13 +1307,10 @@ let transl_store_structure ~scopes glob map prims aliases str =
             let body = store_idents Loc_unknown ids in
             let lam =
               if Clflags.is_flambda2 () then
-                preallocate_letrec
+                preallocate_class_letrec
                   ~bindings:class_bindings
                   ~body
               else
-                let class_bindings =
-                  List.map (fun (id, lam, _) -> id, lam) class_bindings
-                in
                 Lletrec(class_bindings, body)
             in
             Lsequence(Lambda.subst no_env_update subst lam,
@@ -1717,11 +1710,8 @@ let transl_toplevel_item ~scopes item =
       List.iter set_toplevel_unique_name ids;
       let body = make_sequence toploop_setvalue_id ids in
       if Clflags.is_flambda2 () then
-        preallocate_letrec ~bindings:class_bindings ~body
+        preallocate_class_letrec ~bindings:class_bindings ~body
       else
-        let class_bindings =
-          List.map (fun (id, lam, _) -> id, lam) class_bindings
-        in
         Lletrec(class_bindings, body)
   | Tstr_include incl ->
       let ids = bound_value_identifiers incl.incl_type in

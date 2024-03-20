@@ -30,6 +30,9 @@ OCaml 5.1.0 (14 September 2023)
   (David Allsopp, review by Xavier Leroy, Guillaume Munch-Maccagnoni
   and Gabriel Scherer)
 
+- #12551: Propagate classification of recursive bindings from Rec_check
+  (Vincent Laviron, review by Gabriel Scherer)
+
 ### Standard library:
 
 - #12006, #12064: Add `Marshal.Compression` flag to `Marshal.to_*` functions.

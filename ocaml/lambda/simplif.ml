@@ -39,8 +39,11 @@ let rec eliminate_ref id = function
   | Lmutlet(kind, v, e1, e2) ->
       Lmutlet(kind, v, eliminate_ref id e1, eliminate_ref id e2)
   | Lletrec(idel, e2) ->
-      Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
-              eliminate_ref id e2)
+      let bindings =
+        List.map (fun rb -> { rb with def = eliminate_ref id rb.def })
+          idel
+      in
+      Lletrec(bindings, eliminate_ref id e2)
   | Lprim(Pfield (0, _, _), [Lvar v], _) when Ident.same v id ->
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
@@ -135,7 +138,7 @@ let simplify_exits lam =
   | Lmutlet(_kind, _v, l1, l2) ->
       count ~try_depth l2; count ~try_depth l1
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count ~try_depth l) bindings;
+      List.iter (fun { def } -> count ~try_depth def) bindings;
       count ~try_depth body
   | Lprim(_p, ll, _) -> List.iter (count ~try_depth) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -240,8 +243,11 @@ let simplify_exits lam =
   | Lmutlet(kind, v, l1, l2) ->
       Lmutlet(kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif ~layout:None ~try_depth l)) bindings,
-      simplif ~layout ~try_depth body)
+      let bindings =
+        List.map (fun rb -> { rb with def = simplif ~layout:None ~try_depth rb.def })
+          bindings
+      in
+      Lletrec(bindings, simplif ~layout ~try_depth body)
   | Lprim(p, ll, loc) -> begin
     let ll = List.map (simplif ~layout:None ~try_depth) ll in
     match p, ll with
@@ -453,7 +459,7 @@ let simplify_lets lam =
      count bv l1;
      count bv l2
   | Lletrec(bindings, body) ->
-      List.iter (fun (_v, l) -> count bv l) bindings;
+      List.iter (fun { def } -> count bv def) bindings;
       count bv body
   | Lprim(_p, ll, _) -> List.iter (count bv) ll
   | Lswitch(l, sw, _loc, _kind) ->
@@ -610,7 +616,11 @@ let simplify_lets lam =
   | Llet(str, kind, v, l1, l2) -> mklet str kind v (simplif l1) (simplif l2)
   | Lmutlet(kind, v, l1, l2) -> mkmutlet kind v (simplif l1) (simplif l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
+      let bindings =
+        List.map (fun rb -> { rb with def = simplif rb.def })
+          bindings
+      in
+      Lletrec(bindings, simplif body)
   | Lprim(p, ll, loc) -> Lprim(p, List.map simplif ll, loc)
   | Lswitch(l, sw, loc, kind) ->
       let new_l = simplif l
@@ -687,7 +697,7 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos false lam;
       emit_tail_infos is_tail body
   | Lletrec (bindings, body) ->
-      List.iter (fun (_, lam) -> emit_tail_infos false lam) bindings;
+      List.iter (fun { def } -> emit_tail_infos false def) bindings;
       emit_tail_infos is_tail body
   | Lprim ((Pbytes_to_string | Pbytes_of_string |
             Parray_to_iarray | Parray_of_iarray),
@@ -843,7 +853,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
         in
-        (wrapper_body, (inner_id, inner_fun))
+        (wrapper_body, { id = inner_id; rkind = Static; def = inner_fun })
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
@@ -854,9 +864,12 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with check = attr.check } in
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true); inner]
+    [{ id = fun_id; rkind = Static;
+       def = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true };
+     inner]
   with Exit ->
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:orig_region)]
+    [{ id = fun_id; rkind = Static;
+       def = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region:orig_region }]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

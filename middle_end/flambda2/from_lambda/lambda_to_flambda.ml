@@ -182,7 +182,7 @@ let rec try_to_find_location (lam : L.lambda) =
     loc
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
-  | Lletrec ((_, lam) :: _, _)
+  | Lletrec ({ def = lam; _ } :: _, _)
   | Lifthenelse (lam, _, _, _)
   | Lstaticcatch (lam, _, _, _)
   | Lstaticraise (_, lam :: _)
@@ -846,7 +846,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
-    let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let bindings =
+      cps_function_bindings env
+        [L.{ id = fun_id; rkind = Static; def = Lfunction func }]
+    in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1422,10 +1425,14 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
           k_exn)
       k_exn
 
-and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
+and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
+      (fun [@ocaml.warning "-fragile-match"] L.
+                                               { id = fun_id;
+                                                 rkind = _;
+                                                 def = binding
+                                               } ->
         match binding with
         | L.Lfunction
             { kind;
@@ -1443,10 +1450,11 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~ret_mode ~mode ~region
           with
-          | [(id, L.Lfunction lfun)] -> [id, lfun]
-          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
+          | [{ id; rkind = _; def = L.Lfunction lfun }] -> [id, lfun]
+          | [ { id = id1; rkind = _; def = L.Lfunction lfun1 };
+              { id = id2; rkind = _; def = L.Lfunction lfun2 } ] ->
             [id1, lfun1; id2, lfun2]
-          | [(_, _)] | [(_, _); (_, _)] ->
+          | [_] | [_; _] ->
             Misc.fatal_errorf
               "Expected `Lfunction` terms from [split_default_wrapper] when \
                translating:@ %a"
@@ -1464,7 +1472,9 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       bindings
   in
   let free_idents, directed_graph =
-    let fun_ids = Ident.Set.of_list (List.map fst bindings) in
+    let fun_ids =
+      Ident.Set.of_list (List.map (fun { L.id; _ } -> id) bindings)
+    in
     List.fold_left
       (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
         let free_ids_of_body = Lambda.free_variables body in

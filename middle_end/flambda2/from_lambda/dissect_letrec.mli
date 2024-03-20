@@ -24,7 +24,7 @@ type dissected =
 (** [dissect_letrec] assumes that bindings have not been dissected yet. In
     particular, that no arguments of function call are recursive. *)
 val dissect_letrec :
-  bindings:(Ident.t * Lambda.lambda) list ->
+  bindings:Lambda.rec_binding list ->
   body:Lambda.lambda ->
   free_vars_kind:(Ident.t -> Lambda.layout option) ->
   dissected

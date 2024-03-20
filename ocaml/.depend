@@ -2423,6 +2423,7 @@ typing/untypeast.cmi : \
     parsing/jane_syntax.cmi
 bytecomp/bytegen.cmo : \
     typing/types.cmi \
+    typing/typedtree.cmi \
     lambda/switch.cmi \
     typing/subst.cmi \
     lambda/printlambda.cmi \
@@ -2441,6 +2442,7 @@ bytecomp/bytegen.cmo : \
     bytecomp/bytegen.cmi
 bytecomp/bytegen.cmx : \
     typing/types.cmx \
+    typing/typedtree.cmx \
     lambda/switch.cmx \
     typing/subst.cmx \
     lambda/printlambda.cmx \
@@ -3129,6 +3131,7 @@ asmcomp/cmm_invariants.cmi : \
     asmcomp/cmm.cmi
 asmcomp/cmmgen.cmo : \
     typing/types.cmi \
+    typing/typedtree.cmi \
     middle_end/printclambda_primitives.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
@@ -3149,6 +3152,7 @@ asmcomp/cmmgen.cmo : \
     asmcomp/cmmgen.cmi
 asmcomp/cmmgen.cmx : \
     typing/types.cmx \
+    typing/typedtree.cmx \
     middle_end/printclambda_primitives.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
@@ -3807,6 +3811,7 @@ middle_end/backend_var.cmi : \
     typing/ident.cmi \
     lambda/debuginfo.cmi
 middle_end/clambda.cmo : \
+    typing/typedtree.cmi \
     typing/path.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
@@ -3816,6 +3821,7 @@ middle_end/clambda.cmo : \
     parsing/asttypes.cmi \
     middle_end/clambda.cmi
 middle_end/clambda.cmx : \
+    typing/typedtree.cmx \
     typing/path.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
@@ -3825,6 +3831,7 @@ middle_end/clambda.cmx : \
     parsing/asttypes.cmi \
     middle_end/clambda.cmi
 middle_end/clambda.cmi : \
+    typing/typedtree.cmi \
     typing/path.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
@@ -3927,6 +3934,7 @@ middle_end/internal_variable_names.cmx : \
 middle_end/internal_variable_names.cmi : \
     lambda/lambda.cmi
 middle_end/printclambda.cmo : \
+    typing/typedtree.cmi \
     lambda/printlambda.cmi \
     middle_end/printclambda_primitives.cmi \
     utils/misc.cmi \
@@ -3936,6 +3944,7 @@ middle_end/printclambda.cmo : \
     middle_end/backend_var.cmi \
     middle_end/printclambda.cmi
 middle_end/printclambda.cmx : \
+    typing/typedtree.cmx \
     lambda/printlambda.cmx \
     middle_end/printclambda_primitives.cmx \
     utils/misc.cmx \
@@ -4132,6 +4141,7 @@ lambda/matching.cmi : \
     lambda/debuginfo.cmi
 lambda/printlambda.cmo : \
     typing/types.cmi \
+    typing/typedtree.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
@@ -4144,6 +4154,7 @@ lambda/printlambda.cmo : \
     lambda/printlambda.cmi
 lambda/printlambda.cmx : \
     typing/types.cmx \
+    typing/typedtree.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
@@ -5165,6 +5176,7 @@ middle_end/flambda/find_recursive_functions.cmi : \
     middle_end/flambda/flambda.cmi
 middle_end/flambda/flambda.cmo : \
     middle_end/variable.cmi \
+    typing/typedtree.cmi \
     middle_end/flambda/base_types/tag.cmi \
     utils/symbol.cmi \
     middle_end/flambda/base_types/static_exception.cmi \
@@ -5191,6 +5203,7 @@ middle_end/flambda/flambda.cmo : \
     middle_end/flambda/flambda.cmi
 middle_end/flambda/flambda.cmx : \
     middle_end/variable.cmx \
+    typing/typedtree.cmx \
     middle_end/flambda/base_types/tag.cmx \
     utils/symbol.cmx \
     middle_end/flambda/base_types/static_exception.cmx \
@@ -5217,6 +5230,7 @@ middle_end/flambda/flambda.cmx : \
     middle_end/flambda/flambda.cmi
 middle_end/flambda/flambda.cmi : \
     middle_end/variable.cmi \
+    typing/typedtree.cmi \
     middle_end/flambda/base_types/tag.cmi \
     utils/symbol.cmi \
     middle_end/flambda/base_types/static_exception.cmi \
@@ -5446,6 +5460,7 @@ middle_end/flambda/flambda_to_clambda.cmi : \
 middle_end/flambda/flambda_utils.cmo : \
     middle_end/variable.cmi \
     middle_end/flambda/base_types/var_within_closure.cmi \
+    typing/typedtree.cmi \
     middle_end/symbol_utils.cmi \
     utils/symbol.cmi \
     lambda/switch.cmi \
@@ -5472,6 +5487,7 @@ middle_end/flambda/flambda_utils.cmo : \
 middle_end/flambda/flambda_utils.cmx : \
     middle_end/variable.cmx \
     middle_end/flambda/base_types/var_within_closure.cmx \
+    typing/typedtree.cmx \
     middle_end/symbol_utils.cmx \
     utils/symbol.cmx \
     lambda/switch.cmx \
@@ -6427,6 +6443,7 @@ middle_end/flambda/traverse_for_exported_symbols.cmi : \
     middle_end/flambda/base_types/export_id.cmi \
     middle_end/flambda/base_types/closure_id.cmi
 middle_end/flambda/un_anf.cmo : \
+    typing/typedtree.cmi \
     utils/symbol.cmi \
     middle_end/semantics_of_primitives.cmi \
     middle_end/printclambda.cmi \
@@ -6440,6 +6457,7 @@ middle_end/flambda/un_anf.cmo : \
     parsing/asttypes.cmi \
     middle_end/flambda/un_anf.cmi
 middle_end/flambda/un_anf.cmx : \
+    typing/typedtree.cmx \
     utils/symbol.cmx \
     middle_end/semantics_of_primitives.cmx \
     middle_end/printclambda.cmx \

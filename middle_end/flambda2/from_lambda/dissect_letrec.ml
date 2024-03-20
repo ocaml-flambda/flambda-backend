@@ -369,7 +369,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
        safely depend upon them. *)
     let deps =
       List.fold_left
-        (fun acc (x, def) -> Ident.Map.add x (Lambda.free_variables def) acc)
+        (fun acc { id; rkind = _; def } ->
+          Ident.Map.add id (Lambda.free_variables def) acc)
         Ident.Map.empty bindings
     in
     let vars = Ident.Map.keys deps in
@@ -413,7 +414,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       in
       let letrec, inner_effects, inner_functions =
         List.fold_right
-          (fun (id, def) (letrec, inner_effects, inner_functions) ->
+          (fun { id; rkind = _; def } (letrec, inner_effects, inner_functions) ->
             let let_def =
               { let_kind = Strict; layout = Lambda.layout_letrec; ident = id }
             in
@@ -468,7 +469,9 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | [] -> pre
         | _ :: _ ->
           let functions =
-            List.map (fun (id, lfun) -> id, Lfunction lfun) inner_functions
+            List.map
+              (fun (id, lfun) -> { id; rkind = Static; def = Lfunction lfun })
+              inner_functions
           in
           fun ~tail -> Lletrec (functions, pre ~tail)
       in
@@ -554,11 +557,11 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
-let dissect_letrec ~bindings ~body ~free_vars_kind =
-  let letbound = Ident.Set.of_list (List.map fst bindings) in
+let dissect_letrec ~(bindings : Lambda.rec_binding list) ~body ~free_vars_kind =
+  let letbound = Ident.Set.of_list (List.map (fun { id; _ } -> id) bindings) in
   let letrec =
     List.fold_right
-      (fun (id, def) letrec ->
+      (fun { id; rkind = _; def } letrec ->
         let let_def =
           { let_kind = Strict; layout = Lambda.layout_letrec; ident = id }
         in
@@ -607,7 +610,9 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
     | [] -> effects_then_body
     | _ :: _ ->
       let functions =
-        List.map (fun (id, lfun) -> id, Lfunction lfun) letrec.functions
+        List.map
+          (fun (id, lfun) -> { id; rkind = Static; def = Lfunction lfun })
+          letrec.functions
       in
       Lletrec (functions, effects_then_body)
   in
@@ -634,12 +639,13 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
   if letrec.needs_region
   then
     let body_layout =
-      let bindings =
-        Ident.Map.map (fun _ -> Lambda.layout_letrec)
-        @@ Ident.Map.of_list bindings
+      let bound_vars_kinds =
+        List.fold_left
+          (fun kinds { id; _ } -> Ident.Map.add id Lambda.layout_letrec kinds)
+          Ident.Map.empty bindings
       in
       let free_vars_kind id : Lambda.layout option =
-        try Some (Ident.Map.find id bindings)
+        try Some (Ident.Map.find id bound_vars_kinds)
         with Not_found -> free_vars_kind id
       in
       Lambda.compute_expr_layout free_vars_kind body
@@ -652,7 +658,10 @@ type dissected =
   | Unchanged
 
 let dissect_letrec ~bindings ~body ~free_vars_kind =
-  let is_a_function = function _, Lfunction _ -> true | _, _ -> false in
+  let is_a_function = function
+    | { def = Lfunction _; _ } -> true
+    | _ -> false
+  in
   if List.for_all is_a_function bindings
   then Unchanged
   else

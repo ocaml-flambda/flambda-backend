@@ -260,16 +260,16 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
     Ulet (Mutable, contents_kind, VP.create id, def, body), body_layout
   | Let_rec (defs, body) ->
     let env, defs =
-      List.fold_right (fun (var, def) (env, defs) ->
+      List.fold_right (fun (var, rkind, def) (env, defs) ->
           let id, env = Env.add_fresh_ident env var Lambda.layout_letrec in
-          env, (id, var, def) :: defs)
+          env, (id, var, rkind, def) :: defs)
         defs (env, [])
     in
     let defs =
-      List.map (fun (id, var, def) ->
+      List.map (fun (id, var, rkind, def) ->
           let def, def_layout = to_clambda_named t env var def in
           assert(Lambda.compatible_layout def_layout Lambda.layout_letrec);
-          VP.create id, def)
+          VP.create id, rkind, def)
         defs
     in
     let body, body_layout = to_clambda t env body in

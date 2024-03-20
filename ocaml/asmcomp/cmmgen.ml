@@ -173,7 +173,7 @@ let rec expr_size env = function
   | Uletrec(bindings, body) ->
       let env =
         List.fold_right
-          (fun (id, exp) env -> V.add (VP.var id) (expr_size env exp) env)
+          (fun (id, _, exp) env -> V.add (VP.var id) (expr_size env exp) env)
           bindings env
       in
       expr_size env body
@@ -217,6 +217,11 @@ let rec expr_size env = function
   | Uexclave exp ->
       expr_size env exp
   | _ -> RHS_nonrec
+
+let expr_size_of_binding (clas : Typedtree.recursive_binding_kind) expr =
+  match clas with
+  | Not_recursive -> RHS_nonrec
+  | Static -> expr_size V.empty expr
 
 (* Translate structured constants to Cmm data items *)
 
@@ -1654,7 +1659,7 @@ and transl_switch dbg (kind : Cmm.kind_for_unboxing) env arg index cases = match
 and transl_letrec env bindings cont =
   let dbg = Debuginfo.none in
   let bsz =
-    List.map (fun (id, exp) -> (id, exp, expr_size V.empty exp))
+    List.map (fun (id, clas, exp) -> (id, exp, expr_size_of_binding clas exp))
       bindings
   in
   let op_alloc prim args =
