@@ -10007,24 +10007,22 @@ let report_error ~loc env = function
         "@[This application is complete, but surplus arguments were provided afterwards.@ \
          When passing or calling a local value, extra arguments are passed in a separate application.@]"
   | Param_mode_mismatch (s, mkind) ->
-      let error_of_equate f (step, {Solver.left; Solver.right}) =
-        let left, right =
+      let print_error f (step, {Solver.left; Solver.right}) =
+        let actual, expected =
           match (step : equate_step) with
           | Left_le_right -> left, right
           | Right_le_left -> right, left
         in
-        (fun ppf -> f ppf left), (fun ppf -> f ppf right)
-      in
-      let left, right =
-        match mkind with
-        | `Locality e -> error_of_equate Locality.Const.print (s, e)
-        | `Uniqueness e -> error_of_equate Uniqueness.Const.print (s, e)
-        | `Linearity e -> error_of_equate Linearity.Const.print (s, e)
-      in
-      Location.errorf ~loc
-        "@[This function takes a %t parameter,@ \
-         but was expected to take a %t parameter.@]"
-        left right
+        Location.errorf ~loc
+          "@[This function takes a %a parameter,@ \
+           but was expected to take a %a parameter.@]"
+          f actual f expected
+      in begin
+      match mkind with
+      | `Locality e -> print_error Locality.Const.print (s, e)
+      | `Uniqueness e -> print_error Uniqueness.Const.print (s, e)
+      | `Linearity e -> print_error Linearity.Const.print (s, e)
+      end
   | Uncurried_function_escapes e -> begin
       match e with
       | `Locality _ ->
