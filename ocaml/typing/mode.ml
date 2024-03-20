@@ -848,13 +848,14 @@ module Lattices_mono = struct
     | Comonadic_with_locality -> Locality.max, unique_to_linear uniqueness
     | Comonadic_with_regionality -> Regionality.max, unique_to_linear uniqueness
 
-  let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
-   fun dst f a ->
+  let rec apply' : type a b d. int ref -> b obj -> (a, b, d) morph -> a -> b =
+   fun cnt dst f a ->
+    cnt := !cnt + 1;
     match f with
     | Compose (f, g) ->
       let mid = src dst f in
-      let g' = apply mid g in
-      let f' = apply dst f in
+      let g' = apply' cnt mid g in
+      let f' = apply' cnt dst f in
       f' (g' a)
     | Id -> a
     | Proj (_, ax) -> proj ax a
@@ -875,7 +876,15 @@ module Lattices_mono = struct
     | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
       let a0, a1 = a in
-      apply dst0 f a0, a1
+      apply' cnt dst0 f a0, a1
+
+  let apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
+   fun dst f a ->
+    let cnt = ref 0 in
+    let b = apply' cnt dst f a in
+    if !cnt > 8
+    then Misc.fatal_errorf "Morphism chain too long: %a" (print_morph dst) f
+    else b
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
@@ -883,13 +892,24 @@ module Lattices_mono = struct
       type a b c d.
       c obj -> (b, c, d) morph -> (a, b, d) morph -> (a, c, d) morph option =
    fun dst m0 m1 ->
+    let mid = src dst m0 in
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
     | Meet_with c0, Meet_with c1 -> Some (Meet_with (meet dst c0 c1))
     | Join_with c0, Join_with c1 -> Some (Join_with (join dst c0 c1))
+    | Imply c0, Imply c1 -> Some (Imply (meet dst c0 c1))
+    | Subtract c0, Subtract c1 -> Some (Subtract (join dst c0 c1))
+    | Imply c0, Join_with c1 when le dst c0 c1 -> Some (Join_with (max dst))
+    | Subtract c0, Meet_with c1 when le dst c1 c0 -> Some (Meet_with (min dst))
     | Meet_with c0, m1 when le dst (max dst) c0 -> Some m1
     | Join_with c0, m1 when le dst c0 (min dst) -> Some m1
+    | Imply c0, m1 when le dst (max dst) c0 -> Some m1
+    | Subtract c0, m1 when le dst c0 (min dst) -> Some m1
+    | m1, Meet_with c0 when le mid (max mid) c0 -> Some m1
+    | m1, Join_with c0 when le mid c0 (min mid) -> Some m1
+    | m1, Imply c0 when le mid (max mid) c0 -> Some m1
+    | m1, Subtract c0 when le mid c0 (min mid) -> Some m1
     | Compose (f0, f1), g -> (
       let mid = src dst f0 in
       match maybe_compose mid f1 g with
@@ -901,9 +921,9 @@ module Lattices_mono = struct
       | Some m -> Some (compose dst m g1)
       | None -> None)
     | Proj (mid, ax), Meet_with c ->
-      Some (Compose (Meet_with (proj ax c), Proj (mid, ax)))
+      Some (compose dst (Meet_with (proj ax c)) (Proj (mid, ax)))
     | Proj (mid, ax), Join_with c ->
-      Some (Compose (Join_with (proj ax c), Proj (mid, ax)))
+      Some (compose dst (Join_with (proj ax c)) (Proj (mid, ax)))
     | Proj (_, ax0), Max_with ax1 -> (
       match eq_axis ax0 ax1 with None -> None | Some Refl -> Some Id)
     | Proj (_, ax0), Min_with ax1 -> (
@@ -962,6 +982,20 @@ module Lattices_mono = struct
         (compose dst
            (Meet_with (max_with dst Linearity linearity))
            (Map_comonadic (compose dst0 f (Meet_with areality))))
+    | Map_comonadic f, Imply c ->
+      let dst0 = proj_obj Areality dst in
+      let areality, linearity = c in
+      Some
+        (compose dst
+           (Imply (max_with dst Linearity linearity))
+           (Map_comonadic (compose dst0 f (Imply areality))))
+    | Map_comonadic f, Subtract c ->
+      let dst0 = proj_obj Areality dst in
+      let areality, linearity = c in
+      Some
+        (compose dst
+           (Subtract (min_with dst Linearity linearity))
+           (Map_comonadic (compose dst0 f (Subtract areality))))
     | Regional_to_global, Locality_as_regionality -> Some Id
     | Regional_to_global, Local_to_regional -> Some (Meet_with Locality.Global)
     | Local_to_regional, Regional_to_local -> None
