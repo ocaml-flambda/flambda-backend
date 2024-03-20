@@ -96,7 +96,7 @@ let rec pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
-  | Fields (_, f) -> Format.fprintf ppf "{ %a }" (Field.Map.print pp_elt) f
+  | Fields (d, f) -> Format.fprintf ppf "%d{ %a }" d (Field.Map.print pp_elt) f
 
 let rec equal_elt e1 e2 =
   match e1, e2 with
@@ -111,22 +111,19 @@ let depth_of e = match e with Bottom | Top -> 0 | Fields (d, _) -> d
 
 let rec join_elt e1 e2 =
   if e1 == e2
-  then e1, depth_of e1
+  then e1
   else
     match e1, e2 with
-    | Bottom, e | e, Bottom -> e, depth_of e
-    | Top, _ | _, Top -> Top, 0
+    | Bottom, e | e, Bottom -> e
+    | Top, _ | _, Top -> Top
     | Fields (_, f1), Fields (_, f2) ->
-      let max_depth = ref 0 in
       let unioner _k e1 e2 =
-        let e, depth = join_elt e1 e2 in
-        max_depth := max depth !max_depth;
+        let e = join_elt e1 e2 in
         Some e
       in
       let fields = Field.Map.union unioner f1 f2 in
-      Fields (1 + !max_depth, fields), 1 + !max_depth
-
-let join_elt e1 e2 = fst @@ join_elt e1 e2
+      let max_depth = Field.Map.fold (fun _k e depth -> max depth (depth_of e)) fields 0 in
+      Fields (1 + max_depth, fields)
 
 let rec cut_at depth elt =
   match elt with
