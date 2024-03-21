@@ -421,6 +421,8 @@ let mk_compare_floats_untagged dbg a1 a2 =
              runtime/floats.c *)
           add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
 
+let mk_compare_float32s_untagged _dbg _a1 _a2 = assert false
+
 let mk_compare_floats dbg a1 a2 =
   bind "float_cmp" a2 (fun a2 ->
       bind "float_cmp" a1 (fun a1 ->
@@ -3503,6 +3505,30 @@ let float_le = binary (Ccmpf CFle)
 let float_gt = binary (Ccmpf CFgt)
 
 let float_ge = binary (Ccmpf CFge)
+
+let float32_abs = assert false
+
+let float32_neg = assert false
+
+let float32_add = assert false
+
+let float32_sub = assert false
+
+let float32_mul = assert false
+
+let float32_div = assert false
+
+let float32_eq = assert false
+
+let float32_neq = assert false
+
+let float32_lt = assert false
+
+let float32_le = assert false
+
+let float32_gt = assert false
+
+let float32_ge = assert false
 
 let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 
