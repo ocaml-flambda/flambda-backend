@@ -17,6 +17,7 @@
 open! Simplify_import
 module A = Number_adjuncts
 module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
+module Float32_by_bit_pattern = Numeric_types.Float32_by_bit_pattern
 
 type 'a binary_arith_outcome_for_one_side_only =
   | Exactly of 'a
@@ -201,7 +202,9 @@ end = struct
                 in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Float_negation_of_the_other_side ->
-                let prim : P.t = Unary (Float_arith Neg, other_side) in
+                let prim : P.t =
+                  Unary (Float_arith (Float64, Neg), other_side)
+                in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Cannot_simplify -> None
               | Invalid -> Some possible_results))
@@ -699,7 +702,99 @@ end = struct
     | Div -> Cannot_simplify
 end
 
+module Float32_ops_for_binary_arith : sig
+  include Binary_arith_like_sig with type op = P.binary_float_arith_op
+end = struct
+  module F = Float32_by_bit_pattern
+  module Lhs = F
+  module Rhs = F
+  module Result = F
+
+  type op = P.binary_float_arith_op
+
+  let arg_kind = K.Standard_int_or_float.Naked_float32
+
+  let result_kind = K.naked_float32
+
+  let ok_to_evaluate denv = DE.propagating_float_consts denv
+
+  let prover_lhs = T.meet_naked_float32s
+
+  let prover_rhs = T.meet_naked_float32s
+
+  let unknown _ = T.any_naked_float32
+
+  let these = T.these_naked_float32s
+
+  let term f =
+    Named.create_simple (Simple.const (Reg_width_const.naked_float32 f))
+
+  module Pair = F.Pair
+
+  let cross_product = F.cross_product
+
+  let op (op : op) n1 n2 =
+    let always_some f = Some (f n1 n2) in
+    match op with
+    | Add -> always_some F.IEEE_semantics.add
+    | Sub -> always_some F.IEEE_semantics.sub
+    | Mul -> always_some F.IEEE_semantics.mul
+    | Div -> always_some F.IEEE_semantics.div
+
+  type symmetric_op =
+    | Add
+    | Mul
+
+  (* To be certain of correctness we restrict identities on floating-point
+     numbers to those that preserve the _bit pattern_. *)
+
+  let symmetric_op_one_side_unknown (op : symmetric_op) ~this_side :
+      F.t binary_arith_outcome_for_one_side_only =
+    match op with
+    | Add ->
+      (* You might think that "x + 0" has the same representation as "x".
+         However it doesn't in the case where that constant zero is +0 and x is
+         equal to -0. *)
+      Cannot_simplify
+    | Mul ->
+      if F.equal this_side F.one
+      then
+        The_other_side
+        [@z3 check_float32_binary_neutral `Mul 1.0 `Right]
+        [@z3 check_float32_binary_neutral `Mul 1.0 `Left]
+      else if F.equal this_side F.minus_one
+      then
+        Float_negation_of_the_other_side
+        [@z3 check_float32_binary_opposite `Mul (-1.0) `Left]
+        [@z3 check_float32_binary_opposite `Mul (-1.0) `Right]
+      else Cannot_simplify
+
+  let op_lhs_unknown (op : op) ~rhs : F.t binary_arith_outcome_for_one_side_only
+      =
+    match op with
+    | Add -> symmetric_op_one_side_unknown Add ~this_side:rhs
+    | Mul -> symmetric_op_one_side_unknown Mul ~this_side:rhs
+    | Sub -> Cannot_simplify
+    | Div ->
+      if F.equal rhs F.one
+      then The_other_side [@z3 check_float32_binary_neutral `Div 1.0 `Right]
+      else if F.equal rhs F.minus_one
+      then
+        Float_negation_of_the_other_side
+        [@z3 check_float32_binary_opposite `Div (-1.0) `Right]
+      else Cannot_simplify
+
+  let op_rhs_unknown (op : op) ~lhs : F.t binary_arith_outcome_for_one_side_only
+      =
+    match op with
+    | Add -> symmetric_op_one_side_unknown Add ~this_side:lhs
+    | Mul -> symmetric_op_one_side_unknown Mul ~this_side:lhs
+    | Sub -> Cannot_simplify
+    | Div -> Cannot_simplify
+end
+
 module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
+module Binary_float32_arith = Binary_arith_like (Float32_ops_for_binary_arith)
 
 module Float_ops_for_binary_comp : sig
   include Binary_arith_like_sig with type op = unit P.comparison_behaviour
@@ -791,7 +886,98 @@ end = struct
     | Yielding_int_like_compare_functions () -> Cannot_simplify
 end
 
+module Float32_ops_for_binary_comp : sig
+  include Binary_arith_like_sig with type op = unit P.comparison_behaviour
+end = struct
+  module F = Float32_by_bit_pattern
+  module Lhs = F
+  module Rhs = F
+  module Result = Targetint_31_63
+
+  type op = unit P.comparison_behaviour
+
+  let arg_kind = K.Standard_int_or_float.Naked_float32
+
+  let result_kind = K.naked_immediate
+
+  let ok_to_evaluate denv = DE.propagating_float_consts denv
+
+  let prover_lhs = T.meet_naked_float32s
+
+  let prover_rhs = T.meet_naked_float32s
+
+  let unknown (op : op) =
+    match op with
+    | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
+    | Yielding_int_like_compare_functions () ->
+      T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
+
+  let these = T.these_naked_immediates
+
+  let term imm : Named.t =
+    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
+
+  module Pair = F.Pair
+
+  let cross_product = F.cross_product
+
+  let op (op : op) n1 n2 =
+    match op with
+    | Yielding_bool op -> (
+      let has_nan = F.is_any_nan n1 || F.is_any_nan n2 in
+      let bool b = Targetint_31_63.bool b in
+      match op with
+      | Eq -> Some (bool (F.IEEE_semantics.equal n1 n2))
+      | Neq -> Some (bool (not (F.IEEE_semantics.equal n1 n2)))
+      | Lt () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 < 0))
+      | Gt () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 > 0))
+      | Le () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 <= 0))
+      | Ge () ->
+        if has_nan
+        then Some (bool false)
+        else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
+    | Yielding_int_like_compare_functions () ->
+      let int i = Targetint_31_63.of_int i in
+      let c = F.IEEE_semantics.compare n1 n2 in
+      if c < 0
+      then Some (int (-1))
+      else if c = 0
+      then Some (int 0)
+      else Some (int 1)
+
+  let result_of_comparison_with_nan (op : unit P.comparison) =
+    match op with
+    | Neq -> Exactly Targetint_31_63.bool_true
+    | Eq | Lt () | Gt () | Le () | Ge () -> Exactly Targetint_31_63.bool_false
+
+  let op_lhs_unknown (op : op) ~rhs : _ binary_arith_outcome_for_one_side_only =
+    match op with
+    | Yielding_bool op ->
+      if F.is_any_nan rhs
+      then result_of_comparison_with_nan op
+      else Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
+
+  let op_rhs_unknown (op : op) ~lhs : _ binary_arith_outcome_for_one_side_only =
+    match op with
+    | Yielding_bool op ->
+      if F.is_any_nan lhs
+      then result_of_comparison_with_nan op
+      else Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
+end
+
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
+module Binary_float32_comp = Binary_arith_like (Float32_ops_for_binary_comp)
 
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     ~arg1:_ ~arg1_ty ~arg2:_ ~arg2_ty ~result_var =
@@ -1042,8 +1228,10 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
       | Naked_int32 -> Binary_int_comp_int32.simplify op
       | Naked_int64 -> Binary_int_comp_int64.simplify op
       | Naked_nativeint -> Binary_int_comp_nativeint.simplify op)
-    | Float_arith op -> Binary_float_arith.simplify op
-    | Float_comp op -> Binary_float_comp.simplify op
+    | Float_arith (Float64, op) -> Binary_float_arith.simplify op
+    | Float_comp (Float64, op) -> Binary_float_comp.simplify op
+    | Float_arith (Float32, op) -> Binary_float32_arith.simplify op
+    | Float_comp (Float32, op) -> Binary_float32_comp.simplify op
     | Phys_equal op -> simplify_phys_equal op
     | String_or_bigstring_load (string_like_value, string_accessor_width) ->
       simplify_string_or_bigstring_load string_like_value string_accessor_width

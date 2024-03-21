@@ -584,8 +584,8 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (Tagged_immediate, s) -> Infix (Int_shift s)
   | Int_shift (i, s) -> Int_shift (i, s)
-  | Float_arith o -> Infix (Float_arith o)
-  | Float_comp c -> Infix (Float_comp c)
+  | Float_arith (w, o) -> Infix (Float_arith (w, o))
+  | Float_comp (w, c) -> Infix (Float_comp (w, c))
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
   | Bigarray_load _ | Atomic_exchange | Atomic_fetch_and_add ->

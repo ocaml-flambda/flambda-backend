@@ -345,12 +345,14 @@ type bytes_like_value = Flambda_primitive.bytes_like_value =
   | Bytes
   | Bigstring
 
+type float_bitwidth = Flambda_primitive.float_bitwidth
+
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
   | Int_comp of signed_or_unsigned comparison_behaviour (* on tagged imms *)
-  | Float_arith of binary_float_arith_op
-  | Float_comp of unit comparison_behaviour
+  | Float_arith of float_bitwidth * binary_float_arith_op
+  | Float_comp of float_bitwidth * unit comparison_behaviour
 
 type binop =
   | Array_load of array_kind * array_accessor_width * mutability

@@ -467,6 +467,25 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     SPR.create_unknown dacc ~result_var K.naked_float ~original_term
   | Invalid -> SPR.create_invalid dacc
 
+let simplify_float32_arith_op (op : P.unary_float_arith_op) dacc ~original_term
+    ~arg:_ ~arg_ty ~result_var =
+  let module F = Numeric_types.Float32_by_bit_pattern in
+  let denv = DA.denv dacc in
+  let proof = T.meet_naked_float32s (DE.typing_env denv) arg_ty in
+  match proof with
+  | Known_result fs when DE.propagating_float_consts denv ->
+    assert (not (Float32.Set.is_empty fs));
+    let f =
+      match op with Abs -> F.IEEE_semantics.abs | Neg -> F.IEEE_semantics.neg
+    in
+    let possible_results = F.Set.map f fs in
+    let ty = T.these_naked_float32s possible_results in
+    let dacc = DA.add_variable dacc result_var ty in
+    SPR.create original_term ~try_reify:true dacc
+  | Known_result _ | Need_meet ->
+    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
+  | Invalid -> SPR.create_invalid dacc
+
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
 
@@ -661,7 +680,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_int32 -> Unary_int_arith_naked_int32.simplify op
       | Naked_int64 -> Unary_int_arith_naked_int64.simplify op
       | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op)
-    | Float_arith op -> simplify_float_arith_op op
+    | Float_arith (Float64, op) -> simplify_float_arith_op op
+    | Float_arith (Float32, op) -> simplify_float32_arith_op op
     | Num_conv { src; dst } -> (
       match src with
       | Tagged_immediate -> Simplify_int_conv_tagged_immediate.simplify ~dst
