@@ -256,20 +256,20 @@ let fixpoint_component
   let result : result = state.result in
   let all_deps = state.all_deps in
   let q = Queue.create () in
+  (* Invariants: [!q_s] contails the elements that may be pushed in [q], that is, the elements of [ids] that are not already in [q]. *)
+  let q_s = ref Code_id_or_name.Set.empty in
   let push =
     match component with
     | No_loop id ->
       Queue.push id q;
-      Hashtbl.add state.all_added id ();
       (fun n -> assert (not (Hashtbl.mem state.all_added n)))
     | Has_loop ids ->
-      List.iter (fun id -> Queue.push id q; Hashtbl.add state.all_added id ()) ids;
-      let elements = Code_id_or_name.Set.of_list ids in
+      List.iter (fun id -> Queue.push id q) ids;
       fun n ->
-        if Code_id_or_name.Set.mem n elements then
-          Queue.push n q
-        else
-          assert (not (Hashtbl.mem state.all_added n))
+        assert (not (Hashtbl.mem state.all_added n));
+        if Code_id_or_name.Set.mem n !q_s then begin
+          Queue.push n q; q_s := Code_id_or_name.Set.remove n !q_s
+        end
   in
   let rec add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->
@@ -292,6 +292,7 @@ let fixpoint_component
   in
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
+    q_s := Code_id_or_name.Set.add n !q_s;
     let deps =
       match Hashtbl.find_opt all_deps n with
       | None -> DepSet.empty
@@ -337,6 +338,11 @@ let fixpoint_topo (graph : graph) : result =
     SCC.connected_components_sorted_from_roots_to_leaf
       (Make_SCC.from_graph graph)
   in
+  if Sys.getenv_opt "SHOWCOMP" <> None then begin
+    Format.eprintf "ncomps: %d, max size: %d@."
+      (Array.length components)
+      (Array.fold_left (fun m -> function SCC.No_loop _ -> m | SCC.Has_loop l -> max m (List.length l)) 0 components)
+  end;
   Array.iter (fun component ->
       fixpoint_component state component graph) components;
   state.result
