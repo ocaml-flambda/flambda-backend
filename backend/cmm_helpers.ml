@@ -3506,29 +3506,29 @@ let float_gt = binary (Ccmpf CFgt)
 
 let float_ge = binary (Ccmpf CFge)
 
-let float32_abs = assert false
+let float32_abs ~dbg:_ _ = assert false
 
-let float32_neg = assert false
+let float32_neg ~dbg:_ _ = assert false
 
-let float32_add = assert false
+let float32_add ~dbg:_ _ _ = assert false
 
-let float32_sub = assert false
+let float32_sub ~dbg:_ _ _ = assert false
 
-let float32_mul = assert false
+let float32_mul ~dbg:_ _ _ = assert false
 
-let float32_div = assert false
+let float32_div ~dbg:_ _ _ = assert false
 
-let float32_eq = assert false
+let float32_eq ~dbg:_ _ _ = assert false
 
-let float32_neq = assert false
+let float32_neq ~dbg:_ _ _ = assert false
 
-let float32_lt = assert false
+let float32_lt ~dbg:_ _ _ = assert false
 
-let float32_le = assert false
+let float32_le ~dbg:_ _ _ = assert false
 
-let float32_gt = assert false
+let float32_gt ~dbg:_ _ _ = assert false
 
-let float32_ge = assert false
+let float32_ge ~dbg:_ _ _ = assert false
 
 let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 
