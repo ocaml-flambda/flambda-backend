@@ -82,10 +82,6 @@ type texp_field_boxing =
 
 val shared_many_use : unique_use
 
-type recursive_binding_kind =
-| Not_recursive
-| Static
-
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
 
@@ -703,7 +699,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
-    vb_rec_kind: recursive_binding_kind;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;

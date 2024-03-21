@@ -131,12 +131,13 @@ TYPING = \
   typing/typedecl.cmo \
   typing/typeopt.cmo \
   typing/uniqueness_analysis.cmo \
-  typing/rec_check.cmo \
+  typing/value_rec_check.cmo \
   typing/typecore.cmo \
   typing/typeclass.cmo \
   typing/typemod.cmo
 TYPING_CMI = \
   typing/annot.cmi \
+  typing/value_rec_types.cmi \
   typing/outcometree.cmi
 
 LAMBDA = \

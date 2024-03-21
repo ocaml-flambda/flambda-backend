@@ -30,8 +30,10 @@ OCaml 5.1.0 (14 September 2023)
   (David Allsopp, review by Xavier Leroy, Guillaume Munch-Maccagnoni
   and Gabriel Scherer)
 
-- #12551: Propagate classification of recursive bindings from Rec_check
-  (Vincent Laviron, review by Gabriel Scherer)
+- #12551, #12608: Overhaul of recursive value compilation.
+  Extend the Rec_check classification to handle constants, propagate the
+  classification through the compiler.
+  (Vincent Laviron and Lunia Ayanides, review by Gabriel Scherer)
 
 ### Standard library:
 
