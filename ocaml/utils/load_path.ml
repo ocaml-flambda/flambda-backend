@@ -23,6 +23,7 @@ module Dir : sig
   val hidden : t -> bool
 
   val create : hidden:bool -> string -> t
+  val create_libloc : hidden:bool -> libloc:string -> string -> t
 
   val find : t -> string -> string option
   val find_uncap : t -> string -> string option
@@ -66,6 +67,31 @@ end = struct
 
   let create ~hidden path =
     { path; files = Array.to_list (readdir_compat path) |> List.map (fun base -> base, Filename.concat path base); hidden }
+
+  let read_libloc_file path =
+    let fd = open_in path in
+    let rec loop acc =
+      try
+        let line = input_line fd in
+        let (fn, path) = Misc.Stdlib.String.split_first_exn ~split_on:' ' line in
+        loop ((fn, path) :: acc)
+      with End_of_file -> acc
+    in
+    let result = loop [] in
+    close_in fd;
+    result
+
+  let create_libloc ~hidden ~libloc libname =
+    let libloc_lib_path = Filename.concat libloc libname in
+    let files = read_libloc_file (Filename.concat libloc_lib_path "cmi-cmx") in
+    let files = List.map (fun (base, path) ->
+      let path = if Filename.is_relative path then
+        Filename.concat (Filename.dirname libloc) path
+      else
+        path
+      in
+      (base, path)) files in
+    { path = libloc_lib_path; files; hidden }
 end
 
 type visibility = Visible | Hidden
@@ -176,6 +202,11 @@ let init ~auto_include ~visible ~hidden =
   reset ();
   visible_dirs := List.rev_map (Dir.create ~hidden:false) visible;
   hidden_dirs := List.rev_map (Dir.create ~hidden:true) hidden;
+  (match !Clflags.libloc with
+  | None -> ()
+  | Some libloc ->
+    visible_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:false ~libloc lib) !Clflags.libloc_libs !visible_dirs;
+    hidden_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:true ~libloc lib) !Clflags.libloc_hidden_libs !hidden_dirs);
   List.iter Path_cache.prepend_add !hidden_dirs;
   List.iter Path_cache.prepend_add !visible_dirs;
   auto_include_callback := auto_include
