@@ -41,16 +41,48 @@ module Make_SCC = struct
       Code_id_or_name.Set.union acc (dep d))
       d Code_id_or_name.Set.empty
 
-  let add_fungraph (acc : SCC.directed_graph) (fun_graph : Cleanup_deps.fun_graph) =
-    Hashtbl.fold (fun cn d acc ->
-      Code_id_or_name.Map.add cn (depset d) acc)
-      fun_graph.name_to_dep acc
+  let ensure_domain acc s =
+    Code_id_or_name.Set.fold (fun x acc -> if Code_id_or_name.Map.mem x acc then acc else Code_id_or_name.Map.add x Code_id_or_name.Set.empty acc) s acc
+
+  let add_fungraph code_id (acc : SCC.directed_graph) (fun_graph : Cleanup_deps.fun_graph) =
+    let acc = Hashtbl.fold (fun cn d acc ->
+        let deps = depset d in
+        let ndeps = match Code_id_or_name.Map.find_opt cn acc with None -> deps | Some deps2 -> Code_id_or_name.Set.union deps deps2 in
+        ensure_domain (Code_id_or_name.Map.add cn ndeps acc) deps)
+      fun_graph.name_to_dep acc in
+    match code_id with None -> acc | Some code_id ->
+      let code_id = Code_id_or_name.code_id code_id in
+      let acc = ensure_domain acc (Code_id_or_name.Set.singleton code_id) in
+      let invert = false in
+      let acc =
+    Hashtbl.fold (fun cn () acc ->
+        let cn, code_id = if invert then code_id, cn else cn, code_id in
+        let d = match Code_id_or_name.Map.find_opt code_id acc with None -> Code_id_or_name.Set.empty | Some d -> d in
+        let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
+        Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc
+      ) fun_graph.used acc
+      in
+      let acc =
+    Hashtbl.fold (fun cid2 () acc ->
+        let cn = Code_id_or_name.code_id cid2 in
+        let cn, code_id = if invert then code_id, cn else cn, code_id in
+        let d = match Code_id_or_name.Map.find_opt code_id acc with None -> Code_id_or_name.Set.empty | Some d -> d in
+        let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
+        Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc
+      ) fun_graph.called acc
+      in
+    Hashtbl.fold (fun cn _ acc ->
+        let cn, code_id = if invert then code_id, cn else cn, code_id in
+        let d = match Code_id_or_name.Map.find_opt code_id acc with None -> Code_id_or_name.Set.empty | Some d -> d in
+        let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
+        Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc
+      ) fun_graph.name_to_dep acc
 
   let from_graph (graph : graph) : SCC.directed_graph =
-    Hashtbl.fold (fun _fun fun_graph acc ->
-      add_fungraph acc fun_graph)
+    Hashtbl.fold (fun code_id fun_graph acc ->
+      add_fungraph (Some code_id) acc fun_graph)
       graph.function_graphs
-      (add_fungraph Code_id_or_name.Map.empty graph.toplevel_graph )
+      (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph )
 
   (* let id_depth graph = *)
   (*   let components = *)
@@ -182,6 +214,7 @@ let pp_result ppf (res : result) =
 
 type fixpoint_state = {
   result : result;
+  all_added : (Code_id_or_name.t, unit) Hashtbl.t;
   all_deps : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
   added_fungraph : (Code_id.t, unit) Hashtbl.t;
 }
@@ -197,9 +230,10 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
   in
   let add_called called =
     Hashtbl.iter (fun code_id () ->
-        Hashtbl.replace result (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top));
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top)) *)
-        push (Code_id_or_name.code_id code_id)
+        let code_id = Code_id_or_name.code_id code_id in
+        if not (Hashtbl.mem result code_id) then Hashtbl.replace result code_id (Fields (1, Field.Map.singleton Apply Top));
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1, Field.Map.singleton Apply Top)) *)
+        push code_id
       ) called
   in
   add_used fun_graph.used;
@@ -208,6 +242,7 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
 let create_state (graph : graph) =
   let state =
     { result = Hashtbl.create 100;
+      all_added = Hashtbl.create 100;
       all_deps = Hashtbl.copy graph.toplevel_graph.name_to_dep;
       added_fungraph = Hashtbl.create 100 }
   in
@@ -225,13 +260,16 @@ let fixpoint_component
     match component with
     | No_loop id ->
       Queue.push id q;
-      (fun _ -> ())
+      Hashtbl.add state.all_added id ();
+      (fun n -> assert (not (Hashtbl.mem state.all_added n)))
     | Has_loop ids ->
-      List.iter (fun id -> Queue.push id q) ids;
+      List.iter (fun id -> Queue.push id q; Hashtbl.add state.all_added id ()) ids;
       let elements = Code_id_or_name.Set.of_list ids in
       fun n ->
         if Code_id_or_name.Set.mem n elements then
           Queue.push n q
+        else
+          assert (not (Hashtbl.mem state.all_added n))
   in
   let rec add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->
@@ -318,9 +356,10 @@ let fixpoint (graph : graph) : result =
   let added_fungraphs = Hashtbl.create 100 in
   let rec add_called called =
     Hashtbl.iter (fun code_id () ->
-        Hashtbl.replace result (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top));
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (0, Field.Map.singleton Apply Top)) *)
-        Queue.push (Code_id_or_name.code_id code_id) q (* CR do better, push_front? *)
+        let code_id = Code_id_or_name.code_id code_id in
+        if not (Hashtbl.mem result code_id) then Hashtbl.replace result code_id (Fields (1, Field.Map.singleton Apply Top));
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1, Field.Map.singleton Apply Top)) *)
+        Queue.push code_id q (* CR do better, push_front? *)
       ) called
   and add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->
@@ -395,5 +434,7 @@ let equal_result r1 r2 =
 let fixpoint graph =
   let result_topo = fixpoint_topo graph in
   let result = fixpoint graph in
+  if Sys.getenv_opt "TOTO" <> None then (Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
+  Format.eprintf "NORMAL:@.%a@.@." pp_result result);
   assert(equal_result result_topo result);
   result
