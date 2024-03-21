@@ -1249,22 +1249,25 @@ let tree_of_mode mode =
     = Alloc.check_const mode
   in
   let oam_locality =
-    match locality with
-    | Some Global -> Olm_global
-    | Some Local -> Olm_local
-    | None -> Olm_unknown
+    let open Locality.Const in
+    Option.map (function
+    | Global -> Olm_global
+    | Local -> Olm_local
+    ) locality
   in
   let oam_uniqueness =
-    match uniqueness with
-    | Some Unique -> Oum_unique
-    | Some Shared -> Oum_shared
-    | None -> Oum_unknown
+    let open Uniqueness.Const in
+    Option.map (function
+    | Unique -> Oum_unique
+    | Shared -> Oum_shared
+    ) uniqueness
   in
   let oam_linearity =
-    match linearity with
-    | Some Many -> Olinm_many
-    | Some Once -> Olinm_once
-    | None -> Olinm_unknown
+    let open Linearity.Const in
+    Option.map (function
+    | Many -> Olinm_many
+    | Once -> Olinm_once
+    ) linearity
   in
   {oam_locality; oam_uniqueness; oam_linearity}
 

@@ -334,50 +334,45 @@ let pr_var_jkinds =
 
 let join_locality lm1 lm2 =
   match lm1, lm2 with
-  | Olm_local, _ -> Olm_local
-  | _, Olm_local -> Olm_local
-  | Olm_unknown, _ -> Olm_unknown
-  | _, Olm_unknown -> Olm_unknown
+  | Olm_local, _ | _, Olm_local -> Olm_local
   | Olm_global, Olm_global -> Olm_global
 
 let join_uniqueness u1 u2 =
   match u1, u2 with
-  | Oum_shared, _ -> Oum_shared
-  | _, Oum_shared -> Oum_shared
-  | Oum_unknown, _ -> Oum_unknown
-  | _, Oum_unknown -> Oum_unknown
+  | Oum_shared, _ | _, Oum_shared -> Oum_shared
   | Oum_unique, Oum_unique -> Oum_unique
 
 let join_linearity l1 l2 =
   match l1, l2 with
-  | Olinm_once, _
-  | _, Olinm_once -> Olinm_once
-  | Olinm_unknown, _
-  | _, Olinm_unknown -> Olinm_unknown
+  | Olinm_once, _ | _, Olinm_once -> Olinm_once
   | Olinm_many, Olinm_many -> Olinm_many
 
 let uniqueness_to_linearity = function
   | Oum_unique -> Olinm_once
   | Oum_shared -> Olinm_many
-  | Oum_unknown -> Olinm_unknown
+
+let option_map2 f m0 m1 =
+  match m0, m1 with
+  | None, _ | _, None -> None
+  | Some m0, Some m1 -> Some (f m0 m1)
 
 let join_modes m1 m2 =
-  { oam_locality = join_locality m1.oam_locality m2.oam_locality;
-    oam_uniqueness = join_uniqueness m1.oam_uniqueness m2.oam_uniqueness;
-    oam_linearity = join_linearity m1.oam_linearity m2.oam_linearity }
+  { oam_locality = option_map2 join_locality m1.oam_locality m2.oam_locality;
+    oam_uniqueness = option_map2 join_uniqueness m1.oam_uniqueness m2.oam_uniqueness;
+    oam_linearity = option_map2 join_linearity m1.oam_linearity m2.oam_linearity }
 
 let default_mode =
-  { oam_locality = Olm_global;
-    oam_uniqueness = Oum_shared;
-    oam_linearity = Olinm_many; }
+  { oam_locality = Some Olm_global;
+    oam_uniqueness = Some Oum_shared;
+    oam_linearity = Some Olinm_many; }
 
 let close_over arg_mode =
   let oam_locality = arg_mode.oam_locality in
-  let oam_uniqueness = Oum_shared in
+  let oam_uniqueness = Some Oum_shared in
   let oam_linearity =
-    join_linearity
+    option_map2 join_linearity
       arg_mode.oam_linearity
-      (uniqueness_to_linearity arg_mode.oam_uniqueness)
+      (Option.map uniqueness_to_linearity arg_mode.oam_uniqueness)
   in
   { oam_locality;
     oam_uniqueness;
@@ -385,54 +380,42 @@ let close_over arg_mode =
 
 let partial_apply alloc_mode =
   let oam_locality = alloc_mode.oam_locality in
-  let oam_uniqueness = Oum_shared in
+  let oam_uniqueness = Some Oum_shared in
   let oam_linearity = alloc_mode.oam_linearity in
   { oam_locality; oam_uniqueness; oam_linearity }
 
 (* Following functions are used to check if the return mode can omitted in the
    case of currying *)
-let locality_agree expected real =
+let mode_agree expected real =
   match expected, real with
   (* If expected and real matches, can omit *)
-  | Olm_local, Olm_local | Olm_global, Olm_global -> true
+  | Some expected, Some real -> expected = real
   (* If the real mode is unknown, we'd rather not put extra parentheses, because
      we wouldn't put "unknown" around the parentheses either, which would make
      the printing even less precise *)
-  | _, Olm_unknown -> true
+  | _, None -> true
   (* In all other cases (the real mode is known), we will print the mode to be
      safe*)
-  | _, _ -> false
+  | None, Some _ -> false
 
-let uniqueness_agree expected real =
-  match expected, real with
-  | Oum_unique, Oum_unique | Oum_shared, Oum_shared -> true
-  | _, Oum_unknown -> true
-  | _, _ -> false
-
-let linearity_agree expected real =
-  match expected, real with
-  | Olinm_many, Olinm_many | Olinm_once, Olinm_once -> true
-  | _, Olinm_unknown -> true
-  | _, _ -> false
-
-let mode_agree expected real =
-  locality_agree expected.oam_locality real.oam_locality &&
-  uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
-  linearity_agree expected.oam_linearity real.oam_linearity
+let modes_agree expected real =
+  mode_agree expected.oam_locality real.oam_locality &&
+  mode_agree expected.oam_uniqueness real.oam_uniqueness &&
+  mode_agree expected.oam_linearity real.oam_linearity
 
 let is_local mode =
   match mode.oam_locality with
-  | Olm_local -> true
+  | Some Olm_local -> true
   | _ -> false
 
 let is_unique mode =
   match mode.oam_uniqueness with
-  | Oum_unique -> true
+  | Some Oum_unique -> true
   | _ -> false
 
 let is_once mode =
   match mode.oam_linearity with
-  | Olinm_once -> true
+  | Some Olinm_once -> true
   | _ -> false
 
 (* Labeled tuples with the first element labeled sometimes require parens. *)
@@ -517,7 +500,7 @@ and print_out_ret mode rm ppf =
   function
   (* the 'mode' argument only has meaning if we are talking about closure *)
   | Otyp_arrow _ as ty ->
-    if mode_agree mode rm
+    if modes_agree mode rm
       then print_out_type_1 rm ppf ty
       else print_out_type_mode ~arg:false rm ppf ty
   | ty -> print_out_type_mode ~arg:false rm ppf ty

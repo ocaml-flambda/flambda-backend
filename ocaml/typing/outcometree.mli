@@ -112,22 +112,19 @@ and out_variant =
 and out_locality =
   | Olm_local
   | Olm_global
-  | Olm_unknown
 
 and out_uniqueness =
   | Oum_unique
   | Oum_shared
-  | Oum_unknown
 
 and out_linearity =
   | Olinm_many
   | Olinm_once
-  | Olinm_unknown
 
 and out_alloc_mode =
-  { oam_locality : out_locality;
-    oam_uniqueness : out_uniqueness;
-    oam_linearity : out_linearity }
+  { oam_locality : out_locality option;
+    oam_uniqueness : out_uniqueness option;
+    oam_linearity : out_linearity option }
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
