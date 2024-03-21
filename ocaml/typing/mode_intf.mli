@@ -91,10 +91,6 @@ module type Common = sig
     ('l * 'r) t ->
     unit
 
-  val zap_to_floor : (allowed * 'r) t -> Const.t
-
-  val zap_to_ceil : ('l * allowed) t -> Const.t
-
   val of_const : Const.t -> ('l * 'r) t
 end
 
@@ -151,9 +147,9 @@ module type S = sig
 
     val local : lr
 
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
-
     val check_const : ('l * 'r) t -> Const.t option
+
+    val zap_to_floor : (allowed * 'r) t -> Const.t
   end
 
   module Regionality : sig
@@ -175,8 +171,6 @@ module type S = sig
     val regional : lr
 
     val local : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Linearity : sig
@@ -195,8 +189,6 @@ module type S = sig
     val many : lr
 
     val once : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Uniqueness : sig
@@ -215,8 +207,6 @@ module type S = sig
     val shared : lr
 
     val unique : lr
-
-    val zap_to_legacy : ('l * allowed) t -> Const.t
   end
 
   (** The most general mode. Used in most type checking,
@@ -268,13 +258,6 @@ module type S = sig
       ('l * 'r) t ->
       unit
 
-    val check_const :
-      ('l * 'r) t ->
-      ( Regionality.Const.t option,
-        Linearity.Const.t option,
-        Uniqueness.Const.t option )
-      modes
-
     val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
 
     val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
@@ -310,8 +293,6 @@ module type S = sig
 
     val join_with_uniqueness :
       Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val zap_to_legacy : lr -> Const.t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
@@ -436,6 +417,8 @@ module type S = sig
       Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
