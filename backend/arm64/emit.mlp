@@ -473,7 +473,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iload  { memory_chunk; addressing_mode; is_atomic }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier = if is_atomic then 1 else 0
-      and single = match memory_chunk with Storage_single -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single_materialized_as_double -> 2 | _ -> 1 in
       based + barrier + single
     | Lop (Istore (memory_chunk, addressing_mode, assignment)) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
@@ -481,7 +481,7 @@ module BR = Branch_relaxation.Make (struct
         match memory_chunk, assignment with
         | (Word_int | Word_val), true -> 1
         | _ -> 0
-      and single = match memory_chunk with Storage_single -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single_materialized_as_double -> 2 | _ -> 1 in
       based + barrier + single
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
@@ -506,8 +506,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iabsf | Inegf | Ispecific Isqrtf) -> 1
     | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Ivectorcast _) -> 1
-    | Lop (Iscalarcast (Float_of_int Pfloat64 | Float_to_int Pfloat64)) -> 1
-    | Lop (Iscalarcast (Float_of_int Pfloat32 | Float_to_int Pfloat32 |
+    | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
+    | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
                         Float_of_float32 | Float_to_float32)) ->
       Misc.fatal_error "float32 not supported on this architecture"
     | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
@@ -704,7 +704,7 @@ let emit_instr i =
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
     | Lop(Iscalarcast (Float_of_float32 | Float_to_float32 |
-                       Float_of_int Pfloat32 | Float_to_int Pfloat32 |
+                       Float_of_int Float32 | Float_to_int Float32 |
                        V128_of_scalar _ | V128_to_scalar _) |
           Ivectorcast _) ->
       (* Never generated; float32 and SIMD instructions are not yet translated *)
@@ -812,7 +812,7 @@ let emit_instr i =
             `	ldr	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
         | Thirtytwo_signed ->
             `	ldrsw	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
-        | Storage_single ->
+        | Single_materialized_as_double ->
             `	ldr	s7, {emit_addressing addressing_mode base}\n`;
             `	fcvt	{emit_reg dst}, s7\n`
         | Word_int | Word_val ->
@@ -824,7 +824,7 @@ let emit_instr i =
             `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
         | Double ->
                       `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
-        | Real_single ->
+        | Single ->
             (* CR mslater: (float32) arm64 *)
             fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
@@ -849,7 +849,7 @@ let emit_instr i =
             `	strh	{emit_wreg src}, {emit_addressing addr base}\n`
         | Thirtytwo_unsigned | Thirtytwo_signed ->
             `	str	{emit_wreg src}, {emit_addressing addr base}\n`
-        | Storage_single ->
+        | Single_materialized_as_double ->
             `	fcvt	s7, {emit_reg src}\n`;
             `	str	s7, {emit_addressing addr base}\n`;
         | Word_int | Word_val ->
@@ -858,7 +858,7 @@ let emit_instr i =
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         | Double ->
           `	str	{emit_reg src}, {emit_addressing addr base}\n`
-        | Real_single ->
+        | Single ->
             (* CR mslater: (float32) arm64 *)
             fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
@@ -902,9 +902,9 @@ let emit_instr i =
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Iscalarcast (Float_of_int Pfloat64)) ->
+    | Lop(Iscalarcast (Float_of_int Float64)) ->
       `	{emit_string "scvtf"}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iscalarcast (Float_to_int Pfloat64)) ->
+    | Lop(Iscalarcast (Float_to_int Float64)) ->
       `	{emit_string "fcvtzs"} {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
     | Lop(Iabsf | Inegf | Ispecific Isqrtf as op) ->
         let instr = (match op with
