@@ -323,8 +323,8 @@ let destroyed_at_oper = function
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
   | Iop( Iscalarcast (Float_of_int _ | Float_to_int _)
-       | Iload{memory_chunk=Storage_single; _}
-       | Istore(Storage_single, _, _)) ->
+       | Iload{memory_chunk=Single_materialized_as_double; _}
+       | Istore(Single_materialized_as_double, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
@@ -347,8 +347,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
   | Op( Scalarcast (Float_of_int _ | Float_to_int _)
-      | Load {memory_chunk = Storage_single; _ }
-      | Store(Storage_single, _, _)) ->
+      | Load {memory_chunk = Single_materialized_as_double; _ }
+      | Store(Single_materialized_as_double, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
@@ -402,8 +402,8 @@ let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
   | Iscalarcast (Float_of_int _ | Float_to_int _)
-  | Iload{memory_chunk=Storage_single; _}
-  | Istore(Storage_single, _, _) -> [| 23; 31 |]
+  | Iload{memory_chunk=Single_materialized_as_double; _}
+  | Istore(Single_materialized_as_double, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
@@ -445,7 +445,7 @@ let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
   | Cvectorcast _ | Cscalarcast (Float_of_float32 | Float_to_float32 |
-                                 Float_of_int Pfloat32 | Float_to_int Pfloat32 |
+                                 Float_of_int Float32 | Float_to_int Float32 |
                                  V128_of_scalar _ | V128_to_scalar _)
     -> false   (* Not implemented *)
   | Cbswap _
@@ -454,7 +454,7 @@ let operation_supported = function
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cscalarcast (Float_of_int Pfloat64 | Float_to_int Pfloat64)
+  | Cscalarcast (Float_of_int Float64 | Float_to_int Float64)
   | Cintofvalue | Cvalueofint
   | Ccmpf _
   | Ccsel _

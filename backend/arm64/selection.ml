@@ -30,14 +30,14 @@ let is_offset chunk n =
         n < 0x1000
     | Sixteen_unsigned | Sixteen_signed ->
         n land 1 = 0 && n lsr 1 < 0x1000
-    | Thirtytwo_unsigned | Thirtytwo_signed | Storage_single ->
+    | Thirtytwo_unsigned | Thirtytwo_signed | Single_materialized_as_double ->
         n land 3 = 0 && n lsr 2 < 0x1000
     | Word_int | Word_val | Double ->
         n land 7 = 0 && n lsr 3 < 0x1000
     | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
         (* CR mslater: (SIMD) arm64 *)
         Misc.fatal_error "arm64: got 128 bit memory chunk"
-    | Real_single ->
+    | Single ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "arm64: got float32 memory chunk")
 
