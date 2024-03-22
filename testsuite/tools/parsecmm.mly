@@ -360,7 +360,7 @@ chunk:
   | SIGNED INT32                { Thirtytwo_signed }
   | INT                         { Word_int }
   | ADDR                        { Word_val }
-  | FLOAT32                     { Single }
+  | FLOAT32                     { Storage_single }
   | FLOAT64                     { Double }
   | FLOAT                       { Double }
   | VAL                         { Word_val }
