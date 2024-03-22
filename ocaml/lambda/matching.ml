@@ -2219,7 +2219,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       ( Lprim
-          (Parrayrefu ref_kind,
+          (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
@@ -3564,8 +3564,8 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             partial (divide_constructor ~scopes)
             (combine_constructor value_kind ploc arg ph.pat_env cstr partial)
             ctx pm
-      | Array _ ->
-          let kind = Typeopt.array_pattern_kind pomega in
+      | Array (_, elt_sort, _) ->
+          let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_array ~scopes kind)

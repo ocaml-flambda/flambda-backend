@@ -151,11 +151,11 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some:
-  Env.t -> Typedtree.expression -> ('l * Mode.allowed) Mode.Value.t -> Typedtree.expression
-val option_none:
-  Env.t -> type_expr -> Location.t -> Typedtree.expression
-val extract_option_type: Env.t -> type_expr -> type_expr
+val type_option_some:
+        Env.t -> Parsetree.expression ->
+        type_expr-> type_expr -> Typedtree.expression
+val type_option_none:
+        Env.t -> type_expr -> Location.t -> Typedtree.expression
 val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
@@ -282,7 +282,7 @@ type error =
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.equate_error
+  | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
