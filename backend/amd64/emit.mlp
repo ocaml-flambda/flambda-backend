@@ -1373,9 +1373,9 @@ let emit_instr fallthrough i =
           I.movupd (addressing addressing_mode VEC128 i 0) dest
       | Onetwentyeight_aligned ->
           I.movapd (addressing addressing_mode VEC128 i 0) dest
-      | Storage_single ->
+      | Single_materialized_as_double ->
           I.cvtss2sd (addressing addressing_mode REAL4 i 0) dest
-      | Real_single ->
+      | Single ->
           I.movss (addressing addressing_mode REAL4 i 0) dest
       | Double ->
           I.movsd (addressing addressing_mode REAL8 i 0) dest
@@ -1394,10 +1394,10 @@ let emit_instr fallthrough i =
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Onetwentyeight_aligned ->
           I.movapd (arg i 0) (addressing addr VEC128 i 1)
-      | Storage_single ->
+      | Single_materialized_as_double ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
-      | Real_single ->
+      | Single ->
           I.movss (arg i 0) (addressing addr REAL4 i 1)
       | Double ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)
@@ -1525,13 +1525,13 @@ let emit_instr fallthrough i =
       I.cvtss2sd (arg i 0) (res i 0)
   | Lop(Iscalarcast (Float_to_float32)) ->
       I.cvtsd2ss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_of_int Pfloat32)) ->
+  | Lop(Iscalarcast (Float_of_int Float32)) ->
       I.cvtsi2ss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_to_int Pfloat32)) ->
+  | Lop(Iscalarcast (Float_to_int Float32)) ->
       I.cvttss2si (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_of_int Pfloat64)) ->
+  | Lop(Iscalarcast (Float_of_int Float64)) ->
       I.cvtsi2sd (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_to_int Pfloat64)) ->
+  | Lop(Iscalarcast (Float_to_int Float64)) ->
       I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)

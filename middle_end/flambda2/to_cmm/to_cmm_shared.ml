@@ -90,7 +90,7 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     ->
     Word_int
   | Naked_number Naked_float -> Double
-  | Naked_number Naked_float32 -> Real_single
+  | Naked_number Naked_float32 -> Single
   | Naked_number Naked_vec128 ->
     (* 128-bit memory operations are default unaligned. Aligned (big)array
        operations are handled separately via cmm. *)
@@ -261,8 +261,8 @@ let invalid res ~message =
 type update_kind =
   | Word_val
   | Word_int
-  | Storage_single
-  | Real_single
+  | Single_materialized_as_double
+  | Single
   | Double
   | Thirtytwo_signed
   | Onetwentyeight_unaligned
@@ -280,7 +280,7 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
         match kind with
         | Word_val -> Some Lambda.Pointer
         | Word_int -> Some Lambda.Immediate
-        | Thirtytwo_signed | Storage_single | Real_single | Double
+        | Thirtytwo_signed | Single_materialized_as_double | Single | Double
         | Onetwentyeight_unaligned ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
@@ -296,8 +296,8 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
         match kind with
         | Word_val -> Word_val
         | Word_int -> Word_int
-        | Storage_single -> Storage_single
-        | Real_single -> Real_single
+        | Single_materialized_as_double -> Single_materialized_as_double
+        | Single -> Single
         | Double -> Double
         | Thirtytwo_signed -> Thirtytwo_signed
         | Onetwentyeight_unaligned -> Onetwentyeight_unaligned

@@ -165,12 +165,16 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int                           (* integer or pointer outside heap *)
   | Word_val                           (* pointer inside heap or encoded int *)
-  | Storage_single                     (* F64 in registers, F32 in memory. *)
-  | Real_single                        (* F32 in both registers and memory. *)
+  | Single_materialized_as_double      (* F64 in registers, F32 in memory. *)
+  | Single                             (* F32 in both registers and memory. *)
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
   | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
+
+type float_width =
+  | Float64
+  | Float32
 
 type vector_cast =
   | Bits128
@@ -178,8 +182,8 @@ type vector_cast =
 type scalar_cast =
   | Float_to_float32
   | Float_of_float32
-  | Float_to_int of Primitive.boxed_float
-  | Float_of_int of Primitive.boxed_float
+  | Float_to_int of float_width
+  | Float_of_int of float_width
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
