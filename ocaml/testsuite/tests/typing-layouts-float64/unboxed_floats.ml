@@ -12,9 +12,9 @@
    ** bytecode
      flags = "-extension layouts_beta"
    ** native
-     flags = "-only-erasable-extensions"
+     flags = "-universe upstream_compatible"
    ** bytecode
-     flags = "-only-erasable-extensions"
+     flags = "-universe upstream_compatible"
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
