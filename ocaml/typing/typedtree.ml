@@ -53,6 +53,10 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use
+  | Non_boxing of unique_use
+
 let shared_many_use =
   ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
     Mode.Linearity.disallow_right Mode.Linearity.many )
@@ -152,12 +156,12 @@ and expression_desc =
       alloc_mode : Mode.Alloc.r option
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * unique_use * Mode.Alloc.r option
+      expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.r
+  | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * comprehension
+  | Texp_array_comprehension of mutable_flag * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -1087,6 +1091,6 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false

@@ -1478,8 +1478,8 @@ let foo : 'a -> unit = fun (local_ x) -> ()
 Line 1, characters 23-43:
 1 | let foo : 'a -> unit = fun (local_ x) -> ()
                            ^^^^^^^^^^^^^^^^^^^^
-Error: This function has a local parameter, but was expected to have type:
-       'a -> unit
+Error: This function takes a local parameter,
+       but was expected to take a global parameter.
 |}]
 
 (* Return mode must be greater than the type *)
@@ -2944,4 +2944,16 @@ let () = foo (local_ M_constructor)
 
 let () = foo_f (local_ (fun M_constructor -> ()))
 [%%expect{|
+|}]
+
+type r = {global_ x : string; y : string}
+
+let foo () =
+  let local_ y = "world" in
+  let local_ r = {x = "hello"; y} in
+  (* Only using r.x, which is global. So the whole return is global and OK. *)
+  {r with y = "foo!" }
+[%%expect{|
+type r = { global_ x : string; y : string; }
+val foo : unit -> r = <fun>
 |}]

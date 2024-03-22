@@ -733,8 +733,8 @@ module Paths : sig
   (** Returns the element-wise child *)
   val child : Projection.t -> t -> t
 
-  (** Representing values whose modes are managed by the type checker.
-      They are ignored by uniqueness analysis and represented as empty lists *)
+  (** Represents a value whose modes are managed by the type checker.
+      It is ignored by uniqueness analysis and represented as an empty list *)
   val untracked : t
 
   (** [modal_child gf proj t] is [child prof t] when [gf] is [Unrestricted]
@@ -816,10 +816,10 @@ let force_shared_boundary unique_use occ ~reason =
   | Error cannot_force -> raise (Error (Boundary { cannot_force; reason }))
 
 module Value : sig
-  (** See [mk] for its meaning *)
+  (** See [existing] for its meaning *)
   type t
 
-  (** A value contains the list of paths it could points to, the unique_use if
+  (** A value contains the list of paths it could point to, the unique_use if
       it's a variable, and its occurrence in the source code. [unique_use] could
       be None if it's not a variable (e.g. result of an application) *)
   val existing : Paths.t -> unique_use -> Occurrence.t -> t
@@ -1286,7 +1286,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_arg = check_uniqueness_exp ienv arg in
     let uf_write = Value.mark_implicit_borrow_memory_address Write value in
     UF.pars [uf_rcd; uf_arg; uf_write]
-  | Texp_array (_, es, _) ->
+  | Texp_array (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_ifthenelse (if_, then_, else_opt) ->
     (* if' is only borrowed, not used; but probably doesn't matter because of
@@ -1311,7 +1311,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
-  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
@@ -1393,7 +1393,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       | Some value -> value
     in
     value, UF.unused
-  | Texp_field (e, _, l, unique_use, _) -> (
+  | Texp_field (e, _, l, float) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
     | None -> Value.fresh, uf
@@ -1401,10 +1401,16 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       (* accessing the field meaning borrowing the parent record's mem
          block. Note that the field itself is not borrowed or used *)
       let uf_read = Value.mark_implicit_borrow_memory_address Read value in
-      let occ = Occurrence.mk loc in
-      let paths = Paths.record_field l.lbl_global l.lbl_name paths in
-      let value = Value.existing paths unique_use occ in
-      value, UF.seq uf uf_read)
+      let uf_boxing, value =
+        let occ = Occurrence.mk loc in
+        let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+        match float with
+        | Non_boxing unique_use ->
+          UF.unused, Value.existing paths unique_use occ
+        | Boxing (_, unique_use) ->
+          Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
+      in
+      value, UF.seqs [uf; uf_read; uf_boxing])
   (* CR-someday anlorenzen: This could also support let-bindings. *)
   | _ -> Value.fresh, check_uniqueness_exp ienv exp
 

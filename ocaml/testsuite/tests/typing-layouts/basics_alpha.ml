@@ -1011,8 +1011,8 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* lazy *)
 type t13 = t_void Lazy.t;;
@@ -1145,27 +1145,15 @@ Error: This expression has type ('a : value)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-Line 1, characters 11-17:
-1 | type t13 = t_void array;;
-               ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13 = t_void array
 |}];;
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-Line 1, characters 20-21:
+Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
-                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+                     ^^^^^^^
+Error: Layout void is not supported yet.
 |}];;
 
 let x13 v =
@@ -1173,15 +1161,16 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 18-19:
+Lines 2-4, characters 2-21:
+2 | ..match v with
 3 |   | [| v |] -> VV v
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
+4 |   | _ -> assert false
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+         it has to be value for the V1 safety check.
 |}];;
 
 (****************************************************************************)

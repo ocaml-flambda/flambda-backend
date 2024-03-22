@@ -199,10 +199,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind
-  | Parraysetu of array_set_kind
-  | Parrayrefs of array_ref_kind
-  | Parraysets of array_set_kind
+  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parraysetu of array_set_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -359,6 +359,10 @@ and array_set_kind =
   | Pfloatarray_set
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
+
+and array_index_kind =
+  | Ptagged_int_index
+  | Punboxed_int_index of unboxed_integer
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
@@ -1590,12 +1594,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _)
-  | Parrayrefs (Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _) -> None
-  | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
-  | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
+  | Parrayrefu ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
+  | Parrayrefs ((Paddrarray_ref | Pintarray_ref
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1749,7 +1753,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+  | Parrayrefu (array_ref_kind, _) | Parrayrefs (array_ref_kind, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
