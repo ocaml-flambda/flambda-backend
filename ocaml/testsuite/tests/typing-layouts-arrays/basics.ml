@@ -254,3 +254,29 @@ Error: This expression has type ('a : float64)
        But the layout of int32# must be a sublayout of float64, because
          of the definition of arr at line 6, characters 12-16.
 |}]
+
+(*********************)
+(* Test 7: rec check *)
+
+(* See upstream PR #6939 *)
+
+let _ =
+  let[@warning "-10"] rec x = [| x |]; #42.0 in
+  ();;
+[%%expect{|
+Line 2, characters 30-44:
+2 |   let[@warning "-10"] rec x = [| x |]; #42.0 in
+                                  ^^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+|}]
+
+let _ =
+  let[@warning "-10"] rec x = [| x |]; #42L in
+  ();;
+
+[%%expect{|
+Line 2, characters 30-43:
+2 |   let[@warning "-10"] rec x = [| x |]; #42L in
+                                  ^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+|}]
