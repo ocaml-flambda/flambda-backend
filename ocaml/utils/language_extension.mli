@@ -107,32 +107,18 @@ val is_enabled : 'a t -> bool
 val is_at_least : 'a t -> 'a -> bool
 
 (** Tooling support: Temporarily enable and disable language extensions; these
-    operations are idempotent.  Calls to [set], [enable], [disable], and
-    [disallow_extensions] inside the body of the function argument will also
-    be rolled back when the function finishes, but this behavior may change;
-    nest multiple [with_*] functions instead.  *)
+    operations are idempotent.  Calls to [set], [enable], [disable] inside the body
+    of the function argument will also be rolled back when the function finishes,
+    but this behavior may change; nest multiple [with_*] functions instead.  *)
 val with_set : unit t -> enabled:bool -> (unit -> unit) -> unit
 
 val with_enabled : 'a t -> 'a -> (unit -> unit) -> unit
 
 val with_disabled : 'a t -> (unit -> unit) -> unit
 
-(** Permanently restrict the allowable extensions to those that are
-    "erasable", i.e. those that can be harmlessly translated to attributes and
-    compiled with the upstream compiler.  Used for [-only-erasable-extensions]
-    to ensure that some code is guaranteed to be compatible with upstream
-    OCaml after rewriting to attributes.  When called, disables any
-    currently-enabled non-erasable extensions, including any that are on by
-    default.  Causes any future uses of [set ~enabled:true], [enable], and
-    their [with_] variants to raise if used with a non-erasable extension.
-    The [is_enabled] function will still work on any extensions, it will just
-    always return [false] on non-erasable ones.  Will raise if called after
-    [disallow_extensions]; the ratchet of extension restriction only goes one
-    way. *)
-val restrict_to_erasable_extensions : unit -> unit
-
 (** Check if the allowable extensions are restricted to only those that are
-    "erasable". This is true when [restrict_to_erasable_extensions] was called. *)
+    "erasable". This is true when the universe is set to [No_extensions] or
+    [Upstream_compatible]. *)
 val erasable_extensions_only : unit -> bool
 
 val set_universe : Universe.t -> unit

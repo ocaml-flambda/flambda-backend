@@ -1749,7 +1749,7 @@ module Default = struct
     let _no_verbose_types = clear verbose_types
     let _disable_all_extensions = Language_extension.(fun () -> set_universe No_extensions)
     let _only_erasable_extensions =
-      Language_extension.restrict_to_erasable_extensions
+      Language_extension.(fun () -> set_universe Upstream_compatible)
     let _extension s = Language_extension.(enable_of_string_exn s)
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _universe s = Language_extension.(set_universe_of_string_exn s)

@@ -338,10 +338,6 @@ let enable_all_in_universe () =
   in
   extensions := List.filter_map maximal_in_universe Exist.all
 
-let restrict_to_erasable_extensions () =
-  let changed = Universe.set Upstream_compatible in
-  if changed then extensions := List.filter Universe.is_allowed !extensions
-
 let erasable_extensions_only () =
   Universe.is No_extensions || Universe.is Upstream_compatible
 
