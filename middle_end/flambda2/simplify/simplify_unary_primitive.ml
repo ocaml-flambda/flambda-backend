@@ -483,7 +483,7 @@ let simplify_float32_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create original_term ~try_reify:true dacc
   | Known_result _ | Need_meet ->
-    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
+    SPR.create_unknown dacc ~result_var K.naked_float32 ~original_term
   | Invalid -> SPR.create_invalid dacc
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
