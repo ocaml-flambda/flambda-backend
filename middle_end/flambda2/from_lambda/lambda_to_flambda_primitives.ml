@@ -1117,30 +1117,30 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let dst = K.Standard_int_or_float.Naked_float32 in
     [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pnegfloat (Pfloat32, mode), [[arg]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Unary (Float_arith (Float32, Neg), unbox_float32 arg))
         ~current_region ]
   | Pabsfloat (Pfloat32, mode), [[arg]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Unary (Float_arith (Float32, Abs), unbox_float32 arg))
         ~current_region ]
   | Paddfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Binary
            (Float_arith (Float32, Add), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Psubfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Binary
            (Float_arith (Float32, Sub), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Pmulfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Binary
            (Float_arith (Float32, Mul), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Pdivfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
-    [ box_float mode
+    [ box_float32 mode
         (Binary
            (Float_arith (Float32, Div), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
