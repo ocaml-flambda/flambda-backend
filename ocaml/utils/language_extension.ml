@@ -143,8 +143,6 @@ module Universe : sig
 
   val check : extn_pair -> unit
 
-  val check_maximal : unit -> unit
-
   type t =
     | No_extensions
     | Upstream_compatible
@@ -216,12 +214,6 @@ end = struct
     | Beta -> Maturity.compare (Exist_pair.maturity extn_pair) Beta <= 0
     | Alpha -> true
 
-  (* are _all_ extensions allowed? *)
-  let all_allowed () =
-    match !universe with
-    | Alpha -> true
-    | No_extensions | Upstream_compatible | Stable | Beta -> false
-
   (* The terminating [()] argument helps protect against ignored arguments. See
      the documentation for [Base.failwithf]. *)
   let fail fmt = Format.ksprintf (fun str () -> raise (Arg.Bad str)) fmt
@@ -231,13 +223,6 @@ end = struct
     then
       fail "Cannot enable extension %s: incompatible with %s"
         (Exist_pair.to_string extn_pair)
-        (compiler_options !universe)
-        ()
-
-  let check_maximal () =
-    if not (all_allowed ())
-    then
-      fail "Cannot enable all extensions: incompatible with %s"
         (compiler_options !universe)
         ()
 
@@ -353,16 +338,12 @@ let enable_all_in_universe () =
   in
   extensions := List.filter_map maximal_in_universe Exist.all
 
-let enable_maximal () =
-  Universe.check_maximal ();
-  (* It's safe to call this here because we've confirmed that we can. *)
-  unconditionally_enable_maximal_without_checks ()
-
 let restrict_to_erasable_extensions () =
   let changed = Universe.set Upstream_compatible in
   if changed then extensions := List.filter Universe.is_allowed !extensions
 
-let erasable_extensions_only () = Universe.is Upstream_compatible
+let erasable_extensions_only () =
+  Universe.is No_extensions || Universe.is Upstream_compatible
 
 let set_universe u =
   let changed = Universe.set u in
@@ -373,10 +354,6 @@ let set_universe_of_string_exn univ_name =
   | Some u -> set_universe u
   | None ->
     raise (Arg.Bad (Printf.sprintf "Universe %s is not known" univ_name))
-
-let disallow_extensions () =
-  ignore (Universe.set No_extensions : bool);
-  disable_all ()
 
 (********************************************)
 (* checking an extension *)

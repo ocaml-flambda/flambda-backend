@@ -1747,7 +1747,7 @@ module Default = struct
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
     let _no_verbose_types = clear verbose_types
-    let _disable_all_extensions = Language_extension.disallow_extensions
+    let _disable_all_extensions = Language_extension.(fun () -> set_universe No_extensions)
     let _only_erasable_extensions =
       Language_extension.restrict_to_erasable_extensions
     let _extension s = Language_extension.(enable_of_string_exn s)

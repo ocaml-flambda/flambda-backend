@@ -68,10 +68,6 @@ end
 (** Disable all extensions *)
 val disable_all : unit -> unit
 
-(** Maximally enable all extensions (that is, set to [Alpha] for [maturity]
-    extensions. *)
-val enable_maximal : unit -> unit
-
 (** Check if a language extension is "erasable", i.e. whether it can be
     harmlessly translated to attributes and compiled with the upstream
     compiler. *)
@@ -134,15 +130,6 @@ val with_disabled : 'a t -> (unit -> unit) -> unit
     [disallow_extensions]; the ratchet of extension restriction only goes one
     way. *)
 val restrict_to_erasable_extensions : unit -> unit
-
-(** Permanently ban all extensions; used for [-disable-all-extensions] to ensure
-    that some code is 100% extension-free.  When called, disables any
-    currently-enabled extensions, including the defaults.  Causes any future
-    uses of [set ~enabled:true], [enable], and their [with_] variants to raise;
-    also causes any future uses of [restrict_to_erasable_extensions] to raise.
-    The [is_enabled] function will still work, it will just always return
-    [false].*)
-val disallow_extensions : unit -> unit
 
 (** Check if the allowable extensions are restricted to only those that are
     "erasable". This is true when [restrict_to_erasable_extensions] was called. *)

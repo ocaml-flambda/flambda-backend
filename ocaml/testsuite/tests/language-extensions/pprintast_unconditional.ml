@@ -6,7 +6,7 @@
 (******************************************************************************)
 (* Setup *)
 
-let () = Language_extension.enable_maximal ();;
+let () = Language_extension.set_universe Alpha;;
 
 module Example = struct
   open Parsetree
@@ -182,7 +182,7 @@ module _ =
   Print_all
     (struct
       let name = "All extensions enabled"
-      let setup () = Language_extension.enable_maximal ()
+      let setup () = Language_extension.set_universe Alpha
     end)
     ()
 ;;
@@ -194,7 +194,7 @@ module _ =
   Print_all
     (struct
       let name = "Extensions disallowed"
-      let setup () = Language_extension.disallow_extensions ()
+      let setup () = Language_extension.set_universe No_extensions
     end)
     ()
 ;;
