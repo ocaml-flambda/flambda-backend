@@ -933,7 +933,6 @@ enable_flambda_invariants
 enable_flambda2
 enable_cmm_invariants
 with_target_bindir
-enable_reserved_header_bits
 enable_stdlib_manpages
 enable_warn_error
 enable_force_safe_string
@@ -1628,9 +1627,6 @@ Optional Features:
                           enable invariants checks in flambda
   --enable-flambda2       enable the Flambda 2 middle end
   --enable-cmm-invariants enable invariants checks in Cmm
-  --enable-reserved-header-bits=BITS
-                          reserve BITS (between 0 and 31) bits in block
-                          headers
   --disable-stdlib-manpages
                           do not build or install the library man pages
   --enable-warn-error     treat C compiler warnings as errors
@@ -3208,7 +3204,7 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
 custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
@@ -3911,18 +3907,6 @@ fi
 if test ${with_target_bindir+y}
 then :
   withval=$with_target_bindir;
-fi
-
-
-# Check whether --enable-reserved-header-bits was given.
-if test ${enable_reserved_header_bits+y}
-then :
-  enableval=$enable_reserved_header_bits; case $enable_reserved_header_bits in #(
-  [0-9]|[1-2][0-9]|3[0-1]) :
-     reserved_header_bits=$enable_reserved_header_bits ;; #(
-  *) :
-    as_fn_error $? "invalid argument to --enable-reserved-header-bits" "$LINENO" 5 ;;
-esac
 fi
 
 

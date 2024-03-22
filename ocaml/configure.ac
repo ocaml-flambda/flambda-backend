@@ -61,7 +61,7 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
 custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
@@ -462,14 +462,6 @@ AC_ARG_ENABLE([cmm-invariants],
 AC_ARG_WITH([target-bindir],
   [AS_HELP_STRING([--with-target-bindir],
     [location of binary programs on target system])])
-
-AC_ARG_ENABLE([reserved-header-bits],
-  [AS_HELP_STRING([--enable-reserved-header-bits=BITS],
-    [reserve BITS (between 0 and 31) bits in block headers])],
-  [AS_CASE([$enable_reserved_header_bits],
-    [[[0-9]]|[[1-2]][[0-9]]|3[[0-1]]],
-      [ reserved_header_bits=$enable_reserved_header_bits],
-  [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
 
 AC_ARG_ENABLE([stdlib-manpages],
   [AS_HELP_STRING([--disable-stdlib-manpages],
