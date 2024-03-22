@@ -65,6 +65,34 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Labeled_tuples -> (module Unit)
   | Small_numbers -> (module Unit)
 
+module Exist_pair = struct
+  include Exist_pair
+
+  let maturity : t -> Maturity.t = function
+    | Pair (Comprehensions, ()) -> Beta
+    | Pair (Mode, ()) -> Stable
+    | Pair (Unique, ()) -> Alpha
+    | Pair (Include_functor, ()) -> Stable
+    | Pair (Polymorphic_parameters, ()) -> Stable
+    | Pair (Immutable_arrays, ()) -> Stable
+    | Pair (Module_strengthening, ()) -> Stable
+    | Pair (Layouts, m) -> m
+    | Pair (SIMD, ()) -> Stable
+    | Pair (Labeled_tuples, ()) -> Stable
+    | Pair (Small_numbers, ()) -> Alpha
+
+  let is_erasable : t -> bool = function Pair (ext, _) -> is_erasable ext
+
+  let to_string = function
+    | Pair (Layouts, m) -> to_string Layouts ^ "_" ^ maturity_to_string m
+    | Pair
+        ( (( Comprehensions | Mode | Unique | Include_functor
+           | Polymorphic_parameters | Immutable_arrays | Module_strengthening
+           | SIMD | Labeled_tuples | Small_numbers ) as ext),
+          _ ) ->
+      to_string ext
+end
+
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 
 type exist = Exist.t = Pack : _ t -> exist
@@ -111,16 +139,24 @@ let equal a b = Option.is_some (equal_t a b)
 (* extension universes *)
 
 module Universe : sig
-  val is_allowed : 'a t -> bool
+  val is_allowed : extn_pair -> bool
 
-  val check : 'a t -> unit
+  val check : extn_pair -> unit
 
   val check_maximal : unit -> unit
 
   type t =
     | No_extensions
-    | Only_erasable
-    | Any
+    | Upstream_compatible
+    | Stable
+    | Beta
+    | Alpha
+
+  val all : t list
+
+  val to_string : t -> string
+
+  val of_string : string -> t option
 
   val set : t -> bool
 
@@ -129,38 +165,72 @@ end = struct
   (** Which extensions can be enabled? *)
   type t =
     | No_extensions
-    | Only_erasable
-    | Any
+    | Upstream_compatible
+    | Stable
+    | Beta
+    | Alpha
+
+  let all = [No_extensions; Upstream_compatible; Stable; Beta; Alpha]
+
+  let to_string = function
+    | No_extensions -> "no_extensions"
+    | Upstream_compatible -> "upstream_compatible"
+    | Stable -> "stable"
+    | Beta -> "beta"
+    | Alpha -> "alpha"
+
+  let of_string = function
+    | "no_extensions" -> Some No_extensions
+    | "upstream_compatible" -> Some Upstream_compatible
+    | "stable" -> Some Stable
+    | "beta" -> Some Beta
+    | "alpha" -> Some Alpha
+    | _ -> None
 
   let compare t1 t2 =
-    let rank = function No_extensions -> 1 | Only_erasable -> 2 | Any -> 3 in
+    let rank = function
+      | No_extensions -> 0
+      | Upstream_compatible -> 1
+      | Stable -> 2
+      | Beta -> 3
+      | Alpha -> 4
+    in
     compare (rank t1) (rank t2)
 
-  let universe = ref Any
+  let universe = ref Alpha
 
   let compiler_options = function
-    | No_extensions -> "flag -disable-all-extensions"
-    | Only_erasable -> "flag -only-erasable-extensions"
-    | Any -> "default options"
+    | No_extensions -> "flag -universe no_extensions"
+    | Upstream_compatible -> "flag -universe upstream_compatible"
+    | Stable -> "flag -universe stable"
+    | Beta -> "flag -universe beta"
+    | Alpha -> "flag -universe alpha (default option)"
 
-  let is_allowed ext =
+  let is_allowed extn_pair =
     match !universe with
     | No_extensions -> false
-    | Only_erasable -> is_erasable ext
-    | Any -> true
+    | Upstream_compatible ->
+      Exist_pair.is_erasable extn_pair
+      && Maturity.compare (Exist_pair.maturity extn_pair) Stable <= 0
+    | Stable -> Maturity.compare (Exist_pair.maturity extn_pair) Stable <= 0
+    | Beta -> Maturity.compare (Exist_pair.maturity extn_pair) Beta <= 0
+    | Alpha -> true
 
   (* are _all_ extensions allowed? *)
   let all_allowed () =
-    match !universe with Any -> true | No_extensions | Only_erasable -> false
+    match !universe with
+    | Alpha -> true
+    | No_extensions | Upstream_compatible | Stable | Beta -> false
 
   (* The terminating [()] argument helps protect against ignored arguments. See
      the documentation for [Base.failwithf]. *)
   let fail fmt = Format.ksprintf (fun str () -> raise (Arg.Bad str)) fmt
 
-  let check extn =
-    if not (is_allowed extn)
+  let check extn_pair =
+    if not (is_allowed extn_pair)
     then
-      fail "Cannot enable extension %s: incompatible with %s" (to_string extn)
+      fail "Cannot enable extension %s: incompatible with %s"
+        (Exist_pair.to_string extn_pair)
         (compiler_options !universe)
         ()
 
@@ -208,7 +278,7 @@ let extensions : extn_pair list ref = ref default_extensions
 
 let set_worker (type a) (extn : a t) = function
   | Some value ->
-    Universe.check extn;
+    Universe.check (Pair (extn, value));
     let (module Ops) = get_level_ops extn in
     let rec update_extensions already_seen : extn_pair list -> extn_pair list =
       function
@@ -269,21 +339,40 @@ let unconditionally_enable_maximal_without_checks () =
   in
   extensions := List.map maximal_pair Exist.all
 
+let enable_all_in_universe () =
+  let maximal_in_universe (Pack extn) =
+    let (module Ops) = get_level_ops extn in
+    let allowed_levels =
+      Ops.all |> List.filter (fun lvl -> Universe.is_allowed (Pair (extn, lvl)))
+    in
+    match allowed_levels with
+    | [] -> None
+    | lvl :: lvls ->
+      let max_allowed_lvl = List.fold_left Ops.max lvl lvls in
+      Some (Pair (extn, max_allowed_lvl))
+  in
+  extensions := List.filter_map maximal_in_universe Exist.all
+
 let enable_maximal () =
   Universe.check_maximal ();
   (* It's safe to call this here because we've confirmed that we can. *)
   unconditionally_enable_maximal_without_checks ()
 
 let restrict_to_erasable_extensions () =
-  let changed = Universe.set Only_erasable in
-  if changed
-  then
-    extensions
-      := List.filter
-           (fun (Pair (extn, _)) -> Universe.is_allowed extn)
-           !extensions
+  let changed = Universe.set Upstream_compatible in
+  if changed then extensions := List.filter Universe.is_allowed !extensions
 
-let erasable_extensions_only () = Universe.is Only_erasable
+let erasable_extensions_only () = Universe.is Upstream_compatible
+
+let set_universe u =
+  let changed = Universe.set u in
+  if changed then enable_all_in_universe ()
+
+let set_universe_of_string_exn univ_name =
+  match Universe.of_string univ_name with
+  | Some u -> set_universe u
+  | None ->
+    raise (Arg.Bad (Printf.sprintf "Universe %s is not known" univ_name))
 
 let disallow_extensions () =
   ignore (Universe.set No_extensions : bool);

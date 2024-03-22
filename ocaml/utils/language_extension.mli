@@ -49,6 +49,22 @@ with type 'a extn := 'a t
 (** Equality on language extensions *)
 val equal : 'a t -> 'b t -> bool
 
+(** The type of langauge extension universes. *)
+module Universe : sig
+  type t =
+    | No_extensions
+    | Upstream_compatible
+    | Stable
+    | Beta
+    | Alpha
+
+  val all : t list
+
+  val to_string : t -> string
+
+  val of_string : string -> t option
+end
+
 (** Disable all extensions *)
 val disable_all : unit -> unit
 
@@ -131,6 +147,10 @@ val disallow_extensions : unit -> unit
 (** Check if the allowable extensions are restricted to only those that are
     "erasable". This is true when [restrict_to_erasable_extensions] was called. *)
 val erasable_extensions_only : unit -> bool
+
+val set_universe : Universe.t -> unit
+
+val set_universe_of_string_exn : string -> unit
 
 (**/**)
 

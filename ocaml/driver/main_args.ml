@@ -683,6 +683,13 @@ let mk_only_erasable_extensions f =
   \    (Erasable extensions: " ^ erasable_extensions ^ ")"
 ;;
 
+let mk_universe f =
+  let available_universes = Language_extension.Universe.(List.map to_string all)
+in
+"-universe", Arg.Symbol (available_universes, f),
+  " Universe"
+
+
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
   "<dir> dump output like -dlambda into <dir>/<target>.dump"
@@ -868,6 +875,7 @@ module type Common_options = sig
   val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
   val _no_extension : string -> unit
+  val _universe : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1142,6 +1150,7 @@ struct
     mk_dtypes F._annot;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_universe F._universe;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1262,6 +1271,7 @@ struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_universe F._universe;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1351,6 +1361,7 @@ struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_universe F._universe;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1530,6 +1541,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_universe F._universe;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1634,6 +1646,7 @@ struct
     mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
     mk_no_extension F._no_extension;
+    mk_universe F._universe;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1739,6 +1752,7 @@ module Default = struct
       Language_extension.restrict_to_erasable_extensions
     let _extension s = Language_extension.(enable_of_string_exn s)
     let _no_extension s = Language_extension.(disable_of_string_exn s)
+    let _universe s = Language_extension.(set_universe_of_string_exn s)
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
