@@ -114,3 +114,5 @@ val all_defined_symbols : t -> Symbol.Set.t
 val free_names_of_defining_exprs : t -> Name_occurrences.t
 
 val apply_projection : t -> Symbol_projection.t -> Simple.t option
+
+val simplify_projections : t -> Downwards_env.t -> t

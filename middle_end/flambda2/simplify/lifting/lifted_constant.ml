@@ -133,6 +133,73 @@ module Definition = struct
         closure_symbols_with_types Symbol.Map.empty
     | Block_like { symbol; denv; ty; _ } ->
       Symbol.Map.singleton symbol (denv, ty)
+
+  let simplify_projections t denv =
+    let typing_env = DE.typing_env denv in
+    let symbol_projections, vars_to_replace =
+      Variable.Map.fold
+        (fun proj_var projection (symbol_projections, vars_to_replace) ->
+          let keep () =
+            ( Variable.Map.add proj_var projection symbol_projections,
+              vars_to_replace )
+          in
+          let replace simple =
+            symbol_projections, Variable.Map.add proj_var simple vars_to_replace
+          in
+          if T.Typing_env.mem ~min_name_mode:Name_mode.normal typing_env
+               (Name.var proj_var)
+          then (* No need to try to replace it, it is already bound *)
+            keep ()
+          else
+            let symbol = Symbol_projection.symbol projection in
+            let ty =
+              T.alias_type_of Flambda_kind.value (Simple.symbol symbol)
+            in
+            let meet_shortcut =
+              match Symbol_projection.projection projection with
+              | Block_load { index } ->
+                let field_kind =
+                  Symbol_projection.kind projection
+                  |> Flambda_kind.With_subkind.kind
+                in
+                T.meet_block_field_simple typing_env
+                  ~min_name_mode:Name_mode.normal ~field_kind ty index
+              | Project_value_slot { project_from = _; value_slot } ->
+                T.meet_project_value_slot_simple typing_env
+                  ~min_name_mode:Name_mode.normal ty value_slot
+            in
+            match meet_shortcut with
+            | Known_result simple -> replace simple
+            | Need_meet -> keep ()
+            | Invalid ->
+              (* Propagating Invalid would be too cumbersome *)
+              keep ())
+        (symbol_projections t)
+        (Variable.Map.empty, Variable.Map.empty)
+    in
+    if Variable.Map.is_empty vars_to_replace
+    then t
+    else
+      match Rebuilt_static_const.to_const t.defining_expr with
+      | None -> t
+      | Some (Code _ | Deleted_code) -> t
+      | Some (Static_const const) ->
+        let defining_expr = Static_const.replace_vars const ~vars_to_replace in
+        let defining_expr =
+          Rebuilt_static_const.from_const
+            (Flambda.Static_const_or_code.create_static_const defining_expr)
+        in
+        let descr =
+          match t.descr with
+          | Code _ -> t.descr
+          | Set_of_closures
+              { denv; closure_symbols_with_types; symbol_projections = _ } ->
+            Set_of_closures
+              { denv; closure_symbols_with_types; symbol_projections }
+          | Block_like { symbol; denv; ty; symbol_projections = _ } ->
+            Block_like { symbol; denv; ty; symbol_projections }
+        in
+        { descr; defining_expr }
 end
 
 type t =
@@ -322,3 +389,10 @@ let apply_projection t proj =
     Misc.fatal_errorf
       "Symbol projection@ %a@ matches more than one constant in:@ %a"
       Symbol_projection.print proj print t
+
+let simplify_projections t denv =
+  concat
+    (List.map
+       (fun definition ->
+         create_definition (Definition.simplify_projections definition denv))
+       t.definitions)
