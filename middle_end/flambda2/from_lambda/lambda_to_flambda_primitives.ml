@@ -1118,34 +1118,38 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pnegfloat (Pfloat32, mode), [[arg]] ->
     [ box_float mode
-        (Unary (Float_arith (Float32, Neg), unbox_float arg))
+        (Unary (Float_arith (Float32, Neg), unbox_float32 arg))
         ~current_region ]
   | Pabsfloat (Pfloat32, mode), [[arg]] ->
     [ box_float mode
-        (Unary (Float_arith (Float32, Abs), unbox_float arg))
+        (Unary (Float_arith (Float32, Abs), unbox_float32 arg))
         ~current_region ]
   | Paddfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith (Float32, Add), unbox_float arg1, unbox_float arg2))
+        (Binary
+           (Float_arith (Float32, Add), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Psubfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith (Float32, Sub), unbox_float arg1, unbox_float arg2))
+        (Binary
+           (Float_arith (Float32, Sub), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Pmulfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith (Float32, Mul), unbox_float arg1, unbox_float arg2))
+        (Binary
+           (Float_arith (Float32, Mul), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Pdivfloat (Pfloat32, mode), [[arg1]; [arg2]] ->
     [ box_float mode
-        (Binary (Float_arith (Float32, Div), unbox_float arg1, unbox_float arg2))
+        (Binary
+           (Float_arith (Float32, Div), unbox_float32 arg1, unbox_float32 arg2))
         ~current_region ]
   | Pfloatcomp (Pfloat32, comp), [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
            ( Float_comp (Float32, Yielding_bool (convert_float_comparison comp)),
-             unbox_float arg1,
-             unbox_float arg2 )) ]
+             unbox_float32 arg1,
+             unbox_float32 arg2 )) ]
   | Punboxed_float_comp (Pfloat32, comp), [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
