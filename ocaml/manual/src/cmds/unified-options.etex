@@ -902,9 +902,9 @@ extensions: ones that can be rewritten into attributes while still preserving
 the program's runtime input/output behavior.  Turns off currently-enabled
 non-erasable extensions when specified.  After this flag, specifying a
 non-erasable extension (even to disable it) will fail with an error.  This flag
-cannot be reversed, but it can be strengthened (by "-disable-all-extensions").
+cannot be reversed, but it can be strengthened (by "-universe no_extensions").
 
-\item[(JST) "-disable-all-extensions"]
+\item[(JST) "-universe no_extensions"]
 Disallow all language extensions moving forward, and turn off currently-enabled
 ones.  This makes "-extension" raise errors moving forwards.  This flag cannot
 be reversed.

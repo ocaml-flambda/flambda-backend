@@ -68,25 +68,25 @@ Succeeded at disallowing all extensions
 Succeeded at disallowing all extensions
 
 # can't call [set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
 
 # can call [set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
 Succeeded at redundantly calling [set ~enabled:false]
 
 # can't call [enable] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
 
 # can call [disable] when extensions are disallowed [comprehensions disabled]:
 Succeeded at redundantly calling [disable]
 
 # can't call [with_set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
 
 # can call [with_set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
 Succeeded at redundantly calling [with_set ~enabled:false]
 
 # can't call [with_enabled] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
 
 # can call [with_disabled] when extensions are disallowed [comprehensions disabled]:
 Succeeded at redundantly calling [with_disabled]

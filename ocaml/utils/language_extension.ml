@@ -156,7 +156,7 @@ module Universe : sig
 
   val of_string : string -> t option
 
-  val set : t -> bool
+  val set : t -> unit
 
   val is : t -> bool
 end = struct
@@ -226,17 +226,7 @@ end = struct
         (compiler_options !universe)
         ()
 
-  (* returns whether or not a change was actually made *)
-  let set new_universe =
-    let cmp = compare new_universe !universe in
-    if cmp > 0
-    then
-      fail "Cannot specify %s: incompatible with %s"
-        (compiler_options new_universe)
-        (compiler_options !universe)
-        ();
-    universe := new_universe;
-    cmp <> 0
+  let set new_universe = universe := new_universe
 
   let is u = compare u !universe = 0
 end
@@ -342,8 +332,8 @@ let erasable_extensions_only () =
   Universe.is No_extensions || Universe.is Upstream_compatible
 
 let set_universe u =
-  let changed = Universe.set u in
-  if changed then enable_all_in_universe ()
+  Universe.set u;
+  enable_all_in_universe ()
 
 let set_universe_of_string_exn univ_name =
   match Universe.of_string univ_name with

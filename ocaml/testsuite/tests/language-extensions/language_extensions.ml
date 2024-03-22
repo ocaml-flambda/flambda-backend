@@ -54,7 +54,7 @@ let try_disallowing_extensions name =
   should_succeed
     name
     "disallowing all extensions"
-    Language_extension.disallow_extensions
+    (fun () -> Language_extension.set_universe No_extensions)
 ;;
 
 type goal = Fail | Succeed
