@@ -93,7 +93,7 @@
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
    typemode typetexp patterns printpat parmatch stypes typedecl typeopt
-    value_rec_check typecore solver_intf solver mode_intf mode uniqueness_analysis
+   value_rec_check typecore solver_intf solver mode_intf mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
    ; manual update: mli only files
@@ -101,6 +101,7 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   value_rec_compiler
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension

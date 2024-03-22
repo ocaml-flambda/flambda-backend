@@ -1036,34 +1036,8 @@ let rec lam ppf = function
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe
-  | Lfunction{kind; params; return; body; attr; ret_mode; mode} ->
-      let pr_params ppf params =
-        match kind with
-        | Curried {nlocal} ->
-            fprintf ppf "@ {nlocal = %d}" nlocal;
-            List.iter (fun (p : Lambda.lparam) ->
-                let { unbox_param } = p.attributes in
-                fprintf ppf "@ %a%s%a%s"
-                  Ident.print p.name (alloc_kind p.mode) layout p.layout
-                  (if unbox_param then "[@unboxable]" else "")
-              ) params
-        | Tupled ->
-            fprintf ppf " (";
-            let first = ref true in
-            List.iter
-              (fun (p : Lambda.lparam) ->
-                 let { unbox_param } = p.attributes in
-                 if !first then first := false else fprintf ppf ",@ ";
-                 Ident.print ppf p.name;
-                 Format.fprintf ppf "%s" (alloc_kind p.mode);
-                 layout ppf p.layout;
-                 if unbox_param then Format.fprintf ppf "[@unboxable]"
-              )
-              params;
-            fprintf ppf ")" in
-      fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
-        (alloc_kind mode) pr_params params
-        function_attribute attr return_kind (ret_mode, return) lam body
+  | Lfunction lfun ->
+      lfunction ppf lfun
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
@@ -1089,16 +1063,9 @@ let rec lam ppf = function
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
-          (fun { id; rkind; def } ->
+          (fun { id; def } ->
             if !spc then fprintf ppf "@ " else spc := true;
-            let rec_annot =
-              match rkind with
-              | Static -> ""
-              | Not_recursive -> "[Nonrec]"
-              | Constant -> "[Cst]"
-              | Class -> "[Class]"
-            in
-            fprintf ppf "@[<2>%a%s@ %a@]" Ident.print id rec_annot lam def)
+            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lfunction def)
           id_arg_list in
       fprintf ppf
         "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
@@ -1221,6 +1188,36 @@ and sequence ppf = function
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
       lam ppf l
+
+and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
+  let pr_params ppf params =
+    match kind with
+    | Curried {nlocal} ->
+        fprintf ppf "@ {nlocal = %d}" nlocal;
+        List.iter (fun (p : Lambda.lparam) ->
+            let { unbox_param } = p.attributes in
+            fprintf ppf "@ %a%s%a%s"
+              Ident.print p.name (alloc_kind p.mode) layout p.layout
+              (if unbox_param then "[@unboxable]" else "")
+          ) params
+    | Tupled ->
+        fprintf ppf " (";
+        let first = ref true in
+        List.iter
+          (fun (p : Lambda.lparam) ->
+             let { unbox_param } = p.attributes in
+             if !first then first := false else fprintf ppf ",@ ";
+             Ident.print ppf p.name;
+             Format.fprintf ppf "%s" (alloc_kind p.mode);
+             layout ppf p.layout;
+             if unbox_param then Format.fprintf ppf "[@unboxable]"
+          )
+          params;
+        fprintf ppf ")" in
+  fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
+    (alloc_kind mode) pr_params params
+    function_attribute attr return_kind (ret_mode, return) lam body
+
 
 let structured_constant = struct_const
 

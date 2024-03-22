@@ -621,8 +621,10 @@ type lambda =
 
 and rec_binding = {
   id : Ident.t;
-  rkind : Value_rec_types.recursive_binding_kind;
-  def : lambda;
+  def : lfunction;
+  (* Generic recursive bindings have been removed from Lambda in 5.2.
+     [Value_rec_compiler.compile_letrec] deals with transforming generic
+     definitions into basic Lambda code. *)
 }
 
 and lfunction = private
@@ -752,6 +754,10 @@ val layout_unboxed_product : layout list -> layout
 val layout_top : layout
 val layout_bottom : layout
 
+
+(** [dummy_constant] produces a placeholder value with a recognizable
+    bit pattern (currently 0xBBBB in its tagged form) *)
+val dummy_constant: lambda
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
@@ -766,6 +772,18 @@ val lfunction :
   ret_mode:alloc_mode ->
   region:bool ->
   lambda
+
+val lfunction' :
+  kind:function_kind ->
+  params:lparam list ->
+  return:layout ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  mode:alloc_mode ->
+  ret_mode:alloc_mode ->
+  region:bool ->
+  lfunction
 
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
@@ -832,12 +850,15 @@ val rename : Ident.t Ident.Map.t -> lambda -> lambda
 (** A version of [subst] specialized for the case where we're just renaming
     idents. *)
 
-val duplicate : lambda -> lambda
+val duplicate_function : lfunction -> lfunction
 (** Duplicate a term, freshening all locally-bound identifiers. *)
 
 val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
+
+val map_lfunction : (lambda -> lambda) -> lfunction -> lfunction
+  (** Apply the given transformation on the function's body *)
 
 val shallow_map  :
   tail:(lambda -> lambda) ->

@@ -130,7 +130,7 @@ end = struct
   let tmc_placeholder =
     (* we choose a placeholder whose tagged representation will be
        reconizable. *)
-    Lconst (Const_base (Const_int (0xBBBB / 2)))
+    Lambda.dummy_constant
 
   let with_placeholder constr (body : offset destination -> lambda) =
     let k_with_placeholder =
@@ -555,10 +555,6 @@ and specialized = {
   dps_id: Ident.t;
   direct_kind: function_kind;
 }
-
-type _ binding_kind =
-  | Recursive : rec_binding binding_kind
-  | Non_recursive : (Ident.t * lambda) binding_kind
 
 let llets lk vk bindings body =
   List.fold_right (fun (var, def) body ->
@@ -994,45 +990,43 @@ and traverse ctx = function
   | lam ->
       shallow_map ~tail:(traverse ctx) ~non_tail:(traverse ctx) lam
 
+and traverse_lfunction ctx lfun =
+  map_lfunction (traverse ctx) lfun
+
 and traverse_let outer_ctx var def =
   let inner_ctx = declare_binding outer_ctx (var, def) in
   let bindings =
-    traverse_binding Non_recursive outer_ctx inner_ctx (var, def)
+    traverse_let_binding outer_ctx inner_ctx var def
   in
   inner_ctx, bindings
 
 and traverse_letrec ctx bindings =
   let ctx =
-    List.fold_left declare_binding ctx
-      (List.map (fun { id; rkind=_; def } -> id, def) bindings)
+    List.fold_left (fun ctx { id; def } ->
+        declare_binding ctx (id, Lfunction def)
+      ) ctx bindings
   in
   let bindings =
-    List.concat_map (traverse_binding Recursive ctx ctx) bindings
+    List.concat_map (traverse_letrec_binding ctx) bindings
   in
   ctx, bindings
 
-and traverse_binding :
-  type a. a binding_kind -> context -> context -> a -> a list =
-  fun binding_kind outer_ctx inner_ctx binding ->
-  let (var, def) =
-    ((match binding_kind, binding with
-    | Recursive, { id; rkind=_; def } -> id, def
-    | Non_recursive, (var, def) -> var, def)
-     : Ident.t * lambda)
-  in
-  let mk_same_binding (var : Ident.t) (def : lambda) : a =
-    match binding_kind, binding with
-    | Recursive, { id=_; rkind; def=_ } -> { id = var; rkind; def }
-    | Non_recursive, _ -> var, def
-  in
-  let mk_static_binding (var : Ident.t) (def : lambda) : a =
-    match binding_kind, binding with
-    | Recursive, _ -> { id = var; rkind = Static; def }
-    | Non_recursive, _ -> var, def
-  in
+and traverse_let_binding outer_ctx inner_ctx var def =
   match find_candidate def with
-  | None -> [mk_same_binding var (traverse outer_ctx def)]
+  | None -> [ var, traverse outer_ctx def ]
   | Some lfun ->
+      let functions = make_dps_variant var inner_ctx outer_ctx lfun in
+      List.map (fun (var, lfun) -> var, Lfunction lfun) functions
+
+and traverse_letrec_binding ctx { id; def } =
+  if def.attr.tmc_candidate
+  then
+    let functions = make_dps_variant id ctx ctx def in
+    List.map (fun (id, def) -> { id; def }) functions
+  else
+    [ { id; def = traverse_lfunction ctx def } ]
+
+and make_dps_variant var inner_ctx outer_ctx (lfun : lfunction) =
   let special = Ident.Map.find var inner_ctx.specialized in
   let fun_choice = choice outer_ctx ~tail:true lfun.body in
   if fun_choice.Choice.tmc_calls = [] then
@@ -1042,7 +1036,7 @@ and traverse_binding :
   let direct =
     let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
+    lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1062,7 +1056,7 @@ and traverse_binding :
          (* Prepending arguments does not affect nlocal *)
          k
     in
-    Lambda.duplicate @@ lfunction
+    Lambda.duplicate_function @@ lfunction'
       ~kind
       ~params
       ~return:lfun.return
@@ -1074,7 +1068,7 @@ and traverse_binding :
       ~region:true
   in
   let dps_var = special.dps_id in
-  [mk_static_binding var direct; mk_static_binding dps_var dps]
+  [var, direct; dps_var, dps]
 
 and traverse_list ctx terms =
   List.map (traverse ctx) terms

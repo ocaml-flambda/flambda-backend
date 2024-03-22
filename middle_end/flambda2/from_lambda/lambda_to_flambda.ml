@@ -173,6 +173,7 @@ let rec try_to_find_location (lam : L.lambda) =
   match lam with
   | Lprim (_, _, loc)
   | Lfunction { loc; _ }
+  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
   | Lapply { ap_loc = loc; _ }
   | Lfor { for_loc = loc; _ }
   | Lswitch (_, _, loc, _)
@@ -182,7 +183,6 @@ let rec try_to_find_location (lam : L.lambda) =
     loc
   | Llet (_, _, _, lam, _)
   | Lmutlet (_, _, lam, _)
-  | Lletrec ({ def = lam; _ } :: _, _)
   | Lifthenelse (lam, _, _, _)
   | Lstaticcatch (lam, _, _, _)
   | Lstaticraise (_, lam :: _)
@@ -848,7 +848,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     (* This case is here to get function names right. *)
     let bindings =
       cps_function_bindings env
-        [L.{ id = fun_id; rkind = Static; def = Lfunction func }]
+        [L.{ id = fun_id; def = func }]
     in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
@@ -970,20 +970,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    *   CC.close_let acc ccenv id User_visible value_kind (Simple value) ~body
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
-  | Lletrec (bindings, body) -> (
-    let free_vars_kind id =
-      let _, kind_with_subkind = CCenv.find_var ccenv id in
-      Some
-        (Flambda_kind.to_lambda
-           (Flambda_kind.With_subkind.kind kind_with_subkind))
-    in
-    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
-    | Unchanged ->
-      let function_declarations = cps_function_bindings env bindings in
-      let body acc ccenv = cps acc env ccenv body k k_exn in
-      CC.close_let_rec acc ccenv ~function_declarations ~body
-        ~current_region:(Env.current_region env)
-    | Dissected lam -> cps acc env ccenv lam k k_exn)
+  | Lletrec (bindings, body) ->
+    let function_declarations = cps_function_bindings env bindings in
+    let body acc ccenv = cps acc env ccenv body k k_exn in
+    CC.close_let_rec acc ccenv ~function_declarations ~body
+      ~current_region:(Env.current_region env)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
     | Praise raise_kind -> (
@@ -1428,14 +1419,7 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
 and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun [@ocaml.warning "-fragile-match"] L.
-                                               { id = fun_id;
-                                                 rkind = _;
-                                                 def = binding
-                                               } ->
-        match binding with
-        | L.Lfunction
-            { kind;
+      (fun L.{ id = fun_id; def = { kind;
               params;
               body = fbody;
               attr;
@@ -1445,30 +1429,20 @@ and cps_function_bindings env (bindings : Lambda.rec_binding list) =
               region;
               return;
               _
-            } -> (
+            } } ->
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~ret_mode ~mode ~region
           with
-          | [{ id; rkind = _; def = L.Lfunction lfun }] -> [id, lfun]
-          | [ { id = id1; rkind = _; def = L.Lfunction lfun1 };
-              { id = id2; rkind = _; def = L.Lfunction lfun2 } ] ->
+          | [{ id; def = lfun }] -> [id, lfun]
+          | [ { id = id1; def = lfun1 };
+              { id = id2; def = lfun2 } ] ->
             [id1, lfun1; id2, lfun2]
-          | [_] | [_; _] ->
-            Misc.fatal_errorf
-              "Expected `Lfunction` terms from [split_default_wrapper] when \
-               translating:@ %a"
-              Printlambda.lambda binding
-          | _ ->
+          | [] | _ :: _ :: _ :: _ ->
             Misc.fatal_errorf
               "Unexpected return value from [split_default_wrapper] when \
                translating:@ %a"
-              Printlambda.lambda binding)
-        | _ ->
-          Misc.fatal_errorf
-            "Only [Lfunction] expressions are permitted in function bindings \
-             upon entry to CPS conversion: %a"
-            Printlambda.lambda binding)
+              Ident.print fun_id)
       bindings
   in
   let free_idents, directed_graph =

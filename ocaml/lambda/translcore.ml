@@ -1676,9 +1676,9 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
         let def =
           if add_regions then maybe_region_exp vb_sort expr def else def
         in
-        { id; rkind; def } in
+        ( id, rkind, def ) in
       let lam_bds = List.map2 transl_case pat_expr_list idlist in
-      fun body -> Lletrec(lam_bds, body)
+      fun body -> Value_rec_compiler.compile_letrec lam_bds body
 
 and transl_setinstvar ~scopes loc self var expr =
   Lprim(Psetfield_computed (maybe_pointer expr, Assignment modify_heap),

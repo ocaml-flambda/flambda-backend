@@ -144,6 +144,7 @@ LAMBDA = \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
   lambda/matching.cmo \
+  lambda/value_rec_compiler.cmo \
   lambda/translmode.cmo \
   lambda/transl_comprehension_utils.cmo \
   lambda/transl_array_comprehension.cmo \
