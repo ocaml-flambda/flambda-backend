@@ -7361,7 +7361,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                Texp_let (Nonrecursive,
                          [{vb_pat=let_pat; vb_expr=texp; vb_sort=arg_sort;
                            vb_attributes=[]; vb_loc=Location.none;
-                           vb_rec_kind = Not_recursive;
+                           vb_rec_kind = Dynamic;
                           }],
                          func let_var) }
       end
@@ -8340,7 +8340,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       (fun (s, ((_,p,_), (e, _))) pvb ->
         (* vb_rec_kind will be computed later for recursive bindings *)
         {vb_pat=p; vb_expr=e; vb_sort = s; vb_attributes=pvb.pvb_attributes;
-         vb_loc=pvb.pvb_loc; vb_rec_kind = Not_recursive;
+         vb_loc=pvb.pvb_loc; vb_rec_kind = Dynamic;
         })
       l spat_sexp_list
   in
