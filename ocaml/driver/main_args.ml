@@ -660,7 +660,8 @@ let mk_no_extension f =
 
 let mk_disable_all_extensions f =
   "-disable-all-extensions", Arg.Unit f,
-  "  Disable all extensions, wherever they have been specified; this\n\
+  "  Legacy, use [-universe no_extensions].\n
+  \    Disable all extensions, wherever they have been specified; this\n\
   \    flag overrides prior uses of the -extension flag, disables any\n\
   \    extensions that are enabled by default, and causes future uses of\n\
   \    the -extension flag to raise an error."
@@ -675,7 +676,8 @@ let mk_only_erasable_extensions f =
     String.concat ", "
   in
 "-only-erasable-extensions", Arg.Unit f,
-  "  Disable all extensions that cannot be \"erased\" to attributes,\n\
+  " Legacy, use [-universe upstream_compatible].\n
+  \    Disable all extensions that cannot be \"erased\" to attributes,\n\
   \    wherever they have been specified; this flag overrides prior\n\
   \    contradictory uses of the -extension flag, raises an error on\n\
   \    future such uses, and disables any such extensions that are\n\
@@ -684,10 +686,18 @@ let mk_only_erasable_extensions f =
 ;;
 
 let mk_universe f =
-  let available_universes = Language_extension.Universe.(List.map to_string all)
+  let available_universes =
+    Language_extension.Universe.(List.map to_string all)
+  in
+  let descriptions = Language_extension.Universe.(List.map
+    (fun univ -> "      " ^ to_string univ ^ " - " ^ description univ) all)
+    |> String.concat "\n"
 in
 "-universe", Arg.Symbol (available_universes, f),
-  " Universe"
+  " Set the extension universe and enable all extensions in it. Each universe
+  \    allows a set of extensions, and every successive universe includes \n\
+  \    the previous one. Following universes exist:\n" ^ descriptions
+
 
 
 let mk_dump_dir f =
@@ -1747,12 +1757,16 @@ module Default = struct
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
     let _no_verbose_types = clear verbose_types
-    let _disable_all_extensions = Language_extension.(fun () -> set_universe No_extensions)
+    let _disable_all_extensions =
+      Language_extension.(fun () ->
+        set_universe_and_enable_all No_extensions)
     let _only_erasable_extensions =
-      Language_extension.(fun () -> set_universe Upstream_compatible)
+      Language_extension.(fun () ->
+        set_universe_and_enable_all Upstream_compatible)
     let _extension s = Language_extension.(enable_of_string_exn s)
     let _no_extension s = Language_extension.(disable_of_string_exn s)
-    let _universe s = Language_extension.(set_universe_of_string_exn s)
+    let _universe s =
+      Language_extension.(set_universe_and_enable_all_of_string_exn s)
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include

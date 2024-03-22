@@ -154,6 +154,8 @@ module Universe : sig
 
   val to_string : t -> string
 
+  val description : t -> string
+
   val of_string : string -> t option
 
   val set : t -> unit
@@ -176,6 +178,14 @@ end = struct
     | Stable -> "stable"
     | Beta -> "beta"
     | Alpha -> "alpha"
+
+  let description = function
+    | No_extensions -> "no extensions"
+    | Upstream_compatible ->
+      "extensions compatible with upstream OCaml, or erasable extensions"
+    | Stable -> "all stable extensions"
+    | Beta -> "all beta extensions"
+    | Alpha -> "all alpha extensions"
 
   let of_string = function
     | "no_extensions" -> Some No_extensions
@@ -333,11 +343,15 @@ let erasable_extensions_only () =
 
 let set_universe u =
   Universe.set u;
+  extensions := List.filter Universe.is_allowed !extensions
+
+let set_universe_and_enable_all u =
+  Universe.set u;
   enable_all_in_universe ()
 
-let set_universe_of_string_exn univ_name =
+let set_universe_and_enable_all_of_string_exn univ_name =
   match Universe.of_string univ_name with
-  | Some u -> set_universe u
+  | Some u -> set_universe_and_enable_all u
   | None ->
     raise (Arg.Bad (Printf.sprintf "Universe %s is not known" univ_name))
 

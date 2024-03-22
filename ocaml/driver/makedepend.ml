@@ -665,7 +665,7 @@ let run_main argv =
     let program = Filename.basename Sys.argv.(0) in
     Compenv.parse_arguments (ref argv)
       (add_dep_arg (fun f -> Src (f, None))) program;
-    Language_extension.set_universe Alpha;
+    Language_extension.set_universe_and_enable_all Alpha;
     process_dep_args (List.rev !dep_args_rev);
     Compenv.readenv ppf Before_link;
     if !sort_files then sort_files_by_dependencies !files

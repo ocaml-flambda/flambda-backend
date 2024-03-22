@@ -18,7 +18,7 @@
 
 module M = Odoc_messages
 
-let () = Language_extension.set_universe Alpha
+let () = Language_extension.set_universe_and_enable_all Alpha
 
 (* we check if we must load a module given on the command line *)
 let arg_list = Array.to_list Sys.argv

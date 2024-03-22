@@ -504,7 +504,8 @@ let read_one_param ppf position name v =
 
   | "extension" -> Language_extension.enable_of_string_exn v
   | "disable-all-extensions" ->
-    if check_bool ppf name v then Language_extension.set_universe No_extensions
+    if check_bool ppf name v then
+      Language_extension.set_universe_and_enable_all No_extensions
 
   | _ ->
     if !warnings_for_discarded_params &&

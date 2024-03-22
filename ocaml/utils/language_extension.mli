@@ -49,18 +49,22 @@ with type 'a extn := 'a t
 (** Equality on language extensions *)
 val equal : 'a t -> 'b t -> bool
 
-(** The type of langauge extension universes. *)
+(** The type of language extension universes. Each universe allows a set of
+    extensions, and every successive universe includes the previous one. *)
 module Universe : sig
   type t =
     | No_extensions
     | Upstream_compatible
-    | Stable
-    | Beta
-    | Alpha
+        (** Upstream compatible extensions, also known as "erasable". *)
+    | Stable  (** Extensions of [Stable] maturity. *)
+    | Beta  (** Extensions of [Beta] maturity. *)
+    | Alpha  (** All extensions. Default. *)
 
   val all : t list
 
   val to_string : t -> string
+
+  val description : t -> string
 
   val of_string : string -> t option
 end
@@ -121,9 +125,15 @@ val with_disabled : 'a t -> (unit -> unit) -> unit
     [Upstream_compatible]. *)
 val erasable_extensions_only : unit -> bool
 
+(** Set the extension universe, disabling disallowed extensions. *)
 val set_universe : Universe.t -> unit
 
-val set_universe_of_string_exn : string -> unit
+(** Set the extension universe and enable all allowed extensions. *)
+val set_universe_and_enable_all : Universe.t -> unit
+
+(** Parse a command-line string and call [set_universe_and_enable_all].
+    Raises if the argument is invalid. *)
+val set_universe_and_enable_all_of_string_exn : string -> unit
 
 (**/**)
 

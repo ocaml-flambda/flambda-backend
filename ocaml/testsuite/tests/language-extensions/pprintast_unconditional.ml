@@ -6,7 +6,7 @@
 (******************************************************************************)
 (* Setup *)
 
-let () = Language_extension.set_universe Alpha;;
+let () = Language_extension.set_universe_and_enable_all Alpha;;
 
 module Example = struct
   open Parsetree
@@ -182,7 +182,7 @@ module _ =
   Print_all
     (struct
       let name = "All extensions enabled"
-      let setup () = Language_extension.set_universe Alpha
+      let setup () = Language_extension.set_universe_and_enable_all Alpha
     end)
     ()
 ;;
@@ -194,7 +194,7 @@ module _ =
   Print_all
     (struct
       let name = "Extensions disallowed"
-      let setup () = Language_extension.set_universe No_extensions
+      let setup () = Language_extension.set_universe_and_enable_all No_extensions
     end)
     ()
 ;;
