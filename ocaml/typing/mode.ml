@@ -1778,7 +1778,7 @@ module Value = struct
     let le m0 m1 =
       let m0 = split m0 in
       let m1 = split m1 in
-      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m1.monadic m1.monadic
+      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
     let print ppf m = print () ppf (of_const m)
 
@@ -2061,7 +2061,7 @@ module Alloc = struct
     let le m0 m1 =
       let m0 = split m0 in
       let m1 = split m1 in
-      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m1.monadic m1.monadic
+      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
     let print ppf m = print () ppf (of_const m)
 
