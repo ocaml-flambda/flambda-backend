@@ -154,7 +154,7 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      | Storage_single | Real_single | Double -> typ_float
+      | Single_materialized_as_double | Single | Double -> typ_float
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end

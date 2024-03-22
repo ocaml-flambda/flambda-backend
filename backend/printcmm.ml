@@ -104,8 +104,8 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
-  | Storage_single -> "float32_in_memory"
-  | Real_single -> "float32"
+  | Single_materialized_as_double -> "float32_materialized_as_float"
+  | Single -> "float32"
   | Double -> "float64"
 
 let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
@@ -222,10 +222,10 @@ let operation d = function
   | Cdivf -> "/f"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cscalarcast (Float_of_int Pfloat64) -> "floatofint"
-  | Cscalarcast (Float_of_int Pfloat32) -> "float32ofint"
-  | Cscalarcast (Float_to_int Pfloat64) -> "intoffloat"
-  | Cscalarcast (Float_to_int Pfloat32) -> "intoffloat32"
+  | Cscalarcast (Float_of_int Float64) -> "floatofint"
+  | Cscalarcast (Float_of_int Float32) -> "float32ofint"
+  | Cscalarcast (Float_to_int Float64) -> "intoffloat"
+  | Cscalarcast (Float_to_int Float32) -> "intoffloat32"
   | Cscalarcast (Float_of_float32) -> "floatoffloat32"
   | Cscalarcast (Float_to_float32) -> "float32offloat"
   | Cvalueofint -> "valueofint"
