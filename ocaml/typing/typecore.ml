@@ -217,7 +217,7 @@ type error =
       Env.closure_context option *
       Env.shared_context option
   | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Alloc.equate_error
+  | Param_mode_mismatch of Alloc.equate_error
   | Uncurried_function_escapes of Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -847,9 +847,9 @@ let mode_annots_from_pat_attrs pat =
   in
   Typemode.transl_mode_annots modes, {pat with ppat_attributes}
 
-let apply_mode_annots ~loc ~env ~ty_expected (m : Alloc.Const.Option.t) mode =
+let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   let error axis =
-    raise (Error(loc, env, Param_mode_mismatch (ty_expected, axis)))
+    raise (Error(loc, env, Param_mode_mismatch axis))
   in
   Option.iter (fun locality ->
     match Locality.equate (Locality.of_const locality) (Alloc.locality mode) with
@@ -4109,7 +4109,7 @@ let type_approx_fun_one_param
   in
   Option.iter
     (fun mode_annots ->
-      apply_mode_annots ~loc ~env ~ty_expected mode_annots arg_mode)
+      apply_mode_annots ~loc ~env mode_annots arg_mode)
     mode_annots;
   if has_poly then begin
     match spato with
@@ -4782,7 +4782,7 @@ let split_function_ty
           generalize_structure ty_arg;
           generalize_structure ty_ret)
   in
-  apply_mode_annots ~loc:loc_fun ~env ~ty_expected mode_annots arg_mode;
+  apply_mode_annots ~loc:loc_fun ~env mode_annots arg_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
       && get_level ty_arg < Btype.generic_level then begin
     let snap = Btype.snapshot () in
@@ -9976,11 +9976,13 @@ let report_error ~loc env = function
         | `Regionality _ ->
           escaping_hint fail_reason submode_reason closure_context
       in
-      Location.errorf ~loc ~sub begin
+      Location.errorf ~loc ~sub "%t" begin
         match fail_reason with
-        | `Regionality _ -> "This value escapes its region"
-        | `Uniqueness _ -> "Found a shared value where a unique value was expected"
-        | `Linearity _ -> "Found a once value where a many value was expected"
+        | `Regionality _ -> Format.dprintf "This value escapes its region"
+        | `Uniqueness {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
+            Uniqueness.Const.print left Uniqueness.Const.print right
+        | `Linearity {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
+            Linearity.Const.print left Linearity.Const.print right
         end
   | Local_application_complete (lbl, loc_kind) ->
       let sub =
@@ -10005,25 +10007,32 @@ let report_error ~loc env = function
       Location.errorf ~loc ~sub
         "@[This application is complete, but surplus arguments were provided afterwards.@ \
          When passing or calling a local value, extra arguments are passed in a separate application.@]"
-  | Param_mode_mismatch (ty, (_, mkind)) ->
-      let mkind =
-        match mkind with
-        | `Locality _ -> "local"
-        | `Uniqueness _ -> "unique"
-        | `Linearity _ -> "once"
-      in
-      Location.errorf ~loc
-        "@[This function has a %s parameter, but was expected to have type:@ %a@]"
-        mkind Printtyp.type_expr ty
+  | Param_mode_mismatch (s, mkind) ->
+      let print_error f (step, {Solver.left; Solver.right}) =
+        let actual, expected =
+          match (step : equate_step) with
+          | Left_le_right -> left, right
+          | Right_le_left -> right, left
+        in
+        Location.errorf ~loc
+          "@[This function takes a %a parameter,@ \
+           but was expected to take a %a parameter.@]"
+          f actual f expected
+      in begin
+      match mkind with
+      | `Locality e -> print_error Locality.Const.print (s, e)
+      | `Uniqueness e -> print_error Uniqueness.Const.print (s, e)
+      | `Linearity e -> print_error Linearity.Const.print (s, e)
+      end
   | Uncurried_function_escapes e -> begin
       match e with
       | `Locality _ ->
           Location.errorf ~loc "This function or one of its parameters escape their region @ \
           when it is partially applied."
       | `Uniqueness _ -> assert false
-      | `Linearity _ ->
-          Location.errorf ~loc "This function when partially applied returns a once value,@ \
-          but expected to be many."
+      | `Linearity {left; right} ->
+          Location.errorf ~loc "This function when partially applied returns a %a value,@ \
+          but expected to be %a." Linearity.Const.print left Linearity.Const.print right
     end
   | Local_return_annotation_mismatch _ ->
       Location.errorf ~loc
