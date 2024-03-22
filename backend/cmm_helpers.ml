@@ -719,7 +719,7 @@ let unbox_float32 dbg =
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
-      | Some (Const_float32 x) -> Cconst_float (x, dbg) (* or keep _dbg? *)
+      | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Real_single, [cmm], dbg))
     | cmm -> Cop (mk_load_immut Real_single, [cmm], dbg))
 
@@ -3324,7 +3324,7 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
-let float32 ~dbg f = Cconst_float (f, dbg)
+let float32 ~dbg f = Cconst_float32 (f, dbg)
 
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
