@@ -77,11 +77,24 @@ type out_mutability =
 (* should be empty if all the jkind annotations are missing *)
 type out_vars_jkinds = (string * out_jkind option) list
 
+type out_arg_mode = Mode.Alloc.Const.t
+
+type out_ret_mode =
+  | Orm_not_arrow of Mode.Alloc.Const.t
+  (** The ret type is not arrow, with modes annotating. *)
+  | Orm_no_parens
+  (** The ret type is arrow, and no need to print parens around the arrow *)
+  | Orm_parens of Mode.Alloc.Const.t
+  (** The ret type is arrow, and need to print parens around the arrow, with
+      modes annotating. *)
+
 type out_type =
   | Otyp_abstract
   | Otyp_open
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
-  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_arrow of string * out_arg_mode * out_type * out_ret_mode * out_type
+  (* INVARIANT: the [out_ret_mode] is [Orm_not_arrow] unless the RHS [out_type]
+    is [Otyp_arrow] *)
   | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
@@ -108,23 +121,6 @@ and out_constructor = {
 and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
-
-and out_locality =
-  | Olm_local
-  | Olm_global
-
-and out_uniqueness =
-  | Oum_unique
-  | Oum_shared
-
-and out_linearity =
-  | Olinm_many
-  | Olinm_once
-
-and out_alloc_mode =
-  { oam_locality : out_locality option;
-    oam_uniqueness : out_uniqueness option;
-    oam_linearity : out_linearity option }
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
