@@ -329,16 +329,16 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
         | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-  | Texp_field (exp, lid, _, _, _) ->
+  | Texp_field (exp, lid, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
   | Texp_setfield (exp1, _, lid, _, exp2) ->
       iter_loc sub lid;
       sub.expr sub exp1;
       sub.expr sub exp2
-  | Texp_array (_, list, _) -> List.iter (sub.expr sub) list
+  | Texp_array (_, _, list, _) -> List.iter (sub.expr sub) list
   | Texp_list_comprehension { comp_body; comp_clauses }
-  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
       sub.expr sub comp_body;
       List.iter
         (function

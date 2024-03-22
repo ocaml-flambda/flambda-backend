@@ -95,8 +95,6 @@ module type Common = sig
 
   val zap_to_ceil : ('l * allowed) t -> Const.t
 
-  val check_const : ('l * 'r) t -> Const.t option
-
   val of_const : Const.t -> ('l * 'r) t
 end
 
@@ -129,6 +127,8 @@ module type S = sig
 
   type nonrec disallowed = disallowed
 
+  type nonrec equate_step = equate_step
+
   type ('a, 'b) monadic_comonadic =
     { monadic : 'a;
       comonadic : 'b
@@ -152,6 +152,8 @@ module type S = sig
     val local : lr
 
     val zap_to_legacy : (allowed * 'r) t -> Const.t
+
+    val check_const : ('l * 'r) t -> Const.t option
   end
 
   module Regionality : sig
@@ -220,29 +222,24 @@ module type S = sig
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
-    module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+    module Monadic : Common with type error = [`Uniqueness of Uniqueness.error]
 
-      val check_const : ('l * 'r) t -> Uniqueness.Const.t option
-    end
+    module Comonadic :
+      Common
+        with type error =
+          [ `Regionality of Regionality.error
+          | `Linearity of Linearity.error ]
 
-    module Comonadic : sig
-      include
-        Common
-          with type error =
-            [ `Regionality of Regionality.error
-            | `Linearity of Linearity.error ]
-
-      val check_const :
-        ('l * 'r) t -> Regionality.Const.t option * Linearity.Const.t option
-
-      val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
-    end
+    type ('a, 'b, 'c) modes =
+      { regionality : 'a;
+        linearity : 'b;
+        uniqueness : 'c
+      }
 
     module Const :
       Lattice
         with type t =
-          Regionality.Const.t * Linearity.Const.t * Uniqueness.Const.t
+          (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
     type error =
       [ `Regionality of Regionality.error
@@ -273,9 +270,10 @@ module type S = sig
 
     val check_const :
       ('l * 'r) t ->
-      Regionality.Const.t option
-      * Linearity.Const.t option
-      * Uniqueness.Const.t option
+      ( Regionality.Const.t option,
+        Linearity.Const.t option,
+        Uniqueness.Const.t option )
+      modes
 
     val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
 
@@ -316,6 +314,10 @@ module type S = sig
     val zap_to_legacy : lr -> Const.t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
+
+    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
   end
 
   (** The mode on arrow types. Compared to [Value], it contains the [Locality]
@@ -325,10 +327,7 @@ module type S = sig
     module Monadic : sig
       include Common with type error = [`Uniqueness of Uniqueness.error]
 
-      val join_with_uniqueness :
-        Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-      val check_const : ('l * 'r) t -> Uniqueness.Const.t option
+      val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
@@ -338,27 +337,22 @@ module type S = sig
             [ `Locality of Locality.error
             | `Linearity of Linearity.error ]
 
-      val meet_with_locality :
-        Locality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-      val meet_with_linearity :
-        Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-      val check_const :
-        ('l * 'r) t -> Locality.Const.t option * Linearity.Const.t option
+      val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
 
-    module Const : sig
-      type ('loc, 'lin, 'uni) modes =
-        { locality : 'loc;
-          linearity : 'lin;
-          uniqueness : 'uni
-        }
+    type ('loc, 'lin, 'uni) modes =
+      { locality : 'loc;
+        linearity : 'lin;
+        uniqueness : 'uni
+      }
 
+    module Const : sig
       include
         Lattice
           with type t =
             (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+      val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
 
       module Option : sig
         type some = t
@@ -443,6 +437,10 @@ module type S = sig
 
     val zap_to_legacy : lr -> Const.t
 
+    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
        three are constrained. *)
@@ -454,6 +452,10 @@ module type S = sig
 
     (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
     val partial_apply : (allowed * 'r) t -> l
+  end
+
+  module Const : sig
+    val alloc_as_value : Alloc.Const.t -> Value.Const.t
   end
 
   (** Converts regional to local, identity otherwise *)
