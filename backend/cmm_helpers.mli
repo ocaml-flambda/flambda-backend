@@ -127,6 +127,9 @@ val mk_compare_ints_untagged :
 val mk_compare_floats_untagged :
   Debuginfo.t -> expression -> expression -> expression
 
+val mk_compare_float32s_untagged :
+  Debuginfo.t -> expression -> expression -> expression
+
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
@@ -704,6 +707,8 @@ val uge : dbg:Debuginfo.t -> expression -> expression -> expression
 (** Asbolute value on floats. *)
 val float_abs : dbg:Debuginfo.t -> expression -> expression
 
+val float32_abs : dbg:Debuginfo.t -> expression -> expression
+
 (** Arithmetic negation on floats. *)
 val float_neg : dbg:Debuginfo.t -> expression -> expression
 
@@ -713,10 +718,22 @@ val float_sub : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_mul : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neg : dbg:Debuginfo.t -> expression -> expression
+
+val float32_add : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_mul : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic operations. *)
 val float_div : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_eq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_div : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
@@ -728,9 +745,19 @@ val float_le : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val float_gt : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val float32_neq : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_lt : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_le : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_gt : dbg:Debuginfo.t -> expression -> expression -> expression
+
 (** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
     (either 0 or 1) to represent the result of the comparison. *)
 val float_ge : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val float32_ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val beginregion : dbg:Debuginfo.t -> expression
 
