@@ -165,7 +165,8 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int                           (* integer or pointer outside heap *)
   | Word_val                           (* pointer inside heap or encoded int *)
-  | Single
+  | Storage_single                     (* F64 in registers, F32 in memory. *)
+  | Real_single                        (* F32 in both registers and memory. *)
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)

@@ -89,7 +89,8 @@ val invalid :
 type update_kind =
   | Word_val
   | Word_int
-  | Single
+  | Storage_single
+  | Real_single
   | Double
   | Thirtytwo_signed
   | Onetwentyeight_unaligned
