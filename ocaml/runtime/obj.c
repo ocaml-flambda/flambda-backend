@@ -172,8 +172,8 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     }
 
     if (scannable_sz < sz) {
-      memcpy(Bp_val(res) + scannable_sz,
-             Bp_val(arg) + scannable_sz,
+      memcpy(Op_val(res) + scannable_sz,
+             Op_val(arg) + scannable_sz,
              Bsize_wsize(sz - scannable_sz));
     }
 

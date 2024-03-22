@@ -324,22 +324,6 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
   return ret;
 }
 
-CAMLexport void caml_set_fields (value obj, value v)
-{
-  int i;
-  CAMLassert (Is_block(obj));
-
-  // CR mixed blocks v1: I think we can just delete this function instead.
-  if (Is_mixed_block_reserved(Reserved_val(obj))) {
-    caml_fatal_error("caml_set_fields: setting fields of mixed block");
-  }
-
-  mlsize_t size = Wosize_val(obj);
-  for (i = 0; i < size; i++) {
-    caml_modify(&Field(obj, i), v);
-  }
-}
-
 CAMLexport int caml_is_stack (value v)
 {
   int i;
