@@ -186,7 +186,8 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int
   | Word_val
-  | Single
+  | Storage_single
+  | Real_single
   | Double
   | Onetwentyeight_unaligned
   | Onetwentyeight_aligned
@@ -600,45 +601,49 @@ let equal_memory_chunk left right =
   | Thirtytwo_signed, Thirtytwo_signed -> true
   | Word_int, Word_int -> true
   | Word_val, Word_val -> true
-  | Single, Single -> true
+  | Storage_single, Storage_single -> true
+  | Real_single, Real_single -> true
   | Double, Double -> true
   | Onetwentyeight_unaligned, Onetwentyeight_unaligned
   | Onetwentyeight_aligned, Onetwentyeight_aligned -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                   | Thirtytwo_signed | Word_int | Word_val | Storage_single | Real_single | Double
                    | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                 | Thirtytwo_signed | Word_int | Word_val | Storage_single | Real_single | Double
                  | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                      | Thirtytwo_signed | Word_int | Word_val | Storage_single | Real_single | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                    | Thirtytwo_signed | Word_int | Word_val | Storage_single | Real_single | Double
                     | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                        | Thirtytwo_signed | Word_int | Word_val | Storage_single | Real_single | Double
                         | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
+                      | Thirtytwo_unsigned | Word_int | Word_val | Storage_single | Real_single | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Storage_single | Real_single | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Storage_single | Real_single | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
-  | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
+  | Storage_single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Real_single | Double
             | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Real_single | Storage_single
             | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Onetwentyeight_unaligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Real_single | Storage_single
             | Double | Onetwentyeight_aligned)
   | Onetwentyeight_aligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Real_single | Storage_single
+            | Double | Onetwentyeight_unaligned)
+  | Real_single, (Onetwentyeight_aligned | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Storage_single
             | Double | Onetwentyeight_unaligned) ->
     false
 
