@@ -320,6 +320,10 @@ module Function_decls : sig
       | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
       | Unboxed_number of Flambda_kind.Boxable_number.t
       | Unboxed_float_record of int
+      | Variant of
+          { consts : int list;
+            non_consts : (int * Flambda_kind.With_subkind.t list) list
+          }
 
     type calling_convention =
       | Normal_calling_convention

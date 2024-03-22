@@ -42,6 +42,8 @@ let const_one = const RWC.const_one
 
 let const_unit = const RWC.const_unit
 
+let dummy_const k = const (RWC.dummy_from_kind k)
+
 let[@inline always] is_var t =
   pattern_match t
     ~name:(fun name ~coercion:_ -> Name.is_var name)
