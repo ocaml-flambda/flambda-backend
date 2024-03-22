@@ -186,15 +186,24 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int
   | Word_val
+  | Single_materialized_as_double
   | Single
   | Double
   | Onetwentyeight_unaligned
   | Onetwentyeight_aligned
 
+type float_width =
+  | Float64
+  | Float32
+
 type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_float32
+  | Float_of_float32
+  | Float_to_int of float_width
+  | Float_of_int of float_width
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -231,7 +240,6 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
@@ -248,7 +256,7 @@ type kind_for_unboxing =
   | Any
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float
+  | Boxed_float of Lambda.boxed_float
 
 type is_global = Global | Local
 
@@ -268,6 +276,7 @@ let global_symbol sym_name = { sym_name; sym_global = Global }
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -367,6 +376,7 @@ let iter_shallow_tail f = function
       true
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -410,6 +420,7 @@ let map_shallow_tail ?kind f = function
       cmm
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -422,6 +433,7 @@ let map_tail ?kind f =
   let rec loop = function
     | Cconst_int _
     | Cconst_natint _
+    | Cconst_float32 _
     | Cconst_float _
     | Cconst_symbol _
     | Cvar _
@@ -461,6 +473,7 @@ let iter_shallow f = function
       f e1; f e2
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -497,6 +510,7 @@ let map_shallow f = function
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -535,6 +549,34 @@ let equal_exttype left right =
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
 
+let equal_float_width left right =
+  match left, right with
+  | Float64, Float64 -> true
+  | Float32, Float32 -> true
+  | (Float32 | Float64), _ -> false
+
+let equal_scalar_cast left right =
+  match left, right with
+  | Float_to_float32, Float_to_float32 -> true
+  | Float_of_float32, Float_of_float32 -> true
+  | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
+  | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
+  | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_of_scalar _)
+  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_to_scalar _)
+    -> false
+
 let equal_float_comparison left right =
   match left, right with
   | CFeq, CFeq -> true
@@ -569,46 +611,58 @@ let equal_memory_chunk left right =
   | Thirtytwo_signed, Thirtytwo_signed -> true
   | Word_int, Word_int -> true
   | Word_val, Word_val -> true
+  | Single_materialized_as_double, Single_materialized_as_double -> true
   | Single, Single -> true
   | Double, Double -> true
   | Onetwentyeight_unaligned, Onetwentyeight_unaligned
   | Onetwentyeight_aligned, Onetwentyeight_aligned -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                   | Thirtytwo_signed | Word_int | Word_val
+                   | Single_materialized_as_double | Single | Double
                    | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                 | Thirtytwo_signed | Word_int | Word_val
+                 | Single_materialized_as_double | Single | Double
                  | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                      | Thirtytwo_signed | Word_int | Word_val
+                      | Single_materialized_as_double | Single | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                    | Thirtytwo_signed | Word_int | Word_val
+                    | Single_materialized_as_double | Single | Double
                     | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                        | Thirtytwo_signed | Word_int | Word_val
+                        | Single_materialized_as_double | Single | Double
                         | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
+                      | Thirtytwo_unsigned | Word_int | Word_val
+                      | Single_materialized_as_double | Single | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val
+              | Single_materialized_as_double | Single | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int
+              | Single_materialized_as_double | Single | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
-  | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
+  | Single_materialized_as_double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single | Double
             | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
-            | Onetwentyeight_unaligned | Onetwentyeight_aligned)
+            | Single_materialized_as_double | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Onetwentyeight_unaligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
-            | Double | Onetwentyeight_aligned)
+            | Single_materialized_as_double | Double | Onetwentyeight_aligned)
   | Onetwentyeight_aligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
-            | Double | Onetwentyeight_unaligned) ->
+            | Single_materialized_as_double | Double | Onetwentyeight_unaligned)
+  | Single, (Onetwentyeight_aligned | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
+            | Single_materialized_as_double | Double | Onetwentyeight_unaligned) ->
     false
 
 let equal_integer_comparison left right =

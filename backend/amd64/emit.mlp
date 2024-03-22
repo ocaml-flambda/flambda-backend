@@ -1260,6 +1260,15 @@ let emit_instr fallthrough i =
           I.mov (nat n) (res i 0)
       end else
         I.mov (nat n) (res i 0)
+  | Lop(Iconst_float32 f) ->
+      begin match f with
+      | 0x0000_0000l ->       (* +0.0 *)
+          I.xorpd (res i 0) (res i 0)
+      | _ ->
+          (* float32 constants still take up 8 bytes; we load the lower half. *)
+          let lbl = add_float_constant (Int64.of_int32 f) in
+          I.movss (mem64_rip REAL4 (emit_label lbl)) (res i 0)
+      end
   | Lop(Iconst_float f) ->
       begin match f with
       | 0x0000_0000_0000_0000L ->       (* +0.0 *)
@@ -1364,8 +1373,10 @@ let emit_instr fallthrough i =
           I.movupd (addressing addressing_mode VEC128 i 0) dest
       | Onetwentyeight_aligned ->
           I.movapd (addressing addressing_mode VEC128 i 0) dest
-      | Single ->
+      | Single_materialized_as_double ->
           I.cvtss2sd (addressing addressing_mode REAL4 i 0) dest
+      | Single ->
+          I.movss (addressing addressing_mode REAL4 i 0) dest
       | Double ->
           I.movsd (addressing addressing_mode REAL8 i 0) dest
       end
@@ -1383,9 +1394,11 @@ let emit_instr fallthrough i =
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Onetwentyeight_aligned ->
           I.movapd (arg i 0) (addressing addr VEC128 i 1)
-      | Single ->
+      | Single_materialized_as_double ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
+      | Single ->
+          I.movss (arg i 0) (addressing addr REAL4 i 1)
       | Double ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)
       end
@@ -1506,12 +1519,20 @@ let emit_instr fallthrough i =
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
   | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
-  | Lop(Ifloatofint) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iintoffloat) ->
-      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast (Float_of_float32)) ->
+      I.cvtss2sd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_float32)) ->
+      I.cvtsd2ss (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Float32)) ->
+      I.cvtsi2ss (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_int Float32)) ->
+      I.cvttss2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Float64)) ->
+      I.cvtsi2sd (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_to_int Float64)) ->
+      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->

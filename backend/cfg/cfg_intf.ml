@@ -55,6 +55,7 @@ module S = struct
     | Spill
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
+    | Const_float32 of int32
     | Const_float of int64
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits
@@ -81,8 +82,6 @@ module S = struct
     | Divf
     | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Csel of Mach.test
-    | Floatofint
-    | Intoffloat
     | Valueofint
     | Intofvalue
     | Vectorcast of Cmm.vector_cast

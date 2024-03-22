@@ -261,6 +261,7 @@ let invalid res ~message =
 type update_kind =
   | Word_val
   | Word_int
+  | Single_materialized_as_double
   | Single
   | Double
   | Thirtytwo_signed
@@ -279,7 +280,8 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
         match kind with
         | Word_val -> Some Lambda.Pointer
         | Word_int -> Some Lambda.Immediate
-        | Thirtytwo_signed | Single | Double | Onetwentyeight_unaligned ->
+        | Thirtytwo_signed | Single_materialized_as_double | Single | Double
+        | Onetwentyeight_unaligned ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
              the complexity of the statically-allocated inconstant unboxed int32
@@ -294,6 +296,7 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
         match kind with
         | Word_val -> Word_val
         | Word_int -> Word_int
+        | Single_materialized_as_double -> Single_materialized_as_double
         | Single -> Single
         | Double -> Double
         | Thirtytwo_signed -> Thirtytwo_signed

@@ -748,6 +748,16 @@ let emit_xorpd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x57 ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_CVTSI2SS b dst src =
+  match (dst, src) with
+  | Regf reg, ((Reg64 _ | Mem { typ = QWORD }) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b rexw [ 0x0f; 0x2A ] rm (rd_of_regf reg)
+  | Regf reg, ((Reg32 _ | Mem { typ = DWORD }) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x2A ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_CVTSI2SD b dst src =
   match (dst, src) with
   | Regf reg, ((Reg64 _ | Mem { typ = QWORD }) as rm) ->
@@ -758,6 +768,16 @@ let emit_CVTSI2SD b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x2A ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_CVTSS2SI b dst src =
+  match (dst, src) with
+  | Reg64 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b rexw [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
+  | Reg32 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
+  | _ -> assert false
+
 let emit_CVTSD2SI b dst src =
   match (dst, src) with
   | Reg64 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
@@ -766,6 +786,16 @@ let emit_CVTSD2SI b dst src =
   | Reg32 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0xF2;
       emit_mod_rm_reg b 0 [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
+  | _ -> assert false
+
+let emit_CVTTSS2SI b dst src =
+  match (dst, src) with
+  | Reg64 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b rexw [ 0x0f; 0x2C ] rm (rd_of_reg64 reg)
+  | Reg32 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x2C ] rm (rd_of_reg64 reg)
   | _ -> assert false
 
 let emit_CVTTSD2SI b dst src =
@@ -1813,8 +1843,11 @@ let assemble_instr b loc = function
   | BSR (src, dst) -> emit_bsr b ~dst ~src
   | BSWAP arg -> emit_BSWAP b arg
   | CALL dst -> emit_call b dst
+  | CVTSI2SS (src, dst) -> emit_CVTSI2SS b dst src
   | CVTSI2SD (src, dst) -> emit_CVTSI2SD b dst src
   | CVTSD2SI (src, dst) -> emit_CVTSD2SI b dst src
+  | CVTSS2SI (src, dst) -> emit_CVTSS2SI b dst src
+  | CVTTSS2SI (src, dst) -> emit_CVTTSS2SI b dst src
   | CVTTSD2SI (src, dst) -> emit_CVTTSD2SI b dst src
   | CVTSD2SS (src, dst) -> emit_CVTSD2SS b dst src
   | CVTSS2SD (src, dst) -> emit_CVTSS2SD b dst src

@@ -129,11 +129,14 @@ module I : sig
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
-  val cvtsd2si: arg -> arg -> unit
+  val cvtss2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsd2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsi2ss: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit
-  val cvttsd2si: arg -> arg -> unit
+  val cvttss2si: arg -> arg -> unit (* truncate *)
+  val cvttsd2si: arg -> arg -> unit (* truncate *)
   val dec: arg -> unit
   val divsd: arg -> arg -> unit
   val hlt: unit -> unit

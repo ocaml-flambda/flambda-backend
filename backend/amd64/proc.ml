@@ -425,7 +425,7 @@ let destroyed_at_oper = function
       else destroyed_at_c_call ()
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
-  | Iop(Istore(Single, _, _))
+  | Iop(Istore(Single_materialized_as_double, _, _))
         -> destroy_xmm 15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
@@ -448,14 +448,15 @@ let destroyed_at_oper = function
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
+               | Double | Single
+               | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Icsel _
-       | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
-       | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+       | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+       | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
@@ -481,7 +482,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_pushtrap
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
-  | Op(Store(Single, _, _)) ->
+  | Op(Store(Single_materialized_as_double, _, _)) ->
     destroy_xmm 15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
@@ -492,12 +493,14 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_alloc_or_poll
   | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
-       | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
+       | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
+       | Const_vec128 _
        | Stackoffset _
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
                          | Thirtytwo_signed | Word_int | Word_val
-                         | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
+                         | Double | Single
+                         | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
@@ -506,7 +509,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
        | Csel _
-       | Floatofint | Intoffloat
        | Valueofint | Intofvalue
        | Vectorcast _
        | Scalarcast _
@@ -584,10 +586,11 @@ let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Ivalueofint | Iintofvalue | Ivectorcast _
   | Icompf _ | Iscalarcast _
   | Icsel _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _ | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
@@ -612,7 +615,7 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single, _, _) | Icompf _ ->
+  | Istore(Single_materialized_as_double, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
     (match Simd_proc.register_behavior op with
@@ -635,12 +638,14 @@ let max_register_pressure =
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned),
+            | Single | Double
+            | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
@@ -735,7 +740,6 @@ let operation_supported = function
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _

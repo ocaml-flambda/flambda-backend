@@ -358,6 +358,16 @@ let equal_boxed_float f1 f2 =
   | Pfloat64, Pfloat64 -> true
   | (Pfloat32 | Pfloat64), _ -> false
 
+let equal_vec128_type v1 v2 =
+  match v1, v2 with
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
+
 let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)

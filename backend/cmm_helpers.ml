@@ -87,6 +87,8 @@ let infix_header ofs = block_header Obj.infix_tag ofs
 
 let boxedfloat32_header = block_header Obj.custom_tag 2
 
+let boxedfloat32_local_header = local_block_header Obj.custom_tag 2
+
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 
 let float_local_header =
@@ -127,6 +129,8 @@ let custom_header ~size = block_header Obj.custom_tag size
 
 let custom_local_header ~size = local_block_header Obj.custom_tag size
 
+let caml_float32_ops = "caml_float32_ops"
+
 let caml_nativeint_ops = "caml_nativeint_ops"
 
 let caml_int32_ops = "caml_int32_ops"
@@ -160,6 +164,11 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
   closure_info'
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
+
+let alloc_boxedfloat32_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
 let alloc_float_header mode dbg =
   match mode with
@@ -694,13 +703,25 @@ let test_bool dbg cmm =
 
 (* Float *)
 
-let box_float32 _dbg _mode _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let box_float32 dbg mode exp =
+  Cop
+    ( Calloc mode,
+      [ alloc_boxedfloat32_header mode dbg;
+        Cconst_symbol (global_symbol caml_float32_ops, dbg);
+        exp ],
+      dbg )
 
-let unbox_float32 _dbg _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let unbox_float32 dbg =
+  map_tail ~kind:Any (function
+    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
+      when Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header ->
+      c
+    | Cconst_symbol (s, _dbg) as cmm -> (
+      match Cmmgen_state.structured_constant_of_sym s.sym_name with
+      | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
+      | _ -> Cop (mk_load_immut Single, [cmm], dbg))
+    | cmm -> Cop (mk_load_immut Single, [cmm], dbg))
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
@@ -762,7 +783,7 @@ let field_address ?(memory_chunk = Word_val) ptr n dbg =
       | Byte_unsigned | Byte_signed -> 1
       | Sixteen_unsigned | Sixteen_signed -> 2
       | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single ->
+      | Single_materialized_as_double | Single ->
         assert (size_float = 8);
         (* unclear what to do if this is false *)
         size_float / 2
@@ -1262,10 +1283,7 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float Pfloat64 -> typ_float
-    | Punboxed_float Pfloat32 ->
-      (* CR mslater: (float32) backend support *)
-      assert false
+    | Punboxed_float (Pfloat64 | Pfloat32) -> typ_float
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -1452,7 +1470,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
-  | Pbigarray_float32 -> Single
+  | Pbigarray_float32 -> Single_materialized_as_double
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed
   | Pbigarray_uint8 -> Byte_unsigned
@@ -1462,7 +1480,7 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_int64 -> Word_int
   | Pbigarray_caml_int -> Word_int
   | Pbigarray_native_int -> Word_int
-  | Pbigarray_complex32 -> Single
+  | Pbigarray_complex32 -> Single_materialized_as_double
   | Pbigarray_complex64 -> Double
 
 (* the three functions below assume 64-bit words *)
@@ -3306,9 +3324,7 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
-let float32 ~dbg:_ _f =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let float32 ~dbg f = Cconst_float32 (f, dbg)
 
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
@@ -3324,10 +3340,10 @@ let letin v ~defining_expr ~body =
   match body with
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
-  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ ->
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _
+  | Cassign _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _
+  | Ccatch _ | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3368,25 +3384,17 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary Cintoffloat
+let int_of_float = unary (Cscalarcast (Float_to_int Float64))
 
-let float_of_int = unary Cfloatofint
+let float_of_int = unary (Cscalarcast (Float_of_int Float64))
 
-let int_of_float32 ~dbg:_ _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let int_of_float32 = unary (Cscalarcast (Float_to_int Float32))
 
-let float32_of_int ~dbg:_ _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let float32_of_int = unary (Cscalarcast (Float_of_int Float32))
 
-let float32_of_float ~dbg:_ _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let float32_of_float = unary (Cscalarcast Float_to_float32)
 
-let float_of_float32 ~dbg:_ _exp =
-  (* CR mslater: (float32) backend support *)
-  assert false
+let float_of_float32 = unary (Cscalarcast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -3628,8 +3636,8 @@ let cmm_arith_size (e : Cmm.expression) =
     | _ -> 0
   in
   match e with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-  | Cconst_vec128 _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
@@ -3656,10 +3664,7 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
-  | Pvalue (Pboxedfloatval Pfloat32) ->
-    (* CR mslater: (float32) backend support *)
-    assert false
+  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)

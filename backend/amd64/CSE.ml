@@ -46,8 +46,9 @@ method! class_of_operation op =
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
+  | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
+  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _ | Iintop_atomic _
@@ -88,8 +89,9 @@ class cfg_cse = object
   | Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
   | Compf _
   | Csel _
-  | Floatofint | Intoffloat | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
-  | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
+  | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
+  | Const_int _ | Const_float32 _ | Const_float _
+  | Const_symbol _ | Const_vec128 _
   | Stackoffset _ | Load _ | Store _ | Alloc _
   | Intop _ | Intop_imm _ | Intop_atomic _
   | Name_for_debugger _ | Probe_is_enabled _ | Opaque

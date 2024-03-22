@@ -67,7 +67,9 @@ class cse_generic =
     method class_of_operation : Cfg.operation -> op_class =
       function
       | Move | Spill | Reload -> assert false (* treated specially *)
-      | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _ -> Op_pure
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ ->
+        Op_pure
       | Opaque -> assert false (* treated specially *)
       | Stackoffset _ -> Op_other
       | Load { mutability; is_atomic; memory_chunk = _; addressing_mode = _ } ->
@@ -85,8 +87,7 @@ class cse_generic =
       | Intop_imm (_, _) -> Op_pure
       | Intop_atomic _ -> Op_store true
       | Compf _ | Csel _ | Negf | Absf | Addf | Subf | Mulf | Divf
-      | Scalarcast _ | Floatofint | Intoffloat | Valueofint | Intofvalue
-      | Vectorcast _ ->
+      | Scalarcast _ | Valueofint | Intofvalue | Vectorcast _ ->
         Op_pure
       | Specific _ -> Op_other
       | Name_for_debugger _ -> Op_other

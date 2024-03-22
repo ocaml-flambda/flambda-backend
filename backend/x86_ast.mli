@@ -307,10 +307,13 @@ type instruction =
   | CMPSD of float_condition * arg * arg
   | COMISD of arg * arg
   | CQO
+  | CVTSS2SI of arg * arg
   | CVTSD2SI of arg * arg
+  | CVTSI2SS of arg * arg
   | CVTSD2SS of arg * arg
   | CVTSI2SD of arg * arg
   | CVTSS2SD of arg * arg
+  | CVTTSS2SI of arg * arg
   | CVTTSD2SI of arg * arg
   | DEC of arg
   | DIVSD of arg * arg

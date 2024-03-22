@@ -154,7 +154,7 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      | Single | Double -> typ_float
+      | Single_materialized_as_double | Single | Double -> typ_float
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
@@ -172,8 +172,10 @@ let oper_result_type = function
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Ccsel ty -> ty
-  | Cfloatofint -> typ_float
-  | Cintoffloat -> typ_int
+  | Cscalarcast (Float_of_float32) -> typ_float
+  | Cscalarcast (Float_to_float32) -> typ_float
+  | Cscalarcast (Float_of_int _) -> typ_float
+  | Cscalarcast (Float_to_int _) -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
@@ -212,6 +214,7 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
+    | Cconst_float32 _ -> Arch.size_float
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -459,6 +462,7 @@ class virtual selector_generic = object (self : 'self)
 method is_simple_expr = function
     Cconst_int _ -> true
   | Cconst_natint _ -> true
+  | Cconst_float32 _ -> true
   | Cconst_float _ -> true
   | Cconst_symbol _ -> true
   | Cconst_vec128 _ -> true
@@ -485,7 +489,7 @@ method is_simple_expr = function
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cabsf | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -509,8 +513,8 @@ method is_simple_expr = function
 method effects_of exp =
   let module EC = Effect_and_coeffect in
   match exp with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
-  | Cvar _ -> EC.none
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ -> EC.none
   | Ctuple el -> EC.join_list_map el self#effects_of
   | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
     EC.join (self#effects_of arg) (self#effects_of body)
@@ -543,7 +547,7 @@ method effects_of exp =
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -668,8 +672,6 @@ method select_operation op args _dbg =
   | (Csubf, _) -> (Isubf, args)
   | (Cmulf, _) -> (Imulf, args)
   | (Cdivf, _) -> (Idivf, args)
-  | (Cfloatofint, _) -> (Ifloatofint, args)
-  | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)
@@ -830,6 +832,9 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
   | Cconst_natint (n, _dbg) ->
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_int n) [||] r)
+  | Cconst_float32 (n, _dbg) ->
+      let r = self#regs_for typ_float in
+      ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
       ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
@@ -1713,7 +1718,8 @@ method emit_tail (env:environment) exp =
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
   | Cop _
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _
   | Cassign _
   | Ctuple _

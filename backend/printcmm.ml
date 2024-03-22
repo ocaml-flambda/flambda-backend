@@ -104,6 +104,7 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
+  | Single_materialized_as_double -> "float32_materialized_as_float"
   | Single -> "float32"
   | Double -> "float64"
 
@@ -221,8 +222,12 @@ let operation d = function
   | Cdivf -> "/f"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cfloatofint -> "floatofint"
-  | Cintoffloat -> "intoffloat"
+  | Cscalarcast (Float_of_int Float64) -> "floatofint"
+  | Cscalarcast (Float_of_int Float32) -> "float32ofint"
+  | Cscalarcast (Float_to_int Float64) -> "intoffloat"
+  | Cscalarcast (Float_to_int Float32) -> "intoffloat32"
+  | Cscalarcast (Float_of_float32) -> "floatoffloat32"
+  | Cscalarcast (Float_to_float32) -> "float32offloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
@@ -253,6 +258,7 @@ let rec expr ppf = function
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
+  | Cconst_float32 (n, _dbg) -> fprintf ppf "%Fs" n
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id

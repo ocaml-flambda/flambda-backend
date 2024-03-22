@@ -158,6 +158,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ispill -> fprintf ppf "%a (spill)" regs arg
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
+  | Iconst_float32 f -> fprintf ppf "%Fs" (Int32.float_of_bits f)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
@@ -221,8 +222,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
       (test tst) arg reg arg.(len-2) reg arg.(len-1)
-  | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
-  | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Iscalarcast (Float_of_int Float64) -> fprintf ppf "floatofint %a" reg arg.(0)
+  | Iscalarcast (Float_of_int Float32) -> fprintf ppf "float32ofint %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float64) -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Iscalarcast (Float_to_int Float32) -> fprintf ppf "intoffloat32 %a" reg arg.(0)
+  | Iscalarcast (Float_of_float32) -> fprintf ppf "floatoffloat32 %a" reg arg.(0)
+  | Iscalarcast (Float_to_float32) -> fprintf ppf "float32offloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Ivectorcast Bits128 ->

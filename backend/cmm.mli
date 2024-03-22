@@ -165,16 +165,25 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int                           (* integer or pointer outside heap *)
   | Word_val                           (* pointer inside heap or encoded int *)
-  | Single
+  | Single_materialized_as_double      (* F64 in registers, F32 in memory. *)
+  | Single                             (* F32 in both registers and memory. *)
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
   | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
 
+type float_width =
+  | Float64
+  | Float32
+
 type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_float32
+  | Float_of_float32
+  | Float_to_int of float_width
+  | Float_of_int of float_width
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -216,7 +225,6 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
@@ -236,7 +244,7 @@ type kind_for_unboxing =
   | Any (* This may contain anything, including non-scannable things *)
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float
+  | Boxed_float of Lambda.boxed_float
 
 type is_global = Global | Local
 val equal_is_global : is_global -> is_global -> bool
@@ -268,6 +276,7 @@ val global_symbol : string -> symbol
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -377,6 +386,7 @@ val map_shallow: (expression -> expression) -> expression -> expression
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 val equal_exttype : exttype -> exttype -> bool
+val equal_scalar_cast : scalar_cast -> scalar_cast -> bool
 val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool

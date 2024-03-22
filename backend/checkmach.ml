@@ -1014,9 +1014,10 @@ end = struct
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
-    | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-    | Iconst_vec128 _ | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf
-    | Imulf | Idivf | Ifloatofint | Iintoffloat | Ivectorcast _ | Iscalarcast _
+    | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
+    | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _ | Icompf _
+    | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ivectorcast _
+    | Iscalarcast _
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
