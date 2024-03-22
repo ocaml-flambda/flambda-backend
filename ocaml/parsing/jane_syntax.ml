@@ -1354,6 +1354,10 @@ module Labeled_tuples = struct
       labeled_components, ptyp_attributes
     | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
 
+  (* We wrap labeled tuple expressions in an additional extension node
+     so that tools that inspect the OCaml syntax tree are less likely
+     to treat a labeled tuple as a regular tuple.
+  *)
   let labeled_tuple_extension_node_name =
     Embedded_name.of_feature feature [] |> Embedded_name.to_string
 
