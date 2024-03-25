@@ -174,6 +174,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record { representation = Record_unboxed;
                     fields = [| _, Overridden (_,e) |] } ->
         classify_expression env e
+    | Texp_record { representation = Record_ufloat; _ } ->
+        Dynamic
     | Texp_record _ ->
         Static
 
