@@ -60,7 +60,8 @@ module Universe : sig
         (** Upstream compatible extensions, also known as "erasable". *)
     | Stable  (** Extensions of [Stable] maturity. *)
     | Beta  (** Extensions of [Beta] maturity. *)
-    | Alpha  (** All extensions. This is the universe enabled by default
+    | Alpha
+        (** All extensions. This is the universe enabled by default
         for the time being. *)
 
   val all : t list
