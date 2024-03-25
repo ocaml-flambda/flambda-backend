@@ -336,10 +336,6 @@ let enable_all_in_universe () =
 let erasable_extensions_only () =
   Universe.is No_extensions || Universe.is Upstream_compatible
 
-let set_universe u =
-  Universe.set u;
-  extensions := List.filter Universe.is_allowed !extensions
-
 let set_universe_and_enable_all u =
   Universe.set u;
   enable_all_in_universe ()

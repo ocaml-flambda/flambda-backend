@@ -127,9 +127,6 @@ val with_disabled : 'a t -> (unit -> unit) -> unit
     [Upstream_compatible]. *)
 val erasable_extensions_only : unit -> bool
 
-(** Set the extension universe, disabling disallowed extensions. *)
-val set_universe : Universe.t -> unit
-
 (** Set the extension universe and enable all allowed extensions. *)
 val set_universe_and_enable_all : Universe.t -> unit
 
