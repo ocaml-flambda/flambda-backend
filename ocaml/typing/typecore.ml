@@ -2429,8 +2429,11 @@ and type_pat_aux
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let alloc_mode =
-      simple_pat_mode (project_maybe_mutable mutability alloc_mode.mode)
+      match mutability with
+      | Immutable -> alloc_mode.mode
+      | Mutable m0 -> project_mutable m0 alloc_mode.mode |> modality_unbox_left Global
     in
+    let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
       pat_desc = Tpat_array (mutability, arg_sort, pl);
@@ -8649,7 +8652,7 @@ and type_generic_array
   =
   let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
   let type_, argument_mode = match mutability with
-    | Mutable m0 -> Predef.type_array, construct_mutable m0 argument_mode
+    | Mutable m0 -> Predef.type_array, construct_mutable m0 argument_mode |> modality_box_right Global
     | Immutable -> Predef.type_iarray, argument_mode
   in
   let argument_mode = mode_default argument_mode in
