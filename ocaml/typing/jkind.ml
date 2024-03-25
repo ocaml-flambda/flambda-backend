@@ -704,14 +704,24 @@ module Jkind_desc = struct
   let immediate64 =
     { layout = Layout.value;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { locality = Global;
+          linearity = Many;
+          syncness = Sync;
+          uniqueness = Unique;
+          contention = Uncontended
+        };
       externality_upper_bound = External64
     }
 
   let immediate =
     { layout = Layout.value;
       modes_upper_bounds =
-        { locality = Global; linearity = Many; uniqueness = Unique };
+        { locality = Global;
+          linearity = Many;
+          syncness = Sync;
+          uniqueness = Unique;
+          contention = Uncontended
+        };
       externality_upper_bound = External
     }
 

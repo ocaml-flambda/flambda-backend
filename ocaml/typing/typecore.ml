@@ -857,15 +857,23 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
 let project_mutable _ (m : (allowed * _) Value.t) =
   m |> Value.disallow_right
 
-let project_maybe_mutable mut m =
+let mode_project_mutable =
+  Contention.Const.Uncontended
+  |> Contention.of_const
+  |> Value.max_with_contention
+  |> mode_default
+
+let project_maybe_mutable ~loc ~env mut m =
   match mut with
   | Immutable -> Value.disallow_right m
-  | Mutable m0 -> project_mutable m0 m
+  | Mutable m0 ->
+    submode ~loc ~env m mode_project_mutable;
+    project_mutable m0 m
 
 (** Takes [m0] which is the parameter on mutable, and [m] which is a right mode
     on the record being constructed, returns the right mode for the mutable
     field used for construction. *)
-let construct_mutable m0 m =
+let construct_mutable ~loc ~env m0 m =
   let m0 =
     Alloc.Const.merge
       {comonadic = m0;
@@ -874,18 +882,20 @@ let construct_mutable m0 m =
   let m0 = Const.alloc_as_value m0 in
   (* We require [join m0 ret <= m], which is equivalent to [m0 <= m] and [ret <=
     m].  *)
-  (match Value.submode (Value.of_const m0) m with
-  | Ok () -> ()
-  | Error _ -> Misc.fatal_error
-      "mutable defaults to Comonadic.legacy, \
-      which is min, so this call cannot fail."
-  );
-  m |> Value.disallow_left
+  submode ~loc ~env (Value.of_const m0) m;
+  m
+
+let mode_mutate_mutable =
+  Contention.Const.Uncontended
+  |> Contention.of_const
+  |> Value.max_with_contention
+  |> mode_default
 
 (** Takes [m0] which is the parameter on mutable, and [m] which is a left mode
     on the record being mutated, returns the right mode for the new value of the
     mutable field. *)
-let mutate_mutable m0 (_ : (allowed * _) Value.t) =
+let mutate_mutable ~env ~loc m0 (m : (allowed * _) Value.t) =
+  submode ~loc ~env m mode_mutate_mutable;
   let m0 =
     Alloc.Const.merge
       {comonadic = m0;
@@ -896,13 +906,13 @@ let mutate_mutable m0 (_ : (allowed * _) Value.t) =
 
 (** Takes a [mutability] and expected mode of the record (adjusted for
     allocation), returns the expected mode for the field. *)
-let mode_field mutability (argument_mode : expected_mode) =
+let mode_field ~loc ~env mutability (argument_mode : expected_mode) =
   match mutability with
   | Immutable -> argument_mode
   | Mutable m0 ->
-    (* Mutable field, so this can't be unboxed record, safe to drop other fields
-    in [argument_mode] *)
-    mode_default (construct_mutable m0 argument_mode.mode)
+    (* Mutable field, so this can't be unboxed record, we should drop other
+    fields in [argument_mode] *)
+    construct_mutable ~loc ~env m0 (mode_default argument_mode.mode)
 
 (* Typing of patterns *)
 
@@ -2405,7 +2415,9 @@ and type_pat_aux
     let alloc_mode =
       match mutability with
       | Immutable -> alloc_mode.mode
-      | Mutable m0 -> project_mutable m0 alloc_mode.mode |> modality_unbox_left Global
+      | Mutable m0 ->
+        submode ~loc ~env:!env alloc_mode.mode mode_project_mutable;
+        project_mutable m0 alloc_mode.mode |> modality_unbox_left Global
     in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
@@ -2692,7 +2704,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let mode = project_maybe_mutable label.lbl_mut alloc_mode.mode in
+        let mode = project_maybe_mutable ~loc ~env:!env label.lbl_mut alloc_mode.mode in
         let mode = modality_unbox_left label.lbl_global mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -5533,7 +5545,7 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        let argument_mode = mode_field label.lbl_mut argument_mode in
+        let argument_mode = mode_field ~loc ~env label.lbl_mut argument_mode in
         type_label_exp true env argument_mode loc ty_record x
       in
       let lbl_exp_list = List.map type_label_exp lbl_a_list in
@@ -5594,9 +5606,9 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = project_maybe_mutable lbl.lbl_mut mode in
+                  let mode = project_maybe_mutable ~loc:exp.exp_loc ~env lbl.lbl_mut mode in
                   let mode = modality_unbox_left lbl.lbl_global mode in
-                  let argument_mode = mode_field lbl.lbl_mut argument_mode in
+                  let argument_mode = mode_field ~loc ~env lbl.lbl_mut argument_mode in
                   let argument_mode =
                     mode_box_modality lbl.lbl_global argument_mode
                   in
@@ -5645,7 +5657,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = project_maybe_mutable label.lbl_mut rmode in
+      let mode = project_maybe_mutable ~loc:record.exp_loc ~env label.lbl_mut rmode in
       let mode = modality_unbox_left label.lbl_global mode in
       let boxing : texp_field_boxing =
         match label.lbl_repres with
@@ -5678,7 +5690,7 @@ and type_expect_
       let (label_loc, label, newval) =
         match label.lbl_mut with
         | Mutable m0 ->
-          let mode = mutate_mutable m0 rmode in
+          let mode = mutate_mutable ~loc:record.exp_loc ~env m0 rmode in
           type_label_exp false env (mode_default mode) loc
             ty_record (lid, label, snewval)
         | Immutable ->
@@ -8594,12 +8606,11 @@ and type_generic_array
       ~attributes
       sargl
   =
-  let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
+  let alloc_mode, argument_mode = register_allocation expected_mode in
   let type_, argument_mode = match mutability with
-    | Mutable m0 -> Predef.type_array, construct_mutable m0 argument_mode |> modality_box_right Global
+    | Mutable m0 -> Predef.type_array, construct_mutable ~loc ~env m0 argument_mode |> mode_box_modality Global
     | Immutable -> Predef.type_iarray, argument_mode
   in
-  let argument_mode = mode_default argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
@@ -9997,14 +10008,19 @@ let report_error ~loc env = function
           sharedness_hint fail_reason submode_reason shared_context
         | `Regionality _ ->
           escaping_hint fail_reason submode_reason closure_context
+        | `Syncness _ | `Contention _ -> []
       in
       Location.errorf ~loc ~sub "%t" begin
         match fail_reason with
         | `Regionality _ -> Format.dprintf "This value escapes its region"
         | `Uniqueness {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
             Uniqueness.Const.print left Uniqueness.Const.print right
+        | `Contention {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
+            Contention.Const.print left Contention.Const.print right
         | `Linearity {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
             Linearity.Const.print left Linearity.Const.print right
+        | `Syncness {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
+            Syncness.Const.print left Syncness.Const.print right
         end
   | Local_application_complete (lbl, loc_kind) ->
       let sub =
@@ -10044,7 +10060,9 @@ let report_error ~loc env = function
       match mkind with
       | `Locality e -> print_error Locality.Const.print (s, e)
       | `Uniqueness e -> print_error Uniqueness.Const.print (s, e)
+      | `Contention e -> print_error Contention.Const.print (s, e)
       | `Linearity e -> print_error Linearity.Const.print (s, e)
+      | `Syncness e -> print_error Syncness.Const.print (s, e)
       end
   | Uncurried_function_escapes e -> begin
       match e with
@@ -10052,9 +10070,13 @@ let report_error ~loc env = function
           Location.errorf ~loc "This function or one of its parameters escape their region @ \
           when it is partially applied."
       | `Uniqueness _ -> assert false
+      | `Contention _ -> assert false
       | `Linearity {left; right} ->
           Location.errorf ~loc "This function when partially applied returns a %a value,@ \
           but expected to be %a." Linearity.Const.print left Linearity.Const.print right
+      | `Syncness {left; right} ->
+        Location.errorf ~loc "This function when partially applied returns a %a value,@ \
+        but expected to be %a." Syncness.Const.print left Syncness.Const.print right
     end
   | Local_return_annotation_mismatch _ ->
       Location.errorf ~loc

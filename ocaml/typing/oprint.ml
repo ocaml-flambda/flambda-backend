@@ -345,6 +345,7 @@ let print_out_legacy_axis f ppf = function
 let print_out_modes ppf (m : Mode.Alloc.Const.Option.t) =
   print_out_legacy_axis Mode.Locality.Const.print ppf m.locality;
   print_out_legacy_axis Mode.Linearity.Const.print ppf m.linearity;
+  print_out_legacy_axis Mode.Syncness.Const.print ppf m.syncness;
   print_out_legacy_axis Mode.Uniqueness.Const.print ppf m.uniqueness;
   print_out_legacy_axis Mode.Contention.Const.print ppf m.contention
 

@@ -3964,6 +3964,7 @@ let report_lookup_error _loc env ppf = function
         match error with
         | `Regionality _ -> "local", "might escape"
         | `Linearity _ -> "once", "is many"
+        | `Syncness _ -> "unsync", "is sync"
       in
       fprintf ppf
       "@[The value %a is %s, so cannot be used \

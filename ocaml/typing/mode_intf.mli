@@ -98,7 +98,9 @@ module type S = sig
       [ `Locality
       | `Regionality
       | `Uniqueness
-      | `Linearity ]
+      | `Contention
+      | `Linearity
+      | `Syncness ]
 
     val to_string : t -> string
   end
@@ -191,6 +193,20 @@ module type S = sig
     val once : lr
   end
 
+  module Syncness : sig
+    module Const : sig
+      type t =
+        | Sync
+        | Unsync
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include Common with module Const := Const and type error := error
+  end
+
   module Uniqueness : sig
     module Const : sig
       type t =
@@ -209,32 +225,60 @@ module type S = sig
     val unique : lr
   end
 
+  module Contention : sig
+    module Const : sig
+      type t =
+        | Contended
+        | Uncontended
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include Common with module Const := Const and type error := error
+  end
+
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
-    module Monadic : Common with type error = [`Uniqueness of Uniqueness.error]
+    module Monadic :
+      Common
+        with type error =
+          [ `Uniqueness of Uniqueness.error
+          | `Contention of Contention.error ]
 
     module Comonadic :
       Common
         with type error =
           [ `Regionality of Regionality.error
-          | `Linearity of Linearity.error ]
+          | `Linearity of Linearity.error
+          | `Syncness of Syncness.error ]
 
-    type ('a, 'b, 'c) modes =
+    type ('a, 'b, 'c, 'd, 'e) modes =
       { regionality : 'a;
         linearity : 'b;
-        uniqueness : 'c
+        syncness : 'c;
+        uniqueness : 'd;
+        contention : 'e
       }
 
     module Const :
       Lattice
         with type t =
-          (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+          ( Regionality.Const.t,
+              Linearity.Const.t,
+              Syncness.Const.t,
+              Uniqueness.Const.t,
+              Contention.Const.t )
+            modes
 
     type error =
       [ `Regionality of Regionality.error
       | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | `Contention of Contention.error
+      | `Linearity of Linearity.error
+      | `Syncness of Syncness.error ]
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -261,6 +305,10 @@ module type S = sig
     val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
 
     val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
+
+    val max_with_contention : ('l * 'r) Contention.t -> (disallowed * 'r) t
+
+    val min_with_contention : ('l * 'r) Contention.t -> ('l * disallowed) t
 
     val min_with_regionality : ('l * 'r) Regionality.t -> ('l * disallowed) t
 
@@ -300,7 +348,11 @@ module type S = sig
       and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+      include
+        Common
+          with type error =
+            [ `Uniqueness of Uniqueness.error
+            | `Contention of Contention.error ]
 
       val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
@@ -316,23 +368,31 @@ module type S = sig
         Common
           with type error =
             [ `Locality of Locality.error
-            | `Linearity of Linearity.error ]
+            | `Linearity of Linearity.error
+            | `Syncness of Syncness.error ]
            and module Const := Const
 
       val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
 
-    type ('loc, 'lin, 'uni) modes =
+    type ('loc, 'lin, 'syn, 'uni, 'con) modes =
       { locality : 'loc;
         linearity : 'lin;
-        uniqueness : 'uni
+        syncness : 'syn;
+        uniqueness : 'uni;
+        contention : 'con
       }
 
     module Const : sig
       include
         Lattice
           with type t =
-            (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+            ( Locality.Const.t,
+              Linearity.Const.t,
+              Syncness.Const.t,
+              Uniqueness.Const.t,
+              Contention.Const.t )
+            modes
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
 
@@ -344,7 +404,9 @@ module type S = sig
         type t =
           ( Locality.Const.t option,
             Linearity.Const.t option,
-            Uniqueness.Const.t option )
+            Syncness.Const.t option,
+            Uniqueness.Const.t option,
+            Contention.Const.t option )
           modes
 
         val none : t
@@ -366,7 +428,9 @@ module type S = sig
     type error =
       [ `Locality of Locality.error
       | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | `Contention of Contention.error
+      | `Linearity of Linearity.error
+      | `Syncness of Syncness.error ]
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -386,7 +450,11 @@ module type S = sig
 
     val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
 
+    val contention : ('l * 'r) t -> ('l * 'r) Contention.t
+
     val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+
+    val syncness : ('l * 'r) t -> ('l * 'r) Syncness.t
 
     val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
 
