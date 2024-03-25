@@ -76,20 +76,20 @@ let fmt_constant f x =
   | Const_unboxed_int64 (i) -> fprintf f "Const_unboxed_int64 %Ld" i
   | Const_unboxed_nativeint (i) -> fprintf f "Const_unboxed_nativeint %nd" i
 
-let fmt_mutable_flag f (x : Asttypes.mutable_flag) =
+let fmt_mutable_flag f x =
   match x with
   | Immutable -> fprintf f "Immutable"
   | Mutable -> fprintf f "Mutable"
 
-let fmt_mutable_mode_flag f (x : Types.mutable_flag) =
+let fmt_mutable_mode_flag f (x : Types.mutability) =
   match x with
   | Immutable -> fprintf f "Immutable"
   | Mutable m ->
-    if Misc.eq_from_le Mode.Alloc.Const.le m Mode.Alloc.Const.legacy
+    if Mode.Alloc.Comonadic.Const.eq m Mode.Alloc.Comonadic.Const.legacy
     then fprintf f "Mutable"
     else
       Misc.fatal_errorf "Unexpected mutable(%a)"
-        Mode.Alloc.Const.print m
+        Mode.Alloc.Comonadic.Const.print m
 
 let fmt_virtual_flag f x =
   match x with

@@ -99,7 +99,7 @@ and 'k pattern_desc =
         closed_flag ->
       value pattern_desc
   | Tpat_array :
-      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
+      mutability * Jkind.sort * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -165,9 +165,9 @@ and expression_desc =
       expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * Jkind.sort * comprehension
+  | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -295,7 +295,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * mutable_flag * unique_use
+  | Kept of Types.type_expr * mutability * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -376,7 +376,7 @@ and class_field_desc =
       override_flag * class_expr * string option * (string * Ident.t) list *
         (string * Ident.t) list
     (* Inherited instance variables and concrete methods *)
-  | Tcf_val of string loc * Asttypes.mutable_flag * Ident.t * class_field_kind * bool
+  | Tcf_val of string loc * mutable_flag * Ident.t * class_field_kind * bool
   | Tcf_method of string loc * private_flag * class_field_kind
   | Tcf_constraint of core_type * core_type
   | Tcf_initializer of expression
@@ -674,7 +674,7 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-     ld_mutable: mutable_flag;
+     ld_mutable: mutability;
      ld_global: Global_flag.t;
      ld_type: core_type;
      ld_loc: Location.t;
@@ -759,7 +759,7 @@ and class_type_field = {
 
 and class_type_field_desc =
   | Tctf_inherit of class_type
-  | Tctf_val of (string * Asttypes.mutable_flag * virtual_flag * core_type)
+  | Tctf_val of (string * mutable_flag * virtual_flag * core_type)
   | Tctf_method of (string * private_flag * virtual_flag * core_type)
   | Tctf_constraint of (core_type * core_type)
   | Tctf_attribute of attribute

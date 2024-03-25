@@ -274,10 +274,11 @@ type tpat_alias_identifier = Value.l
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = mutable_flag * Jkind.sort
+type tpat_array_identifier = mutability * Jkind.sort
 
 let mkTpat_array
-    ?id:(mut, arg_sort = (Mutable Alloc.Const.legacy, Jkind.Sort.value)) l =
+    ?id:(mut, arg_sort =
+        (Mutable Alloc.Comonadic.Const.legacy, Jkind.Sort.value)) l =
   Tpat_array (mut, arg_sort, l)
 
 type tpat_tuple_identifier = string option list

@@ -274,15 +274,15 @@ let constructor_declaration sub cd =
     ~info:Docstrings.empty_info
     (map_loc sub cd.cd_name)
 
-let mutable_ (mut : Types.mutable_flag) : Asttypes.mutable_flag =
+let mutable_ (mut : Types.mutability) : mutable_flag =
   match mut with
   | Immutable -> Immutable
   | Mutable m ->
-      if Misc.eq_from_le Mode.Alloc.Const.le m Mode.Alloc.Const.legacy then
+      if Mode.Alloc.Comonadic.Const.eq m Mode.Alloc.Comonadic.Const.legacy then
         Mutable
       else
         Misc.fatal_errorf "unexpected mutable(%a)"
-          Mode.Alloc.Const.print m
+          Mode.Alloc.Comonadic.Const.print m
 
 let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in

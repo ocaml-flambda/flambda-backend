@@ -892,6 +892,3 @@ end
 type filepath = string
 
 type alerts = string Stdlib.String.Map.t
-
-(** Construct an equality function from a less-or-equal function. *)
-val eq_from_le : ('a -> 'a -> bool) -> 'a -> 'a -> bool

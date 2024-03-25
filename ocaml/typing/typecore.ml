@@ -27,7 +27,7 @@ open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 type type_forcing_context =
   | If_conditional
@@ -880,17 +880,10 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
 (** Takes [m0] which is the parameter on mutable, and [m] which is a left mode
     on the record being accessed, returns the left mode of the projected mutable
     field. *)
-let project_mutable m0 m =
-  let m0 = Const.alloc_as_value m0 in
-  let m0 = Value.Const.split m0 in
-  let comonadic = m.comonadic |> Value.Comonadic.disallow_right in
-  let monadic = Value.Monadic.join
-    [m.monadic;
-     Value.Monadic.of_const m0.monadic]
-  in
-  {monadic; comonadic}
-    (* CR zqian: decouple mutable and global. *)
-    |> modality_unbox_left Global
+let project_mutable _ (m : (allowed * _) Value.t) =
+  m
+  (* CR zqian: decouple mutable and global. *)
+  |> modality_unbox_left Global
 
 let project_maybe_mutable mut m =
   match mut with
@@ -901,15 +894,15 @@ let project_maybe_mutable mut m =
     on the record being constructed, returns the right mode for the mutable
     field used for construction. *)
 let construct_mutable m0 m =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
   let m0 = Const.alloc_as_value m0 in
-  let m0 = Value.Const.split m0 in
-  (* We require [join m0.comonadic ret <= m],
-    which is equivalent to [m0.comonadic <= m] and
-    [ret <= m] *)
-  (match Value.Comonadic.submode
-          (Value.Comonadic.of_const m0.comonadic)
-          m.comonadic
-  with
+  (* We require [join m0 ret <= m], which is equivalent to [m0 <= m] and [ret <=
+    m].  *)
+  (match Value.submode (Value.of_const m0) m with
   | Ok () -> ()
   | Error _ -> Misc.fatal_error
       "mutable defaults to Comonadic.legacy, \
@@ -919,19 +912,29 @@ let construct_mutable m0 m =
     (* CR zqian: decouple mutable and global *)
     |> modality_box_right Global
 
-let _construct_maybe_mutable mut m =
-  match mut with
-  | Immutable -> m
-  | Mutable m0 -> construct_mutable m0 m
-
 (** Takes [m0] which is the parameter on mutable, and [m] which is a left mode
     on the record being mutated, returns the right mode for the new value of the
     mutable field. *)
 let mutate_mutable m0 (_ : (allowed * _) Value.t) =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
   let m0 = Const.alloc_as_value m0 in
   m0 |> Value.of_const |> Value.disallow_left
     (* CR zqian: decouple mutable and global. *)
      |> modality_box_right Global
+
+(** Takes a [mutability] and expected mode of the record (adjusted for
+    allocation), returns the expected mode for the field. *)
+let mode_field mutability (argument_mode : expected_mode) =
+  match mutability with
+  | Immutable -> argument_mode
+  | Mutable m0 ->
+    (* Mutable field, so this can't be unboxed record, safe to drop other fields
+    in [argument_mode] *)
+    mode_default (construct_mutable m0 argument_mode.mode)
 
 (* Typing of patterns *)
 
@@ -2742,7 +2745,7 @@ and type_pat_aux
       let lbl_a_list = List.map type_label_pat lbl_a_list in
       rvp @@ solve_expected (make_record_pat lbl_a_list)
   | Ppat_array spl ->
-      type_pat_array (Mutable Alloc.Const.legacy) spl sp.ppat_attributes
+      type_pat_array (Mutable Alloc.Comonadic.Const.legacy) spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       (* Reset pattern forces for just [tps2] because later we append
          [tps1] and [tps2]'s pattern forces, and we don't want to
@@ -5566,14 +5569,7 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        let argument_mode =
-          match label.lbl_mut with
-          | Immutable -> argument_mode
-          | Mutable m0 ->
-              (* This can't be unboxed record, safe to drop other fields in
-              [argument_mode] *)
-              mode_default (construct_mutable m0 argument_mode.mode)
-        in
+        let argument_mode = mode_field label.lbl_mut argument_mode in
         type_label_exp true env argument_mode loc ty_record x
       in
       let lbl_exp_list = List.map type_label_exp lbl_a_list in
@@ -5636,14 +5632,7 @@ and type_expect_
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   let mode = project_maybe_mutable lbl.lbl_mut mode in
                   let mode = modality_unbox_left lbl.lbl_global mode in
-                  let argument_mode =
-                    match lbl.lbl_mut with
-                    | Immutable -> argument_mode
-                    | Mutable m0 ->
-                      (* can't be unboxed record; safe to drop other fields in
-                         [argument_mode] *)
-                      mode_default (construct_mutable m0 argument_mode.mode)
-                  in
+                  let argument_mode = mode_field lbl.lbl_mut argument_mode in
                   let argument_mode =
                     mode_box_modality lbl.lbl_global argument_mode
                   in
@@ -5747,7 +5736,7 @@ and type_expect_
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~mutability:(Mutable Alloc.Const.legacy)
+        ~mutability:(Mutable Alloc.Comonadic.Const.legacy)
         ~attributes:sexp.pexp_attributes
         sargl
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
@@ -8980,7 +8969,7 @@ and type_comprehension_expr
         Predef.list_argument_jkind
     | Cexp_array_comprehension (amut, comp) ->
         let container_type, mut = match amut with
-          | Mutable   -> Predef.type_array, Mutable Alloc.Const.legacy
+          | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
           | Immutable -> Predef.type_iarray, Immutable
         in
         Array_comprehension mut,

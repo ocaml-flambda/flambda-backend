@@ -28,15 +28,15 @@ open Asttypes
 (* CR layouts v2.8: Say more here. *)
 type jkind = Jkind.t
 
-(** The mutable_flag used in typed tree. *)
-type mutable_flag =
+(** Describes a mutable field/element. *)
+type mutability =
   | Immutable
-  | Mutable of Mode.Alloc.Const.t
+  | Mutable of Mode.Alloc.Comonadic.Const.t
   (** The upper bound of the new field value upon mutation. *)
 
 (** Returns [true] is the [mutable_flag] is mutable. Should be called if not
     interested in the payload of [Mutable]. *)
-val is_mutable : mutable_flag -> bool
+val is_mutable : mutability -> bool
 
 (** Type expressions for the core language.
 
@@ -403,7 +403,7 @@ module Vars  : Map.S with type key = string
 type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
-  | Val_ivar of Asttypes.mutable_flag * string   (* Instance variable (mutable ?) *)
+  | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of class_signature * self_meths * Ident.t Vars.t * string
                                         (* Self *)
   | Val_anc of class_signature * Ident.t Meths.t * string
@@ -416,7 +416,7 @@ and self_meths =
 and class_signature =
   { csig_self: type_expr;
     mutable csig_self_row: type_expr;
-    mutable csig_vars: (Asttypes.mutable_flag * virtual_flag * type_expr) Vars.t;
+    mutable csig_vars: (mutable_flag * virtual_flag * type_expr) Vars.t;
     mutable csig_meths: (method_privacy * virtual_flag * type_expr) Meths.t; }
 
 and method_privacy =
@@ -578,7 +578,7 @@ and variant_representation =
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
+    ld_mutable: mutability;
     ld_global: Mode.Global_flag.t;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
@@ -808,7 +808,7 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_global: Mode.Global_flag.t;     (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)

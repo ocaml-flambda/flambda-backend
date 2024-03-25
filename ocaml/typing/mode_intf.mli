@@ -236,14 +236,10 @@ module type S = sig
         uniqueness : 'c
       }
 
-    module Const : sig
-      include
-        Lattice
-          with type t =
-            (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
-
-      val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
-    end
+    module Const :
+      Lattice
+        with type t =
+          (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
     type error =
       [ `Regionality of Regionality.error
@@ -335,11 +331,18 @@ module type S = sig
     end
 
     module Comonadic : sig
+      module Const : sig
+        include Lattice
+
+        val eq : t -> t -> bool
+      end
+
       include
         Common
           with type error =
             [ `Locality of Locality.error
             | `Linearity of Linearity.error ]
+           and module Const := Const
 
       val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
@@ -357,6 +360,8 @@ module type S = sig
             (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+
+      val merge : (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic -> t
 
       module Option : sig
         type some = t

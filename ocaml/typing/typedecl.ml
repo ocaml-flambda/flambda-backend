@@ -365,10 +365,10 @@ let transl_labels ~new_var_jkind env univars closed lbls =
             Typemode.transl_global_flags
               (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
          in
-         let mut : Types.mutable_flag =
+         let mut : mutability =
           match mut with
           | Immutable -> Immutable
-          | Mutable -> Mutable Mode.Alloc.Const.legacy
+          | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in

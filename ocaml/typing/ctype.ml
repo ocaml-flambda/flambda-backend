@@ -4313,12 +4313,12 @@ let add_method env label priv virt ty sign =
   sign.csig_meths <- meths
 
 type add_instance_variable_failure =
-  | Mutability_mismatch of Asttypes.mutable_flag
+  | Mutability_mismatch of mutable_flag
   | Type_mismatch of Errortrace.unification_error
 
 exception Add_instance_variable_failed of add_instance_variable_failure
 
-let check_mutability (mut:Asttypes.mutable_flag) (mut':Asttypes.mutable_flag) =
+let check_mutability (mut : mutable_flag) (mut' : mutable_flag) =
   match mut, mut' with
   | Mutable, Mutable -> ()
   | Immutable, Immutable -> ()

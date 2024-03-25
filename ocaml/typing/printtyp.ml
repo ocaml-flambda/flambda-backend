@@ -1586,10 +1586,10 @@ let tree_of_label l =
     match l.ld_mutable with
     | Immutable -> false
     | Mutable m ->
-        if Misc.eq_from_le Alloc.Const.le m Alloc.Const.legacy then
+        if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
           true
         else
-          Misc.fatal_errorf "Unexpected mutable(%a)" Alloc.Const.print m
+          Misc.fatal_errorf "Unexpected mutable(%a)" Alloc.Comonadic.Const.print m
   in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
 
