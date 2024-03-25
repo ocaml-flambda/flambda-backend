@@ -1588,6 +1588,17 @@ let with_locality locality m =
   Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
   m'
 
+let curry_mode alloc arg : Alloc.Const.t =
+  let acc =
+    Alloc.Const.join
+      (Alloc.Const.close_over arg)
+      (Alloc.Const.partial_apply alloc)
+  in
+  (* Arrow types cross uniqueness axis. Therefore, when user writes an
+  A -> B -> C (to be used as constraint on something), we should make
+  (B -> C) shared. A proper way to do this is via modal kinds. *)
+  {acc with uniqueness=Uniqueness.Const.Shared}
+
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->

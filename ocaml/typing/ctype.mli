@@ -211,6 +211,7 @@ val prim_mode :
 val instance_prim:
         Primitive.description -> type_expr ->
         type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+val curry_mode : Alloc.Const.t -> Alloc.Const.t -> Alloc.Const.t
 
 val apply:
         ?use_current_level:bool ->
