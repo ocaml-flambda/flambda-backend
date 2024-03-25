@@ -1220,10 +1220,10 @@ type 'a ref = { mutable contents : 'a }
 (** The type of references (mutable indirection cells) containing
    a value of type ['a]. *)
 
-external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ref : ('a [@local_opt]) -> ('a ref[@local_opt]) = "%makemutable"
 (** Return a fresh reference containing the given value. *)
 
-external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ( ! ) : ('a ref[@local_opt]) -> ('a [@local_opt]) = "%field0"
 (** [!r] returns the current contents of reference [r].
    Equivalent to [fun r -> r.contents].
    Unary operator, see {!Ocaml_operators} for more information.

@@ -33,6 +33,8 @@ open! Stdlib
 type 'a t = 'a array
 (** An alias for the type of arrays. *)
 
+(* CR zqian: fix the following primitive wrt mutable() logic. *)
+
 external length : 'a array -> int = "%array_length"
 (** Return the length (number of elements) of the given array. *)
 

@@ -103,10 +103,7 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
             pretty_lvals filtered_lvs elision_mark
       end
   | Tpat_array (am, _arg_sort, vs) ->
-      let punct = match am with
-        | Mutable   -> '|'
-        | Immutable -> ':'
-      in
+      let punct = if Types.is_mutable am then '|' else ':' in
       fprintf ppf "@[[%c %a %c]@]" punct (pretty_vals " ;") vs punct
   | Tpat_lazy v ->
       fprintf ppf "@[<2>lazy@ %a@]" pretty_arg v
