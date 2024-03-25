@@ -1192,10 +1192,9 @@ module Common (Obj : Obj) = struct
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
-  let print ?(raw = false) ?verbose () ppf m =
-    if raw
-    then Solver.print_raw ?verbose obj ppf m
-    else Solver.print ?verbose obj ppf m
+  let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
+
+  let print_raw ?verbose () ppf m = Solver.print_raw ?verbose obj ppf m
 
   let zap_to_ceil m = atomically' (Solver.zap_to_ceil obj m)
 
@@ -1486,12 +1485,6 @@ module Comonadic_with_locality = struct
 
   (* override to report the offending axis *)
   let equate a b = atomically (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let locality = Locality.check_const (locality m) in
-    let linearity = Linearity.check_const (linearity m) in
-    locality, linearity
 end
 
 module Monadic = struct
@@ -1563,11 +1556,6 @@ module Monadic = struct
 
   (* override to report the offending axis *)
   let equate a b = atomically (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let uniqueness = Uniqueness.check_const (uniqueness m) in
-    uniqueness, ()
 end
 
 type ('mo, 'como) monadic_comonadic =
@@ -1685,11 +1673,18 @@ module Value = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let of_const c =
@@ -1808,7 +1803,7 @@ module Value = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -1964,11 +1959,18 @@ module Alloc = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let legacy =
@@ -2091,7 +2093,7 @@ module Alloc = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -2161,20 +2163,16 @@ module Alloc = struct
     let monadic = Monadic.imply c.monadic monadic in
     { monadic; comonadic }
 
-  let zap_to_ceil { comonadic; monadic } =
-    let monadic = Monadic.zap_to_ceil monadic in
-    let comonadic = Comonadic.zap_to_ceil comonadic in
-    merge { monadic; comonadic }
-
   let zap_to_legacy { comonadic; monadic } =
     let monadic = Monadic.zap_to_legacy monadic in
     let comonadic = Comonadic.zap_to_legacy comonadic in
     merge { monadic; comonadic }
 
-  let check_const { comonadic; monadic } =
-    let comonadic = Comonadic.check_const comonadic in
-    let monadic = Monadic.check_const monadic in
+  let zap_to_ceil { comonadic; monadic } =
+    let monadic = Monadic.zap_to_ceil monadic in
+    let comonadic = Comonadic.zap_to_ceil comonadic in
     merge { monadic; comonadic }
+
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
     C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
