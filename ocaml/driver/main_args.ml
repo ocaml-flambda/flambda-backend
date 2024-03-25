@@ -660,7 +660,7 @@ let mk_no_extension f =
 
 let mk_disable_all_extensions f =
   "-disable-all-extensions", Arg.Unit f,
-  "  Legacy, use [-universe no_extensions].\n
+  "  Legacy, use [-universe no_extensions].\n\
   \    Disable all extensions, wherever they have been specified; this\n\
   \    flag overrides prior uses of the -extension flag, disables any\n\
   \    extensions that are enabled by default, and causes future uses of\n\
@@ -676,7 +676,7 @@ let mk_only_erasable_extensions f =
     String.concat ", "
   in
 "-only-erasable-extensions", Arg.Unit f,
-  " Legacy, use [-universe upstream_compatible].\n
+  " Legacy, use [-universe upstream_compatible].\n\
   \    Disable all extensions that cannot be \"erased\" to attributes,\n\
   \    wherever they have been specified; this flag overrides prior\n\
   \    contradictory uses of the -extension flag, raises an error on\n\
@@ -694,7 +694,7 @@ let mk_universe f =
     |> String.concat "\n"
 in
 "-universe", Arg.Symbol (available_universes, f),
-  " Set the extension universe and enable all extensions in it. Each universe
+  " Set the extension universe and enable all extensions in it. Each universe\
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one. Following universes exist:\n" ^ descriptions
 
