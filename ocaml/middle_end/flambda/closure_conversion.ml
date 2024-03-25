@@ -54,7 +54,7 @@ let add_default_argument_wrappers lam =
         let defs =
           List.flatten
             (List.map
-               (fun Lambda.{ id; rkind = _;
+               (fun Lambda.{ id;
                      def = {kind; params; body; attr; loc;
                             ret_mode; mode; region; return} } ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
