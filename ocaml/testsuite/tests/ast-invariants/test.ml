@@ -82,7 +82,7 @@ let rec walk dir =
            else if Filename.check_suffix fn ".ml" then
              check_file Implem fn
        end)
-    (Sys.readdir dirz
+    (Sys.readdir dir)
 
 let () =
   Language_extension.set_universe_and_enable_all
