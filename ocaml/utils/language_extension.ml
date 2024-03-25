@@ -196,9 +196,9 @@ end = struct
     in
     compare (rank t1) (rank t2)
 
-  (* For now, the default universe is set to [Alpha] but only a limited set
-     of extensions is enabled. After the migration to extension universes,
-     the default will be [No_extensions]. *)
+  (* For now, the default universe is set to [Alpha] but only a limited set of
+     extensions is enabled. After the migration to extension universes, the
+     default will be [No_extensions]. *)
   let universe = ref Alpha
 
   let compiler_options = function
