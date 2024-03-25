@@ -362,7 +362,9 @@ let transl_labels ~new_var_jkind env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let gbl =
-            Typemode.transl_global_flags
+           match mut with
+           | Mutable -> Mode.Global_flag.Global
+           | Immutable -> Typemode.transl_global_flags
               (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
          in
          let mut : mutability =
