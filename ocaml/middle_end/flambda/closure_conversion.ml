@@ -45,7 +45,7 @@ let add_default_argument_wrappers lam =
       | [{ id = fun_id; def }] ->
         Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body)
       | [{ id = fun_id; def };
-         { id = inner_fun_id;; def = def_inner }] ->
+         { id = inner_fun_id; def = def_inner }] ->
         Llet (Alias, Lambda.layout_function, inner_fun_id, Lfunction def_inner,
               Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body))
       | _ -> assert false
