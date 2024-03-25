@@ -271,16 +271,21 @@ module type Solver_polarized = sig
   (** Return the meet of the list of modes. *)
   val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
 
-  (** Checks if a mode has been constrained sufficiently to a constant.
-        Expensive.
+  (** Checks if a mode has been constrained sufficiently to a constant. Because
+      our internal representation is conservative, further constraint is run to
+      decide the bounds. This operation is therefore expensive and requires the
+      mode to be allowed on both sides.
       WARNING: the lattice must be finite for this to terminate.*)
-  val check_const : 'a obj -> ('a, 'l * 'r) mode -> 'a option
+  val check_const : 'a obj -> ('a, allowed * allowed) mode -> 'a option
 
-  (** Print a mode. Calls [check_const] for cleaner printing and thus
-    expensive.
-      WARNING: the lattice must be finite for this to terminate.*)
+  (** Print a mode. Calls [check_const] for cleaner printing; caveats there
+  apply here too. *)
   val print :
-    ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+    ?verbose:bool ->
+    'a obj ->
+    Format.formatter ->
+    ('a, allowed * allowed) mode ->
+    unit
 
   (** Print a mode without calling [check_const]. *)
   val print_raw :

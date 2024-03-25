@@ -1196,10 +1196,9 @@ module Common (Obj : Obj) = struct
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
-  let print ?(raw = false) ?verbose () ppf m =
-    if raw
-    then Solver.print_raw ?verbose obj ppf m
-    else Solver.print ?verbose obj ppf m
+  let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
+
+  let print_raw ?verbose () ppf m = Solver.print_raw ?verbose obj ppf m
 
   let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
 
@@ -1401,12 +1400,6 @@ module Comonadic_with_regionality = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let regionality = Regionality.check_const (regionality m) in
-    let linearity = Linearity.check_const (linearity m) in
-    regionality, linearity
 end
 
 module Comonadic_with_locality = struct
@@ -1690,11 +1683,18 @@ module Value = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let zap_to_floor { comonadic; monadic } =
@@ -1711,11 +1711,6 @@ module Value = struct
     match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
     | (uniqueness, ()), (regionality, linearity) ->
       { regionality; linearity; uniqueness }
-
-  let check_const { comonadic; monadic } =
-    let regionality, linearity = Comonadic.check_const comonadic in
-    let uniqueness = Monadic.check_const monadic in
-    { regionality; linearity; uniqueness }
 
   let of_const { regionality; linearity; uniqueness } =
     let comonadic = Comonadic.of_const (regionality, linearity) in
@@ -1847,7 +1842,7 @@ module Value = struct
       && Uniqueness.Const.le m0.uniqueness m1.uniqueness
       && Linearity.Const.le m0.linearity m1.linearity
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       { regionality = Regionality.Const.legacy;
@@ -1992,11 +1987,18 @@ module Alloc = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let legacy =
@@ -2124,7 +2126,7 @@ module Alloc = struct
       && Uniqueness.Const.le m0.uniqueness m1.uniqueness
       && Linearity.Const.le m0.linearity m1.linearity
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       let locality = Locality.Const.legacy in
