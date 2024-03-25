@@ -1142,12 +1142,11 @@ and transl_apply ~scopes
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode; ap_result_layout = result_layout }
     | lexp, _ ->
-      (* CR gyorsh: [assume_zero_alloc] is not used in the cases above but
+      (* [assume_zero_alloc] is not used in the cases above but
          Misplaced_attribute won't be reported for it.
          Same for [@inlined] [@specialized] and tailcall.
          It's fine for [Lsend] cases because [assume_zero_alloc] is
-         always false currently for them. I am not sure about Lapply case
-         above. Also not sure about inlined etc in the Lsend case.  *)
+         always false currently for them. *)
         let loc =
           map_scopes (update_assume_zero_alloc ~assume_zero_alloc) loc
         in
