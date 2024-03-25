@@ -320,7 +320,7 @@ let compute_dominance_frontiers (cfg : Cfg.t) (doms : doms) :
     (fun label _idom -> Label.Tbl.replace res label Label.Set.empty)
     doms;
   Label.Tbl.iter
-    (fun label _idom ->
+    (fun label idom ->
       let block = Cfg.get_block_exn cfg label in
       let predecessor_labels = Cfg.predecessor_labels block in
       match predecessor_labels with
@@ -329,10 +329,7 @@ let compute_dominance_frontiers (cfg : Cfg.t) (doms : doms) :
         List.iter predecessor_labels ~f:(fun predecessor_label ->
             let runner = ref predecessor_label in
             let continue = ref true in
-            while
-              (not (Label.equal !runner (Label.Tbl.find doms label)))
-              && !continue
-            do
+            while (not (Label.equal !runner idom)) && !continue do
               let curr =
                 match Label.Tbl.find_opt res !runner with
                 | None -> Label.Set.empty
