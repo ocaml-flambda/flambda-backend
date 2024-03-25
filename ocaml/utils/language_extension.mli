@@ -66,6 +66,9 @@ module Universe : sig
 
   val all : t list
 
+  (** Equal to [Alpha]. *)
+  val maximal : t
+
   val to_string : t -> string
 
   val of_string : string -> t option

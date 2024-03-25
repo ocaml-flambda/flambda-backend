@@ -85,5 +85,6 @@ let rec walk dir =
     (Sys.readdir dir)
 
 let () =
-  Language_extension.set_universe_and_enable_all Alpha;
+  Language_extension.set_universe_and_enable_all
+    Language_extension.Universe.maximal;
   walk root

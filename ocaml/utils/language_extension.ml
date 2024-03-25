@@ -152,6 +152,8 @@ module Universe : sig
 
   val all : t list
 
+  val maximal : t
+
   val to_string : t -> string
 
   val of_string : string -> t option
@@ -170,6 +172,8 @@ end = struct
   (* If you add a constructor, you should also add it to [all]. *)
 
   let all = [No_extensions; Upstream_compatible; Stable; Beta; Alpha]
+
+  let maximal = Alpha
 
   let to_string = function
     | No_extensions -> "no_extensions"
