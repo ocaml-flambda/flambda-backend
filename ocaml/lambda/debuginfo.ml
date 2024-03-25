@@ -308,7 +308,7 @@ let inline { dbg = dbg1; assume_zero_alloc = a1; }
   { dbg = dbg1 @ dbg2; assume_zero_alloc = Assume_info.meet a1 a2; }
 
 let is_none { dbg; assume_zero_alloc } =
-  (not Assume_info.(equal assume_zero_alloc Assume_info.none)) && Dbg.is_none dbg
+  Assume_info.is_none assume_zero_alloc && Dbg.is_none dbg
 
 let compare { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
