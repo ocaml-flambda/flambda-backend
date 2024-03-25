@@ -109,7 +109,7 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "t1";
   (* deleting dead functions works *)
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
-  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_never_returns_normally";
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail22";
   print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail23";
   print_test ~extra_flags:"-zero-alloc-check opt" "test_zero_alloc_opt1.ml";
