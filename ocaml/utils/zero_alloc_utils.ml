@@ -6,6 +6,8 @@ module type WS = sig
   val meet : t -> t -> t
 
   val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
 end
 
 module Make (Witnesses : WS) = struct
@@ -43,6 +45,16 @@ module Make (Witnesses : WS) = struct
       | Safe, Top _ -> true
       | Top _, (Bot | Safe) -> false
       | Safe, Bot -> false
+
+    let compare t1 t2 =
+      match t1, t2 with
+      | Bot, Bot -> 0
+      | Safe, Safe -> 0
+      | Top w1, Top w2 -> Witnesses.compare w1 w2
+      | Bot, (Safe | Top _) -> -1
+      | (Safe | Top _), Bot -> 1
+      | Safe, Top _ -> -1
+      | Top _, Safe -> 1
 
     let is_not_safe = function Top _ -> true | Safe | Bot -> false
 
@@ -95,5 +107,14 @@ module Make (Witnesses : WS) = struct
     let print ~witnesses ppf { nor; exn; div } =
       let pp = V.print ~witnesses in
       Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" pp nor pp exn pp div
+
+    let compare { nor = n1; exn = e1; div = d1 }
+        { nor = n2; exn = e2; div = d2 } =
+      let c = V.compare n1 n2 in
+      if c <> 0
+      then c
+      else
+        let c = V.compare e1 e2 in
+        if c <> 0 then c else V.compare d1 d2
   end
 end

@@ -37,13 +37,20 @@ module Witnesses = struct
   let meet _ _ = ()
   let print _ _ = ()
   let empty = ()
+  let compare _ _ = 0
 end
 
 include Zero_alloc_utils.Make (Witnesses)
 
 type t = No_assume | Assume of Value.t
 
-let compare t1 t2 = Stdlib.compare t1 t2
+let compare t1 t2 =
+  match (t1, t2) with
+  | No_assume, No_assume -> 0
+  | Assume v1, Assume v2 -> Value.compare v1 v2
+  | No_assume, Assume _ -> -1
+  | Assume _, No_assume -> 1
+
 let equal t1 t2 = compare t1 t2 = 0
 
 let print ppf = function

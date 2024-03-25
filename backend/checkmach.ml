@@ -99,6 +99,8 @@ module Witnesses : sig
 
   val elements : t -> Witness.t list
 
+  val compare : t -> t -> int
+
   type components =
     { nor : t;
       exn : t;

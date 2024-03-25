@@ -16,6 +16,7 @@ module Witnesses : sig
   val join : t -> t -> t
   val meet : t -> t -> t
   val print : Format.formatter -> t -> unit
+  val compare : t -> t -> int
 end
 
 include module type of Zero_alloc_utils.Make (Witnesses)
