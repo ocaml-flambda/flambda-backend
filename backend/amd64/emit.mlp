@@ -2311,8 +2311,10 @@ let emit_probe_notes0 () =
       add_def_symbol label)
     !probe_semaphores;
   (* Accessing semaphores with ptrace peek/poke reads/writes 8 bytes,
-     but the size of the semaphore is only 4 bytes.
-     Add padding to avoid illegal accesses when reading the last semaphore. *)
+     but the size of a semaphore is only 2 bytes.
+     Add padding to avoid avoid out of bounds accesses
+     when reading the last semaphore for ocaml probes. *)
+  D.word (const 0);
   D.word (const 0);
   D.word (const 0);
   ()
