@@ -896,18 +896,20 @@ either with the same or a different language extension; is idempotent.
 Disable the specified \var{language-extension}.  Can be specified more than once,
 either with the same or a different language extension; is idempotent.
 
-\item[(JST) "-only-erasable-extensions"]
-Restricts the "-extension" option to work only with so-called ``erasable''
-extensions: ones that can be rewritten into attributes while still preserving
-the program's runtime input/output behavior.  Turns off currently-enabled
-non-erasable extensions when specified.  After this flag, specifying a
-non-erasable extension (even to disable it) will fail with an error.  This flag
-cannot be reversed, but it can be strengthened (by "-universe no_extensions").
+\item[(JST) "-universe" \var{universe}]
+Set the extension universe and enable all extensions in it. Each universe
+allows a set of extensions, and every successive universe includes
+the previous one. Following universes exist:
 
-\item[(JST) "-universe no_extensions"]
-Disallow all language extensions moving forward, and turn off currently-enabled
-ones.  This makes "-extension" raise errors moving forwards.  This flag cannot
-be reversed.
+\begin{options}
+\item[no_extensions] No extensions.
+\item[upstream_compatible] Extensions compatible with upstream OCaml,
+or erasable extensions.
+\item[stable] All stable extensions.
+\item[beta] All beta extensions.
+\item[Alpha] All alpha extensions.
+\end{options}
+
 
 \end{options}
 %

@@ -694,7 +694,7 @@ let mk_universe f =
     |> String.concat "\n"
 in
 "-universe", Arg.Symbol (available_universes, f),
-  " Set the extension universe and enable all extensions in it. Each universe\
+  " Set the extension universe and enable all extensions in it. Each universe\n\
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one. Following universes exist:\n" ^ descriptions
 
