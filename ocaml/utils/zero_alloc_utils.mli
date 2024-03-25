@@ -1,5 +1,7 @@
 (** Abstract domain used in static analysis for checking annotations such as @zero_alloc.
-    See [backend/checkmach] for details.
+    See [backend/checkmach] for details of the analysis.
+    See [lambda/assume_info.ml] for details about the translation of
+    user-provided annotations to abstract values in this domain.
 *)
 module type WS = sig
   type t
