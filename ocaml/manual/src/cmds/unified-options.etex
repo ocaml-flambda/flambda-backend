@@ -907,7 +907,7 @@ the previous one. Following universes exist:
 or erasable extensions.
 \item[stable] All stable extensions.
 \item[beta] All beta extensions.
-\item[Alpha] All alpha extensions.
+\item[alpha] All alpha extensions.
 \end{options}
 
 
