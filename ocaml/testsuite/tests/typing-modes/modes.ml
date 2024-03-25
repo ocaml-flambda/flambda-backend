@@ -161,18 +161,18 @@ Error: Found a shared value where a unique value was expected
 (* arrow types *)
 type r = local_ string @ unique once -> unique_ string @ local once
 [%%expect{|
-type r = local_ unique_ once_ string -> local_ unique_ once_ string
+type r = local_ once_ unique_ string -> local_ once_ unique_ string
 |}]
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
-type r = local_ unique_ once_ string * string -> local_ once_ string * string
+type r = local_ once_ unique_ string * string -> local_ once_ string * string
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ unique_ once_ string * string -> local_ once_ string * string
+    x:local_ once_ unique_ string * string -> local_ once_ string * string
 |}]
 
 
@@ -250,12 +250,12 @@ type r = { global_ x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
@@ -268,12 +268,12 @@ Error: Optional parameters cannot be polymorphic
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int * int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int * int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
