@@ -347,8 +347,9 @@ type expected_mode =
 
     strictly_local : bool;
     (** Indicates that the expression was directly annotated with [local], which
-    should force any allocations to be on the stack. If [true] the [mode] field
-    must be greater than [local]. *)
+    should force any allocations to be on the stack. No invariant between this
+    field and [mode]: this field being [true] while [mode] being [global] is
+    sensible, but not very useful as it will fail all expressions. *)
 
     tuple_modes : Value.r list;
     (** For t in tuple_modes, t <= regional_to_global mode *)
@@ -416,8 +417,6 @@ let meet_regional mode =
 let meet_global mode =
   Value.meet [mode; (Value.max_with_regionality Regionality.global)]
 
-let meet_unique mode =
-  Value.meet [mode; (Value.max_with_uniqueness Uniqueness.unique)]
 
 let meet_many mode =
   Value.meet [mode; (Value.max_with_linearity Linearity.many)]
@@ -491,10 +490,6 @@ let mode_global expected_mode =
   let mode = meet_global expected_mode.mode in
   {expected_mode with mode}
 
-let mode_local expected_mode =
-  { expected_mode with
-    mode = Value.join_with_regionality Regionality.Const.Local expected_mode.mode }
-
 let mode_exclave expected_mode =
   let mode =
     Value.join_with_regionality Regionality.Const.Local expected_mode.mode
@@ -504,17 +499,13 @@ let mode_exclave expected_mode =
   }
 
 let mode_strictly_local expected_mode =
-  { (mode_local expected_mode)
+  { expected_mode
     with strictly_local = true
   }
 
-let mode_unique expected_mode =
-  let mode = meet_unique expected_mode.mode in
-  { expected_mode with mode }
-
-let mode_once expected_mode =
-  { expected_mode with
-    mode = Value.join_with_linearity Linearity.Const.Once expected_mode.mode}
+let mode_coerce mode expected_mode =
+  let mode = Value.meet [expected_mode.mode; mode] in
+  { expected_mode with mode; tuple_modes = [] }
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -858,21 +849,14 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   let error axis =
     raise (Error(loc, env, Param_mode_mismatch axis))
   in
-  Option.iter (fun locality ->
-    match Locality.equate (Locality.of_const locality) (Alloc.locality mode) with
-    | Ok () -> ()
-    | Error (s, e) -> error (s, `Locality e)
-    ) m.locality;
-  Option.iter (fun uniqueness ->
-    match Uniqueness.equate (Uniqueness.of_const uniqueness) (Alloc.uniqueness mode) with
-    | Ok () -> ()
-    | Error (s, e) -> error (s, `Uniqueness e)
-    ) m.uniqueness;
-  Option.iter (fun linearity ->
-    match Linearity.equate (Linearity.of_const linearity) (Alloc.linearity mode) with
-    | Ok () -> ()
-    | Error (s, e) -> error (s, `Linearity e)
-    ) m.linearity
+  let min = Alloc.Const.Option.value ~default:Alloc.Const.min m in
+  let max = Alloc.Const.Option.value ~default:Alloc.Const.max m in
+  (match Alloc.submode (Alloc.of_const min) mode with
+  | Ok () -> ()
+  | Error e -> error (Left_le_right, e));
+  (match Alloc.submode mode (Alloc.of_const max) with
+  | Ok () -> ()
+  | Error e -> error (Right_le_left, e))
 
 (** Takes the mutability and modalities on a record field, and [m] which is a
     left mode on the record being accessed, returns the left mode of the
@@ -8692,38 +8676,14 @@ and type_mode_expr
   : Jane_syntax.Modes.expression -> _ = function
   | Coerce (m, sbody) ->
     let modes = Typemode.transl_mode_annots m in
-    (* CR zqian: All axes should be handled in one go. We can't do that yet
-       because [mode_strictly_local] is special. *)
-    let expected_mode =
-      match modes.uniqueness with
-      | Some Unique ->
-          let expected_mode = mode_unique expected_mode in
-          expect_mode_cross env ty_expected expected_mode
-      | Some m ->
-          Misc.fatal_errorf "The mode %a should not interpret" Uniqueness.Const.print m
-      | None -> expected_mode
-    in
-    let expected_mode =
-      match modes.linearity with
-      | Some Once ->
-          let expected_mode = expect_mode_cross env ty_expected expected_mode in
-          submode ~loc ~env ~reason:Other
-            (Value.min_with_linearity Linearity.once) expected_mode;
-          mode_once expected_mode
-      | Some m ->
-          Misc.fatal_errorf "The mode %a should not interpret" Linearity.Const.print m
-      | None -> expected_mode
-    in
+    let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
+    let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
+    submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
+    let expected_mode = mode_coerce (Value.of_const max) expected_mode in
     let expected_mode =
       match modes.locality with
-      | Some Local ->
-          let expected_mode = expect_mode_cross env ty_expected expected_mode in
-          submode ~loc ~env ~reason:Other
-            (Value.min_with_regionality Regionality.local) expected_mode;
-          mode_strictly_local expected_mode
-      | Some m ->
-          Misc.fatal_errorf "The mode %a should not interpret" Locality.Const.print m
-      | None -> expected_mode
+      | Some Local -> mode_strictly_local expected_mode
+      | _ -> expected_mode
     in
     let exp =
       type_expect env expected_mode sbody (mk_expected ty_expected ?explanation)
