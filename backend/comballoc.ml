@@ -84,7 +84,7 @@ let rec combine i allocstate =
           let newnext, s' = combine i.next allocstate in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
     end
-  | Iop((Imove|Ispill|Ireload|Inegf|Iabsf|Iaddf|Isubf|Imulf|Idivf|
+  | Iop((Imove|Ispill|Ireload|Inegf _|Iabsf _|Iaddf _|Isubf _|Imulf _|Idivf _|
          Ivalueofint|Iintofvalue|Ivectorcast _|Iopaque|Iconst_int _|
          Iconst_float32 _|Iconst_float _|Iconst_vec128 _|
          Iconst_symbol _|Istackoffset _|Iload _|

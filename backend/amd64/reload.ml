@@ -114,7 +114,7 @@ method! reload_operation op arg res =
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
       (arg, res)
   | Iintop_imm ((Ipopcnt | Iclz _ | Ictz _), _) -> assert false
-  | Iintop(Imul) | Iaddf | Isubf | Imulf | Idivf ->
+  | Iintop(Imul) | Iaddf _ | Isubf _ | Imulf _ | Idivf _ ->
       (* First argument (= result) must be in register, second arg
          can reside in the stack *)
       if stackp arg.(0)
@@ -190,7 +190,7 @@ method! reload_operation op arg res =
                | Ipause
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)
-  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float32 _|Iconst_float _
+  | Imove|Ispill|Ireload|Inegf _|Iabsf _|Iconst_float32 _|Iconst_float _
   | Iconst_vec128 _|Icall_ind|Icall_imm _
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
@@ -208,13 +208,13 @@ method! reload_test tst arg =
       if stackp arg.(0) && stackp arg.(1)
       then [| self#makereg arg.(0); arg.(1) |]
       else arg
-  | Ifloattest (CFlt | CFnlt | CFle | CFnle) ->
+  | Ifloattest (_width, (CFlt | CFnlt | CFle | CFnle)) ->
       (* Cf. emit.mlp: we swap arguments in this case *)
       (* First argument can be on stack, second must be in register *)
       if stackp arg.(1)
       then [| arg.(0); self#makereg arg.(1) |]
       else arg
-  | Ifloattest (CFeq | CFneq | CFgt | CFngt | CFge | CFnge) ->
+  | Ifloattest (_width, (CFeq | CFneq | CFgt | CFngt | CFge | CFnge)) ->
       (* Second argument can be on stack, first must be in register *)
       if stackp arg.(0)
       then [| self#makereg arg.(0); arg.(1) |]

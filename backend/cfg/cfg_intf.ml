@@ -74,13 +74,15 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Negf
-    | Absf
-    | Addf
-    | Subf
-    | Mulf
-    | Divf
-    | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
+    | Negf of Cmm.float_width
+    | Absf of Cmm.float_width
+    | Addf of Cmm.float_width
+    | Subf of Cmm.float_width
+    | Mulf of Cmm.float_width
+    | Divf of Cmm.float_width
+    | Compf of
+        Cmm.float_width
+        * Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Csel of Mach.test
     | Valueofint
     | Intofvalue
@@ -129,7 +131,8 @@ module S = struct
       outcomes of comparison include "unordered" (see e.g. x86-64 emitter) when
       the arguments involve NaNs. *)
   type float_test =
-    { lt : Label.t;
+    { width : Cmm.float_width;
+      lt : Label.t;
       eq : Label.t;
       gt : Label.t;
       uo : Label.t  (** if at least one of x or y is NaN *)

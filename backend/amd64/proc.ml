@@ -440,7 +440,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Iprefetch _
-                 | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
+                 | Ifloatarithmem (_, _) | Ifloatsqrtf (_, _) | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
@@ -450,8 +450,8 @@ let destroyed_at_oper = function
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double | Single
                | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
-  | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-       | Icompf _
+  | Iop(Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
+       | Imulf _ | Idivf _ | Icompf _
        | Icsel _
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
@@ -506,7 +506,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
        | Intop_atomic _
-       | Negf | Absf | Addf | Subf | Mulf | Divf
+       | Negf _ | Absf _ | Addf _ | Subf _ | Mulf _ | Divf _
        | Compf _
        | Csel _
        | Valueofint | Intofvalue
@@ -585,7 +585,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Inegf _ | Iabsf _ | Iaddf _ | Isubf _ | Imulf _ | Idivf _
   | Ivalueofint | Iintofvalue | Ivectorcast _
   | Icompf _ | Iscalarcast _
   | Icsel _
@@ -641,7 +641,8 @@ let max_register_pressure =
             | Single | Double
             | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
+  | Imulf _ | Idivf _
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
@@ -651,7 +652,8 @@ let max_register_pressure =
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+             | Ifloatsqrtf (_, _)
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Idls_get
@@ -739,7 +741,7 @@ let operation_supported = function
   | Cbswap _
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
-  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _

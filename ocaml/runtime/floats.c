@@ -419,8 +419,6 @@ CAMLprim value caml_float_of_string(value vs)
   return Val_unit; /* not reached */
 }
 
-// CR mslater: (float32) runtime
-
 CAMLprim value caml_int_of_float(value f)
 {
   return Val_long((intnat) Double_val(f));

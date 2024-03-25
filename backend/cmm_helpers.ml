@@ -367,8 +367,10 @@ let mk_not dbg cmm =
       tag_int
         (Cop (Ccmpa (negate_integer_comparison cmp), [c1; c2], dbg''))
         dbg'
-    | Cop (Ccmpf cmp, [c1; c2], dbg'') ->
-      tag_int (Cop (Ccmpf (negate_float_comparison cmp), [c1; c2], dbg'')) dbg'
+    | Cop (Ccmpf (w, cmp), [c1; c2], dbg'') ->
+      tag_int
+        (Cop (Ccmpf (w, negate_float_comparison cmp), [c1; c2], dbg''))
+        dbg'
     | _ ->
       (* 0 -> 3, 1 -> 1 *)
       Cop
@@ -402,10 +404,10 @@ let mk_compare_ints dbg a1 a2 =
 let mk_compare_floats_untagged dbg a1 a2 =
   bind "float_cmp" a2 (fun a2 ->
       bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf CFgt, [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf CFlt, [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf CFeq, [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf CFeq, [a2; a2], dbg) in
+          let op1 = Cop (Ccmpf (Float64, CFgt), [a1; a2], dbg) in
+          let op2 = Cop (Ccmpf (Float64, CFlt), [a1; a2], dbg) in
+          let op3 = Cop (Ccmpf (Float64, CFeq), [a1; a1], dbg) in
+          let op4 = Cop (Ccmpf (Float64, CFeq), [a2; a2], dbg) in
           (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
              result is op1 - op2.
 
@@ -421,15 +423,35 @@ let mk_compare_floats_untagged dbg a1 a2 =
              runtime/floats.c *)
           add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
 
-let mk_compare_float32s_untagged _dbg _a1 _a2 = assert false
+let mk_compare_float32s_untagged dbg a1 a2 =
+  bind "float32_cmp" a2 (fun a2 ->
+      bind "float32_cmp" a1 (fun a1 ->
+          let op1 = Cop (Ccmpf (Float32, CFgt), [a1; a2], dbg) in
+          let op2 = Cop (Ccmpf (Float32, CFlt), [a1; a2], dbg) in
+          let op3 = Cop (Ccmpf (Float32, CFeq), [a1; a1], dbg) in
+          let op4 = Cop (Ccmpf (Float32, CFeq), [a2; a2], dbg) in
+          (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
+             result is op1 - op2.
+
+             If at least one of the operands is NaN, then op1 = op2 = 0, and the
+             result is op3 - op4, which orders NaN before other values.
+
+             To detect if the operand is NaN, we use the property:
+
+             for all x, NaN is not equal to x, even if x is NaN.
+
+             Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
+             only if a2 is NaN. See also caml_float_compare_unboxed in
+             runtime/floats.c *)
+          add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
 
 let mk_compare_floats dbg a1 a2 =
   bind "float_cmp" a2 (fun a2 ->
       bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf CFgt, [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf CFlt, [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf CFeq, [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf CFeq, [a2; a2], dbg) in
+          let op1 = Cop (Ccmpf (Float64, CFgt), [a1; a2], dbg) in
+          let op2 = Cop (Ccmpf (Float64, CFlt), [a1; a2], dbg) in
+          let op3 = Cop (Ccmpf (Float64, CFeq), [a1; a1], dbg) in
+          let op4 = Cop (Ccmpf (Float64, CFeq), [a2; a2], dbg) in
           (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
              result is op1 - op2.
 
@@ -715,15 +737,23 @@ let box_float32 dbg mode exp =
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
+    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
       when Nativeint.equal hdr boxedfloat32_header
            || Nativeint.equal hdr boxedfloat32_local_header ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
-      | _ -> Cop (mk_load_immut Single, [cmm], dbg))
-    | cmm -> Cop (mk_load_immut Single, [cmm], dbg))
+      | _ ->
+        Cop
+          ( mk_load_immut Single,
+            [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+            dbg ))
+    | cmm ->
+      Cop
+        ( mk_load_immut Single,
+          [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+          dbg ))
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
@@ -3482,53 +3512,53 @@ let ugt = binary (Ccmpa Cgt)
 
 let uge = binary (Ccmpa Cge)
 
-let float_abs = unary Cabsf
+let float_abs = unary (Cabsf Float64)
 
-let float_neg = unary Cnegf
+let float_neg = unary (Cnegf Float64)
 
-let float_add = binary Caddf
+let float_add = binary (Caddf Float64)
 
-let float_sub = binary Csubf
+let float_sub = binary (Csubf Float64)
 
-let float_mul = binary Cmulf
+let float_mul = binary (Cmulf Float64)
 
-let float_div = binary Cdivf
+let float_div = binary (Cdivf Float64)
 
-let float_eq = binary (Ccmpf CFeq)
+let float_eq = binary (Ccmpf (Float64, CFeq))
 
-let float_neq = binary (Ccmpf CFneq)
+let float_neq = binary (Ccmpf (Float64, CFneq))
 
-let float_lt = binary (Ccmpf CFlt)
+let float_lt = binary (Ccmpf (Float64, CFlt))
 
-let float_le = binary (Ccmpf CFle)
+let float_le = binary (Ccmpf (Float64, CFle))
 
-let float_gt = binary (Ccmpf CFgt)
+let float_gt = binary (Ccmpf (Float64, CFgt))
 
-let float_ge = binary (Ccmpf CFge)
+let float_ge = binary (Ccmpf (Float64, CFge))
 
-let float32_abs ~dbg:_ _ = assert false
+let float32_abs = unary (Cabsf Float32)
 
-let float32_neg ~dbg:_ _ = assert false
+let float32_neg = unary (Cnegf Float32)
 
-let float32_add ~dbg:_ _ _ = assert false
+let float32_add = binary (Caddf Float32)
 
-let float32_sub ~dbg:_ _ _ = assert false
+let float32_sub = binary (Csubf Float32)
 
-let float32_mul ~dbg:_ _ _ = assert false
+let float32_mul = binary (Cmulf Float32)
 
-let float32_div ~dbg:_ _ _ = assert false
+let float32_div = binary (Cdivf Float32)
 
-let float32_eq ~dbg:_ _ _ = assert false
+let float32_eq = binary (Ccmpf (Float32, CFeq))
 
-let float32_neq ~dbg:_ _ _ = assert false
+let float32_neq = binary (Ccmpf (Float32, CFneq))
 
-let float32_lt ~dbg:_ _ _ = assert false
+let float32_lt = binary (Ccmpf (Float32, CFlt))
 
-let float32_le ~dbg:_ _ _ = assert false
+let float32_le = binary (Ccmpf (Float32, CFle))
 
-let float32_gt ~dbg:_ _ _ = assert false
+let float32_gt = binary (Ccmpf (Float32, CFgt))
 
-let float32_ge ~dbg:_ _ _ = assert false
+let float32_ge = binary (Ccmpf (Float32, CFge))
 
 let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 

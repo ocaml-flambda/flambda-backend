@@ -172,13 +172,13 @@ let basic_or_terminator_of_operation :
   | Iintop_atomic { op; size; addr } ->
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
+  | Icompf (w, comp) -> Basic (Op (Compf (w, comp)))
+  | Inegf w -> Basic (Op (Negf w))
+  | Iabsf w -> Basic (Op (Absf w))
+  | Iaddf w -> Basic (Op (Addf w))
+  | Isubf w -> Basic (Op (Subf w))
+  | Imulf w -> Basic (Op (Mulf w))
+  | Idivf w -> Basic (Op (Divf w))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
   | Ivectorcast cast -> Basic (Op (Vectorcast cast))
@@ -209,11 +209,12 @@ let basic_or_terminator_of_operation :
   | Idls_get -> Basic (Op Dls_get)
 
 let float_test_of_float_comparison :
+    Cmm.float_width ->
     Cmm.float_comparison ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.float_test =
- fun comparison ~label_false ~label_true ->
+ fun width comparison ~label_false ~label_true ->
   let lt, eq, gt, uo =
     match comparison with
     | CFeq -> label_false, label_true, label_false, label_false
@@ -227,7 +228,7 @@ let float_test_of_float_comparison :
     | CFge -> label_false, label_true, label_true, label_false
     | CFnge -> label_true, label_false, label_false, label_true
   in
-  { lt; eq; gt; uo }
+  { width; lt; eq; gt; uo }
 
 let int_test_of_integer_comparison :
     Cmm.integer_comparison ->
@@ -266,9 +267,9 @@ let terminator_of_test :
   | Iinttest comparison -> Int_test (int_test comparison None)
   | Iinttest_imm (comparison, value) ->
     Int_test (int_test comparison (Some value))
-  | Ifloattest comparison ->
+  | Ifloattest (w, comparison) ->
     Float_test
-      (float_test_of_float_comparison comparison ~label_false ~label_true)
+      (float_test_of_float_comparison w comparison ~label_false ~label_true)
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
@@ -629,10 +630,11 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf
-        | Compf _ | Valueofint | Csel _ | Intofvalue | Scalarcast _
-        | Vectorcast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
-        | Specific _ | Name_for_debugger _ | Dls_get | Poll | Alloc _ )
+        | Intop_imm _ | Intop_atomic _ | Negf _ | Absf _ | Addf _ | Subf _
+        | Mulf _ | Divf _ | Compf _ | Valueofint | Csel _ | Intofvalue
+        | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
+        | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

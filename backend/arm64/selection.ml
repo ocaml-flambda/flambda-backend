@@ -177,24 +177,25 @@ method! select_operation op args dbg =
             mutability; is_atomic = true},
      args)
   (* Recognize floating-point negate and multiply *)
-  | Cnegf ->
+  | Cnegf Float64 ->
       begin match args with
-      | [Cop(Cmulf, args, _)] -> (Ispecific Inegmulf, args)
+      | [Cop(Cmulf Float64, args, _)] -> (Ispecific Inegmulf, args)
       | _ -> super#select_operation op args dbg
       end
   (* Recognize floating-point multiply and add/sub *)
-  | Caddf ->
+  | Caddf Float64 ->
       begin match args with
-      | [arg; Cop(Cmulf, args, _)] | [Cop(Cmulf, args, _); arg] ->
+      | [arg; Cop(Cmulf Float64, args, _)]
+      | [Cop(Cmulf Float64, args, _); arg] ->
           (Ispecific Imuladdf, arg :: args)
       | _ ->
           super#select_operation op args dbg
       end
-  | Csubf ->
+  | Csubf Float64 ->
       begin match args with
-      | [arg; Cop(Cmulf, args, _)] ->
+      | [arg; Cop(Cmulf Float64, args, _)] ->
           (Ispecific Imulsubf, arg :: args)
-      | [Cop(Cmulf, args, _); arg] ->
+      | [Cop(Cmulf Float64, args, _); arg] ->
           (Ispecific Inegmulsubf, arg :: args)
       | _ ->
           super#select_operation op args dbg

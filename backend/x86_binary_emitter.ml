@@ -663,6 +663,12 @@ let emit_andpd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x54 ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_andps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x54 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_bsf b ~dst ~src =
   match (dst, src) with
   | Reg16 reg, ((Reg16 _ | Mem _ | Mem64_RIP _) as rm)
@@ -713,10 +719,24 @@ let emit_addsd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_addss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_sqrtsd b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0xF2;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x51 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_sqrtss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
       emit_mod_rm_reg b 0 [ 0x0f; 0x51 ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -727,10 +747,24 @@ let emit_mulsd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x59 ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_mulss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x59 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_divsd b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0xF2;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5E ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_divss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
       emit_mod_rm_reg b 0 [ 0x0f; 0x5E ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -741,10 +775,23 @@ let emit_subsd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x5C ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_subss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0xF3;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5C ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_xorpd b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x57 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_xorps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       emit_mod_rm_reg b 0 [ 0x0f; 0x57 ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -829,10 +876,22 @@ let emit_comisd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x2F ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_comiss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x2F ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 let emit_ucomisd b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x2E ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_ucomiss b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       emit_mod_rm_reg b 0 [ 0x0f; 0x2E ] rm (rd_of_regf reg)
   | _ -> assert false
 
@@ -1541,6 +1600,16 @@ let emit_cmpsd b ~condition ~dst ~src =
     buf_int8 b condition
   | _ -> assert false
 
+let emit_cmpss b ~condition ~dst ~src =
+  match (dst, src) with
+  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
+    (* CMPSD xmm1, xmm2/m64, imm8 *)
+    let condition = imm8_of_float_condition condition in
+    buf_int8 b 0xF3;
+    emit_mod_rm_reg b no_rex [ 0x0F; 0xC2 ] rm (rd_of_regf reg);
+    buf_int8 b condition
+  | _ -> assert false
+
 let emit_cmov b condition dst src =
   match (dst, src) with
   | (Reg64 reg | Reg32 reg), ((Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm)
@@ -1911,6 +1980,16 @@ let assemble_instr b loc = function
   | XCHG (src, dst) -> emit_XCHG b dst src
   | XOR (src, dst) -> emit_XOR b dst src
   | XORPD (src, dst) -> emit_xorpd b dst src
+  | ADDSS (src, dst) -> emit_addss b dst src
+  | SUBSS (src, dst) -> emit_subss b dst src
+  | MULSS (src, dst) -> emit_mulss b dst src
+  | DIVSS (src, dst) -> emit_divss b dst src
+  | COMISS (src, dst) -> emit_comiss b dst src
+  | UCOMISS (src, dst) -> emit_ucomiss b dst src
+  | SQRTSS (src, dst) -> emit_sqrtss b dst src
+  | XORPS (src, dst) -> emit_xorps b dst src
+  | ANDPS (src, dst) -> emit_andps b dst src
+  | CMPSS (condition, src, dst) -> emit_cmpss b ~condition ~dst ~src
   | SSE CMPPS (cmp, src, dst) -> emit_cmpps b (imm8_of_float_condition cmp) dst src
   | SSE ADDPS (src, dst) -> emit_addps b dst src
   | SSE SUBPS (src, dst) -> emit_subps b dst src

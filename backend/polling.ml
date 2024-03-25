@@ -245,8 +245,8 @@ let find_poll_alloc_or_calls instr =
             Iconst_float _ | Iconst_vec128 _ |
             Iconst_symbol _ | Iextcall { alloc = false } | Istackoffset _ |
             Iload _ | Istore _ | Iintop _ | Iintop_imm _ | Iintop_atomic _ |
-            Inegf | Iabsf | Iaddf | Isubf |
-            Imulf | Idivf | Iopaque | Ispecific _ | Ibeginregion | Iendregion |
+            Inegf _ | Iabsf _ | Iaddf _ | Isubf _ |
+            Imulf _ | Idivf _ | Iopaque | Ispecific _ | Ibeginregion | Iendregion |
             Icsel _ | Icompf _ | Iname_for_debugger _ | Iprobe _ | Iscalarcast _ |
             Iprobe_is_enabled _ | Ivalueofint | Iintofvalue | Ivectorcast _ | Idls_get)-> None
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _ |

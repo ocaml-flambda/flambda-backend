@@ -239,14 +239,17 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Negf, Negf -> ()
-  | Absf, Absf -> ()
-  | Addf, Addf -> ()
-  | Subf, Subf -> ()
-  | Mulf, Mulf -> ()
-  | Divf, Divf -> ()
-  | Compf left_comp, Compf right_comp
-    when Cmm.equal_float_comparison left_comp right_comp ->
+  | Negf w1, Negf w2
+  | Absf w1, Absf w2
+  | Addf w1, Addf w2
+  | Subf w1, Subf w2
+  | Mulf w1, Mulf w2
+  | Divf w1, Divf w2
+    when Cmm.equal_float_width w1 w2 ->
+    ()
+  | Compf (w1, left_comp), Compf (w2, right_comp)
+    when Cmm.equal_float_width w1 w2
+         && Cmm.equal_float_comparison left_comp right_comp ->
     ()
   | Scalarcast left_scalar, Scalarcast right_scalar
     when Cmm.equal_scalar_cast left_scalar right_scalar ->
@@ -442,8 +445,9 @@ let check_terminator_instruction :
       Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
     State.add_to_explore state ifso1 ifso2;
     State.add_to_explore state ifnot1 ifnot2
-  | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+  | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+      Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
+    when Stdlib.compare w1 w2 = 0 ->
     State.add_to_explore state lt1 lt2;
     State.add_to_explore state eq1 eq2;
     State.add_to_explore state gt1 gt2;
