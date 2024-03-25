@@ -93,3 +93,26 @@ let[@zero_alloc strict] test68 x =
    carries the "assume" information of operations that were optimized away.
    So far, we haven't seen the need for it in a real example.
 *)
+
+(* CR gyorsh: the check passes on g0 and fails on g1-g3 below, even though the
+   generated code is exactly the same in all four cases.  The difference is because
+   "assume" is not propagated on partial applications. There is no misplaced
+   attribute warning. This is the same behavior as for "@inlined" annotations.
+*)
+let[@inline never][@local never] f x y = (x,y)
+
+let[@zero_alloc] g0 () =
+  let x = (f[@zero_alloc assume]) () () in
+  x
+
+let[@zero_alloc] g1 () =
+  let x = ((f[@zero_alloc assume]) ()) () in
+  x
+
+let[@zero_alloc] g2 () =
+  let x = ((f ())[@zero_alloc assume]) () in
+  x
+
+let[@zero_alloc] g3 () =
+  let x = (((f[@zero_alloc assume]) ())[@zero_alloc assume]) () in
+  x

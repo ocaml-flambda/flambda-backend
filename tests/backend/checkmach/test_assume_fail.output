@@ -48,3 +48,21 @@ Error: Annotation check for zero_alloc strict failed on function Test_assume_fai
 
 File "test_assume_fail.ml", line 85, characters 5-9:
 Error: allocation of 24 bytes
+
+File "test_assume_fail.ml", line 108, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_assume_fail.g1 (camlTest_assume_fail.g1_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 109, characters 10-41:
+Error: called function may allocate (direct tailcall camlTest_assume_fail.f_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 112, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_assume_fail.g2 (camlTest_assume_fail.g2_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 113, characters 10-41:
+Error: called function may allocate (direct tailcall camlTest_assume_fail.f_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 116, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_assume_fail.g3 (camlTest_assume_fail.g3_HIDE_STAMP)
+
+File "test_assume_fail.ml", line 117, characters 10-63:
+Error: called function may allocate (direct tailcall camlTest_assume_fail.f_HIDE_STAMP)
