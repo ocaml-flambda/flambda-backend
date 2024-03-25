@@ -549,10 +549,10 @@ module Record_diffing = struct
           | Mutable _, Immutable -> Some First
           | Immutable, Mutable _ -> Some Second
           | Mutable m1, Mutable m2 ->
-              if Misc.eq_from_le Mode.Alloc.Const.le m1 m2 then None
+              if Mode.Alloc.Comonadic.Const.eq m1 m2 then None
               else
                 Misc.fatal_errorf "Unexpected mutable(%a) = mutable(%a)"
-                  Mode.Alloc.Const.print m1 Mode.Alloc.Const.print m2
+                  Mode.Alloc.Comonadic.Const.print m1 Mode.Alloc.Comonadic.Const.print m2
         in
         begin match mut with
         | Some mut -> Some (Mutability mut)

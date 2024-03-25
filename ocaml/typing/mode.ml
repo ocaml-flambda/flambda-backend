@@ -1385,6 +1385,8 @@ end
 module Comonadic_with_locality = struct
   module Const = struct
     include C.Comonadic_with_locality
+
+    let eq a b = le a b && le b a
   end
 
   module Obj = struct
