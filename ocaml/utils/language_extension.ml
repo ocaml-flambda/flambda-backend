@@ -139,10 +139,6 @@ let equal a b = Option.is_some (equal_t a b)
 (* extension universes *)
 
 module Universe : sig
-  val is_allowed : extn_pair -> bool
-
-  val check : extn_pair -> unit
-
   type t =
     | No_extensions
     | Upstream_compatible
@@ -158,9 +154,16 @@ module Universe : sig
 
   val of_string : string -> t option
 
+  val get : unit -> t
+
   val set : t -> unit
 
   val is : t -> bool
+
+  val check : extn_pair -> unit
+
+  (* Allowed extensions, each with the greatest allowed level. *)
+  val allowed_extensions_in : t -> extn_pair list
 end = struct
   (** Which extensions can be enabled? *)
   type t =
@@ -205,6 +208,12 @@ end = struct
      default will be [No_extensions]. *)
   let universe = ref Alpha
 
+  let get () = !universe
+
+  let set new_universe = universe := new_universe
+
+  let is u = compare u !universe = 0
+
   let compiler_options = function
     | No_extensions -> "flag -extension-universe no_extensions"
     | Upstream_compatible -> "flag -extension-universe upstream_compatible"
@@ -212,8 +221,8 @@ end = struct
     | Beta -> "flag -extension-universe beta"
     | Alpha -> "flag -extension-universe alpha (default CLI option)"
 
-  let is_allowed extn_pair =
-    match !universe with
+  let is_allowed_in t extn_pair =
+    match t with
     | No_extensions -> false
     | Upstream_compatible ->
       Exist_pair.is_erasable extn_pair
@@ -221,6 +230,8 @@ end = struct
     | Stable -> Maturity.compare (Exist_pair.maturity extn_pair) Stable <= 0
     | Beta -> Maturity.compare (Exist_pair.maturity extn_pair) Beta <= 0
     | Alpha -> true
+
+  let is_allowed extn_pair = is_allowed_in !universe extn_pair
 
   (* The terminating [()] argument helps protect against ignored arguments. See
      the documentation for [Base.failwithf]. *)
@@ -234,9 +245,19 @@ end = struct
         (compiler_options !universe)
         ()
 
-  let set new_universe = universe := new_universe
-
-  let is u = compare u !universe = 0
+  let allowed_extensions_in t =
+    let maximal_in_universe (Pack extn) =
+      let (module Ops) = get_level_ops extn in
+      let allowed_levels =
+        Ops.all |> List.filter (fun lvl -> is_allowed_in t (Pair (extn, lvl)))
+      in
+      match allowed_levels with
+      | [] -> None
+      | lvl :: lvls ->
+        let max_allowed_lvl = List.fold_left Ops.max lvl lvls in
+        Some (Pair (extn, max_allowed_lvl))
+    in
+    List.filter_map maximal_in_universe Exist.all
 end
 
 (*****************************************)
@@ -251,12 +272,7 @@ end
 
 (* After the migration to extension universes, this will be an empty list. *)
 let legacy_default_extensions : extn_pair list =
-  [ Pair (Mode, ());
-    Pair (Include_functor, ());
-    Pair (Polymorphic_parameters, ());
-    Pair (Immutable_arrays, ());
-    Pair (Labeled_tuples, ());
-    Pair (Layouts, Stable) ]
+  Universe.allowed_extensions_in Stable
 
 let extensions : extn_pair list ref = ref legacy_default_extensions
 
@@ -323,26 +339,12 @@ let unconditionally_enable_maximal_without_checks () =
   in
   extensions := List.map maximal_pair Exist.all
 
-let enable_all_in_universe () =
-  let maximal_in_universe (Pack extn) =
-    let (module Ops) = get_level_ops extn in
-    let allowed_levels =
-      Ops.all |> List.filter (fun lvl -> Universe.is_allowed (Pair (extn, lvl)))
-    in
-    match allowed_levels with
-    | [] -> None
-    | lvl :: lvls ->
-      let max_allowed_lvl = List.fold_left Ops.max lvl lvls in
-      Some (Pair (extn, max_allowed_lvl))
-  in
-  extensions := List.filter_map maximal_in_universe Exist.all
-
 let erasable_extensions_only () =
   Universe.is No_extensions || Universe.is Upstream_compatible
 
 let set_universe_and_enable_all u =
   Universe.set u;
-  enable_all_in_universe ()
+  extensions := Universe.allowed_extensions_in (Universe.get ())
 
 let set_universe_and_enable_all_of_string_exn univ_name =
   match Universe.of_string univ_name with
