@@ -632,7 +632,12 @@ and print_typargs ppf =
       pp_print_space ppf ()
 and print_out_label ppf (name, mut, arg, gbl) =
   (* See the notes [NON-LEGACY MODES] *)
-  let mut = if mut then "mutable " else "" in
+  let mut =
+    match mut with
+    | Om_immutable -> ""
+    | Om_mutable None -> "mutable "
+    | Om_mutable (Some s) -> "mutable(" ^ s ^ ") "
+  in
   fprintf ppf "@[<2>%s%s%s :@ %a@];"
     mut
     (string_of_gbl_space gbl)

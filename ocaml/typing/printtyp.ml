@@ -1580,12 +1580,15 @@ let tree_of_label l =
   let mut, gbl =
     match l.ld_mutable, l.ld_global with
     | Mutable m, _ ->
-        if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
-          true, Ogf_unrestricted
-        else
-          Misc.fatal_errorf "Unexpected mutable(%a)" Alloc.Comonadic.Const.print m
-    | Immutable, Global -> false, Ogf_global
-    | Immutable, Unrestricted -> false, Ogf_unrestricted
+        let mut =
+          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+            Om_mutable None
+          else
+            Om_mutable (Some "<non-legacy>")
+        in
+        mut, Ogf_unrestricted
+    | Immutable, Global -> Om_immutable, Ogf_global
+    | Immutable, Unrestricted -> Om_immutable, Ogf_unrestricted
   in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
 

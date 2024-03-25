@@ -85,11 +85,7 @@ let fmt_mutable_mode_flag f (x : Types.mutability) =
   match x with
   | Immutable -> fprintf f "Immutable"
   | Mutable m ->
-    if Mode.Alloc.Comonadic.Const.eq m Mode.Alloc.Comonadic.Const.legacy
-    then fprintf f "Mutable"
-    else
-      Misc.fatal_errorf "Unexpected mutable(%a)"
-        Mode.Alloc.Comonadic.Const.print m
+    fprintf f "Mutable(%a)" Mode.Alloc.Comonadic.Const.print m
 
 let fmt_virtual_flag f x =
   match x with
