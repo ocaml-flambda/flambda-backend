@@ -881,9 +881,7 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
     on the record being accessed, returns the left mode of the projected mutable
     field. *)
 let project_mutable _ (m : (allowed * _) Value.t) =
-  m
-  (* CR zqian: decouple mutable and global. *)
-  |> modality_unbox_left Global
+  m |> Value.disallow_right
 
 let project_maybe_mutable mut m =
   match mut with
@@ -909,8 +907,6 @@ let construct_mutable m0 m =
       which is min, so this call cannot fail."
   );
   m |> Value.disallow_left
-    (* CR zqian: decouple mutable and global *)
-    |> modality_box_right Global
 
 (** Takes [m0] which is the parameter on mutable, and [m] which is a left mode
     on the record being mutated, returns the right mode for the new value of the
@@ -923,8 +919,6 @@ let mutate_mutable m0 (_ : (allowed * _) Value.t) =
   in
   let m0 = Const.alloc_as_value m0 in
   m0 |> Value.of_const |> Value.disallow_left
-    (* CR zqian: decouple mutable and global. *)
-     |> modality_box_right Global
 
 (** Takes a [mutability] and expected mode of the record (adjusted for
     allocation), returns the expected mode for the field. *)

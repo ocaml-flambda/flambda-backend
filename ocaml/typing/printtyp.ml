@@ -1577,19 +1577,15 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
-  let gbl =
-    match l.ld_global with
-    | Global -> Ogf_global
-    | Unrestricted -> Ogf_unrestricted
-  in
-  let mut =
-    match l.ld_mutable with
-    | Immutable -> false
-    | Mutable m ->
+  let mut, gbl =
+    match l.ld_mutable, l.ld_global with
+    | Mutable m, _ ->
         if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
-          true
+          true, Ogf_unrestricted
         else
           Misc.fatal_errorf "Unexpected mutable(%a)" Alloc.Comonadic.Const.print m
+    | Immutable, Global -> false, Ogf_global
+    | Immutable, Unrestricted -> false, Ogf_unrestricted
   in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
 
