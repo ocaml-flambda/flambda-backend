@@ -467,14 +467,13 @@ let assume_zero_alloc ?mark_used attributes : Assume_info.t =
   let p = Zero_alloc in
   let attr = find_attribute ?mark_used (is_property_attribute p) attributes in
   let res = parse_property_attribute attr p in
-  match attr, res with
-  | None, Default_check -> Assume_info.none
-  | _, Default_check -> Assume_info.none
-  | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
-  | Some _, Ignore_assert_all _ -> Assume_info.none
-  | Some _, Assume { strict; never_returns_normally; } ->
+  match res with
+  | Default_check -> Assume_info.none
+  | Ignore_assert_all _ -> Assume_info.none
+  | Assume { strict; never_returns_normally; } ->
     Assume_info.create ~strict ~never_returns_normally
-  | Some attr, Check { loc; _ } ->
+  | Check { loc; _ } ->
+    let attr = Option.get attr in
     let name = attr.attr_name.txt in
     let msg = "Only the following combinations are supported in this context: \
                'zero_alloc assume', \
