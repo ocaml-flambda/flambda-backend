@@ -25,9 +25,8 @@ let transl_locality_mode_l locality =
 
 let transl_locality_mode_r locality =
   (* r mode are for allocations; [optimise_allocations] should have pushed it
-     to ceil and determined. *)
-  Locality.check_const locality
-  |> Option.get
+     to ceil and determined; here we push it again just to get the constant. *)
+  Locality.zap_to_ceil locality
   |> transl_locality_mode
 
 let transl_alloc_mode_l mode =

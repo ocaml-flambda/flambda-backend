@@ -83,13 +83,11 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
+  val print_raw :
+    ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
+
   val print :
-    ?raw:bool ->
-    ?verbose:bool ->
-    unit ->
-    Format.formatter ->
-    ('l * 'r) t ->
-    unit
+    ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
 
   val zap_to_floor : (allowed * 'r) t -> Const.t
 
@@ -153,7 +151,7 @@ module type S = sig
 
     val zap_to_legacy : (allowed * 'r) t -> Const.t
 
-    val check_const : ('l * 'r) t -> Const.t option
+    val check_const : (allowed * allowed) t -> Const.t option
   end
 
   module Regionality : sig
@@ -258,22 +256,6 @@ module type S = sig
       (* No new types exposed to avoid too many type names *)
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
-
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
-
-    val check_const :
-      ('l * 'r) t ->
-      ( Regionality.Const.t option,
-        Linearity.Const.t option,
-        Uniqueness.Const.t option )
-      modes
 
     val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
 
@@ -388,16 +370,7 @@ module type S = sig
          and type error := error
          and type 'd t := 'd t
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
-
-    val check_const : ('l * 'r) t -> Const.Option.t
+    val check_const : (allowed * allowed) t -> Const.Option.t
 
     val locality : ('l * 'r) t -> ('l * 'r) Locality.t
 
