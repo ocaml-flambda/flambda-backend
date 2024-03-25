@@ -1288,7 +1288,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         in
         let acc_mode = curry_mode alloc_mode am in
         let (rm, t2) = tree_of_ret_typ mode acc_mode (mret, ty2) in
-        Otyp_arrow (lab, am, t1, rm, t2)
+        Otyp_arrow (lab, Alloc.Const.diff am Alloc.Const.legacy, t1, rm, t2)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
@@ -1432,12 +1432,12 @@ and tree_of_ret_typ mode acc_mode (m, ty) =
            real mode the printing will be expressing. *)
         let m = Alloc.zap_to_legacy m in
         let ty = tree_of_typexp mode m ty in
-        (Orm_parens m, ty)
+        (Orm_parens (Alloc.Const.diff m Alloc.Const.legacy), ty)
       end
   | _ ->
     let m = Alloc.zap_to_legacy m in
     let ty = tree_of_typexp mode m ty in
-    (Orm_not_arrow m, ty)
+    (Orm_not_arrow (Alloc.Const.diff m Alloc.Const.legacy), ty)
 
 and tree_of_typobject mode fi nm =
   begin match nm with

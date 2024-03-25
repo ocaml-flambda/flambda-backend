@@ -2129,8 +2129,23 @@ module Alloc = struct
           Option.value opt.uniqueness ~default:default.uniqueness
         in
         let linearity = Option.value opt.linearity ~default:default.linearity in
-        { locality; uniqueness; linearity }
-    end
+    let diff m0 m1 =
+      let eq le a b =
+        le a b && le b a
+      in
+      let locality =
+        if eq Locality.Const.le m0.locality m1.locality then None
+        else Some m0.locality
+      in
+      let linearity =
+        if eq Linearity.Const.le m0.linearity m1.linearity then None
+        else Some m0.linearity
+      in
+      let uniqueness =
+        if eq Uniqueness.Const.le m0.uniqueness m1.uniqueness then None
+        else Some m0.uniqueness
+      in
+      {locality; linearity; uniqueness; syncness; contention}
 
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =

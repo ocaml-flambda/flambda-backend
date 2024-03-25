@@ -77,14 +77,14 @@ type out_mutability =
 (* should be empty if all the jkind annotations are missing *)
 type out_vars_jkinds = (string * out_jkind option) list
 
-type out_arg_mode = Mode.Alloc.Const.t
+type out_arg_mode = Mode.Alloc.Const.Option.t
 
 type out_ret_mode =
-  | Orm_not_arrow of Mode.Alloc.Const.t
+  | Orm_not_arrow of Mode.Alloc.Const.Option.t
   (** The ret type is not arrow, with modes annotating. *)
   | Orm_no_parens
   (** The ret type is arrow, and no need to print parens around the arrow *)
-  | Orm_parens of Mode.Alloc.Const.t
+  | Orm_parens of Mode.Alloc.Const.Option.t
   (** The ret type is arrow, and need to print parens around the arrow, with
       modes annotating. *)
 

@@ -338,25 +338,15 @@ let pr_var_jkinds =
   disallowed in parsing of this file, but non-legacy modes might still pop
   up. For example, the current file might cite values from other files that
   mention non-legacy modes *)
-let print_out_locality ppf m =
-  let open Mode.Locality.Const in
-  if Misc.eq_from_le le m legacy then ()
-  else Format.fprintf ppf "%a_ " print m
+let print_out_legacy_axis f ppf = function
+  | None -> ()
+  | Some m -> Format.fprintf ppf "%a_ " f m
 
-let print_out_uniqueness ppf m =
-  let open Mode.Uniqueness.Const in
-  if Misc.eq_from_le le m legacy then ()
-  else Format.fprintf ppf "%a_ " print m
-
-let print_out_linearity ppf m =
-  let open Mode.Linearity.Const in
-  if Misc.eq_from_le le m legacy then ()
-  else Format.fprintf ppf "%a_ " print m
-
-let print_out_modes ppf (m : Mode.Alloc.Const.t) =
-  print_out_locality ppf m.locality;
-  print_out_uniqueness ppf m.uniqueness;
-  print_out_linearity ppf m.linearity
+let print_out_modes ppf (m : Mode.Alloc.Const.Option.t) =
+  print_out_legacy_axis Mode.Locality.Const.print ppf m.locality;
+  print_out_legacy_axis Mode.Linearity.Const.print ppf m.linearity;
+  print_out_legacy_axis Mode.Uniqueness.Const.print ppf m.uniqueness;
+  print_out_legacy_axis Mode.Contention.Const.print ppf m.contention
 
 (* Labeled tuples with the first element labeled sometimes require parens. *)
 let is_initially_labeled_tuple ty =
