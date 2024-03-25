@@ -68,25 +68,25 @@ Succeeded at setting universe no_extensions
 Succeeded at setting universe no_extensions
 
 # can't call [set ~enabled:true] when in universe no_extensions [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
 # can call [set ~enabled:false] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [set ~enabled:false]
 
 # can't call [enable] when in universe no_extensions [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
 # can call [disable] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [disable]
 
 # can't call [with_set ~enabled:true] when in universe no_extensions [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
 # can call [with_set ~enabled:false] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [with_set ~enabled:false]
 
 # can't call [with_enabled] when in universe no_extensions [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe no_extensions
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
 # can call [with_disabled] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [with_disabled]
@@ -101,10 +101,10 @@ Succeeded at setting universe stable
 Succeeded at redundantly calling [Language_extension.(enable Layouts Stable)]
 
 # can't call [Language_extension.(enable Comprehensions) ] when in universe stable [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -universe stable
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe stable
 
 # can't call [Language_extension.(enable Layouts Alpha)] when in universe stable [comprehensions disabled]:
-Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -universe stable
+Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -extension-universe stable
 
 # can set [Beta] from [Stable] [comprehensions enabled]:
 Succeeded at setting universe beta
@@ -116,5 +116,5 @@ Successfully typechecked "[x for x = 1 to 10]"
 Succeeded at redundantly calling [Language_extension.(enable Comprehensions) ]
 
 # can't call [Language_extension.(enable Layouts Alpha)] when in universe stable [comprehensions enabled]:
-Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -universe beta
+Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -extension-universe beta
 

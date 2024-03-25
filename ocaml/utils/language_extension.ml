@@ -154,8 +154,6 @@ module Universe : sig
 
   val to_string : t -> string
 
-  val description : t -> string
-
   val of_string : string -> t option
 
   val set : t -> unit
@@ -169,6 +167,7 @@ end = struct
     | Stable
     | Beta
     | Alpha
+  (* If you add a constructor, you should also add it to [all]. *)
 
   let all = [No_extensions; Upstream_compatible; Stable; Beta; Alpha]
 
@@ -178,14 +177,6 @@ end = struct
     | Stable -> "stable"
     | Beta -> "beta"
     | Alpha -> "alpha"
-
-  let description = function
-    | No_extensions -> "no extensions"
-    | Upstream_compatible ->
-      "extensions compatible with upstream OCaml, or erasable extensions"
-    | Stable -> "all stable extensions"
-    | Beta -> "all beta extensions"
-    | Alpha -> "all alpha extensions"
 
   let of_string = function
     | "no_extensions" -> Some No_extensions
@@ -205,14 +196,17 @@ end = struct
     in
     compare (rank t1) (rank t2)
 
+  (* For now, the default universe is set to [Alpha] but only a limited set
+     of extensions is enabled. After the migration to extension universes,
+     the default will be [No_extensions]. *)
   let universe = ref Alpha
 
   let compiler_options = function
-    | No_extensions -> "flag -universe no_extensions"
-    | Upstream_compatible -> "flag -universe upstream_compatible"
-    | Stable -> "flag -universe stable"
-    | Beta -> "flag -universe beta"
-    | Alpha -> "flag -universe alpha (default option)"
+    | No_extensions -> "flag -extension-universe no_extensions"
+    | Upstream_compatible -> "flag -extension-universe upstream_compatible"
+    | Stable -> "flag -extension-universe stable"
+    | Beta -> "flag -extension-universe beta"
+    | Alpha -> "flag -extension-universe alpha (default CLI option)"
 
   let is_allowed extn_pair =
     match !universe with
@@ -251,7 +245,8 @@ end
    (2) Every member of [!extensions] satisfies [Universe.is_allowed]. (For
    instance, [!universe = No_extensions] implies [!extensions = []]). *)
 
-let default_extensions : extn_pair list =
+(* After the migration to extension universes, this will be an empty list. *)
+let legacy_default_extensions : extn_pair list =
   [ Pair (Mode, ());
     Pair (Include_functor, ());
     Pair (Polymorphic_parameters, ());
@@ -259,7 +254,7 @@ let default_extensions : extn_pair list =
     Pair (Labeled_tuples, ());
     Pair (Layouts, Stable) ]
 
-let extensions : extn_pair list ref = ref default_extensions
+let extensions : extn_pair list ref = ref legacy_default_extensions
 
 let set_worker (type a) (extn : a t) = function
   | Some value ->

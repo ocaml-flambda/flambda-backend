@@ -14,7 +14,7 @@
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
-     flags = "-universe no_extensions"
+     flags = "-extension-universe no_extensions"
      compiler_reference = "${test_source_directory}/immediates_disabled.compilers.reference"
    **** check-ocamlc.byte-output
 

@@ -2293,7 +2293,8 @@ let () =
     in
     Some (Location.errorf ~loc
       "@[Usage of layout immediate/immediate64%a can't be erased.@;\
-      This error is produced due to the use of -universe (no_extensions|upstream_compatible).@]"
+      This error is produced due to the use of -extension-universe (\
+      no_extensions|upstream_compatible).@]"
       format_id id)
   | _ -> None)
 

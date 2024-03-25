@@ -50,7 +50,9 @@ with type 'a extn := 'a t
 val equal : 'a t -> 'b t -> bool
 
 (** The type of language extension universes. Each universe allows a set of
-    extensions, and every successive universe includes the previous one. *)
+    extensions, and every successive universe includes the previous one.
+
+    Each variant corresponds to the [-extension-universe <variant>] CLI flag. *)
 module Universe : sig
   type t =
     | No_extensions
@@ -58,13 +60,12 @@ module Universe : sig
         (** Upstream compatible extensions, also known as "erasable". *)
     | Stable  (** Extensions of [Stable] maturity. *)
     | Beta  (** Extensions of [Beta] maturity. *)
-    | Alpha  (** All extensions. Default. *)
+    | Alpha  (** All extensions. This is the universe enabled by default
+        for the time being. *)
 
   val all : t list
 
   val to_string : t -> string
-
-  val description : t -> string
 
   val of_string : string -> t option
 end
