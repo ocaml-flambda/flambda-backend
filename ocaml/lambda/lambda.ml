@@ -1488,7 +1488,7 @@ let shallow_map ~tail ~non_tail:f = function
         (List.map (fun rb ->
              { rb with def = map_lfunction f rb.def })
             idel,
-         f e2)
+         tail e2)
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)

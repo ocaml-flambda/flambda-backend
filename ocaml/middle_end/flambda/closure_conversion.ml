@@ -45,7 +45,7 @@ let add_default_argument_wrappers lam =
       | [{ id = fun_id; def }] ->
         Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body)
       | [{ id = fun_id; def };
-         { id = inner_fun_id;; def = def_inner }] ->
+         { id = inner_fun_id; def = def_inner }] ->
         Llet (Alias, Lambda.layout_function, inner_fun_id, Lfunction def_inner,
               Llet (Alias, Lambda.layout_function, fun_id, Lfunction def, body))
       | _ -> assert false
@@ -54,7 +54,7 @@ let add_default_argument_wrappers lam =
         let defs =
           List.flatten
             (List.map
-               (fun Lambda.{ id; rkind = _;
+               (fun Lambda.{ id;
                      def = {kind; params; body; attr; loc;
                             ret_mode; mode; region; return} } ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body

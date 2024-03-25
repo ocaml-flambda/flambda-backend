@@ -1459,7 +1459,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (List.map
          (fun { id;
                 def = {kind; params; return; body; attr;
-                       loc; mode; ret_mode; region}) ->
+                       loc; mode; ret_mode; region} } ->
                Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode ~region
                  ~body ~attr ~loc ~return
          )

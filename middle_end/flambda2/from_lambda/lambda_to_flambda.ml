@@ -846,10 +846,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
-    let bindings =
-      cps_function_bindings env
-        [L.{ id = fun_id; def = func }]
-    in
+    let bindings = cps_function_bindings env [L.{ id = fun_id; def = func }] in
     let body acc ccenv = cps acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1419,30 +1416,33 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
 and cps_function_bindings env (bindings : Lambda.rec_binding list) =
   let bindings_with_wrappers =
     List.map
-      (fun L.{ id = fun_id; def = { kind;
-              params;
-              body = fbody;
-              attr;
-              loc;
-              ret_mode;
-              mode;
-              region;
-              return;
-              _
-            } } ->
-          match
-            Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc ~ret_mode ~mode ~region
-          with
-          | [{ id; def = lfun }] -> [id, lfun]
-          | [ { id = id1; def = lfun1 };
-              { id = id2; def = lfun2 } ] ->
-            [id1, lfun1; id2, lfun2]
-          | [] | _ :: _ :: _ :: _ ->
-            Misc.fatal_errorf
-              "Unexpected return value from [split_default_wrapper] when \
-               translating:@ %a"
-              Ident.print fun_id)
+      (fun L.
+             { id = fun_id;
+               def =
+                 { kind;
+                   params;
+                   body = fbody;
+                   attr;
+                   loc;
+                   ret_mode;
+                   mode;
+                   region;
+                   return;
+                   _
+                 }
+             } ->
+        match
+          Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
+            ~return ~attr ~loc ~ret_mode ~mode ~region
+        with
+        | [{ id; def = lfun }] -> [id, lfun]
+        | [{ id = id1; def = lfun1 }; { id = id2; def = lfun2 }] ->
+          [id1, lfun1; id2, lfun2]
+        | [] | _ :: _ :: _ :: _ ->
+          Misc.fatal_errorf
+            "Unexpected return value from [split_default_wrapper] when \
+             translating:@ %a"
+            Ident.print fun_id)
       bindings
   in
   let free_idents, directed_graph =
