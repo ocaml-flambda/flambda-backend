@@ -517,7 +517,7 @@
  (action
    (with-outputs-to test_never_returns_normally.output.corrected
     (pipe-outputs
-    (with-accepted-exit-codes 2
+    (with-accepted-exit-codes 0
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
           -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
