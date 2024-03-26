@@ -1158,6 +1158,8 @@ let update_decl_jkind env dpath decl =
       | Flat_imm_element -> Some Imm
       | Flat_float64_element -> Some Float64
       (* CR layouts v7: Eventually void components will have no runtime width.
+         We return [Some Imm] as a nonsense placeholder for now. (No record
+         with a void field can be compiled past lambda.)
       *)
       | Element_without_runtime_component -> Some Imm
       | Float_element | Value_element -> None
