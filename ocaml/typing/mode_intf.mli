@@ -197,6 +197,8 @@ module type S = sig
     val once : lr
 
     val zap_to_legacy : (allowed * 'r) t -> Const.t
+
+    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
   end
 
   module Uniqueness : sig
@@ -217,6 +219,8 @@ module type S = sig
     val unique : lr
 
     val zap_to_legacy : ('l * allowed) t -> Const.t
+
+    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
   end
 
   (** The most general mode. Used in most type checking,

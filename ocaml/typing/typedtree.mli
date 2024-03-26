@@ -72,15 +72,23 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type unique_bounds = Mode.Uniqueness.Const.t * Mode.Linearity.Const.t
+
+val unique_use : unique_use
+
+val unique_bounds : unique_bounds
+
+val meet_unique_bounds : unique_bounds -> unique_bounds -> unique_bounds
+
+type unique_use_with_bounds = unique_use * unique_bounds
+
 type texp_field_boxing =
-  | Boxing of Mode.Alloc.r * unique_use
+  | Boxing of Mode.Alloc.r * unique_use_with_bounds
   (** Projection requires boxing. [unique_use] describes the usage of the
       unboxed field as argument to boxing. *)
   | Non_boxing of unique_use
   (** Projection does not require boxing. [unique_use] describes the usage of
       the field as the result of direct projection. *)
-
-val shared_many_use : unique_use
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
