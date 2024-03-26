@@ -483,15 +483,15 @@ let comprehension sub comp_type comp =
   Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let label : Types.arg_label -> Parsetree.arg_label = function
-  (* There is no Position label in the Parsetree, since we parse [%src_pos]
+  (* There is no Position label in the Parsetree, since we parse [%call_pos]
      arguments as Labelled. The correctness of this translation depends on
-     also re-inserting the constraint pattern (P : [%src_pos]) to the generated
+     also re-inserting the constraint pattern (P : [%call_pos]) to the generated
      tree. *)
   | Labelled l | Position l -> Labelled l
   | Optional l -> Optional l
   | Nolabel -> Nolabel
 
-let src_pos_extension = Location.mknoloc "src_pos", PStr []
+let call_pos_extension = Location.mknoloc "call_pos_extension", PStr []
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -1043,8 +1043,8 @@ let core_type sub ct =
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
-    | Ttyp_src_pos ->
-        Ptyp_extension src_pos_extension
+    | Ttyp_call_pos ->
+        Ptyp_extension call_pos_extension
   in
   Typ.mk ~loc ~attrs:!attrs desc
 

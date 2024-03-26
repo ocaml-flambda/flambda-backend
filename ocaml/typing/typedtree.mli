@@ -389,7 +389,7 @@ and expression_desc =
   | Texp_exclave of expression
   | Texp_src_pos
     (* A source position value which has been automatically inferred, either
-       as a result of [%src_pos] occuring in an expression, or omission of a
+       as a result of [%call_pos] occuring in an expression, or omission of a
        Position argument in function application *)
 
 and function_curry =
@@ -827,9 +827,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
-  | Ttyp_src_pos
-      (** [Ttyp_src_pos] represents the type of the value of a Position
-          argument ([lbl:[%src_pos] -> ...]). *)
+  | Ttyp_call_pos
+      (** [Ttyp_call_pos] represents the type of the value of a Position
+          argument ([lbl:[%call_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;

@@ -7583,7 +7583,6 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
           let arg = src_pos (Location.ghostify app_loc) [] env in
-          (* CR src_pos: Confirm that global value mode is correct *)
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
@@ -9866,7 +9865,7 @@ let report_error ~loc env = function
       let label ~long l =
         match l with
         | Nolabel -> "unlabeled"
-        | Position l -> sprintf "~(%s:[%%src_pos])" l
+        | Position l -> sprintf "~(%s:[%%call_pos])" l
         | Labelled _ | Optional _ ->
             (if long then "labeled " else "") ^ prefixed_label_name l
       in
@@ -9874,14 +9873,21 @@ let report_error ~loc env = function
         | Nolabel, _ | _, Nolabel -> true
         | _                       -> false
       in
+      let maybe_positional_argument_hint = 
+        match got, expected with
+        | Labelled _, Position _ ->
+          "\nHint: Consider explicitly annotating the label with '[%call_pos]'"
+        | _ -> ""
+      in
       Location.errorf ~loc
         "@[<v>@[<2>This function should have type@ %a%t@]@,\
-         @[but its first argument is %s@ instead of %s%s@]@]"
+         @[but its first argument is %s@ instead of %s%s@]%s@]"
         Printtyp.type_expr expected_type
         (report_type_expected_explanation_opt explanation)
         (label ~long:true got)
         (if second_long then "being " else "")
         (label ~long:second_long expected)
+        maybe_positional_argument_hint
   | Scoping_let_module(id, ty) ->
       Location.errorf ~loc
         "This `let module' expression has type@ %a@ \
