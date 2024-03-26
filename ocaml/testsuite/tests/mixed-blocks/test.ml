@@ -25,13 +25,14 @@
    *** run
       arguments = "75 native"
       output = "${test_source_directory}/generated_native.ml"
-   **** ocamlopt.opt
+   **** runtime5
+   ***** ocamlopt.opt
       all_modules = "${test_source_directory}/generated_native.ml"
       flags = "-extension layouts_alpha"
-   ***** run
+   ****** run
       stdout = "${test_source_directory}/generated_native_output.ml"
       stderr = "${test_source_directory}/generated_native_output.ml"
-   ****** check-program-output
+   ******* check-program-output
       output = "${test_source_directory}/generated_native_output.ml"
       reference = "${test_source_directory}/test.reference"
 
@@ -50,13 +51,14 @@
    *** run
       arguments = "300 byte"
       output = "${test_source_directory}/generated_byte.ml"
-   **** ocamlc.opt
+   **** runtime5
+   ***** ocamlc.opt
          all_modules = "${test_source_directory}/generated_byte.ml"
          flags = "-extension layouts_alpha"
-   ***** run
+   ****** run
       stdout = "${test_source_directory}/generated_byte_output.ml"
       stderr = "${test_source_directory}/generated_byte_output.ml"
-   ****** check-program-output
+   ******* check-program-output
       output = "${test_source_directory}/generated_byte_output.ml"
       reference = "${test_source_directory}/test.reference"
 *)

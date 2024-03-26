@@ -1,6 +1,7 @@
 (* TEST
   flags = "-extension layouts_alpha"
-  * expect
+  * runtime5
+  ** expect
  *)
 
 (* Mixed float-float# blocks are always OK. *)

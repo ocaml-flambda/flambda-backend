@@ -1,5 +1,7 @@
 (* TEST
    flags = "-extension layouts_alpha"
+
+   * runtime5
  *)
 
 type t = { t : t; flt : float# }
