@@ -183,7 +183,8 @@ module _ =
   Print_all
     (struct
       let name = "All extensions enabled"
-      let setup () = Language_extension.set_universe_and_enable_all Language_extension.Universe.maximal
+      let setup () = Language_extension.set_universe_and_enable_all
+        Language_extension.Universe.maximal
     end)
     ()
 ;;
