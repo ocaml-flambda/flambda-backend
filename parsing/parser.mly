@@ -3549,9 +3549,10 @@ pattern_no_exn:
       { let loc = $loc(label) in
         Some label, mkpatvar ~loc label }
   | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
-      { let loc = $loc(label) in
-        let pat = mkpatvar ~loc label in
-        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+      { let lbl_loc = $loc(label) in
+        let pat_loc = $startpos($2), $endpos in
+        let pat = mkpatvar ~loc:lbl_loc label in
+        Some label, mkpat_opt_constraint ~loc:pat_loc pat (Some cty) }
 
 labeled_tuple_pat_element_list(self):
   | labeled_tuple_pat_element_list(self) COMMA labeled_tuple_pat_element(self)
