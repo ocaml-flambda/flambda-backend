@@ -57,14 +57,25 @@ module Make (Witnesses : WS) : sig
 
     val bot : t
 
+    (** [normal_return] means property holds on paths to normal return, exceptional return
+        iss not reachable and execution will not diverge.  *)
     val normal_return : t
 
+    (** [exn_escape] means the property holds on paths to exceptional return, normal
+        return is not reachable and execution will not diverge.  *)
     val exn_escape : t
 
+    (** [diverges] means the execution may diverge without violating the property, but
+        normal and exceptional return are not reachable (i.e., [div] is Safe, `nor` and
+        `exn` are Bot). *)
     val diverges : t
 
+    (** [safe] means the property holds on all paths (i.e., all three components are set
+        to Safe).  *)
     val safe : t
 
+    (** [relaxed] means the property holds on paths that lead to normal returns only
+        (i.e., [nor] component is Safe, others are Top.  *)
     val relaxed : Witnesses.t -> t
 
     val print : witnesses:bool -> Format.formatter -> t -> unit
