@@ -548,17 +548,25 @@ let instr_for_intop = function
   | _ -> assert false
 
 let instr_for_floatop = function
-  | Iaddf -> I.addsd
-  | Isubf -> I.subsd
-  | Imulf -> I.mulsd
-  | Idivf -> I.divsd
+  | Iaddf Float64 -> I.addsd
+  | Isubf Float64 -> I.subsd
+  | Imulf Float64 -> I.mulsd
+  | Idivf Float64 -> I.divsd
+  | Iaddf Float32 -> I.addss
+  | Isubf Float32 -> I.subss
+  | Imulf Float32 -> I.mulss
+  | Idivf Float32 -> I.divss
   | _ -> assert false
 
 let instr_for_floatarithmem = function
-  | Ifloatadd -> I.addsd
-  | Ifloatsub -> I.subsd
-  | Ifloatmul -> I.mulsd
-  | Ifloatdiv -> I.divsd
+  | Ifloatadd Float64 -> I.addsd
+  | Ifloatsub Float64 -> I.subsd
+  | Ifloatmul Float64 -> I.mulsd
+  | Ifloatdiv Float64 -> I.divsd
+  | Ifloatadd Float32 -> I.addss
+  | Ifloatsub Float32 -> I.subss
+  | Ifloatmul Float32 -> I.mulss
+  | Ifloatdiv Float32 -> I.divss
 
 let cond = function
   | Isigned Ceq   -> E   | Isigned Cne   -> NE
@@ -577,7 +585,8 @@ let output_test_zero arg =
 
 (* Output a floating-point compare and branch *)
 
-let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
+let emit_float_test (width : Cmm.float_width)
+                    cmp i ~(taken:X86_ast.condition -> unit) =
   (* Effect of comisd on flags and conditional branches:
                      ZF PF CF  cond. branches taken
         unordered     1  1  1  je, jb, jbe, jp
@@ -587,46 +596,86 @@ let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
      If FP traps are on (they are off by default),
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
-  match cmp with
-  | CFeq when arg i 1 = arg i 0 ->
+  match width, cmp with
+  | Float64, CFeq when arg i 1 = arg i 0 ->
       I.ucomisd (arg i 1) (arg i 0);
       taken NP
-  | CFeq ->
+  | Float64, CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);
       I.jp (label next);           (* skip if unordered *)
       taken E;                     (* branch taken if x=y *)
       def_label next
-  | CFneq when arg i 1 = arg i 0 ->
+  | Float64, CFneq when arg i 1 = arg i 0 ->
       I.ucomisd (arg i 1) (arg i 0);
       taken P
-  | CFneq ->
+  | Float64, CFneq ->
       I.ucomisd (arg i 1) (arg i 0);
       taken P;                     (* branch taken if unordered *)
       taken NE                     (* branch taken if x<y or x>y *)
-  | CFlt ->
+  | Float64, CFlt ->
       I.comisd (arg i 0) (arg i 1);
       taken A                      (* branch taken if y>x i.e. x<y *)
-  | CFnlt ->
+  | Float64, CFnlt ->
       I.comisd (arg i 0) (arg i 1);
       taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
-  | CFle ->
+  | Float64, CFle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
       taken AE                     (* branch taken if y>=x i.e. x<=y *)
-  | CFnle ->
+  | Float64, CFnle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
       taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
-  | CFgt ->
+  | Float64, CFgt ->
       I.comisd (arg i 1) (arg i 0);
       taken A                      (* branch taken if x>y *)
-  | CFngt ->
+  | Float64, CFngt ->
       I.comisd (arg i 1) (arg i 0);
       taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
-  | CFge ->
+  | Float64, CFge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
       taken AE                     (* branch taken if x>=y *)
-  | CFnge ->
+  | Float64, CFnge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
+      taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
+  | Float32, CFeq when arg i 1 = arg i 0 ->
+      I.ucomisd (arg i 1) (arg i 0);
+      taken NP
+  | Float32, CFeq ->
+      let next = new_label() in
+      I.ucomisd (arg i 1) (arg i 0);
+      I.jp (label next);           (* skip if unordered *)
+      taken E;                     (* branch taken if x=y *)
+      def_label next
+  | Float32, CFneq when arg i 1 = arg i 0 ->
+      I.ucomiss (arg i 1) (arg i 0);
+      taken P
+  | Float32, CFneq ->
+      I.ucomiss (arg i 1) (arg i 0);
+      taken P;                     (* branch taken if unordered *)
+      taken NE                     (* branch taken if x<y or x>y *)
+  | Float32, CFlt ->
+      I.comiss (arg i 0) (arg i 1);
+      taken A                      (* branch taken if y>x i.e. x<y *)
+  | Float32, CFnlt ->
+      I.comiss (arg i 0) (arg i 1);
+      taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
+  | Float32, CFle ->
+      I.comiss (arg i 0) (arg i 1);(* swap compare *)
+      taken AE                     (* branch taken if y>=x i.e. x<=y *)
+  | Float32, CFnle ->
+      I.comiss (arg i 0) (arg i 1);(* swap compare *)
+      taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
+  | Float32, CFgt ->
+      I.comiss (arg i 1) (arg i 0);
+      taken A                      (* branch taken if x>y *)
+  | Float32, CFngt ->
+      I.comiss (arg i 1) (arg i 0);
+      taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
+  | Float32, CFge ->
+      I.comiss (arg i 1) (arg i 0);(* swap compare *)
+      taken AE                     (* branch taken if x>=y *)
+  | Float32, CFnge ->
+      I.comiss (arg i 1) (arg i 0);(* swap compare *)
       taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
 
 let emit_test i ~(taken:X86_ast.condition -> unit) = function
@@ -646,8 +695,8 @@ let emit_test i ~(taken:X86_ast.condition -> unit) = function
   | Iinttest_imm(cmp, n) ->
     I.cmp (int n) (arg i 0);
     taken (cond cmp)
-  | Ifloattest cmp ->
-    emit_float_test cmp i ~taken
+  | Ifloattest (width, cmp) ->
+    emit_float_test width cmp i ~taken
   | Ioddtest ->
     I.test (int 1) (arg8 i 0);
     taken NE
@@ -1507,17 +1556,28 @@ let emit_instr fallthrough i =
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Icompf cmp) ->
+  | Lop(Icompf (Float64, cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Inegf) ->
+  | Lop(Icompf (Float32, cmp)) ->
+      let cond, need_swap = float_cond_and_need_swap cmp in
+      let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
+      I.cmpss cond a1 a0;
+      I.movd a0 (res32 i 0);
+      I.movsxd (res32 i 0) (res i 0);
+      I.neg (res i 0)
+  | Lop(Inegf Float64) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Iabsf) ->
+  | Lop(Iabsf Float64) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
+  | Lop(Inegf Float32) ->
+      I.xorps (mem64_rip VEC128 (emit_symbol "caml_negf32_mask")) (res i 0)
+  | Lop(Iabsf Float32) ->
+      I.andps (mem64_rip VEC128 (emit_symbol "caml_absf32_mask")) (res i 0)
+  | Lop((Iaddf _ | Isubf _ | Imulf _ | Idivf _) as floatop) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
@@ -1582,9 +1642,12 @@ let emit_instr fallthrough i =
       I.bswap (res32 i 0);
   | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf addr)) ->
+  | Lop(Ispecific(Ifloatsqrtf (Float64, addr))) ->
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
+  | Lop(Ispecific(Ifloatsqrtf (Float32, addr))) ->
+      I.xorps (res i 0) (res i 0); (* avoid partial register stall *)
+      I.sqrtss (addressing addr REAL8 i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
@@ -2027,6 +2090,13 @@ let begin_assembly unix =
     D.align ~data:true 16;
     _label (emit_symbol "caml_absf_mask");
     D.qword (Const 0x7FFFFFFFFFFFFFFFL);
+    D.qword (Const 0xFFFFFFFFFFFFFFFFL);
+    _label (emit_symbol "caml_negf32_mask");
+    D.qword (Const 0x80000000L);
+    D.qword (Const 0L);
+    D.align ~data:true 16;
+    _label (emit_symbol "caml_absf32_mask");
+    D.qword (Const 0xFFFFFFFF7FFFFFFFL);
     D.qword (Const 0xFFFFFFFFFFFFFFFFL);
   end;
 

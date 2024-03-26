@@ -1016,7 +1016,7 @@ end = struct
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
     | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _ | Icompf _
-    | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ivectorcast _
+    | Inegf _ | Iabsf _ | Iaddf _ | Isubf _ | Imulf _ | Idivf _ | Ivectorcast _
     | Iscalarcast _
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor

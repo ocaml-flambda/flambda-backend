@@ -29,13 +29,13 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
       | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
-      | Negf -> Inegf
-      | Absf -> Iabsf
-      | Addf -> Iaddf
-      | Subf -> Isubf
-      | Mulf -> Imulf
-      | Divf -> Idivf
-      | Compf c -> Icompf c
+      | Negf w -> Inegf w
+      | Absf w -> Iabsf w
+      | Addf w -> Iaddf w
+      | Subf w -> Isubf w
+      | Mulf w -> Imulf w
+      | Divf w -> Idivf w
+      | Compf (w, c) -> Icompf (w, c)
       | Csel c -> Icsel c
       | Valueofint -> Ivalueofint
       | Intofvalue -> Iintofvalue

@@ -139,14 +139,18 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+type float_width = Cmm.float_width
+
 type specific_operation =
-    Ilea of addressing_mode             (* "lea" gives scaled adds *)
+    Ilea of addressing_mode            (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
-                                        (* Store an integer constant *)
-  | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
+                                       (* Store an integer constant *)
+  | Ioffset_loc of int * addressing_mode
+                                       (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
+  | Ifloatsqrtf of float_width * addressing_mode
+                                       (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
@@ -166,7 +170,10 @@ type specific_operation =
       }
 
 and float_operation =
-    Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
+  | Ifloatadd of float_width
+  | Ifloatsub of float_width
+  | Ifloatmul of float_width
+  | Ifloatdiv of float_width
 
 (* Sizes, endianness *)
 
@@ -244,15 +251,22 @@ let print_specific_operation printreg op ppf arg =
          (if is_assign then "(assign)" else "(init)")
   | Ioffset_loc(n, addr) ->
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
-  | Ifloatsqrtf addr ->
+  | Ifloatsqrtf (Float64, addr) ->
      fprintf ppf "sqrtf float64[%a]"
+             (print_addressing printreg addr) [|arg.(0)|]
+  | Ifloatsqrtf (Float32, addr) ->
+     fprintf ppf "sqrtf float32[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
   | Ifloatarithmem(op, addr) ->
       let op_name = function
-      | Ifloatadd -> "+f"
-      | Ifloatsub -> "-f"
-      | Ifloatmul -> "*f"
-      | Ifloatdiv -> "/f" in
+      | Ifloatadd Float64 -> "+f"
+      | Ifloatsub Float64 -> "-f"
+      | Ifloatmul Float64 -> "*f"
+      | Ifloatdiv Float64 -> "/f"
+      | Ifloatadd Float32 -> "+f32"
+      | Ifloatsub Float32 -> "-f32"
+      | Ifloatmul Float32 -> "*f32"
+      | Ifloatdiv Float32 -> "/f32" in
       fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
@@ -360,11 +374,11 @@ let equal_prefetch_temporal_locality_hint left right =
 
 let equal_float_operation left right =
   match left, right with
-  | Ifloatadd, Ifloatadd -> true
-  | Ifloatsub, Ifloatsub -> true
-  | Ifloatmul, Ifloatmul -> true
-  | Ifloatdiv, Ifloatdiv -> true
-  | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
+  | Ifloatadd f1, Ifloatadd f2
+  | Ifloatsub f1, Ifloatsub f2
+  | Ifloatmul f1, Ifloatmul f2
+  | Ifloatdiv f1, Ifloatdiv f2 -> Cmm.equal_float_width f1 f2
+  | (Ifloatadd _ | Ifloatsub _ | Ifloatmul _ | Ifloatdiv _), _ -> false
 
 let equal_specific_operation left right =
   match left, right with
@@ -377,7 +391,8 @@ let equal_specific_operation left right =
     equal_float_operation x y && equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
-  | Ifloatsqrtf left, Ifloatsqrtf right ->
+  | Ifloatsqrtf (left_w, left), Ifloatsqrtf (right_w, right) ->
+    Cmm.equal_float_width left_w right_w &&
     equal_addressing_mode left right
   | Isextend32, Isextend32 ->
     true

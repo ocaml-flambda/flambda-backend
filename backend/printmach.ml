@@ -104,8 +104,10 @@ let intcomp = function
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
-let floatcomp c =
-    Printf.sprintf " %sf " (Printcmm.float_comparison c)
+let floatcomp w c =
+  match (w : float_width) with
+  | Float64 -> Printf.sprintf " %sf " (Printcmm.float_comparison c)
+  | Float32 -> Printf.sprintf " %sf32 " (Printcmm.float_comparison c)
 
 let is_unary_op = function
   | Iclz _
@@ -141,9 +143,9 @@ let test' ?(print_reg = reg) tst ppf arg =
   | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
   | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
   | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest cmp ->
+  | Ifloattest (w, cmp) ->
       fprintf ppf "%a%s%a"
-       reg arg.(0) (floatcomp cmp) reg arg.(1)
+       reg arg.(0) (floatcomp w cmp) reg arg.(1)
   | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
   | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
 
@@ -211,13 +213,19 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
-  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Inegf -> fprintf ppf "-f %a" reg arg.(0)
-  | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
-  | Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
-  | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
-  | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
-  | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Icompf (w, cmp) -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp w cmp) reg arg.(1)
+  | Inegf Float64 -> fprintf ppf "-f %a" reg arg.(0)
+  | Iabsf Float64 -> fprintf ppf "absf %a" reg arg.(0)
+  | Iaddf Float64 -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
+  | Isubf Float64 -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
+  | Imulf Float64 -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
+  | Idivf Float64 -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Inegf Float32 -> fprintf ppf "-f32 %a" reg arg.(0)
+  | Iabsf Float32 -> fprintf ppf "absf32 %a" reg arg.(0)
+  | Iaddf Float32 -> fprintf ppf "%a +f32 %a" reg arg.(0) reg arg.(1)
+  | Isubf Float32 -> fprintf ppf "%a -f32 %a" reg arg.(0) reg arg.(1)
+  | Imulf Float32 -> fprintf ppf "%a *f32 %a" reg arg.(0) reg arg.(1)
+  | Idivf Float32 -> fprintf ppf "%a /f32 %a" reg arg.(0) reg arg.(1)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"

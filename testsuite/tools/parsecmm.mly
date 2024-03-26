@@ -232,8 +232,8 @@ expr:
                               ty_args=[];},
                      List.rev $4, debuginfo ())}
   | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.alloc_heap, List.rev $3, debuginfo ()) }
-  | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
-  | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
+  | LPAREN SUBF expr RPAREN { Cop(Cnegf Float64, [$3], debuginfo ()) }
+  | LPAREN SUBF expr expr RPAREN { Cop(Csubf Float64, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }
   | LPAREN binaryop expr expr RPAREN { Cop($2, [$3; $4], debuginfo ()) }
   | LPAREN SEQ sequence RPAREN { $3 }
@@ -374,7 +374,7 @@ unaryop:
   | VALUEOFINT                  { Cvalueofint }
   | INTOFVALUE                  { Cintofvalue }
   | RAISE                       { Craise $1 }
-  | ABSF                        { Cabsf }
+  | ABSF                        { Cabsf Float64 }
 ;
 binaryop:
     STORE chunk                 { Cstore ($2, Assignment) }
@@ -403,19 +403,19 @@ binaryop:
   | LEA                         { Ccmpa Cle }
   | GTA                         { Ccmpa Cgt }
   | GEA                         { Ccmpa Cge }
-  | ADDF                        { Caddf }
-  | MULF                        { Cmulf }
-  | DIVF                        { Cdivf }
-  | EQF                         { Ccmpf CFeq }
-  | NEF                         { Ccmpf CFneq }
-  | LTF                         { Ccmpf CFlt }
-  | NLTF                        { Ccmpf CFnlt }
-  | LEF                         { Ccmpf CFle }
-  | NLEF                        { Ccmpf CFnle }
-  | GTF                         { Ccmpf CFgt }
-  | NGTF                        { Ccmpf CFngt }
-  | GEF                         { Ccmpf CFge }
-  | NGEF                        { Ccmpf CFnge }
+  | ADDF                        { Caddf Float64 }
+  | MULF                        { Cmulf Float64 }
+  | DIVF                        { Cdivf Float64 }
+  | EQF                         { Ccmpf (Float64, CFeq) }
+  | NEF                         { Ccmpf (Float64, CFneq) }
+  | LTF                         { Ccmpf (Float64, CFlt) }
+  | NLTF                        { Ccmpf (Float64, CFnlt) }
+  | LEF                         { Ccmpf (Float64, CFle) }
+  | NLEF                        { Ccmpf (Float64, CFnle) }
+  | GTF                         { Ccmpf (Float64, CFgt) }
+  | NGTF                        { Ccmpf (Float64, CFngt) }
+  | GEF                         { Ccmpf (Float64, CFge) }
+  | NGEF                        { Ccmpf (Float64, CFnge) }
   | MULH                        { (Cmulhi {signed = true}) }
   | MULH UNSIGNED               { (Cmulhi {signed = false}) }
 ;

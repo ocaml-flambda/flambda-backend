@@ -99,7 +99,7 @@ let successor_labels_normal ti =
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
     Label.Set.singleton ifso |> Label.Set.add ifnot
-  | Float_test { lt; gt; eq; uo } ->
+  | Float_test { width = _; lt; gt; eq; uo } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
@@ -149,8 +149,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Truth_test { ifso = f ifso; ifnot = f ifnot }
       | Int_test { lt; eq; gt; is_signed; imm } ->
         Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed; imm }
-      | Float_test { lt; eq; gt; uo } ->
-        Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
+      | Float_test { width; lt; eq; gt; uo } ->
+        Float_test { width; lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { destination } ->
         Tailcall_self { destination = f destination }
@@ -272,13 +272,20 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Negf -> Format.fprintf ppf "negf"
-  | Absf -> Format.fprintf ppf "absf"
-  | Addf -> Format.fprintf ppf "addf"
-  | Subf -> Format.fprintf ppf "subf"
-  | Mulf -> Format.fprintf ppf "mulf"
-  | Divf -> Format.fprintf ppf "divf"
-  | Compf _ -> Format.fprintf ppf "compf"
+  | Negf Float64 -> Format.fprintf ppf "negf"
+  | Absf Float64 -> Format.fprintf ppf "absf"
+  | Addf Float64 -> Format.fprintf ppf "addf"
+  | Subf Float64 -> Format.fprintf ppf "subf"
+  | Mulf Float64 -> Format.fprintf ppf "mulf"
+  | Divf Float64 -> Format.fprintf ppf "divf"
+  | Compf (Float64, _) -> Format.fprintf ppf "compf"
+  | Negf Float32 -> Format.fprintf ppf "negf32"
+  | Absf Float32 -> Format.fprintf ppf "absf32"
+  | Addf Float32 -> Format.fprintf ppf "addf32"
+  | Subf Float32 -> Format.fprintf ppf "subf32"
+  | Mulf Float32 -> Format.fprintf ppf "mulf32"
+  | Divf Float32 -> Format.fprintf ppf "divf32"
+  | Compf (Float32, _) -> Format.fprintf ppf "compf32"
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
@@ -346,7 +353,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Truth_test { ifso; ifnot } ->
     fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
-  | Float_test { lt; eq; gt; uo } ->
+  | Float_test { width = _; lt; eq; gt; uo } ->
     fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
     fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
     fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;
@@ -485,12 +492,12 @@ let is_pure_operation : operation -> bool = function
   | Intop _ -> true
   | Intop_imm _ -> true
   | Intop_atomic _ -> false
-  | Negf -> true
-  | Absf -> true
-  | Addf -> true
-  | Subf -> true
-  | Mulf -> true
-  | Divf -> true
+  | Negf _ -> true
+  | Absf _ -> true
+  | Addf _ -> true
+  | Subf _ -> true
+  | Mulf _ -> true
+  | Divf _ -> true
   | Compf _ -> true
   | Csel _ -> true
   | Vectorcast _ -> true
@@ -552,10 +559,10 @@ let is_noop_move instr =
   | Op
       ( Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf
-      | Compf _ | Opaque | Valueofint | Intofvalue | Scalarcast _
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region | Dls_get | Poll | Alloc _ )
+      | Intop_imm _ | Intop_atomic _ | Negf _ | Absf _ | Addf _ | Subf _
+      | Mulf _ | Divf _ | Compf _ | Opaque | Valueofint | Intofvalue
+      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

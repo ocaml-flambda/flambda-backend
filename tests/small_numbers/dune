@@ -1,19 +1,31 @@
+; Stubs
+
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (flags -msse4.2)
+ (include_dirs "../../ocaml/%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+
+; Tests with external assembler
+
 (executables
- (names basic)
- (modules basic)
+ (names float32)
+ (modules float32)
+ (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension small_numbers)))
 
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out)
- (deps basic.exe)
+ (targets float32.out)
+ (deps float32.exe)
  (action
   (progn
    (with-outputs-to
-    basic.out
-    (run ./basic.exe)))))
+    float32.out
+    (run ./float32.exe)))))
 
 (rule
  (alias runtest)
@@ -21,4 +33,45 @@
   (= %{context_name} "main"))
  (action
   (progn
-   (diff empty.expected basic.out))))
+   (diff empty.expected float32.out))))
+
+; Tests with internal assembler - not supported on macOS
+
+(rule
+ (targets float32_internal.ml)
+ (deps float32.ml)
+ (action
+  (progn
+   (copy float32.ml float32_internal.ml))))
+
+(executables
+ (names float32_internal)
+ (modules float32_internal)
+ (enabled_if
+  (<> %{system} macosx))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension small_numbers -internal-assembler)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets float32_internal.out)
+ (deps float32_internal.exe)
+ (action
+  (progn
+   (with-outputs-to
+    float32_internal.out
+    (run ./float32_internal.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff empty.expected float32_internal.out))))

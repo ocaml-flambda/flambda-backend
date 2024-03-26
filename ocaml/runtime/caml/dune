@@ -93,6 +93,7 @@
     (sync.h as caml/sync.h)
     (sys.h as caml/sys.h)
     (simd.h as caml/simd.h)
+    (float32.h as caml/float32.h)
     (version.h as caml/version.h)
     (weak.h as caml/weak.h)
     (winsupport.h as caml/winsupport.h)

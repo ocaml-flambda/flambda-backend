@@ -97,7 +97,7 @@ let _xmm0v () = phys_reg Vec128 100
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
+  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf _|Isubf _|Imulf _|Idivf _ ->
       ([|res.(0); arg.(1)|], res)
   | Iintop_atomic {op = Compare_and_swap; size = _; addr = _} ->
       (* first arg must be rax *)
@@ -111,7 +111,7 @@ let pseudoregs_for_operation op arg res =
       (arg, res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
-  | Iabsf | Inegf
+  | Iabsf _ | Inegf _
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
@@ -136,7 +136,7 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Icompf cond ->
+  | Icompf (_width, cond) ->
     (* CR gyorsh: make this optimization as a separate PR. *)
       (* We need to temporarily store the result of the comparison in a
          float register, but we don't want to clobber any of the inputs
@@ -284,20 +284,20 @@ method! select_operation op args dbg =
          arg) -> (Ispecific(Ilea addr), [arg])
       end
   (* Recognize float arithmetic with memory. *)
-  | Caddf ->
-      self#select_floatarith true Iaddf Ifloatadd args
-  | Csubf ->
-      self#select_floatarith false Isubf Ifloatsub args
-  | Cmulf ->
-      self#select_floatarith true Imulf Ifloatmul args
-  | Cdivf ->
-      self#select_floatarith false Idivf Ifloatdiv args
+  | Caddf width ->
+      self#select_floatarith true (Iaddf width) (Ifloatadd width) args
+  | Csubf width ->
+      self#select_floatarith false (Isubf width) (Ifloatsub width) args
+  | Cmulf width ->
+      self#select_floatarith true (Imulf width) (Ifloatmul width) args
+  | Cdivf width ->
+      self#select_floatarith false (Idivf width) (Ifloatdiv width) args
   (* Special cases overriding C implementations. *)
   | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload { memory_chunk = Double as chunk; _}, [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
-         (Ispecific(Ifloatsqrtf addr), [arg])
+         (Ispecific(Ifloatsqrtf (Float64, addr)), [arg])
      | [arg] ->
          (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f64)), [arg])
      | _ ->
@@ -326,6 +326,7 @@ method! select_operation op args dbg =
                 is_atomic; }, [arg]
       | _ -> Imove, args)
   (* x86 intrinsics ([@@builtin]) *)
+  (* CR mslater: (float32) casting/sqrt intrinsics *)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args

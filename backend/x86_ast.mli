@@ -307,14 +307,14 @@ type instruction =
   | CMPSD of float_condition * arg * arg
   | COMISD of arg * arg
   | CQO
-  | CVTSS2SI of arg * arg
   | CVTSD2SI of arg * arg
-  | CVTSI2SS of arg * arg
+  | CVTSS2SI of arg * arg
   | CVTSD2SS of arg * arg
-  | CVTSI2SD of arg * arg
+  | CVTSI2SS of arg * arg
   | CVTSS2SD of arg * arg
-  | CVTTSS2SI of arg * arg
+  | CVTSI2SD of arg * arg
   | CVTTSD2SI of arg * arg
+  | CVTTSS2SI of arg * arg
   | DEC of arg
   | DIVSD of arg * arg
   | HLT
@@ -369,6 +369,16 @@ type instruction =
   | XCHG of arg * arg
   | XOR of arg * arg
   | XORPD of arg * arg
+  | ADDSS of arg * arg
+  | SUBSS of arg * arg
+  | MULSS of arg * arg
+  | DIVSS of arg * arg
+  | COMISS of arg * arg
+  | UCOMISS of arg * arg
+  | SQRTSS of arg * arg
+  | XORPS of arg * arg
+  | ANDPS of arg * arg
+  | CMPSS of float_condition * arg * arg
   | SSE of sse_instruction
   | SSE2 of sse2_instruction
   | SSE3 of sse3_instruction

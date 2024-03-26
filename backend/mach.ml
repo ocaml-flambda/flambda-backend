@@ -31,6 +31,8 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
 
+type float_width = Cmm.float_width
+
 type float_comparison = Cmm.float_comparison
 
 type mutable_flag = Immutable | Mutable
@@ -52,7 +54,7 @@ type test =
   | Ifalsetest
   | Iinttest of integer_comparison
   | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
+  | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
 
@@ -85,8 +87,10 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_width * float_comparison
+  | Inegf of float_width | Iabsf of float_width
+  | Iaddf of float_width | Isubf of float_width
+  | Imulf of float_width | Idivf of float_width
   | Icsel of test
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
@@ -193,7 +197,7 @@ let rec instr_iter f i =
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
-            | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+            | Inegf _ | Iabsf _ | Iaddf _ | Isubf _ | Imulf _ | Idivf _
             | Icompf _
             | Icsel _ | Iscalarcast _
             | Ivalueofint | Iintofvalue | Ivectorcast _
@@ -217,7 +221,8 @@ let operation_is_pure = function
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
+  | Imulf _ | Idivf _
   | Icompf _
   | Icsel _
   | Ivectorcast _ | Iscalarcast _
@@ -237,7 +242,8 @@ let operation_can_raise op =
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_atomic _
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
+  | Imulf _ | Idivf _
   | Icompf _
   | Icsel _ | Iscalarcast _
   | Ivalueofint | Iintofvalue | Ivectorcast _

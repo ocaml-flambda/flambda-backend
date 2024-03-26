@@ -163,7 +163,7 @@ let unary_operation_argument_or_result_on_stack
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Op (Addf | Subf | Mulf | Divf) ->
+  | Op (Addf _ | Subf _ | Mulf _ | Divf _) ->
     may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
   | Op (Specific (Isimd op)) ->
     (match Simd_proc.register_behavior op with
@@ -227,7 +227,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
   | Op (Intop_atomic _)
-  | Op (Move | Spill | Reload | Negf | Absf | Const_float32 _ | Const_float _
+  | Op (Move | Spill | Reload | Negf _ | Absf _ | Const_float32 _ | Const_float _
        | Const_vec128 _ | Compf _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
