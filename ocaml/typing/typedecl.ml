@@ -3218,8 +3218,9 @@ let report_error ppf = function
   | Missing_unboxed_attribute_on_non_value_sort sort ->
     fprintf ppf
       "@[[%@unboxed] attribute must be added to external declaration@ \
-          argument type with layout %a. This error is produced@ \
-          due to the use of -only-erasable-extensions.@]"
+          argument type with layout %a for upstream compatibility. \
+          This error is produced@ due to the use of -extension-universe \
+          (no_extensions|upstream_compatible).@]"
       Jkind.Sort.format_const sort
   | Non_value_sort_not_upstream_compatible sort ->
     fprintf ppf
@@ -3227,7 +3228,8 @@ let report_error ppf = function
          The only types with non-value layouts allowed are float#,@ \
          int32#, int64#, and nativeint#. Unknown type with layout@ \
          %a encountered. This error is produced due to@ \
-         the use of -only-erasable-extensions.@]"
+         the use of -extension-universe (no_extensions|\
+         upstream_compatible).@]"
       Jkind.Sort.format_const sort
 
 let () =
