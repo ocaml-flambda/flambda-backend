@@ -116,6 +116,10 @@ module Duplicate_block_kind : sig
         }
     | Naked_floats of { length : Targetint_31_63.t }
     | Mixed
+        (** We could store tag/length (or other relevant fields) on [Mixed],
+            but we don't because the fields of [t] are currently only used for
+            printing.
+        *)
 
   val print : Format.formatter -> t -> unit
 
