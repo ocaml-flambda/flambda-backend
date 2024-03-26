@@ -1133,15 +1133,18 @@ let assert_mixed_record_support =
 *)
 let update_decl_jkind env dpath decl =
   let open struct
-    (* For tracking what types appear in record blocks. A field [x]
-       will be [true] iff there is at least one field whose upper
-       bound is exactly [x]. (For example, [values] may be [false] even
-       if [imms] is [true].)
+    (* For tracking what types appear in record blocks. The field [x]
+       tracks whether there is a record field whose most-precise layout
+       is [x]. (For example, [values] may be [false] even if [imms] is [true].)
     *)
     type element_reprs =
       {  mutable values : bool; (* also includes [imm64] *)
          mutable imms : bool;
          mutable floats: bool;
+         (* float is not technically a 'layout', contrary to the comment above.
+            For purposes of this record, [floats] tracks whether any field
+            has layout value and is known to be a float.
+         *)
          mutable float64s : bool }
 
     type element_repr =
