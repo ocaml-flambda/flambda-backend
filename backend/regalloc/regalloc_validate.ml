@@ -541,7 +541,7 @@ end = struct
       compare_label ifnot1 ifnot2
     | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
         Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
-      when Stdlib.compare w1 w2 = 0 ->
+      when Cmm.equal_float_width w1 w2 ->
       compare_label lt1 lt2;
       compare_label eq1 eq2;
       compare_label gt1 gt2;

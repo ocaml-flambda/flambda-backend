@@ -447,7 +447,7 @@ let check_terminator_instruction :
     State.add_to_explore state ifnot1 ifnot2
   | ( Float_test { width = w1; lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
       Float_test { width = w2; lt = lt2; eq = eq2; gt = gt2; uo = uo2 } )
-    when Stdlib.compare w1 w2 = 0 ->
+    when Cmm.equal_float_width w1 w2 ->
     State.add_to_explore state lt1 lt2;
     State.add_to_explore state eq1 eq2;
     State.add_to_explore state gt1 gt2;
