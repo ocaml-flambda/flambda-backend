@@ -58,7 +58,7 @@ module Make (Witnesses : WS) : sig
     val bot : t
 
     (** [normal_return] means property holds on paths to normal return, exceptional return
-        iss not reachable and execution will not diverge.  *)
+        is not reachable and execution will not diverge.  *)
     val normal_return : t
 
     (** [exn_escape] means the property holds on paths to exceptional return, normal
