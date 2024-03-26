@@ -170,7 +170,8 @@ let check_all_ast_attributes_and_extensions_start_with raw_parsetree_str ~prefix
 
 let () =
   process "source.ml";
-  Language_extension.enable_maximal ();
+  Language_extension.set_universe_and_enable_all
+    Language_extension.Universe.maximal;
   process "source_jane_street.ml" ~extra_checks:(fun raw_parsetree_str text ->
   (* Additionally check that:
 
