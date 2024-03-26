@@ -119,7 +119,7 @@ let jkind_layout_must_be_value loc jkind =
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
   | (Value | Immediate | Immediate64), _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
@@ -2169,6 +2169,22 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+          if pos < value_prefix_len then
+            Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
+            lbl_sort, lbl_layout
+          else begin
+            let projection =
+              match flat_suffix.(pos - value_prefix_len) with
+              | Imm -> Projection_imm
+              | Float64 -> Projection_float64
+              | Float ->
+                  (* TODO: could optimise to Alloc_local sometimes *)
+                  Projection_float alloc_heap
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, projection, sem), [ arg ], loc)
+          end,
+          lbl_sort, lbl_layout
       in
       let str =
         match lbl.lbl_mut with

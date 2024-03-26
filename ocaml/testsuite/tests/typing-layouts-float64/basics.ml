@@ -2,8 +2,6 @@
    * flambda2
    ** expect
    ** expect
-     flags = "-extension layouts_alpha"
-   ** expect
      flags = "-extension layouts_beta"
 *)
 
@@ -195,31 +193,50 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
          it's the type of a tuple element.
 |}]
 
-(******************************************************************************)
-(* Test 5: Can't be put in structures in typedecls, except all-float records. *)
+(****************************************************************************)
+(* Test 5: Can't be put in structures in typedecls, except certain records. *)
 
+(* all-float64 records are allowed, as are any combination of immediate, float,
+   and float64 *)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
 |}];;
 
-(* CR layouts v5: this should work *)
-type t5_2 = { y : int; x : t_float64 };;
+type t5_2_1 = { y : int; x : t_float64 };;
 [%%expect{|
-Line 1, characters 0-38:
-1 | type t5_2 = { y : int; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
+Line 1, characters 0-40:
+1 | type t5_2_1 = { y : int; x : t_float64 };;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
-type t5_2' = { y : string; x : t_float64 };;
+type t5_2_2 = { y : float; x : t_float64 };;
 [%%expect{|
 Line 1, characters 0-42:
-1 | type t5_2' = { y : string; x : t_float64 };;
+1 | type t5_2_2 = { y : float; x : t_float64 };;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
+|}];;
+
+type t5_2_3 = { z : float; y : int; x : t_float64 };;
+[%%expect{|
+Line 1, characters 0-51:
+1 | type t5_2_3 = { z : float; y : int; x : t_float64 };;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
+|}];;
+
+type t5_2_4 = { y : string; x : t_float64 };;
+[%%expect{|
+Line 1, characters 0-43:
+1 | type t5_2_4 = { y : string; x : t_float64 };;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -304,7 +321,8 @@ type 'a t5_14 = {x : 'a; y : float#};;
 Line 1, characters 0-36:
 1 | type 'a t5_14 = {x : 'a; y : float#};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 type ufref = { mutable contents : float# };;

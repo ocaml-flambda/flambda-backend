@@ -70,6 +70,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error

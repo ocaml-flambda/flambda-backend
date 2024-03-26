@@ -24,6 +24,7 @@
 #include "caml/custom.h"
 #include "caml/memory.h"
 #include "caml/hash.h"
+#include "caml/fail.h"
 
 /* The implementation based on MurmurHash 3,
    https://github.com/aappleby/smhasher/ */
@@ -205,6 +206,10 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
       h = caml_hash_mix_intnat(h, v);
       num--;
     } else {
+      if (Is_mixed_block_reserved(Reserved_val(v))) {
+        caml_invalid_argument("hash: mixed block value");
+        break;
+      }
       switch (Tag_val(v)) {
       case String_tag:
         h = caml_hash_mix_string(h, v);

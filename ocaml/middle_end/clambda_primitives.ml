@@ -39,6 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of mutable_flag * mixed_record_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -47,6 +48,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
+  | Pmixedfield of int * flat_element * alloc_mode
+  | Psetmixedfield of int * flat_element * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -210,6 +213,10 @@ and boxed_float = Lambda.boxed_float =
 and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
+and flat_element = Lambda.flat_element =
+    Imm | Float | Float64
+and mixed_record_shape = flat_element array
+
 and unboxed_float = boxed_float
 
 and unboxed_integer = boxed_integer
@@ -250,11 +257,11 @@ let equal (x: primitive) (y: primitive) = x = y
 let result_layout (p : primitive) =
   match p with
   | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _
+  | Psetufloatfield _ | Psetabstractfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
     -> Lambda.layout_unit
   | Pmakeblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed -> Lambda.layout_field
   | Pfloatfield _ -> Lambda.layout_boxed_float Pfloat64
@@ -265,6 +272,11 @@ let result_layout (p : primitive) =
   | Pbox_float (bf, _) -> Lambda.layout_boxed_float bf
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float bf -> Punboxed_float bf
+  | Pmixedfield (_, shape, _) -> begin
+      match shape with
+      | Imm | Float -> Lambda.layout_any_value
+      | Float64 -> Lambda.layout_unboxed_float
+    end
   | Pccall { prim_native_repr_res = _, repr_res } -> Lambda.layout_of_extern_repr repr_res
   | Praise _ -> Lambda.layout_bottom
   | Psequor | Psequand | Pnot

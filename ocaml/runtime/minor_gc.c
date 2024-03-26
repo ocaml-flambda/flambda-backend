@@ -308,13 +308,20 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     st->live_bytes += Bhsize_hd(hd);
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
+    mlsize_t scannable_sz = Scannable_wosize_hd(hd);
+    /* Copy the non-scannable suffix of fields. */
+    for (i = scannable_sz; i < sz; i++) {
+      Field(result, i) = Field(v, i);
+    }
     if( try_update_object_header(v, p, result, infix_offset) ) {
-      if (sz > 1){
+      if (scannable_sz == 0) {
+        return;
+      } else if (scannable_sz > 1){
         Field(result, 0) = field0;
         Field(result, 1) = st->todo_list;
         st->todo_list = v;
       } else {
-        CAMLassert (sz == 1);
+        CAMLassert (scannable_sz == 1);
         p = Op_val(result);
         v = field0;
         goto tail_call;
@@ -325,6 +332,9 @@ static void oldify_one (void* st_v, value v, volatile value *p)
                                     caml_allocation_status());
       #ifdef DEBUG
       {
+        /* Don't need to check reserved bits for whether this is a mixed block;
+           this is just uninitialized data for debugging.
+         */
         int c;
         for( c = 0; c < sz ; c++ ) {
           Field(result, c) = Val_long(1);
@@ -411,13 +421,17 @@ again:
     new_v = Field(v, 0);                 /* Follow forward pointer. */
     st->todo_list = Field (new_v, 1);    /* Remove from list. */
 
-    f = Field(new_v, 0);
-    CAMLassert (!Is_debug_tag(f));
-    if (Is_block (f) && Is_young(f)) {
-      oldify_one (st, f, Op_val (new_v));
+    mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
+
+    if (scannable_wosize != 0) {
+      f = Field(new_v, 0);
+      CAMLassert (!Is_debug_tag(f));
+      if (Is_block (f) && Is_young(f)) {
+        oldify_one (st, f, Op_val (new_v));
+      }
     }
-    mlsize_t new_v_size = Wosize_val (new_v);
-    for (i = 1; i < new_v_size; i++){
+
+    for (i = 1; i < scannable_wosize; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
       if (Is_block (f) && Is_young(f)) {
@@ -426,6 +440,9 @@ again:
         Field(new_v, i) = f;
       }
     }
+
+    // The non-scannable suffix is already copied in [oldify_one].
+
     CAMLassert (Wosize_val(new_v));
   }
 
