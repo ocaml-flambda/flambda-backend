@@ -114,7 +114,11 @@
          ignore assert all zero_alloc : int (compare_ints prim prim))
      eta_float_cmp =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (compare_floats float prim prim))
+=======
          ignore assert all zero_alloc : int (compare_floats prim prim))
+>>>>>>> main
      eta_string_cmp =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_compare prim prim))
@@ -142,7 +146,11 @@
          ignore assert all zero_alloc : int (== prim prim))
      eta_float_eq =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.== prim prim))
+=======
          ignore assert all zero_alloc : int (==. prim prim))
+>>>>>>> main
      eta_string_eq =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_equal prim prim))
@@ -169,7 +177,11 @@
          ignore assert all zero_alloc : int (!= prim prim))
      eta_float_ne =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.!= prim prim))
+=======
          ignore assert all zero_alloc : int (!=. prim prim))
+>>>>>>> main
      eta_string_ne =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_notequal prim prim))
@@ -196,7 +208,11 @@
          ignore assert all zero_alloc : int (< prim prim))
      eta_float_lt =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.< prim prim))
+=======
          ignore assert all zero_alloc : int (<. prim prim))
+>>>>>>> main
      eta_string_lt =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_lessthan prim prim))
@@ -223,7 +239,11 @@
          ignore assert all zero_alloc : int (> prim prim))
      eta_float_gt =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.> prim prim))
+=======
          ignore assert all zero_alloc : int (>. prim prim))
+>>>>>>> main
      eta_string_gt =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_greaterthan prim prim))
@@ -250,7 +270,11 @@
          ignore assert all zero_alloc : int (<= prim prim))
      eta_float_le =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.<= prim prim))
+=======
          ignore assert all zero_alloc : int (<=. prim prim))
+>>>>>>> main
      eta_string_le =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_lessequal prim prim))
@@ -277,7 +301,11 @@
          ignore assert all zero_alloc : int (>= prim prim))
      eta_float_ge =
        (function {nlocal = 0} prim[float] prim[float] stub
+<<<<<<< HEAD
+         ignore assert all zero_alloc : int (Float.>= prim prim))
+=======
          ignore assert all zero_alloc : int (>=. prim prim))
+>>>>>>> main
      eta_string_ge =
        (function {nlocal = 0} prim prim stub ignore assert all zero_alloc
          : int (caml_string_greaterequal prim prim))
