@@ -634,7 +634,6 @@ runtime4_COMMON_C_SOURCES = \
   interp \
   ints \
   io \
-  isa \
   lexing \
   main \
   major_gc \
@@ -674,8 +673,7 @@ runtime4_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   roots_nat \
   startup_nat \
-  signals_nat \
-  isa
+  signals_nat
 
 # Runtime system source files (v5)
 
@@ -704,7 +702,6 @@ runtime_COMMON_C_SOURCES = \
   intern \
   ints \
   io \
-  isa \
   lexing \
   lf_skiplist \
   main \
@@ -747,8 +744,7 @@ runtime_NATIVE_ONLY_C_SOURCES = \
   fail_nat \
   frame_descriptors \
   startup_nat \
-  signals_nat \
-  isa
+  signals_nat
 
 # The runtime system
 
