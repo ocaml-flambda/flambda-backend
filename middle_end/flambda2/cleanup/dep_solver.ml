@@ -116,10 +116,15 @@ end
 
 let max_depth = 2
 
+(** Represents the part of a value that can be accessed *)
 type elt =
-  | Top
-  | Fields of int * elt Field.Map.t
-  | Bottom
+  | Top  (** Value completely accessed *)
+  | Fields of { depth : int; fields : elt Field.Map.t }
+    (** Those fields of the value are accessed;
+        invariants:
+        * depth is the maximum of fields depth + 1
+        * no element of fields is Bottom *)
+  | Bottom  (** Value not accessed *)
 
 (* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
    Top *)
@@ -128,7 +133,8 @@ let rec pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
-  | Fields (d, f) -> Format.fprintf ppf "%d{ %a }" d (Field.Map.print pp_elt) f
+  | Fields { depth; fields } ->
+    Format.fprintf ppf "%d{ %a }" depth (Field.Map.print pp_elt) fields
 
 let rec equal_elt e1 e2 =
   match e1, e2 with
@@ -136,10 +142,10 @@ let rec equal_elt e1 e2 =
   | Bottom, (Top | Fields _) | (Top | Fields _), Bottom -> false
   | Top, Top -> true
   | Top, Fields _ | Fields _, Top -> false
-  | Fields (_, f1), Fields (_, f2) ->
+  | Fields { fields = f1; _ }, Fields { fields = f2; _ } ->
     if f1 == f2 then true else Field.Map.equal equal_elt f1 f2
 
-let depth_of e = match e with Bottom | Top -> 0 | Fields (d, _) -> d
+let depth_of e = match e with Bottom | Top -> 0 | Fields f -> f.depth
 
 let rec join_elt e1 e2 =
   if e1 == e2
@@ -148,26 +154,26 @@ let rec join_elt e1 e2 =
     match e1, e2 with
     | Bottom, e | e, Bottom -> e
     | Top, _ | _, Top -> Top
-    | Fields (_, f1), Fields (_, f2) ->
+    | Fields f1, Fields f2 ->
       let unioner _k e1 e2 =
         let e = join_elt e1 e2 in
         Some e
       in
       let fields = Field.Map.union unioner f1 f2 in
       let max_depth = Field.Map.fold (fun _k e depth -> max depth (depth_of e)) fields 0 in
-      Fields (1 + max_depth, fields)
+      Fields { depth = 1 + max_depth; fields }
 
 let rec cut_at depth elt =
   match elt with
   | Top | Bottom -> elt
-  | Fields (d, fields) ->
+  | Fields { depth = d; fields } ->
     if d <= depth
     then elt
     else if depth = 0
     then Top
     else
       let fields = Field.Map.map (cut_at (depth - 1)) fields in
-      Fields (depth, fields)
+      Fields {depth; fields}
 
 let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
   match elt with
@@ -187,12 +193,12 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
     | Field (f, n) ->
       let elt = cut_at (max_depth - 1) elt in
       let depth = depth_of elt + 1 in
-      Some (Code_id_or_name.name n, Fields (depth, Field.Map.singleton f elt))
+      Some (Code_id_or_name.name n, Fields {depth; fields = Field.Map.singleton f elt})
     | Block (f, n) -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Some (n, Top)
-      | Fields (_, path) -> (
+      | Fields { fields = path; _ } -> (
         match Field.Map.find_opt f path with
         | None -> None
         | Some elt -> Some (n, elt))
@@ -231,10 +237,14 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
   let add_called called =
     Hashtbl.iter (fun code_id () ->
         let code_id = Code_id_or_name.code_id code_id in
-        if not (Hashtbl.mem result code_id) then Hashtbl.replace result code_id (Fields (1, Field.Map.singleton Apply Top));
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1, Field.Map.singleton Apply Top)) *)
-        push code_id
-      ) called
+        if not (Hashtbl.mem result code_id)
+        then
+          Hashtbl.replace result code_id
+            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
+           Field.Map.singleton Apply Top)) *)
+        push code_id)
+      called
   in
   add_used fun_graph.used;
   add_called fun_graph.called
@@ -363,10 +373,14 @@ let fixpoint (graph : graph) : result =
   let rec add_called called =
     Hashtbl.iter (fun code_id () ->
         let code_id = Code_id_or_name.code_id code_id in
-        if not (Hashtbl.mem result code_id) then Hashtbl.replace result code_id (Fields (1, Field.Map.singleton Apply Top));
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1, Field.Map.singleton Apply Top)) *)
-        Queue.push code_id q (* CR do better, push_front? *)
-      ) called
+        if not (Hashtbl.mem result code_id)
+        then
+          Hashtbl.replace result code_id
+            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
+           Field.Map.singleton Apply Top)) *)
+        Queue.push code_id q (* CR do better, push_front? *))
+      called
   and add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter (fun n deps ->
         (match Hashtbl.find_opt all_deps n with

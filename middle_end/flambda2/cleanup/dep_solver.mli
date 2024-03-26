@@ -7,7 +7,7 @@ module Field :
 
 type elt =
   | Top
-  | Fields of int * elt Field.Map.t
+  | Fields of { depth : int; fields : elt Field.Map.t }
   | Bottom
 
 type graph = Cleanup_deps.graph

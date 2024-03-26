@@ -220,7 +220,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode function_
                   match Hashtbl.find_opt uses (Code_id_or_name.var (Bound_var.var bv)) with
                   | None | Some Bottom -> false
                   | Some Top -> true
-                  | Some (Fields (_, m)) -> Dep_solver.Field.Map.mem slot m
+                  | Some (Fields f) -> Dep_solver.Field.Map.mem slot f.fields
                 ) bound
             in
             let value_slots = Value_slot.Map.filter (fun slot _ -> slot_is_used (Value_slot slot)) value_slots in
