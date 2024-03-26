@@ -26,13 +26,6 @@
 
 CAML_STATIC_ASSERT(sizeof(float) == sizeof(int32_t));
 
-static int32_t float32_as_int32(float f)
-{
-  union { float f; int32_t i; } u;
-  u.f = f;
-  return u.i;
-}
-
 intnat caml_float32_compare_unboxed(float f, float g)
 {
   /* If one or both of f and g is NaN, order according to the convention
@@ -53,8 +46,21 @@ static int float32_cmp(value v1, value v2)
 
 static intnat float32_hash(value v)
 {
-  float f = Float32_val(v);
-  return float32_as_int32(f);
+  union {
+    float f;
+    uint32_t i;
+  } u;
+  uint32_t n;
+  u.f = Float32_val(v);  n = u.i;
+  /* Normalize NaNs */
+  if ((n & 0x7F800000) == 0x7F800000 && (n & 0x007FFFFF) != 0) {
+    n = 0x7F800001;
+  }
+  /* Normalize -0 into +0 */
+  else if (n == 0x80000000) {
+    n = 0;
+  }
+  return n;
 }
 
 static uintnat float32_deserialize(void *dst)

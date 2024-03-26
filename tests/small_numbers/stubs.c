@@ -10,6 +10,7 @@ float float32_neg_zero(value unit) { return -0.0f; }
 float float32_one(value unit) { return 1.0f; }
 float float32_neg_one(value unit) { return -1.0f; }
 float float32_nan(value unit) { return NAN; }
+float float32_nan2(value unit) { return -NAN; }
 float float32_neg_infinity(value unit) { return -INFINITY; }
 float float32_infinity(value unit) { return INFINITY; }
 float float32_maxv(value unit) { return FLT_MAX; }
@@ -40,6 +41,7 @@ value float32_neg_zero_boxed(value unit) { return caml_copy_float32(-0.0f); }
 value float32_one_boxed(value unit) { return caml_copy_float32(1.0f); }
 value float32_neg_one_boxed(value unit) { return caml_copy_float32(-1.0f); }
 value float32_nan_boxed(value unit) { return caml_copy_float32(NAN); }
+value float32_nan2_boxed(value unit) { return caml_copy_float32(-NAN); }
 value float32_neg_infinity_boxed(value unit) { return caml_copy_float32(-INFINITY); }
 value float32_infinity_boxed(value unit) { return caml_copy_float32(INFINITY); }
 value float32_maxv_boxed(value unit) { return caml_copy_float32(FLT_MAX); }

@@ -58,6 +58,7 @@ module CFloat32 = struct
   external one : unit -> (t [@unboxed]) = "float32_one_boxed" "float32_one" [@@noalloc]
   external neg_one : unit -> (t [@unboxed]) = "float32_neg_one_boxed" "float32_neg_one" [@@noalloc]
   external nan : unit -> (t [@unboxed]) = "float32_nan_boxed" "float32_nan" [@@noalloc]
+  external nan2 : unit -> (t [@unboxed]) = "float32_nan2_boxed" "float32_nan2" [@@noalloc]
   external neg_infinity : unit -> (t [@unboxed]) = "float32_neg_infinity_boxed" "float32_neg_infinity" [@@noalloc]
   external infinity : unit -> (t [@unboxed]) = "float32_infinity_boxed" "float32_infinity" [@@noalloc]
   external maxv : unit -> (t [@unboxed]) = "float32_maxv_boxed" "float32_maxv" [@@noalloc]
@@ -67,6 +68,7 @@ module CFloat32 = struct
   let neg_zero = neg_zero ()
   let one = one ()
   let nan = nan ()
+  let nan2 = nan2 ()
   let neg_infinity = neg_infinity ()
   let infinity = infinity ()
   let neg_one = neg_one ()
@@ -105,7 +107,9 @@ module CFloat32 = struct
       f neg_one neg_one;
       f one neg_one;
       f zero neg_zero;
+      f neg_zero zero;
       f nan zero;
+      f nan2 nan;
       f infinity zero;
       f neg_infinity zero;
       f nan nan;
@@ -244,8 +248,12 @@ let () = (* Compare *)
 let () = (* Hash *)
   CFloat32.check_float32s (fun f _ ->
       let h = Poly.hash f in
-      let bits = CFloat32.bits_to_int f |> Poly.hash in
-      assert (h = bits)
+      let bits =
+        if f = Float32.of_float 0.0 then 0l
+        else if CFloat32.is_nan f then 0x7F800001l
+        else CFloat32.bits_to_int f
+      in
+      assert (h = Poly.hash bits)
   )
 ;;
 
