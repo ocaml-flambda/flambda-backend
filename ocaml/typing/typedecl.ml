@@ -1165,6 +1165,50 @@ let update_decl_jkind env dpath decl =
       | Float_element | Value_element -> None
   end in
 
+  (* Compute the [flat_suffix] field of a mixed block record kind. *)
+  let find_mixed_block_flat_suffix =
+    let rec find_flat_suffix classifications =
+      match classifications with
+      | [] -> Misc.fatal_error "Expected at least one Float64"
+      | (non_value_ld, c) :: classifications ->
+          match c with
+          | Flat_float64_element ->
+              let suffix =
+                List.map (fun (repr_ld, repr) ->
+                    match element_repr_to_flat repr with
+                    | Some flat -> flat
+                    | None ->
+                        let violation =
+                          Flat_field_expected
+                            { boxed_lbl = repr_ld.Types.ld_id;
+                              non_value_lbl = non_value_ld.Types.ld_id;
+                            }
+                        in
+                        raise (Error (repr_ld.Types.ld_loc,
+                                      Illegal_mixed_record violation)))
+                  classifications
+              in
+              `Continue (Float64 :: suffix)
+          | Float_element
+          | Flat_imm_element
+          | Value_element
+          | Element_without_runtime_component as repr -> begin
+              match find_flat_suffix classifications with
+              | `Stop _ as stop -> stop
+              | `Continue suffix -> begin
+                  match element_repr_to_flat repr with
+                  | None -> `Stop suffix
+                  | Some flat -> `Continue (flat :: suffix)
+                end
+            end
+    in
+    fun classifications ->
+      let (`Continue flat_suffix | `Stop flat_suffix) =
+        find_flat_suffix classifications
+      in
+      Array.of_list flat_suffix
+  in
+
   (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
@@ -1226,47 +1270,7 @@ let update_decl_jkind env dpath decl =
             Record_mixed { value_prefix_len = 0; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
-            let rec find_flat_suffix classifications =
-              match classifications with
-              | [] -> Misc.fatal_error "Expected at least one Float64"
-              | (non_value_ld, c) :: classifications ->
-                  match c with
-                  | Flat_float64_element ->
-                      let suffix =
-                        List.map (fun (repr_ld, repr) ->
-                            match element_repr_to_flat repr with
-                            | Some flat -> flat
-                            | None ->
-                                let violation =
-                                  Flat_field_expected
-                                    { boxed_lbl = repr_ld.Types.ld_id;
-                                      non_value_lbl = non_value_ld.Types.ld_id;
-                                    }
-                                in
-                                raise (Error (repr_ld.Types.ld_loc,
-                                              Illegal_mixed_record violation)))
-                          classifications
-                      in
-                      `Continue (Float64 :: suffix)
-                  | Float_element
-                  | Flat_imm_element
-                  | Value_element
-                  | Element_without_runtime_component as repr -> begin
-                      match find_flat_suffix classifications with
-                      | `Stop _ as stop -> stop
-                      | `Continue suffix -> begin
-                          match element_repr_to_flat repr with
-                          | None -> `Stop suffix
-                          | Some flat -> `Continue (flat :: suffix)
-                        end
-                    end
-            in
-            let flat_suffix =
-              let (`Continue flat_suffix | `Stop flat_suffix) =
-                find_flat_suffix classifications
-              in
-              Array.of_list flat_suffix
-            in
+            let flat_suffix = find_mixed_block_flat_suffix classifications in
             let value_prefix_len =
               Array.length jkinds - Array.length flat_suffix
             in
