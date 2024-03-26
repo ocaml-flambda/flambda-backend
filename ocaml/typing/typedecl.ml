@@ -759,8 +759,8 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record lbls ->
           let lbls, lbls' = transl_labels ~new_var_jkind:Any env None true lbls in
           let rep, jkind =
-            (* Note this is innaccurate, using `Record_boxed` in cases where the
-               correct representaiton is [Record_float], [Record_ufloat], or
+            (* Note this is inaccurate, using `Record_boxed` in cases where the
+               correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
