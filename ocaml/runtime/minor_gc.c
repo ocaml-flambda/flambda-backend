@@ -308,23 +308,20 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     st->live_bytes += Bhsize_hd(hd);
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
+    mlsize_t scannable_sz = Scannable_wosize_hd(hd);
+    /* Copy the non-scannable suffix of fields. */
+    for (i = scannable_sz; i < sz; i++) {
+      Field(result, i) = Field(v, i);
+    }
     if( try_update_object_header(v, p, result, infix_offset) ) {
-      if (sz > 1){
+      if (scannable_sz == 0) {
+        return;
+      } else if (scannable_sz > 1){
         Field(result, 0) = field0;
         Field(result, 1) = st->todo_list;
         st->todo_list = v;
       } else {
-        CAMLassert (sz == 1);
-
-        /* If it's a "mixed" block with a single field, the contents
-           must not be a pointer so we *can* stop here, and might not be
-           scannable so we *must* stop here.
-         */
-        if (Is_mixed_block_reserved(Reserved_hd(hd))) {
-          CAMLassert(Scannable_wosize_hd(hd) == 0);
-          Field(result, 0) = field0;
-          return;
-        }
+        CAMLassert (scannable_sz == 1);
         p = Op_val(result);
         v = field0;
         goto tail_call;
@@ -426,11 +423,14 @@ again:
 
     mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
 
-    f = Field(new_v, 0);
-    CAMLassert (scannable_wosize != 0 || !Is_debug_tag(f));
-    if (scannable_wosize != 0 && Is_block (f) && Is_young(f)) {
-      oldify_one (st, f, Op_val (new_v));
+    if (scannable_wosize != 0) {
+      f = Field(new_v, 0);
+      CAMLassert (!Is_debug_tag(f));
+      if (Is_block (f) && Is_young(f)) {
+        oldify_one (st, f, Op_val (new_v));
+      }
     }
+
     for (i = 1; i < scannable_wosize; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
@@ -441,11 +441,8 @@ again:
       }
     }
 
-    if (i < Wosize_val(new_v)) {
-      memcpy (Op_val(new_v) + i,
-              Op_val(v)     + i,
-              Bsize_wsize(Wosize_val(new_v) - i));
-    }
+    // The non-scannable suffix is already copied in [oldify_one].
+
     CAMLassert (Wosize_val(new_v));
   }
 
