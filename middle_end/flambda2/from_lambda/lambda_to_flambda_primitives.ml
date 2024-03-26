@@ -1432,7 +1432,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | ( Psetmixedfield (field, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let imm = Targetint_31_63.of_int field in
-    check_non_negative_imm imm "Psetufloatfield";
+    check_non_negative_imm imm "Psetmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Mixed { field_kind = shape; size = Unknown }

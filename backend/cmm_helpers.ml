@@ -1414,9 +1414,8 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
-        let ofs = 1 + (idx * 2) in
         Csequence
-          ( set_fn idx (Cvar id) (Cconst_int (ofs, dbg)) e1 dbg,
+          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
             fill_fields (idx + 1) el )
     in
     let caml_alloc_func, caml_alloc_args =

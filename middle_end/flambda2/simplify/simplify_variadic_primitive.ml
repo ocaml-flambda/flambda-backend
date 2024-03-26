@@ -108,13 +108,7 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
     in
     let ty =
       match block_shape with
-      | Mixed _ ->
-        (* CR mixed blocks: I don't really know what I'm doing here. In
-           particular for [ty] I've picked [T.any_block] because exisiting more
-           specific types for blocks all want the fields to have the same kind.
-           I don't even know of [any_block] is correct -- perhaps it's meant to
-           be normal blocks below no scan tag. *)
-        T.any_block
+      | Mixed _ -> T.any_block
       | Not_mixed { shape; field_kind } -> (
         let fields =
           List.map2
