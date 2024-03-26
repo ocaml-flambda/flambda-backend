@@ -5,19 +5,6 @@ type dep = Cleanup_deps.Dep.t
 type field = Cleanup_deps.field
 
 module DepSet = Cleanup_deps.DepSet
-
-(* module SCC_S : Strongly_connected_components.Id = struct *)
-
-(* type t = Code_id_or_name.t *)
-
-(* module Set = Code_id_or_name.Set *)
-
-(* module Map = Code_id_or_name.Map *)
-
-(* let print = Code_id_or_name.print *)
-
-(* end *)
-
 module SCC = Strongly_connected_components.Make (Code_id_or_name)
 
 module Make_SCC = struct
@@ -30,11 +17,6 @@ module Make_SCC = struct
       Code_id_or_name.Set.add
         (Code_id_or_name.code_id c)
         (Code_id_or_name.Set.singleton (Code_id_or_name.name n))
-
-  (* let depset init (d : DepSet.t) : Code_id_or_name.Set.t = *)
-  (*   DepSet.fold (fun d acc -> *)
-  (*     Code_id_or_name.Set.union acc (dep d)) *)
-  (*     d init *)
 
   let depset (d : DepSet.t) : Code_id_or_name.Set.t =
     DepSet.fold
@@ -107,44 +89,12 @@ module Make_SCC = struct
           let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
           Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
         fun_graph.name_to_dep acc
-(* let add_fungraph code_id (acc : SCC.directed_graph) (fun_graph :
-     Cleanup_deps.fun_graph) = Hashtbl.fold (fun cn d acc ->
-     Code_id_or_name.Map.add cn (depset code_id d) acc) fun_graph.name_to_dep
-     acc *)
-
-  (* let complete_graph (g : SCC.directed_graph) : SCC.directed_graph = let
-     all_ids = Code_id_or_name.Map.fold (fun _ -> Code_id_or_name.Set.union) g
-     Code_id_or_name.Set.empty in let defined_ids = Code_id_or_name.Map.keys g
-     in let undefined_ids = Code_id_or_name.Set.diff all_ids defined_ids in
-     Code_id_or_name.Set.fold (fun v acc -> Code_id_or_name.Map.add v
-     Code_id_or_name.Set.empty acc) undefined_ids g *)
 
   let from_graph (graph : graph) : SCC.directed_graph =
     Hashtbl.fold
       (fun code_id fun_graph acc -> add_fungraph (Some code_id) acc fun_graph)
       graph.function_graphs
       (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph)
-  (* let g = Hashtbl.fold (fun code_id (fun_graph : Cleanup_deps.fun_graph) acc
-     -> let fundeps = Hashtbl.fold (fun cn _d acc -> Code_id_or_name.Set.add cn
-     acc) fun_graph.name_to_dep Code_id_or_name.Set.empty in let set_acc = match
-     Code_id_or_name.Map.find_opt (Code_id_or_name.code_id code_id) acc with |
-     None -> fundeps | Some s -> Code_id_or_name.Set.union s fundeps in let acc
-     = Code_id_or_name.Map.add (Code_id_or_name.code_id code_id) set_acc acc in
-     add_fungraph Code_id_or_name.Set.empty (* (Code_id_or_name.Set.singleton
-     (Code_id_or_name.code_id code_id)) *) acc fun_graph) graph.function_graphs
-     (add_fungraph Code_id_or_name.Set.empty Code_id_or_name.Map.empty
-     graph.toplevel_graph ) in complete_graph g *)
-
-  (* let id_depth graph = *)
-  (*   let components = *)
-  (*     Scc.connected_components_sorted_from_roots_to_leaf *)
-  (*       (from_graph graph) *)
-  (*   in *)
-  (*   let acc = Hashtbl.create 10 in *)
-  (*   Array.iteri (fun i component -> *)
-  (*       match component with *)
-  (*       | No_loop id -> Hashtbl. *)
-  (*     ) components *)
 end
 
 module Field = struct
@@ -284,7 +234,6 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
   let add_used used =
     Hashtbl.iter
       (fun n () ->
-        (* Format.printf " USED %a@." Code_id_or_name.print n; *)
         Hashtbl.replace result n Top;
         push n)
       used
@@ -362,18 +311,9 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
         end)
       n
   in
-  (* let () = *)
-  (*   match component with *)
-  (*   | No_loop id -> *)
-  (*     Format.printf "SINGLE %a@." Code_id_or_name.print id *)
-  (*   | Has_loop ids -> *)
-  (*     let elements = Code_id_or_name.Set.of_list ids in *)
-  (*     Format.printf "GROUP %a@." Code_id_or_name.Set.print elements *)
-  (* in *)
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
     q_s := Code_id_or_name.Set.add n !q_s;
-    (* Format.printf " DO %a@." Code_id_or_name.print n; *)
     let deps =
       match Hashtbl.find_opt all_deps n with
       | None -> DepSet.empty
@@ -389,22 +329,12 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
           | None -> ()
           | Some (dep_upon, dep_elt) -> (
             assert (dep_elt <> Bottom);
-            (* if Code_id_or_name.equal dep_upon n then begin *)
-            (*   Misc.fatal_errorf "ICI %a" Code_id_or_name.print n *)
-            (* end; *)
             match Hashtbl.find_opt result dep_upon with
             | None ->
               Hashtbl.replace result dep_upon dep_elt;
               push dep_upon
             | Some prev_dep ->
-              (* Format.printf "new case@."; *)
               let u = join_elt dep_elt prev_dep in
-              (* if !count > 2000000 then begin *)
-
-              (*  Format.printf "dep_elt  %a@." pp_elt dep_elt;  *)
-              (*  Format.printf "prev_dep %a@." pp_elt prev_dep; *)
-              (*  Format.printf "union    %a@." pp_elt u *)
-              (*   end; *)
               if not (equal_elt u prev_dep)
               then begin
                 Hashtbl.replace result dep_upon u;
@@ -414,14 +344,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
   done
 
 let fixpoint_topo (graph : graph) : result =
-  (* Format.printf "@.@.TOPO@."; *)
   let state = create_state graph in
-  (* let () = *)
-  (*   let g = Make_SCC.from_graph graph in *)
-  (*   Format.printf "GRAPH:@.%a@." *)
-  (*     (Code_id_or_name.Map.print Code_id_or_name.Set.print) *)
-  (*     g *)
-  (* in *)
   let components =
     SCC.connected_components_sorted_from_roots_to_leaf
       (Make_SCC.from_graph graph)
@@ -435,27 +358,18 @@ let fixpoint_topo (graph : graph) : result =
            | SCC.Has_loop l -> max m (List.length l))
          0 components)
   end;
-  (* for i = Array.length components - 1 downto 0 do *)
-  (*   let component = components.(i) in *)
-  (*   fixpoint_component state component graph *)
-  (* done; *)
   Array.iter
     (fun component -> fixpoint_component state component graph)
     components;
-  (* Array.iter (fun component -> *)
-  (*   fixpoint_component state component graph) components; *)
   state.result
 
 let fixpoint (graph : graph) : result =
-  (* Format.printf "@.@.FP@."; *)
-  (* TODO topological sort *)
   let result : result = Hashtbl.create 100 in
   let q = Queue.create () in
   let all_deps = Hashtbl.copy graph.toplevel_graph.name_to_dep in
   let add_used used =
     Hashtbl.iter
       (fun n () ->
-        (* Format.printf " USED %a@." Code_id_or_name.print n; *)
         Hashtbl.replace result n Top;
         Queue.push n q)
       used
@@ -500,7 +414,6 @@ let fixpoint (graph : graph) : result =
   add_called graph.toplevel_graph.called;
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
-    (* Format.printf "DO %a@." Code_id_or_name.print n; *)
     let deps =
       match Hashtbl.find_opt all_deps n with
       | None -> DepSet.empty
@@ -514,22 +427,12 @@ let fixpoint (graph : graph) : result =
         | None -> ()
         | Some (dep_upon, dep_elt) -> (
           assert (dep_elt <> Bottom);
-          (* if Code_id_or_name.equal dep_upon n then begin *)
-          (*   Misc.fatal_errorf "ICI %a" Code_id_or_name.print n *)
-          (* end; *)
           match Hashtbl.find_opt result dep_upon with
           | None ->
             Hashtbl.replace result dep_upon dep_elt;
             Queue.push dep_upon q
           | Some prev_dep ->
-            (* Format.printf "new case@."; *)
             let u = join_elt dep_elt prev_dep in
-            (* if !count > 2000000 then begin *)
-
-            (*  Format.printf "dep_elt  %a@." pp_elt dep_elt;  *)
-            (*  Format.printf "prev_dep %a@." pp_elt prev_dep; *)
-            (*  Format.printf "union    %a@." pp_elt u *)
-            (*   end; *)
             if not (equal_elt u prev_dep)
             then begin
               Hashtbl.replace result dep_upon u;
