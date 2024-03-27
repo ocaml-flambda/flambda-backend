@@ -216,16 +216,8 @@ type error =
       Value.error * submode_reason *
       Env.closure_context option *
       Env.shared_context option
-<<<<<<< HEAD
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Alloc.error
-||||||| 954b83a8
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Alloc.error
-=======
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
->>>>>>> origin/main
   | Uncurried_function_escapes of Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -236,12 +228,8 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-<<<<<<< HEAD
-  | Invalid_label_for_src_pos of arg_label
-||||||| 954b83a8
-=======
   | Modes_on_pattern
->>>>>>> origin/main
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3380,14 +3368,8 @@ type untyped_apply_arg =
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr}
   | Eliminated_optional_arg of
-<<<<<<< HEAD
       { expected_label: arg_label;
-        mode_fun: Alloc.t;
-||||||| 954b83a8
-      { mode_fun: Alloc.t;
-=======
-      { mode_fun: Alloc.lr;
->>>>>>> origin/main
+        mode_fun: Alloc.lr;
         ty_arg : type_expr;
         sort_arg : Jkind.sort;
         mode_arg : Alloc.lr;
@@ -3727,14 +3709,8 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
-<<<<<<< HEAD
   | Texp_src_pos
-  | Texp_array (_, [], _) -> true
-||||||| 954b83a8
-  | Texp_array (_, [], _) -> true
-=======
   | Texp_array (_, _, [], _) -> true
->>>>>>> origin/main
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
@@ -6587,16 +6563,10 @@ and type_function
   | { pparam_desc = Pparam_val (arg_label, default_arg, pat); pparam_loc }
       :: rest
     ->
-<<<<<<< HEAD
       let typed_arg_label, pat =
         Typetexp.transl_label_from_pat arg_label pat
       in
-      let mode_annots = mode_annots_from_pat_attrs pat in
-||||||| 954b83a8
-      let mode_annots = mode_annots_from_pat_attrs pat in
-=======
       let mode_annots, pat = mode_annots_from_pat_attrs pat in
->>>>>>> origin/main
       let has_poly = has_poly_constraint pat in
       if has_poly && is_optional_parsetree arg_label then
         raise(Error(pat.ppat_loc, env, Optional_poly_param));
@@ -7495,28 +7465,16 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           {arg with exp_type = instance arg.exp_type}
         end
       in
-<<<<<<< HEAD
-      (lbl, Arg (arg, expected_mode.mode, sort_arg))
+      (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Eliminated_optional_arg { ty_arg; sort_arg; expected_label; _ }) ->
       (match expected_label with
       | Optional _ ->
-          let arg = option_none env (instance ty_arg) Location.none in
+          let arg = type_option_none env (instance ty_arg) Location.none in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
           let arg = src_pos (Location.ghostify app_loc) [] env in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
-||||||| 954b83a8
-      (lbl, Arg (arg, expected_mode.mode, sort_arg))
-  | Arg (Eliminated_optional_arg { ty_arg; sort_arg; _ }) ->
-      let arg = option_none env (instance ty_arg) Location.none in
-      (lbl, Arg (arg, Value.legacy, sort_arg))
-=======
-      (lbl, Arg (arg, mode_arg, sort_arg))
-  | Arg (Eliminated_optional_arg { ty_arg; sort_arg; _ }) ->
-      let arg = type_option_none env (instance ty_arg) Location.none in
-      (lbl, Arg (arg, Value.legacy, sort_arg))
->>>>>>> origin/main
   | Omitted _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode position_and_mode
@@ -10164,7 +10122,9 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-<<<<<<< HEAD
+  | Modes_on_pattern ->
+      Location.errorf ~loc
+        "@[Mode annotations on patterns are not supported yet.@]"
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
         "A position argument must not be %s."
@@ -10172,12 +10132,6 @@ let report_error ~loc env = function
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
         | Labelled _ | Position _ -> assert false )
-||||||| 954b83a8
-=======
-  | Modes_on_pattern ->
-      Location.errorf ~loc
-        "@[Mode annotations on patterns are not supported yet.@]"
->>>>>>> origin/main
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

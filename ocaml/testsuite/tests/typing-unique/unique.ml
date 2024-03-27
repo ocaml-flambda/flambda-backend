@@ -630,7 +630,6 @@ Line 5, characters 16-17:
 5 |        in Node (x, x)
                     ^
 
-<<<<<<< HEAD
 |}]
 
 (* Uniqueness is unbroken by the implicit positional argument. *)
@@ -657,8 +656,3 @@ Line 2, characters 11-19:
 
 |}]
 
-||||||| 954b83a8
-|}]
-=======
-|}]
->>>>>>> origin/main

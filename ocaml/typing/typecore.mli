@@ -281,16 +281,8 @@ type error =
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
-<<<<<<< HEAD
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.error
-||||||| 954b83a8
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.error
-=======
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Mode.Alloc.equate_error
->>>>>>> origin/main
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -301,12 +293,8 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-<<<<<<< HEAD
-  | Invalid_label_for_src_pos of arg_label
-||||||| 954b83a8
-=======
   | Modes_on_pattern
->>>>>>> origin/main
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

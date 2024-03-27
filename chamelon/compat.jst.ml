@@ -19,18 +19,12 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
 type nonrec apply_arg = apply_arg
 type texp_apply_identifier = apply_position * Locality.l
 
-<<<<<<< HEAD
-let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
-  let args =
-    List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
-  in
-||||||| 954b83a8
-let mkTexp_apply ?id:(pos, mode = (Default, Locality.legacy)) (exp, args) =
-=======
 let mkTexp_apply
     ?id:(pos, mode = (Default, Locality.disallow_right Locality.legacy))
     (exp, args) =
->>>>>>> origin/main
+  let args =
+    List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
+  in
   Texp_apply (exp, args, pos, mode)
 
 type texp_tuple_identifier = string option list * Alloc.r

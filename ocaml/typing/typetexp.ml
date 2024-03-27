@@ -670,21 +670,13 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
-<<<<<<< HEAD
           let l = transl_label l (Some arg) in
           let arg_cty =
             if Btype.is_position l then
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
             else transl_type env ~policy ~row_context arg_mode arg
           in
-          let acc_mode =
-||||||| 954b83a8
-          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
-          let acc_mode =
-=======
-          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
           let {locality; linearity; _} : Alloc.Const.t =
->>>>>>> origin/main
             Alloc.Const.join
               (Alloc.Const.close_over arg_mode)
               (Alloc.Const.partial_apply acc_mode)
