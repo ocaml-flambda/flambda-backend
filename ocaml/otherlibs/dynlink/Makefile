@@ -65,6 +65,8 @@ NATOBJS=native/dynlink_compilerlibs.cmx dynlink_types.cmx \
 COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
   parsing/parsetree.mli \
+  typing/solver_intf.mli \
+  typing/mode_intf.mli \
   typing/outcometree.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
@@ -97,6 +99,7 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
+  utils/zero_alloc_utils.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -111,6 +114,7 @@ COMPILERLIBS_SOURCES=\
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
+  typing/solver.ml \
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
@@ -125,6 +129,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
+  lambda/assume_info.ml \
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \

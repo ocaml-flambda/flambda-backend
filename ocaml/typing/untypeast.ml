@@ -127,6 +127,7 @@ let constant = function
   | Const_int64 i -> `Parsetree (Pconst_integer (Int64.to_string i, Some 'L'))
   | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
   | Const_float f -> `Parsetree (Pconst_float (f,None))
+  | Const_float32 f -> `Parsetree (Pconst_float (f, Some 's'))
   | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
   | Const_unboxed_int32 i ->
     `Jane_syntax (Jane_syntax.Layouts.Integer (Int32.to_string i, 'l'))
@@ -437,6 +438,10 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, jkind, sexp))
         |> add_jane_syntax_attributes
+    | Texp_mode_coerce modes ->
+        Jane_syntax.Modes.expr_of ~loc
+          (Coerce (modes, sexp))
+        |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
 
@@ -538,11 +543,13 @@ let expression sub exp =
                       (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
                 | Some (Texp_constraint ty) ->
                     Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_poly _ | Texp_newtype _) | None -> None
+                | Some (Texp_poly _ | Texp_newtype _ | Texp_mode_coerce _)
+                | None -> None
               in
               let constraint_ =
                 Option.map
-                  (fun x -> { mode_annotations = []; type_constraint = x })
+                  (fun x -> { mode_annotations = Jane_syntax.Mode_expr.empty;
+                              type_constraint = x })
                   constraint_
               in
               Pfunction_cases (cases, loc, attributes), constraint_
@@ -608,12 +615,12 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label, _, _) ->
+    | Texp_field (exp, lid, _label, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array (amut, list, _) -> begin
+    | Texp_array (amut, _, list, _) -> begin
         (* Can be inlined when we get to upstream immutable arrays *)
         let plist = List.map (sub.expr sub) list in
         match amut with
@@ -628,7 +635,7 @@ let expression sub exp =
         comprehension
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
         |> add_jane_syntax_attributes
-    | Texp_array_comprehension (amut, comp) ->
+    | Texp_array_comprehension (amut, _, comp) ->
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
         |> add_jane_syntax_attributes

@@ -1,5 +1,5 @@
 (* TEST
-flags = "-i -extension local"
+flags = "-i"
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte
 *** check-ocamlc.byte-output

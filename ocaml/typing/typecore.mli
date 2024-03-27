@@ -64,7 +64,7 @@ type pattern_variable =
   {
     pv_id: Ident.t;
     pv_uid: Uid.t;
-    pv_mode: Mode.Value.t;
+    pv_mode: Mode.Value.l;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -151,11 +151,11 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some:
-  Env.t -> Typedtree.expression -> Mode.Value.t -> Typedtree.expression
-val option_none:
-  Env.t -> type_expr -> Location.t -> Typedtree.expression
-val extract_option_type: Env.t -> type_expr -> type_expr
+val type_option_some:
+        Env.t -> Parsetree.expression ->
+        type_expr-> type_expr -> Typedtree.expression
+val type_option_none:
+        Env.t -> type_expr -> Location.t -> Typedtree.expression
 val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
@@ -178,7 +178,7 @@ type submode_reason =
 
   | Other (* add more cases here for better hints *)
 
-val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> Mode.Value.t -> unit
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> (Mode.allowed * 'r) Mode.Value.t -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -281,8 +281,16 @@ type error =
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
+<<<<<<< HEAD
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of type_expr * Mode.Alloc.error
+||||||| 954b83a8
+  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Param_mode_mismatch of type_expr * Mode.Alloc.error
+=======
+  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Param_mode_mismatch of Mode.Alloc.equate_error
+>>>>>>> origin/main
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -293,7 +301,12 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+<<<<<<< HEAD
   | Invalid_label_for_src_pos of arg_label
+||||||| 954b83a8
+=======
+  | Modes_on_pattern
+>>>>>>> origin/main
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

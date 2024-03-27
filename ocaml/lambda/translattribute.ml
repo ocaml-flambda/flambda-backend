@@ -53,6 +53,8 @@ let is_loop_attribute =
 let is_opaque_attribute =
   [ ["opaque"; "ocaml.opaque"], true ]
 
+let is_unboxable_attribute =
+  [ ["unboxable"; "ocaml.unboxable"], true ]
 
 let find_attribute ?mark_used p attributes =
   let inline_attribute =
@@ -461,14 +463,26 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let assume_zero_alloc ?mark_used attributes =
+let assume_zero_alloc ?mark_used attributes : Assume_info.t =
   let p = Zero_alloc in
   let attr = find_attribute ?mark_used (is_property_attribute p) attributes in
-  match parse_property_attribute attr p with
-  | Default_check -> false
-  | Ignore_assert_all _ -> false
-  | Assume { property = Zero_alloc; _ } -> true
-  | Check { property = Zero_alloc; _ } -> false
+  let res = parse_property_attribute attr p in
+  match res with
+  | Default_check -> Assume_info.none
+  | Ignore_assert_all _ -> Assume_info.none
+  | Assume { strict; never_returns_normally; } ->
+    Assume_info.create ~strict ~never_returns_normally
+  | Check { loc; _ } ->
+    let attr = Option.get attr in
+    let name = attr.attr_name.txt in
+    let msg = "Only the following combinations are supported in this context: \
+               'zero_alloc assume', \
+               `zero_alloc assume strict`, \
+               `zero_alloc assume never_returns_normally`,\
+               `zero_alloc assume never_returns_normally strict`."
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
+    Assume_info.none
 
 let get_assume_zero_alloc ~with_warnings attributes =
   if with_warnings then
@@ -586,6 +600,21 @@ let add_opaque_attribute expr loc attributes =
       end
   | _ -> expr
 
+let add_unbox_return_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+      let attr = find_attribute is_unboxable_attribute attributes in
+      begin match attr with
+      | None -> expr
+      | Some _ ->
+          if funct.attr.unbox_return then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "unboxable");
+          let attr = { funct.attr with unbox_return = true } in
+          lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
@@ -646,6 +675,9 @@ let add_function_attributes lam loc attr =
   let lam =
     add_tmc_attribute lam loc attr
   in
+  let lam =
+    add_unbox_return_attribute lam loc attr
+  in
   (* last because poll and opaque overrides inline and local *)
   let lam =
     add_poll_attribute lam loc attr
@@ -654,3 +686,10 @@ let add_function_attributes lam loc attr =
     add_opaque_attribute lam loc attr
   in
   lam
+
+let transl_param_attributes pat =
+  let attrs = pat.pat_attributes in
+  let unbox_param =
+    Option.is_some (find_attribute is_unboxable_attribute attrs)
+  in
+  { unbox_param }

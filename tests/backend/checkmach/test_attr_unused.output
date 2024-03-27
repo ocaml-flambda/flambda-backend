@@ -2,11 +2,11 @@ File "test_attr_unused.ml", line 5, characters 0-15:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 A constant payload of type ident was expected
 
-File "test_attr_unused.ml", line 3, characters 5-15:
-Warning 199 [unchecked-property-attribute]: the "zero_alloc" attribute cannot be checked.
-The function it is attached to was optimized away. 
-You can try to mark this function as [@inline never] 
-or move the attribute to the relevant callers of this function.
-
 File "test_attr_unused.ml", line 6, characters 27-37:
 Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
+
+File "test_attr_unused.ml", line 3, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_attr_unused.g (camlTest_attr_unused.g_HIDE_STAMP)
+
+File "test_attr_unused.ml", line 3, characters 28-34:
+Error: allocation of 24 bytes

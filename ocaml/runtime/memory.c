@@ -137,7 +137,8 @@ Caml_inline void write_barrier(
           then this is in a remembered set already */
        if (Is_young(old_val)) return;
        /* old is a block and in the major heap */
-       caml_darken(Caml_state, old_val, 0);
+       if (caml_marking_started())
+         caml_darken(Caml_state, old_val, 0);
      }
      /* this update is creating a new link from major to minor, remember it */
      if (Is_block_and_young(new_val)) {
@@ -328,7 +329,8 @@ CAMLexport void caml_set_fields (value obj, value v)
   int i;
   CAMLassert (Is_block(obj));
 
-  for (i = 0; i < Wosize_val(obj); i++) {
+  mlsize_t size = Wosize_val(obj);
+  for (i = 0; i < size; i++) {
     caml_modify(&Field(obj, i), v);
   }
 }
@@ -358,8 +360,11 @@ CAMLexport int caml_is_stack (value v)
 CAMLexport void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
-    /* This function should not be used on external values */
-    CAMLassert(caml_is_stack(obj));
+    /* This function should not be used on external values, but we have seen
+       some cases where it has been, in safe contexts where only immediate
+       values are involved. */
+    CAMLassert(caml_is_stack(obj)
+      || (!Is_block(val) && !Is_block(Field(obj, i))));
     Field(obj, i) = val;
   } else {
     caml_modify(&Field(obj, i), val);

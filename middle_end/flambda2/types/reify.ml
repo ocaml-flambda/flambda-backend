@@ -351,10 +351,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | None -> try_canonical_simple ()
       | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
     | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
-      match Provers.prove_is_int env scrutinee_ty with
-      | Proved true -> Simple Simple.untagged_const_true
-      | Proved false -> Simple Simple.untagged_const_false
-      | Unknown -> try_canonical_simple ())
+      match Provers.meet_is_int_variant_only env scrutinee_ty with
+      | Known_result true -> Simple Simple.untagged_const_true
+      | Known_result false -> Simple Simple.untagged_const_false
+      | Need_meet -> try_canonical_simple ()
+      | Invalid -> Invalid)
     | Naked_immediate (Ok (Get_tag block_ty)) -> (
       match Provers.prove_get_tag env block_ty with
       | Proved tags -> (

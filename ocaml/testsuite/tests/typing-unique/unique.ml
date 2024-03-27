@@ -542,23 +542,38 @@ type box = { x : int }
 type box = { x : int; }
 |}]
 
-let curry (unique_ b1 : box) (unique_ b2 : box) = b1
+let curry (unique_ b1 : box) (unique_ b2 : box) = ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> box = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
-let curry : unique_ box -> unique_ box -> unique_ box = fun b1 b2 -> b1
+let curry : unique_ box -> unique_ box -> unit = fun b1 b2 -> ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> unique_ box = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
-let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
+let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
 [%%expect{|
-Line 1, characters 58-73:
-1 | let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
-                                                              ^^^^^^^^^^^^^^^
+Line 1, characters 51-66:
+1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
+                                                       ^^^^^^^^^^^^^^^
 Error: This function when partially applied returns a once value,
        but expected to be many.
+|}]
+
+let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
+[%%expect{|
+Line 1, characters 51-80:
+1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a once value,
+       but expected to be many.
+|}]
+
+(* For nested functions, inner functions are not constrained *)
+let no_curry : unique_ box -> (unique_ box -> unit) = fun b1 -> fun b2 -> ()
+[%%expect{|
+val no_curry : unique_ box -> (unique_ box -> unit) = <fun>
 |}]
 
 (* If both type and mode are wrong, complain about type *)
@@ -615,6 +630,7 @@ Line 5, characters 16-17:
 5 |        in Node (x, x)
                     ^
 
+<<<<<<< HEAD
 |}]
 
 (* Uniqueness is unbroken by the implicit positional argument. *)
@@ -641,3 +657,8 @@ Line 2, characters 11-19:
 
 |}]
 
+||||||| 954b83a8
+|}]
+=======
+|}]
+>>>>>>> origin/main

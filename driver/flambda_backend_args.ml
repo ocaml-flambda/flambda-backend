@@ -104,6 +104,12 @@ let mk_zero_alloc_check f =
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
+let mk_disable_checkmach f =
+  "-disable-checkmach", Arg.Unit f,
+  " Conservatively assume that all functions may allocate, without checking. \
+    Disables computation of zero_alloc function summaries, \
+    unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
+
 let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
@@ -113,6 +119,13 @@ let mk_checkmach_details_cutoff f =
      | Keep_all -> (-1)
      | No_details -> 0
      | At_most n -> n)
+
+let mk_function_layout f =
+  let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
+  let default = Flambda_backend_flags.Function_layout.(to_string default) in
+  "-function-layout", Arg.Symbol (layouts, f),
+  (Printf.sprintf " Order of functions in the generated assembly (default: %s)"
+     default)
 
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
@@ -627,8 +640,10 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
+  val disable_checkmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
+  val function_layout : string -> unit
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
 
@@ -739,8 +754,10 @@ struct
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
+    mk_disable_checkmach F.disable_checkmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
+    mk_function_layout F.function_layout;
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
 
@@ -899,6 +916,7 @@ module Flambda_backend_options_impl = struct
       Clflags.zero_alloc_check := a
 
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+  let disable_checkmach = set' Flambda_backend_flags.disable_checkmach
   let checkmach_details_cutoff n =
     let c : Flambda_backend_flags.checkmach_details_cutoff =
       if n < 0 then Keep_all
@@ -906,6 +924,12 @@ module Flambda_backend_options_impl = struct
       else At_most n
     in
     Flambda_backend_flags.checkmach_details_cutoff := c
+
+  let function_layout s =
+    match Flambda_backend_flags.Function_layout.of_string s with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some layout ->
+      Flambda_backend_flags.function_layout := layout
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
@@ -1172,6 +1196,7 @@ module Extra_params = struct
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
+    | "disable-checkmach" -> set' Flambda_backend_flags.disable_checkmach
     | "checkmach-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
@@ -1179,6 +1204,13 @@ module Extra_params = struct
       | None -> ()
       end;
       true
+    | "function-layout" ->
+      (match Flambda_backend_flags.Function_layout.of_string v with
+       | Some layout -> Flambda_backend_flags.function_layout := layout; true
+       | None ->
+         raise
+           (Arg.Bad
+              (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames

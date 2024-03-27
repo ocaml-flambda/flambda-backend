@@ -355,7 +355,6 @@ and ('a : any) t4
    moved to [basics_beta.ml]. *)
 
 type ('a : void) void5 = Void5  of 'a
-type ('a : any) any5 = Any5 of 'a
 
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
@@ -377,9 +376,8 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-type 'a any5 = Any5 of 'a
-Line 5, characters 15-22:
-5 |   | Void5 x -> Void5 x
+Line 4, characters 15-22:
+4 |   | Void5 x -> Void5 x
                    ^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
@@ -402,16 +400,16 @@ Error: This type int should be an instance of type ('a : void)
          of the definition of void5 at line 1, characters 0-37.
 |}];;
 
-let h5' (x : int any5) = Void5 x
+let h5' (x : int) = Void5 x
 [%%expect{|
-Line 1, characters 31-32:
-1 | let h5' (x : int any5) = Void5 x
-                                   ^
-Error: This expression has type int any5
-       but an expression was expected of type ('a : void)
-       The layout of int any5 is value, because
-         of the definition of any5 at line 2, characters 0-33.
-       But the layout of int any5 must be a sublayout of void, because
+Line 1, characters 26-27:
+1 | let h5' (x : int) = Void5 x
+                              ^
+Error: This expression has type int but an expression was expected of type
+         ('a : void)
+       The layout of int is immediate, because
+         it is the primitive immediate type int.
+       But the layout of int must be a sublayout of void, because
          of the definition of void5 at line 1, characters 0-37.
 |}];;
 
@@ -1013,8 +1011,8 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* lazy *)
 type t13 = t_void Lazy.t;;
@@ -1147,27 +1145,15 @@ Error: This expression has type ('a : value)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
 [%%expect{|
-Line 1, characters 11-17:
-1 | type t13 = t_void array;;
-               ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13 = t_void array
 |}];;
 
 let x13 (VV v) = [| v |];;
 [%%expect{|
-Line 1, characters 20-21:
+Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
-                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       The layout of t_void is void, because
-         of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+                     ^^^^^^^
+Error: Layout void is not supported yet.
 |}];;
 
 let x13 v =
@@ -1175,15 +1161,16 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 18-19:
+Lines 2-4, characters 2-21:
+2 | ..match v with
 3 |   | [| v |] -> VV v
-                      ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
+4 |   | _ -> assert false
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
        The layout of t_void is void, because
          of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value, because
-         it's the type of an array element.
+         it has to be value for the V1 safety check.
 |}];;
 
 (****************************************************************************)

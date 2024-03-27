@@ -261,3 +261,38 @@ end
 
 let[@zero_alloc assume never_returns_normally strict] test60 x = (x,x)
 let[@zero_alloc assume strict never_returns_normally] test61 x = (x,x)
+
+let[@inline always] test42 x = (x,x)
+
+let[@zero_alloc] test43 x =
+  (test42[@zero_alloc assume]) x
+
+
+let[@inline never] test44 x = (x,x)
+
+let[@zero_alloc] test45 x =
+  (test44[@zero_alloc assume]) x
+
+let[@inline always] test46 x = if x > 0 then failwith (Printf.sprintf "%d" x) else (x,x)
+
+let[@zero_alloc strict] test47 x =
+  (test46[@zero_alloc assume strict]) x
+
+let[@zero_alloc strict] test50 x =
+  (test46[@zero_alloc assume never_returns_normally strict]) x
+
+let[@zero_alloc] test51 x =
+  try (test46[@zero_alloc assume never_returns_normally]) x
+  with _ -> failwith (Printf.sprintf "%d" x)
+
+let[@zero_alloc] test52 x =
+  (test42[@zero_alloc assume strict]) x
+
+let[@zero_alloc] test53 x =
+  (test42[@zero_alloc assume never_returns_normally]) x
+
+let[@zero_alloc strict] test54 x =
+  let[@zero_alloc assume never_returns_normally] test55 x =
+    (test42 [@zero_alloc assume strict]) x
+  in
+  test55 x

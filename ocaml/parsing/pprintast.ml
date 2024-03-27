@@ -122,14 +122,6 @@ let filter_curry_attrs attrs =
 let has_non_curry_attr attrs =
   List.exists (fun attr -> not (is_curry_attr attr)) attrs
 
-let check_local_attr attrs =
-  match
-    List.partition (fun attr ->
-        attr.attr_name.txt = "extension.local") attrs
-  with
-  | [], _ -> attrs, false
-  | _::_, rest -> rest, true
-
 type space_formatter = (unit, Format.formatter, unit) format
 
 let override = function
@@ -312,13 +304,51 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
-let maybe_local_type pty ctxt f c =
-  let cattrs, is_local = check_local_attr c.ptyp_attributes in
-  let c = { c with ptyp_attributes = cattrs } in
-  if is_local then
-    pp f "local_ %a" (pty ctxt) c
-  else
-    pty ctxt f c
+let legacy_mode f m =
+  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+  let s =
+    match txt with
+    | "local" -> "local_"
+    | "unique" -> "unique_"
+    | "once" -> "once_"
+    | "global" -> "global_" (* global modality *)
+    | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+  in
+  pp_print_string f s
+
+let legacy_modes f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m.txt
+
+let optional_legacy_modes f m =
+  match m with
+  | None -> ()
+  | Some m ->
+    legacy_modes f m;
+    pp_print_space f ()
+
+let mode f m =
+  let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
+  pp_print_string f txt
+
+let modes f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") mode f m.txt
+
+let maybe_modes_of_type c =
+  let m, cattrs = Jane_syntax.Mode_expr.maybe_of_attrs c.ptyp_attributes in
+  m, { c with ptyp_attributes = cattrs }
+
+let maybe_modes_type pty ctxt f c =
+  let m, c = maybe_modes_of_type c in
+  match m with
+  | Some m -> pp f "%a %a" legacy_modes m (pty ctxt) c
+  | None -> pty ctxt f c
+
+let maybe_type_atat_modes pty ctxt f c =
+  let m, c = maybe_modes_of_type c in
+  match m with
+  | Some m -> pp f "%a@ @@@@@ %a" (pty ctxt) c modes m
+  | None -> pty ctxt f c
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -328,9 +358,9 @@ let rec class_params_def ctxt f =  function
 
 and type_with_label ctxt f (label, c) =
   match label with
-  | Nolabel    -> maybe_local_type core_type1 ctxt f c (* otherwise parenthesize *)
-  | Labelled s -> pp f "%s:%a" s (maybe_local_type core_type1 ctxt) c
-  | Optional s -> pp f "?%s:%a" s (maybe_local_type core_type1 ctxt) c
+  | Nolabel    -> maybe_modes_type core_type1 ctxt f c (* otherwise parenthesize *)
+  | Labelled s -> pp f "%s:%a" s (maybe_modes_type core_type1 ctxt) c
+  | Optional s -> pp f "?%s:%a" s (maybe_modes_type core_type1 ctxt) c
 
 and core_type ctxt f x =
   match Jane_syntax.Core_type.of_ast x with
@@ -495,8 +525,8 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and return_type ctxt f x =
-  if x.ptyp_attributes <> [] then maybe_local_type core_type1 ctxt f x
-  else maybe_local_type core_type ctxt f x
+  if x.ptyp_attributes <> [] then maybe_modes_type core_type1 ctxt f x
+  else maybe_modes_type core_type ctxt f x
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
@@ -655,43 +685,44 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
           (list ~sep:",@;" (labeled_pattern1 ctxt)) l
           closed_flag closed
 
-and maybe_local_pat ctxt is_local f p =
-  if is_local then
-    pp f "(local_ %a)" (simple_pattern ctxt) p
-  else
-    pp f "%a" (simple_pattern ctxt) p
+and maybe_modes_pat ctxt m f p =
+  match m with
+  | Some m ->  pp f "(%a %a)" legacy_modes m (simple_pattern ctxt) p
+  | None -> pp f "%a" (simple_pattern ctxt) p
 
 and label_exp ctxt f (l,opt,p) =
-  let pattrs, is_local = check_local_attr p.ppat_attributes in
+  let m, pattrs = Jane_syntax.Mode_expr.maybe_of_attrs p.ppat_attributes in
   let p = { p with ppat_attributes = pattrs } in
   match l with
   | Nolabel ->
       (* single case pattern parens needed here *)
-      pp f "%a" (maybe_local_pat ctxt is_local) p
+      pp f "%a" (maybe_modes_pat ctxt m) p
   | Optional rest ->
       begin match p with
       | {ppat_desc = Ppat_var {txt;_}; ppat_attributes = []}
-        when txt = rest && not is_local ->
+        when txt = rest && Option.is_none m ->
           (match opt with
            | Some o -> pp f "?(%s=@;%a)" rest  (expression ctxt) o
            | None -> pp f "?%s" rest)
       | _ ->
           (match opt with
            | Some o ->
-               pp f "?%s:(%s%a=@;%a)"
+               pp f "?%s:(%a%a=@;%a)"
                  rest
-                 (if is_local then "local_ " else "")
+                 optional_legacy_modes m
                  (pattern1 ctxt) p (expression ctxt) o
-           | None -> pp f "?%s:%a" rest (maybe_local_pat ctxt is_local) p)
+           | None -> pp f "?%s:%a" rest (maybe_modes_pat ctxt m) p)
       end
   | Labelled l -> match p with
     | {ppat_desc  = Ppat_var {txt;_}; ppat_attributes = []}
       when txt = l ->
-        if is_local then
-          pp f "~(local_ %s)" l
-        else
+        (match m with
+        | Some m ->
+          pp f "~(%a %s)" legacy_modes m l
+        | None ->
           pp f "~%s" l
-    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p
+        )
+    | _ ->  pp f "~%s:%a" l (maybe_modes_pat ctxt m) p
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
@@ -819,9 +850,9 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
           (bindings reset_ctxt) (rf,l)
           (expression ctxt) e
     | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
        [Nolabel, sbody]) ->
-        pp f "@[<2>local_ %a@]" (expression ctxt) sbody
+        pp f "@[<2>exclave_ %a@]" (expression ctxt) sbody
     | Pexp_apply (e, l) ->
         begin if not (sugar_expr ctxt f x) then
             match view_fixity_of_exp e with
@@ -1023,7 +1054,7 @@ and floating_attribute ctxt f a =
 and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
-  pp f "@[<hov2>%a%a@]" (core_type ctxt) x.pval_type
+  pp f "@[<hov2>%a%a@]" (maybe_type_atat_modes core_type ctxt) x.pval_type
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim
@@ -1468,9 +1499,6 @@ and payload ctxt f = function
       pp f " when "; expression ctxt f e
 
 and pp_print_pexp_function ctxt sep f x =
-  (* do not print [@extension.local] on expressions *)
-  let attrs, _ = check_local_attr x.pexp_attributes in
-  let x = { x with pexp_attributes = attrs } in
   (* We go to some trouble to print nested [Pexp_newtype]/[Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1570,17 +1598,35 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
 (* [in] is not printed *)
 and bindings ctxt f (rf,l) =
   let binding kwd rf f x =
-    let attrs, is_local = check_local_attr x.pvb_attributes in
+    let modes_on_binding, attrs =
+      Jane_syntax.Mode_expr.maybe_of_attrs x.pvb_attributes
+    in
     let x =
-      match is_local, x.pvb_expr.pexp_desc with
-      | true, Pexp_apply
-          ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
-           [Nolabel, sbody]) ->
-          {x with pvb_expr = sbody}
+      (* For [let local_ x = e in ...] and [let x @ local = e in ...],
+         the parser puts attributes on both the let-binding and on e.
+
+         The below code is meant to print the modes only in one place,
+         not both. (We print it on the let-binding, not the expression.)
+      *)
+      match modes_on_binding, Jane_syntax.Expression.of_ast x.pvb_expr with
+      | Some modes_on_binding,
+        Some (Jexp_modes (Coerce (modes_on_expr, sbody)), _) ->
+          (* Sanity check: only suppress the printing of one mode expression if
+             the mode expressions are in fact identical.
+          *)
+          let mode_names (modes : Jane_syntax.Mode_expr.t) =
+            List.map Location.get_txt (modes.txt :> string loc list)
+          in
+          if
+            List.equal String.equal
+              (mode_names modes_on_binding)
+              (mode_names modes_on_expr)
+          then {x with pvb_expr = sbody}
+          else x
       | _ -> x
     in
-    pp f "@[<2>%s %a%s%a@]%a" kwd rec_flag rf
-      (if is_local then "local_ " else "")
+    pp f "@[<2>%s %a%a%a@]%a" kwd rec_flag rf
+      optional_legacy_modes modes_on_binding
       (binding ctxt) x (item_attributes ctxt) attrs
   in
   match l with
@@ -1786,25 +1832,17 @@ and type_def_list ctxt f (rf, exported, l) =
                  (list ~sep:"@," (type_decl "and" Recursive)) xs
 
 and record_declaration ctxt f lbls =
-  let has_attr pld name =
-    List.exists (fun attr -> attr.attr_name.txt = name) pld.pld_attributes
-  in
-  let field_flag f pld =
-    pp f "%a" mutable_flag pld.pld_mutable;
-    if has_attr pld "extension.global" then pp f "global_ "
-  in
   let type_record_field f pld =
-    let pld_attributes =
-      List.filter (fun attr ->
-        match attr.attr_name.txt with
-        | "extension.global" -> false
-        | _ -> true) pld.pld_attributes
+    let modalities, ptyp_attributes =
+      Jane_syntax.Mode_expr.maybe_of_attrs pld.pld_type.ptyp_attributes
     in
-    pp f "@[<2>%a%s:@;%a@;%a@]"
-      field_flag pld
+    let pld_type = {pld.pld_type with ptyp_attributes} in
+    pp f "@[<2>%a%a%s:@;%a@;%a@]"
+      mutable_flag pld.pld_mutable
+      optional_legacy_modes modalities
       pld.pld_name.txt
-      (core_type ctxt) pld.pld_type
-      (attributes ctxt) pld_attributes
+      (core_type ctxt) pld_type
+      (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls
@@ -1894,7 +1932,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> ()
            | Pcstr_tuple l ->
-             pp f "@;of@;%a" (list (core_type1 ctxt) ~sep:"@;*@;") l
+             pp f "@;of@;%a" (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
            | Pcstr_record l -> pp f "@;of@;%a" (record_declaration ctxt) l
         ) args
         (attributes ctxt) attrs
@@ -1904,7 +1942,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
-                                (list (core_type1 ctxt) ~sep:"@;*@;") l
+                                (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
                                 (core_type1 ctxt) r
            | Pcstr_record l ->
                pp f "%a@;->@;%a" (record_declaration ctxt) l (core_type1 ctxt) r
@@ -1995,6 +2033,13 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
       if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
       else n_ary_function_expr ctxt f x
   | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
+  | Jexp_modes mexp ->
+      if parens then pp f "(%a)" (mode_expr ctxt) mexp
+      else mode_expr ctxt f mexp
+
+and mode_expr ctxt f (mexp : Jane_syntax.Modes.expression) =
+  match mexp with
+  | Coerce (m, body) -> pp f "@[<2>%a %a@]" legacy_modes m (expression ctxt) body
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with

@@ -38,7 +38,7 @@ exception Already_bound
 type jkind_initialization_choice = Sort | Any
 
 type value_loc =
-    Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Object_field
 
 type sort_loc =
     Fun_arg | Fun_ret
@@ -470,6 +470,7 @@ end
 
 let transl_modtype_longident = ref (fun _ -> assert false)
 let transl_modtype = ref (fun _ -> assert false)
+let check_package_with_type_constraints = ref (fun _ -> assert false)
 
 let sort_constraints_no_duplicates loc env l =
   List.sort
@@ -477,23 +478,6 @@ let sort_constraints_no_duplicates loc env l =
        if s1.txt = s2.txt then
          raise (Error (loc, env, Multiple_constraints_on_type s1.txt));
        compare s1.txt s2.txt)
-    l
-
-let create_package_mty loc p l =
-  List.fold_left
-    (fun mty (s, _) ->
-      let d = {ptype_name = mkloc (Longident.last s.txt) s.loc;
-               ptype_params = [];
-               ptype_cstrs = [];
-               ptype_kind = Ptype_abstract;
-               ptype_private = Asttypes.Public;
-               ptype_manifest = None;
-               ptype_attributes = [];
-               ptype_loc = loc} in
-      Ast_helper.Mty.mk ~loc
-        (Pmty_with (mty, [ Pwith_type ({ txt = s.txt; loc }, d) ]))
-    )
-    (Ast_helper.Mty.mk ~loc (Pmty_ident p))
     l
 
 (* Translation of type expressions *)
@@ -589,28 +573,8 @@ let get_type_param_name styp =
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
 let get_alloc_mode styp =
-  let locality =
-    match Builtin_attributes.has_local styp.ptyp_attributes with
-    | Ok true -> Locality.Const.Local
-    | Ok false -> Locality.Const.Global
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
-  in
-  let uniqueness =
-    match Builtin_attributes.has_unique styp.ptyp_attributes with
-    | Ok true -> Uniqueness.Const.Unique
-    | Ok false -> Uniqueness.Const.Shared
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
-  in
-  let linearity =
-    match Builtin_attributes.has_once styp.ptyp_attributes with
-    | Ok true -> Linearity.Const.Once
-    | Ok false -> Linearity.Const.Many
-    | Error () ->
-      raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Unique))
-  in
-  { locality = locality; uniqueness; linearity }
+  let modes, _ = Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes in
+  Typemode.transl_alloc_mode modes
 
 let rec extract_params styp =
   let final styp =
@@ -706,6 +670,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
+<<<<<<< HEAD
           let l = transl_label l (Some arg) in
           let arg_cty =
             if Btype.is_position l then
@@ -713,13 +678,22 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             else transl_type env ~policy ~row_context arg_mode arg
           in
           let acc_mode =
+||||||| 954b83a8
+          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
+          let acc_mode =
+=======
+          let arg_cty = transl_type env ~policy ~row_context arg_mode arg in
+          let {locality; linearity; _} : Alloc.Const.t =
+>>>>>>> origin/main
             Alloc.Const.join
               (Alloc.Const.close_over arg_mode)
               (Alloc.Const.partial_apply acc_mode)
           in
-          let acc_mode =
-            Alloc.Const.join acc_mode
-              (Alloc.Const.min_with_uniqueness Uniqueness.Const.Shared)
+          (* Arrow types cross uniqueness axis. Therefore, when user writes an
+          A -> B -> C (to be used as constraint on something), we should make
+          (B -> C) shared. A proper way to do this is via modal kinds. *)
+          let acc_mode : Alloc.Const.t
+            = {locality; linearity; uniqueness=Uniqueness.Const.Shared}
           in
           let ret_mode =
             match rest with
@@ -998,30 +972,25 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
        the [create_package_mty] hack that constructs fake source code. *)
       let loc = styp.ptyp_loc in
       let l = sort_constraints_no_duplicates loc env l in
-      let mty = create_package_mty loc p l in
-      let mty =
-        TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
+      let mty = Ast_helper.Mty.mk ~loc (Pmty_ident p) in
+      let mty = TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
       let ptys =
         List.map (fun (s, pty) ->
           s, transl_type env ~policy ~row_context Alloc.Const.legacy pty
         ) l
       in
-      List.iter (fun (s,{ctyp_type=ty}) ->
-        match
-          Ctype.constrain_type_jkind env ty (Jkind.value ~why:Package_hack)
-        with
-        | Ok _ -> ()
-        | Error e ->
-          raise (Error(s.loc,env,
-                       Non_value {vloc=Package_constraint; typ=ty; err=e})))
-        ptys;
+      let mty =
+        if ptys <> [] then
+          !check_package_with_type_constraints loc env mty.mty_type ptys
+        else mty.mty_type
+      in
       let path = !transl_modtype_longident loc env p.txt in
       let ty = newty (Tpackage (path,
                        List.map (fun (s, cty) -> (s.txt, cty.ctyp_type)) ptys))
       in
       ctyp (Ttyp_package {
             pack_path = path;
-            pack_type = mty.mty_type;
+            pack_type = mty;
             pack_fields = ptys;
             pack_txt = p;
            }) ty
@@ -1541,7 +1510,6 @@ let report_error env ppf = function
       match vloc with
       | Tuple -> "Tuple element"
       | Poly_variant -> "Polymorphic variant constructor argument"
-      | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in
     fprintf ppf "@[%s types must have layout value.@ %a@]"

@@ -470,12 +470,17 @@ let string_accessor_width ppf saw =
     | One_twenty_eight { aligned = false } -> "128u"
     | One_twenty_eight { aligned = true } -> "128a")
 
+let array_accessor_width ~space ppf (aw : array_accessor_width) =
+  let str = match aw with Scalar -> None | Vec128 -> Some "vec128" in
+  pp_option ~space Format.pp_print_string ppf str
+
 let binop ppf binop a b =
   match binop with
-  | Array_load (ak, mut) ->
-    Format.fprintf ppf "@[<2>%%array_load%a%a@ %a.(%a)@]"
-      (array_kind ~space:Before) ak (mutability ~space:Before) mut simple a
-      simple b
+  | Array_load (ak, width, mut) ->
+    Format.fprintf ppf "@[<2>%%array_load%a%a%a@ %a.(%a)@]"
+      (array_kind ~space:Before) ak (mutability ~space:Before) mut
+      (array_accessor_width ~space:Before)
+      width simple a simple b
   | Block_load (access_kind, mut) ->
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
       (mutability ~space:Before) mut block_access_kind access_kind simple a
@@ -562,10 +567,11 @@ let unop ppf u =
 
 let ternop ppf t a1 a2 a3 =
   match t with
-  | Array_set (ak, ia) ->
-    Format.fprintf ppf "@[<2>%%array_set%a@ %a.(%a) %a %a@]"
-      (array_kind ~space:Before) ak simple a1 simple a2 init_or_assign ia simple
-      a3
+  | Array_set (ak, width, ia) ->
+    Format.fprintf ppf "@[<2>%%array_set%a%a@ %a.(%a) %a %a@]"
+      (array_kind ~space:Before) ak
+      (array_accessor_width ~space:Before)
+      width simple a1 simple a2 init_or_assign ia simple a3
   | Block_set (bk, ia) ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
       bk simple a1 simple a2 init_or_assign ia simple a3
@@ -725,9 +731,11 @@ type scope =
   | Continuation_body
 
 let parens ~if_scope_is scope ppf f =
-  if if_scope_is = scope
-  then Format.fprintf ppf "(%t)" (f Outer)
-  else f scope ppf
+  match if_scope_is, scope with
+  | Outer, Outer | Where_body, Where_body | Continuation_body, Continuation_body
+    ->
+    Format.fprintf ppf "(%t)" (f Outer)
+  | (Outer | Where_body | Continuation_body), _ -> f scope ppf
 
 let rec expr scope ppf = function
   | Invalid { message } ->

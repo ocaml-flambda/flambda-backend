@@ -170,15 +170,16 @@ let phys_reg ty n =
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4
+let rcx = phys_reg Int 5
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
-let destroy_xmm15 () =
+let destroy_xmm n =
   if Language_extension.is_enabled SIMD
-  then [| phys_reg Float 115; phys_reg Vec128 115 |]
-  else [| phys_reg Float 115 |]
+  then [| phys_reg Float (100 + n); phys_reg Vec128 (100 + n) |]
+  else [| phys_reg Float (100 + n) |]
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -399,6 +400,21 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
+let destroyed_by_simd_op op =
+  match Simd_proc.register_behavior op with
+  | R_RM_rax_rdx_to_xmm0
+  | R_RM_to_xmm0 -> destroy_xmm 0
+  | R_RM_rax_rdx_to_rcx
+  | R_RM_to_rcx -> [| rcx |]
+  | R_to_fst
+  | R_to_R
+  | R_to_RM
+  | RM_to_R
+  | R_R_to_fst
+  | R_RM_to_fst
+  | R_RM_to_R
+  | R_RM_xmm0_to_fst -> [||]
+
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _) ->
@@ -410,7 +426,7 @@ let destroyed_at_oper = function
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _))
-        -> destroy_xmm15 ()
+        -> destroy_xmm 15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
@@ -420,9 +436,10 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
+  | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause | Iprefetch _ | Isimd _
+                 | Ipause | Iprefetch _
                  | Ifloatarithmem (_, _) | Ifloatsqrtf _ | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
@@ -465,7 +482,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
   | Op(Store(Single, _, _)) ->
-    destroy_xmm15 ()
+    destroy_xmm 15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
@@ -473,6 +490,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
+  | Op (Specific (Isimd op)) -> destroyed_by_simd_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
@@ -497,7 +515,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
-                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ | Isimd _
+                  | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _
                   | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
@@ -596,6 +614,20 @@ let max_register_pressure =
     consumes ~int:1 ~float:0
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
+  | Ispecific(Isimd op) ->
+    (match Simd_proc.register_behavior op with
+    | R_RM_rax_rdx_to_xmm0
+    | R_RM_to_xmm0 -> consumes ~int:0 ~float:1
+    | R_RM_rax_rdx_to_rcx
+    | R_RM_to_rcx -> consumes ~int:1 ~float:0
+    | R_to_fst
+    | R_to_R
+    | R_to_RM
+    | RM_to_R
+    | R_R_to_fst
+    | R_RM_to_fst
+    | R_RM_to_R
+    | R_RM_xmm0_to_fst -> consumes ~int:0 ~float:0)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
@@ -613,7 +645,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
-             | Ilfence | Isfence | Imfence | Isimd _
+             | Ilfence | Isfence | Imfence
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatsqrtf _
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque

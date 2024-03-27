@@ -68,7 +68,7 @@
        parser)))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes cmo_format outcometree parsetree debug_event)
+   annot asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
@@ -77,6 +77,7 @@
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
+   zero_alloc_utils
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -90,15 +91,15 @@
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
-   typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
-   typecore mode uniqueness_analysis
+   typemode typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
+   typecore solver_intf solver mode_intf mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
    ; manual update: mli only files
    annot outcometree
 
    ;; lambda/
-   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   assume_info debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -309,6 +310,7 @@
     (cms_format.mli as compiler-libs/cms_format.mli)
     (untypeast.mli as compiler-libs/untypeast.mli)
     (includemod.mli as compiler-libs/includemod.mli)
+    (typemode.mli as compiler-libs/typemode.mli)
     (typetexp.mli as compiler-libs/typetexp.mli)
     (printpat.mli as compiler-libs/printpat.mli)
     (parmatch.mli as compiler-libs/parmatch.mli)
@@ -317,6 +319,7 @@
     (typeopt.mli as compiler-libs/typeopt.mli)
     (rec_check.mli as compiler-libs/rec_check.mli)
     (typecore.mli as compiler-libs/typecore.mli)
+    (solver.mli as compiler-libs/solver.mli)
     (mode.mli as compiler-libs/mode.mli)
     (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
     (typeclass.mli as compiler-libs/typeclass.mli)
@@ -327,6 +330,7 @@
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)
     (debuginfo.mli as compiler-libs/debuginfo.mli)
+    (assume_info.mli as compiler-libs/assume_info.mli)
     (lambda.mli as compiler-libs/lambda.mli)
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)
@@ -357,5 +361,6 @@
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
+    (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)
 
   ))

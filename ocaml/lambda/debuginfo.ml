@@ -27,10 +27,23 @@ module Scoped_location = struct
     | Sc_partial_or_eta_wrapper
     | Sc_lazy
 
+  let equal_scope_item si1 si2 =
+    match si1, si2 with
+    | Sc_anonymous_function, Sc_anonymous_function
+    | Sc_value_definition, Sc_value_definition
+    | Sc_module_definition, Sc_module_definition
+    | Sc_class_definition, Sc_class_definition
+    | Sc_method_definition, Sc_method_definition
+    | Sc_partial_or_eta_wrapper, Sc_partial_or_eta_wrapper
+    | Sc_lazy, Sc_lazy -> true
+    | (Sc_anonymous_function | Sc_value_definition | Sc_module_definition
+      | Sc_class_definition | Sc_method_definition | Sc_partial_or_eta_wrapper
+      | Sc_lazy), _ -> false
+
   type scopes =
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
-               assume_zero_alloc: bool}
+               assume_zero_alloc: Assume_info.t}
 
   let str = function
     | Empty -> ""
@@ -75,15 +88,15 @@ module Scoped_location = struct
   let enter_compilation_unit ~scopes cu =
     let name = Compilation_unit.name_as_string cu in
     cons scopes Sc_module_definition (dot scopes name) name
-      ~assume_zero_alloc:false
+      ~assume_zero_alloc:Assume_info.none
 
   let enter_module_definition ~scopes id =
     cons scopes Sc_module_definition (dot scopes (Ident.name id)) (Ident.name id)
-      ~assume_zero_alloc:false
+      ~assume_zero_alloc:Assume_info.none
 
   let enter_class_definition ~scopes id =
     cons scopes Sc_class_definition (dot scopes (Ident.name id)) (Ident.name id)
-      ~assume_zero_alloc:false
+      ~assume_zero_alloc:Assume_info.none
 
   let enter_method_definition ~scopes (s : Asttypes.label) =
     let str =
@@ -91,32 +104,36 @@ module Scoped_location = struct
       | Cons {item = Sc_class_definition; _} -> dot ~sep:"#" scopes s
       | _ -> dot scopes s
     in
-    cons scopes Sc_method_definition str s ~assume_zero_alloc:false
+    cons scopes Sc_method_definition str s ~assume_zero_alloc:Assume_info.none
 
   let enter_lazy ~scopes = cons scopes Sc_lazy (str scopes) ""
-                             ~assume_zero_alloc:false
+                             ~assume_zero_alloc:Assume_info.none
 
   let enter_partial_or_eta_wrapper ~scopes =
     cons scopes Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)") ""
-      ~assume_zero_alloc:false
+      ~assume_zero_alloc:Assume_info.none
 
-  let set_assume_zero_alloc ~scopes =
+  let update_assume_zero_alloc ~scopes ~assume_zero_alloc =
     match scopes with
     | Empty -> Empty
-    | Cons { assume_zero_alloc = true } -> scopes
-    | Cons { item; str; str_fun; name; prev; assume_zero_alloc = false; } ->
-      Cons { item; str; str_fun; name; prev; assume_zero_alloc = true; }
+    | Cons r ->
+      if Assume_info.equal r.assume_zero_alloc assume_zero_alloc
+      then scopes
+      else
+        let assume_zero_alloc =
+          Assume_info.meet r.assume_zero_alloc assume_zero_alloc
+        in
+        Cons { r with assume_zero_alloc }
 
   let get_assume_zero_alloc ~scopes =
     match scopes with
-    | Empty -> false
+    | Empty -> Assume_info.none
     | Cons { assume_zero_alloc; _ } -> assume_zero_alloc
 
   let string_of_scopes = function
     | Empty -> "<unknown>"
     | Cons {str; assume_zero_alloc; _} ->
-      if assume_zero_alloc then str^"(assume zero_alloc)"
-      else str
+      str^(Assume_info.to_string assume_zero_alloc)
 
   let string_of_scopes =
     let module StringSet = Set.Make (String) in
@@ -227,18 +244,19 @@ module Dbg = struct
 
 end
 
-type t = { dbg : Dbg.t; assume_zero_alloc : bool }
+type t = { dbg : Dbg.t; assume_zero_alloc : Assume_info.t }
 
 type alloc_dbginfo_item =
   { alloc_words : int;
     alloc_dbg : t }
 type alloc_dbginfo = alloc_dbginfo_item list
 
-let none = { dbg = []; assume_zero_alloc = false }
+let none = { dbg = []; assume_zero_alloc = Assume_info.none }
 
 let to_string { dbg; assume_zero_alloc; } =
   let s = Dbg.to_string dbg in
-  if assume_zero_alloc then s^"(assume zero_alloc)" else s
+  let a = Assume_info.to_string assume_zero_alloc in
+  s^a
 
 let item_from_location ~scopes loc =
   let valid_endpos =
@@ -261,7 +279,7 @@ let item_from_location ~scopes loc =
   }
 
 let from_location = function
-  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = false; }
+  | Scoped_location.Loc_unknown -> { dbg = []; assume_zero_alloc = Assume_info.none; }
   | Scoped_location.Loc_known {scopes; loc} ->
     assert (not (Location.is_none loc));
     let assume_zero_alloc = Scoped_location.get_assume_zero_alloc ~scopes in
@@ -287,15 +305,15 @@ let to_location { dbg; assume_zero_alloc=_ } =
 
 let inline { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
-  { dbg = dbg1 @ dbg2; assume_zero_alloc = a1 || a2; }
+  { dbg = dbg1 @ dbg2; assume_zero_alloc = Assume_info.meet a1 a2; }
 
 let is_none { dbg; assume_zero_alloc } =
-  (not assume_zero_alloc) && Dbg.is_none dbg
+  Assume_info.is_none assume_zero_alloc && Dbg.is_none dbg
 
 let compare { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
   let res = Dbg.compare dbg1 dbg2 in
-  if res <> 0 then res else Bool.compare a1 a2
+  if res <> 0 then res else Assume_info.compare a1 a2
 
 let rec print_compact ppf t =
   let print_item item =
@@ -322,8 +340,13 @@ let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
      When assume_zero_alloc is only on one of the inputs but not both, keep [dbg]
      from the other.
   *)
-  { dbg = if a1 && not a2 then dbg2 else dbg1;
-    assume_zero_alloc = a1 && a2
+  let dbg =
+    match Assume_info.is_none a1, Assume_info.is_none a2 with
+    | false, true -> dbg2
+    | _,  _ -> dbg1
+  in
+  { dbg;
+    assume_zero_alloc = Assume_info.join a1 a2
   }
 
 let assume_zero_alloc t = t.assume_zero_alloc

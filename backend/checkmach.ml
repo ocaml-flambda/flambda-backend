@@ -70,19 +70,11 @@ module Witness = struct
       fprintf ppf "direct tailcall %s" callee
     | Missing_summary { callee } -> fprintf ppf "missing summary for %s" callee
     | Forward_call { callee } ->
-      fprintf ppf "foward call or tailcall (conservatively handled) %s" callee
+      fprintf ppf "forward call or tailcall (conservatively handled) %s" callee
     | Extcall { callee } -> fprintf ppf "external call to %s" callee
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe %s handler %s" name handler_code_sym
-
-  let get_alloc_dbginfo kind =
-    match kind with
-    | Alloc { bytes = _; dbginfo } -> Some dbginfo
-    | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
-    | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
-      ->
-      None
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
@@ -99,11 +91,15 @@ module Witnesses : sig
 
   val join : t -> t -> t
 
+  val meet : t -> t -> t
+
   val create : Witness.kind -> Debuginfo.t -> t
 
   val print : Format.formatter -> t -> unit
 
   val elements : t -> Witness.t list
+
+  val compare : t -> t -> int
 
   type components =
     { nor : t;
@@ -119,6 +115,8 @@ end = struct
      limit the size of this set. The downside is that it won't get tested as
      much. Only keep witnesses for functions that need checking. *)
   let join = union
+
+  let meet = inter
 
   let create kind dbg = singleton (Witness.create dbg kind)
 
@@ -142,16 +140,10 @@ end = struct
     }
 end
 
-(** Abstract value for each component of the domain. *)
+module T = Zero_alloc_utils.Make (Witnesses)
+
 module V : sig
-  type t =
-    | Top of Witnesses.t  (** Property may not hold on some paths. *)
-    | Safe  (** Property holds on all paths.  *)
-    | Bot  (** Not reachable. *)
-
-  val lessequal : t -> t -> bool
-
-  val join : t -> t -> t
+  include module type of T.V
 
   val transform : Witnesses.t -> t -> t
 
@@ -160,34 +152,8 @@ module V : sig
   val diff_witnesses : expected:t -> actual:t -> Witnesses.t
 
   val get_witnesses : t -> Witnesses.t
-
-  val is_not_safe : t -> bool
-
-  val print : witnesses:bool -> Format.formatter -> t -> unit
 end = struct
-  type t =
-    | Top of Witnesses.t
-    | Safe
-    | Bot
-
-  let join c1 c2 =
-    match c1, c2 with
-    | Bot, Bot -> Bot
-    | Safe, Safe -> Safe
-    | Top w1, Top w2 -> Top (Witnesses.join w1 w2)
-    | Safe, Bot | Bot, Safe -> Safe
-    | Top w1, Bot | Top w1, Safe | Bot, Top w1 | Safe, Top w1 -> Top w1
-
-  let lessequal v1 v2 =
-    match v1, v2 with
-    | Bot, Bot -> true
-    | Safe, Safe -> true
-    | Top _, Top _ -> true
-    | Bot, Safe -> true
-    | Bot, Top _ -> true
-    | Safe, Top _ -> true
-    | Top _, (Bot | Safe) -> false
-    | Safe, Bot -> false
+  include T.V
 
   (** abstract transformer (backward analysis) for a statement that violates the property
       but doesn't alter control flow. *)
@@ -211,49 +177,10 @@ end = struct
     else (
       assert (expected = Safe);
       match actual with Bot | Safe -> assert false | Top w -> w)
-
-  let is_not_safe = function Top _ -> true | Safe | Bot -> false
-
-  let print ~witnesses ppf = function
-    | Bot -> Format.fprintf ppf "bot"
-    | Top w ->
-      Format.fprintf ppf "top";
-      if witnesses then Format.fprintf ppf " (%a)" Witnesses.print w
-    | Safe -> Format.fprintf ppf "safe"
 end
 
-(** Abstract value associated with each program location in a function. *)
 module Value : sig
-  type t =
-    { nor : V.t;
-          (** Property about
-              all paths from this program location that may reach a Normal Return  *)
-      exn : V.t;
-          (** Property about all paths from this program point that may reach a Return with
-          Exception *)
-      div : V.t
-          (** Property about all paths from this program point that may diverge.  *)
-    }
-
-  val lessequal : t -> t -> bool
-
-  val join : t -> t -> t
-
-  val top : Witnesses.t -> t
-
-  val bot : t
-
-  val normal_return : t
-
-  val exn_escape : t
-
-  val diverges : t
-
-  val safe : t
-
-  val relaxed : Witnesses.t -> t
-
-  val print : witnesses:bool -> Format.formatter -> t -> unit
+  include module type of T.Value
 
   val transform : Witnesses.t -> t -> t
 
@@ -263,24 +190,7 @@ module Value : sig
 
   val diff_witnesses : expected:t -> actual:t -> Witnesses.components
 end = struct
-  (** Lifts V to triples  *)
-  type t =
-    { nor : V.t;
-      exn : V.t;
-      div : V.t
-    }
-
-  let bot = { nor = V.Bot; exn = V.Bot; div = V.Bot }
-
-  let lessequal v1 v2 =
-    V.lessequal v1.nor v2.nor && V.lessequal v1.exn v2.exn
-    && V.lessequal v1.div v2.div
-
-  let join v1 v2 =
-    { nor = V.join v1.nor v2.nor;
-      exn = V.join v1.exn v2.exn;
-      div = V.join v1.div v2.div
-    }
+  include T.Value
 
   let transform w v =
     { nor = V.transform w v.nor;
@@ -305,22 +215,6 @@ end = struct
       Witnesses.exn = V.get_witnesses t.exn;
       Witnesses.div = V.get_witnesses t.div
     }
-
-  let normal_return = { bot with nor = V.Safe }
-
-  let exn_escape = { bot with exn = V.Safe }
-
-  let diverges = { bot with div = V.Safe }
-
-  let safe = { nor = V.Safe; exn = V.Safe; div = V.Safe }
-
-  let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
-
-  let relaxed w = { nor = V.Safe; exn = V.Top w; div = V.Top w }
-
-  let print ~witnesses ppf { nor; exn; div } =
-    let pp = V.print ~witnesses in
-    Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" pp nor pp exn pp div
 end
 
 (**  Representation of user-provided annotations as abstract values *)
@@ -332,7 +226,7 @@ module Annotation : sig
   val find :
     Cmm.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
 
-  val expected_value : t -> Value.t
+  val expected_value : t -> Witnesses.t -> Value.t
 
   val is_assume : t -> bool
 
@@ -368,9 +262,12 @@ end = struct
 
   let get_loc t = t.loc
 
-  let expected_value t =
-    let res = if t.strict then Value.safe else Value.relaxed Witnesses.empty in
-    if t.never_returns_normally then { res with nor = V.Bot } else res
+  let expected_value t w =
+    let res = if t.strict then Value.safe else Value.relaxed w in
+    let res =
+      if t.never_returns_normally then { res with nor = V.Bot } else res
+    in
+    res
 
   let is_assume t = t.assume
 
@@ -420,6 +317,35 @@ end = struct
     List.exists is_enabled Cmm.all_properties
 end
 
+module Metadata : sig
+  (* CR-someday gyorsh: propagate assert of arbitrary expressions. *)
+  val assume_value :
+    Debuginfo.t -> can_raise:bool -> Witnesses.t -> Value.t option
+end = struct
+  (* CR gyorsh: The return type of [Assume_info.get_value] is
+     [Assume_info.Value.t]. It is not the same as [Checkmach.Value.t], because
+     [Witnesses] in [Checkmach] depend on Debuginfo and cannot be used in
+     Assume_info due to cyclic dependencies. The witnesses in Assume_info are
+     always empty and the translation is trivial. Is there a better way to avoid
+     duplicating [Zero_alloc_utils]? *)
+  let transl w (v : Assume_info.V.t) : V.t =
+    match v with Top _ -> Top w | Safe -> Safe | Bot -> Bot
+
+  let transl w (v : Assume_info.Value.t) : Value.t =
+    { nor = transl w v.nor; exn = transl w v.exn; div = transl w v.div }
+
+  let assume_value dbg ~can_raise w =
+    (* [loc] can be obtained by [Debuginfo.to_location dbg], For now just return
+       [Location.none] because it is not used. *)
+    let a = Debuginfo.assume_zero_alloc dbg in
+    match Assume_info.get_value a with
+    | None -> None
+    | Some v ->
+      let v = transl w v in
+      let v = if can_raise then v else { v with exn = V.Bot } in
+      Some v
+end
+
 module Report : sig
   type t =
     { a : Annotation.t;
@@ -466,10 +392,10 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
-    let print_comballoc (w : Witness.t) =
-      match Witness.get_alloc_dbginfo w.kind with
-      | None | Some [] | Some [_] -> "", []
-      | Some alloc_dbginfo ->
+    let print_comballoc dbg =
+      match dbg with
+      | [] | [_] -> "", []
+      | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
            checkmach is before comballoc. In the future, this may be done in the
@@ -494,15 +420,31 @@ end = struct
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
       let loc = Debuginfo.to_location w.dbg in
-      let comballoc_msg, sub = print_comballoc w in
       let component_msg =
         if String.equal "" component
         then component
         else " on a path to " ^ component
       in
+      let print_main_msg, sub =
+        match w.kind with
+        | Alloc { bytes = _; dbginfo } ->
+          let comballoc_msg, sub = print_comballoc dbginfo in
+          ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
+              comballoc_msg,
+            sub )
+        | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
+        | Missing_summary _ | Forward_call _ | Extcall _ ->
+          ( Format.dprintf "called function may allocate%s (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+        | Arch_specific | Probe _ ->
+          ( Format.dprintf "expression may allocate%s@ (%a)" component_msg
+              Witness.print_kind w.kind,
+            [] )
+      in
       let pp ppf () =
-        Format.fprintf ppf "Unexpected %a%a%s%s" Witness.print_kind w.kind
-          pp_inlined_dbg w.dbg component_msg comballoc_msg
+        print_main_msg ppf;
+        pp_inlined_dbg ppf w.dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
@@ -856,7 +798,7 @@ end = struct
       | Some a ->
         Builtin_attributes.mark_property_checked analysis_name
           (Annotation.get_loc a);
-        let expected_value = Annotation.expected_value a in
+        let expected_value = Annotation.expected_value a Witnesses.empty in
         if (not (Annotation.is_assume a))
            && S.enabled ()
            && not (Value.lessequal func_info.value expected_value)
@@ -984,7 +926,9 @@ end = struct
 
   let transform_top t ~next ~exn w desc dbg =
     let effect =
-      if Debuginfo.assume_zero_alloc dbg then Value.relaxed w else Value.top w
+      match Metadata.assume_value dbg ~can_raise:true w with
+      | Some v -> v
+      | None -> Value.top w
     in
     transform t ~next ~exn ~effect desc dbg
 
@@ -992,9 +936,9 @@ end = struct
     report t next ~msg:"transform_call next" ~desc dbg;
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let effect =
-      if Debuginfo.assume_zero_alloc dbg
-      then Value.relaxed w
-      else
+      match Metadata.assume_value dbg ~can_raise:true w with
+      | Some v -> v
+      | None ->
         let callee_value, new_dep = find_callee t callee dbg in
         update_deps t callee_value new_dep w desc dbg;
         (* Abstract witnesses of a call to the single witness for the callee
@@ -1037,14 +981,14 @@ end = struct
     | Ialloc { mode = Alloc_local; _ } ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
+    | Ialloc { mode = Alloc_heap; bytes; dbginfo } -> (
       assert (not (Mach.operation_can_raise op));
-      if Debuginfo.assume_zero_alloc dbg
-      then next
-      else
-        let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
+      match Metadata.assume_value dbg ~can_raise:false w with
+      | Some effect -> transform t ~next ~exn ~effect "heap allocation" dbg
+      | None ->
         let r = Value.transform w next in
-        check t r "heap allocation" dbg
+        check t r "heap allocation" dbg)
     | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
@@ -1080,15 +1024,11 @@ end = struct
     | Ispecific s ->
       let effect =
         let w = create_witnesses t Arch_specific dbg in
-        if Debuginfo.assume_zero_alloc dbg
-        then
-          (* Conservatively assume that operation can return normally. *)
-          let nor = V.Safe in
-          let exn = if Arch.operation_can_raise s then V.Top w else V.Bot in
-          (* Assume that the operation does not diverge. *)
-          let div = V.Bot in
-          { Value.nor; exn; div }
-        else S.transform_specific w s
+        match
+          Metadata.assume_value dbg ~can_raise:(Arch.operation_can_raise s) w
+        with
+        | Some v -> v
+        | None -> S.transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
     | Idls_get -> Misc.fatal_error "Idls_get not supported"
@@ -1165,14 +1105,22 @@ end = struct
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
       in
+      let really_check ~keep_witnesses =
+        if !Flambda_backend_flags.disable_checkmach
+        then
+          (* Do not analyze the body of the function, conservatively assume that
+             the summary is top. *)
+          Unit_info.join_value unit_info fun_name (Value.top Witnesses.empty)
+        else really_check ~keep_witnesses
+      in
       match a with
       | Some a when Annotation.is_assume a ->
-        let expected_value = Annotation.expected_value a in
+        let expected_value = Annotation.expected_value a Witnesses.empty in
         report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
         Unit_info.join_value unit_info fun_name expected_value
       | None -> really_check ~keep_witnesses:false
       | Some a ->
-        let expected_value = Annotation.expected_value a in
+        let expected_value = Annotation.expected_value a Witnesses.empty in
         report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
         (* Only keep witnesses for functions that need checking. *)
         really_check ~keep_witnesses:true

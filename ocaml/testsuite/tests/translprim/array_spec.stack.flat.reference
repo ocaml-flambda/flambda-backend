@@ -6,92 +6,102 @@
     (seq (array.length[int] int_a) (array.length[float] float_a)
       (array.length[addr] addr_a)
       (function {nlocal = 0} a[genarray] : int (array.length[gen] a))
-      (array.get[int] int_a 0) (array.get[float] float_a 0)
-      (array.get[addr] addr_a 0)
-      (function {nlocal = 0} a[genarray] (array.get[gen] a 0))
-      (array.unsafe_get[int] int_a 0) (array.unsafe_get[float] float_a 0)
-      (array.unsafe_get[addr] addr_a 0)
-      (function {nlocal = 0} a[genarray] (array.unsafe_get[gen] a 0))
-      (array.set[int] int_a 0 1) (array.set[float] float_a 0 1.)
-      (array.set[addr] addr_a 0 "a")
-      (function {nlocal = 2} a[genarray] x : int (array.set[gen] a 0 x))
-      (array.unsafe_set[int] int_a 0 1)
-      (array.unsafe_set[float] float_a 0 1.)
-      (array.unsafe_set[addr] addr_a 0 "a")
+      (array.get[int indexed by int] int_a 0)
+      (array.get[float indexed by int] float_a 0)
+      (array.get[addr indexed by int] addr_a 0)
+      (function {nlocal = 0} a[genarray] (array.get[gen indexed by int] a 0))
+      (array.unsafe_get[int indexed by int] int_a 0)
+      (array.unsafe_get[float indexed by int] float_a 0)
+      (array.unsafe_get[addr indexed by int] addr_a 0)
+      (function {nlocal = 0} a[genarray]
+        (array.unsafe_get[gen indexed by int] a 0))
+      (array.set[int indexed by int] int_a 0 1)
+      (array.set[float indexed by int] float_a 0 1.)
+      (array.set[addr indexed by int] addr_a 0 "a")
       (function {nlocal = 2} a[genarray] x : int
-        (array.unsafe_set[gen] a 0 x))
+        (array.set[gen indexed by int] a 0 x))
+      (array.unsafe_set[int indexed by int] int_a 0 1)
+      (array.unsafe_set[float indexed by int] float_a 0 1.)
+      (array.unsafe_set[addr indexed by int] addr_a 0 "a")
+      (function {nlocal = 2} a[genarray] x : int
+        (array.unsafe_set[gen indexed by int] a 0 x))
       (let
         (eta_gen_len =
            (function {nlocal = 0} prim[genarray] stub
              ignore assert all zero_alloc : int (array.length[gen] prim))
          eta_gen_safe_get =
            (function {nlocal = 0} prim[genarray] prim[int] stub
-             ignore assert all zero_alloc (array.get[gen] prim prim))
+             ignore assert all zero_alloc
+             (array.get[gen indexed by int] prim prim))
          eta_gen_unsafe_get =
            (function {nlocal = 0} prim[genarray] prim[int] stub
-             ignore assert all zero_alloc (array.unsafe_get[gen] prim prim))
+             ignore assert all zero_alloc
+             (array.unsafe_get[gen indexed by int] prim prim))
          eta_gen_safe_set =
            (function {nlocal = 0} prim[genarray] prim[int] prim stub
              ignore assert all zero_alloc : int
-             (array.set[gen] prim prim prim))
+             (array.set[gen indexed by int] prim prim prim))
          eta_gen_unsafe_set =
            (function {nlocal = 0} prim[genarray] prim[int] prim stub
              ignore assert all zero_alloc : int
-             (array.unsafe_set[gen] prim prim prim))
+             (array.unsafe_set[gen indexed by int] prim prim prim))
          eta_int_len =
            (function {nlocal = 0} prim[intarray] stub
              ignore assert all zero_alloc : int (array.length[int] prim))
          eta_int_safe_get =
            (function {nlocal = 0} prim[intarray] prim[int] stub
-             ignore assert all zero_alloc : int (array.get[int] prim prim))
+             ignore assert all zero_alloc : int
+             (array.get[int indexed by int] prim prim))
          eta_int_unsafe_get =
            (function {nlocal = 0} prim[intarray] prim[int] stub
              ignore assert all zero_alloc : int
-             (array.unsafe_get[int] prim prim))
+             (array.unsafe_get[int indexed by int] prim prim))
          eta_int_safe_set =
            (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
              ignore assert all zero_alloc : int
-             (array.set[int] prim prim prim))
+             (array.set[int indexed by int] prim prim prim))
          eta_int_unsafe_set =
            (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
              ignore assert all zero_alloc : int
-             (array.unsafe_set[int] prim prim prim))
+             (array.unsafe_set[int indexed by int] prim prim prim))
          eta_float_len =
            (function {nlocal = 0} prim[floatarray] stub
              ignore assert all zero_alloc : int (array.length[float] prim))
          eta_float_safe_get =
            (function {nlocal = 0} prim[floatarray] prim[int] stub
              ignore assert all zero_alloc : float
-             (array.get[float] prim prim))
+             (array.get[float indexed by int] prim prim))
          eta_float_unsafe_get =
            (function {nlocal = 0} prim[floatarray] prim[int] stub
              ignore assert all zero_alloc : float
-             (array.unsafe_get[float] prim prim))
+             (array.unsafe_get[float indexed by int] prim prim))
          eta_float_safe_set =
            (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
              ignore assert all zero_alloc : int
-             (array.set[float] prim prim prim))
+             (array.set[float indexed by int] prim prim prim))
          eta_float_unsafe_set =
            (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
              ignore assert all zero_alloc : int
-             (array.unsafe_set[float] prim prim prim))
+             (array.unsafe_set[float indexed by int] prim prim prim))
          eta_addr_len =
            (function {nlocal = 0} prim[addrarray] stub
              ignore assert all zero_alloc : int (array.length[addr] prim))
          eta_addr_safe_get =
            (function {nlocal = 0} prim[addrarray] prim[int] stub
-             ignore assert all zero_alloc (array.get[addr] prim prim))
+             ignore assert all zero_alloc
+             (array.get[addr indexed by int] prim prim))
          eta_addr_unsafe_get =
            (function {nlocal = 0} prim[addrarray] prim[int] stub
-             ignore assert all zero_alloc (array.unsafe_get[addr] prim prim))
+             ignore assert all zero_alloc
+             (array.unsafe_get[addr indexed by int] prim prim))
          eta_addr_safe_set =
            (function {nlocal = 0} prim[addrarray] prim[int] prim stub
              ignore assert all zero_alloc : int
-             (array.set[addr] prim prim prim))
+             (array.set[addr indexed by int] prim prim prim))
          eta_addr_unsafe_set =
            (function {nlocal = 0} prim[addrarray] prim[int] prim stub
              ignore assert all zero_alloc : int
-             (array.unsafe_set[addr] prim prim prim)))
+             (array.unsafe_set[addr indexed by int] prim prim prim)))
         (makeblock 0 int_a float_a addr_a eta_gen_len eta_gen_safe_get
           eta_gen_unsafe_get eta_gen_safe_set eta_gen_unsafe_set eta_int_len
           eta_int_safe_get eta_int_unsafe_get eta_int_safe_set

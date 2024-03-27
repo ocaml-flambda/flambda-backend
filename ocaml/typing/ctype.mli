@@ -17,6 +17,7 @@
 
 open Asttypes
 open Types
+open Mode
 
 exception Unify    of Errortrace.unification_error
 exception Equality of Errortrace.equality_error
@@ -185,7 +186,7 @@ type existential_treatment =
 
 val instance_constructor: existential_treatment ->
         constructor_description ->
-        (type_expr * global_flag) list * type_expr * type_expr list
+        (type_expr * Global_flag.t) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->
@@ -205,10 +206,11 @@ val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
-        Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
-        -> Mode.Locality.t
-val instance_prim_mode:
-        Primitive.description -> type_expr -> type_expr * Mode.Locality.t option
+        (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
+        -> (Mode.allowed * 'r) Mode.Locality.t
+val instance_prim:
+        Primitive.description -> type_expr ->
+        type_expr * Mode.Locality.lr option * Jkind.Sort.t option
 
 val apply:
         ?use_current_level:bool ->
@@ -277,9 +279,9 @@ val unify_delaying_jkind_checks :
 
 type filtered_arrow =
   { ty_arg : type_expr;
-    arg_mode : Mode.Alloc.t;
+    arg_mode : Mode.Alloc.lr;
     ty_ret : type_expr;
-    ret_mode : Mode.Alloc.t
+    ret_mode : Mode.Alloc.lr
   }
 
 val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
@@ -536,6 +538,10 @@ val estimate_type_jkind : Env.t ->  type_expr -> jkind
    types. *)
 val type_jkind : Env.t -> type_expr -> jkind
 
+(* Get the jkind of a type, dropping any changes to types caused by
+   expansion. *)
+val type_jkind_purely : Env.t -> type_expr -> jkind
+
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
@@ -550,12 +556,24 @@ val type_sort :
    raise on error, like unify. *)
 val check_decl_jkind :
   Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
+val constrain_decl_jkind :
+  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val check_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 
-(* Update the jkind reason of all generalized type vars inside the given [type_expr]
+(* Check whether a type's externality's upper bound is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+
+(* This function should get called after a type is generalized.
+
+   It does two things:
+
+   1. Update the jkind reason of all generalized type vars inside the
+      given [type_expr]
 
    Consider some code like
 
@@ -575,18 +593,30 @@ val constrain_type_jkind :
    is more well suited for discovering properties of well-typed definitions. Instead,
    once a definition is done being type-checked -- that is, once it is generalized --
    we update the histories of all of its types' jkinds to just refer to the definition
-   itself. *)
-val update_generalized_ty_jkind_reason : type_expr -> Jkind.creation_reason -> unit
+   itself.
+
+   2. Performs an upstream-compatibility check around immediacy if
+      [Language_extension.erasable_extensions_only ()] is [true].
+
+   The check makes sure no generalized type variable can have jkind
+   [immediate] or [immediate64]. An exception would be raised when
+   the check fails.
+
+   This prevents code such as:
+
+   {|
+     let f (x : (_ : immediate)) = x;;
+   |}
+
+   which doesn't have an equivalent representation upstream.
+
+   *)
+val check_and_update_generalized_ty_jkind :
+  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)
 val is_principal : type_expr -> bool
-
-(* True if a type is immediate. *)
-val is_immediate : Env.t -> type_expr -> bool
-
-(* True if a type can cross to the minimum on all mode axes. *)
-val mode_cross : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state

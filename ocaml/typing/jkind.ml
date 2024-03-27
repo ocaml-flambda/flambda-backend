@@ -12,6 +12,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Mode
+
+[@@@warning "+9"]
+
 (* CR layouts v2.8: remove this *)
 module Legacy = struct
   type const =
@@ -74,19 +78,6 @@ module Legacy = struct
         | Bits64 ),
         _ ) ->
       false
-end
-
-module Sub_result = struct
-  type t =
-    | Equal
-    | Sub
-    | Not_sub
-
-  let combine sr1 sr2 =
-    match sr1, sr2 with
-    | Equal, Equal -> Equal
-    | Equal, Sub | Sub, Equal | Sub, Sub -> Sub
-    | Not_sub, _ | _, Not_sub -> Not_sub
 end
 
 (* A *sort* is the information the middle/back ends need to be able to
@@ -374,7 +365,7 @@ module Sort = struct
 
   let for_array_get_result = value
 
-  let for_array_element = value
+  let for_array_comprehension_element = value
 
   let for_list_element = value
 end
@@ -393,17 +384,19 @@ module Layout = struct
       | Sort of Sort.const
       | Any
 
+    let max = Any
+
     let equal c1 c2 =
       match c1, c2 with
       | Sort s1, Sort s2 -> Sort.equal_const s1 s2
       | Any, Any -> true
       | (Any | Sort _), _ -> false
 
-    let sub c1 c2 : Sub_result.t =
+    let sub c1 c2 : Misc.Le_result.t =
       match c1, c2 with
       | _ when equal c1 c2 -> Equal
-      | _, Any -> Sub
-      | Any, Sort _ | Sort _, Sort _ -> Not_sub
+      | _, Any -> Less
+      | Any, Sort _ | Sort _, Sort _ -> Not_le
   end
 
   type t =
@@ -423,12 +416,12 @@ module Layout = struct
     | Any, Any -> true
     | (Any | Sort _), _ -> false
 
-  let sub t1 t2 : Sub_result.t =
+  let sub t1 t2 : Misc.Le_result.t =
     match t1, t2 with
     | Any, Any -> Equal
-    | _, Any -> Sub
-    | Any, _ -> Not_sub
-    | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_sub
+    | _, Any -> Less
+    | Any, _ -> Not_le
+    | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
 
   let intersection t1 t2 =
     match t1, t2 with
@@ -461,14 +454,11 @@ module Layout = struct
   end
 end
 
-(* Whether or not a type is external to the garbage collector *)
-(* CR layouts: Since this is a mode, the definition here should probably
-   move over to mode.ml *)
 module Externality = struct
   type t =
-    | External (* not managed by the garbage collector *)
-    | External64 (* not managed by the garbage collector on 64-bit systems *)
-    | Internal (* managed by the garbage collector *)
+    | External
+    | External64
+    | Internal
 
   (* CR layouts v2.8: Either use this or remove it *)
   let _to_string = function
@@ -487,17 +477,19 @@ module Externality = struct
     | Internal, Internal -> true
     | (External | External64 | Internal), _ -> false
 
-  let sub t1 t2 : Sub_result.t =
+  let less_or_equal t1 t2 : Misc.Le_result.t =
     match t1, t2 with
     | External, External -> Equal
-    | External, (External64 | Internal) -> Sub
-    | External64, External -> Not_sub
+    | External, (External64 | Internal) -> Less
+    | External64, External -> Not_le
     | External64, External64 -> Equal
-    | External64, Internal -> Sub
-    | Internal, (External | External64) -> Not_sub
+    | External64, Internal -> Less
+    | Internal, (External | External64) -> Not_le
     | Internal, Internal -> Equal
 
-  let intersection t1 t2 =
+  let le t1 t2 = Misc.Le_result.is_le (less_or_equal t1 t2)
+
+  let meet t1 t2 =
     match t1, t2 with
     | External, (External | External64 | Internal)
     | (External64 | Internal), External ->
@@ -515,15 +507,36 @@ module Externality = struct
   end
 end
 
+module Modes = struct
+  include Alloc.Const
+
+  let less_or_equal a b : Misc.Le_result.t =
+    match le a b, le b a with
+    | true, true -> Equal
+    | true, false -> Less
+    | false, _ -> Not_le
+
+  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
+end
+
 module Const = struct
   type t =
     { layout : Layout.Const.t;
-      externality : Externality.t
+      modes_upper_bounds : Modes.t;
+      externality_upper_bound : Externality.t
+    }
+
+  let max =
+    { layout = Layout.Const.max;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max
     }
 
   (* CR layouts v2.8: remove this *)
-  let to_legacy_jkind { layout; externality } : Legacy.const =
-    match layout, externality with
+  let to_legacy_jkind
+      { layout; modes_upper_bounds = _; externality_upper_bound } : Legacy.const
+      =
+    match layout, externality_upper_bound with
     | Any, _ -> Any
     | Sort Value, Internal -> Value
     | Sort Value, External64 -> Immediate64
@@ -537,9 +550,32 @@ module Const = struct
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
 
-  let sub { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
-    Sub_result.combine (Layout.Const.sub lay1 lay2) (Externality.sub ext1 ext2)
+  let equal
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
+    Layout.Const.equal lay1 lay2
+    && Modes.equal modes1 modes2
+    && Externality.equal ext1 ext2
+
+  let sub
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
+    Misc.Le_result.combine_list
+      [ Layout.Const.sub lay1 lay2;
+        Modes.less_or_equal modes1 modes2;
+        Externality.less_or_equal ext1 ext2 ]
 end
 
 module Desc = struct
@@ -557,77 +593,171 @@ module Desc = struct
      relationship only when they are equal.
      Never does mutation.
      Pre-condition: no filled-in sort variables. *)
-  let sub d1 d2 : Sub_result.t =
+  let sub d1 d2 : Misc.Le_result.t =
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
-    | Var _, Const { layout = Any; externality = Internal } -> Sub
-    | Var v1, Var v2 -> if v1 == v2 then Equal else Not_sub
-    | Const _, Var _ | Var _, Const _ -> Not_sub
+    | Var _, Const c when Const.equal Const.max c -> Less
+    | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
+    | Const _, Var _ | Var _, Const _ -> Not_le
 end
 
 module Jkind_desc = struct
   type t =
     { layout : Layout.t;
-      externality : Externality.t
+      modes_upper_bounds : Modes.t;
+      externality_upper_bound : Externality.t
     }
 
-  let max = { layout = Layout.max; externality = Externality.max }
+  let max =
+    { layout = Layout.max;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.max
+    }
 
-  let equate_or_equal ~allow_mutation { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
+  let equate_or_equal ~allow_mutation
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
+    && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
 
-  let sub { layout = layout1; externality = externality1 }
-      { layout = layout2; externality = externality2 } =
-    Sub_result.combine
-      (Layout.sub layout1 layout2)
-      (Externality.sub externality1 externality2)
+  let sub
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
+    Misc.Le_result.combine_list
+      [ Layout.sub lay1 lay2;
+        Modes.less_or_equal modes1 modes2;
+        Externality.less_or_equal ext1 ext2 ]
 
-  let intersection { layout = lay1; externality = ext1 }
-      { layout = lay2; externality = ext2 } =
+  let intersection
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2
+      } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
-        Some { layout; externality = Externality.intersection ext1 ext2 })
+        Some
+          { layout;
+            modes_upper_bounds = Modes.meet modes1 modes2;
+            externality_upper_bound = Externality.meet ext1 ext2
+          })
 
   let of_new_sort_var () =
     let layout, sort = Layout.of_new_sort_var () in
-    { layout; externality = Externality.max }, sort
+    { max with layout }, sort
 
   let any = max
 
-  let value = { layout = Layout.value; externality = Externality.max }
+  let value = { max with layout = Layout.value }
 
-  let void = { layout = Layout.void; externality = Externality.min }
+  let void =
+    { layout = Layout.void;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = Externality.min
+    }
 
-  let immediate64 = { layout = Layout.value; externality = External64 }
+  (* [immediate64] describes types that are stored directly (no indirection)
+     on 64-bit platforms but indirectly on 32-bit platforms. The key question:
+     along which modes should a [immediate64] cross? As of today, all of them,
+     but the reasoning for each is independent and somewhat subtle:
 
-  let immediate = { layout = Layout.value; externality = External }
+     * Locality: This is fine, because we do not have stack-allocation on
+     32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
+     including immediate64 types.
 
-  let float64 = { layout = Layout.float64; externality = External }
+     * Linearity: This is fine, because linearity matters only for function
+     types, and an immediate64 cannot be a function type and cannot store
+     one either.
 
-  let word = { layout = Layout.word; externality = External }
+     * Uniqueness: This is fine, because uniqueness matters only for
+     in-place update, and no record supporting in-place update is an
+     immediate64. ([@@unboxed] records do not support in-place update.)
 
-  let bits32 = { layout = Layout.bits32; externality = External }
+     * Syncness: This is fine, because syncness matters only for function
+     types, and an immediate64 cannot be a function type and cannot store
+     one either.
 
-  let bits64 = { layout = Layout.bits64; externality = External }
+     * Contention: This is fine, because contention matters only for
+     types with mutable fields, and an immediate64 does not have immutable
+     fields.
+
+     In practice, the functor that creates immediate64s,
+     [Stdlib.Sys.Immediate64.Make], will require these conditions on its
+     argument. But the arguments that we expect here will have no trouble
+     meeting the conditions.
+  *)
+  let immediate64 =
+    { layout = Layout.value;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External64
+    }
+
+  let immediate =
+    { layout = Layout.value;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
+      externality_upper_bound = External
+    }
+
+  let float64 =
+    { layout = Layout.float64;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
+
+  let word =
+    { layout = Layout.word;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
+
+  let bits32 =
+    { layout = Layout.bits32;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
+
+  let bits64 =
+    { layout = Layout.bits64;
+      modes_upper_bounds = Modes.max;
+      externality_upper_bound = External
+    }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
-  let get { layout; externality } : Desc.t =
+  let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
     match layout with
-    | Any -> Const { layout = Any; externality }
+    | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
     | Sort s -> (
       match Sort.get s with
-      (* This match isn't as silly as it looks: those are
-         different constructors on the left than on the right *)
-      | Const s -> Const { layout = Sort s; externality }
+      | Const s ->
+        Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
       | Var v -> Var v)
 
   module Debug_printers = struct
     open Format
 
-    let t ppf { layout; externality } =
-      fprintf ppf "{ layout = %a;@ externality = %a }" Layout.Debug_printers.t
-        layout Externality.Debug_printers.t externality
+    let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
+      fprintf ppf
+        "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+         %a }"
+        Layout.Debug_printers.t layout Modes.print modes_upper_bounds
+        Externality.Debug_printers.t externality_upper_bound
   end
 end
 
@@ -649,12 +779,13 @@ type concrete_jkind_reason =
   | Wildcard
   | Unification_var
   | Optional_arg_default
+  | Layout_poly_in_external
+  | Array_element
 
 type value_creation_reason =
   | Class_let_binding
   | Tuple_element
   | Probe
-  | Package_hack
   | Object
   | Instance_variable
   | Object_field
@@ -682,7 +813,7 @@ type value_creation_reason =
   | Default_type_jkind
   | Float_record_field
   | Existential_type_variable
-  | Array_element
+  | Array_comprehension_element
   | Lazy_expression
   | Class_type_argument
   | Class_term_argument
@@ -698,12 +829,8 @@ type immediate_creation_reason =
   | Enumeration
   | Primitive of Ident.t
   | Immediate_polymorphic_variant
-  | Gc_ignorable_check
 
-type immediate64_creation_reason =
-  | Local_mode_cross_check
-  | Gc_ignorable_check
-  | Separability_check
+type immediate64_creation_reason = Separability_check
 
 type void_creation_reason = |
 
@@ -715,6 +842,7 @@ type any_creation_reason =
   | Inside_of_Tarrow
   | Wildcard
   | Unification_var
+  | Array_type_argument
 
 type float64_creation_reason = Primitive of Ident.t
 
@@ -952,10 +1080,16 @@ let for_boxed_variant ~all_voids =
 (******************************)
 (* elimination and defaulting *)
 
-let get_default_value { jkind = { layout; externality }; _ } : Const.t =
+let get_default_value
+    { jkind = { layout; modes_upper_bounds; externality_upper_bound }; _ } :
+    Const.t =
   match layout with
-  | Any -> { layout = Any; externality }
-  | Sort s -> { layout = Sort (Sort.get_default_value s); externality }
+  | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
+  | Sort s ->
+    { layout = Sort (Sort.get_default_value s);
+      modes_upper_bounds;
+      externality_upper_bound
+    }
 
 let default_to_value t = ignore (get_default_value t)
 
@@ -969,6 +1103,16 @@ let sort_of_jkind l =
   | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
   | Var v -> Sort.of_var v
 
+let get_layout jk : Layout.Const.t option =
+  match jk.jkind.layout with
+  | Any -> Some Any
+  | Sort s -> (
+    match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
+
+let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
+
+let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
+
 (*********************************)
 (* pretty printing *)
 
@@ -980,7 +1124,7 @@ let format ppf t = Format.fprintf ppf "%s" (to_string t)
 (***********************************)
 (* jkind histories *)
 let has_imported_history t =
-  match t with { history = Creation Imported } -> true | _ -> false
+  match t.history with Creation Imported -> true | _ -> false
 
 let update_reason t reason = { t with history = Creation reason }
 
@@ -1088,6 +1232,12 @@ end = struct
     | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Optional_arg_default ->
       fprintf ppf "it's the type of an optional argument default"
+    | Layout_poly_in_external ->
+      fprintf ppf
+        "it's the layout polymorphic type in an external declaration@ \
+         ([@@layout_poly] forces all variables of layout 'any' to be@ \
+         representable at call sites)"
+    | Array_element -> fprintf ppf "it's the type of an array element"
 
   let rec format_annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p ->
@@ -1126,6 +1276,8 @@ end = struct
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
+    | Array_type_argument ->
+      fprintf ppf "it's the type argument to the array type"
 
   let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
     function
@@ -1139,14 +1291,8 @@ end = struct
     | Immediate_polymorphic_variant ->
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
-    | Gc_ignorable_check ->
-      fprintf ppf "the check to see whether a value can be ignored by GC"
 
   let format_immediate64_creation_reason ppf = function
-    | Local_mode_cross_check ->
-      fprintf ppf "the check for whether a local value can safely escape"
-    | Gc_ignorable_check ->
-      fprintf ppf "the check to see whether a value can be ignored by GC"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
 
@@ -1155,8 +1301,6 @@ end = struct
       fprintf ppf "it's the type of a let-bound variable in a class expression"
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Probe -> format_with_notify_js ppf "it's a probe"
-    | Package_hack ->
-      fprintf ppf "it's a type declaration in a first-class module"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
@@ -1192,7 +1336,8 @@ end = struct
     | Float_record_field -> fprintf ppf "it's the type of a float record field"
     | Existential_type_variable ->
       fprintf ppf "it's an unannotated existential type variable"
-    | Array_element -> fprintf ppf "it's the type of an array element"
+    | Array_comprehension_element ->
+      fprintf ppf "it's the element type of array comprehension"
     | Lazy_expression -> fprintf ppf "it's the type of a lazy expression"
     | Class_type_argument ->
       fprintf ppf "it's a type argument to a class constructor"
@@ -1298,7 +1443,8 @@ end = struct
   (* this isn't really formatted for user consumption *)
   let format_history_tree ~intro ppf t =
     let rec in_order ppf = function
-      | Interact { reason; lhs_history; rhs_history } ->
+      | Interact
+          { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
         fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
           format_interact_reason reason in_order rhs_history
       | Creation c -> format_creation_reason ppf c
@@ -1339,7 +1485,7 @@ module Violation = struct
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
 
-  let is_missing_cmi { missing_cmi } = Option.is_some missing_cmi
+  let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   let report_general preamble pp_former former ppf t =
     let subjkind_format verb l2 =
@@ -1439,8 +1585,8 @@ let combine_histories reason lhs rhs =
   if flattened_histories
   then
     match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-    | Sub -> lhs.history
-    | Not_sub ->
+    | Less -> lhs.history
+    | Not_le ->
       rhs.history
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
     | Equal ->
@@ -1464,22 +1610,22 @@ let intersection ~reason t1 t2 =
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 
-let sub sub super =
-  match check_sub sub super with
-  | Sub | Equal -> Ok ()
-  | Not_sub -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+let sub sub super = Misc.Le_result.is_le (check_sub sub super)
+
+let sub_or_error t1 t2 =
+  if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
 let sub_with_history sub super =
   match check_sub sub super with
-  | Sub | Equal ->
+  | Less | Equal ->
     Ok { sub with history = combine_histories Subjkind sub super }
-  | Not_sub -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
 
-let is_any = function { jkind = { layout = Any } } -> true | _ -> false
+let is_any jkind = match jkind.jkind.layout with Any -> true | _ -> false
 
 (*********************************)
 (* debugging *)
@@ -1507,6 +1653,8 @@ module Debug_printers = struct
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
     | Optional_arg_default -> fprintf ppf "Optional_arg_default"
+    | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
+    | Array_element -> fprintf ppf "Array_element"
 
   let rec annotation_context ppf : annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p
@@ -1533,6 +1681,7 @@ module Debug_printers = struct
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
+    | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : immediate_creation_reason -> _ = function
     | Empty_record -> fprintf ppf "Empty_record"
@@ -1540,18 +1689,14 @@ module Debug_printers = struct
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Immediate_polymorphic_variant ->
       fprintf ppf "Immediate_polymorphic_variant"
-    | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
 
   let immediate64_creation_reason ppf = function
-    | Local_mode_cross_check -> fprintf ppf "Local_mode_cross_check"
-    | Gc_ignorable_check -> fprintf ppf "Gc_ignorable_check"
     | Separability_check -> fprintf ppf "Separability_check"
 
   let value_creation_reason ppf : value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Probe -> fprintf ppf "Probe"
-    | Package_hack -> fprintf ppf "Package_hack"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"
@@ -1576,7 +1721,7 @@ module Debug_printers = struct
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Float_record_field -> fprintf ppf "Float_record_field"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
-    | Array_element -> fprintf ppf "Array_element"
+    | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | Lazy_expression -> fprintf ppf "Lazy_expression"
     | Class_type_argument -> fprintf ppf "Class_type_argument"
     | Class_term_argument -> fprintf ppf "Class_term_argument"

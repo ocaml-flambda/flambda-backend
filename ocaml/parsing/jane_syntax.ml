@@ -400,35 +400,145 @@ end = struct
   end
 end
 
-module Mode_annotation = struct
-  type t =
-    | Local
-    | Unique
-    | Once
+module Mode_expr = struct
+  module Const : sig
+    type raw = string
 
-  let equal t1 t2 =
-    match t1, t2 with
-    | Local, Local -> true
-    | Unique, Unique -> true
-    | Once, Once -> true
-    | (Local | Unique | Once), _ -> false
+    type t = private raw Location.loc
 
-  include Make_payload_protocol_of_stringable (struct
-    type nonrec t = t
+    val mk : string -> Location.t -> t
 
-    let indefinite_article_and_name = "a", "mode"
+    val list_as_payload : t list -> payload
 
-    let to_string = function
-      | Local -> "local"
-      | Unique -> "unique"
-      | Once -> "once"
+    val list_from_payload : loc:Location.t -> payload -> t list
 
-    let of_string = function
-      | "local" -> Some Local
-      | "unique" -> Some Unique
-      | "once" -> Some Once
-      | _ -> None
-  end)
+    val ghostify : t -> t
+  end = struct
+    type raw = string
+
+    module Protocol = Make_payload_protocol_of_stringable (struct
+      type t = raw
+
+      let indefinite_article_and_name = "a", "mode"
+
+      let to_string s = s
+
+      let of_string' s = s
+
+      let of_string s = Some (of_string' s)
+    end)
+
+    let list_as_payload = Protocol.Encode.list_as_payload
+
+    let list_from_payload = Protocol.Decode.list_from_payload
+
+    type t = raw Location.loc
+
+    let mk txt loc : t = { txt; loc }
+
+    let ghostify { txt; loc } =
+      let loc = { loc with loc_ghost = true } in
+      { txt; loc }
+  end
+
+  type t = Const.t list Location.loc
+
+  let empty = Location.mknoloc []
+
+  let singleton const =
+    let const' = (const : Const.t :> _ Location.loc) in
+    Location.mkloc [const] const'.loc
+
+  let concat mode0 mode1 =
+    let txt = mode0.txt @ mode1.txt in
+    Location.mknoloc txt
+
+  let feature : Feature.t = Language_extension Mode
+
+  let attribute_or_extension_name =
+    Embedded_name.of_feature feature [] |> Embedded_name.to_string
+
+  let attribute_name = attribute_or_extension_name
+
+  let payload_of { txt; _ } =
+    match txt with
+    | [] -> None
+    | _ :: _ as txt -> Some (Const.list_as_payload txt)
+
+  let of_payload ~loc payload =
+    let l = Const.list_from_payload ~loc payload in
+    match l with
+    | [] -> Misc.fatal_error "Payload encoding empty mode expression"
+    | _ :: _ -> Location.mkloc l loc
+
+  let extract_attr attrs =
+    let attrs, rest =
+      List.partition
+        (fun { attr_name; _ } -> attr_name.txt = attribute_name)
+        attrs
+    in
+    match attrs with
+    | [] -> None, rest
+    | [attr] -> Some attr, rest
+    | _ :: _ :: _ -> Misc.fatal_error "More than one mode attribute"
+
+  let of_attr { attr_payload; attr_loc; _ } =
+    of_payload ~loc:attr_loc attr_payload
+
+  let maybe_of_attrs attrs =
+    let attr, rest = extract_attr attrs in
+    let mode = Option.map of_attr attr in
+    mode, rest
+
+  let of_attrs attrs =
+    let mode, rest = maybe_of_attrs attrs in
+    let mode = Option.value mode ~default:empty in
+    mode, rest
+
+  let attr_of modes =
+    match payload_of modes with
+    | None -> None
+    | Some attr_payload ->
+      let attr_name = Location.mknoloc attribute_name in
+      let attr_loc = modes.loc in
+      Some { attr_name; attr_loc; attr_payload }
+
+  let ghostify { txt; loc } =
+    let loc = { loc with loc_ghost = true } in
+    let txt = List.map Const.ghostify txt in
+    { loc; txt }
+end
+
+(** Some mode-related constructs *)
+module Modes = struct
+  let feature : Feature.t = Language_extension Mode
+
+  type nonrec expression = Coerce of Mode_expr.t * expression
+
+  let extension_name = Mode_expr.attribute_or_extension_name
+
+  let of_expr ({ pexp_desc; pexp_attributes; _ } as expr) =
+    match pexp_desc with
+    | Pexp_apply
+        ( { pexp_desc = Pexp_extension ({ txt; _ }, payload); pexp_loc; _ },
+          [(Nolabel, body)] )
+      when txt = extension_name ->
+      let modes = Mode_expr.of_payload ~loc:pexp_loc payload in
+      Coerce (modes, body), pexp_attributes
+    | _ ->
+      Misc.fatal_errorf "Improperly encoded modes expression: %a"
+        (Printast.expression 0) expr
+
+  let expr_of ~loc (Coerce (modes, body)) =
+    match Mode_expr.payload_of modes with
+    | None -> body
+    | Some payload ->
+      let ext =
+        Ast_helper.Exp.extension ~loc:modes.loc
+          (Location.mknoloc extension_name, payload)
+      in
+      Expression.make_entire_jane_syntax ~loc feature (fun () ->
+          Ast_helper.Exp.apply ~loc ext [Nolabel, body])
 end
 
 (** List and array comprehensions *)
@@ -696,19 +806,12 @@ module N_ary_functions = struct
       pparam_loc : Location.t
     }
 
-  type mode_annotation = Mode_annotation.t =
-    | Local
-    | Unique
-    | Once
-
-  let mode_annotation_equal = Mode_annotation.equal
-
   type type_constraint =
     | Pconstraint of core_type
     | Pcoerce of core_type option * core_type
 
   type function_constraint =
-    { mode_annotations : mode_annotation loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 
@@ -727,7 +830,7 @@ module N_ary_functions = struct
     type t =
       | Top_level
       | Fun_then of after_fun
-      | Mode_constraint of mode_annotation loc list
+      | Mode_constraint of Mode_expr.t
       | Jkind_annotation of const_jkind loc
 
     (* We return an [of_suffix_result] from [of_suffix] rather than having
@@ -751,9 +854,9 @@ module N_ary_functions = struct
       | Top_level -> [], None
       | Fun_then Cases -> ["cases"], None
       | Fun_then Constraint_then_cases -> ["constraint"; "cases"], None
-      | Mode_constraint mode_annotation ->
-        let payload = Mode_annotation.Encode.list_as_payload mode_annotation in
-        ["mode_constraint"], Some payload
+      | Mode_constraint modes ->
+        let payload = Mode_expr.payload_of modes in
+        ["mode_constraint"], payload
       | Jkind_annotation jkind_annotation ->
         let payload = Jkind_annotation.Encode.as_payload jkind_annotation in
         ["jkind_annotation"], Some payload
@@ -766,18 +869,8 @@ module N_ary_functions = struct
       | ["mode_constraint"] ->
         Payload
           (fun payload ~loc ->
-            let mode_annotations =
-              Mode_annotation.Decode.list_from_payload payload ~loc
-            in
-            List.iter
-              (fun mode_annotation ->
-                assert_extension_enabled ~loc
-                  (match (mode_annotation.txt : mode_annotation) with
-                  | Local -> Local
-                  | Unique | Once -> Unique)
-                  ())
-              mode_annotations;
-            Mode_constraint mode_annotations)
+            let modes = Mode_expr.of_payload payload ~loc in
+            Mode_constraint modes)
       | ["jkind_annotation"] ->
         Payload
           (fun payload ~loc ->
@@ -915,10 +1008,10 @@ module N_ary_functions = struct
     | Pexp_function cases -> cases
     | _ -> Desugaring_error.raise expr (Expected_function_cases arity_attribute)
 
-  let constraint_modes expr : mode_annotation loc list =
+  let constraint_modes expr : Mode_expr.t =
     match expand_n_ary_expr expr with
     | Some (Mode_constraint modes, _) -> modes
-    | _ -> []
+    | _ -> Mode_expr.empty
 
   let check_constraint expr =
     match expr.pexp_desc with
@@ -1146,8 +1239,8 @@ module N_ary_functions = struct
                 | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
               in
-              match mode_annotations with
-              | _ :: _ as mode_annotations ->
+              match mode_annotations.txt with
+              | _ :: _ ->
                 n_ary_function_expr (Mode_constraint mode_annotations)
                   constrained_body
               | [] -> constrained_body)
@@ -1829,6 +1922,7 @@ module Expression = struct
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
     | Jexp_tuple of Labeled_tuples.expression
+    | Jexp_modes of Modes.expression
 
   let of_ast_internal (feat : Feature.t) expr =
     match feat with
@@ -1848,6 +1942,9 @@ module Expression = struct
     | Language_extension Labeled_tuples ->
       let expr, attrs = Labeled_tuples.of_expr expr in
       Some (Jexp_tuple expr, attrs)
+    | Language_extension Mode ->
+      let expr, attrs = Modes.of_expr expr in
+      Some (Jexp_modes expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
@@ -1860,6 +1957,7 @@ module Expression = struct
       | Jexp_layout x -> Layouts.expr_of ~loc x
       | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
       | Jexp_tuple x -> Labeled_tuples.expr_of ~loc x
+      | Jexp_modes x -> Modes.expr_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with

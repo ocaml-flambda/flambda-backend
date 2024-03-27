@@ -598,7 +598,14 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-type 'a any4 = Any4 of 'a
+Line 1, characters 23-33:
+1 | type ('a : any) any4 = Any4 of 'a
+                           ^^^^^^^^^^
+Error: Constructor argument types must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on 'a in the declaration of the type any4.
+       But the layout of 'a must be representable, because
+         it's the type of a constructor field.
 |}];;
 
 (************************************************************)
@@ -1179,8 +1186,8 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
-(***********************************************************)
-(* Test 13: built-in type constructors work only on values *)
+(*************************************************************************)
+(* Test 13: built-in type constructors and support for non-value layouts *)
 
 (* CR layouts v5: Bring the void versions over from basics_alpha *)
 
@@ -1315,27 +1322,12 @@ Error: This expression has type ('a : value)
 (* array *)
 type t13f = t_float64 array;;
 [%%expect{|
-Line 1, characters 12-21:
-1 | type t13f = t_float64 array;;
-                ^^^^^^^^^
-Error: This type t_float64 should be an instance of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         the type argument of array has layout value.
+type t13f = t_float64 array
 |}];;
 
 let x13f (v : t_float64) = [| v |];;
 [%%expect{|
-Line 1, characters 30-31:
-1 | let x13f (v : t_float64) = [| v |];;
-                                  ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 -> t_float64 array = <fun>
 |}];;
 
 let x13f v =
@@ -1343,15 +1335,7 @@ let x13f v =
   | [| v |] -> f_id v
   | _ -> assert false
 [%%expect{|
-Line 3, characters 20-21:
-3 |   | [| v |] -> f_id v
-                        ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_float64
-       The layout of t_float64 is float64, because
-         of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+val x13f : t_float64 array -> t_float64 = <fun>
 |}];;
 
 (****************************************************************************)
@@ -1814,6 +1798,32 @@ Error: This type signature for foo33 is not a value type.
          of the definition of t_any at line 5, characters 0-18.
        But the layout of type t_any must be a sublayout of value, because
          it's the type of something stored in a module structure.
+|}]
+
+external foo44 : ('a : any). 'a -> unit = "foo44";;
+
+[%%expect{|
+Line 1, characters 29-31:
+1 | external foo44 : ('a : any). 'a -> unit = "foo44";;
+                                 ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of an argument in an external declaration.
+|}]
+
+external foo55 : ('a : any). unit -> 'a = "foo55";;
+
+[%%expect{|
+Line 1, characters 37-39:
+1 | external foo55 : ('a : any). unit -> 'a = "foo55";;
+                                         ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any, because
+         of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable, because
+         it's the type of the result of an external declaration.
 |}]
 
 (****************************************************)
@@ -2342,17 +2352,11 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 28-37.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 28-37.
 |}]
 
 (* This example is unfortunately rejected as a consequence of the fix for the
@@ -2366,17 +2370,11 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2/2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2/2 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 27-36.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 27-36.
 |}]
 
 (* This one also unfortunately rejected for the same reason. *)
@@ -2387,15 +2385,94 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error: Layout mismatch in checking consistency of mutually recursive groups.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of 'a t2/3 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2/3 must be a sublayout of immediate, because
-           of the annotation on the wildcard _ at line 1, characters 25-34.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+Error:
+       The layout of 'a t2 is value, because
+         it instantiates an unannotated type parameter of t2, defaulted to layout value.
+       But the layout of 'a t2 must be a sublayout of immediate, because
+         of the annotation on the wildcard _ at line 1, characters 25-34.
+|}]
+
+(**********************************************************************)
+(* Test 42: Externals for built-in primitives have some safety checks *)
+
+(* oops the argument/return got swapped *)
+external f : float# -> float = "%unbox_float";;
+[%%expect{|
+Line 1, characters 13-28:
+1 | external f : float# -> float = "%unbox_float";;
+                 ^^^^^^^^^^^^^^^
+Error: The primitive [%unbox_float] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* using the wrong primitive *)
+external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+[%%expect{|
+Line 1, characters 13-39:
+1 | external f : ('a : bits64). 'a -> int64 = "%box_int32";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%box_int32] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* can't use primitives for jkind conversions *)
+external f : float# -> int32# = "%identity";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%identity";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%identity] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%opaque";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%opaque";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%opaque] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : float# -> int32# = "%obj_magic";;
+[%%expect{|
+Line 1, characters 13-29:
+1 | external f : float# -> int32# = "%obj_magic";;
+                 ^^^^^^^^^^^^^^^^
+Error: The primitive [%obj_magic] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+(* not smart enough to stop this
+   but the middle end should error in this case *)
+external f : (float# -> int32#) -> int32# -> int32# = "%apply";;
+[%%expect{|
+external f : (float# -> int32#) -> int32# -> int32# = "%apply"
+|}]
+
+external f : float# -> int -> int = "%send";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : float# -> int -> int = "%send";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%send] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> int -> float# = "%sendself";;
+[%%expect{|
+Line 1, characters 13-33:
+1 | external f : int -> int -> float# = "%sendself";;
+                 ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendself] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external f : int -> float# -> int -> int -> int = "%sendcache";;
+[%%expect{|
+Line 1, characters 13-47:
+1 | external f : int -> float# -> int -> int -> int = "%sendcache";;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%sendcache] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]

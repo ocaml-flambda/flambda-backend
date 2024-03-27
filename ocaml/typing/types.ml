@@ -51,7 +51,7 @@ and arg_label =
   | Position of string
 
 and arrow_desc =
-  arg_label * Mode.Alloc.t * Mode.Alloc.t
+  arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -279,15 +279,11 @@ and variant_representation =
   | Variant_boxed of jkind array array
   | Variant_extensible
 
-and global_flag =
-  | Global
-  | Unrestricted
-
 and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutable_flag;
-    ld_global: global_flag;
+    ld_global: Mode.Global_flag.t;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
     ld_loc: Location.t;
@@ -306,7 +302,7 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * global_flag) list
+  | Cstr_tuple of (type_expr * Mode.Global_flag.t) list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -526,7 +522,7 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_args: (type_expr * Mode.Global_flag.t) list;          (* Type of the arguments *)
     cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
@@ -612,7 +608,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a global field? *)
+    lbl_global: Mode.Global_flag.t;        (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
@@ -675,7 +671,7 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes));
+  Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
   Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
@@ -925,7 +921,7 @@ let undo_change = function
   | Ckind  (FKvar r) -> r.field_kind <- FKprivate
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
-  | Cmodes ms -> Mode.undo_changes ms
+  | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind.Sort.undo_change change
 
 type snapshot = changes ref * int

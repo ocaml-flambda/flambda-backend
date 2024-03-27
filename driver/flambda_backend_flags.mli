@@ -34,6 +34,7 @@ val dasm_comments : bool ref
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 val dump_checkmach : bool ref
+val disable_checkmach : bool ref
 
 val davail : bool ref
 val dranges : bool ref
@@ -46,6 +47,20 @@ type checkmach_details_cutoff =
 val checkmach_details_cutoff : checkmach_details_cutoff ref
 val default_checkmach_details_cutoff : checkmach_details_cutoff
 
+module Function_layout : sig
+  type t =
+    | Topological
+    | Source
+
+  val to_string : t -> string
+  val of_string : string -> t option
+  val default :t
+
+  val all : t list
+end
+
+
+val function_layout : Function_layout.t ref
 val disable_poll_insertion : bool ref
 val allow_long_frames : bool ref
 val max_long_frames_threshold : int

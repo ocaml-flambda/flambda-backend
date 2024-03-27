@@ -510,13 +510,14 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/src/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Lambda
+  type t = Parsing | Typing | Lambda | Middle_end
          | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Lambda -> "lambda"
+    | Middle_end -> "middle_end"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
@@ -526,6 +527,7 @@ module Compiler_pass = struct
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "lambda" -> Some Lambda
+    | "middle_end" -> Some Middle_end
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
@@ -536,6 +538,7 @@ module Compiler_pass = struct
     | Parsing -> 0
     | Typing -> 1
     | Lambda -> 2
+    | Middle_end -> 3
     | Selection -> 20
     | Simplify_cfg -> 49
     | Scheduling -> 50
@@ -545,6 +548,7 @@ module Compiler_pass = struct
     Parsing;
     Typing;
     Lambda;
+    Middle_end;
     Scheduling;
     Emit;
     Simplify_cfg;
@@ -552,6 +556,7 @@ module Compiler_pass = struct
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
+    | Middle_end -> true
     | Scheduling -> true
     | Emit -> true
     | Simplify_cfg -> true
@@ -563,7 +568,7 @@ module Compiler_pass = struct
     | Scheduling -> true
     | Simplify_cfg -> true
     | Selection -> true
-    | Parsing | Typing | Lambda | Emit -> false
+    | Parsing | Typing | Lambda | Middle_end | Emit -> false
 
   let available_pass_names ~filter ~native =
     passes
@@ -579,7 +584,7 @@ module Compiler_pass = struct
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
-    | Emit | Parsing | Typing | Lambda -> Misc.fatal_error "Not supported"
+    | Emit | Parsing | Typing | Lambda | Middle_end -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
     match Compiler_ir.extract_extension_with_pass name with

@@ -498,11 +498,11 @@ Line 6, characters 10-42:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = int
        is not included in
          type t : float64
-       The layout of the first is value, because
-         it's a type declaration in a first-class module.
+       The layout of the first is immediate, because
+         it is the primitive immediate type int.
        But the layout of the first must be a sublayout of float64, because
          of the definition of t at line 2, characters 2-18.
 |}];;
@@ -516,14 +516,19 @@ module type S6_4f = sig
 end;;
 [%%expect{|
 module type S6_3 = sig type t : value end
-Line 6, characters 33-34:
+Line 6, characters 10-47:
 6 |   val m : (module S6_3 with type t = t_float64)
-                                     ^
-Error: Signature package constraint types must have layout value.
-       The layout of t_float64 is float64, because
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this `with' constraint, the new definition of t
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t = t_float64
+       is not included in
+         type t : value
+       The layout of the first is float64, because
          of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value, because
-         it's a type declaration in a first-class module.
+       But the layout of the first must be a sublayout of value, because
+         of the definition of t at line 2, characters 2-16.
 |}];;
 
 module type S6_5 = sig
@@ -541,11 +546,11 @@ Line 6, characters 10-44:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = string
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's a type declaration in a first-class module.
+         it is the primitive value type string.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
@@ -561,34 +566,22 @@ Line 3, characters 10-39:
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t
+         type t = s
        is not included in
          type t : immediate
        The layout of the first is value, because
-         it's a type declaration in a first-class module.
+         of the definition of s at line 2, characters 2-8.
        But the layout of the first must be a sublayout of immediate, because
          of the definition of t at line 2, characters 2-20.
 |}];;
 
-(* CR layouts: S6_6'' should be fixed *)
 module type S6_6'' = sig
   type s = int
   val m : (module S6_5 with type t = int)
 end;;
 [%%expect{|
-Line 3, characters 10-41:
-3 |   val m : (module S6_5 with type t = int)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : immediate
-       The layout of the first is value, because
-         it's a type declaration in a first-class module.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-20.
+module type S6_6'' =
+  sig type s = int val m : (module S6_5 with type t = int) end
 |}];;
 
 (*****************************************)
@@ -716,3 +709,21 @@ Error: Function arguments and returns must be representable.
          it's the type of a function argument.
 |}]
 
+(***********************************)
+(* Test 11: [any] in package types *)
+
+module type S = sig
+  type t : any
+end
+
+module C : S = struct
+  type t = float
+end
+
+let x = (module C : S with type t = 'a)
+
+[%%expect{|
+module type S = sig type t : any end
+module C : S
+val x : (module S with type t = C.t) = <module>
+|}]

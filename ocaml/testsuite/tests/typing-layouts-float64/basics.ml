@@ -336,7 +336,7 @@ Line 1, characters 31-46:
 Error: This type signature for x is not a value type.
        The layout of type 'a t_float64_id is float64, because
          of the definition of t_float64_id at line 2, characters 0-37.
-       But the layout of type 'a t_float64_id must overlap with value, because
+       But the layout of type 'a t_float64_id must be a sublayout of value, because
          it's the type of something stored in a module structure.
 |}];;
 
@@ -500,7 +500,8 @@ val f9_3 : unit -> float# t_float64_id = <fun>
      bytecode and native code implementations,
    - if using a non-value layout in an external, you may not use the old-style
      unboxed float directive, and
-   - unboxed types can't be unboxed more.
+   - [@unboxed] is allowed on unboxed types but has no effect. Same is not
+     true for [@untagged].
 *)
 
 external f10_1 : int -> bool -> float# = "foo";;
@@ -547,29 +548,33 @@ Error: Cannot use "float" in conjunction with types of non-value layouts.
 
 external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 18-24:
-1 | external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
-                      ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_6 : float# -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 28-34:
-1 | external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
-                                ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_7 : string -> float# = "foo" "bar"
 |}];;
 
 external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-Line 1, characters 26-32:
-1 | external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
-                              ^^^^^^
-Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
+external f10_8 : (float [@unboxed]) -> float# = "foo" "bar"
+|}];;
+
+external f10_9 : (float#[@untagged]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 18-24:
+1 | external f10_9 : (float#[@untagged]) -> bool -> string  = "foo" "bar";;
+                      ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
+|}];;
+
+external f10_10 : string -> (float#[@untagged])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 29-35:
+1 | external f10_10 : string -> (float#[@untagged])  = "foo" "bar";;
+                                 ^^^^^^
+Error: Don't know how to untag this type. Only int can be untagged.
 |}];;
 
 (*******************************************************)

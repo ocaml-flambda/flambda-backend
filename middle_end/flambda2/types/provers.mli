@@ -114,6 +114,9 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
+val meet_is_int_variant_only :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+
 val prove_get_tag :
   Typing_env.t -> Type_grammar.t -> Tag.Set.t proof_of_property
 

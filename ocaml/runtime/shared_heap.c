@@ -474,7 +474,7 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
     p = large_allocate(local, Bsize_wsize(whsize));
     if (!p) return 0;
   }
-  colour = caml_global_heap_state.MARKED;
+  colour = caml_allocation_status();
   Hd_hp (p) = Make_header_with_reserved(wosize, tag, colour, reserved);
 #ifdef DEBUG
   {
@@ -808,7 +808,8 @@ static void verify_object(struct heap_verify_state* st, value v) {
     if (Tag_val(v) == Closure_tag) {
       i = Start_env_closinfo(Closinfo_val(v));
     }
-    for (; i < Wosize_val(v); i++) {
+    mlsize_t size = Wosize_val(v);
+    for (; i < size; i++) {
       value f = Field(v, i);
       if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
     }

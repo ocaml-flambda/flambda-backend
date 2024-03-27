@@ -109,7 +109,7 @@ let dbg = false
 (* CR layouts v5: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let jkind_layout_must_be_value loc jkind =
-  match Jkind.(sub jkind (value ~why:V1_safety_check)) with
+  match Jkind.(sub_or_error jkind (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
@@ -1174,6 +1174,7 @@ let can_group discr pat =
   | Constant (Const_char _), Constant (Const_char _)
   | Constant (Const_string _), Constant (Const_string _)
   | Constant (Const_float _), Constant (Const_float _)
+  | Constant (Const_float32 _), Constant (Const_float32 _)
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
@@ -1201,8 +1202,9 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _
-          | Const_unboxed_int32 _ | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
+          | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
+          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
+          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -1913,7 +1915,7 @@ let get_pat_args_lazy p rem =
 *)
 
 let prim_obj_tag =
-  Primitive.simple_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
 
 let get_mod_field modname field =
   lazy
@@ -2217,7 +2219,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       ( Lprim
-          (Parrayrefu ref_kind,
+          (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
@@ -2253,11 +2255,11 @@ let divide_array ~scopes kind ctx pm =
 let strings_test_threshold = 8
 
 let prim_string_notequal =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_notequal" ~arity:2
             ~alloc:false)
 
 let prim_string_compare =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_compare" ~arity:2
             ~alloc:false)
 
 let bind_sw arg layout k =
@@ -2870,13 +2872,17 @@ let combine_constant value_kind loc arg cst partial ctx def
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
     | Const_float _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
-          (Pfloatcomp CFlt) arg
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
+          (Pfloatcomp (Pfloat64, CFlt)) arg
+          const_lambda_list
+    | Const_float32 _ ->
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
+        (Pfloatcomp (Pfloat32, CFlt)) arg
           const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_float_comp CFneq)
-          (Punboxed_float_comp CFlt)
+          (Punboxed_float_comp (Pfloat64, CFneq))
+          (Punboxed_float_comp (Pfloat64, CFlt))
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
@@ -3558,8 +3564,8 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             partial (divide_constructor ~scopes)
             (combine_constructor value_kind ploc arg ph.pat_env cstr partial)
             ctx pm
-      | Array _ ->
-          let kind = Typeopt.array_pattern_kind pomega in
+      | Array (_, elt_sort, _) ->
+          let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_array ~scopes kind)

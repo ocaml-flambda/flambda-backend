@@ -18,5 +18,5 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _malformed_extension_has_payload = () [@jane.erasable.something "no payloads"];;
+let _malformed_extension_has_payload = () [@jane.erasable.layouts "no payloads"];;
 

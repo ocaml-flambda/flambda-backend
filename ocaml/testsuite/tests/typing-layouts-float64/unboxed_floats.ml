@@ -11,16 +11,14 @@
      flags = "-extension layouts_beta"
    ** bytecode
      flags = "-extension layouts_beta"
+   ** native
+     flags = "-extension-universe upstream_compatible"
+   ** bytecode
+     flags = "-extension-universe upstream_compatible"
    ** setup-ocamlc.byte-build-env
      ocamlc_byte_exit_status = "2"
    *** ocamlc.byte
-     flags = "-disable-all-extensions"
-     compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
-   **** check-ocamlc.byte-output
-   ** setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-   *** ocamlc.byte
-     flags = "-only-erasable-extensions"
+     flags = "-extension-universe no_extensions"
      compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
    **** check-ocamlc.byte-output
 *)

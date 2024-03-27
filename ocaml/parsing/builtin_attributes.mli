@@ -172,27 +172,11 @@ val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_local_opt: Parsetree.attributes -> bool
+val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
 
-(* These functions report Error if the builtin extension.* attributes
-   are present despite the extension being disabled *)
-val has_local: Parsetree.attributes -> (bool,unit) result
-val has_global: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-
-val has_unique: Parsetree.attributes -> (bool,unit) result
-
-val has_once : Parsetree.attributes -> (bool, unit) result
-
-(** This filter selects attributes corresponding to mode annotations on
-    let-bindings.
-
-    This filter is used principally by the type-checker when it copies [local_],
-    [unique_], and [once_] mode annotation attributes from let-bindings to both
-    the let-bound expression and its pattern.
-*)
-val mode_annotation_attributes_filter : Attributes_filter.t
 
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]
    after rerouting [@@immediate]. *)

@@ -26,6 +26,7 @@ module Extension = struct
       | SSE4_1
       | SSE4_2
       | CLMUL
+      | LZCNT
       | BMI
       | BMI2
 
@@ -44,6 +45,7 @@ module Extension = struct
     | SSE4_1 -> "SSE41"
     | SSE4_2 -> "SSE42"
     | CLMUL -> "CLMUL"
+    | LZCNT -> "LZCNT"
     | BMI -> "BMI"
     | BMI2 -> "BMI2"
 
@@ -56,15 +58,16 @@ module Extension = struct
     | SSE4_1 -> "Penryn+"
     | SSE4_2 -> "Nehalem+"
     | CLMUL -> "Westmere+"
+    | LZCNT -> "Haswell+"
     | BMI -> "Haswell+"
     | BMI2 -> "Haswell+"
 
   let enabled_by_default = function
     | SSE3 | SSSE3 | SSE4_1 | SSE4_2
-    | POPCNT | CLMUL | BMI | BMI2 -> true
+    | POPCNT | CLMUL | LZCNT | BMI | BMI2 -> true
     | PREFETCHW | PREFETCHWT1 -> false
 
-  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; BMI; BMI2 ]
+  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; LZCNT; BMI; BMI2 ]
   let config = ref (Set.filter enabled_by_default all)
 
   let enabled t = Set.mem t !config
@@ -82,10 +85,15 @@ module Extension = struct
       (n t, Arg.Unit (fun () -> config := Set.remove t !config),
         Printf.sprintf "Disable %s instructions (%s)%s" (name t) (generation t) nd) :: acc)
     all []
+
+    let available () = Set.fold (fun t acc -> t :: acc) !config []
 end
 
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
+
+(* Emit extension symbols for CPUID startup check  *)
+let arch_check_symbols = ref true
 
 (* Machine-specific command-line options *)
 
@@ -97,7 +105,11 @@ let command_line_options =
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information"
+      " Do not emit .note.ocaml_eh section with trap handling information";
+    "-farch-check", Arg.Set arch_check_symbols,
+      " Emit ISA extension symbols for CPUID check (default)";
+    "-fno-arch-check", Arg.Clear arch_check_symbols,
+      " Do not emit ISA extension symbols for CPUID check";
   ] @ Extension.args
 
 let assert_simd_enabled () =

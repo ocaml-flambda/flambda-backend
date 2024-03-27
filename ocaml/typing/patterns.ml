@@ -79,8 +79,8 @@ end
 module General = struct
   type view = [
     | Half_simple.view
-    | `Var of Ident.t * string loc * Uid.t * Mode.Value.t
-    | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.t
+    | `Var of Ident.t * string loc * Uid.t * Mode.Value.l
+    | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.l
   ]
   type pattern = view pattern_data
 

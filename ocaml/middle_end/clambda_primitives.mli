@@ -54,7 +54,7 @@ type primitive =
   | Presume
   | Preperform
   (* External call *)
-  | Pccall of Primitive.description
+  | Pccall of Lambda.external_call_description
   (* Exceptions *)
   | Praise of raise_kind
   (* Boolean operations *)
@@ -65,16 +65,22 @@ type primitive =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
+  | Pcompare_ints
+  | Pcompare_floats of boxed_float
+  | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint of alloc_mode
-  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
-  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
-  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
-  | Pfloatcomp of float_comparison
-  | Punboxed_float_comp of float_comparison
+  | Pintoffloat of boxed_float
+  | Pfloatofint of boxed_float * alloc_mode
+  | Pnegfloat of boxed_float * alloc_mode
+  | Pabsfloat of boxed_float * alloc_mode
+  | Paddfloat of boxed_float * alloc_mode
+  | Psubfloat of boxed_float * alloc_mode
+  | Pmulfloat of boxed_float * alloc_mode
+  | Pdivfloat of boxed_float * alloc_mode
+  | Pfloatcomp of boxed_float * float_comparison
+  | Punboxed_float_comp of boxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -142,8 +148,8 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
-  | Punbox_float
-  | Pbox_float of alloc_mode
+  | Punbox_float of boxed_float
+  | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
   | Pget_header of alloc_mode
@@ -159,7 +165,7 @@ and float_comparison = Lambda.float_comparison =
 
 and array_kind = Lambda.array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray
+  | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
 
 and array_ref_kind = Lambda.array_ref_kind =
@@ -167,7 +173,7 @@ and array_ref_kind = Lambda.array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of alloc_mode
-  | Punboxedfloatarray_ref
+  | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
 
 and array_set_kind = Lambda.array_set_kind =
@@ -175,12 +181,14 @@ and array_set_kind = Lambda.array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
-  | Punboxedfloatarray_set
+  | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
 
 and value_kind = Lambda.value_kind =
-  (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)
-    Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pgenval
+  | Pintval
+  | Pboxedfloatval of boxed_float
+  | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
       non_consts : (int * value_kind list) list;
@@ -191,7 +199,7 @@ and value_kind = Lambda.value_kind =
 and layout = Lambda.layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float
+  | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
   | Punboxed_product of layout list
@@ -199,8 +207,14 @@ and layout = Lambda.layout =
 
 and block_shape = Lambda.block_shape
 
+and boxed_float = Lambda.boxed_float =
+  | Pfloat64
+  | Pfloat32
+
 and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and unboxed_float = boxed_float
 
 and unboxed_integer = boxed_integer
 

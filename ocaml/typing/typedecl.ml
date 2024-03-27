@@ -26,7 +26,12 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type jkind_sort_loc = Cstr_tuple | Record | Unboxed_record | External
+type jkind_sort_loc =
+  | Cstr_tuple
+  | Record
+  | Unboxed_record
+  | External
+  | External_with_layout_poly
 
 (* Our static analyses explore the set of type expressions "reachable"
    from a type declaration, by expansion of definitions or by the
@@ -94,6 +99,11 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Unexpected_jkind_any_in_primitive of string
+  | Useless_layout_poly
+  | Modalities_on_value_description
+  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
+  | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
 
 open Typedtree
 
@@ -338,19 +348,6 @@ let set_private_row env loc p decl =
   in
   set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
 
-(* Translate one type declaration *)
-
-let transl_global_flags loc attrs =
-  let transl_global_flag loc (r : (bool,unit) result) =
-    match r with
-    | Ok b -> b
-    | Error () -> raise(Error(loc, Local_not_enabled))
-  in
-  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
-  match global with
-  | true -> Types.Global
-  | false -> Types.Unrestricted
-
 let transl_labels ~new_var_jkind env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -364,13 +361,14 @@ let transl_labels ~new_var_jkind env univars closed lbls =
           pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
-         let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          let gbl =
            match mut with
-           | Mutable -> Types.Global
-           | Immutable -> transl_global_flags loc attrs
+           | Mutable -> Mode.Global_flag.Global
+           | Immutable -> Typemode.transl_global_flags
+              (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
          in
+         let arg = Ast_helper.Typ.force_poly arg in
+         let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut; ld_global = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -399,7 +397,8 @@ let transl_labels ~new_var_jkind env univars closed lbls =
 let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
+    let gf = Typemode.transl_global_flags
+      (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
     (cty, gf)
   in
   let tyl_gfl = List.map mk tyl in
@@ -960,9 +959,6 @@ let check_constraints env sdecl (_, decl) =
    relatively expensive thing of computing the best possible jkind for the
    manifest, checking that it's a subjkind of [type_jkind], and then replacing
    [type_jkind] with what we computed.
-
-   CR layouts: if easy, factor out the shared backtracking logic from here
-   and is_immediate.
 *)
 let check_coherence env loc dpath decl =
   match decl with
@@ -1000,17 +996,7 @@ let check_coherence env loc dpath decl =
       end
   | { type_kind = Type_abstract _;
       type_manifest = Some ty } ->
-    let jkind' =
-      if !Clflags.principal || Env.has_local_constraints env then
-        (* We snapshot to keep this pure; see the mode crossing test that
-           mentions snapshotting for an example. *)
-        let snap = Btype.snapshot () in
-        let jkind' = Ctype.type_jkind env ty in
-        Btype.backtrack snap;
-        jkind'
-      else
-        Ctype.type_jkind env ty
-    in
+    let jkind' = Ctype.type_jkind_purely env ty in
     begin match Jkind.sub_with_history jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
@@ -1221,7 +1207,7 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.sub new_jkind decl.type_jkind with
+    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
     | Ok () -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
@@ -1231,11 +1217,14 @@ let update_decl_jkind env dpath decl =
 let update_decls_jkind_reason decls =
   List.map
     (fun (id, decl) ->
-       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
-       let update_generalized ty = Ctype.update_generalized_ty_jkind_reason ty reason in
+       let update_generalized =
+        Ctype.check_and_update_generalized_ty_jkind
+          ~name:id ~loc:decl.type_loc
+       in
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
+       let reason = Jkind.(Generalized (Some id, decl.type_loc)) in
        let new_decl = {decl with type_jkind =
                                    Jkind.(update_reason decl.type_jkind reason)} in
        (id, new_decl)
@@ -2171,12 +2160,30 @@ let get_native_repr_attribute attrs ~global_repr =
   | _, Some { Location.loc }, _ ->
     raise (Error (loc, Multiple_native_repr_attributes))
 
+let is_upstream_compatible_non_value_unbox env ty =
+  (* CR layouts v2.5: This needs to be updated when we support unboxed
+     types with arbitrary names suffixed with "#" *)
+  match get_desc (Ctype.expand_head_opt env ty) with
+  | Tconstr (path, _, _) ->
+    List.exists
+      (Path.same path)
+      [
+        Predef.path_unboxed_float;
+        Predef.path_unboxed_int32;
+        Predef.path_unboxed_int64;
+        Predef.path_unboxed_nativeint;
+      ]
+  | _ ->
+    false
+
 let native_repr_of_type env kind ty =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (path, _, _) when Path.same path Predef.path_int ->
     Some Untagged_int
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
-    Some Unboxed_float
+    Some (Unboxed_float Pfloat64)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
+    Some (Unboxed_float Pfloat32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32 ->
     Some (Unboxed_integer Pint32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64 ->
@@ -2217,17 +2224,95 @@ let error_if_has_deep_native_repr_attributes core_type =
   in
   default_iterator.typ this_iterator core_type
 
-let make_native_repr env core_type sort ty ~global_repr =
+(* Note that [typ] is guaranteed not to contain sort variables because it was
+   produced by [type_scheme], which defaults them.
+
+   However, there can be jkind [any] present with something like:
+    [external f : ('a : any). 'a -> 'a = "%identity"]
+   In such cases, we raise an expection. *)
+let type_sort_external ~is_layout_poly ~why env loc typ =
+  match Ctype.type_sort ~why env typ with
+  | Ok s -> Jkind.Sort.get_default_value s
+  | Error err ->
+    let kloc =
+      if is_layout_poly then External_with_layout_poly else External
+    in
+    raise(Error (loc, Jkind_sort {kloc; typ; err}))
+
+type sort_or_poly = Sort of Jkind.Sort.const | Poly
+
+let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
-  match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
-  | Native_repr_attr_absent ->
+  let sort_or_poly =
+    match get_desc (Ctype.get_unboxed_type_approximation env ty) with
+    (* This only captures tvars with jkind [any] explicitly quantified within
+       the declaration.
+
+       This is sufficient since [transl_type_scheme] promises that:
+       - non-explicitly quantified tvars get sort jkinds
+       - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
+         transl)
+    *)
+    | Tvar {jkind} when is_layout_poly
+                      && Jkind.is_any jkind
+                      && get_level ty = Btype.generic_level -> Poly
+    | _ ->
+      let sort =
+        type_sort_external ~is_layout_poly ~why env core_type.ptyp_loc ty
+      in
+      Sort sort
+  in
+  match get_native_repr_attribute
+          core_type.ptyp_attributes ~global_repr,
+        sort_or_poly with
+  | Native_repr_attr_absent, Poly ->
+    Repr_poly
+  | Native_repr_attr_absent, Sort (Value as sort) ->
     Same_as_ocaml_repr sort
-  | Native_repr_attr_present kind ->
+  | Native_repr_attr_absent, (Sort sort) ->
+    if Language_extension.erasable_extensions_only ()
+    then
+      (* Non-value sorts without [@unboxed] are not erasable. *)
+      raise (Error (core_type.ptyp_loc,
+              Missing_unboxed_attribute_on_non_value_sort sort))
+    else
+      Same_as_ocaml_repr sort
+  | Native_repr_attr_present kind, (Poly | Sort Value)
+  | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
+  | Native_repr_attr_present Unboxed, (Sort sort) ->
+    (* We allow [@unboxed] on non-value sorts.
+
+       This is to enable upstream-compatibility. We want the code to
+       still work when all the layout annotations and unboxed types
+       get erased.
+
+       One may wonder why can't the erasure process mentioned above
+       also add in the [@unboxed] attributes. This is not possible due
+       to the fact that:
+
+       1. Without type information, the erasure process can't transform:
+
+        {|
+           type t = float#
+           external f : t -> t = ...
+        |}
+
+       2. We need [is_upstream_compatible_non_value_unbox] to further
+          limit the cases that can work with upstream. *)
+    if Language_extension.erasable_extensions_only ()
+       && not (is_upstream_compatible_non_value_unbox env ty)
+    then
+      (* There are additional requirements if we are operating in
+         upstream compatible mode. *)
+      raise (Error (core_type.ptyp_loc,
+             Non_value_sort_not_upstream_compatible sort))
+    else
+      Same_as_ocaml_repr sort
 
 let prim_const_mode m =
   match Mode.Locality.check_const m with
@@ -2235,20 +2320,8 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
-(* Note that [ty] is guaranteed not to contain sort variables because it was
-   produced by [type_scheme], which defaults them.  Further, if ty is an arrow
-   we know its bits are representable, so [type_sort_external] can only fail
-   on externals with non-arrow types. *)
-(* CR layouts v3: When we allow non-representable function args/returns, the
-   representability argument above isn't quite right. Decide whether we want to
-   allow non-representable types in external args/returns then. *)
-let type_sort_external ~why env loc typ =
-  match Ctype.type_sort ~why env typ with
-  | Ok s -> Jkind.Sort.get_default_value s
-  | Error err ->
-    raise (Error (loc,Jkind_sort {kloc = External; typ; err}))
-
-let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
+let rec parse_native_repr_attributes env core_type ty rmode
+        ~global_repr ~is_layout_poly =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
   with
@@ -2257,10 +2330,11 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
-    let sort_arg =
-      type_sort_external ~why:External_argument env ct1.ptyp_loc t1
+    let repr_arg =
+      make_native_repr
+        env ct1 t1 ~global_repr
+        ~is_layout_poly ~why:External_argument
     in
-    let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
@@ -2268,21 +2342,24 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     in
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2
-        (prim_const_mode (Mode.Alloc.locality mret)) ~global_repr
+        (prim_const_mode (Mode.Alloc.locality mret))
+        ~global_repr ~is_layout_poly
     in
     ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
-     parse_native_repr_attributes env t ty rmode ~global_repr
+     parse_native_repr_attributes env t ty rmode ~global_repr ~is_layout_poly
   | _ ->
      let rmode =
        if Builtin_attributes.has_local_opt core_type.ptyp_attributes
        then Prim_poly
        else rmode
      in
-     let sort_res =
-       type_sort_external ~why:External_result env core_type.ptyp_loc ty
+     let repr_res =
+       make_native_repr
+        env core_type ty ~global_repr
+        ~is_layout_poly ~why:External_result
      in
-     ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
+     ([], (rmode, repr_res))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -2306,8 +2383,78 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
+let has_ty_var_with_jkind_any env ty =
+  List.exists
+    (fun ty -> Jkind.is_any (Ctype.estimate_type_jkind env ty))
+    (Ctype.free_variables ty)
+
+let unexpected_jkind_any_check prim env cty ty =
+  if Primitive.prim_can_contain_jkind_any prim ||
+     prim.prim_is_layout_poly then ()
+  else
+  if has_ty_var_with_jkind_any env ty then
+    raise(Error (cty.ctyp_loc,
+            Unexpected_jkind_any_in_primitive(prim.prim_name)))
+
+(* Note regarding jkind checks on external declarations
+
+   There are currently three checks in place:
+
+   1. The argument/return types of an external can't have jkind [any]. This is
+      enforced by [type_sort_external].
+
+      The situation becomes trickier with the use of [@layout_poly]:
+
+      1. we allow argument/return to have jkind [any] iff it's the layout
+         polymorphic type variable.
+      2. we use [Repr_poly] to encode it and we mark the primitive as
+         [prim_is_layout_poly]
+      3. all interactions with the declared primitive type have to go through
+         [instance_prim], which instances the layout polymorphic type variable
+         down from jkind [any] to a sort.
+
+      The result is that we maintain the facade that all argument/return types
+      are representable. The jkind [any] from [@layout_poly] doesn't leak out.
+
+   2. [Primitive.prim_has_valid_reprs] performs an additional sanity check on
+      built-in primitives regarding argument/result representations. It only
+      allows a selected subset of primitives to have non-value jkinds. And for
+      that subset, it checks to see the argument/return jkinds are what it
+      expects.
+
+      See comment in [prim_has_valid_reprs] about what it could miss.
+
+   3. Built-in primitives that inspect the jkind of type parameters cannot have
+      type variables with jkind [any] anywhere within their types.
+
+      This check is here to prevent someone from writing:
+
+      [external len : ('a : any). 'a array -> int = "%array_length"]
+
+      If this is accepted, [len] will behave as expected most of the time until
+      someone writes:
+
+      [let f x = len x]
+
+      [x] here will have type ['a array] where the jkind of ['a] is [any]. The
+      array kind function in [typeopt] will look at ['a] expecting it to be
+      representable and fail. This produces a bad error message that doesn't
+      point to the source of the mistake which is, in fact, the external
+      declaration.
+
+      For this reason, we have [unexpected_jkind_any_check].  It's here to point
+      out this type of mistake early and suggest the use of [@layout_poly].
+
+      An exception is raised if any of these checks fails. *)
+let error_if_containing_unexpected_jkind prim env cty ty =
+  Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
+  unexpected_jkind_any_check prim env cty ty
+
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
+  match Jane_syntax.Mode_expr.maybe_of_attrs valdecl.pval_type.ptyp_attributes with
+  | Some modes, _ -> raise (Error(modes.loc, Modalities_on_value_description))
+  | None, _ ->
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
@@ -2334,14 +2481,23 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_present repr -> Some repr
         | Native_repr_attr_absent -> None
       in
+      let is_layout_poly =
+        Builtin_attributes.has_layout_poly valdecl.pval_attributes
+      in
+      if is_layout_poly &&
+         not (has_ty_var_with_jkind_any env ty) then
+        raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
-        parse_native_repr_attributes env valdecl.pval_type ty Prim_global ~global_repr
+        parse_native_repr_attributes
+          env valdecl.pval_type ty Prim_global ~global_repr ~is_layout_poly
       in
       let prim =
         Primitive.parse_declaration valdecl
           ~native_repr_args
           ~native_repr_res
+          ~is_layout_poly
       in
+      error_if_containing_unexpected_jkind prim env cty ty;
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
         raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));
@@ -2359,8 +2515,7 @@ let transl_value_decl env loc valdecl =
     Env.enter_value valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
-  let reason = Jkind.Generalized (Some id, loc) in
-  Ctype.update_generalized_ty_jkind_reason ty reason;
+  Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc ty;
   let desc =
     {
      val_id = id;
@@ -2418,12 +2573,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   in
   let no_row = not (is_fixed_type sdecl) in
   let (tman, man) =  match sdecl.ptype_manifest with
-      None -> None, None
+      None -> Misc.fatal_error "Typedecl.transl_with_constraint: no manifest"
     | Some sty ->
       let cty =
         transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty
       in
-      Some cty, Some cty.ctyp_type
+      cty, cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
      declarations and compute a "merged" declaration; we now need to
@@ -2457,19 +2612,13 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
-    (* Here, `man = None` indicates we have a "fake" with constraint built by
-       [Typetexp.create_package_mty] for a package type. *)
-    if arity_ok && man <> None then
+    if arity_ok then
       sig_decl.type_kind,
       sig_decl.type_unboxed_default,
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
     else
-      (* CR layouts: this is a gross hack.  See the comments in the
-         [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
-      let jkind = Jkind.value ~why:Package_hack in
-        (* Jkind.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Type_abstract Abstract_def, false, jkind, None
+      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params = params;
@@ -2478,7 +2627,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_jkind;
       type_jkind_annotation;
       type_private = priv;
-      type_manifest = man;
+      type_manifest = Some man;
       type_variance = [];
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -2535,7 +2684,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_type = new_sig_decl;
     typ_cstrs = constraints;
     typ_loc = loc;
-    typ_manifest = tman;
+    typ_manifest = Some tman;
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
@@ -2543,6 +2692,30 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
+
+(* A simplified version of [transl_with_constraint], for the case of packages.
+   Package constraints are much simpler than normal with type constraints (e.g.,
+   they can not have parameters and can only update abstract types.) *)
+let transl_package_constraint ~loc ty =
+  { type_params = [];
+    type_arity = 0;
+    type_kind = Type_abstract Abstract_def;
+    type_jkind = Jkind.any ~why:Dummy_jkind;
+    (* There is no reason to calculate an accurate jkind here.  This typedecl
+       will be thrown away once it is used for the package constraint inclusion
+       check, and that check will expand the manifest as needed. *)
+    type_jkind_annotation = None;
+    type_private = Public;
+    type_manifest = Some ty;
+    type_variance = [];
+    type_separability = [];
+    type_is_newtype = false;
+    type_expansion_scope = Btype.lowest_level;
+    type_loc = loc;
+    type_attributes = [];
+    type_unboxed_default = false;
+    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
+  }
 
 (* Approximate a type declaration: just make all types abstract *)
 
@@ -2940,7 +3113,8 @@ let report_error ppf = function
       fprintf ppf "Too many [@@unboxed]/[@@untagged] attributes"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only float, int32, int64, nativeint, and vector primitives can be unboxed.@]"
+                   Only float, int32, int64, nativeint, vector primitives, and@ \
+                   concrete unboxed types can be marked unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type.@ \
                    Only int can be untagged.@]"
@@ -2961,12 +3135,21 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
-      | Cstr_tuple -> "Constructor argument"
-      | Record -> "Record element"
-      | Unboxed_record -> "Unboxed record element"
-      | External -> "External"
+      | Cstr_tuple -> "Constructor argument types"
+      | Record -> "Record element types"
+      | Unboxed_record -> "Unboxed record element types"
+      | External -> "Types in an external"
+      | External_with_layout_poly -> "Types in an external"
     in
-    fprintf ppf "@[%s types must have a representable layout.@ %a@]" s
+    let extra =
+      match kloc with
+      | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
+      | External_with_layout_poly -> dprintf
+        "@ (locally-scoped type variables with layout 'any' are@ \
+          made representable by [@@layout_poly])"
+    in
+    fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
+      extra
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
@@ -2981,7 +3164,7 @@ let report_error ppf = function
       | Cstr_tuple -> "Variants"
       | Record -> "Records"
       | Unboxed_record -> "Unboxed records"
-      | External -> assert false
+      | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
@@ -3020,6 +3203,34 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
+  | Unexpected_jkind_any_in_primitive name ->
+      fprintf ppf
+        "@[The primitive [%s] doesn't work well with type variables of@ \
+           layout any. Consider using [@@layout_poly].@]" name
+  | Useless_layout_poly ->
+      fprintf ppf
+        "@[[@@layout_poly] on this external declaration has no@ \
+           effect. Consider removing it or adding a type@ \
+           variable for it to operate on.@]"
+  | Modalities_on_value_description ->
+      fprintf ppf
+        "@[Modalities on value descriptions are not supported yet.@]"
+  | Missing_unboxed_attribute_on_non_value_sort sort ->
+    fprintf ppf
+      "@[[%@unboxed] attribute must be added to external declaration@ \
+          argument type with layout %a for upstream compatibility. \
+          This error is produced@ due to the use of -extension-universe \
+          (no_extensions|upstream_compatible).@]"
+      Jkind.Sort.format_const sort
+  | Non_value_sort_not_upstream_compatible sort ->
+    fprintf ppf
+      "@[External declaration here is not upstream compatible.@ \
+         The only types with non-value layouts allowed are float#,@ \
+         int32#, int64#, and nativeint#. Unknown type with layout@ \
+         %a encountered. This error is produced due to@ \
+         the use of -extension-universe (no_extensions|\
+         upstream_compatible).@]"
+      Jkind.Sort.format_const sort
 
 let () =
   Location.register_error_of_exn

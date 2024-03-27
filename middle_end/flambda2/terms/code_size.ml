@@ -193,10 +193,15 @@ let bytes_like_set kind width =
   | Bytes -> string_or_bigstring_load Bytes width
   | Bigstring -> string_or_bigstring_load Bigstring width
 
-let divmod_bi_check else_branch_size bi =
+let divmod_bi_check else_branch_size (bi : Flambda_kind.Standard_int.t) =
   (* CR gbury: we should allow check Arch.division_crashed_on_overflow, but
      that's likely a dependency we want to avoid ? *)
-  if arch32 || bi <> Flambda_kind.Standard_int.Naked_int32
+  if arch32
+     ||
+     match bi with
+     | Naked_int32 -> false
+     | Naked_int64 | Naked_nativeint | Naked_immediate | Tagged_immediate ->
+       true
   then 2 + else_branch_size
   else 0
 
@@ -362,7 +367,7 @@ let unary_prim_size prim =
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
   | Block_load (kind, _) -> block_load kind
-  | Array_load (kind, _mut) -> array_load kind
+  | Array_load (kind, _width, _mut) -> array_load kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->
@@ -384,7 +389,7 @@ let binary_prim_size prim =
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
   | Block_set (block_access, init) -> block_set block_access init
-  | Array_set kind -> array_set kind
+  | Array_set (kind, _width) -> array_set kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)

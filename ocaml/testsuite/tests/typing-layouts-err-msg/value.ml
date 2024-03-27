@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha"
+   flags = "-extension layouts_alpha -extension comprehensions"
    * expect
 *)
 
@@ -53,31 +53,6 @@ Error: Tuple element types must have layout value.
 
 (* Probe *)
 (* See [probe.ml] *)
-
-(* Package_hack *)
-module type S = sig
-  type t : immediate
-end
-
-module type S2 = sig
-  val m : (module S with type t = string)
-end
-[%%expect{|
-module type S = sig type t : immediate end
-Line 6, characters 10-41:
-6 |   val m : (module S with type t = string)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : immediate
-       The layout of the first is value, because
-         it's a type declaration in a first-class module.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-20.
-|}];;
 
 (* Object *)
 let f: ('a : void) -> 'b = fun x -> x # baz
@@ -330,18 +305,18 @@ Error:
 (* Existential_type_variable *)
 (* See [gadt_existential.ml] *)
 
-(* Array_element *)
-let f (x : t_float64) = [| x |]
+(* Array_comprehension_element *)
+let f (x : t_float64) = [| x for i = 0 to 1 |]
 [%%expect{|
 Line 1, characters 27-28:
-1 | let f (x : t_float64) = [| x |]
+1 | let f (x : t_float64) = [| x for i = 0 to 1 |]
                                ^
 Error: This expression has type t_float64
        but an expression was expected of type ('a : value)
        The layout of t_float64 is float64, because
          of the definition of t_float64 at line 5, characters 0-24.
        But the layout of t_float64 must be a sublayout of value, because
-         it's the type of an array element.
+         it's the element type of array comprehension.
 |}];;
 
 (* Lazy_expression *)

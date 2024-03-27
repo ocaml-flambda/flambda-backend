@@ -147,6 +147,7 @@ let iterator =
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _
+    | Jexp_modes _
       -> ()
   in
   let expr self exp =

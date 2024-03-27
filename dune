@@ -121,6 +121,7 @@
   simd
   simd_selection
   simd_reload
+  simd_proc
   reg
   reload
   reloadgen
@@ -149,6 +150,7 @@
   cfg_to_linear
   cfg_with_layout
   cfg_with_infos
+  cfg_comballoc
   cfg_dataflow
   cfg_deadcode
   cfg_liveness

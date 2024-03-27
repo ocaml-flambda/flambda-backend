@@ -327,6 +327,35 @@ let presume_arg = "Presume_arg"
 let preperform_arg = "Preperform_arg"
 let pdls_get_arg = "Pdls_get_arg"
 
+let pfloatarray_load_128 = "Pfloatarray_load_128"
+let pfloat_array_load_128 = "Pfloat_array_load_128"
+let pint_array_load_128 = "Pint_array_load_128"
+let punboxed_float_array_load_128 = "Punboxed_float_array_load_128"
+let punboxed_int32_array_load_128 = "Punboxed_int32_array_load_128"
+let punboxed_int64_array_load_128 = "Punboxed_int64_array_load_128"
+let punboxed_nativeint_array_load_128 = "Punboxed_nativeint_array_load_128"
+let pfloatarray_set_128 = "Pfloatarray_set_128"
+let pfloat_array_set_128 = "Pfloat_array_set_128"
+let pint_array_set_128 = "Pint_array_set_128"
+let punboxed_float_array_set_128 = "Punboxed_float_array_set_128"
+let punboxed_int32_array_set_128 = "Punboxed_int32_array_set_128"
+let punboxed_int64_array_set_128 = "Punboxed_int64_array_set_128"
+let punboxed_nativeint_array_set_128 = "Punboxed_nativeint_array_set_128"
+let pfloatarray_load_128_arg = "Pfloatarray_load_128_arg"
+let pfloat_array_load_128_arg = "Pfloat_array_load_128_arg"
+let pint_array_load_128_arg = "Pint_array_load_128_arg"
+let punboxed_float_array_load_128_arg = "Punboxed_float_array_load_128_arg"
+let punboxed_int32_array_load_128_arg = "Punboxed_int32_array_load_128_arg"
+let punboxed_int64_array_load_128_arg = "Punboxed_int64_array_load_128_arg"
+let punboxed_nativeint_array_load_128_arg = "Punboxed_nativeint_array_load_128_arg"
+let pfloatarray_set_128_arg = "Pfloatarray_set_128_arg"
+let pfloat_array_set_128_arg = "Pfloat_array_set_128_arg"
+let pint_array_set_128_arg = "Pint_array_set_128_arg"
+let punboxed_float_array_set_128_arg = "Punboxed_float_array_set_128_arg"
+let punboxed_int32_array_set_128_arg = "Punboxed_int32_array_set_128_arg"
+let punboxed_int64_array_set_128_arg = "Punboxed_int64_array_set_128_arg"
+let punboxed_nativeint_array_set_128_arg = "Punboxed_nativeint_array_set_128_arg"
+
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -410,20 +439,20 @@ let of_primitive : Lambda.primitive -> string = function
   | Pasrint -> pasrint
   | Pintcomp _ -> pintcomp
   | Pcompare_ints -> pcompare_ints
-  | Pcompare_floats -> pcompare_floats
+  | Pcompare_floats _ -> pcompare_floats
   | Pcompare_bints _ -> pcompare_bints
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
-  | Pintoffloat -> pintoffloat
-  | Pfloatofint _ -> pfloatofint
-  | Pnegfloat _ -> pnegfloat
-  | Pabsfloat _ -> pabsfloat
-  | Paddfloat _ -> paddfloat
-  | Psubfloat _ -> psubfloat
-  | Pmulfloat _ -> pmulfloat
-  | Pdivfloat _ -> pdivfloat
-  | Pfloatcomp _ -> pfloatcomp
-  | Punboxed_float_comp _ -> punboxed_float_comp
+  | Pintoffloat _ -> pintoffloat
+  | Pfloatofint (_, _) -> pfloatofint
+  | Pnegfloat (_, _) -> pnegfloat
+  | Pabsfloat (_, _) -> pabsfloat
+  | Paddfloat (_, _) -> paddfloat
+  | Psubfloat (_, _) -> psubfloat
+  | Pmulfloat (_, _) -> pmulfloat
+  | Pdivfloat (_, _) -> pdivfloat
+  | Pfloatcomp (_, _) -> pfloatcomp
+  | Punboxed_float_comp (_, _) -> punboxed_float_comp
   | Pstringlength -> pstringlength
   | Pstringrefu -> pstringrefu
   | Pstringrefs -> pstringrefs
@@ -482,6 +511,20 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbigstring_set_32 _ -> pbigstring_set_32
   | Pbigstring_set_64 _ -> pbigstring_set_64
   | Pbigstring_set_128 _ -> pbigstring_set_128
+  | Pfloatarray_load_128 _ -> pfloatarray_load_128
+  | Pfloat_array_load_128 _ -> pfloat_array_load_128
+  | Pint_array_load_128 _ -> pint_array_load_128
+  | Punboxed_float_array_load_128 _ -> punboxed_float_array_load_128
+  | Punboxed_int32_array_load_128 _ -> punboxed_int32_array_load_128
+  | Punboxed_int64_array_load_128 _ -> punboxed_int64_array_load_128
+  | Punboxed_nativeint_array_load_128 _ -> punboxed_nativeint_array_load_128
+  | Pfloatarray_set_128 _ -> pfloatarray_set_128
+  | Pfloat_array_set_128 _ -> pfloat_array_set_128
+  | Pint_array_set_128 _ -> pint_array_set_128
+  | Punboxed_float_array_set_128 _ -> punboxed_float_array_set_128
+  | Punboxed_int32_array_set_128 _ -> punboxed_int32_array_set_128
+  | Punboxed_int64_array_set_128 _ -> punboxed_int64_array_set_128
+  | Punboxed_nativeint_array_set_128 _ -> punboxed_nativeint_array_set_128
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer _ -> pint_as_pointer
@@ -489,8 +532,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled
   | Pobj_dup -> pobj_dup
   | Pobj_magic _ -> pobj_magic
-  | Punbox_float -> punbox_float
-  | Pbox_float _ -> pbox_float
+  | Punbox_float _ -> punbox_float
+  | Pbox_float (_, _) -> pbox_float
   | Punbox_int _ -> punbox_int
   | Pbox_int _ -> pbox_int
   | Parray_of_iarray -> parray_of_iarray
@@ -546,20 +589,20 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pasrint -> pasrint_arg
   | Pintcomp _ -> pintcomp_arg
   | Pcompare_ints -> pcompare_ints_arg
-  | Pcompare_floats -> pcompare_floats_arg
+  | Pcompare_floats _ -> pcompare_floats_arg
   | Pcompare_bints _ -> pcompare_bints_arg
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
-  | Pintoffloat -> pintoffloat_arg
-  | Pfloatofint _ -> pfloatofint_arg
-  | Pnegfloat _ -> pnegfloat_arg
-  | Pabsfloat _ -> pabsfloat_arg
-  | Paddfloat _ -> paddfloat_arg
-  | Psubfloat _ -> psubfloat_arg
-  | Pmulfloat _ -> pmulfloat_arg
-  | Pdivfloat _ -> pdivfloat_arg
-  | Pfloatcomp _ -> pfloatcomp_arg
-  | Punboxed_float_comp _ -> punboxed_float_comp_arg
+  | Pintoffloat _ -> pintoffloat_arg
+  | Pfloatofint (_, _) -> pfloatofint_arg
+  | Pnegfloat (_, _) -> pnegfloat_arg
+  | Pabsfloat (_, _) -> pabsfloat_arg
+  | Paddfloat (_, _) -> paddfloat_arg
+  | Psubfloat (_, _) -> psubfloat_arg
+  | Pmulfloat (_, _) -> pmulfloat_arg
+  | Pdivfloat (_, _) -> pdivfloat_arg
+  | Pfloatcomp (_, _) -> pfloatcomp_arg
+  | Punboxed_float_comp (_, _) -> punboxed_float_comp_arg
   | Pstringlength -> pstringlength_arg
   | Pstringrefu -> pstringrefu_arg
   | Pstringrefs -> pstringrefs_arg
@@ -618,6 +661,20 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbigstring_set_32 _ -> pbigstring_set_32_arg
   | Pbigstring_set_64 _ -> pbigstring_set_64_arg
   | Pbigstring_set_128 _ -> pbigstring_set_128_arg
+  | Pfloatarray_load_128 _ -> pfloatarray_load_128_arg
+  | Pfloat_array_load_128 _ -> pfloat_array_load_128_arg
+  | Pint_array_load_128 _ -> pint_array_load_128_arg
+  | Punboxed_float_array_load_128 _ -> punboxed_float_array_load_128_arg
+  | Punboxed_int32_array_load_128 _ -> punboxed_int32_array_load_128_arg
+  | Punboxed_int64_array_load_128 _ -> punboxed_int64_array_load_128_arg
+  | Punboxed_nativeint_array_load_128 _ -> punboxed_nativeint_array_load_128_arg
+  | Pfloatarray_set_128 _ -> pfloatarray_set_128_arg
+  | Pfloat_array_set_128 _ -> pfloat_array_set_128_arg
+  | Pint_array_set_128 _ -> pint_array_set_128_arg
+  | Punboxed_float_array_set_128 _ -> punboxed_float_array_set_128_arg
+  | Punboxed_int32_array_set_128 _ -> punboxed_int32_array_set_128_arg
+  | Punboxed_int64_array_set_128 _ -> punboxed_int64_array_set_128_arg
+  | Punboxed_nativeint_array_set_128 _ -> punboxed_nativeint_array_set_128_arg
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer _ -> pint_as_pointer_arg
@@ -625,8 +682,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
   | Pobj_dup -> pobj_dup_arg
   | Pobj_magic _ -> pobj_magic_arg
-  | Punbox_float -> punbox_float_arg
-  | Pbox_float _ -> pbox_float_arg
+  | Punbox_float _ -> punbox_float_arg
+  | Pbox_float (_, _) -> pbox_float_arg
   | Punbox_int _ -> punbox_int_arg
   | Pbox_int _ -> pbox_int_arg
   | Parray_of_iarray -> parray_of_iarray_arg

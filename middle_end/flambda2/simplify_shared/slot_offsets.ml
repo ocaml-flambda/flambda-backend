@@ -190,13 +190,13 @@ module Layout = struct
        then the environment has not started yet (i.e. we have not seen any value
        slots). *)
     | Function_slot _ when offset = 0 ->
-      assert (acc_slots = []);
-      assert (startenv = None);
+      assert (match acc_slots with [] -> true | _ :: _ -> false);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots = [0, slot] in
       startenv, acc_slots
     | Function_slot _ ->
-      assert (startenv = None);
+      assert (Option.is_none startenv);
       (* see comment above *)
       let acc_slots =
         (offset, slot) :: (offset - 1, Infix_header) :: acc_slots
@@ -607,7 +607,8 @@ end = struct
            set.allocated_slots
 
   let add_slot_offset state slot offset =
-    assert (slot.pos = Unassigned);
+    assert (
+      match slot.pos with Unassigned -> true | Removed | Assigned _ -> false);
     slot.pos <- Assigned offset;
     List.iter (add_slot_offset_to_set slot) slot.sets;
     state.used_offsets

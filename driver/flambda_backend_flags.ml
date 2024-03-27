@@ -33,6 +33,7 @@ let dasm_comments = ref false (* -dasm-comments *)
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)
+let disable_checkmach = ref false       (* -disable-checkmach *)
 
 type checkmach_details_cutoff =
   | Keep_all
@@ -42,6 +43,27 @@ type checkmach_details_cutoff =
 let default_checkmach_details_cutoff = At_most 20
 let checkmach_details_cutoff = ref default_checkmach_details_cutoff
                                        (* -checkmach-details-cutoff n *)
+module Function_layout = struct
+  type t =
+    | Topological
+    | Source
+
+  let to_string = function
+    | Topological -> "topological"
+    | Source -> "source"
+
+  let default = Topological
+
+  let all = [Topological; Source]
+
+  let of_string v =
+    let f t =
+      if String.equal (to_string t) v then Some t else None
+    in
+    List.find_map f all
+end
+
+let function_layout = ref Function_layout.default   (* -function-layout *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)
                                         (* -disable-poll-insertion *)

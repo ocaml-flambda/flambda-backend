@@ -40,6 +40,7 @@
 #include "caml/stack.h"
 #include "caml/startup_aux.h"
 #include "caml/sys.h"
+#include "caml/isa.h"
 #ifdef HAS_UI
 #include "caml/ui.h"
 #endif
@@ -116,6 +117,10 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_verb_gc = 0x3F;
 #endif
   caml_parse_ocamlrunparam();
+
+  // CR mslater: re-enable architecture check
+  // caml_assert_arch_extensions();
+
   CAML_EVENTLOG_INIT();
 #ifdef DEBUG
   caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");

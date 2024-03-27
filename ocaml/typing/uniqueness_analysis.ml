@@ -17,6 +17,7 @@
 
 open Asttypes
 open Types
+open Mode
 open Typedtree
 module Uniqueness = Mode.Uniqueness
 module Linearity = Mode.Linearity
@@ -62,7 +63,7 @@ module Maybe_unique : sig
   (** Returns the uniqueness represented by this usage. If this identifier is
       expected to be unique in any branch, it will return unique. If the current
       usage is forced, it will return shared. *)
-  val uniqueness : t -> Uniqueness.t
+  val uniqueness : t -> Uniqueness.r
 end = struct
   (** Occurrences with modes to be forced shared and many in the future if
       needed. This is a list because of multiple control flows. For example, if
@@ -93,11 +94,11 @@ end = struct
          - the expected mode must be higher than [shared]
          - the access mode must be lower than [many] *)
       match Linearity.submode lin Linearity.many with
-      | Error () -> Error { occ; axis = Linearity }
+      | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
         match Uniqueness.submode Uniqueness.shared uni with
         | Ok () -> Ok ()
-        | Error () -> Error { occ; axis = Uniqueness })
+        | Error _ -> Error { occ; axis = Uniqueness })
     in
     iter_error force_one l
 
@@ -125,7 +126,7 @@ module Maybe_shared : sig
        must be Borrowed (hence no code motion); if that mode is not restricted
        to Unique, this usage can be Borrowed or Shared (prefered). Raise if
         called more than once. *)
-  val set_barrier : t -> Uniqueness.t -> unit
+  val set_barrier : t -> Uniqueness.r -> unit
 
   val meet : t -> t -> t
 
@@ -732,24 +733,24 @@ module Paths : sig
   (** Returns the element-wise child *)
   val child : Projection.t -> t -> t
 
-  (** Representing values whose modes are managed by the type checker.
-      They are ignored by uniqueness analysis and represented as empty lists *)
+  (** Represents a value whose modes are managed by the type checker.
+      It is ignored by uniqueness analysis and represented as an empty list *)
   val untracked : t
 
   (** [modal_child gf proj t] is [child prof t] when [gf] is [Unrestricted]
       and is [untracked] otherwise. *)
-  val modal_child : global_flag -> Projection.t -> t -> t
+  val modal_child : Global_flag.t -> Projection.t -> t -> t
 
   (** [tuple_field i t] is [child (Projection.Tuple_field i) t]. *)
   val tuple_field : int -> t -> t
 
   (** [record_field gf s t] is
       [modal_child gf (Projection.Record_field s) t]. *)
-  val record_field : global_flag -> string -> t -> t
+  val record_field : Global_flag.t -> string -> t -> t
 
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
-  val construct_field : global_flag -> string -> int -> t -> t
+  val construct_field : Global_flag.t -> string -> int -> t -> t
 
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
@@ -777,7 +778,9 @@ end = struct
   let child proj t = List.map (UF.Path.child proj) t
 
   let modal_child gf proj t =
-    match gf with Global -> untracked | Unrestricted -> child proj t
+    match gf with
+    | Global_flag.Global -> untracked
+    | Global_flag.Unrestricted -> child proj t
 
   let tuple_field i t = child (Projection.Tuple_field i) t
 
@@ -813,10 +816,10 @@ let force_shared_boundary unique_use occ ~reason =
   | Error cannot_force -> raise (Error (Boundary { cannot_force; reason }))
 
 module Value : sig
-  (** See [mk] for its meaning *)
+  (** See [existing] for its meaning *)
   type t
 
-  (** A value contains the list of paths it could points to, the unique_use if
+  (** A value contains the list of paths it could point to, the unique_use if
       it's a variable, and its occurrence in the source code. [unique_use] could
       be None if it's not a variable (e.g. result of an application) *)
   val existing : Paths.t -> unique_use -> Occurrence.t -> t
@@ -836,7 +839,7 @@ module Value : sig
       are the paths of [t] and [o] is [t]'s occurrence. This is used for the
       implicit record field values for kept fields in a [{ foo with ... }]
       expression. *)
-  val implicit_record_field : global_flag -> string -> t -> unique_use -> t
+  val implicit_record_field : Global_flag.t -> string -> t -> unique_use -> t
 
   (** Mark the value as shared_or_unique   *)
   val mark_maybe_unique : t -> UF.t
@@ -1283,7 +1286,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_arg = check_uniqueness_exp ienv arg in
     let uf_write = Value.mark_implicit_borrow_memory_address Write value in
     UF.pars [uf_rcd; uf_arg; uf_write]
-  | Texp_array (_, es, _) ->
+  | Texp_array (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_ifthenelse (if_, then_, else_opt) ->
     (* if' is only borrowed, not used; but probably doesn't matter because of
@@ -1308,7 +1311,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
-  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+  | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
     let uf_body = check_uniqueness_exp ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
@@ -1391,7 +1394,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       | Some value -> value
     in
     value, UF.unused
-  | Texp_field (e, _, l, unique_use, _) -> (
+  | Texp_field (e, _, l, float) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
     | None -> Value.fresh, uf
@@ -1399,10 +1402,16 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       (* accessing the field meaning borrowing the parent record's mem
          block. Note that the field itself is not borrowed or used *)
       let uf_read = Value.mark_implicit_borrow_memory_address Read value in
-      let occ = Occurrence.mk loc in
-      let paths = Paths.record_field l.lbl_global l.lbl_name paths in
-      let value = Value.existing paths unique_use occ in
-      value, UF.seq uf uf_read)
+      let uf_boxing, value =
+        let occ = Occurrence.mk loc in
+        let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+        match float with
+        | Non_boxing unique_use ->
+          UF.unused, Value.existing paths unique_use occ
+        | Boxing (_, unique_use) ->
+          Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
+      in
+      value, UF.seqs [uf; uf_read; uf_boxing])
   (* CR-someday anlorenzen: This could also support let-bindings. *)
   | _ -> Value.fresh, check_uniqueness_exp ienv exp
 

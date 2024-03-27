@@ -279,18 +279,25 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ Profile.record ~accumulate:true "checkmach"
        (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
-  ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
-  ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
-  ++  (fun fd ->
+  ++ (fun fd ->
       match !Flambda_backend_flags.cfg_cse_optimize with
       | false ->
         fd
+        ++ pass_dump_if ppf_dump dump_combine "Before allocation combining"
+        ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
+        ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
         ++ Profile.record ~accumulate:true "cse" CSE.fundecl
         ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
         ++ pass_dump_if ppf_dump dump_cse "After CSE"
-     | true ->
-       fd)
+      | true ->
+        (* Will happen after `Cfgize`. *)
+        (match register_allocator fd with
+         | Upstream ->
+           fatal_error "-cfg-cse-optimize should only be used with a CFG register allocator"
+         | GI | IRC | LS ->
+           ());
+        fd)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
       | ((GI | IRC | LS) as regalloc) ->
@@ -304,7 +311,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
               | false -> cfg_with_layout
               | true ->
                 cfg_with_layout
-                ++ Profile.record ~accumulate:true "cse" CSE.cfg_with_layout)
+                ++ Profile.record ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
+                ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
+                ++ Profile.record ~accumulate:true "cfg_cse" CSE.cfg_with_layout
+                ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse)
           ++ Cfg_with_infos.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
@@ -469,6 +479,7 @@ let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   Emitaux.Dwarf_helpers.init ~disable_dwarf:false sourcefile;
   emit_begin_assembly unix;
   make_cmm ()
+  ++ (fun x -> if Clflags.should_stop_after Compiler_pass.Middle_end then exit 0 else x)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
   ++ Profile.record "compile_phrases" (compile_phrases ~ppf_dump)
   ++ (fun () -> ());

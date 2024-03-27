@@ -146,7 +146,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       check_arg_kinds prim
         [arg1_ty, arg1_kind; arg2_ty, arg2_kind; arg3_ty, arg3_kind]);
     let original_prim : P.t =
-      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3
+      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 == arg3
       then prim
       else Ternary (ternary_prim, arg1, arg2, arg3)
     in

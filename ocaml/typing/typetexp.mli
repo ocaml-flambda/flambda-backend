@@ -131,7 +131,7 @@ val get_alloc_mode : Parsetree.core_type -> Alloc.Const.t
 exception Already_bound
 
 type value_loc =
-    Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Object_field
 
 type sort_loc =
     Fun_arg | Fun_ret
@@ -180,3 +180,7 @@ val transl_modtype_longident:  (* from Typemod *)
     (Location.t -> Env.t -> Longident.t -> Path.t) ref
 val transl_modtype: (* from Typemod *)
     (Env.t -> Parsetree.module_type -> Typedtree.module_type) ref
+val check_package_with_type_constraints: (* from Typemod *)
+    (Location.t -> Env.t -> Types.module_type ->
+     (Longident.t Asttypes.loc * Typedtree.core_type) list ->
+     Types.module_type) ref

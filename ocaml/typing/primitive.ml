@@ -22,11 +22,14 @@ type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
 
+type boxed_float = Pfloat64 | Pfloat32
+
 type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
+  | Repr_poly
   | Same_as_ocaml_repr of Jkind.Sort.const
-  | Unboxed_float
+  | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
@@ -39,7 +42,7 @@ type mode =
   | Prim_global
   | Prim_poly
 
-type description =
+type 'repr description_gen =
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
@@ -47,8 +50,11 @@ type description =
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * native_repr) list;
-    prim_native_repr_res: mode * native_repr }
+    prim_native_repr_args: (mode * 'repr) list;
+    prim_native_repr_res: mode * 'repr;
+    prim_is_layout_poly: bool }
+
+type description = native_repr description_gen
 
 type error =
   | Old_style_float_with_native_repr_attribute
@@ -58,6 +64,8 @@ type error =
   | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
+  | Invalid_representation_polymorphic_attribute
+  | Invalid_native_repr_for_primitive of string
 
 exception Error of Location.t * error
 
@@ -65,46 +73,24 @@ type value_check = Bad_attribute | Bad_layout | Ok_value
 
 let check_ocaml_value = function
   | _, Same_as_ocaml_repr Value -> Ok_value
-  | _, Same_as_ocaml_repr _ -> Bad_layout
-  | _, Unboxed_float
+  | _, Same_as_ocaml_repr _
+  | _, Repr_poly -> Bad_layout
+  | _, Unboxed_float _
   | _, Unboxed_vector _
   | _, Unboxed_integer _
   | _, Untagged_int -> Bad_attribute
 
-let is_unboxed = function
-  | _, Same_as_ocaml_repr _
-  | _, Untagged_int -> false
-  | _, Unboxed_float
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _ -> true
+let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
-let is_untagged = function
-  | _, Untagged_int -> true
-  | _, Same_as_ocaml_repr _
-  | _, Unboxed_float
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _ -> false
-
-let rec make_native_repr_args arity x =
+let rec make_prim_repr_args arity x =
   if arity = 0 then
     []
   else
-    x :: make_native_repr_args (arity - 1) x
-
-let simple_on_values ~name ~arity ~alloc =
-  {prim_name = name;
-   prim_arity = arity;
-   prim_alloc = alloc;
-   prim_c_builtin = false;
-   prim_effects = Arbitrary_effects;
-   prim_coeffects = Has_coeffects;
-   prim_native_name = "";
-   prim_native_repr_args =
-     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value);
-   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr Jkind.Sort.Value) }
+    x :: make_prim_repr_args (arity - 1) x
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
-      ~native_name ~native_repr_args ~native_repr_res =
+      ~native_name ~native_repr_args ~native_repr_res
+      ~is_layout_poly =
   {prim_name = name;
    prim_arity = List.length native_repr_args;
    prim_alloc = alloc;
@@ -113,9 +99,10 @@ let make ~name ~alloc ~c_builtin ~effects ~coeffects
    prim_coeffects = coeffects;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
-   prim_native_repr_res = native_repr_res }
+   prim_native_repr_res = native_repr_res;
+   prim_is_layout_poly = is_layout_poly }
 
-let parse_declaration valdecl ~native_repr_args ~native_repr_res =
+let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly =
   let arity = List.length native_repr_args in
   let name, native_name, old_style_noalloc, old_style_float =
     match valdecl.pval_prim with
@@ -144,6 +131,13 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     Attr_helper.has_no_payload_attribute ["only_generative_effects";
                                           "ocaml.only_generative_effects"]
       valdecl.pval_attributes
+  in
+  let is_builtin_prim = is_builtin_prim_name name in
+  let prim_is_layout_poly =
+    match is_builtin_prim, is_layout_poly with
+    | false, true ->  raise (Error (valdecl.pval_loc,
+                        Invalid_representation_polymorphic_attribute))
+    | _, b -> b
   in
   if no_effects_attribute && only_generative_effects_attribute then
     raise (Error (valdecl.pval_loc,
@@ -194,7 +188,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                          No_native_primitive_with_repr_attribute))
          | Bad_layout ->
            (* Built-in primitives don't need a native version. *)
-           if not (String.length name > 0 && name.[0] = '%') then
+           if not is_builtin_prim then
              raise (Error (valdecl.pval_loc,
                            No_native_primitive_with_non_value)))
       (native_repr_res :: native_repr_args);
@@ -204,8 +198,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_native_repr_args arity (Prim_global, Unboxed_float),
-       (Prim_global, Unboxed_float))
+      (make_prim_repr_args arity (Prim_global, Unboxed_float Pfloat64),
+       (Prim_global, Unboxed_float Pfloat64))
     else
       (native_repr_args, native_repr_res)
   in
@@ -217,7 +211,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
    prim_coeffects = coeffects;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
-   prim_native_repr_res = native_repr_res }
+   prim_native_repr_res = native_repr_res;
+   prim_is_layout_poly }
 
 open Outcometree
 
@@ -245,6 +240,7 @@ let oattr_no_effects = { oattr_name = "no_effects" }
 let oattr_only_generative_effects = { oattr_name = "only_generative_effects" }
 let oattr_no_coeffects = { oattr_name = "no_coeffects" }
 let oattr_local_opt = { oattr_name = "local_opt" }
+let oattr_layout_poly = { oattr_name = "layout_poly" }
 
 let print p osig_val_decl =
   let prims =
@@ -255,6 +251,28 @@ let print p osig_val_decl =
   in
   let for_all f =
     List.for_all f p.prim_native_repr_args && f p.prim_native_repr_res
+  in
+  let is_unboxed = function
+    | _, Same_as_ocaml_repr Value
+    | _, Repr_poly
+    | _, Untagged_int -> false
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _ -> true
+    | _, Same_as_ocaml_repr _ ->
+      (* We require [@unboxed] for non-value types in upstream-compatible code,
+         but treat it as optional otherwise. We thus print the [@unboxed]
+         attribute only in the case it's required and leave it out when it's
+         not. That's why we call [erasable_extensions_only] here. *)
+      Language_extension.erasable_extensions_only ()
+  in
+  let is_untagged = function
+    | _, Untagged_int -> true
+    | _, Same_as_ocaml_repr _
+    | _, Unboxed_float _
+    | _, Unboxed_vector _
+    | _, Unboxed_integer _
+    | _, Repr_poly -> false
   in
   let all_unboxed = for_all is_unboxed in
   let all_untagged = for_all is_untagged in
@@ -277,17 +295,28 @@ let print p osig_val_decl =
     else
       attrs
   in
+  let attrs =
+    if p.prim_is_layout_poly then
+      oattr_layout_poly :: attrs
+    else
+      attrs
+  in
   let attrs_of_mode_and_repr (m, repr) =
     (match m with
      | Prim_local | Prim_global -> []
      | Prim_poly -> [oattr_local_opt])
     @
     (match repr with
-     | Same_as_ocaml_repr _ -> []
-     | Unboxed_float
+     | Same_as_ocaml_repr Value
+     | Repr_poly -> []
+     | Unboxed_float _
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_int -> if all_untagged then [] else [oattr_untagged])
+     | Untagged_int -> if all_untagged then [] else [oattr_untagged]
+     | Same_as_ocaml_repr _->
+      if all_unboxed || not (is_unboxed (m, repr))
+      then []
+      else [oattr_unboxed])
   in
   let type_attrs =
     List.map attrs_of_mode_and_repr p.prim_native_repr_args @
@@ -323,6 +352,12 @@ let equal_boxed_integer bi1 bi2 =
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
 
+let equal_boxed_float f1 f2 =
+  match f1, f2 with
+  | Pfloat32, Pfloat32
+  | Pfloat64, Pfloat64 -> true
+  | (Pfloat32 | Pfloat64), _ -> false
+
 let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
@@ -331,21 +366,31 @@ let equal_boxed_vector_size bi1 bi2 =
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
+  | Repr_poly, Repr_poly -> true
+  | Repr_poly, (Unboxed_float _ | Unboxed_integer _
+               | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
+  | (Unboxed_float _ | Unboxed_integer _
+    | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind.Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
-  | Unboxed_float, Unboxed_float -> true
-  | Unboxed_float,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
+    (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+     Unboxed_vector _) -> false
+  | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
+  | Unboxed_float _,
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int |
+     Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_integer _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+     Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_vector _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+     Unboxed_vector _) -> false
   | Untagged_int, Untagged_int -> true
   | Untagged_int,
-    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _ | Unboxed_vector _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Unboxed_integer _ |
+     Unboxed_vector _) -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -367,9 +412,300 @@ let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
 
-let sort_of_native_repr = function
-  | Same_as_ocaml_repr s -> s
-  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Jkind.Sort.Value
+module Repr_check = struct
+
+  type result =
+    | Wrong_arity
+    | Wrong_repr
+    | Success
+
+  let args_res_reprs prim =
+    (prim.prim_native_repr_args @ [prim.prim_native_repr_res])
+    |> List.map snd
+
+  let is repr = equal_native_repr repr
+
+  let any = fun _ -> true
+
+  let value_or_unboxed_or_untagged = function
+    | Same_as_ocaml_repr Value
+    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
+    | Untagged_int -> true
+    | Same_as_ocaml_repr _ | Repr_poly -> false
+
+  let check checks prim =
+    let reprs = args_res_reprs prim in
+    if List.length reprs <> List.length checks
+    then Wrong_arity
+    else
+    if not (List.for_all2 (fun f x -> f x) checks reprs)
+    then Wrong_repr
+    else Success
+
+  let exactly required =
+    check (List.map is required)
+
+  let same_arg_res_repr_with_arity arity prim =
+    let repr = snd prim.prim_native_repr_res in
+    exactly
+      (List.init (arity+1) (fun _ -> repr))
+      prim
+
+  let no_non_value_repr prim =
+    let arity = List.length prim.prim_native_repr_args in
+    check
+      (List.init (arity+1) (fun _ -> value_or_unboxed_or_untagged))
+      prim
+end
+
+(* Note: [any] here is not the same as jkind [any]. It means we allow any
+   [native_repr] for the corresponding argument or return.  It's [Typedecl]'s
+   responsibility to check that types in externals are representable or marked
+   with [@layout_poly] (see [make_native_repr] and the note above
+   [error_if_containing_unexpected_jkind]).  Here we have more speicific checks
+   for individual primitives. *)
+let prim_has_valid_reprs ~loc prim =
+  let open Repr_check in
+  let check =
+    match prim.prim_name with
+    | "%identity"
+    | "%opaque"
+    | "%obj_magic" ->
+      same_arg_res_repr_with_arity 1
+
+    | "%ignore" ->
+      check [any; is (Same_as_ocaml_repr Value)]
+    | "%revapply" ->
+      check [any; is (Same_as_ocaml_repr Value); any]
+    | "%apply" ->
+      check [is (Same_as_ocaml_repr Value); any; any]
+
+    (* This doesn't prevent
+
+       {|
+          external get : float# array -> int -> int32# =
+            "%array_safe_get"
+       |}
+
+       but the same is true for types:
+
+       {|
+          external get : float array -> int -> int32 =
+            "%array_safe_get"
+       |}
+    *)
+    | "%array_safe_get" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any]
+    | "%array_safe_set" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any]
+    | "%array_unsafe_set" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Value);
+        any;
+        is (Same_as_ocaml_repr Value)]
+
+    | "%array_safe_get_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any]
+    | "%array_safe_set_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any]
+    | "%array_unsafe_set_indexed_by_int64#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits64);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_safe_get_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any]
+    | "%array_safe_set_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any]
+    | "%array_unsafe_set_indexed_by_int32#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Bits32);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_safe_get_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any]
+    | "%array_safe_set_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any;
+        is (Same_as_ocaml_repr Value)]
+    | "%array_unsafe_get_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any]
+    | "%array_unsafe_set_indexed_by_nativeint#" ->
+      check [
+        is (Same_as_ocaml_repr Value);
+        is (Same_as_ocaml_repr Word);
+        any;
+        is (Same_as_ocaml_repr Value)]
+
+    | "%box_float" ->
+      exactly [Same_as_ocaml_repr Float64; Same_as_ocaml_repr Value]
+    | "%unbox_float" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Float64]
+    | "%box_nativeint" ->
+      exactly [Same_as_ocaml_repr Word; Same_as_ocaml_repr Value]
+    | "%unbox_nativeint" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Word]
+    | "%box_int32" ->
+      exactly [Same_as_ocaml_repr Bits32; Same_as_ocaml_repr Value]
+    | "%unbox_int32" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits32]
+    | "%box_int64" ->
+      exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
+    | "%unbox_int64" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+
+    (* Bigstring primitives *)
+    | "%caml_bigstring_get32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_get64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+    | "%caml_bigstring_get64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_getu128#" ->
+    | "%caml_bigstring_getu128u#" ->
+    | "%caml_bigstring_geta128#" ->
+    | "%caml_bigstring_geta128u#" -> *)
+
+    | "%caml_bigstring_set32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set32u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_set64u#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits64;
+        Same_as_ocaml_repr Value]
+
+    (* CR layouts: add these when we have unboxed simd layouts *)
+    (* | "%caml_bigstring_setu128#" ->
+    | "%caml_bigstring_setu128u#" ->
+    | "%caml_bigstring_seta128#" ->
+    | "%caml_bigstring_seta128u#" -> *)
+
+    | name when is_builtin_prim_name name ->
+      no_non_value_repr
+
+    (* These can probably support non-value reprs if the need arises:
+      {|
+        | "%send"
+        | "%sendself"
+        | "%sendcache"
+      |}
+    *)
+    | _ ->
+      (* make no assumptions about external c primitives *)
+      fun _ -> Success
+  in
+  match check prim with
+  | Success -> ()
+  | Wrong_arity ->
+    (* There's already an arity check in translprim that catches this. We will
+       defer to that logic.  We are only checking the arity of some built-in
+       primitives here but not all, and it would be weird to raise different
+       errors dependent on the [prim_name]. *)
+    ()
+  | Wrong_repr ->
+    raise (Error (loc,
+            Invalid_native_repr_for_primitive (prim.prim_name)))
+
+let prim_can_contain_jkind_any prim =
+  match prim.prim_name with
+  | "%array_length"
+  | "%array_safe_get"
+  | "%array_safe_set"
+  | "%array_unsafe_get"
+  | "%array_unsafe_set"
+  | "%array_safe_get_indexed_by_int64#"
+  | "%array_safe_set_indexed_by_int64#"
+  | "%array_unsafe_get_indexed_by_int64#"
+  | "%array_unsafe_set_indexed_by_int64#"
+  | "%array_safe_get_indexed_by_int32#"
+  | "%array_safe_set_indexed_by_int32#"
+  | "%array_unsafe_get_indexed_by_int32#"
+  | "%array_unsafe_set_indexed_by_int32#"
+  | "%array_safe_get_indexed_by_nativeint#"
+  | "%array_safe_set_indexed_by_nativeint#"
+  | "%array_unsafe_get_indexed_by_nativeint#"
+  | "%array_unsafe_set_indexed_by_nativeint#" -> false
+  | _ -> true
 
 let report_error ppf err =
   match err with
@@ -396,6 +732,15 @@ let report_error ppf err =
   | Inconsistent_noalloc_attributes_for_effects ->
     Format.fprintf ppf "Cannot use [%@%@no_generative_effects] \
                         in conjunction with [%@%@noalloc]."
+  | Invalid_representation_polymorphic_attribute ->
+    Format.fprintf ppf "Attribute [%@layout_poly] can only be used \
+                        on built-in primitives."
+  | Invalid_native_repr_for_primitive name ->
+    Format.fprintf ppf
+      "The primitive [%s] is used in an invalid declaration.@ \
+       The declaration contains argument/return types with the@ \
+       wrong layout."
+      name
 
 let () =
   Location.register_error_of_exn

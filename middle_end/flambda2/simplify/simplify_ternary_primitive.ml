@@ -16,8 +16,9 @@
 
 open! Simplify_import
 
-let simplify_array_set (array_set_kind : P.Array_set_kind.t) dacc ~original_term
-    dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value
+let simplify_array_set (array_set_kind : P.Array_set_kind.t)
+    (accessor_width : P.array_accessor_width) dacc ~original_term dbg
+    ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value
     ~arg3_ty:_ ~result_var =
   let elt_kind =
     P.Array_set_kind.element_kind array_set_kind |> K.With_subkind.kind
@@ -56,7 +57,8 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t) dacc ~original_term
     in
     let named =
       Named.create_prim
-        (Ternary (Array_set array_set_kind, array, index, new_value))
+        (Ternary
+           (Array_set (array_set_kind, accessor_width), array, index, new_value))
         dbg
     in
     let unit_ty = Flambda2_types.this_tagged_immediate Targetint_31_63.zero in
@@ -88,7 +90,7 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Array_set array_kind -> simplify_array_set array_kind
+    | Array_set (array_kind, width) -> simplify_array_set array_kind width
     | Block_set (block_access_kind, init_or_assign) ->
       simplify_block_set block_access_kind init_or_assign
     | Bytes_or_bigstring_set (bytes_like_value, string_accessor_width) ->

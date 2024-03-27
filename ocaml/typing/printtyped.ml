@@ -67,6 +67,7 @@ let fmt_constant f x =
   | Const_string (s, strloc, Some delim) ->
       fprintf f "Const_string (%S,%a,Some %S)" s fmt_location strloc delim
   | Const_float (s) -> fprintf f "Const_float %s" s
+  | Const_float32 (s) -> fprintf f "Const_float32 %s" s;
   | Const_unboxed_float (s) -> fprintf f "Const_unboxed_float %s" s
   | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
   | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
@@ -379,18 +380,26 @@ and expression_extra i ppf x attrs =
   | Texp_newtype (s, lay) ->
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
+  | Texp_mode_coerce modes ->
+      let modes = (modes :> string Location.loc list Location.loc) in
+      line i ppf "Texp_mode_coerce %s\n"
+        (String.concat ","
+          (List.map
+            (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
+            modes.txt));
+      attributes i ppf attrs;
 
-and alloc_mode i ppf m =
-  line i ppf "alloc_mode %a\n" (Mode.Alloc.print' ~verbose:false) m
+and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
+  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 
 and locality_mode i ppf m =
   line i ppf "locality_mode %a\n"
-    (Mode.Locality.print' ~verbose:false ?label:None) m
+    (Mode.Locality.print ()) m
 
 and value_mode i ppf m =
-  line i ppf "value_mode %a\n" (Mode.Value.print' ~verbose:false) m
+  line i ppf "value_mode %a\n" (Mode.Value.print ()) m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
@@ -460,9 +469,8 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf extended_expression;
-  | Texp_field (e, li, _, _, am) ->
+  | Texp_field (e, li, _, _) ->
       line i ppf "Texp_field\n";
-      alloc_mode_option i ppf am;
       expression i ppf e;
       longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->
@@ -471,15 +479,17 @@ and expression i ppf x =
       expression i ppf e1;
       longident i ppf li;
       expression i ppf e2;
-  | Texp_array (amut, l, amode) ->
+  | Texp_array (amut, sort, l, amode) ->
       line i ppf "Texp_array %a\n" fmt_mutable_flag amut;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       alloc_mode i ppf amode;
       list i expression ppf l;
   | Texp_list_comprehension comp ->
       line i ppf "Texp_list_comprehension\n";
       comprehension i ppf comp
-  | Texp_array_comprehension (amut, comp) ->
+  | Texp_array_comprehension (amut, sort, comp) ->
       line i ppf "Texp_array_comprehension %a\n" fmt_mutable_flag amut;
+      line i ppf "%a\n" Jkind.Sort.format sort;
       comprehension i ppf comp
   | Texp_ifthenelse (e1, e2, eo) ->
       line i ppf "Texp_ifthenelse\n";

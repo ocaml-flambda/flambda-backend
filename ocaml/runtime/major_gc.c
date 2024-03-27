@@ -217,6 +217,9 @@ static void ephe_next_cycle (void)
 
 static void ephe_todo_list_emptied (void)
 {
+  /* If we haven't started marking, the todo list can grow (during ephemeron
+     allocation), so we should not yet announce that it has emptied */
+  CAMLassert (caml_marking_started());
   caml_plat_lock(&ephe_lock);
 
   /* Force next ephemeron marking cycle in order to avoid reasoning about
@@ -263,7 +266,7 @@ static caml_plat_mutex orphaned_lock = CAML_PLAT_MUTEX_INITIALIZER;
 
 void caml_add_orphaned_finalisers (struct caml_final_info* f)
 {
-  CAMLassert (caml_gc_phase == Phase_sweep_and_mark_main);
+  CAMLassert (caml_gc_phase == Phase_sweep_main);
   CAMLassert (!f->updated_first);
   CAMLassert (!f->updated_last);
 
@@ -384,7 +387,7 @@ void caml_adopt_orphaned_work (void)
     CAMLassert (!f->updated_last);
     CAMLassert (!myf->updated_first);
     CAMLassert (!myf->updated_last);
-    CAMLassert (caml_gc_phase == Phase_sweep_and_mark_main);
+    CAMLassert (caml_gc_phase == Phase_sweep_main);
     if (f->todo_head) {
       if (myf->todo_tail == NULL) {
         CAMLassert(myf->todo_head == NULL);
@@ -1053,6 +1056,7 @@ void caml_darken(void* state, value v, volatile value* ignored) {
   header_t hd;
   if (!Is_markable (v)) return; /* foreign stack, at least */
 
+  CAMLassert(caml_marking_started());
   hd = Hd_val(v);
   if (Tag_hd(hd) == Infix_tag) {
     v -= Infix_offset_hd(hd);
@@ -1089,6 +1093,7 @@ static intnat ephe_mark (intnat budget, uintnat for_cycle,
   int alive_data;
   intnat marked = 0, made_live = 0;
 
+  CAMLassert(caml_marking_started());
   if (domain_state->ephe_info->cursor.cycle == for_cycle &&
       !force_alive) {
     prev_linkp = domain_state->ephe_info->cursor.todop;
@@ -1189,6 +1194,51 @@ static intnat ephe_sweep (caml_domain_state* domain_state, intnat budget)
   return budget;
 }
 
+static void start_marking (int participant_count, caml_domain_state** barrier_participants)
+{
+  caml_domain_state* domain = Caml_state;
+  /* Need to ensure the minor heap is empty before we snapshot the roots,
+     because the minor heap may currently point to UNMARKED major blocks */
+  if (barrier_participants) {
+    caml_empty_minor_heap_no_major_slice_from_stw
+      (domain, (void*)0, participant_count, barrier_participants);
+  } else {
+    caml_empty_minor_heaps_once ();
+  }
+
+  /* CR ocaml 5 domains (sdolan):
+     Either this transition needs to be synchronised between domains,
+     or a different write barrier needs to be used while some domains
+     have started marking and others have not. */
+  CAMLassert(caml_domain_alone());
+  caml_gc_phase = Phase_sweep_and_mark_main;
+
+  CAML_EV_BEGIN(EV_MAJOR_MARK_ROOTS);
+  caml_do_roots (&caml_darken, darken_scanning_flags, domain, domain, 0);
+  {
+    uintnat work_unstarted = WORK_UNSTARTED;
+    if(atomic_compare_exchange_strong(&domain_global_roots_started,
+                                      &work_unstarted,
+                                      WORK_STARTED)){
+        caml_scan_global_roots(&caml_darken, domain);
+    }
+  }
+  CAML_EV_END(EV_MAJOR_MARK_ROOTS);
+  caml_gc_log("Marking started, %ld entries on mark stack",
+              (long)domain->mark_stack->count);
+
+  if (domain->mark_stack->count == 0 &&
+      !caml_addrmap_iter_ok(&domain->mark_stack->compressed_stack,
+                            domain->mark_stack->compressed_stack_iter)
+      ) {
+    atomic_fetch_add_verify_ge0(&num_domains_to_mark, -1);
+    domain->marking_done = 1;
+  }
+
+  if (domain->ephe_info->todo == (value) NULL)
+    ephe_todo_list_emptied();
+}
+
 struct cycle_callback_params {
   int force_compaction;
 };
@@ -1286,7 +1336,7 @@ static void stw_cycle_all_domains(caml_domain_state* domain, void* args,
       atomic_store_release(&num_domains_to_sweep, num_domains_in_stw);
       atomic_store_release(&num_domains_to_mark, num_domains_in_stw);
 
-      caml_gc_phase = Phase_sweep_and_mark_main;
+      caml_gc_phase = Phase_sweep_main;
       atomic_store(&ephe_cycle_info.num_domains_todo, num_domains_in_stw);
       atomic_store(&ephe_cycle_info.ephe_cycle, 1);
       atomic_store(&ephe_cycle_info.num_domains_done, 0);
@@ -1345,29 +1395,7 @@ static void stw_cycle_all_domains(caml_domain_state* domain, void* args,
                   (uintnat)local_stats.large_blocks);
 
   domain->sweeping_done = 0;
-
-  /* Mark roots for new cycle */
   domain->marking_done = 0;
-
-  CAML_EV_BEGIN(EV_MAJOR_MARK_ROOTS);
-  caml_do_roots (&caml_darken, darken_scanning_flags, domain, domain, 0);
-  {
-    uintnat work_unstarted = WORK_UNSTARTED;
-    if(atomic_compare_exchange_strong(&domain_global_roots_started,
-                                      &work_unstarted,
-                                      WORK_STARTED)){
-        caml_scan_global_roots(&caml_darken, domain);
-    }
-  }
-  CAML_EV_END(EV_MAJOR_MARK_ROOTS);
-
-  if (domain->mark_stack->count == 0 &&
-      !caml_addrmap_iter_ok(&domain->mark_stack->compressed_stack,
-                            domain->mark_stack->compressed_stack_iter)
-      ) {
-    atomic_fetch_add_verify_ge0(&num_domains_to_mark, -1);
-    domain->marking_done = 1;
-  }
 
   /* Ephemerons */
   // Adopt orphaned work from domains that were spawned and terminated in
@@ -1383,8 +1411,6 @@ static void stw_cycle_all_domains(caml_domain_state* domain, void* args,
   domain->ephe_info->cycle = 0;
   domain->ephe_info->cursor.todop = NULL;
   domain->ephe_info->cursor.cycle = 0;
-  if (domain->ephe_info->todo == (value) NULL)
-    ephe_todo_list_emptied();
 
   /* Finalisers */
   domain->final_info->updated_first = 0;
@@ -1539,8 +1565,17 @@ static void major_collection_slice(intnat howmuch,
     if (log_events) CAML_EV_END(EV_MAJOR_SWEEP);
   }
 
+  if (domain_state->sweeping_done &&
+      caml_gc_phase == Phase_sweep_main &&
+      get_major_slice_work(mode) > 0 &&
+      mode != Slice_opportunistic) {
+    start_marking(participant_count, barrier_participants);
+  }
+
+
 mark_again:
-  if (!domain_state->marking_done &&
+  if (caml_marking_started() &&
+      !domain_state->marking_done &&
       get_major_slice_work(mode) > 0) {
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK);
 
@@ -1555,7 +1590,7 @@ mark_again:
     if (log_events) CAML_EV_END(EV_MAJOR_MARK);
   }
 
-  if (mode != Slice_opportunistic) {
+  if (mode != Slice_opportunistic && caml_marking_started()) {
     /* Finalisers */
     if (caml_gc_phase == Phase_mark_final &&
         get_major_slice_work(mode) > 0 &&
@@ -1810,6 +1845,9 @@ void caml_finish_marking (void)
 {
   if (!Caml_state->marking_done) {
     CAML_EV_BEGIN(EV_MAJOR_FINISH_MARKING);
+    if (!caml_marking_started()) {
+      start_marking(0, NULL);
+    }
     caml_empty_mark_stack();
     caml_shrink_mark_stack();
     Caml_state->stat_major_words += Caml_state->allocated_words;
@@ -1930,6 +1968,7 @@ int caml_init_major_gc(caml_domain_state* d) {
                   caml_addrmap_iterator(&d->mark_stack->compressed_stack);
 
   /* Fresh domains do not need to performing marking or sweeping. */
+  /* CR ocaml 5 domains: how does this interact with Phase_sweep_main? */
   d->sweeping_done = 1;
   d->marking_done = 1;
   /* Finalisers. Fresh domains participate in updating finalisers. */

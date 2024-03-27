@@ -432,7 +432,7 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
-  | Array_load (ak, mut) -> Array_load (ak, mut)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
@@ -442,20 +442,23 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
 
+let array_set_kind_of_array_kind :
+    'a ->
+    Fexpr.array_kind * Fexpr.init_or_assign ->
+    Flambda_primitive.Array_set_kind.t =
+ fun env -> function
+  | Immediates, _ -> Immediates
+  | Naked_floats, _ -> Naked_floats
+  | Values, ia -> Values (init_or_assign env ia)
+  | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) ->
-    let ask : Flambda_primitive.Array_set_kind.t =
-      match ak, ia with
-      | Immediates, _ -> Immediates
-      | Naked_floats, _ -> Naked_floats
-      | Values, ia -> Values (init_or_assign env ia)
-      | (Naked_int32s | Naked_int64s | Naked_nativeints), _ ->
-        Misc.fatal_error
-          "fexpr support for unboxed int32/64/nativeint arrays not yet \
-           implemented"
-    in
-    Array_set ask
+  | Array_set (ak, width, ia) ->
+    let ask = array_set_kind_of_array_kind env (ak, ia) in
+    Array_set (ask, width)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 

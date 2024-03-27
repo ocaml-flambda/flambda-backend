@@ -366,6 +366,7 @@ let extra sub = function
     Texp_coerce (Option.map (sub.typ sub) cty1, sub.typ sub cty2)
   | Texp_newtype _ as d -> d
   | Texp_poly cto -> Texp_poly (Option.map (sub.typ sub) cto)
+  | Texp_mode_coerce modes -> Texp_mode_coerce modes
 
 let function_body sub body =
   match body with
@@ -476,8 +477,8 @@ let expr sub x =
           extended_expression = Option.map (sub.expr sub) extended_expression;
           alloc_mode
         }
-    | Texp_field (exp, lid, ld, mode, am) ->
-        Texp_field (sub.expr sub exp, map_loc sub lid, ld, mode, am)
+    | Texp_field (exp, lid, ld, float) ->
+        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
@@ -486,12 +487,12 @@ let expr sub x =
           ld,
           sub.expr sub exp2
         )
-    | Texp_array (amut, list, alloc_mode) ->
-        Texp_array (amut, List.map (sub.expr sub) list, alloc_mode)
+    | Texp_array (amut, sort, list, alloc_mode) ->
+        Texp_array (amut, sort, List.map (sub.expr sub) list, alloc_mode)
     | Texp_list_comprehension comp ->
         Texp_list_comprehension (map_comprehension comp)
-    | Texp_array_comprehension (amut, comp) ->
-        Texp_array_comprehension (amut, map_comprehension comp)
+    | Texp_array_comprehension (amut, sort, comp) ->
+        Texp_array_comprehension (amut, sort, map_comprehension comp)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Texp_ifthenelse (
           sub.expr sub exp1,
