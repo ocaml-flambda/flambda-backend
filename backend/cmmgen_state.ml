@@ -20,6 +20,7 @@
 module S = Misc.Stdlib.String
 
 type ustructured_constant =
+  | Const_float32 of float
   | Const_float of float
   | Const_int32 of int32
   | Const_int64 of int64
@@ -77,6 +78,7 @@ let rank_structured_constant = function
   | Const_float_array _ -> 5
   | Const_string _ -> 6
   | Const_vec128 _ -> 8
+  | Const_float32 _ -> 9
 
 let compare_structured_constants c1 c2 =
   match c1, c2 with

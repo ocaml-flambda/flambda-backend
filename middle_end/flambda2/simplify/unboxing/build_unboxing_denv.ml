@@ -131,7 +131,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
               Unbox
                 ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
                 | Number
-                    ( ( Naked_float | Naked_int32 | Naked_int64
+                    ( ( Naked_float | Naked_float32 | Naked_int32 | Naked_int64
                       | Naked_nativeint | Naked_vec128 ),
                       _ ) );
             is_int = _
@@ -175,6 +175,11 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let shape = T.tagged_immediate_alias_to ~naked_immediate in
     denv_of_number_decision K.naked_immediate shape param_var naked_immediate
       denv
+  | Unbox (Number (Naked_float32, { param = naked_float32; args = _ })) ->
+    let shape =
+      T.boxed_float32_alias_to ~naked_float32 (Alloc_mode.For_types.unknown ())
+    in
+    denv_of_number_decision K.naked_float32 shape param_var naked_float32 denv
   | Unbox (Number (Naked_float, { param = naked_float; args = _ })) ->
     let shape =
       T.boxed_float_alias_to ~naked_float (Alloc_mode.For_types.unknown ())

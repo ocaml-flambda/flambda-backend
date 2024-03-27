@@ -201,6 +201,15 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         set_of_closures
     in
     env, res, updates
+  | Block_like symbol, Boxed_float32 v ->
+    let default = Numeric_types.Float32_by_bit_pattern.zero in
+    let transl = Numeric_types.Float32_by_bit_pattern.to_float in
+    let structured f = Cmmgen_state.Const_float32 f in
+    let res, env, updates =
+      static_boxed_number ~kind:Single ~env ~symbol ~default
+        ~emit:C.emit_float32_constant ~transl ~structured v res updates
+    in
+    env, res, updates
   | Block_like symbol, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
@@ -262,6 +271,9 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let float_array = C.emit_float_array_constant sym static_fields in
     let env, res, e = static_float_array_updates sym env res updates 0 fields in
     env, R.update_data res float_array, e
+  | Block_like _s, Immutable_float32_array _fields ->
+    (* CR mslater: (float32) unboxed arrays *)
+    assert false
   | Block_like symbol, Immutable_int32_array elts ->
     assert (Arch.size_int = 8);
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
@@ -295,6 +307,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in
     env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_float32s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_float32_array_ops")]
+    in
+    env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int32s ->
     let block =
       C.emit_block (R.symbol res s)
@@ -325,11 +344,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
       SC.print static_const
   | ( (Code _ | Set_of_closures _),
-      ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_int32_array _ | Immutable_int64_array _
-      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
-      | Mutable_string _ | Immutable_string _ ) ) ->
+      ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      | Immutable_float_block _ | Immutable_float_array _
+      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_value_array _ | Empty_array _ | Mutable_string _
+      | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

@@ -267,7 +267,22 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%geint" -> Primitive ((Pintcomp Cge), 2)
     | "%incr" -> Primitive ((Poffsetref(1)), 1)
     | "%decr" -> Primitive ((Poffsetref(-1)), 1)
-    (* CR mslater: (float32) primitives *)
+    | "%floatoffloat32" -> Primitive (Pfloatoffloat32 mode, 1)
+    | "%float32offloat" -> Primitive (Pfloat32offloat mode, 1)
+    | "%intoffloat32" -> Primitive (Pintoffloat Pfloat32, 1)
+    | "%float32ofint" -> Primitive (Pfloatofint (Pfloat32, mode), 1)
+    | "%negfloat32" -> Primitive (Pnegfloat (Pfloat32, mode), 1)
+    | "%absfloat32" -> Primitive (Pabsfloat (Pfloat32, mode), 1)
+    | "%addfloat32" -> Primitive (Paddfloat (Pfloat32, mode), 2)
+    | "%subfloat32" -> Primitive (Psubfloat (Pfloat32, mode), 2)
+    | "%mulfloat32" -> Primitive (Pmulfloat (Pfloat32, mode), 2)
+    | "%divfloat32" -> Primitive (Pdivfloat (Pfloat32, mode), 2)
+    | "%eqfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFeq)), 2)
+    | "%noteqfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFneq)), 2)
+    | "%ltfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFlt)), 2)
+    | "%lefloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFle)), 2)
+    | "%gtfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFgt)), 2)
+    | "%gefloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFge)), 2)
     | "%intoffloat" -> Primitive (Pintoffloat Pfloat64, 1)
     | "%floatofint" -> Primitive (Pfloatofint (Pfloat64, mode), 1)
     | "%negfloat" -> Primitive (Pnegfloat (Pfloat64, mode), 1)
@@ -643,6 +658,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pfloatarray_set_128 {unsafe = false}), 3)
     | "%caml_floatarray_set128u" ->
       Primitive ((Pfloatarray_set_128 {unsafe = true}), 3)
+    (* CR mslater: (float32) unboxed arrays *)
     | "%caml_unboxed_float_array_set128" ->
       Primitive ((Punboxed_float_array_set_128 {unsafe = false}), 3)
     | "%caml_unboxed_float_array_set128u" ->
@@ -684,6 +700,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%obj_magic" -> Primitive(Pobj_magic layout, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    (* CR mslater: (float32) unboxed *)
     | "%unbox_float" -> Primitive(Punbox_float Pfloat64, 1)
     | "%box_float" -> Primitive(Pbox_float (Pfloat64, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
@@ -1407,6 +1424,8 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _
   | Pfloatofint (_, _)
+  | Pfloatoffloat32 _
+  | Pfloat32offloat _
   | Pnegfloat (_, _) | Pabsfloat (_, _)
   | Paddfloat (_, _) | Psubfloat (_, _)
   | Pmulfloat (_, _) | Pdivfloat (_, _)

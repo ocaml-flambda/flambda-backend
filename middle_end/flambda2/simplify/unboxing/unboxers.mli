@@ -40,6 +40,8 @@ end
 
 module Immediate : Number_S
 
+module Float32 : Number_S
+
 module Float : Number_S
 
 module Int32 : Number_S

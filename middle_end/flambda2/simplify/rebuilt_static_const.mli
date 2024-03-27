@@ -47,6 +47,11 @@ val create_block :
   fields:Field_of_static_block.t list ->
   t
 
+val create_boxed_float32 :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float32_by_bit_pattern.t Or_variable.t ->
+  t
+
 val create_boxed_float :
   Are_rebuilding_terms.t ->
   Numeric_types.Float_by_bit_pattern.t Or_variable.t ->
@@ -65,6 +70,11 @@ val create_boxed_vec128 :
 val create_immutable_float_block :
   Are_rebuilding_terms.t ->
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
+  t
+
+val create_immutable_float32_array :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float32_by_bit_pattern.t Or_variable.t list ->
   t
 
 val create_immutable_float_array :

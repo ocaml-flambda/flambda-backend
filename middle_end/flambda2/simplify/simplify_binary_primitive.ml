@@ -191,7 +191,7 @@ end = struct
                   | Naked_int32 -> Naked_int32
                   | Naked_int64 -> Naked_int64
                   | Naked_nativeint -> Naked_nativeint
-                  | Naked_float ->
+                  | Naked_float | Naked_float32 ->
                     Misc.fatal_error
                       "Cannot use [Negation_of_the_other_side] with floats; \
                        use the float version instead"
@@ -270,6 +270,7 @@ end = struct
     match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
+    | Naked_float32 -> T.any_naked_float32
     | Naked_float -> T.any_naked_float
     | Naked_int32 -> T.any_naked_int32
     | Naked_int64 -> T.any_naked_int64
@@ -425,6 +426,7 @@ end = struct
     match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
+    | Naked_float32 -> T.any_naked_float32
     | Naked_float -> T.any_naked_float
     | Naked_int32 -> T.any_naked_int32
     | Naked_int64 -> T.any_naked_int64
@@ -922,8 +924,8 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
           Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
             ~projection_bound_to:result_var ~kind
-        | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ | Naked_vec128 _ ->
+        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
             Simple.print arg1 Simple.print arg2)
       ~name:(fun _ ~coercion:_ -> dacc)

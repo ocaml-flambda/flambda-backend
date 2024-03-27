@@ -20,6 +20,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type ustructured_constant =
+  | Const_float32 of float
   | Const_float of float
   | Const_int32 of int32
   | Const_int64 of int64

@@ -74,6 +74,7 @@ type exttype =
   | XInt                                (**r OCaml value, word-sized integer *)
   | XInt32                              (**r 32-bit integer *)
   | XInt64                              (**r 64-bit integer  *)
+  | XFloat32                            (**r single-precision FP number *)
   | XFloat                              (**r double-precision FP number  *)
   | XVec128                             (**r 128-bit vector *)
 (** A variant of [machtype] used to describe arguments

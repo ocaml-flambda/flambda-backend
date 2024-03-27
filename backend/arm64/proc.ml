@@ -161,6 +161,16 @@ let loc_float last_float make_stack float ofs =
     ofs := !ofs + size_float; l
   end
 
+let loc_float32 last_float make_stack float ofs =
+  if !float <= last_float then begin
+    let l = phys_reg Float !float in
+    incr float; l
+  end else begin
+    let l = stack_slot (make_stack !ofs) Float in
+    ofs := !ofs + (if macosx then 4 else 8);
+    l
+  end
+
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
     let l = phys_reg Int !int in
@@ -247,6 +257,8 @@ let external_calling_conventions
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
+    | XFloat32 ->
+        loc.(i) <- [| loc_float32 last_float make_stack float ofs |]
     (* CR mslater: (SIMD) arm64 *)
     | XVec128 -> fatal_error "arm64: got vec128 register"
     end)

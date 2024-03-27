@@ -15,6 +15,7 @@
 
 type t =
   | Values_or_immediates_or_naked_floats
+  | Naked_float32s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -22,6 +23,7 @@ type t =
 let print ppf t =
   match t with
   | Values_or_immediates_or_naked_floats -> Format.pp_print_string ppf "regular"
+  | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
   | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
   | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
   | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
@@ -34,6 +36,7 @@ let of_element_kind t =
   | Naked_number Naked_immediate ->
     Misc.fatal_errorf
       "Arrays cannot yet contain elements of kind naked immediate"
+  | Naked_number Naked_float32 -> Naked_float32s
   | Naked_number Naked_int32 -> Naked_int32s
   | Naked_number Naked_int64 -> Naked_int64s
   | Naked_number Naked_nativeint -> Naked_nativeints
@@ -49,9 +52,7 @@ let of_lambda array_kind =
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray Pfloat64 ->
     Values_or_immediates_or_naked_floats
-  | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) array support *)
-    assert false
+  | Punboxedfloatarray Pfloat32 -> Naked_float32s
   | Punboxedintarray Pint32 -> Naked_int32s
   | Punboxedintarray Pint64 -> Naked_int64s
   | Punboxedintarray Pnativeint -> Naked_nativeints

@@ -137,9 +137,8 @@ let rec declare_const t (const : Lambda.structured_constant)
     register_const t
       (Allocated_const (Float (float_of_string c)))
       Names.const_float
-  | Const_base (Const_float32 _c) ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+  | Const_base (Const_float32 _) ->
+      Misc.fatal_error "float32 is supported in flambda. Consider using flambda2."
   | Const_base (Const_int32 c) ->
     register_const t (Allocated_const (Int32 c))
       Names.const_int32

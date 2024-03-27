@@ -95,6 +95,10 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | Proved (Boxed (_, Naked_float, _)), Proved (Boxed (_, Naked_float, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
+  | Proved (Boxed (_, Naked_float32, _)), Proved (Boxed (_, Naked_float32, _))
+    ->
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float32
+      ~cmp_prim:float_prim
   | Proved (Boxed (_, Naked_int32, _)), Proved (Boxed (_, Naked_int32, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
@@ -112,8 +116,8 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | ( Proved
         (Boxed
           ( _,
-            ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
-            | Naked_vec128 ),
+            ( Naked_float | Naked_float32 | Naked_int32 | Naked_int64
+            | Naked_nativeint | Naked_vec128 ),
             _ )),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)

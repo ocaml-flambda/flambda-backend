@@ -124,6 +124,8 @@ let punboxed_float_comp = "Punboxed_float_comp"
 let pfloatfield = "Pfloatfield"
 let pufloatfield = "Pufloatfield"
 let pfloatofint = "Pfloatofint"
+let pfloat32offloat = "Pfloat32offloat"
+let pfloatoffloat32 = "Pfloatoffloat32"
 let pgetglobal = "Pgetglobal"
 let pgetpredef = "Pgetpredef"
 let pignore = "Pignore"
@@ -249,6 +251,8 @@ let punboxed_float_comp_arg = "Punboxed_float_comp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pufloatfield_arg = "Pufloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
+let pfloatoffloat32_arg = "Pfloatoffloat32_arg"
+let pfloat32offloat_arg = "Pfloat32offloat_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
 let pgetpredef_arg = "Pgetpredef_arg"
 let pobj_dup_arg = "Pobj_dup_arg"
@@ -445,6 +449,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Poffsetref _ -> poffsetref
   | Pintoffloat _ -> pintoffloat
   | Pfloatofint (_, _) -> pfloatofint
+  | Pfloatoffloat32 _ -> pfloatoffloat32
+  | Pfloat32offloat _ -> pfloat32offloat
   | Pnegfloat (_, _) -> pnegfloat
   | Pabsfloat (_, _) -> pabsfloat
   | Paddfloat (_, _) -> paddfloat
@@ -595,6 +601,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Poffsetref _ -> poffsetref_arg
   | Pintoffloat _ -> pintoffloat_arg
   | Pfloatofint (_, _) -> pfloatofint_arg
+  | Pfloatoffloat32 _ -> pfloatoffloat32_arg
+  | Pfloat32offloat _ -> pfloat32offloat_arg
   | Pnegfloat (_, _) -> pnegfloat_arg
   | Pabsfloat (_, _) -> pabsfloat_arg
   | Paddfloat (_, _) -> paddfloat_arg

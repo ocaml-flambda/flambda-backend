@@ -19,6 +19,7 @@
 module Naked_number_kind : sig
   type t =
     | Naked_immediate
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -50,6 +51,8 @@ val value : t
 val naked_number : Naked_number_kind.t -> t
 
 val naked_immediate : t
+
+val naked_float32 : t
 
 val naked_float : t
 
@@ -96,6 +99,7 @@ module Standard_int_or_float : sig
   type t =
     | Tagged_immediate
     | Naked_immediate
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -113,6 +117,7 @@ module Boxable_number : sig
       representation exists. *)
 
   type t =
+    | Naked_float32
     | Naked_float
     | Naked_int32
     | Naked_int64
@@ -136,6 +141,7 @@ module With_subkind : sig
   module Subkind : sig
     type t =
       | Anything
+      | Boxed_float32
       | Boxed_float
       | Boxed_int32
       | Boxed_int64
@@ -173,6 +179,8 @@ module With_subkind : sig
   val any_value : t
 
   val naked_immediate : t
+
+  val naked_float32 : t
 
   val naked_float : t
 

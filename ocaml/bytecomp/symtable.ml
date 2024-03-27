@@ -148,9 +148,7 @@ let rec transl_const = function
     Const_base(Const_int i) -> Obj.repr i
   | Const_base(Const_char c) -> Obj.repr c
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float32 _) ->
-    (* CR mslater: (float32) use float32 in the compiler *)
-    assert false
+  | Const_base(Const_float32 f)
   | Const_base(Const_float f)
   | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
   | Const_base(Const_int32 i)
