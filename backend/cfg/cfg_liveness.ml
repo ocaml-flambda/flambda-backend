@@ -49,7 +49,7 @@ module Transfer :
     Result.ok
     @@
     match instr.desc with
-    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       if Cfg.is_pure_basic instr.desc && Reg.disjoint_set_array before instr.res
       then
         (* If the operation is without side-effects and the result is unused

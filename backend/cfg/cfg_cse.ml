@@ -109,7 +109,7 @@ class cse_generic =
       fun state n cell ->
         let i = DLL.value cell in
         match i.desc with
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> n
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> n
         | Op (Move | Spill | Reload) ->
           (* For moves, we associate the same value number to the result reg as
              to the argument reg. *)

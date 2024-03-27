@@ -107,6 +107,8 @@ let instr' ?(print_reg = Printmach.reg) ppf i =
       fprintf ppf "pop trap"
   | Lraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
+  | Lstackcheck { max_frame_size_bytes; } ->
+      fprintf ppf "stack check (%d bytes)" max_frame_size_bytes
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf " %s" (Debuginfo.to_string i.dbg)

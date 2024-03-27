@@ -122,6 +122,7 @@
   simd_selection
   simd_reload
   simd_proc
+  stack_check
   reg
   reload
   reloadgen

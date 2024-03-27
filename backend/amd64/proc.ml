@@ -521,6 +521,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Name_for_debugger _ | Dls_get)
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
+  | Stack_check _ ->
+    assert false (* the instruction is added after register allocation *)
 
 (* note: keep this function in sync with `destroyed_at_oper` above,
    and `is_destruction_point` below. *)
