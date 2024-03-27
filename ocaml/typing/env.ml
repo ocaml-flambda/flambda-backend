@@ -2957,7 +2957,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 
 let escape_mode ~errors ~env ~loc id vmode escaping_context =
   match
-  Mode.Regionality.submode
+  Mode.Regionality.sub
     (Mode.Value.regionality vmode)
     (Mode.Regionality.global)
   with
@@ -2968,7 +2968,7 @@ let escape_mode ~errors ~env ~loc id vmode escaping_context =
 
 let share_mode ~errors ~env ~loc id vmode shared_context =
   match
-    Mode.Linearity.submode
+    Mode.Linearity.sub
       (Mode.Value.linearity vmode)
       Mode.Linearity.many
   with
@@ -2981,7 +2981,7 @@ let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
   closure_context comonadic0 : Mode.Value.l =
   begin
     match
-      Mode.Value.Comonadic.submode comonadic comonadic0
+      Mode.Value.Comonadic.sub comonadic comonadic0
     with
     | Error e ->
         may_lookup_error errors loc env
@@ -2997,7 +2997,7 @@ let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
 
 let exclave_mode ~errors ~env ~loc id vmode =
   match
-  Mode.Regionality.submode
+  Mode.Regionality.sub
     (Mode.Value.regionality vmode)
     Mode.Regionality.regional
 with

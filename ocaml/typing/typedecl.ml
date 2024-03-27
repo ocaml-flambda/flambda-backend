@@ -363,14 +363,14 @@ let transl_labels ~new_var_jkind env univars closed lbls =
       (fun () ->
          let gbl =
            match mut with
-           | Mutable -> Mode.Global_flag.Global
-           | Immutable -> Typemode.transl_global_flags
+           | Mutable -> Mode.Modality.Vector.singleton Regionality Global
+           | Immutable -> Typemode.transl_modalities
               (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
-          ld_name = name; ld_mutable = mut; ld_global = gbl;
+          ld_name = name; ld_mutable = mut; ld_modalities = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -382,7 +382,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_global = ld.ld_global;
+          ld_modalities = ld.ld_modalities;
           ld_jkind = Jkind.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
@@ -397,7 +397,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
 let transl_types_gf ~new_var_jkind env univars closed tyl =
   let mk arg =
     let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = Typemode.transl_global_flags
+    let gf = Typemode.transl_modalities
       (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
     (cty, gf)
   in

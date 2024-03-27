@@ -270,7 +270,7 @@ let build_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple (List.map (fun x -> (x, Global_flag.Unrestricted)) args);
+        ext_args = Cstr_tuple (List.map (fun x -> (x, Modality.Vector.id)) args);
         ext_arg_jkinds = jkinds;
         ext_constant = args = [];
         ext_ret_type = None;
@@ -316,8 +316,8 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_nil [];
-                  cstr ident_cons [tvar, Unrestricted;
-                                   type_list tvar, Unrestricted]]
+                  cstr ident_cons [tvar, Modality.Vector.id;
+                                   type_list tvar, Modality.Vector.id]]
            [| [| |]; [| list_argument_jkind;
                         Jkind.value ~why:Boxed_variant |] |] )
        ~jkind:(Jkind.value ~why:Boxed_variant)
@@ -326,7 +326,7 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
+         variant [cstr ident_none []; cstr ident_some [tvar, Modality.Vector.id]]
            [| [| |]; [| option_argument_jkind |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_string

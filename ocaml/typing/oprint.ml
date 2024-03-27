@@ -962,15 +962,17 @@ and print_out_type_decl kwd ppf td =
     print_constraints
     print_unboxed
 
+and modality_to_string = function
+  | Ogf_global -> "global_"
+
+and print_modality_space ppf m =
+  (* See the notes [NON-LEGACY MODES] *)
+  pp_print_string ppf (modality_to_string m);
+  pp_print_space ppf ()
+
 and print_simple_out_gf_type ppf (ty, gf) =
-  match gf with
-  | Ogf_global ->
-      (* See the notes [NON-LEGACY MODES] *)
-      pp_print_string ppf "global_";
-      pp_print_space ppf ();
-      print_simple_out_type ppf ty
-  | Ogf_unrestricted ->
-    print_simple_out_type ppf ty
+  pp_print_list print_modality_space ppf gf;
+  print_simple_out_type ppf ty
 
 and print_out_constr_args ppf tyl =
   print_typlist print_simple_out_gf_type " *" ppf tyl

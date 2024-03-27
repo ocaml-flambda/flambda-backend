@@ -401,7 +401,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
        ap_mode is local, the application allocates in the outer
        region, and thus [region_mode] needs to be marked local as well*)
       match
-        Regionality.submode (locality_as_regionality ap_mode) region_mode
+        Regionality.sub (locality_as_regionality ap_mode) region_mode
       with
       | Ok () -> ()
       | Error _ -> raise (Error (loc, env, Tail_call_local_returning))
@@ -418,39 +418,10 @@ let meet_global mode =
 let meet_unique mode =
   Value.meet [mode; (Value.max_with_uniqueness Uniqueness.unique)]
 
-let meet_many mode =
-  Value.meet [mode; (Value.max_with_linearity Linearity.many)]
-
-let join_shared mode =
-  Value.join [mode; Value.min_with_uniqueness Uniqueness.shared]
-
 let value_regional_to_local mode =
   mode
   |> value_to_alloc_r2l
   |> alloc_as_value
-
-(* Describes how a modality affects field projection. Returns the mode
-   of the projection given the mode of the record. *)
-let modality_unbox_left global_flag mode =
-  let mode = Value.disallow_right mode in
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> Value.meet_with_regionality Regionality.Const.Global
-      |> join_shared
-      |> Value.meet_with_linearity Linearity.Const.Many
-  | Global_flag.Unrestricted -> mode
-
-(* Describes how a modality affects record construction. Gives the
-   expected mode of the field given the expected mode of the record. *)
-let modality_box_right global_flag mode =
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> meet_global
-      |> Value.join_with_uniqueness Uniqueness.Const.max
-      |> meet_many
-  | Global_flag.Unrestricted -> mode
 
 let mode_default mode =
   { position = RNontail;
@@ -486,8 +457,8 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
-let mode_box_modality gf expected_mode =
-  mode_default (modality_box_right gf expected_mode.mode)
+let mode_box_modalities gf expected_mode =
+  mode_default (Modality.Vector.apply_right gf expected_mode.mode)
 
 let mode_global expected_mode =
   let mode = meet_global expected_mode.mode in
@@ -564,7 +535,7 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   | _, _, (Nontail | Default) ->
      mode_default vmode, vmode
   | _, _, Tail -> begin
-    Regionality.submode_exn (Value.regionality vmode) Regionality.regional;
+    Regionality.sub_exn (Value.regionality vmode) Regionality.regional;
     mode_tailcall_argument vmode, vmode
   end
 
@@ -577,8 +548,8 @@ let mode_lazy expected_mode =
 let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   let res =
     match expected_mode.tuple_modes with
-    | [] -> Value.submode mode expected_mode.mode
-    | ts -> Value.submode mode (Value.meet ts)
+    | [] -> Value.sub mode expected_mode.mode
+    | ts -> Value.sub mode (Value.meet ts)
   in
   match res with
   | Ok () -> ()
@@ -2611,7 +2582,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
+             let alloc_mode = Modality.Vector.apply_left gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2655,7 +2626,7 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         let alloc_mode =
-          modality_unbox_left label.lbl_global alloc_mode.mode
+          Modality.Vector.apply_left label.lbl_modalities alloc_mode.mode
         in
         let alloc_mode = simple_pat_mode alloc_mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -3434,7 +3405,7 @@ let check_local_application_complete ~env ~app_loc args =
         | _ -> false
       in
       let submode m1 m2 =
-        match Alloc.submode m1 m2 with
+        match Alloc.sub m1 m2 with
         | Ok () -> ()
         | Error _ ->
           let loc, loc_kind =
@@ -4662,12 +4633,12 @@ let unique_use ~loc ~env mode_l mode_r  =
     (* if unique extension is not enabled, we will not run uniqueness analysis;
        instead, we force all uses to be shared and many. This is equivalent to
        running a UA which forces everything *)
-    (match Uniqueness.submode Uniqueness.shared uniqueness with
+    (match Uniqueness.sub Uniqueness.shared uniqueness with
     | Ok () -> ()
     | Error e ->
         raise (Error(loc, env, Submode_failed(`Uniqueness e, Other, None, None)))
     );
-    (match Linearity.submode linearity Linearity.many with
+    (match Linearity.sub linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         raise (Error (loc, env, Submode_failed(`Linearity e, Other, None, None)))
@@ -4756,7 +4727,7 @@ let split_function_ty
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
+    Locality.sub_exn Locality.local (Alloc.locality alloc_mode);
   let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
     in_function
   in
@@ -4821,7 +4792,7 @@ let split_function_ty
         else begin
           (* if the function has no region, we force the ret_mode to be local *)
           match
-            Locality.submode Locality.local (Alloc.locality ret_mode)
+            Locality.sub Locality.local (Alloc.locality ret_mode)
           with
           | Ok () -> mode_default ret_value_mode
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
@@ -5212,7 +5183,7 @@ and type_expect_
         | RTail (regionality, _) ->
           (* The middle-end relies on all functions which allocate into their
              parent's region having a return mode of local. *)
-          (match Regionality.submode Regionality.local regionality with
+          (match Regionality.sub Regionality.local regionality with
           | Ok () -> ()
           | Error _ -> raise (Error(loc, env, Exclave_returns_not_local))
           );
@@ -5555,9 +5526,9 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
+                  let mode = Modality.Vector.apply_left lbl.lbl_modalities mode in
                   let argument_mode =
-                    mode_box_modality lbl.lbl_global argument_mode
+                    mode_box_modalities lbl.lbl_modalities argument_mode
                   in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
@@ -5604,7 +5575,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = Modality.Vector.apply_left label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         match label.lbl_repres with
         | Record_float ->
@@ -6656,14 +6627,14 @@ and type_function
                      mode-crossed differently. *)
                   let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
-                    Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
+                    Alloc.sub (Alloc.close_over arg_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
                       raise (Error(loc_fun, env, Uncurried_function_escapes e))
                   end;
                   begin match
-                    Alloc.submode (Alloc.partial_apply alloc_mode) fun_alloc_mode
+                    Alloc.sub (Alloc.partial_apply alloc_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
@@ -7099,7 +7070,7 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let arg_mode = mode_box_modality label.lbl_global expected_mode in
+  let arg_mode = mode_box_modalities label.lbl_modalities expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
@@ -7301,7 +7272,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
-      Regionality.submode_exn (Value.regionality eta_mode) Regionality.regional;
+      Regionality.sub_exn (Value.regionality eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test
@@ -7673,7 +7644,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let args =
     List.map2
       (fun e ((ty, gf),t0) ->
-         let argument_mode = mode_box_modality gf argument_mode in
+         let argument_mode = mode_box_modalities gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in

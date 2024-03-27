@@ -1427,10 +1427,11 @@ and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode ty) tyl
 
 and tree_of_typ_gf (ty, gf) =
+  let gf = Modality.Vector.to_list gf in
   let gf =
-    match gf with
-    | Global_flag.Global -> Ogf_global
-    | Global_flag.Unrestricted -> Ogf_unrestricted
+    List.map ((function
+    | Exist Global -> Ogf_global
+    ) : Modality.not_id Modality.Exist.t -> _) gf
   in
   (tree_of_typexp Type ty, gf)
 
@@ -1570,17 +1571,21 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
+  let ld_modalities = Modality.Vector.to_list l.ld_modalities in
   let gom =
-    match l.ld_mutable, l.ld_global with
-    | Mutable, _ -> Ogom_mutable
-    | Immutable, Global -> Ogom_global
-    | Immutable, Unrestricted -> Ogom_immutable
+    match l.ld_mutable, ld_modalities with
+    | Mutable, ([Exist Global] | []) -> Ogom_mutable
+    | Immutable, [Exist Global] -> Ogom_global
+    | Immutable, [] -> Ogom_immutable
+    | _, _ ->
+      Misc.fatal_errorf "Unexpected label modalities %a, should not parse"
+        (pp_print_list ~pp_sep:pp_print_space (fun ppf (Modality.Exist.Exist m) -> pp_print_string ppf (Modality.to_string m))) ld_modalities
   in
   (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
+  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), [] ]
 
 let tree_of_constructor_args_and_ret_type args ret_type =
   match ret_type with

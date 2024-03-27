@@ -41,28 +41,38 @@ let transl_mode_annots modes =
   in
   loop Alloc.Const.Option.none modes.txt
 
-let transl_global_flags gfs =
-  let rec loop (acc : Global_flag.t) = function
-    | [] -> acc
-    | m :: rest ->
-      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
-      let acc : Global_flag.t =
-        match txt with
-        | "global" -> (
-          Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
-          match acc with
-          | Unrestricted -> Global
-          (* Duplicated modality is not an error, just silly and thus a warning.
-             As we introduce more modalities, it might be in general difficult
-             to detect all redundant modalities, but we should do our best. *)
-          | Global ->
-            Location.prerr_warning loc (Warnings.Redundant_modality txt);
-            Global)
-        | s -> raise (Error (loc, Unrecognized_modality s))
-      in
-      loop acc rest
+let transl_modalities modalities =
+  let transl_modality m : _ Modality.Vector.axis * _ Modality.t * _ =
+    let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
+    Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
+    match txt with
+    | "global" -> Regionality, Global, loc
+    | s -> raise (Error (loc, Unrecognized_modality s))
   in
-  loop Unrestricted gfs.txt
+  let apply_modality ax atom loc acc =
+    let acc, red = Modality.Vector.cons ax atom acc in
+    (match red with
+    | Not_reducible -> ()
+    | Reducible { outer; inner; reduced } ->
+      Location.prerr_warning loc
+        (Warnings.Reduced_modality
+           ( Modality.to_string outer,
+             Modality.to_string inner,
+             Modality.to_string reduced )));
+    acc
+  in
+  (* Note the ordering: When user write:
+     type r = { x : string @@ foo bar hello}
+     The mode [m'] of the field will be
+     [m' = foo (bar (hello (m)))]
+     where [m] is the mode of the record. I think this is more intuitive, because
+     [foo] is closest to the field type [string] in the syntax, so it should be
+     closest to the field mode [m'] in the semantics. *)
+  List.fold_right
+    (fun m acc ->
+      let ax, atom, loc = transl_modality m in
+      apply_modality ax atom loc acc)
+    modalities.txt Modality.Vector.id
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in

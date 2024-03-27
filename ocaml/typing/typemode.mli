@@ -6,4 +6,4 @@ val transl_mode_annots : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.Option.t
 val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
 
 (** Interpret mode syntax as modalities *)
-val transl_global_flags : Jane_syntax.Mode_expr.t -> Mode.Global_flag.t
+val transl_modalities : Jane_syntax.Mode_expr.t -> Mode.Modality.Vector.t

@@ -39,18 +39,6 @@ module Axis = struct
     | `Linearity -> "linearity"
 end
 
-module Global_flag = struct
-  type t =
-    | Global
-    | Unrestricted
-
-  let compare flag0 flag1 =
-    match flag0, flag1 with
-    | Global, Unrestricted -> -1
-    | Unrestricted, Global -> 1
-    | Global, Global | Unrestricted, Unrestricted -> 0
-end
-
 module type BiHeyting = sig
   (** Extend the [Lattice] interface with operations of bi-Heyting algebras *)
 
@@ -1115,13 +1103,11 @@ module type Obj = sig
   val obj : const C.obj
 end
 
-let equate_from_submode submode m0 m1 =
-  match submode m0 m1 with
+let equate_from_sub sub m0 m1 =
+  match sub m0 m1 with
   | Error e -> Error (Left_le_right, e)
   | Ok () -> (
-    match submode m1 m0 with
-    | Error e -> Error (Right_le_left, e)
-    | Ok () -> Ok ())
+    match sub m1 m0 with Error e -> Error (Right_le_left, e) | Ok () -> Ok ())
   [@@inline]
 
 module Common (Obj : Obj) = struct
@@ -1159,15 +1145,15 @@ module Common (Obj : Obj) = struct
 
   let newvar_below m = Solver.newvar_below obj m
 
-  let submode m0 m1 : (unit, error) result = Solver.submode obj m0 m1
+  let sub m0 m1 : (unit, error) result = Solver.sub obj m0 m1
 
   let join l = Solver.join obj l
 
   let meet l = Solver.meet obj l
 
-  let submode_exn m0 m1 = assert (submode m0 m1 |> Result.is_ok)
+  let sub_exn m0 m1 = assert (sub m0 m1 |> Result.is_ok)
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
@@ -1361,8 +1347,8 @@ module Comonadic_with_regionality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = reg0, lin0; right = reg1, lin1 } ->
       if Regionality.Const.le reg0 reg1
@@ -1373,7 +1359,7 @@ module Comonadic_with_regionality = struct
       else Error (`Regionality { left = reg0; right = reg1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1459,8 +1445,8 @@ module Comonadic_with_locality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = loc0, lin0; right = loc1, lin1 } ->
       if Locality.Const.le loc0 loc1
@@ -1471,7 +1457,7 @@ module Comonadic_with_locality = struct
       else Error (`Locality { left = loc0; right = loc1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1537,8 +1523,8 @@ module Monadic = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let sub m0 m1 =
+    match sub m0 m1 with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
       if Uniqueness.Const.le uni0 uni1
@@ -1546,7 +1532,7 @@ module Monadic = struct
       else Error (`Uniqueness { left = uni0; right = uni1 })
 
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1637,23 +1623,21 @@ module Value = struct
   type equate_error = equate_step * error
 
   (* NB: state mutated when error *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
+  let sub { monadic = monadic0; comonadic = comonadic0 }
       { monadic = monadic1; comonadic = comonadic1 } =
     (* comonadic before monadic, so that locality errors dominate
        (error message backward compatibility) *)
-    match Comonadic.submode comonadic0 comonadic1 with
+    match Comonadic.sub comonadic0 comonadic1 with
     | Error e -> Error e
     | Ok () -> (
-      match Monadic.submode monadic0 monadic1 with
+      match Monadic.sub monadic0 monadic1 with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
-  let submode_exn m0 m1 =
-    match submode m0 m1 with
-    | Ok () -> ()
-    | Error _ -> invalid_arg "submode_exn"
+  let sub_exn m0 m1 =
+    match sub m0 m1 with Ok () -> () | Error _ -> invalid_arg "sub_exn"
 
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
@@ -1941,21 +1925,19 @@ module Alloc = struct
 
   (* NB: state mutated when error - should be fine as this always indicates type
      error in typecore.ml which triggers backtracking. *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
+  let sub { monadic = monadic0; comonadic = comonadic0 }
       { monadic = monadic1; comonadic = comonadic1 } =
-    match Monadic.submode monadic0 monadic1 with
+    match Monadic.sub monadic0 monadic1 with
     | Error e -> Error e
     | Ok () -> (
-      match Comonadic.submode comonadic0 comonadic1 with
+      match Comonadic.sub comonadic0 comonadic1 with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let equate = equate_from_sub sub
 
-  let submode_exn m0 m1 =
-    match submode m0 m1 with
-    | Ok () -> ()
-    | Error _ -> invalid_arg "submode_exn"
+  let sub_exn m0 m1 =
+    match sub m0 m1 with Ok () -> () | Error _ -> invalid_arg "sub_exn"
 
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
@@ -2253,3 +2235,211 @@ let value_to_alloc_r2l m =
       (Map_comonadic Regional_to_local) comonadic
   in
   { comonadic; monadic }
+
+module Modality = struct
+  type not_id = private Not_id
+
+  type maybe_id = private Maybe_id
+
+  type ('a, 'b, 'd) t =
+    | Global : (Regionality.Const.t, Regionality.Const.t, 'd) t
+    | Id : ('a, 'a, maybe_id) t
+
+  let _not_id : type a b d. (a, b, not_id) t -> (a, b, d) t = function
+    | Global -> Global
+
+  let maybe_id : type a b d. (a, b, d) t -> (a, b, maybe_id) t = function
+    | Global -> Global
+    | Id -> Id
+
+  let maybe_not_id : type a b d. (a, b, d) t -> (a, b, not_id) t option =
+    function
+    | Id -> None
+    | Global -> Some Global
+
+  let to_string : type a b d. ?id:string -> (a, b, d) t -> string =
+   fun ?(id = "id") t -> match t with Global -> "global" | Id -> id
+
+  let join_with_uniqueness uniqueness mode =
+    Value.join [mode; Value.min_with_uniqueness (Uniqueness.of_const uniqueness)]
+
+  let meet_with_linearity linearity mode =
+    Value.meet [mode; Value.max_with_linearity (Linearity.of_const linearity)]
+
+  let meet_with_regionality regionality mode =
+    Value.meet
+      [mode; Value.max_with_regionality (Regionality.of_const regionality)]
+
+  (* CR zqian: Ideally, [apply_left/right] should act on the axis corresponding
+     to the given modality instead of the whole [Value.t], but I find that hard
+     to do. *)
+  (* CR zqian: The [Global] secretly acts on multi-axes, which breaks our
+     principle and needs to be fixed. We should introduce [Shared]/[Many] and
+     have the user-written [global_] interpreted as all three. Not doing this
+     for now, because the coupling between mutable and global_ is bad enough and
+     need to be solved first. *)
+  let apply_left : type a b d r. (a, b, d) t -> (allowed * r) Value.t -> Value.l
+      =
+   fun t mode ->
+    let mode = Value.disallow_right mode in
+    match t with
+    | Id -> mode
+    | Global ->
+      mode
+      |> Value.meet_with_regionality Global
+      |> Value.meet_with_linearity Many
+      |> join_with_uniqueness Shared
+
+  let apply_right :
+      type a b d l. (a, b, d) t -> (l * allowed) Value.t -> Value.r =
+   fun t mode ->
+    let mode = Value.disallow_left mode in
+    match t with
+    | Id -> mode
+    | Global ->
+      mode
+      |> meet_with_regionality Global
+      |> meet_with_linearity Many
+      |> Value.join_with_uniqueness Shared
+
+  type ('a, 'b) sub_error =
+    { left : ('a, 'b, maybe_id) t;
+      right : ('a, 'b, maybe_id) t
+    }
+
+  let sub :
+      type a b d d'.
+      (a, b, d) t -> (a, b, d') t -> (unit, (a, b) sub_error) Result.t =
+   fun left right ->
+    let left = maybe_id left in
+    let right = maybe_id right in
+    match left, right with
+    | Id, Id -> Ok ()
+    | Global, Global -> Ok ()
+    | Global, Id -> Ok ()
+    | Id, Global -> Error { left; right }
+
+  let maybe_compose_not_id :
+      type a b c.
+      (b, c, not_id) t -> (a, b, not_id) t -> (a, c, not_id) t option =
+   fun f g -> match f, g with Global, Global -> Some Global
+
+  type reducible =
+    | Reducible
+    | Not_reducible
+
+  let compose_not_id :
+      type a b c.
+      (b, c, not_id) t -> (a, b, not_id) t -> (a, c, not_id) t * reducible =
+   fun f g ->
+    match maybe_compose_not_id f g with
+    | Some h -> h, Reducible
+    | None -> Misc.fatal_error "Non-reducible is impossible.", Not_reducible
+
+  module Exist = struct
+    type ('a, 'b, 'd) atom = ('a, 'b, 'd) t
+
+    type 'd t = Exist : (_, _, 'd) atom -> 'd t
+
+    let maybe_not_id : type a b d. (a, b, d) atom -> not_id t option =
+     fun m ->
+      match maybe_not_id m with None -> None | Some m -> Some (Exist m)
+  end
+
+  module Vector = struct
+    type ('a, 'b, 'd) atom = ('a, 'b, 'd) t
+
+    type t =
+      { regionality : (Regionality.Const.t, Regionality.Const.t, maybe_id) atom;
+        linearity : (Linearity.Const.t, Linearity.Const.t, maybe_id) atom;
+        uniqueness : (Uniqueness.Const.t, Uniqueness.Const.t, maybe_id) atom
+      }
+
+    let apply_left { regionality; linearity; uniqueness } m =
+      m |> apply_left regionality |> apply_left linearity
+      |> apply_left uniqueness
+
+    let apply_right { regionality; linearity; uniqueness } m =
+      m |> apply_right regionality |> apply_right linearity
+      |> apply_right uniqueness
+
+    type ('a, 'b) atom_sub_error = ('a, 'b) sub_error
+
+    type sub_error = Sub_error : ('a, 'a) atom_sub_error -> sub_error
+
+    let sub : t -> t -> (unit, sub_error) Result.t =
+     fun m0 m1 ->
+      match sub m0.regionality m1.regionality with
+      | Ok () -> (
+        match sub m0.linearity m1.linearity with
+        | Ok () -> (
+          match sub m0.uniqueness m1.uniqueness with
+          | Ok () -> Ok ()
+          | Error e -> Error (Sub_error e))
+        | Error e -> Error (Sub_error e))
+      | Error e -> Error (Sub_error e)
+
+    type equate_error = equate_step * sub_error
+
+    let equate m0 m1 = equate_from_sub sub m0 m1
+
+    let id = { regionality = Id; linearity = Id; uniqueness = Id }
+
+    type 'a reducible =
+      | Not_reducible
+      | Reducible of
+          { outer : ('a, 'a, not_id) atom;
+            inner : ('a, 'a, not_id) atom;
+            reduced : ('a, 'a, not_id) atom
+          }
+
+    let compose_not_id :
+        type a.
+        (a, a, not_id) atom ->
+        (a, a, not_id) atom ->
+        ((a, a, maybe_id) atom -> t) ->
+        t * a reducible =
+     fun f g mk ->
+      let h, red = compose_not_id f g in
+      let t = mk (maybe_id h) in
+      match red with
+      | Reducible -> t, Reducible { outer = f; inner = g; reduced = h }
+      | Not_reducible -> t, Not_reducible
+
+    let compose :
+        type a d.
+        (a, a, not_id) atom ->
+        (a, a, d) atom ->
+        ((a, a, maybe_id) atom -> t) ->
+        t * a reducible =
+     fun f g mk ->
+      match g with
+      | Id -> mk (maybe_id f), Not_reducible
+      | Global -> compose_not_id f Global mk
+
+    type 'a axis =
+      | Regionality : Regionality.Const.t axis
+      | Uniqueness : Uniqueness.Const.t axis
+      | Linearity : Linearity.Const.t axis
+
+    let cons : type a. a axis -> (a, a, not_id) atom -> t -> t * a reducible =
+     fun ax a m ->
+      match ax with
+      | Regionality ->
+        compose a m.regionality (fun x -> { m with regionality = x })
+      | Linearity -> compose a m.linearity (fun x -> { m with linearity = x })
+      | Uniqueness ->
+        compose a m.uniqueness (fun x -> { m with uniqueness = x })
+
+    let singleton : type a. a axis -> (a, a, not_id) atom -> t =
+     fun ax a ->
+      let t, r = cons ax a id in
+      match r with Not_reducible -> t | Reducible _ -> assert false
+
+    let to_list : t -> not_id Exist.t list =
+     fun t ->
+      (t.regionality |> Exist.maybe_not_id |> Option.to_list)
+      @ (t.linearity |> Exist.maybe_not_id |> Option.to_list)
+      @ (t.uniqueness |> Exist.maybe_not_id |> Option.to_list)
+  end
+end

@@ -996,6 +996,7 @@ typing/includecore.cmi : \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/path.cmi \
+    typing/mode.cmi \
     parsing/location.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
