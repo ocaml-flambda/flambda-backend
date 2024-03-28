@@ -219,6 +219,8 @@ let error_of_extension ext =
       | _ ->
           Location.errorf ~loc "Invalid syntax for extension '%s'." txt
       end
+  | ({txt = "call_pos"; loc}, _) ->
+      Location.errorf ~loc "[%%call_pos] can only exist as the type of a labelled argument"
   | ({txt; loc}, _) ->
       Location.errorf ~loc "Uninterpreted extension '%s'." txt
 

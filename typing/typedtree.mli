@@ -224,6 +224,12 @@ and exp_extra =
    the syntax changes.
 *)
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
     propagate jkind information inward during compilation.  This
@@ -397,6 +403,10 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
+    (* A source position value which has been automatically inferred, either
+       as a result of [%call_pos] occuring in an expression, or omission of a
+       Position argument in function application *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
@@ -836,6 +846,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_call_pos
+      (** [Ttyp_call_pos] represents the type of the value of a Position
+          argument ([lbl:[%call_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;

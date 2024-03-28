@@ -126,7 +126,7 @@ let get_ids_from_exp exp =
    | { pexp_desc = Pexp_apply (exp, args) } ->
      get_id_from_exp exp ::
      List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+       | (Nolabel, arg) -> get_id_from_exp arg
        | (_, _) -> Result.Error ())
        args
    | _ -> [get_id_from_exp exp])

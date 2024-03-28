@@ -201,7 +201,7 @@ end
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
   match get_desc ty with
-  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_omittable lbl) -> Some (l, r)
   | _ -> None
 
 let extract_last_arrow ty =

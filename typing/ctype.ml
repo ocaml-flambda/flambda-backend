@@ -2902,6 +2902,11 @@ let rec expands_to_datatype env ty =
       end
   | _ -> false
 
+let equivalent_with_nolabels l1 l2 =
+  l1 = l2 || (match l1, l2 with
+  | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
+  | _ -> false)
+
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
    exactly the same.)  This is used to decide whether GADT cases are
@@ -2936,7 +2941,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (_, Tvar _)  ->
             ()
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
-          when l1 = l2 || not (is_optional l1 || is_optional l2) ->
+          when equivalent_with_nolabels l1 l2 ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
         | (Ttuple tl1, Ttuple tl2) ->
@@ -3496,7 +3501,7 @@ and unify3 env t1 t1' t2 t2' =
            when
              (l1 = l2 ||
               (!Clflags.classic || in_pattern_mode ()) &&
-               not (is_optional l1 || is_optional l2)) ->
+               equivalent_with_nolabels l1 l2) ->
           unify_alloc_mode_for Unify a1 a2;
           unify_alloc_mode_for Unify r1 r2;
           unify  env t1 t2; unify env  u1 u2;
@@ -4038,6 +4043,8 @@ let filter_arrow env t l ~force_tpoly =
               (Tconstr(Predef.path_option,
                        [newvar2 level Predef.option_argument_jkind],
                        ref Mnil))
+          else if is_position l then
+            newty2 ~level (Tconstr (Predef.path_lexing_position, [], ref Mnil))
           else
             newvar2 level k_arg
         in
@@ -4077,7 +4084,8 @@ let filter_arrow env t l ~force_tpoly =
       link_type t t';
       arrow_desc
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
-      if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
+      if l = l' || !Clflags.classic && l = Nolabel &&
+        equivalent_with_nolabels l l'
       then
         { ty_arg; arg_mode; ty_ret; ret_mode }
       else raise (Filter_arrow_failed
@@ -4591,7 +4599,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
               moregen_alloc_mode (neg_variance variance) a1 a2;
@@ -5017,7 +5025,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
                (l1 = l2
-                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
+                || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               eqtype rename type_pairs subst env t1 t2;
               eqtype rename type_pairs subst env u1 u2;
               eqtype_alloc_mode a1 a2;
@@ -5825,7 +5833,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         (trace, t1, t2, !univar_pairs)::cstrs
     | (Tarrow((l1,a1,r1), t1, u1, _),
        Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
-      || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+      || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
         let cstrs =
           subtype_rec
             env
