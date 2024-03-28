@@ -152,45 +152,43 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
         my_closure my_region my_depth
         -> k * k1
         : [ 0 | 0 of val * val ] =
-  apply seq (0) -> k2 * k1
-    where k2 (`*match*` : [ 0 | 0 of val * val ]) =
+  apply seq (0) -> k2_2 * k1
+    where k2_2 (`*match*` : [ 0 | 0 of val * val ]) =
       let prim = %is_int `*match*` in
-      (switch prim
-         | 0 -> k2
-         | 1 -> k (0)
-         where k2 =
-           ((let Popaque = %Opaque 0 in
-             (let untagged = %untag_imm Popaque in
-              switch untagged
-                | 0 -> k3
-                | 1 -> k4)
-               where k4 =
-                 let `anon-fn[tests11.ml:15,2--70]` =
-                   closure `anon-fn[tests11.ml:15,2--70]_1_2`
-                     @`anon-fn[tests11.ml:15,2--70]`
-                 with {
-                   map_foo =
-                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
-                 }
-                 in
-                 cont k2 (`anon-fn[tests11.ml:15,2--70]`)
-               where k3 =
-                 let `anon-fn[tests11.ml:15,2--70]` =
-                   closure `anon-fn[tests11.ml:15,2--70]_1_3`
-                     @`anon-fn[tests11.ml:15,2--70]`
-                 with {
-                   map_foo =
-                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
-                 }
-                 in
-                 cont k2 (`anon-fn[tests11.ml:15,2--70]`))
-              where k2 (switch_result) =
-                ((let Pfield = %block_load (`*match*`, 0) in
-                  apply f (Pfield) -> k2 * k1)
-                   where k2 (apply_result) =
-                     let Pmakeblock = %Block 0 (apply_result, switch_result)
-                     in
-                     cont k (Pmakeblock))))
+      switch prim
+        | 0 -> k2_1 (`*match*`)
+        | 1 -> k (0)
+    where k2_1 (`*match*`) =
+      let Popaque = %Opaque 0 in
+      let untagged = %untag_imm Popaque in
+      switch untagged
+        | 0 -> k3 (`*match*`)
+        | 1 -> k4 (`*match*`)
+    where k4 (`*match*`) =
+      let `anon-fn[tests11.ml:15,2--70]` =
+        closure `anon-fn[tests11.ml:15,2--70]_1_2`
+          @`anon-fn[tests11.ml:15,2--70]_1`
+      with {
+        map_foo_1 = $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
+      }
+      in
+      cont k2 (`anon-fn[tests11.ml:15,2--70]`, `*match*`)
+    where k3 (`*match*`) =
+      let `anon-fn[tests11.ml:15,2--70]` =
+        closure `anon-fn[tests11.ml:15,2--70]_1_3`
+          @`anon-fn[tests11.ml:15,2--70]_1`
+      with {
+        map_foo_1 = $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
+      }
+      in
+      cont k2 (`anon-fn[tests11.ml:15,2--70]`, `*match*`)
+    where k2 (switch_result, `*match*`) =
+      let `*match*_1` = `*match*` in
+      ((let Pfield = %block_load (`*match*_1`, 0) in
+        apply f (Pfield) -> k2 * k1)
+         where k2 (apply_result) =
+           let Pmakeblock = %Block 0 (apply_result, switch_result) in
+           cont k (Pmakeblock))
 and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1_1`)
       `anon-fn[tests11.ml:15,2--70]_1_3` (param : imm tagged)
         my_closure my_region my_depth

@@ -49,3 +49,5 @@ val print : Format.formatter -> t -> unit
 val cost_metrics : t -> Cost_metrics.t
 
 val update_cost_metrics : Cost_metrics.t -> t -> t
+
+val kind : tenv:Flambda2_types.Typing_env.t -> t -> Flambda_kind.With_subkind.t

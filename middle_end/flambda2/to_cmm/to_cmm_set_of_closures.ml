@@ -370,7 +370,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
      and refuse to compile the code. *)
   let env, my_region_var = Env.create_bound_parameter env my_region in
   (* Translate the arg list and body *)
-  let env, fun_params = C.bound_parameters env params in
+  let env, fun_params = C.function_bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
   let fun_free_vars =
     C.remove_vars_with_machtype

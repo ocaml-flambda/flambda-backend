@@ -113,3 +113,6 @@ val add_apply_cont_args :
 (** Add extra params and args to a continuation. *)
 val add_extra_params_and_args :
   Continuation.t -> Continuation_extra_params_and_args.t -> t -> t
+
+(* TMP *)
+val current_continuation : t -> Continuation.t

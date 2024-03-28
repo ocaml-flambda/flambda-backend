@@ -336,6 +336,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       let dacc =
         record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
       in
+      let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
       down_to_up dacc
         ~rebuild:
           (rebuild_non_inlined_direct_full_application apply ~use_id
@@ -742,6 +743,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
   in
   match callee's_code_id with
   | Bottom ->
+    let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
         EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild)
@@ -882,21 +884,25 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
         (T.unknown_types_from_arity
            (Exn_continuation.arity (Apply.exn_continuation apply)))
   in
-  let call_kind =
+  let call_kind, apply =
     match call with
     | Indirect_unknown_arity ->
-      Call_kind.indirect_function_call_unknown_arity apply_alloc_mode
+      Call_kind.indirect_function_call_unknown_arity apply_alloc_mode, apply
     | Indirect_known_arity ->
-      Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      Call_kind.indirect_function_call_known_arity apply_alloc_mode, apply
     | Direct _code_id ->
       (* Some types have regressed in precision. Since this used to be a direct
          call, however, we know the function's arity even though we don't know
          which function it is. *)
-      Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      let call_kind =
+        Call_kind.indirect_function_call_known_arity apply_alloc_mode
+      in
+      call_kind, Apply_expr.with_call_kind apply call_kind
   in
   let dacc =
     record_free_names_of_apply_as_used ~use_id ~exn_cont_use_id dacc apply
   in
+  let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
   down_to_up dacc
     ~rebuild:
       (rebuild_function_call_where_callee's_type_unavailable apply call_kind
@@ -988,6 +994,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
         EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
       in
+      let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
       down_to_up dacc ~rebuild)
 
 let simplify_apply_shared dacc apply =
@@ -1091,6 +1098,7 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
     record_free_names_of_apply_as_used dacc ~use_id:(Some use_id)
       ~exn_cont_use_id apply
   in
+  let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
   down_to_up dacc ~rebuild:(rebuild_method_call apply ~use_id ~exn_cont_use_id)
 
 let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
@@ -1169,6 +1177,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
     let dacc =
       record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
     in
+    let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
     down_to_up dacc
       ~rebuild:(rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity)
   | Invalid ->
@@ -1176,6 +1185,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
       EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
     in
+    let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
     down_to_up dacc ~rebuild
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =

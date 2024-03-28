@@ -597,6 +597,34 @@ let simplify_switch0 dacc switch ~down_to_up =
   let condition_dbg =
     DE.add_inlined_debuginfo (DA.denv dacc) (Switch.condition_dbg switch)
   in
+  let dacc =
+    match DA.are_lifting_conts dacc with
+    | Lifting_out_of _ -> Misc.fatal_errorf "this should not happen"
+    | Not_lifting -> dacc
+    | Analyzing { continuation; uses = _ } ->
+      let denv = DA.denv dacc in
+      (* Estimate the cost of lifting: this mainly comes from adding new
+         parameters, which increase the work done by the typing env, as well as
+         the flow analysis. We then only do the lifting if the cost is within
+         the budget for the current function. *)
+      let cost =
+        DE.number_of_continuations_defined_in_current_continuation denv
+        * Lifted_cont_params.length
+            (DE.variables_defined_in_current_continuation denv)
+      in
+      if DA.get_continuation_lifting_budget dacc < cost
+      then dacc
+      else
+        (* Format.eprintf "Analyzing inside of continuation %a@."
+           Continuation.print continuation; *)
+        (* TODO/FIXME: implement an actual criterion for when to lift
+           continuations. Currently for testing, we lift any continuation that
+           occurs in a handler that ends with a switch. *)
+        DA.with_are_lifting_conts
+          (DA.decrease_continuation_lifting_budget dacc cost)
+          (Are_lifting_conts.lift_continuations_out_of continuation)
+  in
+  let dacc = DA.register_cont_lifting_params_of_current_continuation dacc in
   down_to_up dacc
     ~rebuild:
       (rebuild_switch ~original:switch ~arms ~condition_dbg ~scrutinee

@@ -328,6 +328,21 @@ let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
     let dacc =
       DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
     in
+    let dacc =
+      List.fold_left
+        (fun dacc (binding : Expr_builder.binding_to_place) ->
+          Bound_pattern.fold_all_bound_vars binding.let_bound ~init:dacc
+            ~f:(fun dacc bound_var ->
+              let v = Bound_var.var bound_var in
+              DA.map_denv dacc ~f:(fun denv ->
+                  let kind =
+                    T.kind (TE.find (DA.typing_env dacc) (Name.var v) None)
+                  in
+                  let bp = BP.create v (K.With_subkind.anything kind) in
+                  DE.add_variable_defined_in_current_continuation denv bp)))
+        dacc
+        (Simplify_named_result.bindings_to_place simplify_named_result)
+    in
     let rewrite_id = Named_rewrite_id.create () in
     let dacc =
       DA.map_flow_acc dacc

@@ -40,3 +40,6 @@ val compute_extra_params_and_args :
   arg_types_by_use_id:Continuation_uses.arg_types_by_use_id ->
   EPA.t ->
   EPA.t
+
+val compute_extra_params_in_unspecified_order :
+  Decisions.t -> Bound_parameters.t
