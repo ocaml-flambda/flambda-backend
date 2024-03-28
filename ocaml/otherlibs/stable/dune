@@ -1,0 +1,47 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                Diana Kalinichenko, Jane Street, New York               *
+;*                                                                        *
+;*   Copyright 2023 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(library
+ (name stable)
+ (wrapped false)
+ (modes byte native)
+ (flags
+  (-strict-sequence
+   -principal
+   -absname
+   -w
+   +a-4-9-40-41-42-44-45-48-66
+   -warn-error
+   A
+   -bin-annot
+   -safe-string
+   -strict-formats))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags
+  (:standard -linkall)))
+
+(install
+ (files
+  (stable.cmxa as stable/stable.cmxa)
+  (stable.a as btea/stable.a)
+  (stable.cmxs as stable/stable.cmxs)
+  (stable.cma as stable/stable.cma)
+  (stable.mli as stable/stable.mli)
+  (.stable.objs/byte/stable.cmi as stable/stable.cmi)
+  (.stable.objs/byte/stable.cmt as stable/stable.cmt)
+  (.stable.objs/byte/stable.cmti as stable/stable.cmti)
+  (.stable.objs/native/stable.cmx as stable/stable.cmx))
+ (section lib)
+ (package ocaml))
