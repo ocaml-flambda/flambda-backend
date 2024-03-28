@@ -672,6 +672,11 @@ AS_CASE([$host],
 otherlibraries="dynlink"
 lib_dynlink=true
 
+AS_IF([test x"$enable_extension_libs" != "xno"],
+  [enable_extension_libs=yes,
+  AC_CONFIG_FILES([otherlibs/beta/META])
+  otherlibraries="$otherlibraries beta"])
+
 AS_IF(
   [test x"$enable_runtime5" = x"yes"],
   [otherlibraries="$otherlibraries runtime_events"

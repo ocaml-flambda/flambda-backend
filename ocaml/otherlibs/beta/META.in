@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Beta extensions library"
+archive(byte) = "beta.cma"
+archive(native) = "beta.cmxa"
+plugin(byte) = "beta.cma"
+plugin(native) = "beta.cmxs"
