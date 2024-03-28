@@ -35,7 +35,7 @@
 (install
  (files
   (stable.cmxa as stable/stable.cmxa)
-  (stable.a as btea/stable.a)
+  (stable.a as stable/stable.a)
   (stable.cmxs as stable/stable.cmxs)
   (stable.cma as stable/stable.cma)
   (stable.mli as stable/stable.mli)

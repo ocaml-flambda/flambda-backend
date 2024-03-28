@@ -35,7 +35,7 @@
 (install
  (files
   (beta.cmxa as beta/beta.cmxa)
-  (beta.a as btea/beta.a)
+  (beta.a as beta/beta.a)
   (beta.cmxs as beta/beta.cmxs)
   (beta.cma as beta/beta.cma)
   (beta.mli as beta/beta.mli)

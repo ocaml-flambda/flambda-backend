@@ -35,7 +35,7 @@
 (install
  (files
   (upstream_compatible.cmxa as upstream_compatible/upstream_compatible.cmxa)
-  (upstream_compatible.a as btea/upstream_compatible.a)
+  (upstream_compatible.a as upstream_compatible/upstream_compatible.a)
   (upstream_compatible.cmxs as upstream_compatible/upstream_compatible.cmxs)
   (upstream_compatible.cma as upstream_compatible/upstream_compatible.cma)
   (upstream_compatible.mli as upstream_compatible/upstream_compatible.mli)

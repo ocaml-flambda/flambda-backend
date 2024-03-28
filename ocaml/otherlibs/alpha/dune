@@ -35,7 +35,7 @@
 (install
  (files
   (alpha.cmxa as alpha/alpha.cmxa)
-  (alpha.a as btea/alpha.a)
+  (alpha.a as alpha/alpha.a)
   (alpha.cmxs as alpha/alpha.cmxs)
   (alpha.cma as alpha/alpha.cma)
   (alpha.mli as alpha/alpha.mli)
