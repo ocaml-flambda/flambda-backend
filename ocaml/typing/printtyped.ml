@@ -145,6 +145,7 @@ let arg_label i ppf = function
   | Nolabel -> line i ppf "Nolabel\n"
   | Optional s -> line i ppf "Optional \"%s\"\n" s
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
+  | Position s -> line i ppf "Position \"%s\"\n" s
 
 let typevar_jkind ~print_quote ppf (v, l) =
   let pptv =
@@ -258,6 +259,7 @@ let rec core_type i ppf x =
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
       list i package_with ppf l;
+  | Ttyp_call_pos -> line i ppf "Ttyp_call_pos\n";
 
 and labeled_core_type i ppf (l, t) =
   tuple_component_label i ppf l;
@@ -568,6 +570,8 @@ and expression i ppf x =
   | Texp_exclave (e) ->
       line i ppf "Texp_exclave";
       expression i ppf e;
+  | Texp_src_pos ->
+    line i ppf "Texp_src_pos"
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location
