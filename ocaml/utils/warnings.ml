@@ -1184,7 +1184,7 @@ let message = function
       property
   | Unboxing_impossible ->
       Printf.sprintf
-        "This [@unboxed] attribute cannot be used.\n\
+        "This [@unboxable] attribute cannot be used.\n\
          The type of this value does not allow unboxing."
   | Redundant_modality s ->
       Printf.sprintf "This %s modality is redundant." s

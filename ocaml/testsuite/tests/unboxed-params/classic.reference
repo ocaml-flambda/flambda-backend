@@ -1,0 +1,6 @@
+floats: allocation check failed.
+int32s: allocation check failed.
+int64s: allocation check failed.
+nativeints: allocation check failed.
+tuples: allocation check failed.
+variants: allocation check failed.
