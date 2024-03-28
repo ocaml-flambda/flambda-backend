@@ -772,7 +772,13 @@ end = struct
     in
     if is_future_funcname t callee
     then
-      if String.equal callee t.current_fun_name
+      if !Flambda_backend_flags.disable_precise_checkmach
+      then
+        (* Conservatively return Top. Won't be able to prove any recursive
+           functions as non-allocating. *)
+        unresolved (Value.top w)
+          "conservative handling of forward or recursive call or tailcall"
+      else if String.equal callee t.current_fun_name
       then
         (* Self call. *)
         match t.approx with
@@ -782,21 +788,11 @@ end = struct
           t.approx <- Some v;
           unresolved v "self-call init"
         | Some approx -> unresolved approx "self-call approx"
-      else
-        let res =
-          if (* Call is defined later in the current compilation unit. Summary
-                of this callee is not yet computed. *)
-             !Flambda_backend_flags.disable_precise_checkmach
-          then
-            (* Conservatively return Top. Won't be able to prove any recursive
-               functions as non-allocating. *)
-            Value.top w
-          else (
-            t.unresolved <- true;
-            Value.safe)
-        in
-        unresolved res
-          "conservative handling of forward or recursive call\nor tailcall"
+      else (
+        (* Call is defined later in the current compilation unit. Summary of
+           this callee is not yet computed. *)
+        t.unresolved <- true;
+        unresolved Value.safe "forward or recursive call or tailcall")
     else
       (* CR gyorsh: unresolved case here is impossible in the conservative
          analysis because all previous functions have been conservatively
