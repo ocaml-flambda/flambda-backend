@@ -35,7 +35,7 @@ val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 val dump_checkmach : bool ref
 val disable_checkmach : bool ref
-
+val disable_precise_checkmach : bool ref
 val davail : bool ref
 val dranges : bool ref
 
