@@ -114,12 +114,13 @@ module Solver_mono (C : Lattices_mono) = struct
     | Clower (v, lower) -> v.lower <- lower
     | Cvlower (v, vlower) -> v.vlower <- vlower
 
+  let empty_changes = []
+
   let undo_changes l = List.iter undo_change l
 
-  (* To be filled in by [types.ml] *)
-  let append_changes : (changes ref -> unit) ref = ref (fun _ -> assert false)
-
-  let set_append_changes f = append_changes := f
+  (** [append_changes l0 l1] returns a log that's equivalent to [l0] followed by
+  [l0]. *)
+  let append_changes l0 l1 = l1 @ l0
 
   type ('a, 'd) mode =
     | Amode : 'a -> ('a, 'l * 'r) mode
@@ -422,10 +423,10 @@ module Solver_mono (C : Lattices_mono) = struct
       *)
   let zap_to_floor_var_aux (type a) (obj : a C.obj) (v : a var) =
     let rec loop lower =
-      let log = ref [] in
+      let log = ref empty_changes in
       let r = submode_vc ~log:(Some log) obj v lower in
       match r with
-      | Ok () -> log, lower
+      | Ok () -> !log, lower
       | Error a ->
         undo_changes !log;
         loop (C.join obj a lower)
@@ -484,88 +485,70 @@ module Solver_mono (C : Lattices_mono) = struct
     let vlower = Option.value vlower ~default:[] in
     { upper; lower; vlower; id }
 
-  let submode_try (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
-      (b : (a, l * allowed) mode) =
-    let log = Some (ref []) in
+  let submode (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
+      (b : (a, l * allowed) mode) ~log =
     let submode_cc ~log:_ obj left right =
       if C.le obj left right then Ok () else Error { left; right }
     in
     let submode_mvc ~log obj v right =
       Result.map_error
         (fun left -> { left; right })
-        (submode_mvc ~log obj v right)
+        (submode_mvc ~log:(Some log) obj v right)
     in
     let submode_cmv ~log obj left v =
       Result.map_error
         (fun right -> { left; right })
-        (submode_cmv ~log obj left v)
+        (submode_cmv ~log:(Some log) obj left v)
     in
     let submode_mvmv ~log obj v u =
       Result.map_error
         (fun (left, right) -> { left; right })
-        (submode_mvmv ~log obj v u)
+        (submode_mvmv ~log:(Some log) obj v u)
     in
-    let r =
-      match a, b with
-      | Amode left, Amode right -> submode_cc ~log obj left right
-      | Amodevar v, Amode right -> submode_mvc ~log obj v right
-      | Amode left, Amodevar v -> submode_cmv ~log obj left v
-      | Amodevar v, Amodevar u -> submode_mvmv ~log obj v u
-      | Amode a, Amodemeet (b, mvs) ->
-        Result.bind (submode_cc ~log obj a b) (fun () ->
-            find_error (fun mv -> submode_cmv ~log obj a mv) mvs)
-      | Amodevar mv, Amodemeet (b, mvs) ->
-        Result.bind (submode_mvc ~log obj mv b) (fun () ->
-            find_error (fun mv' -> submode_mvmv ~log obj mv mv') mvs)
-      | Amodejoin (a, mvs), Amode b ->
-        Result.bind (submode_cc ~log obj a b) (fun () ->
-            find_error (fun mv' -> submode_mvc ~log obj mv' b) mvs)
-      | Amodejoin (a, mvs), Amodevar mv ->
-        Result.bind (submode_cmv ~log obj a mv) (fun () ->
-            find_error (fun mv' -> submode_mvmv ~log obj mv' mv) mvs)
-      | Amodejoin (a, mvs), Amodemeet (b, mus) ->
-        (* TODO: mabye create a intermediate variable? *)
-        Result.bind (submode_cc ~log obj a b) (fun () ->
-            Result.bind
-              (find_error (fun mv -> submode_mvc ~log obj mv b) mvs)
-              (fun () ->
-                Result.bind
-                  (find_error (fun mu -> submode_cmv ~log obj a mu) mus)
-                  (fun () ->
-                    find_error
-                      (fun mu ->
-                        find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
-                      mus)))
-    in
-    match r with
-    | Ok () -> Ok log
-    | Error e ->
-      (* we mutated some states and found conflict;
-         need to revert those mutation to keep the state consistent.
-         A nice by-effect is that this function doesn't mutate state in failure
-      *)
-      Option.iter (fun log -> undo_changes !log) log;
-      Error e
+    match a, b with
+    | Amode left, Amode right -> submode_cc ~log obj left right
+    | Amodevar v, Amode right -> submode_mvc ~log obj v right
+    | Amode left, Amodevar v -> submode_cmv ~log obj left v
+    | Amodevar v, Amodevar u -> submode_mvmv ~log obj v u
+    | Amode a, Amodemeet (b, mvs) ->
+      Result.bind (submode_cc ~log obj a b) (fun () ->
+          find_error (fun mv -> submode_cmv ~log obj a mv) mvs)
+    | Amodevar mv, Amodemeet (b, mvs) ->
+      Result.bind (submode_mvc ~log obj mv b) (fun () ->
+          find_error (fun mv' -> submode_mvmv ~log obj mv mv') mvs)
+    | Amodejoin (a, mvs), Amode b ->
+      Result.bind (submode_cc ~log obj a b) (fun () ->
+          find_error (fun mv' -> submode_mvc ~log obj mv' b) mvs)
+    | Amodejoin (a, mvs), Amodevar mv ->
+      Result.bind (submode_cmv ~log obj a mv) (fun () ->
+          find_error (fun mv' -> submode_mvmv ~log obj mv' mv) mvs)
+    | Amodejoin (a, mvs), Amodemeet (b, mus) ->
+      (* TODO: mabye create a intermediate variable? *)
+      Result.bind (submode_cc ~log obj a b) (fun () ->
+          Result.bind
+            (find_error (fun mv -> submode_mvc ~log obj mv b) mvs)
+            (fun () ->
+              Result.bind
+                (find_error (fun mu -> submode_cmv ~log obj a mu) mus)
+                (fun () ->
+                  find_error
+                    (fun mu ->
+                      find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
+                    mus)))
 
-  let submode obj a b =
-    match submode_try obj a b with
-    | Ok log ->
-      Option.iter !append_changes log;
-      Ok ()
-    | Error _ as e -> e
-
-  let zap_to_ceil_morphvar obj mv =
-    assert (submode obj (Amode (mupper obj mv)) (Amodevar mv) |> Result.is_ok);
+  let zap_to_ceil_morphvar obj mv ~log =
+    assert (
+      submode obj (Amode (mupper obj mv)) (Amodevar mv) ~log |> Result.is_ok);
     mupper obj mv
 
-  let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> a =
-   fun obj m ->
+  let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
+   fun obj m ~log ->
     match m with
     | Amode m -> m
-    | Amodevar mv -> zap_to_ceil_morphvar obj mv
+    | Amodevar mv -> zap_to_ceil_morphvar obj mv ~log
     | Amodemeet (a, mvs) ->
       List.fold_left
-        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv))
+        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv ~log))
         a mvs
 
   let cons_dedup x xs = if exists x xs then xs else x :: xs
@@ -595,7 +578,7 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amode b -> loop (C.join obj a b) mvs xs
           (* some minor optimization: if [a] is lower than [mlower mv], we
               should keep the latter instead. This helps to fail early in
-             [submode_try] *)
+             [submode_log] *)
           | Amodevar mv ->
             loop (C.join obj a (mlower obj mv)) (cons_dedup mv mvs) xs
           | Amodejoin (b, mvs') ->
@@ -620,7 +603,7 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amode b -> loop (C.meet obj a b) mvs xs
           (* some minor optimization: if [a] is higher than [mupper mv], we
               should keep the latter instead. This helps to fail early in
-             [submode_try] *)
+             [submode_log] *)
           | Amodevar mv ->
             loop (C.meet obj a (mupper obj mv)) (cons_dedup mv mvs) xs
           | Amodemeet (b, mvs') ->
@@ -628,20 +611,22 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.max obj) [] l
 
-  let zap_to_floor_morphvar ~commit obj mv =
-    let log, lower = zap_to_floor_morphvar_aux obj mv in
-    if commit then !append_changes log else undo_changes !log;
+  let zap_to_floor_morphvar obj mv ~log =
+    let log_, lower = zap_to_floor_morphvar_aux obj mv in
+    (match log with
+    | None -> undo_changes log_
+    | Some log -> log := append_changes !log log_);
     lower
 
-  let zap_to_floor : type a r. a C.obj -> (a, allowed * r) mode -> a =
-   fun obj m ->
+  let zap_to_floor : type a r. a C.obj -> (a, allowed * r) mode -> log:_ -> a =
+   fun obj m ~log ->
     match m with
     | Amode a -> a
-    | Amodevar mv -> zap_to_floor_morphvar ~commit:true obj mv
+    | Amodevar mv -> zap_to_floor_morphvar obj mv ~log:(Some log)
     | Amodejoin (a, mvs) ->
       List.fold_left
         (fun acc mv ->
-          C.join obj acc (zap_to_floor_morphvar ~commit:true obj mv))
+          C.join obj acc (zap_to_floor_morphvar obj mv ~log:(Some log)))
         a mvs
 
   let check_const : type a l r. a C.obj -> (a, l * r) mode -> a option =
@@ -649,7 +634,7 @@ module Solver_mono (C : Lattices_mono) = struct
     match m with
     | Amode a -> Some a
     | Amodevar mv ->
-      let lower = zap_to_floor_morphvar ~commit:false obj mv in
+      let lower = zap_to_floor_morphvar obj mv ~log:None in
       if C.le obj (mupper obj mv) lower then Some lower else None
     | Amodemeet (a, mvs) ->
       let upper =
@@ -657,8 +642,7 @@ module Solver_mono (C : Lattices_mono) = struct
       in
       let lower =
         List.fold_left
-          (fun x mv ->
-            C.meet obj x (zap_to_floor_morphvar ~commit:false obj mv))
+          (fun x mv -> C.meet obj x (zap_to_floor_morphvar obj mv ~log:None))
           a mvs
       in
       if C.le obj upper lower then Some upper else None
@@ -668,8 +652,7 @@ module Solver_mono (C : Lattices_mono) = struct
       in
       let lower =
         List.fold_left
-          (fun x mv ->
-            C.join obj x (zap_to_floor_morphvar ~commit:false obj mv))
+          (fun x mv -> C.join obj x (zap_to_floor_morphvar obj mv ~log:None))
           a mvs
       in
       if C.le obj upper lower then Some lower else None
@@ -726,15 +709,16 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
   type changes = S.changes
 
-  let undo_changes = S.undo_changes
+  let empty_changes = S.empty_changes
 
-  let set_append_changes = S.set_append_changes
+  let undo_changes = S.undo_changes
 
   module type Solver_polarized =
     Solver_polarized
       with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
        and type 'a obj := 'a C.obj
        and type 'a error := 'a error
+       and type changes := changes
 
   module rec Positive :
     (Solver_polarized
@@ -805,10 +789,10 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let newvar = S.newvar
 
-    let submode obj m0 m1 =
+    let submode obj m0 m1 ~log =
       Result.map_error
         (fun { left; right } -> { left = right; right = left })
-        (S.submode obj m1 m0)
+        (S.submode obj m1 m0 ~log)
 
     let join = S.meet
 
