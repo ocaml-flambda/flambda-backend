@@ -34,11 +34,6 @@
 
 (install
  (files
-  (beta_float_u.mli as beta/beta_float_u.mli)
-  (.beta.objs/byte/beta_float_u.cmi as beta/beta_float_u.cmi)
-  (.beta.objs/byte/beta_float_u.cmt as beta/beta_float_u.cmt)
-  (.beta.objs/byte/beta_float_u.cmti as beta/beta_float_u.cmti)
-  (.beta.objs/native/beta_float_u.cmx as beta/beta_float_u.cmx)
   (beta.cmxa as beta/beta.cmxa)
   (beta.a as btea/beta.a)
   (beta.cmxs as beta/beta.cmxs)

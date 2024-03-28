@@ -13,13 +13,11 @@
 #*                                                                        *
 #**************************************************************************
 
-# Makefile for the runtime events library
+# Makefile for the beta extensions library
 
 LIBNAME=beta
 CLIBNAME=camlbeta
-CAMLOBJS=beta_float_u.cmo beta.cmo
-C_SOURCES=
-HEADERS=
+CAMLOBJS=beta.cmo
 
 include ../Makefile.otherlibs.common
 
