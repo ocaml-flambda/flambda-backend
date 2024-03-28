@@ -1,13 +1,11 @@
 beta.cmo : \
-    float_u.cmi \
     beta.cmi
 beta.cmx : \
-    float_u.cmx \
     beta.cmi
 beta.cmi : \
-    float_u.cmi
-float_u.cmo : \
-    float_u.cmi
-float_u.cmx : \
-    float_u.cmi
-float_u.cmi :
+    beta_float_u.cmi
+beta_float_u.cmo : \
+    beta_float_u.cmi
+beta_float_u.cmx : \
+    beta_float_u.cmi
+beta_float_u.cmi :

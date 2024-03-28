@@ -1,1 +1,1 @@
-module Float_u = Float_u
+module Float_u = Beta_float_u

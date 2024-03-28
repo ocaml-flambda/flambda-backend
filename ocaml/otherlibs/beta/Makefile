@@ -17,7 +17,7 @@
 
 LIBNAME=beta
 CLIBNAME=camlbeta
-CAMLOBJS=beta.cmo
+CAMLOBJS=beta_float_u.cmo beta.cmo
 C_SOURCES=
 HEADERS=
 
