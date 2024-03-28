@@ -533,8 +533,7 @@ module Solver_mono (C : Lattices_mono) = struct
                     mus)))
 
   let zap_to_ceil_morphvar obj mv ~log =
-    assert (
-      submode obj (Amode (mupper obj mv)) (Amodevar mv) ~log |> Result.is_ok);
+    assert (submode_cmv obj (mupper obj mv) mv ~log |> Result.is_ok);
     mupper obj mv
 
   let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
