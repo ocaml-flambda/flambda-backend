@@ -2132,6 +2132,13 @@ module Alloc = struct
         { locality; uniqueness; linearity }
     end
 
+    let diff m0 m1 =
+      let diff le a0 a1 = if le a0 a1 && le a1 a0 then None else Some a0 in
+      let locality = diff Locality.Const.le m0.locality m1.locality in
+      let linearity = diff Linearity.Const.le m0.linearity m1.linearity in
+      let uniqueness = diff Uniqueness.Const.le m0.uniqueness m1.uniqueness in
+      { locality; linearity; uniqueness }
+
     let split { locality; linearity; uniqueness } =
       let monadic = uniqueness, () in
       let comonadic = locality, linearity in
