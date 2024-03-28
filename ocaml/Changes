@@ -741,6 +741,12 @@ Some of those changes will benefit all OCaml packages.
   bytecode executable (`ocamlc -custom`).
   (Antonin Décimo, review by Xavier Leroy)
 
+- #12508 : Add compiler-side support for project-wide occurrences in Merlin, by
+  generating index tables of all identifier occurrences. This extra data in .cmt
+  files is only added when the new flag -bin-annot-occurrences is passed.
+  (Ulysse Gérard, Nathanaëlle Courant, suggestions by Gabriel Scherer and Thomas
+  Refis, review by Florian Angeletti, Gabriel Scherer and Thomas Refis)
+
 ### Build system:
 
 - #11844: Reduce verbosity of `make` logs by printing program invocations in

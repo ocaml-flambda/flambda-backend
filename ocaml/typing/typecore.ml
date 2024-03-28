@@ -5907,10 +5907,12 @@ and type_expect_
                 | _ -> Mp_present
               in
               let scope = create_scope () in
+              let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+              let md_shape = Shape.set_uid_if_none md_shape md_uid in
               let md =
                 { md_type = modl.mod_type; md_attributes = [];
                   md_loc = name.loc;
-                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); }
+                  md_uid; }
               in
               let (id, new_env) =
                 match name.txt with
@@ -5946,7 +5948,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_letexception(cd, sbody) ->
-      let (cd, newenv) = Typedecl.transl_exception env cd in
+      let (cd, newenv, _shape) = Typedecl.transl_exception env cd in
       let body =
         type_expect newenv expected_mode sbody ty_expected_explained
       in

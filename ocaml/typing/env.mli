@@ -19,11 +19,6 @@ open Types
 open Mode
 open Misc
 
-val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
-
-val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
-val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
-
 type value_unbound_reason =
   | Val_unbound_instance_variable
   | Val_unbound_self
@@ -349,9 +344,11 @@ val add_value_lazy:
 val add_value:
     ?check:(string -> Warnings.t) -> ?mode:((allowed * 'r) Mode.Value.t) ->
     Ident.t -> Types.value_description -> t -> t
-val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
+val add_type:
+    check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
 val add_extension:
-  check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
+  check:bool -> ?shape:Shape.t -> rebind:bool -> Ident.t ->
+  extension_constructor -> t -> t
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
