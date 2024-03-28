@@ -16,7 +16,6 @@
 # Makefile for the upstream-compatible extensions library
 
 LIBNAME=upstream_compatible
-CLIBNAME=camlupstream_compatible
 CAMLOBJS=upstream_compatible.cmo
 
 include ../Makefile.otherlibs.common

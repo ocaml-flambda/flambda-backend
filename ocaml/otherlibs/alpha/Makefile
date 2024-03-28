@@ -16,7 +16,6 @@
 # Makefile for the alpha extensions library
 
 LIBNAME=alpha
-CLIBNAME=camlalpha
 CAMLOBJS=alpha.cmo
 
 include ../Makefile.otherlibs.common

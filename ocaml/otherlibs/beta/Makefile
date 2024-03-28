@@ -16,7 +16,6 @@
 # Makefile for the beta extensions library
 
 LIBNAME=beta
-CLIBNAME=camlbeta
 CAMLOBJS=beta.cmo
 
 include ../Makefile.otherlibs.common

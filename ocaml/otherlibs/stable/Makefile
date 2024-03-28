@@ -16,7 +16,6 @@
 # Makefile for the stable extensions library
 
 LIBNAME=stable
-CLIBNAME=camlstable
 CAMLOBJS=stable.cmo
 
 include ../Makefile.otherlibs.common
