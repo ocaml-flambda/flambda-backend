@@ -17,8 +17,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (* CR layouts v4: This file is based on [float.mli], which itself is generated
    from [float.template.mli].  That file is generated to deal with labels in the
    Array submodule, which we don't have here, so I haven't done something
