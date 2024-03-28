@@ -1106,6 +1106,10 @@ let undo_changes = S.undo_changes
 
 let set_append_changes = S.set_append_changes
 
+type ('a, 'd) monadic = ('a, 'd) S.Negative.mode
+
+type ('a, 'd) comonadic = ('a, 'd) S.Positive.mode
+
 (** Representing a single object *)
 module type Obj = sig
   type const
@@ -1228,8 +1232,6 @@ module Regionality = struct
   let global = of_const Const.Global
 
   let legacy = of_const Const.legacy
-
-  let zap_to_legacy = zap_to_floor
 end
 
 module Linearity = struct
@@ -1298,70 +1300,56 @@ module Comonadic_with_regionality = struct
   end
 
   include Common (Obj)
-  open Obj
 
-  type error =
-    [ `Regionality of Regionality.error
-    | `Linearity of Linearity.error ]
+  type 'a ax =
+    | Regionality : Regionality.Const.t ax
+    | Linearity : Linearity.Const.t ax
+
+  let axis_of_ax : type a. a ax -> (Const.t, a) C.axis = function
+    | Regionality -> Areality
+    | Linearity -> Linearity
+    [@@inline]
+
+  let obj_of_ax : type a. a ax -> a C.obj = function
+    | Regionality -> Regionality.Obj.obj
+    | Linearity -> Linearity.Obj.obj
+    [@@inline]
+
+  type error = Error : 'a ax * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
-  let regionality m =
-    S.Positive.via_monotone Regionality.Obj.obj (Proj (Obj.obj, Areality)) m
+  open Obj
 
-  let min_with_regionality m =
-    S.Positive.via_monotone Obj.obj (Min_with Areality)
-      (S.Positive.disallow_right m)
+  let proj ax m =
+    Solver.via_monotone (obj_of_ax ax) (Proj (Obj.obj, axis_of_ax ax)) m
 
-  let max_with_regionality m =
-    S.Positive.via_monotone Obj.obj (Max_with Areality)
-      (S.Positive.disallow_left m)
-
-  let join_with_regionality c m =
-    S.Positive.via_monotone Obj.obj
-      (Join_with (C.min_with Obj.obj Areality c))
-      (S.Positive.disallow_left m)
-
-  let meet_with_regionality c m =
-    S.Positive.via_monotone Obj.obj
-      (Meet_with (C.max_with Obj.obj Areality c))
-      (S.Positive.disallow_right m)
-
-  let linearity m =
-    S.Positive.via_monotone Linearity.Obj.obj (Proj (Obj.obj, Linearity)) m
-
-  let min_with_linearity m =
-    S.Positive.via_monotone Obj.obj (Min_with Linearity)
-      (S.Positive.disallow_right m)
-
-  let max_with_linearity m =
-    S.Positive.via_monotone Obj.obj (Max_with Linearity)
-      (S.Positive.disallow_left m)
-
-  let join_with_linearity c m =
-    S.Positive.via_monotone Obj.obj
-      (Join_with (C.min_with Obj.obj Linearity c))
-      (S.Positive.disallow_left m)
-
-  let meet_with_linearity c m =
-    S.Positive.via_monotone Obj.obj
-      (Meet_with (C.max_with Obj.obj Linearity c))
-      (S.Positive.disallow_right m)
-
-  let meet_with c m =
+  let meet_const c m =
     Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
 
-  let imply c m = Solver.via_monotone obj (Imply c) (Solver.disallow_left m)
+  let join_const c m =
+    Solver.via_monotone obj (Join_with c) (Solver.disallow_left m)
 
-  let zap_to_legacy m =
-    let regionality = regionality m |> Regionality.zap_to_legacy in
-    let linearity = linearity m |> Linearity.zap_to_legacy in
-    regionality, linearity
+  let min_with ax m =
+    Solver.via_monotone Obj.obj
+      (Min_with (axis_of_ax ax))
+      (Solver.disallow_right m)
+
+  let max_with ax m =
+    Solver.via_monotone Obj.obj
+      (Max_with (axis_of_ax ax))
+      (Solver.disallow_left m)
+
+  let join_with ax c m = join_const (C.min_with Obj.obj (axis_of_ax ax) c) m
+
+  let meet_with ax c m = meet_const (C.max_with Obj.obj (axis_of_ax ax) c) m
+
+  let imply c m = Solver.via_monotone obj (Imply c) (Solver.disallow_left m)
 
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
+  let submode m0 m1 : _ result =
     match submode m0 m1 with
     | Ok () -> Ok ()
     | Error { left = reg0, lin0; right = reg1, lin1 } ->
@@ -1369,17 +1357,11 @@ module Comonadic_with_regionality = struct
       then
         if Linearity.Const.le lin0 lin1
         then assert false
-        else Error (`Linearity { left = lin0; right = lin1 })
-      else Error (`Regionality { left = reg0; right = reg1 })
+        else Error (Error (Linearity, { left = lin0; right = lin1 }))
+      else Error (Error (Regionality, { left = reg0; right = reg1 }))
 
   (* override to report the offending axis *)
   let equate = equate_from_submode submode
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let regionality = Regionality.check_const (regionality m) in
-    let linearity = Linearity.check_const (linearity m) in
-    regionality, linearity
 end
 
 module Comonadic_with_locality = struct
@@ -1396,70 +1378,60 @@ module Comonadic_with_locality = struct
   end
 
   include Common (Obj)
-  open Obj
 
-  type error =
-    [ `Locality of Locality.error
-    | `Linearity of Linearity.error ]
+  type 'a ax =
+    | Locality : Locality.Const.t ax
+    | Linearity : Linearity.Const.t ax
+
+  let axis_of_ax : type a. a ax -> (Const.t, a) C.axis = function
+    | Locality -> Areality
+    | Linearity -> Linearity
+    [@@inline]
+
+  let obj_of_ax : type a. a ax -> a C.obj = function
+    | Locality -> Locality.Obj.obj
+    | Linearity -> Linearity.Obj.obj
+
+  type error = Error : 'a ax * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
-  let locality m =
-    S.Positive.via_monotone Locality.Obj.obj (Proj (Obj.obj, Areality)) m
+  open Obj
 
-  let min_with_locality m =
-    S.Positive.via_monotone Obj.obj (Min_with Areality)
-      (S.Positive.disallow_right m)
+  let proj ax m =
+    Solver.via_monotone (obj_of_ax ax) (Proj (Obj.obj, axis_of_ax ax)) m
 
-  let max_with_locality m =
-    S.Positive.via_monotone Obj.obj (Max_with Areality)
-      (S.Positive.disallow_left m)
+  let meet_const c m =
+    Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
 
-  let join_with_locality c m =
-    S.Positive.via_monotone Obj.obj
-      (Join_with (C.min_with Obj.obj Areality c))
-      (S.Positive.disallow_left m)
+  let join_const c m =
+    Solver.via_monotone obj (Join_with c) (Solver.disallow_left m)
 
-  let meet_with_locality c m =
-    S.Positive.via_monotone Obj.obj
-      (Meet_with (C.max_with Obj.obj Areality c))
-      (S.Positive.disallow_right m)
+  let min_with ax m =
+    Solver.via_monotone Obj.obj
+      (Min_with (axis_of_ax ax))
+      (Solver.disallow_right m)
 
-  let linearity m =
-    S.Positive.via_monotone Linearity.Obj.obj (Proj (Obj.obj, Linearity)) m
+  let max_with ax m =
+    Solver.via_monotone Obj.obj
+      (Max_with (axis_of_ax ax))
+      (Solver.disallow_left m)
 
-  let min_with_linearity m =
-    S.Positive.via_monotone Obj.obj (Min_with Linearity)
-      (S.Positive.disallow_right m)
+  let join_with ax c m = join_const (C.min_with Obj.obj (axis_of_ax ax) c) m
 
-  let max_with_linearity m =
-    S.Positive.via_monotone Obj.obj (Max_with Linearity)
-      (S.Positive.disallow_left m)
-
-  let join_with_linearity c m =
-    S.Positive.via_monotone Obj.obj
-      (Join_with (C.min_with Obj.obj Linearity c))
-      (S.Positive.disallow_left m)
-
-  let meet_with_linearity c m =
-    S.Positive.via_monotone Obj.obj
-      (Meet_with (C.max_with Obj.obj Linearity c))
-      (S.Positive.disallow_right m)
+  let meet_with ax c m = meet_const (C.max_with Obj.obj (axis_of_ax ax) c) m
 
   let zap_to_legacy m =
-    let locality = locality m |> Locality.zap_to_legacy in
-    let linearity = linearity m |> Linearity.zap_to_legacy in
+    let locality = proj Locality m |> Locality.zap_to_legacy in
+    let linearity = proj Linearity m |> Linearity.zap_to_legacy in
     locality, linearity
-
-  let meet_with c m =
-    Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
 
   let imply c m = Solver.via_monotone obj (Imply c) (Solver.disallow_left m)
 
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
+  let submode m0 m1 : _ result =
     match submode m0 m1 with
     | Ok () -> Ok ()
     | Error { left = loc0, lin0; right = loc1, lin1 } ->
@@ -1467,16 +1439,16 @@ module Comonadic_with_locality = struct
       then
         if Linearity.Const.le lin0 lin1
         then assert false
-        else Error (`Linearity { left = lin0; right = lin1 })
-      else Error (`Locality { left = loc0; right = loc1 })
+        else Error (Error (Linearity, { left = lin0; right = lin1 }))
+      else Error (Error (Locality, { left = loc0; right = loc1 }))
 
   (* override to report the offending axis *)
   let equate = equate_from_submode submode
 
   (** overriding to check per-axis *)
   let check_const m =
-    let locality = Locality.check_const (locality m) in
-    let linearity = Linearity.check_const (linearity m) in
+    let locality = Locality.check_const (proj Locality m) in
+    let linearity = Linearity.check_const (proj Linearity m) in
     locality, linearity
 end
 
@@ -1494,64 +1466,72 @@ module Monadic = struct
   end
 
   include Common (Obj)
-  open Obj
 
-  type error = [`Uniqueness of Uniqueness.error]
+  type 'a ax = Uniqueness : Uniqueness.Const.t ax
+
+  let axis_of_ax : type a. a ax -> (Const.t, a) C.axis = function
+    | Uniqueness -> Uniqueness
+
+  let obj_of_ax : type a. a ax -> a C.obj = function
+    | Uniqueness -> Uniqueness.Obj.obj
+
+  type error = Error : 'a ax * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
-  let uniqueness m =
-    S.Negative.via_monotone Uniqueness.Obj.obj (Proj (Obj.obj, Uniqueness)) m
+  open Obj
+
+  let proj ax m =
+    Solver.via_monotone (obj_of_ax ax) (Proj (Obj.obj, axis_of_ax ax)) m
 
   (* The monadic fragment is inverted. Most of the inversion logic is taken care
      by [Solver_polarized], but some remain, such as the [Min_with] below which
      is inverted from [Max_with]. *)
 
-  let max_with_uniqueness m =
-    S.Negative.via_monotone Obj.obj (Min_with Uniqueness)
-      (S.Negative.disallow_left m)
-
-  let min_with_uniqueness m =
-    S.Negative.via_monotone Obj.obj (Max_with Uniqueness)
-      (S.Negative.disallow_right m)
-
-  let join_with_uniqueness c m =
-    S.Negative.via_monotone Obj.obj
-      (Meet_with (C.max_with Obj.obj Uniqueness c))
-      (S.Negative.disallow_left m)
-
-  let meet_with_uniqueness c m =
-    S.Negative.via_monotone Obj.obj
-      (Join_with (C.min_with Obj.obj Uniqueness c))
-      (S.Negative.disallow_right m)
-
-  let meet_with c m =
+  let meet_const c m =
     Solver.via_monotone obj (Join_with c) (Solver.disallow_right m)
+
+  let join_const c m =
+    Solver.via_monotone obj (Meet_with c) (Solver.disallow_left m)
+
+  let max_with ax m =
+    Solver.via_monotone Obj.obj
+      (Min_with (axis_of_ax ax))
+      (Solver.disallow_left m)
+
+  let min_with ax m =
+    Solver.via_monotone Obj.obj
+      (Max_with (axis_of_ax ax))
+      (Solver.disallow_right m)
+
+  let join_with ax c m = join_const (C.max_with Obj.obj (axis_of_ax ax) c) m
+
+  let meet_with ax c m = meet_const (C.min_with Obj.obj (axis_of_ax ax) c) m
 
   let imply c m = Solver.via_monotone obj (Subtract c) (Solver.disallow_left m)
 
   let zap_to_legacy m =
-    let uniqueness = uniqueness m |> Uniqueness.zap_to_legacy in
+    let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
     uniqueness, ()
 
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
+  let submode m0 m1 : _ result =
     match submode m0 m1 with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
       if Uniqueness.Const.le uni0 uni1
       then assert false
-      else Error (`Uniqueness { left = uni0; right = uni1 })
+      else Error (Error (Uniqueness, { left = uni0; right = uni1 }))
 
   (* override to report the offending axis *)
   let equate = equate_from_submode submode
 
   (** overriding to check per-axis *)
   let check_const m =
-    let uniqueness = Uniqueness.check_const (uniqueness m) in
-    uniqueness
+    let uniqueness = Uniqueness.check_const (proj Uniqueness m) in
+    uniqueness, ()
 end
 
 type ('mo, 'como) monadic_comonadic =
@@ -1577,12 +1557,67 @@ module Value = struct
       uniqueness : 'c
     }
 
+  let split { regionality; linearity; uniqueness } =
+    let monadic = uniqueness, () in
+    let comonadic = regionality, linearity in
+    { comonadic; monadic }
+
+  let merge { comonadic; monadic } =
+    let regionality, linearity = comonadic in
+    let uniqueness, () = monadic in
+    { regionality; linearity; uniqueness }
+
+  let print ?raw ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?raw ?verbose ())
+      comonadic
+      (Monadic.print ?raw ?verbose ())
+      monadic
+
+  let of_const c =
+    let { monadic; comonadic } = split c in
+    let comonadic = Comonadic.of_const comonadic in
+    let monadic = Monadic.of_const monadic in
+    { comonadic; monadic }
+
+  module Const = struct
+    type t = (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+
+    module Monadic = Monadic.Const
+    module Comonadic = Comonadic.Const
+
+    let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
+
+    let max = merge { comonadic = Comonadic.max; monadic = Monadic.max }
+
+    let le m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
+
+    let print ppf m = print () ppf (of_const m)
+
+    let legacy =
+      merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
+
+    let meet m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.meet m0.monadic m1.monadic in
+      let comonadic = Comonadic.meet m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
+
+    let join m0 m1 =
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.join m0.monadic m1.monadic in
+      let comonadic = Comonadic.join m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
+  end
+
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
 
-  let max =
-    { comonadic = Comonadic.max;
-      monadic = Monadic.max |> Monadic.allow_left |> Monadic.allow_right
-    }
+  let max = { comonadic = Comonadic.max; monadic = Monadic.max }
 
   include Magic_allow_disallow (struct
     type (_, _, 'd) sided = 'd t constraint 'd = 'l * 'r
@@ -1623,16 +1658,13 @@ module Value = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  let uniqueness { monadic; _ } = Monadic.uniqueness monadic
+  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
 
-  let linearity { comonadic; _ } = Comonadic.linearity comonadic
-
-  let regionality { comonadic; _ } = Comonadic.regionality comonadic
+  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
 
   type error =
-    [ `Regionality of Regionality.error
-    | `Uniqueness of Uniqueness.error
-    | `Linearity of Linearity.error ]
+    | Monadic of Monadic.error
+    | Comonadic of Comonadic.error
 
   type equate_error = equate_step * error
 
@@ -1642,10 +1674,10 @@ module Value = struct
     (* comonadic before monadic, so that locality errors dominate
        (error message backward compatibility) *)
     match Comonadic.submode comonadic0 comonadic1 with
-    | Error e -> Error e
+    | Error e -> Error (Comonadic e)
     | Ok () -> (
       match Monadic.submode monadic0 monadic1 with
-      | Error e -> Error e
+      | Error e -> Error (Monadic e)
       | Ok () -> Ok ())
 
   let equate = equate_from_submode submode
@@ -1658,105 +1690,53 @@ module Value = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
-      comonadic
-      (Monadic.print ?raw ?verbose ())
-      monadic
-
-  let zap_to_floor { comonadic; monadic } =
-    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
-    | (uniqueness, ()), (regionality, linearity) ->
-      { regionality; linearity; uniqueness }
-
-  let zap_to_ceil { comonadic; monadic } =
-    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
-    | (uniqueness, ()), (regionality, linearity) ->
-      { regionality; linearity; uniqueness }
-
-  let zap_to_legacy { comonadic; monadic } =
-    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
-    | (uniqueness, ()), (regionality, linearity) ->
-      { regionality; linearity; uniqueness }
-
-  let check_const { comonadic; monadic } =
-    let regionality, linearity = Comonadic.check_const comonadic in
-    let uniqueness = Monadic.check_const monadic in
-    { regionality; linearity; uniqueness }
-
-  let of_const { regionality; linearity; uniqueness } =
-    let comonadic = Comonadic.of_const (regionality, linearity) in
-    let monadic = Monadic.of_const (uniqueness, ()) in
-    { comonadic; monadic }
-
   let legacy =
     let comonadic = Comonadic.legacy in
     let monadic = Monadic.legacy in
     { comonadic; monadic }
 
-  let max_with_uniqueness uniqueness =
+  let max_with_monadic ax m =
     let comonadic =
       Comonadic.max |> Comonadic.disallow_left |> Comonadic.allow_right
     in
-    let monadic = Monadic.max_with_uniqueness uniqueness in
+    let monadic = Monadic.max_with ax m in
     { comonadic; monadic }
 
-  let min_with_uniqueness uniqueness =
+  let min_with_monadic ax m =
     let comonadic =
       Comonadic.min |> Comonadic.disallow_right |> Comonadic.allow_left
     in
-    let monadic = Monadic.min_with_uniqueness uniqueness in
+    let monadic = Monadic.min_with ax m in
     { comonadic; monadic }
 
-  let join_with_uniqueness c { monadic; comonadic } =
+  let join_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_left comonadic in
-    let monadic = Monadic.join_with_uniqueness c monadic in
+    let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
 
-  let meet_with_uniqueness c { monadic; comonadic } =
+  let meet_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_right comonadic in
-    let monadic = Monadic.meet_with_uniqueness c monadic in
+    let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
-  let min_with_regionality regionality =
-    let comonadic = Comonadic.min_with_regionality regionality in
+  let min_with_comonadic ax m =
+    let comonadic = Comonadic.min_with ax m in
     let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
     { comonadic; monadic }
 
-  let max_with_regionality regionality =
-    let comonadic = Comonadic.max_with_regionality regionality in
+  let max_with_comonadic ax m =
+    let comonadic = Comonadic.max_with ax m in
     let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
     { comonadic; monadic }
 
-  let meet_with_regionality c { monadic; comonadic } =
+  let meet_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_right monadic in
-    let comonadic = Comonadic.meet_with_regionality c comonadic in
+    let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with_regionality c { monadic; comonadic } =
+  let join_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with_regionality c comonadic in
-    { comonadic; monadic }
-
-  let min_with_linearity linearity =
-    let comonadic = Comonadic.min_with_linearity linearity in
-    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
-    { comonadic; monadic }
-
-  let max_with_linearity linearity =
-    let comonadic = Comonadic.max_with_linearity linearity in
-    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
-    { comonadic; monadic }
-
-  let join_with_linearity c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with_linearity c comonadic in
-    { comonadic; monadic }
-
-  let meet_with_linearity c { monadic; comonadic } =
-    let monadic = Monadic.disallow_right monadic in
-    let comonadic = Comonadic.meet_with_linearity c comonadic in
+    let comonadic = Comonadic.join_with ax c comonadic in
     { comonadic; monadic }
 
   let join l =
@@ -1785,65 +1765,14 @@ module Value = struct
     S.Negative.via_antitone Monadic.Obj.obj
       (Comonadic_to_monadic Comonadic.Obj.obj) m
 
-  module Const = struct
-    type t = (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
-
-    let split { regionality; linearity; uniqueness } =
-      let monadic = uniqueness, () in
-      let comonadic = regionality, linearity in
-      { comonadic; monadic }
-
-    let _merge { comonadic; monadic } =
-      let regionality, linearity = comonadic in
-      let uniqueness, () = monadic in
-      { regionality; linearity; uniqueness }
-
-    let min =
-      { regionality = Regionality.Const.min;
-        linearity = Linearity.Const.min;
-        uniqueness = Uniqueness.Const.min
-      }
-
-    let max =
-      { regionality = Regionality.Const.max;
-        linearity = Linearity.Const.max;
-        uniqueness = Uniqueness.Const.max
-      }
-
-    let le m0 m1 =
-      Regionality.Const.le m0.regionality m1.regionality
-      && Uniqueness.Const.le m0.uniqueness m1.uniqueness
-      && Linearity.Const.le m0.linearity m1.linearity
-
-    let print ppf m = print () ppf (of_const m)
-
-    let legacy =
-      { regionality = Regionality.Const.legacy;
-        linearity = Linearity.Const.legacy;
-        uniqueness = Uniqueness.Const.legacy
-      }
-
-    let meet m0 m1 =
-      let regionality = Regionality.Const.meet m0.regionality m1.regionality in
-      let linearity = Linearity.Const.meet m0.linearity m1.linearity in
-      let uniqueness = Uniqueness.Const.meet m0.uniqueness m1.uniqueness in
-      { regionality; linearity; uniqueness }
-
-    let join m0 m1 =
-      let regionality = Regionality.Const.join m0.regionality m1.regionality in
-      let linearity = Linearity.Const.join m0.linearity m1.linearity in
-      let uniqueness = Uniqueness.Const.join m0.uniqueness m1.uniqueness in
-      { regionality; linearity; uniqueness }
-  end
-
-  let meet_with c { comonadic; monadic } =
-    let c = Const.split c in
-    let comonadic = Comonadic.meet_with c.comonadic comonadic in
-    let monadic = Monadic.meet_with c.monadic monadic in
+  let meet_const c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.meet_const c.comonadic comonadic in
+    let monadic = Monadic.meet_const c.monadic monadic in
     { monadic; comonadic }
 
   let imply c { comonadic; monadic } =
-    let c = Const.split c in
+    let c = split c in
     let comonadic = Comonadic.imply c.comonadic comonadic in
     let monadic = Monadic.imply c.monadic monadic in
     { monadic; comonadic }
@@ -1882,6 +1811,16 @@ module Alloc = struct
       linearity : 'b;
       uniqueness : 'c
     }
+
+  let split { locality; linearity; uniqueness } =
+    let monadic = uniqueness, () in
+    let comonadic = locality, linearity in
+    { comonadic; monadic }
+
+  let merge { comonadic; monadic } =
+    let locality, linearity = comonadic in
+    let uniqueness, () = monadic in
+    { locality; linearity; uniqueness }
 
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
 
@@ -1926,16 +1865,13 @@ module Alloc = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  let uniqueness { monadic; _ } = Monadic.uniqueness monadic
+  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
 
-  let linearity { comonadic; _ } = Comonadic.linearity comonadic
-
-  let locality { comonadic; _ } = Comonadic.locality comonadic
+  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
 
   type error =
-    [ `Locality of Locality.error
-    | `Uniqueness of Uniqueness.error
-    | `Linearity of Linearity.error ]
+    | Monadic of Monadic.error
+    | Comonadic of Comonadic.error
 
   type equate_error = equate_step * error
 
@@ -1944,10 +1880,10 @@ module Alloc = struct
   let submode { monadic = monadic0; comonadic = comonadic0 }
       { monadic = monadic1; comonadic = comonadic1 } =
     match Monadic.submode monadic0 monadic1 with
-    | Error e -> Error e
+    | Error e -> Error (Monadic e)
     | Ok () -> (
       match Comonadic.submode comonadic0 comonadic1 with
-      | Error e -> Error e
+      | Error e -> Error (Comonadic e)
       | Ok () -> Ok ())
 
   let equate = equate_from_submode submode
@@ -1977,68 +1913,48 @@ module Alloc = struct
      on modes numerically, instead of defining symbolic functions *)
   (* type const = (LR.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes *)
 
-  let max_with_uniqueness uniqueness =
+  let max_with_monadic ax m =
     let comonadic =
       Comonadic.max |> Comonadic.disallow_left |> Comonadic.allow_right
     in
-    let monadic = Monadic.max_with_uniqueness uniqueness in
+    let monadic = Monadic.max_with ax m in
     { comonadic; monadic }
 
-  let min_with_uniqueness uniqueness =
+  let min_with_monadic ax m =
     let comonadic =
       Comonadic.min |> Comonadic.disallow_right |> Comonadic.allow_left
     in
-    let monadic = Monadic.min_with_uniqueness uniqueness in
+    let monadic = Monadic.min_with ax m in
     { comonadic; monadic }
 
-  let join_with_uniqueness c { monadic; comonadic } =
+  let join_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_left comonadic in
-    let monadic = Monadic.join_with_uniqueness c monadic in
+    let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
 
-  let meet_with_uniqueness c { monadic; comonadic } =
+  let meet_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_right comonadic in
-    let monadic = Monadic.meet_with_uniqueness c monadic in
+    let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
-  let min_with_locality locality =
-    let comonadic = Comonadic.min_with_locality locality in
+  let min_with_comonadic ax m =
+    let comonadic = Comonadic.min_with ax m in
     let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
     { comonadic; monadic }
 
-  let max_with_locality locality =
-    let comonadic = Comonadic.max_with_locality locality in
+  let max_with_comonadic ax m =
+    let comonadic = Comonadic.max_with ax m in
     let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
     { comonadic; monadic }
 
-  let meet_with_locality c { monadic; comonadic } =
+  let meet_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_right monadic in
-    let comonadic = Comonadic.meet_with_locality c comonadic in
+    let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with_locality c { monadic; comonadic } =
+  let join_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with_locality c comonadic in
-    { comonadic; monadic }
-
-  let min_with_linearity linearity =
-    let comonadic = Comonadic.min_with_linearity linearity in
-    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
-    { comonadic; monadic }
-
-  let max_with_linearity linearity =
-    let comonadic = Comonadic.max_with_linearity linearity in
-    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
-    { comonadic; monadic }
-
-  let join_with_linearity c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with_linearity c comonadic in
-    { comonadic; monadic }
-
-  let meet_with_linearity c { monadic; comonadic } =
-    let monadic = Monadic.disallow_right monadic in
-    let comonadic = Comonadic.meet_with_linearity c comonadic in
+    let comonadic = Comonadic.join_with ax c comonadic in
     { comonadic; monadic }
 
   let join l =
@@ -2075,42 +1991,36 @@ module Alloc = struct
   module Const = struct
     type t = (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
-    let min =
-      let locality = Locality.Const.min in
-      let linearity = Linearity.Const.min in
-      let uniqueness = Uniqueness.Const.min in
-      { locality; linearity; uniqueness }
+    module Monadic = Monadic.Const
+    module Comonadic = Comonadic.Const
 
-    let max =
-      let locality = Locality.Const.max in
-      let linearity = Linearity.Const.max in
-      let uniqueness = Uniqueness.Const.max in
-      { locality; linearity; uniqueness }
+    let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
+
+    let max = merge { comonadic = Comonadic.max; monadic = Monadic.max }
 
     let le m0 m1 =
-      Locality.Const.le m0.locality m1.locality
-      && Uniqueness.Const.le m0.uniqueness m1.uniqueness
-      && Linearity.Const.le m0.linearity m1.linearity
+      let m0 = split m0 in
+      let m1 = split m1 in
+      Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
     let print ppf m = print () ppf (of_const m)
 
     let legacy =
-      let locality = Locality.Const.legacy in
-      let linearity = Linearity.Const.legacy in
-      let uniqueness = Uniqueness.Const.legacy in
-      { locality; linearity; uniqueness }
+      merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
 
     let meet m0 m1 =
-      let locality = Locality.Const.meet m0.locality m1.locality in
-      let linearity = Linearity.Const.meet m0.linearity m1.linearity in
-      let uniqueness = Uniqueness.Const.meet m0.uniqueness m1.uniqueness in
-      { locality; linearity; uniqueness }
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.meet m0.monadic m1.monadic in
+      let comonadic = Comonadic.meet m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
 
     let join m0 m1 =
-      let locality = Locality.Const.join m0.locality m1.locality in
-      let linearity = Linearity.Const.join m0.linearity m1.linearity in
-      let uniqueness = Uniqueness.Const.join m0.uniqueness m1.uniqueness in
-      { locality; linearity; uniqueness }
+      let m0 = split m0 in
+      let m1 = split m1 in
+      let monadic = Monadic.join m0.monadic m1.monadic in
+      let comonadic = Comonadic.join m0.comonadic m1.comonadic in
+      merge { monadic; comonadic }
 
     module Option = struct
       type some = t
@@ -2132,64 +2042,51 @@ module Alloc = struct
         { locality; uniqueness; linearity }
     end
 
-    let split { locality; linearity; uniqueness } =
-      let monadic = uniqueness, () in
-      let comonadic = locality, linearity in
-      { comonadic; monadic }
-
-    let merge { comonadic; monadic } =
-      let locality, linearity = comonadic in
-      let uniqueness, () = monadic in
-      { locality; linearity; uniqueness }
-
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =
       let { monadic; comonadic } = split m in
       let comonadic =
-        Comonadic.Const.join comonadic
-          (C.monadic_to_comonadic_min Comonadic.Obj.obj monadic)
+        Comonadic.join comonadic
+          (C.monadic_to_comonadic_min C.Comonadic_with_locality monadic)
       in
-      let monadic = Monadic.Const.min in
+      let monadic = Monadic.min in
       merge { comonadic; monadic }
 
     (** See [Alloc.partial_apply] for explanation. *)
     let partial_apply m =
       let { comonadic; _ } = split m in
-      let monadic = Monadic.Const.min in
+      let monadic = Monadic.min in
       merge { comonadic; monadic }
+
+    let split = split
   end
 
   let meet_with c { comonadic; monadic } =
-    let c = Const.split c in
-    let comonadic = Comonadic.meet_with c.comonadic comonadic in
-    let monadic = Monadic.meet_with c.monadic monadic in
+    let c = split c in
+    let comonadic = Comonadic.meet_const c.comonadic comonadic in
+    let monadic = Monadic.meet_const c.monadic monadic in
     { monadic; comonadic }
 
   let imply c { comonadic; monadic } =
-    let c = Const.split c in
+    let c = split c in
     let comonadic = Comonadic.imply c.comonadic comonadic in
     let monadic = Monadic.imply c.monadic monadic in
     { monadic; comonadic }
 
-  let zap_to_floor { comonadic; monadic } : Const.t =
-    match Monadic.zap_to_floor monadic, Comonadic.zap_to_floor comonadic with
-    | (uniqueness, ()), (locality, linearity) ->
-      { locality; linearity; uniqueness }
+  let zap_to_ceil { comonadic; monadic } =
+    let monadic = Monadic.zap_to_ceil monadic in
+    let comonadic = Comonadic.zap_to_ceil comonadic in
+    merge { monadic; comonadic }
 
-  let zap_to_ceil { comonadic; monadic } : Const.t =
-    match Monadic.zap_to_ceil monadic, Comonadic.zap_to_ceil comonadic with
-    | (uniqueness, ()), (locality, linearity) ->
-      { locality; linearity; uniqueness }
+  let zap_to_legacy { comonadic; monadic } =
+    let monadic = Monadic.zap_to_legacy monadic in
+    let comonadic = Comonadic.zap_to_legacy comonadic in
+    merge { monadic; comonadic }
 
-  let zap_to_legacy { comonadic; monadic } : Const.t =
-    match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
-    | (uniqueness, ()), (locality, linearity) ->
-      { locality; linearity; uniqueness }
-
-  let check_const { comonadic; monadic } : Const.Option.t =
-    let locality, linearity = Comonadic.check_const comonadic in
-    let uniqueness = Monadic.check_const monadic in
-    { locality; linearity; uniqueness }
+  let check_const { comonadic; monadic } =
+    let comonadic = Comonadic.check_const comonadic in
+    let monadic = Monadic.check_const monadic in
+    merge { monadic; comonadic }
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
     C]. [comonadic] and [monadic] constutute the mode of [A], and we need to

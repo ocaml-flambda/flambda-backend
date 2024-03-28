@@ -91,10 +91,6 @@ module type Common = sig
     ('l * 'r) t ->
     unit
 
-  val zap_to_floor : (allowed * 'r) t -> Const.t
-
-  val zap_to_ceil : ('l * allowed) t -> Const.t
-
   val of_const : Const.t -> ('l * 'r) t
 end
 
@@ -129,6 +125,10 @@ module type S = sig
 
   type nonrec equate_step = equate_step
 
+  type ('a, 'd) monadic constraint 'd = 'l * 'r
+
+  type ('a, 'd) comonadic constraint 'd = 'l * 'r
+
   type ('a, 'b) monadic_comonadic =
     { monadic : 'a;
       comonadic : 'b
@@ -145,15 +145,19 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) comonadic
 
     val global : lr
 
     val local : lr
 
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
-
     val check_const : ('l * 'r) t -> Const.t option
+
+    val zap_to_floor : (allowed * 'r) t -> Const.t
   end
 
   module Regionality : sig
@@ -168,15 +172,17 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) comonadic
 
     val global : lr
 
     val regional : lr
 
     val local : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Linearity : sig
@@ -190,13 +196,15 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) comonadic
 
     val many : lr
 
     val once : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Uniqueness : sig
@@ -210,25 +218,37 @@ module type S = sig
 
     type error = Const.t Solver.error
 
-    include Common with module Const := Const and type error := error
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) monadic
 
     val shared : lr
 
     val unique : lr
-
-    val zap_to_legacy : ('l * allowed) t -> Const.t
   end
 
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
-    module Monadic : Common with type error = [`Uniqueness of Uniqueness.error]
+    module Monadic : sig
+      type 'a ax = Uniqueness : Uniqueness.Const.t ax
 
-    module Comonadic :
-      Common
-        with type error =
-          [ `Regionality of Regionality.error
-          | `Linearity of Linearity.error ]
+      type error = Error : 'a ax * 'a Solver.error -> error
+
+      include Common with type error := error
+    end
+
+    module Comonadic : sig
+      type 'a ax =
+        | Regionality : Regionality.Const.t ax
+        | Linearity : Linearity.Const.t ax
+
+      type error = Error : 'a ax * 'a Solver.error -> error
+
+      include Common with type error := error
+    end
 
     type ('a, 'b, 'c) modes =
       { regionality : 'a;
@@ -242,9 +262,8 @@ module type S = sig
           (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
     type error =
-      [ `Regionality of Regionality.error
-      | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | Monadic of Monadic.error
+      | Comonadic of Comonadic.error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -268,54 +287,38 @@ module type S = sig
       ('l * 'r) t ->
       unit
 
-    val check_const :
-      ('l * 'r) t ->
-      ( Regionality.Const.t option,
-        Linearity.Const.t option,
-        Uniqueness.Const.t option )
-      modes
+    val proj_comonadic :
+      'a Comonadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) comonadic
 
-    val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
+    val proj_monadic : 'a Monadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) monadic
 
-    val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
+    val max_with_monadic :
+      'a Monadic.ax -> ('a, 'l * 'r) monadic -> (disallowed * 'r) t
 
-    val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+    val min_with_monadic :
+      'a Monadic.ax -> ('a, 'l * 'r) monadic -> ('l * disallowed) t
 
-    val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
+    val min_with_comonadic :
+      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> ('l * disallowed) t
 
-    val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
+    val max_with_comonadic :
+      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> (disallowed * 'r) t
 
-    val min_with_regionality : ('l * 'r) Regionality.t -> ('l * disallowed) t
+    val meet_with_comonadic :
+      'a Comonadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val max_with_regionality : ('l * 'r) Regionality.t -> (disallowed * 'r) t
+    val join_with_comonadic :
+      'a Comonadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val min_with_linearity : ('l * 'r) Linearity.t -> ('l * disallowed) t
+    val meet_with_monadic :
+      'a Monadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
-
-    val meet_with_regionality :
-      Regionality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_regionality :
-      Regionality.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_linearity :
-      Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_linearity :
-      Linearity.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_uniqueness :
-      Uniqueness.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_uniqueness :
-      Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val zap_to_legacy : lr -> Const.t
+    val join_with_monadic :
+      'a Monadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
-    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+    val meet_const : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
   end
@@ -325,19 +328,25 @@ module type S = sig
       and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+      type 'a ax = Uniqueness : Uniqueness.Const.t ax
+
+      type error = Error : 'a ax * 'a Solver.error -> error
+
+      include Common with type error := error
 
       val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
-      include
-        Common
-          with type error =
-            [ `Locality of Locality.error
-            | `Linearity of Linearity.error ]
+      type 'a ax =
+        | Locality : Locality.Const.t ax
+        | Linearity : Linearity.Const.t ax
 
-      val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+      type error = Error : 'a ax * 'a Solver.error -> error
+
+      include Common with type error := error
+
+      val meet_const : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
 
     type ('loc, 'lin, 'uni) modes =
@@ -376,9 +385,8 @@ module type S = sig
     end
 
     type error =
-      [ `Locality of Locality.error
-      | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | Monadic of Monadic.error
+      | Comonadic of Comonadic.error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -399,43 +407,38 @@ module type S = sig
 
     val check_const : ('l * 'r) t -> Const.Option.t
 
-    val locality : ('l * 'r) t -> ('l * 'r) Locality.t
+    val proj_comonadic :
+      'a Comonadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) comonadic
 
-    val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
+    val proj_monadic : 'a Monadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) monadic
 
-    val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+    val max_with_monadic :
+      'a Monadic.ax -> ('a, 'l * 'r) monadic -> (disallowed * 'r) t
 
-    val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
+    val min_with_monadic :
+      'a Monadic.ax -> ('a, 'l * 'r) monadic -> ('l * disallowed) t
 
-    val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
+    val min_with_comonadic :
+      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> ('l * disallowed) t
 
-    val min_with_locality : ('l * 'r) Locality.t -> ('l * disallowed) t
+    val max_with_comonadic :
+      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> (disallowed * 'r) t
 
-    val max_with_locality : ('l * 'r) Locality.t -> (disallowed * 'r) t
+    val meet_with_comonadic :
+      'a Comonadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val min_with_linearity : ('l * 'r) Linearity.t -> ('l * disallowed) t
+    val join_with_comonadic :
+      'a Comonadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val max_with_linearity : ('l * 'r) Linearity.t -> (disallowed * 'r) t
+    val meet_with_monadic :
+      'a Monadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val meet_with_locality :
-      Locality.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_locality :
-      Locality.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_linearity :
-      Linearity.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_linearity :
-      Linearity.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_uniqueness :
-      Uniqueness.Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_uniqueness :
-      Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+    val join_with_monadic :
+      'a Monadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
