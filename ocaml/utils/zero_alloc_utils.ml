@@ -5,6 +5,8 @@ module type WS = sig
 
   val meet : t -> t -> t
 
+  val lessequal : t -> t -> bool
+
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
@@ -39,7 +41,7 @@ module Make (Witnesses : WS) = struct
       match v1, v2 with
       | Bot, Bot -> true
       | Safe, Safe -> true
-      | Top _, Top _ -> true
+      | Top w1, Top w2 -> Witnesses.lessequal w1 w2
       | Bot, Safe -> true
       | Bot, Top _ -> true
       | Safe, Top _ -> true
