@@ -71,7 +71,7 @@
    annot asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules
    ;; UTILS
-   config build_path_prefix_map misc identifiable numbers arg_helper clflags
+   assume_info config build_path_prefix_map misc identifiable numbers arg_helper clflags
    debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
@@ -99,7 +99,7 @@
    annot outcometree
 
    ;; lambda/
-   assume_info debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -274,6 +274,7 @@
     (ast_mapper.mli as compiler-libs/ast_mapper.mli)
     (ast_iterator.mli as compiler-libs/ast_iterator.mli)
     (attr_helper.mli as compiler-libs/attr_helper.mli)
+    (assume_info.mli as compiler-libs/assume_info.mli)
     (builtin_attributes.mli as compiler-libs/builtin_attributes.mli)
     (ast_invariants.mli as compiler-libs/ast_invariants.mli)
     (depend.mli as compiler-libs/depend.mli)
@@ -330,7 +331,6 @@
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)
     (debuginfo.mli as compiler-libs/debuginfo.mli)
-    (assume_info.mli as compiler-libs/assume_info.mli)
     (lambda.mli as compiler-libs/lambda.mli)
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)

@@ -3,6 +3,14 @@ utils/arg_helper.cmo : \
 utils/arg_helper.cmx : \
     utils/arg_helper.cmi
 utils/arg_helper.cmi :
+utils/assume_info.cmo : \
+    utils/zero_alloc_utils.cmi \
+    utils/assume_info.cmi
+utils/assume_info.cmx : \
+    utils/zero_alloc_utils.cmx \
+    utils/assume_info.cmi
+utils/assume_info.cmi : \
+    utils/zero_alloc_utils.cmi
 utils/binutils.cmo : \
     utils/binutils.cmi
 utils/binutils.cmx : \
@@ -410,6 +418,7 @@ parsing/builtin_attributes.cmo : \
     parsing/asttypes.cmi \
     parsing/ast_iterator.cmi \
     parsing/ast_helper.cmi \
+    utils/assume_info.cmi \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmx : \
     utils/warnings.cmx \
@@ -422,11 +431,13 @@ parsing/builtin_attributes.cmx : \
     parsing/asttypes.cmi \
     parsing/ast_iterator.cmx \
     parsing/ast_helper.cmx \
+    utils/assume_info.cmx \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmi : \
     parsing/parsetree.cmi \
     utils/misc.cmi \
-    parsing/location.cmi
+    parsing/location.cmi \
+    utils/assume_info.cmi
 parsing/camlinternalMenhirLib.cmo : \
     parsing/camlinternalMenhirLib.cmi
 parsing/camlinternalMenhirLib.cmx : \
@@ -3948,21 +3959,13 @@ middle_end/variable.cmi : \
     utils/identifiable.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi
-lambda/assume_info.cmo : \
-    utils/zero_alloc_utils.cmi \
-    lambda/assume_info.cmi
-lambda/assume_info.cmx : \
-    utils/zero_alloc_utils.cmx \
-    lambda/assume_info.cmi
-lambda/assume_info.cmi : \
-    utils/zero_alloc_utils.cmi
 lambda/debuginfo.cmo : \
     parsing/location.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
+    utils/assume_info.cmi \
     lambda/debuginfo.cmi
 lambda/debuginfo.cmx : \
     parsing/location.cmx \
@@ -3970,14 +3973,14 @@ lambda/debuginfo.cmx : \
     typing/ident.cmx \
     utils/compilation_unit.cmx \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
+    utils/assume_info.cmx \
     lambda/debuginfo.cmi
 lambda/debuginfo.cmi : \
     parsing/location.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmi
+    utils/assume_info.cmi
 lambda/lambda.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -3993,6 +3996,7 @@ lambda/lambda.cmo : \
     utils/config.cmi \
     utils/compilation_unit.cmi \
     utils/clflags.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
 lambda/lambda.cmx : \
@@ -4010,6 +4014,7 @@ lambda/lambda.cmx : \
     utils/config.cmx \
     utils/compilation_unit.cmx \
     utils/clflags.cmx \
+    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
 lambda/lambda.cmi : \
@@ -4024,6 +4029,7 @@ lambda/lambda.cmi : \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/compilation_unit.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 lambda/matching.cmo : \
     typing/types.cmi \
@@ -4244,10 +4250,7 @@ lambda/translattribute.cmo : \
     parsing/location.cmi \
     lambda/lambda.cmi \
     utils/config.cmi \
-    utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
-    parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
     lambda/translattribute.cmi
 lambda/translattribute.cmx : \
     utils/warnings.cmx \
@@ -4258,17 +4261,13 @@ lambda/translattribute.cmx : \
     parsing/location.cmx \
     lambda/lambda.cmx \
     utils/config.cmx \
-    utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
-    parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
     lambda/translattribute.cmi
 lambda/translattribute.cmi : \
     typing/typedtree.cmi \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    lambda/lambda.cmi \
-    lambda/assume_info.cmi
+    lambda/lambda.cmi
 lambda/translclass.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
@@ -4342,9 +4341,10 @@ lambda/translcore.cmo : \
     typing/ctype.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
+    parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
+    utils/assume_info.cmi \
     lambda/translcore.cmi
 lambda/translcore.cmx : \
     typing/types.cmx \
@@ -4376,9 +4376,10 @@ lambda/translcore.cmx : \
     typing/ctype.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
+    parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
+    utils/assume_info.cmx \
     lambda/translcore.cmi
 lambda/translcore.cmi : \
     typing/types.cmi \

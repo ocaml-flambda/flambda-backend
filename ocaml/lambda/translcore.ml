@@ -400,12 +400,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
-  | Texp_function { params; body; region; ret_sort; ret_mode; alloc_mode } ->
+  | Texp_function { params; body; region; ret_sort; ret_mode; alloc_mode;
+                    zero_alloc } ->
       transl_function ~in_new_scope ~scopes e params body
-        ~alloc_mode ~ret_mode ~ret_sort ~region
+        ~alloc_mode ~ret_mode ~ret_sort ~region ~zero_alloc
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
-                exp_type = prim_type; } as funct, oargs, pos, ap_mode)
+                 exp_type = prim_type; } as funct,
+               oargs, pos, ap_mode, assume_zero_alloc)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -438,10 +440,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let tailcall = Translattribute.get_tailcall_attribute funct in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
-        let assume_zero_alloc =
-          Translattribute.get_assume_zero_alloc ~with_warnings:true
-            funct.exp_attributes
-        in
         let position = transl_apply_position pos in
         let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
@@ -451,14 +449,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, ap_mode) ->
+  | Texp_apply(funct, oargs, position, ap_mode, assume_zero_alloc)
+    ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
-      let assume_zero_alloc =
-        Translattribute.get_assume_zero_alloc ~with_warnings:true
-          funct.exp_attributes
-      in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
       let mode = transl_locality_mode_l ap_mode in
@@ -1505,11 +1500,12 @@ and transl_curried_function ~scopes loc repr params body
     ((Curried { nlocal }, params, return_layout, region, return_mode ), body)
 
 and transl_function ~in_new_scope ~scopes e params body
-    ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion =
+      ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion
+      ~zero_alloc =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode_r alloc_mode in
   let assume_zero_alloc =
-    Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+    Builtin_attributes.assume_zero_alloc ~check_allowed:true zero_alloc
   in
   let scopes =
     if in_new_scope then
@@ -1537,7 +1533,9 @@ and transl_function ~in_new_scope ~scopes e params body
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
   in
-  let attr = function_attribute_disallowing_arity_fusion in
+  let attr =
+    { function_attribute_disallowing_arity_fusion with check = zero_alloc }
+  in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
@@ -1549,16 +1547,16 @@ and transl_scoped_exp ~scopes sort expr =
 
 (* Decides whether a pattern binding should introduce a new scope. *)
 and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
-  let should_introduce_scope =
+  let should_introduce_scope, zero_alloc =
     match expr.exp_desc with
-    | Texp_function _ -> true
-    | _ when in_structure -> true
-    | _ -> false in
+    | Texp_function { zero_alloc } -> true, zero_alloc
+    | _ when in_structure -> true, Default_check
+    | _ -> false, Default_check in
   let lam =
     match pat_bound_idents pat with
     | (id :: _) when should_introduce_scope ->
       let assume_zero_alloc =
-        Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+        Builtin_attributes.assume_zero_alloc ~check_allowed:true zero_alloc
       in
       let scopes = enter_value_definition ~scopes ~assume_zero_alloc id in
       transl_scoped_exp ~scopes sort expr

@@ -3615,7 +3615,7 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
           loc
         } ]
   | Check { property; strict; loc; opt } ->
-    if Lambda.is_check_enabled ~opt property
+    if Builtin_attributes.is_check_enabled ~opt property
     then [Check { property = transl_property property; strict; loc }]
     else []
 
