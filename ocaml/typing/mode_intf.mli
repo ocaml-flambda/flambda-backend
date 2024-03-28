@@ -83,17 +83,11 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
+  val print_raw :
+    ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
+
   val print :
-    ?raw:bool ->
-    ?verbose:bool ->
-    unit ->
-    Format.formatter ->
-    ('l * 'r) t ->
-    unit
-
-  val zap_to_floor : (allowed * 'r) t -> Const.t
-
-  val zap_to_ceil : ('l * allowed) t -> Const.t
+    ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
 end
@@ -104,7 +98,9 @@ module type S = sig
       [ `Locality
       | `Regionality
       | `Uniqueness
-      | `Linearity ]
+      | `Contention
+      | `Linearity
+      | `Syncness ]
 
     val to_string : t -> string
   end
@@ -151,9 +147,11 @@ module type S = sig
 
     val local : lr
 
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
+    val check_const : (allowed * allowed) t -> Const.t option
 
-    val check_const : ('l * 'r) t -> Const.t option
+    val zap_to_ceil : ('l * allowed) t -> Const.t
+
+    val zap_to_floor : (allowed * 'r) t -> Const.t
   end
 
   module Regionality : sig
@@ -175,8 +173,6 @@ module type S = sig
     val regional : lr
 
     val local : lr
-
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
   end
 
   module Linearity : sig
@@ -195,8 +191,20 @@ module type S = sig
     val many : lr
 
     val once : lr
+  end
 
-    val zap_to_legacy : (allowed * 'r) t -> Const.t
+  module Syncness : sig
+    module Const : sig
+      type t =
+        | Sync
+        | Unsync
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include Common with module Const := Const and type error := error
   end
 
   module Uniqueness : sig
@@ -215,36 +223,62 @@ module type S = sig
     val shared : lr
 
     val unique : lr
+  end
 
-    val zap_to_legacy : ('l * allowed) t -> Const.t
+  module Contention : sig
+    module Const : sig
+      type t =
+        | Contended
+        | Uncontended
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include Common with module Const := Const and type error := error
   end
 
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
-    module Monadic : Common with type error = [`Uniqueness of Uniqueness.error]
+    module Monadic :
+      Common
+        with type error =
+          [ `Uniqueness of Uniqueness.error
+          | `Contention of Contention.error ]
 
     module Comonadic :
       Common
         with type error =
           [ `Regionality of Regionality.error
-          | `Linearity of Linearity.error ]
+          | `Linearity of Linearity.error
+          | `Syncness of Syncness.error ]
 
-    type ('a, 'b, 'c) modes =
+    type ('a, 'b, 'c, 'd, 'e) modes =
       { regionality : 'a;
         linearity : 'b;
-        uniqueness : 'c
+        syncness : 'c;
+        uniqueness : 'd;
+        contention : 'e
       }
 
     module Const :
       Lattice
         with type t =
-          (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+          ( Regionality.Const.t,
+              Linearity.Const.t,
+              Syncness.Const.t,
+              Uniqueness.Const.t,
+              Contention.Const.t )
+            modes
 
     type error =
       [ `Regionality of Regionality.error
       | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | `Contention of Contention.error
+      | `Linearity of Linearity.error
+      | `Syncness of Syncness.error ]
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -259,21 +293,8 @@ module type S = sig
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
-
-    val check_const :
-      ('l * 'r) t ->
-      ( Regionality.Const.t option,
-        Linearity.Const.t option,
-        Uniqueness.Const.t option )
-      modes
+    val print_raw :
+      ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
     val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
 
@@ -284,6 +305,10 @@ module type S = sig
     val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
 
     val min_with_uniqueness : ('l * 'r) Uniqueness.t -> ('l * disallowed) t
+
+    val max_with_contention : ('l * 'r) Contention.t -> (disallowed * 'r) t
+
+    val min_with_contention : ('l * 'r) Contention.t -> ('l * disallowed) t
 
     val min_with_regionality : ('l * 'r) Regionality.t -> ('l * disallowed) t
 
@@ -311,8 +336,6 @@ module type S = sig
     val join_with_uniqueness :
       Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    val zap_to_legacy : lr -> Const.t
-
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
     val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
@@ -325,34 +348,55 @@ module type S = sig
       and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
-      include Common with type error = [`Uniqueness of Uniqueness.error]
+      include
+        Common
+          with type error =
+            [ `Uniqueness of Uniqueness.error
+            | `Contention of Contention.error ]
 
       val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
+      module Const : sig
+        include Lattice
+
+        val eq : t -> t -> bool
+      end
+
       include
         Common
           with type error =
             [ `Locality of Locality.error
-            | `Linearity of Linearity.error ]
+            | `Linearity of Linearity.error
+            | `Syncness of Syncness.error ]
+           and module Const := Const
 
       val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
 
-    type ('loc, 'lin, 'uni) modes =
+    type ('loc, 'lin, 'syn, 'uni, 'con) modes =
       { locality : 'loc;
         linearity : 'lin;
-        uniqueness : 'uni
+        syncness : 'syn;
+        uniqueness : 'uni;
+        contention : 'con
       }
 
     module Const : sig
       include
         Lattice
           with type t =
-            (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+            ( Locality.Const.t,
+              Linearity.Const.t,
+              Syncness.Const.t,
+              Uniqueness.Const.t,
+              Contention.Const.t )
+            modes
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+
+      val merge : (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic -> t
 
       module Option : sig
         type some = t
@@ -360,13 +404,19 @@ module type S = sig
         type t =
           ( Locality.Const.t option,
             Linearity.Const.t option,
-            Uniqueness.Const.t option )
+            Syncness.Const.t option,
+            Uniqueness.Const.t option,
+            Contention.Const.t option )
           modes
 
         val none : t
 
         val value : t -> default:some -> some
       end
+
+      (** [diff a b] returns [None] for axes where [a] and [b] match, and [Some
+      a0] for axes where [a] is [a0] and [b] isn't. *)
+      val diff : t -> t -> Option.t
 
       (** Similar to [Alloc.close_over] but for constants *)
       val close_over : t -> t
@@ -378,7 +428,9 @@ module type S = sig
     type error =
       [ `Locality of Locality.error
       | `Uniqueness of Uniqueness.error
-      | `Linearity of Linearity.error ]
+      | `Contention of Contention.error
+      | `Linearity of Linearity.error
+      | `Syncness of Syncness.error ]
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -388,22 +440,21 @@ module type S = sig
          and type error := error
          and type 'd t := 'd t
 
-    (* some overriding *)
     val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
+      ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
 
-    val check_const : ('l * 'r) t -> Const.Option.t
+    val print_raw :
+      ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
     val locality : ('l * 'r) t -> ('l * 'r) Locality.t
 
     val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
 
+    val contention : ('l * 'r) t -> ('l * 'r) Contention.t
+
     val linearity : ('l * 'r) t -> ('l * 'r) Linearity.t
+
+    val syncness : ('l * 'r) t -> ('l * 'r) Syncness.t
 
     val max_with_uniqueness : ('l * 'r) Uniqueness.t -> (disallowed * 'r) t
 
@@ -436,6 +487,8 @@ module type S = sig
       Uniqueness.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 

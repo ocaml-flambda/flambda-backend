@@ -66,28 +66,40 @@ type out_type_param =
     oparam_injectivity : Asttypes.injectivity;
     oparam_jkind : out_jkind option }
 
-type out_mutable_or_global =
-  | Ogom_mutable
-  | Ogom_global
-  | Ogom_immutable
-
 type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
+type out_mutability =
+  | Om_immutable
+  | Om_mutable of string option
+
 (* should be empty if all the jkind annotations are missing *)
 type out_vars_jkinds = (string * out_jkind option) list
+
+type out_arg_mode = Mode.Alloc.Const.Option.t
+
+type out_ret_mode =
+  | Orm_not_arrow of Mode.Alloc.Const.Option.t
+  (** The ret type is not arrow, with modes annotating. *)
+  | Orm_no_parens
+  (** The ret type is arrow, and no need to print parens around the arrow *)
+  | Orm_parens of Mode.Alloc.Const.Option.t
+  (** The ret type is arrow, and need to print parens around the arrow, with
+      modes annotating. *)
 
 type out_type =
   | Otyp_abstract
   | Otyp_open
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
-  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_arrow of string * out_arg_mode * out_type * out_ret_mode * out_type
+  (* INVARIANT: the [out_ret_mode] is [Orm_not_arrow] unless the RHS [out_type]
+    is [Otyp_arrow] *)
   | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
-  | Otyp_record of (string * out_mutable_or_global * out_type) list
+  | Otyp_record of (string * out_mutability * out_type * out_global) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list
@@ -109,26 +121,6 @@ and out_constructor = {
 and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
   | Ovar_typ of out_type
-
-and out_locality =
-  | Olm_local
-  | Olm_global
-  | Olm_unknown
-
-and out_uniqueness =
-  | Oum_unique
-  | Oum_shared
-  | Oum_unknown
-
-and out_linearity =
-  | Olinm_many
-  | Olinm_once
-  | Olinm_unknown
-
-and out_alloc_mode =
-  { oam_locality : out_locality;
-    oam_uniqueness : out_uniqueness;
-    oam_linearity : out_linearity }
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list

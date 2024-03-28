@@ -31,6 +31,22 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Once }
           | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
+        | "unsync" -> (
+          match acc.syncness with
+          | None -> { acc with syncness = Some Unsync }
+          | Some _ -> raise (Error (loc, Duplicated_mode `Syncness)))
+        | "uncontended" -> (
+          match acc.contention with
+          | None -> { acc with contention = Some Uncontended }
+          | Some _ -> raise (Error (loc, Duplicated_mode `Contention)))
+        | "sync" -> (
+          match acc.syncness with
+          | None -> { acc with syncness = Some Sync }
+          | Some _ -> raise (Error (loc, Duplicated_mode `Syncness)))
+        | "contended" -> (
+          match acc.contention with
+          | None -> { acc with contention = Some Contended }
+          | Some _ -> raise (Error (loc, Duplicated_mode `Contention)))
         | "global" ->
           (* CR zqian: global modality might leak to here by ppxes.
              This is a dirty fix that needs to be fixed ASAP. *)

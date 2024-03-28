@@ -541,10 +541,7 @@ let do_set_args ~erase_mutable q r = match q with
     make_pat
       (Tpat_record
          (List.map2 (fun (lid, lbl,_) arg ->
-           if
-             erase_mutable &&
-             (match lbl.lbl_mut with
-             | Mutable -> true | Immutable -> false)
+           if erase_mutable && Types.is_mutable lbl.lbl_mut
            then
              lid, lbl, omega
            else
@@ -2150,7 +2147,7 @@ let inactive ~partial pat =
   | Total -> begin
       let rec loop pat =
         match pat.pat_desc with
-        | Tpat_lazy _ | Tpat_array (Mutable, _, _) ->
+        | Tpat_lazy _ | Tpat_array (Mutable _, _, _) ->
           false
         | Tpat_any | Tpat_var _ | Tpat_variant (_, None, _) ->
             true

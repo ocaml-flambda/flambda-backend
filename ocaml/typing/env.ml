@@ -123,13 +123,13 @@ let label_usage_complaint priv mut lu
   | Asttypes.Private, _ ->
       if lu.lu_projection then None
       else Some Unused
-  | Asttypes.Public, Asttypes.Immutable -> begin
+  | Asttypes.Public, Types.Immutable -> begin
       match lu.lu_projection, lu.lu_construct with
       | true, _ -> None
       | false, false -> Some Unused
       | false, true -> Some Not_read
     end
-  | Asttypes.Public, Asttypes.Mutable -> begin
+  | Asttypes.Public, Types.Mutable _ -> begin
       match lu.lu_projection, lu.lu_mutation, lu.lu_construct with
       | true, true, _ -> None
       | false, false, false -> Some Unused
@@ -3964,6 +3964,7 @@ let report_lookup_error _loc env ppf = function
         match error with
         | `Regionality _ -> "local", "might escape"
         | `Linearity _ -> "once", "is many"
+        | `Syncness _ -> "unsync", "is sync"
       in
       fprintf ppf
       "@[The value %a is %s, so cannot be used \
