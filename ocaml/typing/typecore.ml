@@ -412,17 +412,16 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet [mode; (Value.max_with_regionality Regionality.regional)]
+  Value.meet [mode; (Value.max_with_comonadic Regionality Regionality.regional)]
 
 let meet_global mode =
-  Value.meet [mode; (Value.max_with_regionality Regionality.global)]
-
+  Value.meet [mode; (Value.max_with_comonadic Regionality Regionality.global)]
 
 let meet_many mode =
-  Value.meet [mode; (Value.max_with_linearity Linearity.many)]
+  Value.meet [mode; (Value.max_with_comonadic Linearity Linearity.many)]
 
 let join_shared mode =
-  Value.join [mode; Value.min_with_uniqueness Uniqueness.shared]
+  Value.join [mode; Value.min_with_monadic Uniqueness Uniqueness.shared]
 
 let value_regional_to_local mode =
   mode
@@ -436,9 +435,9 @@ let modality_unbox_left global_flag mode =
   match global_flag with
   | Global_flag.Global ->
       mode
-      |> Value.meet_with_regionality Regionality.Const.Global
+      |> Value.meet_with_comonadic Regionality Regionality.Const.Global
       |> join_shared
-      |> Value.meet_with_linearity Linearity.Const.Many
+      |> Value.meet_with_comonadic Linearity Linearity.Const.Many
   | Global_flag.Unrestricted -> mode
 
 (* Describes how a modality affects record construction. Gives the
@@ -448,7 +447,7 @@ let modality_box_right global_flag mode =
   | Global_flag.Global ->
       mode
       |> meet_global
-      |> Value.join_with_uniqueness Uniqueness.Const.max
+      |> Value.join_with_monadic Uniqueness Uniqueness.Const.max
       |> meet_many
   | Global_flag.Unrestricted -> mode
 
@@ -465,7 +464,8 @@ let mode_legacy = mode_default Value.legacy
 mode is the mode of the function region *)
 let mode_return mode =
   { (mode_default (meet_regional mode)) with
-    position = RTail (Regionality.disallow_left (Value.regionality mode), FTail);
+    position = RTail (Regionality.disallow_left
+      (Value.proj_comonadic Regionality mode), FTail);
     closure_context = Some Return;
   }
 
@@ -473,7 +473,8 @@ let mode_return mode =
 let mode_region mode =
   { (mode_default (meet_regional mode)) with
     position =
-      RTail (Regionality.disallow_left (Value.regionality mode), FNontail);
+      RTail (Regionality.disallow_left
+        (Value.proj_comonadic Regionality mode), FNontail);
     closure_context = None;
   }
 
@@ -492,7 +493,8 @@ let mode_global expected_mode =
 
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with_regionality Regionality.Const.Local expected_mode.mode
+    Value.join_with_comonadic Regionality
+      Regionality.Const.Local expected_mode.mode
   in
   { (mode_default mode)
     with strictly_local = true
@@ -553,7 +555,8 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   | _, _, (Nontail | Default) ->
      mode_default vmode, vmode
   | _, _, Tail -> begin
-    Regionality.submode_exn (Value.regionality vmode) Regionality.regional;
+    Regionality.submode_exn (Value.proj_comonadic Regionality vmode)
+      Regionality.regional;
     mode_tailcall_argument vmode, vmode
   end
 
@@ -795,7 +798,7 @@ let mode_cross_left env ty mode =
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  Value.meet_with upper_bounds mode
+  Value.meet_const upper_bounds mode
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
@@ -806,7 +809,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Alloc.Const.split upper_bounds in
-  let comonadic = Alloc.Comonadic.meet_with upper_bounds.comonadic comonadic in
+  let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
   let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
   { monadic; comonadic }
 
@@ -4703,8 +4706,8 @@ let with_explanation explanation f =
         raise (Error (loc', env', err))
 
 let unique_use ~loc ~env mode_l mode_r  =
-  let uniqueness = Uniqueness.disallow_left (Value.uniqueness mode_r) in
-  let linearity = Linearity.disallow_right (Value.linearity mode_l) in
+  let uniqueness = Uniqueness.disallow_left (Value.proj_monadic Uniqueness mode_r) in
+  let linearity = Linearity.disallow_right (Value.proj_comonadic Linearity mode_l) in
   if not (Language_extension.is_enabled Unique) then begin
     (* if unique extension is not enabled, we will not run uniqueness analysis;
        instead, we force all uses to be shared and many. This is equivalent to
@@ -4712,12 +4715,14 @@ let unique_use ~loc ~env mode_l mode_r  =
     (match Uniqueness.submode Uniqueness.shared uniqueness with
     | Ok () -> ()
     | Error e ->
-        raise (Error(loc, env, Submode_failed(`Uniqueness e, Other, None, None)))
+        let e = Mode.Value.Monadic (Error (Uniqueness, e)) in
+        raise (Error(loc, env, Submode_failed(e, Other, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
-        raise (Error (loc, env, Submode_failed(`Linearity e, Other, None, None)))
+        let e = Mode.Value.Comonadic (Error (Linearity, e)) in
+        raise (Error (loc, env, Submode_failed(e, Other, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.shared,
      Linearity.disallow_right Linearity.many)
@@ -4803,7 +4808,7 @@ let split_function_ty
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.locality alloc_mode);
+    Locality.submode_exn Locality.local (Alloc.proj_comonadic Locality alloc_mode);
   let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
     in_function
   in
@@ -4868,7 +4873,7 @@ let split_function_ty
         else begin
           (* if the function has no region, we force the ret_mode to be local *)
           match
-            Locality.submode Locality.local (Alloc.locality ret_mode)
+            Locality.submode Locality.local (Alloc.proj_comonadic Locality ret_mode)
           with
           | Ok () -> mode_default ret_value_mode
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
@@ -5271,7 +5276,7 @@ and type_expect_
             type_expect ~recarg new_env mode' sbody ty_expected_explained
           in
           submode ~loc ~env ~reason:Other
-            (Value.min_with_regionality Regionality.regional) expected_mode;
+            (Value.min_with_comonadic Regionality Regionality.regional) expected_mode;
           { exp_desc = Texp_exclave exp;
             exp_loc = loc;
             exp_extra = [];
@@ -5286,7 +5291,10 @@ and type_expect_
       let funct_mode, funct_expected_mode =
         match pm.apply_position with
         | Tail ->
-          let mode, _ = Value.newvar_below (Value.max_with_regionality Regionality.regional) in
+          let mode, _ =
+            Value.newvar_below
+              (Value.max_with_comonadic Regionality Regionality.regional)
+          in
           mode, mode_tailcall_function mode
         | Nontail | Default ->
           let mode = Value.newvar () in
@@ -5693,7 +5701,8 @@ and type_expect_
       unify_exp env record ty_record;
       rue {
         exp_desc = Texp_setfield(record,
-          Locality.disallow_right (regional_to_local (Value.regionality rmode)),
+          Locality.disallow_right (regional_to_local
+            (Value.proj_comonadic Regionality rmode)),
           label_loc, label, newval);
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
@@ -6504,8 +6513,8 @@ and type_ident env ?(recarg=Rejected) lid =
           we then register allocation for further optimization *)
        | (Prim_poly, _), Some mode ->
            register_allocation_mode
-             (Alloc.meet [Alloc.max_with_locality mode;
-                          Alloc.max_with_linearity Linearity.many])
+             (Alloc.meet [Alloc.max_with_comonadic Locality mode;
+                          Alloc.max_with_comonadic Linearity Linearity.many])
        | _ -> ()
        end;
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
@@ -7362,7 +7371,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
-      Regionality.submode_exn (Value.regionality eta_mode) Regionality.regional;
+      Regionality.submode_exn
+        (Value.proj_comonadic Regionality eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test
@@ -7384,7 +7394,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
              (texp,
               args @ [Nolabel, Arg (eta_var, arg_sort)], Nontail,
               ret_mode
-              |> Value.regionality
+              |> Value.proj_comonadic Regionality
               |> regional_to_global
               |> Locality.disallow_right)}
         in
@@ -7532,7 +7542,7 @@ and type_application env app_loc expected_mode position_and_mode
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
-      let ap_mode = Locality.disallow_right (Alloc.locality ret_mode) in
+      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Locality ret_mode) in
       let mode_res =
         mode_cross_left env ty_ret (alloc_as_value ret_mode)
       in
@@ -7594,7 +7604,7 @@ and type_application env app_loc expected_mode position_and_mode
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
-      let ap_mode = Locality.disallow_right (Alloc.locality mode_ret) in
+      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Locality mode_ret) in
       let mode_ret =
         mode_cross_left env ty_ret (alloc_as_value mode_ret)
       in
@@ -9380,22 +9390,26 @@ let report_type_expected_explanation expl ppf =
 let escaping_hint (failure_reason : Value.error) submode_reason
       (context : Env.closure_context option) =
   begin match failure_reason, context with
-  | `Regionality {left=Local; right=Regional}, Some Return ->
+  | Comonadic (Error (Regionality, e)), Some h ->
+    begin match e, h with
+    | {left=Local; right=Regional}, Return ->
       (* Only hint to use exclave_, when the user wants to return local, but
          expected mode is regional. If the expected mode is as strict as
          global, then exclave_ won't solve the problem. *)
       [ Location.msg
           "@[Hint: Cannot return a local value without an@ \
            \"exclave_\" annotation@]" ]
-  | `Regionality _, Some Tailcall_argument ->
+    | _, Return -> []
+    | _, Tailcall_argument ->
       [ Location.msg
           "@[Hint: This argument cannot be local, because it is an argument in a tail call@]" ]
-  | `Regionality _, Some Tailcall_function ->
+    | _, Tailcall_function ->
       [ Location.msg
           "@[Hint: This function cannot be local, because it is the function in a tail call@]" ]
-  | `Regionality _, Some Partial_application ->
+    | _, Partial_application ->
       [ Location.msg
           "@[Hint: It is captured by a partial application@]" ]
+    end
   | _, _ -> []
   end
   @
@@ -9410,7 +9424,7 @@ let escaping_hint (failure_reason : Value.error) submode_reason
         match get_desc ty with
         | Tarrow ((_, _, res_mode), _, res_ty, _) ->
           begin match
-            Locality.check_const (Alloc.locality res_mode)
+            Locality.check_const (Alloc.proj_comonadic Locality res_mode)
           with
           | Some Global ->
             Some (n+1, true)
@@ -10038,18 +10052,21 @@ let report_error ~loc env = function
      ->
       let sub =
         match fail_reason with
-        | `Linearity _ | `Uniqueness _ ->
+        | Comonadic (Error (Linearity, _)) | Monadic (Error (Uniqueness, _)) ->
           sharedness_hint fail_reason submode_reason shared_context
-        | `Regionality _ ->
+        | Comonadic (Error (Regionality, _)) ->
           escaping_hint fail_reason submode_reason closure_context
       in
       Location.errorf ~loc ~sub "%t" begin
         match fail_reason with
-        | `Regionality _ -> Format.dprintf "This value escapes its region"
-        | `Uniqueness {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
-            Uniqueness.Const.print left Uniqueness.Const.print right
-        | `Linearity {left; right} -> Format.dprintf "Found a %a value where a %a value was expected"
-            Linearity.Const.print left Linearity.Const.print right
+        | Comonadic (Error (Regionality, _)) ->
+            Format.dprintf "This value escapes its region"
+        | Monadic (Error (Uniqueness, {left; right})) ->
+            Format.dprintf "Found a %a value where a %a value was expected"
+              Uniqueness.Const.print left Uniqueness.Const.print right
+        | Comonadic (Error (Linearity, {left; right})) ->
+            Format.dprintf "Found a %a value where a %a value was expected"
+              Linearity.Const.print left Linearity.Const.print right
         end
   | Local_application_complete (lbl, loc_kind) ->
       let sub =
@@ -10087,17 +10104,20 @@ let report_error ~loc env = function
           f actual f expected
       in begin
       match mkind with
-      | `Locality e -> print_error Locality.Const.print (s, e)
-      | `Uniqueness e -> print_error Uniqueness.Const.print (s, e)
-      | `Linearity e -> print_error Linearity.Const.print (s, e)
+      | Comonadic (Error (Locality, e)) ->
+          print_error Locality.Const.print (s, e)
+      | Monadic (Error (Uniqueness, e)) ->
+          print_error Uniqueness.Const.print (s, e)
+      | Comonadic (Error (Linearity, e)) ->
+          print_error Linearity.Const.print (s, e)
       end
   | Uncurried_function_escapes e -> begin
       match e with
-      | `Locality _ ->
+      | Comonadic (Error (Locality, _)) ->
           Location.errorf ~loc "This function or one of its parameters escape their region @ \
           when it is partially applied."
-      | `Uniqueness _ -> assert false
-      | `Linearity {left; right} ->
+      | Monadic (Error (Uniqueness, _)) -> assert false
+      | Comonadic (Error (Linearity, {left; right})) ->
           Location.errorf ~loc "This function when partially applied returns a %a value,@ \
           but expected to be %a." Linearity.Const.print left Linearity.Const.print right
     end
