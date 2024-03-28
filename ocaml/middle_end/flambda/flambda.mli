@@ -102,8 +102,6 @@ type t =
   | Var of Variable.t
   | Let of let_expr
   | Let_mutable of let_mutable
-  | Let_rec of (Variable.t * named) list * t
-  (** CR-someday lwhite: give Let_rec the same fields as Let. *)
   | Apply of apply
   | Send of send
   | Assign of assign

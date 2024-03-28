@@ -68,7 +68,6 @@ type t =
   | Var of Variable.t
   | Let of let_expr
   | Let_mutable of let_mutable
-  | Let_rec of (Variable.t * named) list * t
   | Apply of apply
   | Send of send
   | Assign of assign
@@ -277,16 +276,6 @@ let rec lam ppf (flam : t) =
       Mutable_variable.print mut_var
       Variable.print var
       lam body
-  | Let_rec(id_arg_list, body) ->
-      let bindings ppf id_arg_list =
-        let spc = ref false in
-        List.iter
-          (fun (id, l) ->
-             if !spc then fprintf ppf "@ " else spc := true;
-             fprintf ppf "@[<2>%a@ %a@]" Variable.print id print_named l)
-          id_arg_list in
-      fprintf ppf
-        "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
   | Switch(larg, sw) ->
       let switch ppf (sw : switch) =
         let spc = ref false in
@@ -588,14 +577,6 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
       | Let_mutable { initial_value = var; body; _ } ->
         free_variable var;
         aux body
-      | Let_rec (bindings, body) ->
-        List.iter (fun (var, defining_expr) ->
-            bound_variable var;
-            free_variables
-              (variables_usage_named ?ignore_uses_in_project_var
-                 ~all_used_variables defining_expr))
-          bindings;
-        aux body
       | Switch (scrutinee, switch) ->
         free_variable scrutinee;
         List.iter (fun (_, e) -> aux e) switch.consts;
@@ -816,9 +797,6 @@ let iter_general ~toplevel f f_named maybe_named =
       | Static_raise _ -> ()
       | Let _ -> assert false
       | Let_mutable { body; _ } ->
-        aux body
-      | Let_rec (defs, body) ->
-        List.iter (fun (_,l) -> aux_named l) defs;
         aux body
       | Try_with (f1,_,f2, _)
       | While (f1,f2)

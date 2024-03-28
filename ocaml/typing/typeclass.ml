@@ -1432,8 +1432,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
-      let () = if rec_flag = Recursive then
-        Typecore.check_recursive_bindings val_env defs
+      let defs = match rec_flag with
+        | Recursive -> Typecore.annotate_recursive_bindings val_env defs
+        | Nonrecursive -> defs
       in
       rc {cl_desc = Tcl_let (rec_flag, defs, vals, cl);
           cl_loc = scl.pcl_loc;
@@ -2094,7 +2095,7 @@ let approx_class_declarations env sdecls =
 
 open Format
 
-let non_virtual_string_of_kind = function
+let non_virtual_string_of_kind : kind -> string = function
   | Object -> "object"
   | Class -> "non-virtual class"
   | Class_type -> "non-virtual class type"

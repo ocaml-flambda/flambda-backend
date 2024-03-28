@@ -68,6 +68,7 @@ COMPILERLIBS_INTFS=\
   typing/solver_intf.mli \
   typing/mode_intf.mli \
   typing/outcometree.mli \
+  typing/value_rec_types.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli

@@ -66,7 +66,6 @@ and ulambda =
       * ulambda * ulambda
   | Uphantom_let of Backend_var.With_provenance.t
       * uphantom_defining_expr option * ulambda
-  | Uletrec of (Backend_var.With_provenance.t * ulambda) list * ulambda
   | Uprim of Clambda_primitives.primitive * ulambda list * Debuginfo.t
   | Uswitch of ulambda * ulambda_switch * Debuginfo.t * layout
   | Ustringswitch of

@@ -30,6 +30,12 @@ OCaml 5.1.0 (14 September 2023)
   (David Allsopp, review by Xavier Leroy, Guillaume Munch-Maccagnoni
   and Gabriel Scherer)
 
+- #12551, #12608, #12782, #12596: Overhaul of recursive value compilation.
+  Non-function recursive bindings are now forbidden from Lambda onwards,
+  and compiled using a new Value_rec_compiler module.
+  (Vincent Laviron and Lunia Ayanides, review by Gabriel Scherer,
+   Stefan Muenzel and Nathanaëlle Courant)
+
 ### Standard library:
 
 - #12006, #12064: Add `Marshal.Compression` flag to `Marshal.to_*` functions.
