@@ -13647,19 +13647,15 @@ esac
 otherlibraries="dynlink"
 lib_dynlink=true
 
-if test x"$enable_extension_libs" != "xno"
-then :
-  enable_extension_libs=yes,
-  ac_config_files="$ac_config_files otherlibs/upstream_compatible/META"
+ac_config_files="$ac_config_files otherlibs/upstream_compatible/META"
 
-  ac_config_files="$ac_config_files otherlibs/stable/META"
+ac_config_files="$ac_config_files otherlibs/stable/META"
 
-  ac_config_files="$ac_config_files otherlibs/beta/META"
+ac_config_files="$ac_config_files otherlibs/beta/META"
 
-  ac_config_files="$ac_config_files otherlibs/alpha/META"
+ac_config_files="$ac_config_files otherlibs/alpha/META"
 
-  otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
-fi
+otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
 
 if test x"$enable_runtime5" = x"yes"
 then :
