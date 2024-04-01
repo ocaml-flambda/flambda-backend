@@ -393,15 +393,13 @@ module Mixed_block_access_field_kind = struct
           Printlambda.flat_element flat_element
 
   let compare t1 t2 =
-      match t1, t2 with
-      | ( Value_prefix field_kind1,
-          Value_prefix field_kind2 ) ->
-          Block_access_field_kind.compare field_kind1 field_kind2
-      | ( Flat_suffix element_kind1,
-          Flat_suffix element_kind2 ) ->
-          Stdlib.compare element_kind1 element_kind2
-      | Value_prefix _, Flat_suffix _ -> -1
-      | Flat_suffix _, Value_prefix _ -> 1
+    match t1, t2 with
+    | Value_prefix field_kind1, Value_prefix field_kind2 ->
+      Block_access_field_kind.compare field_kind1 field_kind2
+    | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
+      Stdlib.compare element_kind1 element_kind2
+    | Value_prefix _, Flat_suffix _ -> -1
+    | Flat_suffix _, Value_prefix _ -> 1
 end
 
 module Block_access_kind = struct
@@ -452,17 +450,16 @@ module Block_access_kind = struct
       match field_kind with
       | Value_prefix _ -> K.value
       | Flat_suffix Imm -> K.value
-      | Flat_suffix (Float | Float64) ->
-        K.naked_float)
+      | Flat_suffix (Float | Float64) -> K.naked_float)
 
   let element_subkind_for_load t =
     match t with
     | Values { field_kind = Any_value; _ }
     | Mixed { field_kind = Value_prefix Any_value; _ } ->
-        K.With_subkind.any_value
+      K.With_subkind.any_value
     | Values { field_kind = Immediate; _ }
     | Mixed { field_kind = Value_prefix Immediate; _ } ->
-        K.With_subkind.tagged_immediate
+      K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
