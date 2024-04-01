@@ -1603,7 +1603,7 @@ let emit_cmpsd b ~condition ~dst ~src =
 let emit_cmpss b ~condition ~dst ~src =
   match (dst, src) with
   | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    (* CMPSD xmm1, xmm2/m64, imm8 *)
+    (* CMPSS xmm1, xmm2/m64, imm8 *)
     let condition = imm8_of_float_condition condition in
     buf_int8 b 0xF3;
     emit_mod_rm_reg b no_rex [ 0x0F; 0xC2 ] rm (rd_of_regf reg);
