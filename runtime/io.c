@@ -661,12 +661,17 @@ CAMLprim value caml_ml_out_channels_list (value unit)
 {
   CAMLparam0 ();
   CAMLlocal3 (res, tail, chan);
-  struct channel * channel;
   struct channel_list *channel_list = NULL, *cl_tmp;
   mlsize_t i, num_channels = 0;
 
+  /* We cannot use [caml_plat_lock_non_blocking] inside
+     [caml_finalize_channel], so instead we must be careful here not
+     to trigger a STW while holding [caml_all_opened_channels_mutex].
+     This is why we allocate a temporary list with malloc. This is
+     unsatisfactory because the critical section inside
+     caml_ml_out_channels_list is not guaranteed to be short.*/
   caml_plat_lock_blocking(&caml_all_opened_channels_mutex);
-  for (channel = caml_all_opened_channels;
+  for (struct channel *channel = caml_all_opened_channels;
        channel != NULL;
        channel = channel->next) {
     CAMLassert(channel->flags & CHANNEL_FLAG_MANAGED_BY_GC);
