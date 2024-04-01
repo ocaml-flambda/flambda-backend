@@ -541,8 +541,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               and v =
                 if is_void then Oval_stuff "<void>"
                 else match rep with
-                  | Outval_record_boxed -> tree_of_val (depth - 1) obj ty_arg
-                  | Outval_record_unboxed ->
+                  | Outval_record_unboxed -> tree_of_val (depth - 1) obj ty_arg
+                  | Outval_record_boxed ->
                       let fld =
                         if O.tag obj = O.double_array_tag then
                           O.repr (O.double_field obj pos)
