@@ -335,10 +335,13 @@ let legacy_modality f m =
   pp_print_string f s
 
 let legacy_modalities f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_modality f m
+
+let optional_legacy_modalities f m =
   match m with
   | [] -> ()
   | m ->
-    pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_modality f m;
+    legacy_modalities f m;
     pp_print_space f ()
 
 let mode f m =
@@ -365,7 +368,10 @@ let maybe_type_atat_modes pty ctxt f c =
   | None -> pty ctxt f c
 
 let modalities_type pty ctxt f pca =
-  pp f "%a %a" legacy_modalities pca.pca_modalities (pty ctxt) pca.pca_type
+  match pca.pca_modalities with
+  | [] -> pty ctxt f pca.pca_type
+  | m ->
+    pp f "%a %a" legacy_modalities m (pty ctxt) pca.pca_type
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
@@ -1853,7 +1859,7 @@ and record_declaration ctxt f lbls =
   let type_record_field f pld =
     pp f "@[<2>%a%a%s:@;%a@;%a@]"
       mutable_flag pld.pld_mutable
-      legacy_modalities pld.pld_modalities
+      optional_legacy_modalities pld.pld_modalities
       pld.pld_name.txt
       (core_type ctxt) pld.pld_type
       (attributes ctxt) pld.pld_attributes
