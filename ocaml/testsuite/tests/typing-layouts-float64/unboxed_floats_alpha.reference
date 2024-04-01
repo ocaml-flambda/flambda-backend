@@ -11,66 +11,66 @@ Test 13, 610.68: : 610.68
   Test 13, step 9: 0.00
 Test 14, construction:
   a: 3.14
-  b: 13
+  b: 13.00
   c: 7.31
   d: 1.41
-  e: 6
+  e: 6.00
   f: 27.10
   a: -3.14
-  b: -13
+  b: -13.00
   c: -7.31
   d: -1.41
-  e: -6
+  e: -6.00
   f: -27.10
 Test 14, matching and projection:
   a: -6.00
-  b: -4
+  b: -4.55
   c: 0.00
   d: 14.41
-  e: 21
+  e: 21.10
   f: -27.10
 Test 14, record update and mutation:
   a: 3.14
-  b: 13
+  b: 13.00
   c: 7.31
   d: 42.00
-  e: 6
+  e: 6.00
   f: -7.31
   a: -3.14
-  b: 17
+  b: 17.00
   c: -7.31
   d: -1.41
-  e: -6
+  e: -6.00
   f: -27.10
   a: -3.14
-  b: 4
+  b: 4.55
   c: 42.00
   d: 25.00
-  e: -6
+  e: -6.00
   f: -27.10
-Test 15, (float#+float+imm) records in recursive groups:
+Test 15, (float#+float) records in recursive groups:
   a: 1.10
-  b: 2
+  b: 2.00
   c: 3.30
   d: 4.40
-  e: 5
+  e: 5.00
   f: 6.60
   a: -5.10
-  b: -6
+  b: -6.00
   c: -7.30
   d: -8.40
-  e: -9
+  e: -9.00
   f: -10.60
   result (-4.00): -4.00
   a: 1.10
-  b: 2
+  b: 2.00
   c: 3.30
   d: 2.00
-  e: 5
+  e: 5.00
   f: 1.10
   a: -5.10
-  b: 42
+  b: 42.00
   c: -7.30
   d: -8.40
-  e: -9
+  e: -9.00
   f: -10.60
