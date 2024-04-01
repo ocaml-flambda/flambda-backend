@@ -1170,7 +1170,7 @@ let update_decl_jkind env dpath decl =
     let rec find_flat_suffix classifications =
       match classifications with
       | [] -> Misc.fatal_error "Expected at least one Float64"
-      | (non_value_ld, c) :: classifications ->
+      | (ld, c) :: classifications ->
           match c with
           | Flat_float64_element ->
               let suffix =
@@ -1181,7 +1181,7 @@ let update_decl_jkind env dpath decl =
                         let violation =
                           Flat_field_expected
                             { boxed_lbl = repr_ld.Types.ld_id;
-                              non_value_lbl = non_value_ld.Types.ld_id;
+                              non_value_lbl = ld.Types.ld_id;
                             }
                         in
                         raise (Error (repr_ld.Types.ld_loc,
