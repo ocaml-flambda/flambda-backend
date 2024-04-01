@@ -198,11 +198,14 @@ let label_decl sub x =
   let ld_name = map_loc sub x.ld_name in
   let ld_type = sub.typ sub x.ld_type in
   let ld_attributes = sub.attributes sub x.ld_attributes in
-  {x with ld_loc; ld_name; ld_type; ld_attributes}
+  let ld_global = map_loc sub x.ld_global in
+  {x with ld_loc; ld_name; ld_type; ld_attributes; ld_global}
 
-let field_decl sub (ty, gf) =
-  let ty = sub.typ sub ty in
-  (ty, gf)
+let field_decl sub x =
+  let ca_type = sub.typ sub x.ca_type in
+  let ca_loc = sub.location sub x.ca_loc in
+  let ca_global = map_loc sub x.ca_global in
+  { ca_type; ca_loc; ca_global }
 
 let constructor_args sub = function
   | Cstr_tuple l -> Cstr_tuple (List.map (field_decl sub) l)

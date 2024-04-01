@@ -1032,9 +1032,9 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
-        (fun i (pat, (_, gf)) ->
+        (fun i (pat, { Types.ca_global = gf; _ }) ->
           let name = Longident.last lbl.txt in
-          let paths = Paths.construct_field gf name i paths in
+          let paths = Paths.construct_field gf.txt name i paths in
           pattern_match_single pat paths)
         pats_args
       |> conjuncts_pattern_match
@@ -1055,7 +1055,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
-          let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+          let paths = Paths.record_field l.lbl_global.txt l.lbl_name paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
@@ -1270,7 +1270,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
           match field with
           | l, Kept (_, _, unique_use) ->
             let value =
-              Value.implicit_record_field l.lbl_global l.lbl_name value
+              Value.implicit_record_field l.lbl_global.txt l.lbl_name value
                 unique_use
             in
             Value.mark_maybe_unique value
@@ -1403,7 +1403,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       let uf_read = Value.mark_implicit_borrow_memory_address Read value in
       let uf_boxing, value =
         let occ = Occurrence.mk loc in
-        let paths = Paths.record_field l.lbl_global l.lbl_name paths in
+        let paths = Paths.record_field l.lbl_global.txt l.lbl_name paths in
         match float with
         | Non_boxing unique_use ->
           UF.unused, Value.existing paths unique_use occ

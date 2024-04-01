@@ -1051,7 +1051,7 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
 
-and field_decl i ppf (ty, _) =
+and field_decl i ppf {ca_type=ty; ca_loc=_; ca_global=_} =
   core_type (i+1) ppf ty
 
 and longident_x_pattern i ppf (li, _, p) =

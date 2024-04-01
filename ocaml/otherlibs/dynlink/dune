@@ -108,6 +108,7 @@
     meta
     symtable
     asttypes
+    modality
     parsetree
     typedtree
     outcometree
@@ -165,6 +166,7 @@
 (copy_files ../../utils/lazy_backtrack.ml)
 (copy_files ../../utils/zero_alloc_utils.ml)
 (copy_files ../../parsing/location.ml)
+(copy_files ../../parsing/modality.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/printast.ml)
@@ -231,6 +233,7 @@
 (copy_files ../../utils/lazy_backtrack.mli)
 (copy_files ../../utils/zero_alloc_utils.mli)
 (copy_files ../../parsing/location.mli)
+(copy_files ../../parsing/modality.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/printast.mli)
@@ -338,6 +341,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Modality.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
@@ -420,6 +424,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Modality.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx

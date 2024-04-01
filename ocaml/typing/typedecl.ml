@@ -357,15 +357,14 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          raise(Error(loc, Duplicate_label name));
        all_labels := String.Set.add name !all_labels)
     lbls;
-  let mk {pld_name=name;pld_mutable=mut;pld_type=arg;pld_loc=loc;
-          pld_attributes=attrs} =
+  let mk {pld_name=name;pld_mutable=mut;pld_modalities=modalities;
+          pld_type=arg;pld_loc=loc;pld_attributes=attrs} =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let gbl =
            match mut with
-           | Mutable -> Mode.Global_flag.Global
-           | Immutable -> Typemode.transl_global_flags
-              (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst)
+           | Mutable -> {txt = Mode.Global_flag.Global; loc = Location.none}
+           | Immutable -> Typemode.transl_global_flags modalities
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
@@ -394,20 +393,23 @@ let transl_labels ~new_var_jkind env univars closed lbls =
       lbls in
   lbls, lbls'
 
-let transl_types_gf ~new_var_jkind env univars closed tyl =
-  let mk arg =
-    let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
-    let gf = Typemode.transl_global_flags
-      (Jane_syntax.Mode_expr.of_attrs arg.ptyp_attributes |> fst) in
-    (cty, gf)
-  in
-  let tyl_gfl = List.map mk tyl in
-  let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
-  tyl_gfl, tyl_gfl'
-
 let transl_constructor_arguments ~new_var_jkind env univars closed = function
   | Pcstr_tuple l ->
-      let flds, flds' = transl_types_gf ~new_var_jkind env univars closed l in
+      let mk arg =
+        let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg.pca_type in
+        let gf = Typemode.transl_global_flags arg.pca_modalities in
+        {ca_global = gf; ca_type = cty; ca_loc = arg.pca_loc}
+      in
+      let flds = List.map mk l in
+      let flds' = List.map
+                    (fun ca ->
+                       {
+                         Types.ca_global = ca.ca_global;
+                         ca_loc = ca.ca_loc;
+                         ca_type = ca.ca_type.ctyp_type;
+                       }
+                    )
+                    flds in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
   | Pcstr_record l ->
@@ -914,8 +916,8 @@ let check_constraints env sdecl (_, decl) =
           begin match cd_args, pcd_args with
           | Cstr_tuple tyl, Pcstr_tuple styl ->
               List.iter2
-                (fun sty (ty, _) ->
-                   check_constraints_rec env sty.ptyp_loc visited ty)
+                (fun arg {Types.ca_type=ty; _} ->
+                   check_constraints_rec env arg.pca_type.ptyp_loc visited ty)
                 styl tyl
           | Cstr_record tyl, Pcstr_record styl ->
               check_constraints_labels env visited tyl styl
@@ -1076,7 +1078,7 @@ let update_label_jkinds env loc lbls named =
 let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
-    List.iteri (fun idx (ty,_) ->
+    List.iteri (fun idx {Types.ca_type=ty; _} ->
       check_representable ~why:(Constructor_declaration idx) ~allow_float:false
         env loc Cstr_tuple ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
@@ -1155,7 +1157,7 @@ let update_decl_jkind env dpath decl =
     match cstrs, rep with
     | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
-        | Cstr_tuple [ty,_] -> begin
+        | Cstr_tuple [{ca_type=ty; _}] -> begin
             check_representable ~why:(Constructor_declaration 0)
               ~allow_float:false env cd_loc Cstr_tuple ty;
             let jkind = Ctype.type_jkind env ty in
@@ -1896,7 +1898,7 @@ let transl_extension_constructor ~scope env type_path type_params
         if not cdescr.cstr_generalized then begin
           let vars =
             Ctype.free_variables
-              (Btype.newgenty (Ttuple (List.map (fun (t,_) -> None, t) args)))
+              (Btype.newgenty (Ttuple (List.map (fun {Types.ca_type=t; _} -> None, t) args)))
           in
           List.iter
             (fun ty ->
@@ -1941,7 +1943,7 @@ let transl_extension_constructor ~scope env type_path type_params
               Types.Cstr_tuple args
           | Some decl ->
               let tl =
-                match List.map (fun (ty, _) -> get_desc ty) args with
+                match List.map (fun {Types.ca_type=ty; _} -> get_desc ty) args with
                 | [ Tconstr(_, tl, _) ] -> tl
                 | _ -> assert false
               in

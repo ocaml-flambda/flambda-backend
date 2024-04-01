@@ -83,7 +83,7 @@
    location longident docstrings printast syntaxerr ast_helper
    camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
    attr_helper builtin_attributes ast_invariants depend jane_asttypes jane_syntax_parsing
-   jane_syntax ; manual update: mli only files asttypes parsetree
+   jane_syntax modality ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
    ident path jkind primitive shape types btype oprint subst predef datarepr
@@ -279,6 +279,7 @@
     (depend.mli as compiler-libs/depend.mli)
     (asttypes.mli as compiler-libs/asttypes.mli)
     (jane_asttypes.mli as compiler-libs/jane_asttypes.mli)
+    (modality.mli as compiler-libs/modality.mli)
     (parsetree.mli as compiler-libs/parsetree.mli)
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)

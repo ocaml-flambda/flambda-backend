@@ -259,8 +259,20 @@ let type_kind sub tk = match tk with
       Ptype_record (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
+let global_flag_to_modalities sub = function
+  | {txt = Mode.Global_flag.Global; loc} ->
+    [{
+      txt = Modality.modality_of_string "global";
+      loc = sub.location sub loc
+    }]
+  | {txt = Mode.Global_flag.Unrestricted; _} -> []
+
+let constructor_argument sub {ca_loc; ca_type; ca_global} =
+  let pca_modalities = global_flag_to_modalities sub ca_global in
+  { pca_loc = sub.location sub ca_loc; pca_type = sub.typ sub ca_type; pca_modalities }
+
 let constructor_arguments sub = function
-   | Cstr_tuple l -> Pcstr_tuple (List.map (fun (ty, _) -> sub.typ sub ty) l)
+   | Cstr_tuple l -> Pcstr_tuple (List.map (constructor_argument sub) l)
    | Cstr_record l -> Pcstr_record (List.map (sub.label_declaration sub) l)
 
 let constructor_declaration sub cd =
@@ -279,6 +291,7 @@ let label_declaration sub ld =
   let attrs = sub.attributes sub ld.ld_attributes in
   Type.field ~loc ~attrs
     ~mut:ld.ld_mutable
+    ~modalities:(global_flag_to_modalities sub ld.ld_global)
     (map_loc sub ld.ld_name)
     (sub.typ sub ld.ld_type)
 

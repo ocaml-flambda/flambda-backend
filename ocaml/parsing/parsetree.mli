@@ -21,6 +21,7 @@
 *)
 
 open Asttypes
+open Modality
 
 type constant =
   | Pconst_integer of string * char option
@@ -522,6 +523,7 @@ and label_declaration =
     {
      pld_name: string loc;
      pld_mutable: mutable_flag;
+     pld_modalities: modality loc list;
      pld_type: core_type;
      pld_loc: Location.t;
      pld_attributes: attributes;  (** [l : T [\@id1] [\@id2]] *)
@@ -547,8 +549,15 @@ and constructor_declaration =
      pcd_attributes: attributes;  (** [C of ... [\@id1] [\@id2]] *)
     }
 
+and constructor_argument =
+  {
+    pca_modalities: modality loc list;
+    pca_type: core_type;
+    pca_loc: Location.t; (* REMOVEME *)
+  }
+
 and constructor_arguments =
-  | Pcstr_tuple of core_type list
+  | Pcstr_tuple of constructor_argument list
   | Pcstr_record of label_declaration list
       (** Values of type {!constructor_declaration}
     represents the constructor arguments of:

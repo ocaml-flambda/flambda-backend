@@ -1252,7 +1252,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
           instance_constructor Keep_existentials_flexible cstr
         in
         List.iter2
-          (fun (p,ty) (arg, _) ->
+          (fun (p,ty) {Types.ca_type=arg; _} ->
              unify_pat ~refine env {p with pat_type = ty} arg)
           (List.combine pl tyl) ty_args;
         ty_res
@@ -1499,7 +1499,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
                 (Make_existentials_abstract { env; scope = expansion_scope })
                 constr
             in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global.txt) ty_args)
+            in
             ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
@@ -1514,7 +1517,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global.txt) ty_args)
+            in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps env name_list sty ty_args_ty
                 ty_ex
@@ -2655,7 +2661,7 @@ and type_pat_aux
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
         let alloc_mode =
-          modality_unbox_left label.lbl_global alloc_mode.mode
+          modality_unbox_left label.lbl_global.txt alloc_mode.mode
         in
         let alloc_mode = simple_pat_mode alloc_mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -5555,9 +5561,9 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
+                  let mode = modality_unbox_left lbl.lbl_global.txt mode in
                   let argument_mode =
-                    mode_box_modality lbl.lbl_global argument_mode
+                    mode_box_modality lbl.lbl_global.txt argument_mode
                   in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
@@ -5604,7 +5610,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = modality_unbox_left label.lbl_global.txt rmode in
       let boxing : texp_field_boxing =
         match label.lbl_repres with
         | Record_float ->
@@ -7099,7 +7105,7 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let arg_mode = mode_box_modality label.lbl_global expected_mode in
+  let arg_mode = mode_box_modality label.lbl_global.txt expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
@@ -7640,10 +7646,10 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     end
       ~post:(fun (ty_args, ty_res, _) ->
         generalize_structure ty_res;
-        List.iter (fun (ty, _) -> generalize_structure ty) ty_args)
+        List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args0, ty_res =
-    match instance_list (ty_res :: (List.map fst ty_args)) with
+    match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
     | _ -> assert false
   in
@@ -7672,9 +7678,9 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let args =
     List.map2
-      (fun e ((ty, gf),t0) ->
-         let argument_mode = mode_box_modality gf argument_mode in
-         type_argument ~recarg env argument_mode e ty t0)
+      (fun e ((ca : Types.constructor_argument), t0) ->
+         let argument_mode = mode_box_modality ca.ca_global.txt argument_mode in
+         type_argument ~recarg env argument_mode e ca.ca_type t0)
       sargs (List.combine ty_args ty_args0)
   in
   if constr.cstr_private = Private then

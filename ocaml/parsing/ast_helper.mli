@@ -21,6 +21,7 @@
 *)
 
 open Asttypes
+open Modality
 open Docstrings
 open Parsetree
 
@@ -226,8 +227,13 @@ module Type:
       ?vars:str list -> ?args:constructor_arguments -> ?res:core_type ->
       str ->
       constructor_declaration
+
+    val constructor_arg: ?loc:loc -> ?modalities:modality with_loc list -> core_type ->
+      constructor_argument
+
     val field: ?loc:loc -> ?attrs:attrs -> ?info:info ->
-      ?mut:mutable_flag -> str -> core_type -> label_declaration
+      ?mut:mutable_flag -> ?modalities:modality with_loc list -> str -> core_type ->
+      label_declaration
   end
 
 (** Type extensions *)

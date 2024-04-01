@@ -17,7 +17,6 @@
 
 open Asttypes
 open Types
-open Mode
 
 exception Unify    of Errortrace.unification_error
 exception Equality of Errortrace.equality_error
@@ -186,7 +185,7 @@ type existential_treatment =
 
 val instance_constructor: existential_treatment ->
         constructor_description ->
-        (type_expr * Global_flag.t) list * type_expr * type_expr list
+        Types.constructor_argument list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->

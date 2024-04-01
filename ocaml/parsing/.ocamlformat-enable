@@ -4,3 +4,5 @@ jane_syntax_parsing.ml
 jane_syntax_parsing.mli
 jane_asttypes.ml
 jane_asttypes.mli
+modality.ml
+modality.mli

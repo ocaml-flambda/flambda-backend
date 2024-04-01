@@ -311,7 +311,6 @@ let legacy_mode f m =
     | "local" -> "local_"
     | "unique" -> "unique_"
     | "once" -> "once_"
-    | "global" -> "global_" (* global modality *)
     | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
   in
   pp_print_string f s
@@ -324,6 +323,22 @@ let optional_legacy_modes f m =
   | None -> ()
   | Some m ->
     legacy_modes f m;
+    pp_print_space f ()
+
+let legacy_modality f m =
+  let {txt; _} = (m : Modality.modality Location.loc) in
+  let s =
+    match Modality.modality_to_string txt with
+    | "global" -> "global_"
+    | s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
+  in
+  pp_print_string f s
+
+let legacy_modalities f m =
+  match m with
+  | [] -> ()
+  | m ->
+    pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_modality f m;
     pp_print_space f ()
 
 let mode f m =
@@ -348,6 +363,9 @@ let maybe_type_atat_modes pty ctxt f c =
   match m with
   | Some m -> pp f "%a@ @@@@@ %a" (pty ctxt) c modes m
   | None -> pty ctxt f c
+
+let modalities_type pty ctxt f pca =
+  pp f "%a %a" legacy_modalities pca.pca_modalities (pty ctxt) pca.pca_type
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
@@ -1833,15 +1851,11 @@ and type_def_list ctxt f (rf, exported, l) =
 
 and record_declaration ctxt f lbls =
   let type_record_field f pld =
-    let modalities, ptyp_attributes =
-      Jane_syntax.Mode_expr.maybe_of_attrs pld.pld_type.ptyp_attributes
-    in
-    let pld_type = {pld.pld_type with ptyp_attributes} in
     pp f "@[<2>%a%a%s:@;%a@;%a@]"
       mutable_flag pld.pld_mutable
-      optional_legacy_modes modalities
+      legacy_modalities pld.pld_modalities
       pld.pld_name.txt
-      (core_type ctxt) pld_type
+      (core_type ctxt) pld.pld_type
       (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
@@ -1932,7 +1946,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> ()
            | Pcstr_tuple l ->
-             pp f "@;of@;%a" (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
+             pp f "@;of@;%a" (list (modalities_type core_type1 ctxt) ~sep:"@;*@;") l
            | Pcstr_record l -> pp f "@;of@;%a" (record_declaration ctxt) l
         ) args
         (attributes ctxt) attrs
@@ -1942,7 +1956,7 @@ and constructor_declaration ctxt f (name, vars_jkinds, args, res, attrs) =
         (fun f -> function
            | Pcstr_tuple [] -> core_type1 ctxt f r
            | Pcstr_tuple l -> pp f "%a@;->@;%a"
-                                (list (maybe_modes_type core_type1 ctxt) ~sep:"@;*@;") l
+                                (list (modalities_type core_type1 ctxt) ~sep:"@;*@;") l
                                 (core_type1 ctxt) r
            | Pcstr_record l ->
                pp f "%a@;->@;%a" (record_declaration ctxt) l (core_type1 ctxt) r

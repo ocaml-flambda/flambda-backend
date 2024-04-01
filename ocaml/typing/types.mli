@@ -81,7 +81,7 @@ and type_desc =
   | Ttuple of (string option * type_expr) list
   (** [Ttuple [None, t1; ...; None, tn]] ==> [t1 * ... * tn]
       [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1:t1 * ... * ln:tn]
-      
+
       Any mix of labeled and unlabeled components also works:
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
@@ -560,7 +560,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutable_flag;
-    ld_global: Mode.Global_flag.t;
+    ld_global: Mode.Global_flag.t loc;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
     ld_loc: Location.t;
@@ -578,8 +578,15 @@ and constructor_declaration =
     cd_uid: Uid.t;
   }
 
+and constructor_argument =
+  {
+    ca_global: Mode.Global_flag.t loc;
+    ca_type: type_expr;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * Mode.Global_flag.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
@@ -753,7 +760,7 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * Mode.Global_flag.t) list;          (* Type of the arguments *)
+    cstr_args: constructor_argument list; (* Type of the arguments *)
     cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
@@ -790,7 +797,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: Mode.Global_flag.t;     (* Is this a global field? *)
+    lbl_global: Mode.Global_flag.t loc; (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)

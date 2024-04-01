@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Modality
 open Format
 open Lexing
 open Location
@@ -884,8 +885,17 @@ and constructor_decl i ppf
   constructor_arguments (i+1) ppf pcd_args;
   option (i+1) core_type ppf pcd_res
 
+and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
+  line i ppf "%a\n" fmt_location pca_loc;
+  list (i+1) string_loc ppf (
+    List.map
+      (fun m -> {m with txt = modality_to_string m.txt})
+      pca_modalities
+  );
+  core_type (i+1) ppf pca_type
+
 and constructor_arguments i ppf = function
-  | Pcstr_tuple l -> list i core_type ppf l
+  | Pcstr_tuple l -> list i constructor_argument ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
 and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=

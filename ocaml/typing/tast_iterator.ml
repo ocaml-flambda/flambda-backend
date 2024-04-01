@@ -157,13 +157,17 @@ let value_description sub x =
   iter_loc sub x.val_name;
   sub.typ sub x.val_desc
 
-let label_decl sub {ld_loc; ld_name; ld_type; ld_attributes; _} =
+let label_decl sub {ld_loc; ld_name; ld_type; ld_attributes; ld_global} =
   sub.location sub ld_loc;
   sub.attributes sub ld_attributes;
   iter_loc sub ld_name;
-  sub.typ sub ld_type
+  sub.typ sub ld_type;
+  iter_loc sub ld_global
 
-let field_decl sub (ty, _) = sub.typ sub ty
+let field_decl sub {ca_loc; ca_type; ca_global} =
+  sub.location sub ca_loc;
+  sub.typ sub ca_type;
+  iter_loc sub ca_global
 
 let constructor_args sub = function
   | Cstr_tuple l -> List.iter (field_decl sub) l

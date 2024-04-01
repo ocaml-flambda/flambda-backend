@@ -1426,9 +1426,9 @@ and tree_of_typlist mode tyl =
 and tree_of_labeled_typlist mode tyl =
   List.map (fun (label, ty) -> label, tree_of_typexp mode ty) tyl
 
-and tree_of_typ_gf (ty, gf) =
+and tree_of_typ_gf {ca_type=ty; ca_global=gf; _} =
   let gf =
-    match gf with
+    match gf.txt with
     | Global_flag.Global -> Ogf_global
     | Global_flag.Unrestricted -> Ogf_unrestricted
   in
@@ -1571,7 +1571,7 @@ let param_jkind ty =
 
 let tree_of_label l =
   let gom =
-    match l.ld_mutable, l.ld_global with
+    match l.ld_mutable, l.ld_global.txt with
     | Mutable, _ -> Ogom_mutable
     | Immutable, Global -> Ogom_global
     | Immutable, Unrestricted -> Ogom_immutable
