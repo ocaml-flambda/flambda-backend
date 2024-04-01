@@ -152,10 +152,10 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * flat_element_projection * field_read_semantics
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * flat_element * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -341,10 +341,17 @@ and block_shape =
   value_kind list option
 
 and flat_element = Types.flat_element = Imm | Float | Float64
-and flat_element_projection =
-  | Projection_imm
-  | Projection_float of alloc_mode
-  | Projection_float64
+and flat_element_read =
+  | Flat_read_imm
+  | Flat_read_float of alloc_mode
+  | Flat_read_float64
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
 and mixed_block_shape = Types.mixed_record_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
@@ -1589,10 +1596,11 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
-  | Pmixedfield (_, flat_projection, _) -> begin
-      match flat_projection with
-      | Projection_float m -> Some m
-      | Projection_float64 | Projection_imm -> None
+  | Pmixedfield (_, read, _) -> begin
+      match read with
+      | Mread_value_prefix _ -> None
+      | Mread_flat_suffix (Flat_read_float m) -> Some m
+      | Mread_flat_suffix (Flat_read_float64 | Flat_read_imm) -> None
     end
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
@@ -1763,9 +1771,13 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float float_kind -> Punboxed_float float_kind
   | Pmixedfield (_, kind, _) -> begin
       match kind with
-      | Projection_imm -> layout_int
-      | Projection_float _ -> layout_boxed_float Pfloat64
-      | Projection_float64 -> layout_unboxed_float Pfloat64
+      | Mread_value_prefix _ -> layout_field
+      | Mread_flat_suffix proj -> begin
+          match proj with
+          | Flat_read_imm -> layout_int
+          | Flat_read_float _ -> layout_boxed_float Pfloat64
+          | Flat_read_float64 -> layout_unboxed_float Pfloat64
+        end
     end
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom

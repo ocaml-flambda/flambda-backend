@@ -152,10 +152,9 @@ module Block_access_field_kind : sig
 end
 
 module Mixed_block_access_field_kind : sig
-  type t = Lambda.flat_element =
-    | Imm
-    | Float
-    | Float64
+  type t =
+    | Value_prefix of Block_access_field_kind.t
+    | Flat_suffix of Lambda.flat_element
 
   val print : Format.formatter -> t -> unit
 

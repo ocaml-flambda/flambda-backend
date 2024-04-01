@@ -2170,21 +2170,21 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
         | Record_mixed { value_prefix_len; flat_suffix } ->
-          if pos < value_prefix_len then
-            Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
-          else begin
-            let projection =
-              match flat_suffix.(pos - value_prefix_len) with
-              | Imm -> Projection_imm
-              | Float64 -> Projection_float64
-              | Float ->
-                  (* TODO: could optimise to Alloc_local sometimes *)
-                  Projection_float alloc_heap
+            let read =
+              if pos < value_prefix_len then Mread_value_prefix ptr
+              else
+                let read =
+                  match flat_suffix.(pos - value_prefix_len) with
+                  | Imm -> Flat_read_imm
+                  | Float64 -> Flat_read_float64
+                  | Float ->
+                      (* TODO: could optimise to Alloc_local sometimes *)
+                      Flat_read_float alloc_heap
+                in
+                Mread_flat_suffix read
             in
-            Lprim (Pmixedfield (lbl.lbl_pos, projection, sem), [ arg ], loc)
-          end,
-          lbl_sort, lbl_layout
+            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
+            lbl_sort, lbl_layout
       in
       let str =
         match lbl.lbl_mut with

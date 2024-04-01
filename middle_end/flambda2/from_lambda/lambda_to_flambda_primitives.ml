@@ -1372,26 +1372,34 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
-  | Pmixedfield (field, shape, sem), [[arg]] -> (
+  | Pmixedfield (field, read, sem), [[arg]] -> (
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       let field_kind : P.Mixed_block_access_field_kind.t =
-        match shape with
-        | Projection_imm -> Imm
-        | Projection_float _ -> Float
-        | Projection_float64 -> Float64
+        match read with
+        (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
+        | Mread_value_prefix _int_or_pointer -> Value_prefix Any_value
+        | Mread_flat_suffix read ->
+            Flat_suffix (
+              match read with
+              | Flat_read_imm -> Imm
+              | Flat_read_float _ -> Float
+              | Flat_read_float64 -> Float64)
       in
       Mixed { field_kind; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
     in
-    match shape with
-    | Projection_imm | Projection_float64 -> [block_access]
-    | Projection_float mode -> [box_float mode block_access ~current_region])
+    match read with
+    | Mread_value_prefix _
+    | Mread_flat_suffix (Flat_read_imm | Flat_read_float64) ->
+        [block_access]
+    | Mread_flat_suffix (Flat_read_float mode) ->
+        [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1429,17 +1437,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
-  | ( Psetmixedfield (field, shape, initialization_or_assignment),
+  | ( Psetmixedfield (field, write, initialization_or_assignment),
       [[block]; [value]] ) ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetmixedfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
-      Mixed { field_kind = shape; size = Unknown }
+      Mixed { field_kind =
+                (match write with
+                 | Mwrite_value_prefix immediate_or_pointer ->
+                     Value_prefix (
+                       convert_block_access_field_kind immediate_or_pointer)
+                 | Mwrite_flat_suffix flat -> Flat_suffix flat);
+              size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let value =
-      match shape with Imm | Float64 -> value | Float -> unbox_float value
+      match write with
+      | Mwrite_value_prefix _
+      | Mwrite_flat_suffix (Imm | Float64) -> value
+      | Mwrite_flat_suffix Float -> unbox_float value
     in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)

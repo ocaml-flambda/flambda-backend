@@ -95,12 +95,14 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
   let mutability = Mutability.to_asttypes mutability in
   match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
   | Values { field_kind = Any_value; _ } ->
     C.get_field_computed Pointer mutability ~block ~index dbg
+  | Mixed { field_kind = Value_prefix Immediate; _ }
   | Values { field_kind = Immediate; _ } ->
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
-  | Mixed { field_kind; _ } -> (
+  | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
     | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
     | Float | Float64 -> C.unboxed_float_array_ref block index dbg)
@@ -110,12 +112,14 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
   let init_or_assign = P.Init_or_assign.to_lambda init in
   let expr =
     match kind with
+    | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
       C.setfield_computed Pointer init_or_assign block index new_value dbg
+    | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
-    | Mixed { field_kind; _ } -> (
+    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg

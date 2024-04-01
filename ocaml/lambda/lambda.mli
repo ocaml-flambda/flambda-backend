@@ -109,13 +109,13 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * flat_element_projection * field_read_semantics
-  (* [Pmixedfield] is an access to the flat suffix of a mixed record; accesses
-     to the value prefix are [Pfield].
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  (* [Pmixedfield] is an access to either the flat suffix or value prefix of a
+     mixed record.
   *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * flat_element * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -348,10 +348,17 @@ and block_shape =
   value_kind list option
 
 and flat_element = Imm | Float | Float64
-and flat_element_projection =
-  | Projection_imm
-  | Projection_float of alloc_mode
-  | Projection_float64
+and flat_element_read =
+  | Flat_read_imm
+  | Flat_read_float of alloc_mode
+  | Flat_read_float64
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
 and mixed_block_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)

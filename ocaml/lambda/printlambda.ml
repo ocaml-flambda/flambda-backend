@@ -304,10 +304,20 @@ let flat_element ppf : flat_element -> unit = function
   | Float -> pp_print_string ppf "float"
   | Float64 -> pp_print_string ppf "float64"
 
-let flat_element_projection ppf : flat_element_projection -> unit = function
-  | Projection_imm -> pp_print_string ppf "int"
-  | Projection_float m -> fprintf ppf "float[%a]" alloc_mode m
-  | Projection_float64 -> pp_print_string ppf "float64"
+let flat_element_read ppf : flat_element_read -> unit = function
+  | Flat_read_imm -> pp_print_string ppf "int"
+  | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
+  | Flat_read_float64 -> pp_print_string ppf "float64"
+
+let mixed_block_read ppf : mixed_block_read -> unit = function
+  | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mread_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mread_flat_suffix flat -> flat_element_read ppf flat
+
+let mixed_block_write ppf : mixed_block_write -> unit = function
+  | Mwrite_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mwrite_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mwrite_flat_suffix flat -> flat_element ppf flat
 
 let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
   begin match value_prefix_len with
@@ -440,9 +450,9 @@ let primitive ppf = function
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
-  | Pmixedfield (n, shape, sem) ->
+  | Pmixedfield (n, read, sem) ->
       fprintf ppf "mixedfield%a %i %a"
-        field_read_semantics sem n flat_element_projection shape
+        field_read_semantics sem n mixed_block_read read
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -461,7 +471,7 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
-  | Psetmixedfield (n, shape, init) ->
+  | Psetmixedfield (n, write, init) ->
       let init =
         match init with
         | Heap_initialization -> "(heap-init)"
@@ -470,7 +480,7 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setmixedfield%s %i %a"
-        init n flat_element shape
+        init n mixed_block_write write
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"

@@ -373,14 +373,35 @@ module Block_access_field_kind = struct
 end
 
 module Mixed_block_access_field_kind = struct
-  type t = Lambda.flat_element =
-    | Imm
-    | Float
-    | Float64
+  type t =
+    | Value_prefix of Block_access_field_kind.t
+    | Flat_suffix of Lambda.flat_element
 
-  let print = Printlambda.flat_element
+  let [@ocamlformat "disable"] print ppf t =
+    match t with
+    | Value_prefix field_kind ->
+        Format.fprintf ppf
+          "@[<hov 1>(Value_prefix@ \
+           @[<hov 1>(field_kind@ %a)@]\
+           )@]"
+          Block_access_field_kind.print field_kind
+    | Flat_suffix flat_element ->
+        Format.fprintf ppf
+          "@[<hov 1>(Flat_suffix \
+           @[<hov 1>(flat_element@ %a)@]\
+           )@]"
+          Printlambda.flat_element flat_element
 
-  let compare = Stdlib.compare
+  let compare t1 t2 =
+      match t1, t2 with
+      | ( Value_prefix field_kind1,
+          Value_prefix field_kind2 ) ->
+          Block_access_field_kind.compare field_kind1 field_kind2
+      | ( Flat_suffix element_kind1,
+          Flat_suffix element_kind2 ) ->
+          Stdlib.compare element_kind1 element_kind2
+      | Value_prefix _, Flat_suffix _ -> -1
+      | Flat_suffix _, Value_prefix _ -> 1
 end
 
 module Block_access_kind = struct
@@ -429,19 +450,21 @@ module Block_access_kind = struct
     | Naked_floats _ -> K.naked_float
     | Mixed { field_kind; _ } -> (
       match field_kind with
-      | Imm -> K.value
-      | Float | Float64 ->
-        K.naked_float
-        (* CR mixed blocks: based on the Naked_floats case I believe naked_float
-           is correct here for both Float and Float64, but an flambda2 person
-           should check. *))
+      | Value_prefix _ -> K.value
+      | Flat_suffix Imm -> K.value
+      | Flat_suffix (Float | Float64) ->
+        K.naked_float)
 
   let element_subkind_for_load t =
     match t with
-    | Values { field_kind = Any_value; _ } -> K.With_subkind.any_value
-    | Values { field_kind = Immediate; _ } -> K.With_subkind.tagged_immediate
+    | Values { field_kind = Any_value; _ }
+    | Mixed { field_kind = Value_prefix Any_value; _ } ->
+        K.With_subkind.any_value
+    | Values { field_kind = Immediate; _ }
+    | Mixed { field_kind = Value_prefix Immediate; _ } ->
+        K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
-    | Mixed { field_kind; _ } -> (
+    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
       | Float | Float64 -> K.With_subkind.naked_float)

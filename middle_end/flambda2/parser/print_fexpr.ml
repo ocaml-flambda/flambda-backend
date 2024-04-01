@@ -456,9 +456,11 @@ let block_access_kind ppf (access_kind : block_access_kind) =
   let pp_mixed_field_kind ppf
       (field_kind : Flambda_primitive.Mixed_block_access_field_kind.t) =
     match field_kind with
-    | Float -> Format.fprintf ppf "@ float"
-    | Imm -> Format.fprintf ppf "@ imm"
-    | Float64 -> Format.fprintf ppf "@ float64"
+    | Value_prefix Any_value -> ()
+    | Value_prefix Immediate -> Format.fprintf ppf "@ imm"
+    | Flat_suffix Float -> Format.fprintf ppf "@ float"
+    | Flat_suffix Imm -> Format.fprintf ppf "@ imm"
+    | Flat_suffix Float64 -> Format.fprintf ppf "@ float64"
   in
   match access_kind with
   | Values { field_kind; tag; size } ->
