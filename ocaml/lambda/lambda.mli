@@ -775,6 +775,7 @@ type mixed_block_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
+(** Raises if the int is out of bounds. *)
 val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda

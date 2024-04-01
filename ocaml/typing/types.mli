@@ -842,6 +842,7 @@ type mixed_record_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
+(** Raises if the int is out of bounds. *)
 val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
 
 (**** Utilities for backtracking ****)
