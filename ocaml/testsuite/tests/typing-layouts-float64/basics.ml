@@ -196,8 +196,9 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
 (****************************************************************************)
 (* Test 5: Can't be put in structures in typedecls, except certain records. *)
 
-(* all-float64 records are allowed, as are any combination of immediate, float,
-   and float64 *)
+(* all-float64 records are allowed, as are some records that mix float64 and
+   value fields. See [test/mixed-records] for more exhaustive tests of mixed
+   records. *)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
@@ -291,8 +292,6 @@ type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
 
 type 'a t5_10 = 'a t_float64_id
 and 'a t5_11 = {x : 'a t5_10; y : 'a}
-
-type ('a : float64) t5_12 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64, 'b : float64) t5_9 = { x : 'a; y : 'b; z : 'a; }
 Line 4, characters 20-28:
@@ -311,11 +310,17 @@ Error: Layout mismatch in final type declaration consistency check.
        the declaration where this error is reported.
 |}];;
 
+type ('a : float64) t5_12 = {x : 'a; y : float#};;
+[%%expect{|
+type ('a : float64) t5_12 = { x : 'a; y : float#; }
+|}];;
+
 type ('a : float64) t5_13 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64) t5_13 = { x : 'a; y : float#; }
 |}];;
 
+(* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
 Line 1, characters 0-36:
