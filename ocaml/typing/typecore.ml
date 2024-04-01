@@ -5607,14 +5607,25 @@ and type_expect_
       in
       let mode = modality_unbox_left label.lbl_global rmode in
       let boxing : texp_field_boxing =
-        match label.lbl_repres with
-        | Record_float ->
+        let is_float_boxing =
+          match label.lbl_repres with
+          | Record_float -> true
+          | Record_mixed mixed -> begin
+              match Types.get_mixed_record_element mixed label.lbl_num with
+              | Flat_suffix Float -> true
+              | Flat_suffix (Float64 | Imm) -> false
+              | Value_prefix -> false
+            end
+          | _ -> false
+        in
+        match is_float_boxing with
+        | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
           let mode = mode_cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu = unique_use ~loc ~env mode argument_mode.mode in
           Boxing (alloc_mode, uu)
-        | _ ->
+        | false ->
           let mode = mode_cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode expected_mode.mode in

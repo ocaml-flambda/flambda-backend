@@ -117,24 +117,25 @@ type block =
   ; suffix : suffix
   }
 
-let enumeration_of_block =
-  Seq.append
-    (Seq.product
-      enumeration_of_prefix
-      enumeration_of_suffix_except_all_floats_mixed
-     |> Seq.filter (fun (prefix, suffix) ->
-         let all_float_u_suffix =
-           List.for_all (Nonempty_list.to_list suffix)
-             ~f:(fun (elem, _) -> flat_element_is Float_u elem)
-         in
-         let all_float_prefix =
-           List.for_all prefix
-             ~f:(fun (elem, _) -> value_element_is Float elem)
-         in
-         not all_float_u_suffix || not all_float_prefix)
-     |> Seq.map (fun (prefix, suffix) -> { prefix; suffix }))
-    (enumeration_of_all_floats_mixed_suffix
-     |> Seq.map (fun suffix -> { prefix = []; suffix }))
+let enumeration_of_mixed_blocks_except_all_floats_mixed =
+  Seq.product
+   enumeration_of_prefix
+   enumeration_of_suffix_except_all_floats_mixed
+  |> Seq.filter (fun (prefix, suffix) ->
+      let all_float_u_suffix =
+        List.for_all (Nonempty_list.to_list suffix)
+          ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+      in
+      let all_float_prefix =
+        List.for_all prefix
+          ~f:(fun (elem, _) -> value_element_is Float elem)
+      in
+      not all_float_u_suffix || not all_float_prefix)
+  |> Seq.map (fun (prefix, suffix) -> { prefix; suffix })
+
+let enumeration_of_all_floats_mixed_blocks =
+  enumeration_of_all_floats_mixed_suffix
+  |> Seq.map (fun suffix -> { prefix = []; suffix })
 ;;
 
 module Named_block = struct
@@ -258,8 +259,14 @@ module Named_block = struct
 end
 
 let main n ~bytecode =
+  (* Don't overrepresent all-float mixed blocks. *)
+  let n_all_floats_mixed = n / 4 in
   let named_blocks =
-    Seq.take n enumeration_of_block
+    Seq.append
+      (Seq.take n_all_floats_mixed
+        enumeration_of_all_floats_mixed_blocks)
+      (Seq.take (n - n_all_floats_mixed)
+        enumeration_of_mixed_blocks_except_all_floats_mixed)
     |> List.of_seq
     |> List.mapi ~f:Named_block.of_block
   in
