@@ -120,9 +120,68 @@ type ok5 =
 type ok5 = { a : float#; b : float#; c : int; }
 |}];;
 
+(* Parameterized types *)
+
+type ('a : float64) ok6 = { x : string; y : 'a }
+[%%expect{|
+type ('a : float64) ok6 = { x : string; y : 'a; }
+|}];;
+
+type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b }
+[%%expect{|
+type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b; }
+|}];;
+
+(* Recursive groups *)
+
+type ('a : float64) t_float64_id = 'a
+type ('a : immediate) t_immediate_id = 'a
+[%%expect{|
+type ('a : float64) t_float64_id = 'a
+type ('a : immediate) t_immediate_id = 'a
+|}];;
+
+type 'a err6_float = 'a t_float64_id
+and 'a err6_immediate = 'a t_immediate_id
+and ('a, 'b, 'ptr) err6 =
+  {ptr : 'ptr; x : 'a; y : 'a err6_float; z : 'b; w : 'b err6_immediate}
+[%%expect{|
+Line 4, characters 27-40:
+4 |   {ptr : 'ptr; x : 'a; y : 'a err6_float; z : 'b; w : 'b err6_immediate}
+                               ^^^^^^^^^^^^^
+Error: Layout mismatch in final type declaration consistency check.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The layout of 'a is float64, because
+           of the definition of t_float64_id at line 1, characters 0-37.
+         But the layout of 'a must overlap with value, because
+           it instantiates an unannotated type parameter of err6, defaulted to layout value.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}];;
+
+type 'a ok8_float = 'a t_float64_id
+and 'a ok8_immediate = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) ok8 =
+  {ptr : 'ptr; x : 'a; y : 'a ok8_float; z : 'b; w : 'b ok8_immediate}
+[%%expect{|
+type ('a : float64) ok8_float = 'a t_float64_id
+and ('a : immediate) ok8_immediate = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) ok8 = {
+  ptr : 'ptr;
+  x : 'a;
+  y : 'a ok8_float;
+  z : 'b;
+  w : 'b ok8_immediate;
+}
+|}];;
+
+
 (* There is a cap on the number of fields in the scannable prefix. *)
 type ptr = string
-type err6 =
+type err7 =
   {
     x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr;
     x9:ptr; x10:ptr; x11:ptr; x12:ptr; x13:ptr; x14:ptr; x15:ptr; x16:ptr;
@@ -161,7 +220,7 @@ type err6 =
 [%%expect{|
 type ptr = string
 Lines 2-37, characters 0-3:
- 2 | type err6 =
+ 2 | type err7 =
  3 |   {
  4 |     x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr;
  5 |     x9:ptr; x10:ptr; x11:ptr; x12:ptr; x13:ptr; x14:ptr; x15:ptr; x16:ptr;

@@ -197,8 +197,8 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
 (* Test 5: Can't be put in structures in typedecls, except certain records. *)
 
 (* all-float64 records are allowed, as are some records that mix float64 and
-   value fields. See [test/mixed-records] for more exhaustive tests of mixed
-   records. *)
+   value fields. See [tests/typing-layouts/mixed_records.ml] for more exhaustive
+   tests of mixed records. *)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
