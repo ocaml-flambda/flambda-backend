@@ -26,11 +26,13 @@
           pext_kind =
             Pext_decl
               [
-                core_type (attributes.ml[10,150+18]..[10,150+21])
-                  attribute "foo"
-                    []
-                  Ptyp_constr "int" (attributes.ml[10,150+18]..[10,150+21])
+                (attributes.ml[10,150+17]..[10,150+29])
                   []
+                  core_type (attributes.ml[10,150+18]..[10,150+21])
+                    attribute "foo"
+                      []
+                    Ptyp_constr "int" (attributes.ml[10,150+18]..[10,150+21])
+                    []
               ]
               None
   structure_item (attributes.ml[12,196+0]..[12,196+8])
@@ -75,11 +77,13 @@
                 attribute "foo"
                   []
                 [
-                  core_type (attributes.ml[18,265+12]..[18,265+13])
-                    attribute "foo"
-                      []
-                    Ptyp_constr "t" (attributes.ml[18,265+12]..[18,265+13])
+                  (attributes.ml[18,265+11]..[18,265+20])
                     []
+                    core_type (attributes.ml[18,265+12]..[18,265+13])
+                      attribute "foo"
+                        []
+                      Ptyp_constr "t" (attributes.ml[18,265+12]..[18,265+13])
+                      []
                 ]
                 None
             ]
@@ -155,11 +159,13 @@
                   pext_kind =
                     Pext_decl
                       [
-                        core_type (attributes.ml[37,450+20]..[37,450+23])
-                          attribute "foo"
-                            []
-                          Ptyp_constr "int" (attributes.ml[37,450+20]..[37,450+23])
+                        (attributes.ml[37,450+19]..[37,450+31])
                           []
+                          core_type (attributes.ml[37,450+20]..[37,450+23])
+                            attribute "foo"
+                              []
+                            Ptyp_constr "int" (attributes.ml[37,450+20]..[37,450+23])
+                            []
                       ]
                       None
           signature_item (attributes.ml[39,498+2]..[40,566+11])
