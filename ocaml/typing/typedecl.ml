@@ -1148,14 +1148,14 @@ let update_decl_jkind env dpath decl =
          mutable float64s : bool }
 
     type element_repr =
-      | Flat_imm_element
+      | Imm_element
       | Flat_float64_element
       | Float_element
       | Value_element
       | Element_without_runtime_component
 
     let element_repr_to_flat : _ -> flat_element option = function
-      | Flat_imm_element -> Some Imm
+      | Imm_element -> Some Imm
       | Flat_float64_element -> Some Float64
       (* CR layouts v7: Eventually void components will have no runtime width.
          We return [Some Imm] as a nonsense placeholder for now. (No record
@@ -1190,7 +1190,7 @@ let update_decl_jkind env dpath decl =
               in
               `Continue (Float64 :: suffix)
           | Float_element
-          | Flat_imm_element
+          | Imm_element
           | Value_element
           | Element_without_runtime_component as repr -> begin
               match find_flat_suffix classifications with
@@ -1224,7 +1224,7 @@ let update_decl_jkind env dpath decl =
         if is_float env lbl.ld_type then Float_element
         else match Jkind.get_default_value jkind with
           | Value | Immediate64 -> Value_element
-          | Immediate -> Flat_imm_element
+          | Immediate -> Imm_element
           | Float64 -> Flat_float64_element
           | Void -> Element_without_runtime_component
           | Word | Bits32 | Bits64 ->
@@ -1243,7 +1243,7 @@ let update_decl_jkind env dpath decl =
         (fun (_lbl, repr) ->
            match repr with
            | Float_element -> element_reprs.floats <- true
-           | Flat_imm_element -> element_reprs.imms <- true
+           | Imm_element -> element_reprs.imms <- true
            | Flat_float64_element -> element_reprs.float64s <- true
            | Value_element -> element_reprs.values <- true
            | Element_without_runtime_component -> ())
@@ -1261,7 +1261,7 @@ let update_decl_jkind env dpath decl =
                   | Float_element -> Float
                   | Flat_float64_element -> Float64
                   | Element_without_runtime_component -> Imm
-                  | Flat_imm_element | Value_element ->
+                  | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
                 classifications
               |> Array.of_list
