@@ -4,14 +4,14 @@
  *)
 
 (* Mixed float-float# blocks are always OK. *)
-type ok1 =
+type t =
   { a : float;
     b : float#;
   }
 
 [%%expect{|
 Lines 1-4, characters 0-3:
-1 | type ok1 =
+1 | type t =
 2 |   { a : float;
 3 |     b : float#;
 4 |   }
@@ -20,14 +20,14 @@ Error: The enabled layouts extension does not allow for mixed records.
 |}];;
 
 (* Mixed float-float# blocks are always OK. *)
-type ok2 =
+type t =
   { a : float#;
     b : float;
   }
 
 [%%expect{|
 Lines 1-4, characters 0-3:
-1 | type ok2 =
+1 | type t =
 2 |   { a : float#;
 3 |     b : float;
 4 |   }
@@ -37,7 +37,7 @@ Error: The enabled layouts extension does not allow for mixed records.
 
 (* When a non-float/float# field appears, [float]
    fields are no longer considered flat. *)
-type err1 =
+type t =
   { a : float#;
     b : float;
     c : int;
@@ -52,7 +52,7 @@ Error: Expected all flat fields after non-value field, a,
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
-type ok3 =
+type t =
   { a : float;
     b : float#;
     c : int;
@@ -60,7 +60,7 @@ type ok3 =
 
 [%%expect{|
 Lines 1-5, characters 0-3:
-1 | type ok3 =
+1 | type t =
 2 |   { a : float;
 3 |     b : float#;
 4 |     c : int;
@@ -70,7 +70,7 @@ Error: The enabled layouts extension does not allow for mixed records.
 |}];;
 
 (* The field [c] can't be flat because a non-float/float# field [d] appears. *)
-type err2 =
+type t =
   { a : float;
     b : float#;
     c : float;
@@ -86,7 +86,7 @@ Error: Expected all flat fields after non-value field, b,
 |}];;
 
 (* String can't appear in the flat suffix *)
-type err3 =
+type t =
   { a : float#;
     b : string;
   }
@@ -102,7 +102,7 @@ Error: Expected all flat fields after non-value field, a,
 (* [f3] can be flat because all other fields are float/float#,
    so it can appear in the flat suffix.
  *)
-type ok4 =
+type t =
   { f1 : float#;
     f2 : float#;
     f3 : float;
@@ -110,7 +110,7 @@ type ok4 =
 
 [%%expect{|
 Lines 1-5, characters 0-3:
-1 | type ok4 =
+1 | type t =
 2 |   { f1 : float#;
 3 |     f2 : float#;
 4 |     f3 : float;
@@ -120,7 +120,7 @@ Error: The enabled layouts extension does not allow for mixed records.
 |}];;
 
 (* The string [f3] can't appear in the flat suffix. *)
-type err5 =
+type t =
   { f1 : float#;
     f2 : float#;
     f3 : string;
@@ -135,7 +135,7 @@ Error: Expected all flat fields after non-value field, f1,
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)
-type ok5 =
+type t =
   { a : float#;
     b : float#;
     c : int;
@@ -143,7 +143,7 @@ type ok5 =
 
 [%%expect{|
 Lines 1-5, characters 0-3:
-1 | type ok5 =
+1 | type t =
 2 |   { a : float#;
 3 |     b : float#;
 4 |     c : int;
@@ -154,20 +154,20 @@ Error: The enabled layouts extension does not allow for mixed records.
 
 (* Parameterized types *)
 
-type ('a : float64) ok6 = { x : string; y : 'a }
+type ('a : float64) t = { x : string; y : 'a }
 [%%expect{|
-Line 1, characters 0-48:
-1 | type ('a : float64) ok6 = { x : string; y : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-46:
+1 | type ('a : float64) t = { x : string; y : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
-type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b }
+type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
 [%%expect{|
-Line 1, characters 0-72:
-1 | type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-70:
+1 | type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
@@ -181,14 +181,14 @@ type ('a : float64) t_float64_id = 'a
 type ('a : immediate) t_immediate_id = 'a
 |}];;
 
-type 'a err6_float = 'a t_float64_id
-and 'a err6_immediate = 'a t_immediate_id
-and ('a, 'b, 'ptr) err6 =
-  {ptr : 'ptr; x : 'a; y : 'a err6_float; z : 'b; w : 'b err6_immediate}
+type 'a t_float = 'a t_float64_id
+and 'a t_imm = 'a t_immediate_id
+and ('a, 'b, 'ptr) t =
+  {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-Line 4, characters 27-40:
-4 |   {ptr : 'ptr; x : 'a; y : 'a err6_float; z : 'b; w : 'b err6_immediate}
-                               ^^^^^^^^^^^^^
+Line 4, characters 27-37:
+4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
+                               ^^^^^^^^^^
 Error: Layout mismatch in final type declaration consistency check.
        This is most often caused by the fact that type inference is not
        clever enough to propagate layouts through variables in different
@@ -197,19 +197,19 @@ Error: Layout mismatch in final type declaration consistency check.
          The layout of 'a is float64, because
            of the definition of t_float64_id at line 1, characters 0-37.
          But the layout of 'a must overlap with value, because
-           it instantiates an unannotated type parameter of err6, defaulted to layout value.
+           it instantiates an unannotated type parameter of t, defaulted to layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
 
-type 'a ok8_float = 'a t_float64_id
-and 'a ok8_immediate = 'a t_immediate_id
-and ('a : float64, 'b : immediate, 'ptr) ok8 =
-  {ptr : 'ptr; x : 'a; y : 'a ok8_float; z : 'b; w : 'b ok8_immediate}
+type 'a t_float = 'a t_float64_id
+and 'a t_imm = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) t =
+  {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 [%%expect{|
-Lines 3-4, characters 0-70:
-3 | and ('a : float64, 'b : immediate, 'ptr) ok8 =
-4 |   {ptr : 'ptr; x : 'a; y : 'a ok8_float; z : 'b; w : 'b ok8_immediate}
+Lines 3-4, characters 0-60:
+3 | and ('a : float64, 'b : immediate, 'ptr) t =
+4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 Error: The enabled layouts extension does not allow for mixed records.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
@@ -217,7 +217,7 @@ Error: The enabled layouts extension does not allow for mixed records.
 
 (* There is a cap on the number of fields in the scannable prefix. *)
 type ptr = string
-type err7 =
+type t =
   {
     x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr;
     x9:ptr; x10:ptr; x11:ptr; x12:ptr; x13:ptr; x14:ptr; x15:ptr; x16:ptr;
@@ -256,7 +256,7 @@ type err7 =
 [%%expect{|
 type ptr = string
 Lines 2-37, characters 0-3:
- 2 | type err7 =
+ 2 | type t =
  3 |   {
  4 |     x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr;
  5 |     x9:ptr; x10:ptr; x11:ptr; x12:ptr; x13:ptr; x14:ptr; x15:ptr; x16:ptr;
