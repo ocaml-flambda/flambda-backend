@@ -148,7 +148,9 @@ let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
   in
   let index =
     (* Skip custom_ops pointer *)
-    if has_custom_ops then C.add_int index (Cconst_int (8, dbg)) dbg else index
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
   in
   C.unaligned_load_128 arr index dbg
 
@@ -158,7 +160,9 @@ let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
   in
   let index =
     (* Skip custom_ops pointer *)
-    if has_custom_ops then C.add_int index (Cconst_int (8, dbg)) dbg else index
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
   in
   C.unaligned_set_128 arr index new_value dbg
 
