@@ -2,6 +2,8 @@
    flags = "-extension layouts_alpha"
 
    * runtime5
+   ** native
+   ** bytecode
  *)
 
 type t = { t : t; flt : float# }
@@ -15,7 +17,5 @@ let rec t =
   { t;
     flt = (Gc.full_major (); #0.);
   };;
-
-let () = Gc.full_major ()
 
 let (_ : t) = Sys.opaque_identity t
