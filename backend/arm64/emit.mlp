@@ -500,7 +500,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
-    | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
+    | Lop (Iabsf | Inegf | Ispecific Isqrtf) -> 1
     | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Ivectorcast _) -> 1
     | Lop (Iscalarcast _) -> 1
@@ -695,6 +695,10 @@ let emit_instr i =
     | Lop(Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
+    | Lop(Iscalarcast Float_to_int) ->
+        `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Iscalarcast Float_of_int) ->
+        `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
     | Lop(Ivectorcast _ | Iscalarcast _) ->
       (* Never generated; SIMD instructions are not yet translated *)
       assert false
@@ -882,10 +886,8 @@ let emit_instr i =
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf as op) ->
+    | Lop(Iabsf | Inegf | Ispecific Isqrtf as op) ->
         let instr = (match op with
-                     | Ifloatofint      -> "scvtf"
-                     | Iintoffloat      -> "fcvtzs"
                      | Iabsf            -> "fabs"
                      | Inegf            -> "fneg"
                      | Ispecific Isqrtf -> "fsqrt"

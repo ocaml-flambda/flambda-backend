@@ -81,7 +81,6 @@ type operation =
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
   | Iscalarcast of Cmm.scalar_cast

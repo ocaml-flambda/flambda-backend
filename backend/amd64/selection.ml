@@ -168,7 +168,7 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+  | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
   | Ivectorcast _ | Iscalarcast _
   | Iconst_int _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _

@@ -36,8 +36,6 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Divf -> Idivf
       | Compf c -> Icompf c
       | Csel c -> Icsel c
-      | Floatofint -> Ifloatofint
-      | Intoffloat -> Iintoffloat
       | Valueofint -> Ivalueofint
       | Intofvalue -> Iintofvalue
       | Vectorcast cast -> Ivectorcast cast

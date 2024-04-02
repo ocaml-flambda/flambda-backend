@@ -452,7 +452,6 @@ let destroyed_at_oper = function
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Icsel _
-       | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
@@ -506,7 +505,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
        | Csel _
-       | Floatofint | Intoffloat
        | Valueofint | Intofvalue
        | Vectorcast _
        | Scalarcast _
@@ -584,7 +582,7 @@ let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Ivalueofint | Iintofvalue | Ivectorcast _
   | Icompf _ | Iscalarcast _
   | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
@@ -639,7 +637,7 @@ let max_register_pressure =
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
+  | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _
@@ -735,7 +733,6 @@ let operation_supported = function
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Ccmpf _
   | Craise _
