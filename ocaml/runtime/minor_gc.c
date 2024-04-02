@@ -308,12 +308,12 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     st->live_bytes += Bhsize_hd(hd);
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
-    mlsize_t scannable_sz = Scannable_wosize_hd(hd);
-    /* Copy the non-scannable suffix of fields. */
-    for (i = scannable_sz; i < sz; i++) {
-      Field(result, i) = Field(v, i);
-    }
     if( try_update_object_header(v, p, result, infix_offset) ) {
+      /* Copy the non-scannable suffix of fields. */
+      mlsize_t scannable_sz = Scannable_wosize_hd(hd);
+      for (i = scannable_sz; i < sz; i++) {
+        Field(result, i) = Field(v, i);
+      }
       if (scannable_sz == 0) {
         return;
       } else if (scannable_sz > 1){
@@ -423,12 +423,18 @@ again:
 
     mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
 
-    if (scannable_wosize != 0) {
-      f = Field(new_v, 0);
-      CAMLassert (!Is_debug_tag(f));
-      if (Is_block (f) && Is_young(f)) {
-        oldify_one (st, f, Op_val (new_v));
-      }
+    /* [v] was only added to the [todo_list] if its [scannable_wosize > 1].
+         - It needs to be greater than 0 because we oldify the first field.
+         - It needs to be greater than 1 so the below loop runs at least once,
+           overwriting Field(new_v, 1) which [oldify_one] used as temporary
+           storage of the next value of [todo_list].
+     */
+    CAMLassert (scannable_wosize > 1);
+
+    f = Field(new_v, 0);
+    CAMLassert (!Is_debug_tag(f));
+    if (Is_block (f) && Is_young(f)) {
+      oldify_one (st, f, Op_val (new_v));
     }
 
     for (i = 1; i < scannable_wosize; i++){
