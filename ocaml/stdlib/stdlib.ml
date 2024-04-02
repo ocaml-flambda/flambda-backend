@@ -241,8 +241,8 @@ external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
 (* References *)
 
 type 'a ref = { mutable contents : 'a }
-external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
-external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ref : ('a [@local_opt]) -> ('a ref[@local_opt]) = "%makemutable"
+external ( ! ) : ('a ref[@local_opt]) -> ('a [@local_opt]) = "%field0"
 external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
 external incr : (int ref[@local_opt]) -> unit = "%incr"
 external decr : (int ref[@local_opt]) -> unit = "%decr"

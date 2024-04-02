@@ -440,7 +440,7 @@ module Analyser =
       let comment_opt = analyze_alerts comment_opt ld_attributes in
       {
         rf_name = field_name ;
-        rf_mutable = mutable_flag = Mutable ;
+        rf_mutable = Types.is_mutable mutable_flag;
         rf_type = Odoc_env.subst_type env type_expr ;
         rf_text = comment_opt
       }

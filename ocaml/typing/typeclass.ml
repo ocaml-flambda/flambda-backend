@@ -103,7 +103,7 @@ type error =
   | Non_collapsable_conjunction of
       Ident.t * Types.class_declaration * Errortrace.unification_error
   | Self_clash of Errortrace.unification_error
-  | Mutability_mismatch of string * mutable_flag
+  | Mutability_mismatch of string * Asttypes.mutable_flag
   | No_overriding of string * string
   | Duplicate of string * string
   | Closing_self_type of class_signature
@@ -541,7 +541,7 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Virtual_val of
       { label : string loc;
-        mut : mutable_flag;
+        mut : Asttypes.mutable_flag;
         id : Ident.t;
         cty : core_type;
         already_declared : bool;
@@ -549,7 +549,7 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Concrete_val of
       { label : string loc;
-        mut : mutable_flag;
+        mut : Asttypes.mutable_flag;
         id : Ident.t;
         override : override_flag;
         definition : expression;
@@ -2294,8 +2294,10 @@ let report_error env ppf = function
            fprintf ppf "but actually has type")
   | Mutability_mismatch (_lab, mut) ->
       let mut1, mut2 =
-        if mut = Immutable then "mutable", "immutable"
-        else "immutable", "mutable" in
+        match mut with
+        | Immutable -> "mutable", "immutable"
+        | Mutable -> "immutable", "mutable"
+      in
       fprintf ppf
         "@[The instance variable is %s;@ it cannot be redefined as %s@]"
         mut1 mut2
