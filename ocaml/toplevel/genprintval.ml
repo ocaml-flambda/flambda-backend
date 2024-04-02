@@ -240,7 +240,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
     type outval_record_rep =
       | Outval_record_boxed
       | Outval_record_unboxed
-      | Outval_record_mixed of mixed_record_shape
+      | Outval_record_mixed_block of mixed_record_shape
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
@@ -476,7 +476,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           | Record_inlined _
                               -> Outval_record_boxed
                           | Record_mixed mixed
-                              -> Outval_record_mixed mixed
+                              ->
+                                (* Mixed records are only represented as
+                                   mixed blocks in native code.
+                                *)
+                                if !Clflags.native_code
+                                then Outval_record_mixed_block mixed
+                                else Outval_record_boxed
                         in
                         tree_of_record_fields depth
                           env path decl.type_params ty_list
@@ -550,15 +556,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           O.field obj pos
                       in
                       nest tree_of_val (depth - 1) fld ty_arg
-                  | Outval_record_mixed { value_prefix_len; flat_suffix } ->
+                  | Outval_record_mixed_block shape ->
                       let fld =
-                        if pos < value_prefix_len then
-                          O.field obj pos
-                        else
-                          match flat_suffix.(pos - value_prefix_len) with
-                          | Imm -> O.field obj pos
-                          | Float | Float64 ->
-                              O.repr (O.double_field obj pos)
+                        match Types.get_mixed_record_element shape pos with
+                        | Value_prefix -> O.field obj pos
+                        | Flat_suffix Imm -> O.field obj pos
+                        | Flat_suffix (Float | Float64) ->
+                            O.repr (O.double_field obj pos)
                       in
                       nest tree_of_val (depth - 1) fld ty_arg
               in
