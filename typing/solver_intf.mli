@@ -206,6 +206,8 @@ module type Solver_polarized = sig
       ['r * 'l]. (Use [pos] for positive lattices.) *)
   type 'd polarized constraint 'd = 'l * 'r
 
+  type changes
+
   (** A mode with carrier type ['a] and left/right status ['d] derived from the
      morphism it contains. See comments for [morph] for the format of ['d].
 
@@ -233,10 +235,12 @@ module type Solver_polarized = sig
   (** Pushes the mode variable to the lowest constant possible.
       Expensive.
       WARNING: the lattice must be finite for this to terminate.*)
-  val zap_to_floor : 'a obj -> ('a, allowed * 'r) mode -> 'a
+  val zap_to_floor :
+    'a obj -> ('a, allowed * 'r) mode -> log:changes ref option -> 'a
 
   (** Pushes the mode variable to the highest constant possible. *)
-  val zap_to_ceil : 'a obj -> ('a, 'l * allowed) mode -> 'a
+  val zap_to_ceil :
+    'a obj -> ('a, 'l * allowed) mode -> log:changes ref option -> 'a
 
   (** Create a new mode variable of the full range. *)
   val newvar : 'a obj -> ('a, 'l * 'r) mode
@@ -246,6 +250,7 @@ module type Solver_polarized = sig
     'a obj ->
     ('a, allowed * 'r) mode ->
     ('a, 'l * allowed) mode ->
+    log:changes ref option ->
     (unit, 'a error) result
 
   (** Creates a new mode variable above the given mode and returns [true]. In
@@ -328,11 +333,20 @@ module type S = sig
   module Solvers_polarized (C : Lattices_mono) : sig
     (* Backtracking facilities used by [types.ml] *)
 
+    (** Represents a sequence of state mutations caused by mode operations. All
+      mutating operations in this module take a [log:changes ref option] and
+      append to it all changes made, regardless of success or failure. It is
+      [option] only for performance reasons; the caller should never provide
+      [log:None]. The caller is responsible for taking care of the appended log:
+      they can either revert the changes using [undo_changes], or commit the
+      changes to the global log in [types.ml]. *)
     type changes
 
-    val undo_changes : changes -> unit
+    (** An empty sequence of changes. *)
+    val empty_changes : changes
 
-    val set_append_changes : (changes ref -> unit) -> unit
+    (** Undo the sequence of changes recorded. *)
+    val undo_changes : changes -> unit
 
     (* Construct a new category based on the original category [C]. Objects are
        two copies of the objects in [C] of opposite polarity. The positive copy
@@ -345,6 +359,7 @@ module type S = sig
         with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
          and type 'a obj := 'a C.obj
          and type 'a error := 'a error
+         and type changes := changes
 
     module rec Positive :
       (Solver_polarized
