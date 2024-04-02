@@ -156,6 +156,10 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
+type float_width =
+  | Float64
+  | Float32
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -165,16 +169,11 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int                           (* integer or pointer outside heap *)
   | Word_val                           (* pointer inside heap or encoded int *)
-  | Single_materialized_as_double      (* F64 in registers, F32 in memory. *)
-  | Single                             (* F32 in both registers and memory. *)
+  | Single of { reg : float_width }    (* F32 in memory, may be F32 or F64 in registers. *)
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
   | Onetwentyeight_aligned             (* 16-byte-aligned 128-bit vector *)
-
-type float_width =
-  | Float64
-  | Float32
 
 type vector_cast =
   | Bits128

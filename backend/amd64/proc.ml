@@ -425,7 +425,7 @@ let destroyed_at_oper = function
       else destroyed_at_c_call ()
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
-  | Iop(Istore(Single_materialized_as_double, _, _))
+  | Iop(Istore(Single { reg = Float64 }, _, _))
         -> destroy_xmm 15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
@@ -448,7 +448,7 @@ let destroyed_at_oper = function
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Single
+               | Double | Single { reg = Float32 }
                | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
@@ -482,7 +482,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     destroyed_at_pushtrap
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
-  | Op(Store(Single_materialized_as_double, _, _)) ->
+  | Op(Store(Single { reg = Float64 }, _, _)) ->
     destroy_xmm 15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
@@ -499,7 +499,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
                          | Thirtytwo_signed | Word_int | Word_val
-                         | Double | Single
+                         | Double | Single { reg = Float32 }
                          | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
@@ -615,7 +615,7 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single_materialized_as_double, _, _) | Icompf _ ->
+  | Istore(Single { reg = Float64 }, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
     (match Simd_proc.register_behavior op with
@@ -638,7 +638,7 @@ let max_register_pressure =
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Single | Double
+            | Single { reg = Float32 } | Double
             | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf

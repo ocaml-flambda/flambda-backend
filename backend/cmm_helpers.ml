@@ -722,8 +722,8 @@ let unbox_float32 dbg =
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
-      | _ -> Cop (mk_load_immut Single, [cmm], dbg))
-    | cmm -> Cop (mk_load_immut Single, [cmm], dbg))
+      | _ -> Cop (mk_load_immut (Single { reg = Float32 }), [cmm], dbg))
+    | cmm -> Cop (mk_load_immut (Single { reg = Float32 }), [cmm], dbg))
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
@@ -785,7 +785,7 @@ let field_address ?(memory_chunk = Word_val) ptr n dbg =
       | Byte_unsigned | Byte_signed -> 1
       | Sixteen_unsigned | Sixteen_signed -> 2
       | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single_materialized_as_double | Single ->
+      | Single { reg = Float64 | Float32 } ->
         assert (size_float = 8);
         (* unclear what to do if this is false *)
         size_float / 2
@@ -1472,7 +1472,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
-  | Pbigarray_float32 -> Single_materialized_as_double
+  | Pbigarray_float32 -> Single { reg = Float64 }
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed
   | Pbigarray_uint8 -> Byte_unsigned
@@ -1482,7 +1482,7 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_int64 -> Word_int
   | Pbigarray_caml_int -> Word_int
   | Pbigarray_native_int -> Word_int
-  | Pbigarray_complex32 -> Single_materialized_as_double
+  | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
 
 (* the three functions below assume 64-bit words *)
