@@ -210,13 +210,13 @@ let operation' ?(print_reg = reg) op arg ppf res =
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
-  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Inegf -> fprintf ppf "-f %a" reg arg.(0)
-  | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
-  | Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
-  | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
-  | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
-  | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop (Icompf cmp) -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
+  | Ifloatop Inegf -> fprintf ppf "-f %a" reg arg.(0)
+  | Ifloatop Iabsf -> fprintf ppf "absf %a" reg arg.(0)
+  | Ifloatop Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"

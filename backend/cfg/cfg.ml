@@ -254,6 +254,16 @@ let intop (op : Mach.integer_operation) =
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
 
+let floatop (op : Mach.float_operation) =
+  match op with
+  | Iaddf -> " +. "
+  | Isubf -> " -. "
+  | Imulf -> " *. "
+  | Idivf -> " /. "
+  | Iabsf -> " abs "
+  | Inegf -> " neg "
+  | Icompf cmp -> Printcmm.float_comparison cmp
+
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
@@ -270,13 +280,7 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Negf -> Format.fprintf ppf "negf"
-  | Absf -> Format.fprintf ppf "absf"
-  | Addf -> Format.fprintf ppf "addf"
-  | Subf -> Format.fprintf ppf "subf"
-  | Mulf -> Format.fprintf ppf "mulf"
-  | Divf -> Format.fprintf ppf "divf"
-  | Compf _ -> Format.fprintf ppf "compf"
+  | Floatop op -> Format.fprintf ppf "floatop %s" (floatop op)
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
@@ -478,13 +482,7 @@ let is_pure_operation : operation -> bool = function
   | Intop _ -> true
   | Intop_imm _ -> true
   | Intop_atomic _ -> false
-  | Negf -> true
-  | Absf -> true
-  | Addf -> true
-  | Subf -> true
-  | Mulf -> true
-  | Divf -> true
-  | Compf _ -> true
+  | Floatop _ -> true
   | Csel _ -> true
   | Vectorcast _ -> true
   | Scalarcast _ -> true
@@ -545,10 +543,9 @@ let is_noop_move instr =
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Opaque | Valueofint | Intofvalue | Scalarcast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Begin_region | End_region | Dls_get
-      | Poll | Alloc _ )
+      | Intop_atomic _ | Floatop _ | Opaque | Valueofint | Intofvalue
+      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

@@ -171,13 +171,13 @@ let basic_or_terminator_of_operation :
   | Iintop_atomic { op; size; addr } ->
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
+  | Ifloatop (Icompf comp) -> Basic (Op (Floatop (Icompf comp)))
+  | Ifloatop Inegf -> Basic (Op (Floatop Inegf))
+  | Ifloatop Iabsf -> Basic (Op (Floatop Iabsf))
+  | Ifloatop Iaddf -> Basic (Op (Floatop Iaddf))
+  | Ifloatop Isubf -> Basic (Op (Floatop Isubf))
+  | Ifloatop Imulf -> Basic (Op (Floatop Imulf))
+  | Ifloatop Idivf -> Basic (Op (Floatop Idivf))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
   | Ivectorcast cast -> Basic (Op (Vectorcast cast))
@@ -628,10 +628,10 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
         | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
-        | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-        | Valueofint | Csel _ | Intofvalue | Scalarcast _ | Vectorcast _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ | Dls_get | Poll | Alloc _ )
+        | Intop_atomic _ | Floatop _ | Valueofint | Csel _ | Intofvalue
+        | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
+        | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

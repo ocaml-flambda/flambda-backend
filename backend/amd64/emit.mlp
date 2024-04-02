@@ -1471,17 +1471,17 @@ let emit_instr fallthrough i =
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Icompf cmp) ->
+  | Lop(Ifloatop(Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Inegf) ->
+  | Lop(Ifloatop(Inegf)) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Iabsf) ->
+  | Lop(Ifloatop(Iabsf)) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
+  | Lop(Ifloatop(Iaddf | Isubf | Imulf | Idivf as floatop)) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)

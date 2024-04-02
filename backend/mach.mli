@@ -35,6 +35,10 @@ type integer_operation =
 
 type float_comparison = Cmm.float_comparison
 
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
+
 type mutable_flag = Immutable | Mutable
 
 val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
@@ -78,8 +82,7 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_operation
   | Icsel of test
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
@@ -157,3 +160,6 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
+
+val equal_float_comparison : float_comparison -> float_comparison -> bool
+val equal_float_operation : float_operation -> float_operation -> bool
