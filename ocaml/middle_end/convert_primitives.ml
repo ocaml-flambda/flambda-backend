@@ -50,10 +50,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pufloatfield (field, _sem) -> Pufloatfield field
   | Psetufloatfield (field, init_or_assign) ->
       Psetufloatfield (field, init_or_assign)
-  | Pabstractfield (field, shape, _sem, mode) ->
-      Pabstractfield (field, shape, mode)
-  | Psetabstractfield (field, shape, init_or_assign) ->
-      Psetabstractfield (field, shape, init_or_assign)
+  | Pmixedfield (field, shape, _sem) ->
+      Pmixedfield (field, shape)
+  | Psetmixedfield (field, shape, init_or_assign) ->
+      Psetmixedfield (field, shape, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
   | Pmake_unboxed_product _
   | Punboxed_product_field _ -> Misc.fatal_error "TODO"

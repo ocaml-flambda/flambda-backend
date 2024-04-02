@@ -112,7 +112,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pfield_computed
   | Pfloatfield _
   | Pufloatfield _
-  | Pabstractfield _
+  | Pmixedfield _
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -134,7 +134,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
-  | Psetabstractfield _
+  | Psetmixedfield _
   | Patomic_load _
   | Patomic_exchange
   | Patomic_cas
@@ -256,6 +256,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pread_symbol _
   | Pfield _
   | Pfield_computed
+  | Pmixedfield (_, Mread_value_prefix _)
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
@@ -266,10 +267,10 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pfloatfield (_, m) -> is_local_alloc m
   | Pufloatfield _ -> false
-  | Pabstractfield (_, shape, m) -> begin
+  | Pmixedfield (_, Mread_flat_suffix shape) -> begin
       match shape with
-      | Imm | Float64 -> false
-      | Float -> is_local_alloc m
+      | Flat_read_imm | Flat_read_float64 -> false
+      | Flat_read_float m -> is_local_alloc m
     end
   | Pstring_load (_, Safe, m)
   | Pbytes_load (_, Safe, m)
@@ -282,7 +283,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Psetfield_computed _
   | Psetfloatfield _
   | Psetufloatfield _
-  | Psetabstractfield _
+  | Psetmixedfield _
   | Parraysetu _
   | Parraysets _
   | Pbytessetu

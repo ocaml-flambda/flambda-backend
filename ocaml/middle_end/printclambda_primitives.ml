@@ -163,7 +163,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       let mode = mode_to_string mode in
       let mut = mut_to_string mut in
       let name = "make" ^ mode ^ "ufloat" ^ mut in
-      fprintf ppf "%s %a" name Printlambda.mixed_record_shape shape
+      fprintf ppf "%s %a" name Printlambda.mixed_block_shape shape
   | Pfield (n, layout, ptr, mut) ->
       let instr =
         match ptr, mut with
@@ -205,14 +205,9 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
   | Pfloatfield (n, Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
   | Pufloatfield n -> fprintf ppf "ufloatfield %i" n
-  | Pmixedfield (n, shape, mode) ->
-    let mode =
-      match mode with
-      | Alloc_heap -> ""
-      | Alloc_local -> "local"
-    in
-    fprintf ppf "mixedfield%s %i %a"
-      mode n Printlambda.flat_element shape
+  | Pmixedfield (n, shape) ->
+    fprintf ppf "mixedfield %i %a"
+      n Printlambda.mixed_block_read shape
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -240,7 +235,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i %a"
-        init n Printlambda.flat_element shape
+        init n Printlambda.mixed_block_write shape
   | Pduprecord (rep, size) ->
       fprintf ppf "duprecord %a %i" Printlambda.record_rep rep size
   | Prunstack -> fprintf ppf "runstack"

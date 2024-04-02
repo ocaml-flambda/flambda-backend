@@ -39,7 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * mixed_record_shape * alloc_mode
+  | Pmakemixedblock of mutable_flag * Lambda.mixed_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -48,8 +48,8 @@ type primitive =
   | Psetfloatfield of int * initialization_or_assignment
   | Pufloatfield of int
   | Psetufloatfield of int * initialization_or_assignment
-  | Pmixedfield of int * flat_element * alloc_mode
-  | Psetmixedfield of int * flat_element * initialization_or_assignment
+  | Pmixedfield of int * Lambda.mixed_block_read
+  | Psetmixedfield of int * Lambda.mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Context switches *)
   | Prunstack
@@ -216,10 +216,6 @@ and boxed_float = Lambda.boxed_float =
 
 and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
-
-and flat_element = Lambda.flat_element =
-    Imm | Float | Float64
-and mixed_record_shape = flat_element array
 
 and unboxed_float = boxed_float
 
