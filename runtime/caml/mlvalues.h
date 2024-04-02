@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include "misc.h"
-#include "isa.h"
 
 #ifdef __cplusplus
 extern "C" {
