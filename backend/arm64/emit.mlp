@@ -473,7 +473,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iload  { memory_chunk; addressing_mode; is_atomic }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier = if is_atomic then 1 else 0
-      and single = match memory_chunk with Single_materialized_as_double -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
     | Lop (Istore (memory_chunk, addressing_mode, assignment)) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
@@ -481,7 +481,7 @@ module BR = Branch_relaxation.Make (struct
         match memory_chunk, assignment with
         | (Word_int | Word_val), true -> 1
         | _ -> 0
-      and single = match memory_chunk with Single_materialized_as_double -> 2 | _ -> 1 in
+      and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
@@ -812,7 +812,7 @@ let emit_instr i =
             `	ldr	{emit_wreg dst}, {emit_addressing addressing_mode base}\n`
         | Thirtytwo_signed ->
             `	ldrsw	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
-        | Single_materialized_as_double ->
+        | Single { reg = Float64 } ->
             `	ldr	s7, {emit_addressing addressing_mode base}\n`;
             `	fcvt	{emit_reg dst}, s7\n`
         | Word_int | Word_val ->
@@ -824,7 +824,7 @@ let emit_instr i =
             `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
         | Double ->
                       `	ldr	{emit_reg dst}, {emit_addressing addressing_mode base}\n`
-        | Single ->
+        | Single { reg = Float32 } ->
             (* CR mslater: (float32) arm64 *)
             fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
@@ -849,7 +849,7 @@ let emit_instr i =
             `	strh	{emit_wreg src}, {emit_addressing addr base}\n`
         | Thirtytwo_unsigned | Thirtytwo_signed ->
             `	str	{emit_wreg src}, {emit_addressing addr base}\n`
-        | Single_materialized_as_double ->
+        | Single { reg = Float64 } ->
             `	fcvt	s7, {emit_reg src}\n`;
             `	str	s7, {emit_addressing addr base}\n`;
         | Word_int | Word_val ->
@@ -858,7 +858,7 @@ let emit_instr i =
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         | Double ->
           `	str	{emit_reg src}, {emit_addressing addr base}\n`
-        | Single ->
+        | Single { reg = Float32 } ->
             (* CR mslater: (float32) arm64 *)
             fatal_error "arm64: got float32 memory chunk"
         | Onetwentyeight_aligned | Onetwentyeight_unaligned ->
