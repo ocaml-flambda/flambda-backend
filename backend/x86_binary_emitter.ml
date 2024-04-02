@@ -634,7 +634,7 @@ let emit_movq b ~dst ~src =
     emit_mod_rm_reg b no_rex [ 0x0F; 0x7E ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_mov_float ~width b dst src =
+let emit_mov_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -648,7 +648,7 @@ let emit_mov_float ~width b dst src =
       Format.eprintf "src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
-let emit_and_float ~width b dst src =
+let emit_and_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -700,7 +700,7 @@ let emit_roundsd b dst rounding src =
       buf_int8 b rounding
   | _ -> assert false
 
-let emit_add_float ~width b dst src =
+let emit_add_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -709,7 +709,7 @@ let emit_add_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_sqrt_float ~width b dst src =
+let emit_sqrt_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -718,7 +718,7 @@ let emit_sqrt_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x51 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_mul_float ~width b dst src =
+let emit_mul_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -727,7 +727,7 @@ let emit_mul_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x59 ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_div_float ~width b dst src =
+let emit_div_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -736,7 +736,7 @@ let emit_div_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x5E ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_sub_float ~width b dst src =
+let emit_sub_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -745,7 +745,7 @@ let emit_sub_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x5C ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_xor_float ~width b dst src =
+let emit_xor_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -828,7 +828,7 @@ let emit_CVTSS2SD b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x5A ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_comi_float ~width b dst src =
+let emit_comi_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -837,7 +837,7 @@ let emit_comi_float ~width b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x2F ] rm (rd_of_regf reg)
   | _ -> assert false
 
-let emit_ucomi_float ~width b dst src =
+let emit_ucomi_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       (match width with
@@ -1541,7 +1541,7 @@ let imm8_of_float_condition = function
   | NLEf -> 0x06
   | ORDf -> 0x07
 
-let emit_cmp_float ~width b ~condition ~dst ~src =
+let emit_cmp_float ~(width : Cmm.float_width) b ~condition ~dst ~src =
   match (dst, src) with
   | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
     (* CMP{SS,SD} xmm1, xmm2/m{32,64}, imm8 *)
