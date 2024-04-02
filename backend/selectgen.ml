@@ -154,8 +154,8 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      (* CR mslater: (float32) machtype *)
-      | Single { reg = (Float64 | Float32) } | Double -> typ_float
+      | Single { reg = Float64 } | Double -> typ_float
+      | Single { reg = Float32 } -> typ_float32
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
@@ -174,14 +174,17 @@ let oper_result_type = function
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Ccsel ty -> ty
   | Cscalarcast (Float_of_float32) -> typ_float
-  | Cscalarcast (Float_to_float32) -> typ_float
-  | Cscalarcast (Float_of_int _) -> typ_float
+  | Cscalarcast (Float_to_float32) -> typ_float32
+  | Cscalarcast (Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float_of_int Float32) -> typ_float32
   | Cscalarcast (Float_to_int _) -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
-  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) -> typ_float
+  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    typ_float
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Cprobe _ -> typ_void
@@ -197,10 +200,13 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
 
-let size_component = function
+let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
   | Float -> Arch.size_float
+  | Float32 ->
+    (* float32 slots still take up a full word *)
+    Arch.size_float
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -215,7 +221,9 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
-    | Cconst_float32 _ -> Arch.size_float / 2
+    | Cconst_float32 _ ->
+      (* float32 slots still take up a full word *)
+      Arch.size_float
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -834,7 +842,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_int n) [||] r)
   | Cconst_float32 (n, _dbg) ->
-      let r = self#regs_for typ_float in
+      let r = self#regs_for typ_float32 in
       ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
@@ -1466,8 +1474,8 @@ method emit_stores env data regs_addr =
               for i = 0 to Array.length regs - 1 do
                 let r = regs.(i) in
                 let kind = match r.typ with
-                  (* CR mslater: (float32) machtype component *)
                   | Float -> Double
+                  | Float32 -> Single { reg = Float32 }
                   | Vec128 ->
                     (* 128-bit memory operations are default unaligned. Aligned (big)array
                        operations are handled separately via cmm. *)

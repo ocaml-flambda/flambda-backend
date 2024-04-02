@@ -63,20 +63,28 @@ let float_reg_name =
 let num_register_classes = 2
 
 let register_class r =
-  match r.typ with
+  match (r.typ : machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let num_stack_slot_classes = 2
 
 let stack_slot_class typ =
-  match typ with
+  match (typ : machtype_component) with
   | Val | Int | Addr  -> 0
   | Float -> 1
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let stack_class_tag c =
   match c with
@@ -91,13 +99,17 @@ let first_available_register =
   [| 0; 100 |]
 
 let register_name ty r =
-  match ty with
+  match (ty : machtype_component) with
   | Val | Int | Addr ->
     int_reg_name.(r - first_available_register.(0))
   | Float ->
     float_reg_name.(r - first_available_register.(1))
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let rotate_registers = true
 
@@ -125,11 +137,15 @@ let precolored_regs =
   fun () -> phys_regs
 
 let phys_reg ty n =
-  match ty with
+  match (ty : machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
-  (* CR mslater: (SIMD) arm64 *)
-  | Vec128 -> fatal_error "arm64: got vec128 register"
+  | Vec128 ->
+    (* CR mslater: (SIMD) arm64 *)
+    fatal_error "arm64: got vec128 register"
+  | Float32 ->
+    (* CR mslater: (float32) arm64 *)
+    fatal_error "arm64: got float32 register"
 
 let reg_x8 = phys_reg Int 8
 let reg_d7 = phys_reg Float 107
@@ -161,16 +177,6 @@ let loc_float last_float make_stack float ofs =
     ofs := !ofs + size_float; l
   end
 
-let loc_float32 last_float make_stack float ofs =
-  if !float <= last_float then begin
-    let l = phys_reg Float !float in
-    incr float; l
-  end else begin
-    let l = stack_slot (make_stack !ofs) Float in
-    ofs := !ofs + (if macosx then 4 else 8);
-    l
-  end
-
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
     let l = phys_reg Int !int in
@@ -188,13 +194,17 @@ let calling_conventions
   let float = ref first_float in
   let ofs = ref first_stack in
   for i = 0 to Array.length arg - 1 do
-    match arg.(i) with
+    match (arg.(i) : machtype_component) with
     | Val | Int | Addr ->
         loc.(i) <- loc_int last_int make_stack int ofs
     | Float ->
         loc.(i) <- loc_float last_float make_stack float ofs
-    (* CR mslater: (SIMD) arm64 *)
-    | Vec128 -> fatal_error "arm64: got vec128 register"
+    | Vec128 ->
+        (* CR mslater: (SIMD) arm64 *)
+        fatal_error "arm64: got vec128 register"
+    | Float32 ->
+        (* CR mslater: (float32) arm64 *)
+        fatal_error "arm64: got float32 register"
   done;
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
@@ -257,10 +267,12 @@ let external_calling_conventions
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
+    | XVec128 ->
+        (* CR mslater: (SIMD) arm64 *)
+        fatal_error "arm64: got vec128 register"
     | XFloat32 ->
-        loc.(i) <- [| loc_float32 last_float make_stack float ofs |]
-    (* CR mslater: (SIMD) arm64 *)
-    | XVec128 -> fatal_error "arm64: got vec128 register"
+        (* CR mslater: (float32) arm64 *)
+        fatal_error "arm64: got float32 register"
     end)
     ty_args;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)

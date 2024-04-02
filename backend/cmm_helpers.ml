@@ -1235,6 +1235,7 @@ module Extended_machtype_component = struct
     | Any_int
     | Float
     | Vec128
+    | Float32
 
   let of_machtype_component (component : machtype_component) =
     match component with
@@ -1243,6 +1244,7 @@ module Extended_machtype_component = struct
     | Int -> Any_int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1251,6 +1253,7 @@ module Extended_machtype_component = struct
     | Tagged_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let change_tagged_int_to_val t : machtype_component =
     match t with
@@ -1260,6 +1263,7 @@ module Extended_machtype_component = struct
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 end
 
 module Extended_machtype = struct
@@ -1272,6 +1276,8 @@ module Extended_machtype = struct
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
   let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_float32 = [| Extended_machtype_component.Float32 |]
 
   let typ_vec128 = [| Extended_machtype_component.Vec128 |]
 
@@ -1291,7 +1297,8 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float (Pfloat64 | Pfloat32) -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
+    | Punboxed_float Pfloat32 -> typ_float32
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -1315,6 +1322,7 @@ let machtype_identifier t =
     | Int -> 'I'
     | Float -> 'F'
     | Vec128 -> 'X'
+    | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
   in
@@ -2624,21 +2632,27 @@ let ints_per_vec128 = size_vec128 / Arch.size_int
 let machtype_stored_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
 let machtype_non_scanned_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
@@ -2648,8 +2662,8 @@ let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
       (fun (_, c) ->
-        match c with
-        | Int | Float | Vec128 -> true
+        match (c : machtype_component) with
+        | Int | Float | Float32 | Vec128 -> true
         | Val -> false
         | Addr -> assert false)
       vs
@@ -2663,12 +2677,16 @@ let read_from_closure_given_machtype t clos base_offset dbg =
   let _, l =
     List.fold_left_map
       (fun (non_scanned_pos, scanned_pos) c ->
-        match c with
+        match (c : machtype_component) with
         | Int ->
           (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
           ( (non_scanned_pos + ints_per_float, scanned_pos),
             load Double non_scanned_pos )
+        | Float32 ->
+          (* Float32 slots still take up a full word *)
+          ( (non_scanned_pos + 1, scanned_pos),
+            load (Single { reg = Float32 }) non_scanned_pos )
         | Vec128 ->
           (* Vectors stored in closures may not be 16-byte aligned. *)
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),

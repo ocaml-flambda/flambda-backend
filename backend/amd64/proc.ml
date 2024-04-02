@@ -104,14 +104,16 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 1
   | Vec128 -> assert_simd_enabled (); 1
+  | Float32 -> assert_float32_enabled (); 1
 
 let num_stack_slot_classes = 3
 
 let stack_slot_class typ =
-  match typ with
+  match (typ : machtype_component) with
   | Val | Addr | Int -> 0
   | Float -> 1
   | Vec128 -> assert_simd_enabled (); 2
+  | Float32 -> assert_float32_enabled (); 1
 
 let stack_class_tag c =
   match c with
@@ -126,13 +128,16 @@ let first_available_register = [| 0; 100 |]
 
 let register_name ty r =
   (* If the ID doesn't match the type, the array access will raise. *)
-  match ty with
+  match (ty : machtype_component) with
   | Int | Addr | Val ->
     int_reg_name.(r - first_available_register.(0))
   | Float ->
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
     assert_simd_enabled ();
+    float_reg_name.(r - first_available_register.(1))
+  | Float32 ->
+    assert_float32_enabled ();
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -156,16 +161,36 @@ let hard_vec128_reg =
   for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
   fun () -> assert_simd_enabled (); v
 
+let hard_float32_reg =
+  let v = Array.make 16 Reg.dummy in
+  for i = 0 to 15 do v.(i) <- Reg.at_location Float32 (Reg (100 + i)) done;
+  fun () -> assert_float32_enabled (); v
+
+let extension_regs (type a) ?prefix (ext : a Language_extension.t) () =
+  if not (Language_extension.is_enabled ext) then [||]
+  else let regs =
+    match ext with
+    | SIMD -> hard_vec128_reg ()
+    | Small_numbers -> hard_float32_reg ()
+    | Mode | Unique | Include_functor | Comprehensions
+    | Polymorphic_parameters | Immutable_arrays
+    | Module_strengthening | Layouts | Labeled_tuples -> [||]
+  in match prefix with
+  | None -> regs
+  | Some p -> Array.sub regs 0 (Int.min p (Array.length regs))
+
 let all_phys_regs =
   let basic_regs = Array.append hard_int_reg hard_float_reg in
-  fun () -> if Language_extension.is_enabled SIMD
-            then Array.append basic_regs (hard_vec128_reg ())
-            else basic_regs
+  let simd_regs = extension_regs SIMD in
+  let f32_regs = extension_regs Small_numbers in
+  fun () -> Array.append basic_regs
+            (Array.append (simd_regs ()) (f32_regs ()))
 
 let phys_reg ty n =
-  match ty with
+  match (ty : machtype_component) with
   | Int | Addr | Val -> hard_int_reg.(n)
   | Float -> hard_float_reg.(n - 100)
+  | Float32 -> (hard_float32_reg ()).(n - 100)
   | Vec128 -> (hard_vec128_reg ()).(n - 100)
 
 let rax = phys_reg Int 0
@@ -177,9 +202,18 @@ let rbp = phys_reg Int 12
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
 let destroy_xmm n =
-  if Language_extension.is_enabled SIMD
-  then [| phys_reg Float (100 + n); phys_reg Vec128 (100 + n) |]
-  else [| phys_reg Float (100 + n) |]
+  let f64 = [| phys_reg Float (100 + n) |] in
+  let f32 =
+    if Language_extension.is_enabled Small_numbers
+    then [| phys_reg Float32 (100 + n) |]
+    else [||]
+  in
+  let v128 =
+    if Language_extension.is_enabled SIMD
+    then [| phys_reg Vec128 (100 + n) |]
+    else [||]
+  in
+  Array.append f64 (Array.append f32 v128)
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -189,8 +223,9 @@ let num_destroyed_by_plt_stub = Array.length destroyed_by_plt_stub
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
 let stack_slot slot ty =
-  (match ty with
+  (match (ty : machtype_component) with
    | Float | Int | Addr | Val -> ()
+   | Float32 -> assert_float32_enabled ()
    | Vec128 -> assert_simd_enabled ());
   Reg.at_location ty (Stack slot)
 
@@ -209,12 +244,13 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
   let float = ref first_float in
   let ofs = ref first_stack in
   for i = 0 to Array.length arg - 1 do
-    match arg.(i) with
+    match (arg.(i) : machtype_component) with
     | Val | Int | Addr as ty ->
         if !int <= last_int then begin
           loc.(i) <- phys_reg ty !int;
           incr int
         end else begin
+          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (make_stack !ofs) ty;
           ofs := !ofs + size_int
         end;
@@ -224,6 +260,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
           loc.(i) <- phys_reg Float !float;
           incr float
         end else begin
+          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (make_stack !ofs) Float;
           ofs := !ofs + size_float
         end
@@ -236,6 +273,14 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
         loc.(i) <- stack_slot (make_stack !ofs) Vec128;
         ofs := !ofs + size_vec128
       end
+    | Float32 ->
+        if !float <= last_float then begin
+          loc.(i) <- phys_reg Float32 !float;
+          incr float
+        end else begin
+          loc.(i) <- stack_slot (make_stack !ofs) Float32;
+          ofs := !ofs + (size_float / 2)
+        end
   done;
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
@@ -296,12 +341,13 @@ let win64_loc_external_arguments arg =
   let reg = ref 0
   and ofs = ref (if Config.runtime5 then 0 else 32) in
   for i = 0 to Array.length arg - 1 do
-    match arg.(i) with
+    match (arg.(i) : machtype_component) with
     | Val | Int | Addr as ty ->
         if !reg < 4 then begin
           loc.(i) <- phys_reg ty win64_int_external_arguments.(!reg);
           incr reg
         end else begin
+          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) ty;
           ofs := !ofs + size_int
         end
@@ -310,20 +356,22 @@ let win64_loc_external_arguments arg =
           loc.(i) <- phys_reg Float win64_float_external_arguments.(!reg);
           incr reg
         end else begin
+          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) Float;
           ofs := !ofs + size_float
         end
     | Vec128 ->
-      if !reg < 4 then begin
-        loc.(i) <- phys_reg Vec128 win64_float_external_arguments.(!reg);
-        incr reg
-      end else begin
-        ofs := Misc.align !ofs 16;
-        loc.(i) <- stack_slot (Outgoing !ofs) Vec128;
-        ofs := !ofs + size_vec128
-      end
+      (* CR mslater: (SIMD) win64 calling convention requires pass by reference *)
+      Misc.fatal_error "SIMD external arguments are not supported on Win64"
+    | Float32 ->
+        if !reg < 4 then begin
+          loc.(i) <- phys_reg Float32 win64_float_external_arguments.(!reg);
+          incr reg
+        end else begin
+          loc.(i) <- stack_slot (Outgoing !ofs) Float32;
+          ofs := !ofs + (size_float / 2)
+        end
   done;
-  (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
 
 let loc_external_arguments ty_args =
@@ -368,9 +416,10 @@ let destroyed_at_c_call_win64 =
     (Array.map (phys_reg Int) int_regs_destroyed_at_c_call_win64)
     (Array.sub hard_float_reg 0 6)
   in
-  fun () -> if Language_extension.is_enabled SIMD
-            then Array.append basic_regs (Array.sub (hard_vec128_reg ()) 0 6)
-            else basic_regs
+  let v128_regs = extension_regs ~prefix:6 SIMD in
+  let f32_regs = extension_regs ~prefix:6 Small_numbers in
+  fun () -> Array.append basic_regs
+              (Array.append (v128_regs ()) (f32_regs ()))
 
 let destroyed_at_c_call_unix =
   (* Unix: rbx, rbp, r12-r15 preserved *)
@@ -378,9 +427,10 @@ let destroyed_at_c_call_unix =
       (Array.map (phys_reg Int) int_regs_destroyed_at_c_call)
     hard_float_reg
   in
-  fun () -> if Language_extension.is_enabled SIMD
-            then Array.append basic_regs (hard_vec128_reg ())
-            else basic_regs
+  let v128_regs = extension_regs SIMD in
+  let f32_regs = extension_regs Small_numbers in
+  fun () -> Array.append basic_regs
+              (Array.append (v128_regs ()) (f32_regs ()))
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered

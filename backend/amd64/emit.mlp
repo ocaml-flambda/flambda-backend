@@ -48,10 +48,15 @@ let int_reg_name =
 let float_reg_name = Array.init 16 (fun i -> XMM i)
 
 let register_name typ r =
-  match typ with
+  match (typ : machtype_component) with
   | Int | Val | Addr -> Reg64 (int_reg_name.(r))
   | Float -> Regf (float_reg_name.(r - 100))
-  | Vec128 -> assert_simd_enabled (); Regf (float_reg_name.(r - 100))
+  | Vec128 ->
+    assert_simd_enabled ();
+    Regf (float_reg_name.(r - 100))
+  | Float32 ->
+    assert_float32_enabled ();
+    Regf (float_reg_name.(r - 100))
 
 let phys_rax = phys_reg Int 0
 let phys_rdx = phys_reg Int 4
@@ -300,10 +305,11 @@ let emit_Llabel fallthrough lbl section_name =
 
 (* Output a pseudo-register *)
 
-let x86_data_type_for_stack_slot = function
+let x86_data_type_for_stack_slot : machtype_component -> data_type = function
   | Float -> REAL8
   | Vec128 -> VEC128
   | Int | Addr | Val -> QWORD
+  | Float32 -> REAL4
 
 let reg = function
   | { loc = Reg.Reg r; typ = ty } -> register_name ty r
@@ -745,12 +751,14 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | Float, Reg.Reg _, Float, Reg.Reg _
+    | (Float | Float32), Reg.Reg _, (Float | Float32), Reg.Reg _
     | Vec128, _, Vec128, _ ->
       (* Vec128 stack slots are always aligned. *)
       I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
+    | Float32, _, Float32, _ ->
+      I.movss (reg src) (reg dst)
     | Float, _, Int, _ | Int, _, Float, _ ->
       (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
          They should instead generate a separate Ispecific and this case should be
@@ -761,6 +769,10 @@ let move (src : Reg.t) (dst : Reg.t) =
     | Vec128, _, _, _ | _, _, Vec128, _ ->
       Misc.fatal_errorf
         "Illegal move between a vector and non-vector register (%s to %s)\n"
+        (Reg.name src) (Reg.name dst)
+    | Float32, _, _, _ | _, _, Float32, _ ->
+      Misc.fatal_errorf
+        "Illegal move between a float32 and non-float32 register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
     | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
       Misc.fatal_errorf
@@ -776,7 +788,7 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
       (* Not calling move because r15 is not in int_reg_name. *)
       I.mov (reg src) r15;
       I.mov r15 (reg dst)
-    | Float | Addr | Vec128 ->
+    | Float | Addr | Vec128 | Float32 ->
       Misc.fatal_errorf
         "Unexpected register type for stack to stack move: from %s to %s\n"
         (Reg.name src) (Reg.name dst)
@@ -2056,6 +2068,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
   (* Manufacture stack entry with this register's type *)
   (match r.typ with
    | Int | Val | Addr | Float -> ()
+   | Float32 -> assert_float32_enabled ()
    | Vec128 -> assert_simd_enabled ());
   Reg.at_location r.typ loc
 
@@ -2112,7 +2125,9 @@ let size_of_regs regs =
     (fun r acc ->
       match r.Reg.typ with
       | Int | Addr | Val -> acc + size_int
-      | Float -> acc + size_float
+      | Float | Float32 ->
+        (* Float32 slots still take up a full word *)
+        acc + size_float
       | Vec128 -> acc + size_vec128)
     regs 0
 
@@ -2120,7 +2135,9 @@ let stack_locations ~offset regs =
   let _, locs = Array.fold_right (fun r (n, offsets) ->
     let next = n + match r.Reg.typ with
       | Int | Val | Addr -> size_int
-      | Float -> size_float
+      | Float | Float32 ->
+        (* Float32 slots still take up a full word *)
+        size_float
       | Vec128 -> size_vec128 in
     next, (make_stack_loc n r ~offset :: offsets)) regs (0, []) in
   locs |> Array.of_list
@@ -2206,7 +2223,7 @@ let emit_probe_handler_wrapper p =
       | Stack (Outgoing k) ->
         (match r.typ with
         | Val -> k::acc
-        | Int | Float | Vec128 -> acc
+        | Int | Float | Vec128 | Float32 -> acc
         | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
       | _ -> assert false)
     saved_live
