@@ -81,6 +81,12 @@ let fmt_mutable_flag f x =
   | Immutable -> fprintf f "Immutable"
   | Mutable -> fprintf f "Mutable"
 
+let fmt_mutable_mode_flag f (x : Types.mutability) =
+  match x with
+  | Immutable -> fprintf f "Immutable"
+  | Mutable m ->
+    fprintf f "Mutable(%a)" Mode.Alloc.Comonadic.Const.print m
+
 let fmt_virtual_flag f x =
   match x with
   | Virtual -> fprintf f "Virtual"
@@ -308,7 +314,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       line i ppf "Tpat_record\n";
       list i longident_x_pattern ppf l;
   | Tpat_array (am, arg_sort, l) ->
-      line i ppf "Tpat_array %a\n" fmt_mutable_flag am;
+      line i ppf "Tpat_array %a\n" fmt_mutable_mode_flag am;
       line i ppf "%a\n" Jkind.Sort.format arg_sort;
       list i pattern ppf l;
   | Tpat_lazy p ->
@@ -480,7 +486,7 @@ and expression i ppf x =
       longident i ppf li;
       expression i ppf e2;
   | Texp_array (amut, sort, l, amode) ->
-      line i ppf "Texp_array %a\n" fmt_mutable_flag amut;
+      line i ppf "Texp_array %a\n" fmt_mutable_mode_flag amut;
       line i ppf "%a\n" Jkind.Sort.format sort;
       alloc_mode i ppf amode;
       list i expression ppf l;
@@ -488,7 +494,7 @@ and expression i ppf x =
       line i ppf "Texp_list_comprehension\n";
       comprehension i ppf comp
   | Texp_array_comprehension (amut, sort, comp) ->
-      line i ppf "Texp_array_comprehension %a\n" fmt_mutable_flag amut;
+      line i ppf "Texp_array_comprehension %a\n" fmt_mutable_mode_flag amut;
       line i ppf "%a\n" Jkind.Sort.format sort;
       comprehension i ppf comp
   | Texp_ifthenelse (e1, e2, eo) ->
@@ -1051,7 +1057,7 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
                       ld_attributes} =
   line i ppf "%a\n" fmt_location ld_loc;
   attributes i ppf ld_attributes;
-  line (i+1) ppf "%a\n" fmt_mutable_flag ld_mutable;
+  line (i+1) ppf "%a\n" fmt_mutable_mode_flag ld_mutable;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
 

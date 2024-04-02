@@ -4318,7 +4318,7 @@ type add_instance_variable_failure =
 
 exception Add_instance_variable_failed of add_instance_variable_failure
 
-let check_mutability mut mut' =
+let check_mutability (mut : mutable_flag) (mut' : mutable_flag) =
   match mut, mut' with
   | Mutable, Mutable -> ()
   | Immutable, Immutable -> ()
@@ -5295,10 +5295,10 @@ let match_class_sig_shape ~strict sign1 sign2 =
   in
   let errors =
     Vars.fold
-      (fun lab (mut, vr, _) err ->
+      (fun lab ((mut:Asttypes.mutable_flag), vr, _) err ->
          match Vars.find lab sign1.csig_vars with
          | exception Not_found -> CM_Missing_value lab::err
-         | (mut', vr', _) ->
+         | ((mut':Asttypes.mutable_flag), vr', _) ->
              match mut', mut with
              | Immutable, Mutable -> CM_Non_mutable_value lab::err
              | _, _ ->

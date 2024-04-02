@@ -27,7 +27,7 @@ open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 type type_forcing_context =
   | If_conditional
@@ -487,9 +487,6 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
-let mode_box_modality gf expected_mode =
-  mode_default (modality_box_right gf expected_mode.mode)
-
 let mode_global expected_mode =
   let mode = meet_global expected_mode.mode in
   {expected_mode with mode}
@@ -876,6 +873,56 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
     | Ok () -> ()
     | Error (s, e) -> error (s, `Linearity e)
     ) m.linearity
+
+(** Takes the mutability and modalities on a record field, and [m] which is a
+    left mode on the record being accessed, returns the left mode of the
+    projected field. *)
+let project_field mutability modalities (m : (allowed * _) Value.t) =
+  ignore mutability;
+  modality_unbox_left modalities m
+
+(** Takes [m0] which is the parameter on mutable, and [m] which is a right mode
+    on the record being constructed, returns the right mode for the mutable
+    field used for construction. *)
+let construct_mutable m0 m =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
+  let m0 = Const.alloc_as_value m0 in
+  (* We require [join m0 ret <= m], which is equivalent to [m0 <= m] and [ret <=
+    m].  *)
+  (match Value.submode (Value.of_const m0) m with
+  | Ok () -> ()
+  | Error _ -> Misc.fatal_error
+      "mutable defaults to Comonadic.legacy, \
+      which is min, so this call cannot fail."
+  );
+  m |> Value.disallow_left
+
+(** Takes [m0] which is the parameter on mutable, returns the right mode for the
+    new value of the mutable field. *)
+let mutate_mutable m0 =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
+  let m0 = Const.alloc_as_value m0 in
+  m0 |> Value.of_const |> Value.disallow_left
+
+(** Takes the mutability and modalities on the field, and expected mode of the
+    record (adjusted for allocation), returns the expected mode for the field.
+    *)
+let construct_field mutability modalities (argument_mode : expected_mode) =
+  let mode =
+    match mutability with
+    | Immutable -> argument_mode.mode
+    | Mutable m0 -> construct_mutable m0 argument_mode.mode
+  in
+  let mode = modality_box_right modalities mode in
+  mode_default mode
 
 (* Typing of patterns *)
 
@@ -1574,9 +1621,9 @@ let solve_Ppat_record_field ~refine loc env label label_lid record_ty =
   end
 
 let solve_Ppat_array ~refine loc env mutability expected_ty =
-  let type_some_array = match mutability with
-    | Immutable -> Predef.type_iarray
-    | Mutable -> Predef.type_array
+  let type_some_array =
+    if Types.is_mutable mutability then Predef.type_array
+    else Predef.type_iarray
   in
   let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
@@ -2375,11 +2422,12 @@ and type_pat_aux
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
-    let alloc_mode =
-      match mutability with
-      | Mutable -> simple_pat_mode Value.legacy
-      | Immutable -> alloc_mode
+    let modalities : Global_flag.t =
+      (* CR zqian: decouple mutable and global modality *)
+      if Types.is_mutable mutability then Global else Unrestricted
     in
+    let alloc_mode = project_field mutability modalities alloc_mode.mode in
+    let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
       pat_desc = Tpat_array (mutability, arg_sort, pl);
@@ -2621,7 +2669,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
+             let alloc_mode = project_field Immutable gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2664,10 +2712,8 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let alloc_mode =
-          modality_unbox_left label.lbl_global alloc_mode.mode
-        in
-        let alloc_mode = simple_pat_mode alloc_mode in
+        let mode = project_field label.lbl_mut label.lbl_global alloc_mode.mode in
+        let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
       let make_record_pat lbl_pat_list =
@@ -2689,7 +2735,7 @@ and type_pat_aux
       let lbl_a_list = List.map type_label_pat lbl_a_list in
       rvp @@ solve_expected (make_record_pat lbl_a_list)
   | Ppat_array spl ->
-      type_pat_array Mutable spl sp.ppat_attributes
+      type_pat_array (Mutable Alloc.Comonadic.Const.legacy) spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       (* Reset pattern forces for just [tps2] because later we append
          [tps1] and [tps2]'s pattern forces, and we don't want to
@@ -3768,7 +3814,7 @@ let rec is_nonexpansive exp =
           | Tcf_inherit _ -> false
           | Tcf_attribute _ -> true)
         fields &&
-      Vars.fold (fun _ (mut,_,_) b -> decr count; b && mut = Immutable)
+      Vars.fold (fun _ (mut,_,_) b -> decr count; b && mut = Asttypes.Immutable)
         vars true &&
       !count = 0
   | Texp_letmodule (_, _, _, mexp, e)
@@ -5512,9 +5558,11 @@ and type_expect_
         else
           None, expected_mode
       in
-      let lbl_exp_list =
-        List.map (type_label_exp true env argument_mode loc ty_record) lbl_a_list
+      let type_label_exp ((_, label, _) as x) =
+        let argument_mode = construct_field label.lbl_mut label.lbl_global argument_mode in
+        type_label_exp true env argument_mode loc ty_record x
       in
+      let lbl_exp_list = List.map type_label_exp lbl_a_list in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
       (* note: check_duplicates would better be implemented in
@@ -5572,10 +5620,8 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
-                  let argument_mode =
-                    mode_box_modality lbl.lbl_global argument_mode
-                  in
+                  let mode = project_field lbl.lbl_mut lbl.lbl_global mode in
+                  let argument_mode = construct_field lbl.lbl_mut lbl.lbl_global argument_mode in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -5621,7 +5667,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = project_field label.lbl_mut label.lbl_global rmode in
       let boxing : texp_field_boxing =
         match label.lbl_repres with
         | Record_float ->
@@ -5651,11 +5697,16 @@ and type_expect_
         else record.exp_type
       in
       let (label_loc, label, newval) =
-        type_label_exp false env (mode_default rmode) loc
-          ty_record (lid, label, snewval) in
+        match label.lbl_mut with
+        | Mutable m0 ->
+          let mode = mutate_mutable m0 in
+          let mode = modality_box_right label.lbl_global mode in
+          type_label_exp false env (mode_default mode) loc
+            ty_record (lid, label, snewval)
+        | Immutable ->
+          raise(Error(loc, env, Label_not_mutable lid.txt))
+      in
       unify_exp env record ty_record;
-      if label.lbl_mut = Immutable then
-        raise(Error(loc, env, Label_not_mutable lid.txt));
       rue {
         exp_desc = Texp_setfield(record,
           Locality.disallow_right (regional_to_local (Value.regionality rmode)),
@@ -5671,7 +5722,7 @@ and type_expect_
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~mutability:Mutable
+        ~mutability:(Mutable Alloc.Comonadic.Const.legacy)
         ~attributes:sexp.pexp_attributes
         sargl
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
@@ -7118,12 +7169,11 @@ and type_option_some env expected_mode sarg ty ty0 =
     (type_option arg.exp_type) arg.exp_loc arg.exp_env
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
-   allocation but not modality *)
-and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
+   allocation, mutation and modalities. *)
+and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let arg_mode = mode_box_modality label.lbl_global expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
@@ -7713,7 +7763,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let args =
     List.map2
       (fun e ((ty, gf),t0) ->
-         let argument_mode = mode_box_modality gf argument_mode in
+         let argument_mode = construct_field Immutable gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
@@ -8581,7 +8631,7 @@ and type_andops env sarg sands expected_sort expected_ty =
 and type_generic_array
       ~loc
       ~env
-      ~expected_mode
+      ~(expected_mode : expected_mode)
       ~ty_expected
       ~explanation
       ~mutability
@@ -8589,10 +8639,14 @@ and type_generic_array
       sargl
   =
   let alloc_mode, argument_mode = register_allocation expected_mode in
-  let type_, argument_mode = match mutability with
-    | Mutable -> Predef.type_array, mode_default Value.legacy
-    | Immutable -> Predef.type_iarray, argument_mode
+  let type_, modalities =
+    (* CR zqian: decouple mutable and global *)
+    if Types.is_mutable mutability then
+      Predef.type_array, Global_flag.Global
+    else
+      Predef.type_iarray, Global_flag.Unrestricted
   in
+  let argument_mode = construct_field mutability modalities argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
@@ -8902,15 +8956,15 @@ and type_comprehension_expr
         comp,
         Predef.list_argument_jkind
     | Cexp_array_comprehension (amut, comp) ->
-        let container_type = match amut with
-          | Mutable   -> Predef.type_array
-          | Immutable -> Predef.type_iarray
+        let container_type, mut = match amut with
+          | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
+          | Immutable -> Predef.type_iarray, Immutable
         in
-        Array_comprehension amut,
+        Array_comprehension mut,
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
-            (amut, Jkind.Sort.for_array_comprehension_element, tcomp)),
+            (mut, Jkind.Sort.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See
@@ -9350,7 +9404,7 @@ let report_type_expected_explanation expl ppf =
       let a_comp_ty =
         match comp_ty with
         | List_comprehension            -> "a list"
-        | Array_comprehension Mutable   -> "an array"
+        | Array_comprehension (Mutable _)   -> "an array"
         | Array_comprehension Immutable -> "an immutable array"
       in
       because ("a for-in iterator in " ^ a_comp_ty ^ " comprehension")

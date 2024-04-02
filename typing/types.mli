@@ -28,6 +28,16 @@ open Asttypes
 (* CR layouts v2.8: Say more here. *)
 type jkind = Jkind.t
 
+(** Describes a mutable field/element. *)
+type mutability =
+  | Immutable
+  | Mutable of Mode.Alloc.Comonadic.Const.t
+  (** The upper bound of the new field value upon mutation. *)
+
+(** Returns [true] is the [mutable_flag] is mutable. Should be called if not
+    interested in the payload of [Mutable]. *)
+val is_mutable : mutability -> bool
+
 (** Type expressions for the core language.
 
     The [type_desc] variant defines all the possible type expressions one can
@@ -568,7 +578,7 @@ and variant_representation =
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
+    ld_mutable: mutability;
     ld_global: Mode.Global_flag.t;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
@@ -798,7 +808,7 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_global: Mode.Global_flag.t;     (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
