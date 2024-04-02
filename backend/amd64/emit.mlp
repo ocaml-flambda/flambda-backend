@@ -1387,9 +1387,9 @@ let emit_instr fallthrough i =
           I.movupd (addressing addressing_mode VEC128 i 0) dest
       | Onetwentyeight_aligned ->
           I.movapd (addressing addressing_mode VEC128 i 0) dest
-      | Single_materialized_as_double ->
+      | Single { reg = Float64 } ->
           I.cvtss2sd (addressing addressing_mode REAL4 i 0) dest
-      | Single ->
+      | Single { reg = Float32 } ->
           I.movss (addressing addressing_mode REAL4 i 0) dest
       | Double ->
           I.movsd (addressing addressing_mode REAL8 i 0) dest
@@ -1408,10 +1408,10 @@ let emit_instr fallthrough i =
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Onetwentyeight_aligned ->
           I.movapd (arg i 0) (addressing addr VEC128 i 1)
-      | Single_materialized_as_double ->
+      | Single { reg = Float64 } ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
-      | Single ->
+      | Single { reg = Float32 } ->
           I.movss (arg i 0) (addressing addr REAL4 i 1)
       | Double ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)

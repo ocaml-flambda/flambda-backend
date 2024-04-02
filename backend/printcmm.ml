@@ -104,8 +104,8 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
-  | Single_materialized_as_double -> "float32_materialized_as_float"
-  | Single -> "float32"
+  | Single { reg = Float64 } -> "float32_as_float64"
+  | Single { reg = Float32 } -> "float32"
   | Double -> "float64"
 
 let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function

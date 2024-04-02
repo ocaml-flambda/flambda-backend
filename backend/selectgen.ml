@@ -154,7 +154,8 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      | Single_materialized_as_double | Single | Double -> typ_float
+      (* CR mslater: (float32) machtype *)
+      | Single { reg = (Float64 | Float32) } | Double -> typ_float
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
@@ -214,7 +215,7 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
-    | Cconst_float32 _ -> Arch.size_float
+    | Cconst_float32 _ -> Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -1465,6 +1466,7 @@ method emit_stores env data regs_addr =
               for i = 0 to Array.length regs - 1 do
                 let r = regs.(i) in
                 let kind = match r.typ with
+                  (* CR mslater: (float32) machtype component *)
                   | Float -> Double
                   | Vec128 ->
                     (* 128-bit memory operations are default unaligned. Aligned (big)array
