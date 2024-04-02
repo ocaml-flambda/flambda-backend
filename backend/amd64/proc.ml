@@ -250,7 +250,6 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
           loc.(i) <- phys_reg ty !int;
           incr int
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (make_stack !ofs) ty;
           ofs := !ofs + size_int
         end;
@@ -260,7 +259,6 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
           loc.(i) <- phys_reg Float !float;
           incr float
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (make_stack !ofs) Float;
           ofs := !ofs + size_float
         end
@@ -279,7 +277,8 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
           incr float
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) Float32;
-          ofs := !ofs + (size_float / 2)
+          (* float32 slots still take up a full word *)
+          ofs := !ofs + size_float
         end
   done;
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
@@ -347,7 +346,6 @@ let win64_loc_external_arguments arg =
           loc.(i) <- phys_reg ty win64_int_external_arguments.(!reg);
           incr reg
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) ty;
           ofs := !ofs + size_int
         end
@@ -356,21 +354,21 @@ let win64_loc_external_arguments arg =
           loc.(i) <- phys_reg Float win64_float_external_arguments.(!reg);
           incr reg
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) Float;
           ofs := !ofs + size_float
         end
-    | Vec128 ->
-      (* CR mslater: (SIMD) win64 calling convention requires pass by reference *)
-      Misc.fatal_error "SIMD external arguments are not supported on Win64"
     | Float32 ->
         if !reg < 4 then begin
           loc.(i) <- phys_reg Float32 win64_float_external_arguments.(!reg);
           incr reg
         end else begin
           loc.(i) <- stack_slot (Outgoing !ofs) Float32;
-          ofs := !ofs + (size_float / 2)
+          (* float32 slots still take up a full word *)
+          ofs := !ofs + size_float
         end
+    | Vec128 ->
+        (* CR mslater: (SIMD) win64 calling convention requires pass by reference *)
+        Misc.fatal_error "SIMD external arguments are not supported on Win64"
   done;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
 
