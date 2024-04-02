@@ -34,19 +34,26 @@ module Witnesses = struct
   type t = unit
 
   let join _ _ = ()
+
   let lessequal _ _ = true
+
   let meet _ _ = ()
+
   let print _ _ = ()
+
   let empty = ()
+
   let compare _ _ = 0
 end
 
 include Zero_alloc_utils.Make (Witnesses)
 
-type t = No_assume | Assume of Value.t
+type t =
+  | No_assume
+  | Assume of Value.t
 
 let compare t1 t2 =
-  match (t1, t2) with
+  match t1, t2 with
   | No_assume, No_assume -> 0
   | Assume v1, Assume v2 -> Value.compare v1 v2
   | No_assume, Assume _ -> -1
@@ -61,44 +68,24 @@ let print ppf = function
 let to_string v = Format.asprintf "%a" print v
 
 let join t1 t2 =
-  match (t1, t2) with
+  match t1, t2 with
   | No_assume, No_assume -> No_assume
-  | No_assume, Assume _
-  | Assume _, No_assume ->
-      No_assume
+  | No_assume, Assume _ | Assume _, No_assume -> No_assume
   | Assume t1, Assume t2 -> Assume (Value.join t1 t2)
 
 let meet t1 t2 =
-  match (t1, t2) with
+  match t1, t2 with
   | No_assume, No_assume -> No_assume
-  | No_assume, (Assume _ as t)
-  | (Assume _ as t), No_assume ->
-      t
+  | No_assume, (Assume _ as t) | (Assume _ as t), No_assume -> t
   | Assume t1, Assume t2 -> Assume (Value.meet t1 t2)
 
 let none = No_assume
 
 let create ~strict ~never_returns_normally =
-  let res =
-    if strict then
-      Value.safe
-    else
-      Value.relaxed Witnesses.empty
-  in
-  let res =
-    if never_returns_normally then
-      { res with nor = V.Bot }
-    else
-      res
-  in
+  let res = if strict then Value.safe else Value.relaxed Witnesses.empty in
+  let res = if never_returns_normally then { res with nor = V.Bot } else res in
   Assume res
 
-let get_value t =
-  match t with
-  | No_assume -> None
-  | Assume v -> Some v
+let get_value t = match t with No_assume -> None | Assume v -> Some v
 
-let is_none t =
-  match t with
-  | No_assume -> true
-  | Assume _ -> false
+let is_none t = match t with No_assume -> true | Assume _ -> false
