@@ -1544,7 +1544,7 @@ let imm8_of_float_condition = function
 let emit_cmp_float ~width b ~condition ~dst ~src =
   match (dst, src) with
   | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    (* CMPSD xmm1, xmm2/m64, imm8 *)
+    (* CMP{SS,SD} xmm1, xmm2/m{32,64}, imm8 *)
     let condition = imm8_of_float_condition condition in
     (match width with
     | Cmm.Float64 -> buf_int8 b 0xF2
