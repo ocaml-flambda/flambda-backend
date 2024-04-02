@@ -1,4 +1,5 @@
 (* TEST
+  flags = "-extension layouts_alpha"
   * runtime5
   ** expect
  *)
@@ -10,13 +11,7 @@ type ok1 =
   }
 
 [%%expect{|
-Lines 1-4, characters 0-3:
-1 | type ok1 =
-2 |   { a : float;
-3 |     b : float#;
-4 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ok1 = { a : float; b : float#; }
 |}];;
 
 (* Mixed float-float# blocks are always OK. *)
@@ -26,13 +21,7 @@ type ok2 =
   }
 
 [%%expect{|
-Lines 1-4, characters 0-3:
-1 | type ok2 =
-2 |   { a : float#;
-3 |     b : float;
-4 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ok2 = { a : float#; b : float; }
 |}];;
 
 (* When a non-float/float# field appears, [float]
@@ -59,14 +48,7 @@ type ok3 =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type ok3 =
-2 |   { a : float;
-3 |     b : float#;
-4 |     c : int;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ok3 = { a : float; b : float#; c : int; }
 |}];;
 
 (* The field [c] can't be flat because a non-float/float# field [d] appears. *)
@@ -109,14 +91,7 @@ type ok4 =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type ok4 =
-2 |   { f1 : float#;
-3 |     f2 : float#;
-4 |     f3 : float;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ok4 = { f1 : float#; f2 : float#; f3 : float; }
 |}];;
 
 (* The string [f3] can't appear in the flat suffix. *)
@@ -142,34 +117,19 @@ type ok5 =
   }
 
 [%%expect{|
-Lines 1-5, characters 0-3:
-1 | type ok5 =
-2 |   { a : float#;
-3 |     b : float#;
-4 |     c : int;
-5 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ok5 = { a : float#; b : float#; c : int; }
 |}];;
 
 (* Parameterized types *)
 
 type ('a : float64) ok6 = { x : string; y : 'a }
 [%%expect{|
-Line 1, characters 0-48:
-1 | type ('a : float64) ok6 = { x : string; y : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ('a : float64) ok6 = { x : string; y : 'a; }
 |}];;
 
 type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b }
 [%%expect{|
-Line 1, characters 0-72:
-1 | type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ('a : float64, 'b : immediate) ok7 = { x : string; y : 'a; z : 'b; }
 |}];;
 
 (* Recursive groups *)
@@ -207,11 +167,15 @@ and 'a ok8_immediate = 'a t_immediate_id
 and ('a : float64, 'b : immediate, 'ptr) ok8 =
   {ptr : 'ptr; x : 'a; y : 'a ok8_float; z : 'b; w : 'b ok8_immediate}
 [%%expect{|
-Lines 3-4, characters 0-70:
-3 | and ('a : float64, 'b : immediate, 'ptr) ok8 =
-4 |   {ptr : 'ptr; x : 'a; y : 'a ok8_float; z : 'b; w : 'b ok8_immediate}
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+type ('a : float64) ok8_float = 'a t_float64_id
+and ('a : immediate) ok8_immediate = 'a t_immediate_id
+and ('a : float64, 'b : immediate, 'ptr) ok8 = {
+  ptr : 'ptr;
+  x : 'a;
+  y : 'a ok8_float;
+  z : 'b;
+  w : 'b ok8_immediate;
+}
 |}];;
 
 
@@ -266,6 +230,5 @@ Lines 2-37, characters 0-3:
 35 |     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
 36 |     value_but_flat:int; unboxed:float#;
 37 |   }
-Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;

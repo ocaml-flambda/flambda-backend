@@ -21,7 +21,7 @@ Lines 1-4, characters 0-3:
 2 |   { x : float;
 3 |     y : float#;
 4 |   }
-Error: This OCaml runtime doesn't support mixed records. Contact Jane Street compiler devs if you see this error.
+Error: This OCaml runtime doesn't support mixed records.
 |}]
 
 type t =
@@ -35,5 +35,5 @@ Lines 1-4, characters 0-3:
 2 |   { x : string;
 3 |     y : float#;
 4 |   }
-Error: This OCaml runtime doesn't support mixed records. Contact Jane Street compiler devs if you see this error.
+Error: This OCaml runtime doesn't support mixed records.
 |}]

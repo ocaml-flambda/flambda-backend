@@ -202,31 +202,11 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
 (* Test 5: Can't be put in structures in typedecls, except certain records. *)
 
 (* all-float64 records are allowed, as are some records that mix float64 and
-   value fields. See [tests/typing-layouts/mixed_records.ml] for more exhaustive
-   tests of mixed records. *)
+   value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
+   records. *)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
-|}];;
-
-type t5_2_1 = { y : int; x : t_float64 };;
-[%%expect{|
-type t5_2_1 = { y : int; x : t_float64; }
-|}];;
-
-type t5_2_2 = { y : float; x : t_float64 };;
-[%%expect{|
-type t5_2_2 = { y : float; x : t_float64; }
-|}];;
-
-type t5_2_3 = { z : float; y : int; x : t_float64 };;
-[%%expect{|
-type t5_2_3 = { z : float; y : int; x : t_float64; }
-|}];;
-
-type t5_2_4 = { y : string; x : t_float64 };;
-[%%expect{|
-type t5_2_4 = { y : string; x : t_float64; }
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -307,12 +287,6 @@ type ('a : float64) t5_12 = { x : 'a; y : float#; }
 type ('a : float64) t5_13 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64) t5_13 = { x : 'a; y : float#; }
-|}];;
-
-(* Mixed records are allowed, but are prohibited outside of alpha. *)
-type 'a t5_14 = {x : 'a; y : float#};;
-[%%expect{|
-type 'a t5_14 = { x : 'a; y : float#; }
 |}];;
 
 type ufref = { mutable contents : float# };;
