@@ -715,15 +715,23 @@ let box_float32 dbg mode exp =
 
 let unbox_float32 dbg =
   map_tail ~kind:Any (function
-    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
+    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
       when Nativeint.equal hdr boxedfloat32_header
            || Nativeint.equal hdr boxedfloat32_local_header ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
       | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
-      | _ -> Cop (mk_load_immut (Single { reg = Float32 }), [cmm], dbg))
-    | cmm -> Cop (mk_load_immut (Single { reg = Float32 }), [cmm], dbg))
+      | _ ->
+        Cop
+          ( mk_load_immut (Single { reg = Float32 }),
+            [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+            dbg ))
+    | cmm ->
+      Cop
+        ( mk_load_immut (Single { reg = Float32 }),
+          [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+          dbg ))
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
