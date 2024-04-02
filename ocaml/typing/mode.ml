@@ -1118,7 +1118,7 @@ module type Obj = sig
   val obj : const C.obj
 end
 
-let atomically op =
+let try_with_log op =
   let log' = ref S.empty_changes in
   let log = Some log' in
   match op ~log with
@@ -1130,7 +1130,7 @@ let atomically op =
     x
   [@@inline]
 
-let atomically' op =
+let with_log op =
   let log' = ref S.empty_changes in
   let log = Some log' in
   let r = op ~log in
@@ -1184,7 +1184,7 @@ module Common (Obj : Obj) = struct
 
   let submode_log a b ~log = Solver.submode obj a b ~log
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
   let join l = Solver.join obj l
 
@@ -1192,7 +1192,7 @@ module Common (Obj : Obj) = struct
 
   let submode_exn m0 m1 = assert (submode m0 m1 |> Result.is_ok)
 
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
@@ -1201,9 +1201,9 @@ module Common (Obj : Obj) = struct
     then Solver.print_raw ?verbose obj ppf m
     else Solver.print ?verbose obj ppf m
 
-  let zap_to_ceil m = atomically' (Solver.zap_to_ceil obj m)
+  let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
 
-  let zap_to_floor m = atomically' (Solver.zap_to_floor obj m)
+  let zap_to_floor m = with_log (Solver.zap_to_floor obj m)
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
@@ -1397,10 +1397,10 @@ module Comonadic_with_regionality = struct
         else Error (`Linearity { left = lin0; right = lin1 })
       else Error (`Regionality { left = reg0; right = reg1 })
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
   (* override to report the offending axis *)
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1497,10 +1497,10 @@ module Comonadic_with_locality = struct
         else Error (`Linearity { left = lin0; right = lin1 })
       else Error (`Locality { left = loc0; right = loc1 })
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
   (* override to report the offending axis *)
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1574,10 +1574,10 @@ module Monadic = struct
       then assert false
       else Error (`Uniqueness { left = uni0; right = uni1 })
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
   (* override to report the offending axis *)
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1678,9 +1678,9 @@ module Value = struct
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let submode_exn m0 m1 =
     match submode m0 m1 with
@@ -1980,9 +1980,9 @@ module Alloc = struct
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let submode a b = atomically (submode_log a b)
+  let submode a b = try_with_log (submode_log a b)
 
-  let equate a b = atomically (equate_from_submode submode_log a b)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let submode_exn m0 m1 =
     match submode m0 m1 with
