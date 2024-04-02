@@ -108,7 +108,7 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
     in
     let ty =
       match block_shape with
-      | Mixed _ -> T.any_block
+      | Mixed _ -> T.any_value
       | Not_mixed { shape; field_kind } -> (
         let fields =
           List.map2
