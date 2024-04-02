@@ -43,12 +43,13 @@ let reg ppf r =
     fprintf ppf "%s" (Reg.name r)
   else
     fprintf ppf "%s"
-      (match r.typ with
+      (match (r.typ : machtype_component) with
       | Val -> "V"
       | Addr -> "A"
       | Int -> "I"
       | Float -> "F"
-      | Vec128 -> "X");
+      | Vec128 -> "X"
+      | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)

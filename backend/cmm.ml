@@ -19,6 +19,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Int
   | Float
   | Vec128
+  | Float32
 
 type machtype = machtype_component array
 
@@ -27,11 +28,12 @@ let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
 let typ_float = [|Float|]
+let typ_float32 = [|Float32|]
 let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float     Vec128
+      Addr     (Others)
        ^
        |
       Val
@@ -58,11 +60,14 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
+  | Float32, Float32 -> Float32
   | Vec128, Vec128 -> Vec128
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
     Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
@@ -79,11 +84,14 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
+  | Float32, Float32 -> true
   | Vec128, Vec128 -> true
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
     Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
 
@@ -100,7 +108,7 @@ let machtype_of_exttype = function
   | XInt32 -> typ_int
   | XInt64 -> typ_int
   | XFloat -> typ_float
-  | XFloat32 -> typ_float
+  | XFloat32 -> typ_float32
   | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
@@ -518,18 +526,20 @@ let map_shallow f = function
     as c ->
       c
 
-let equal_machtype_component left right =
+let equal_machtype_component (left : machtype_component) (right : machtype_component) =
   match left, right with
   | Val, Val -> true
   | Addr, Addr -> true
   | Int, Int -> true
   | Float, Float -> true
   | Vec128, Vec128 -> true
-  | Val, (Addr | Int | Float | Vec128)
-  | Addr, (Val | Int | Float | Vec128)
-  | Int, (Val | Addr | Float | Vec128)
-  | Float, (Val | Addr | Int | Vec128)
-  | Vec128, (Val | Addr | Int | Float) ->
+  | Float32, Float32 -> true
+  | Val, (Addr | Int | Float | Vec128 | Float32)
+  | Addr, (Val | Int | Float | Vec128 | Float32)
+  | Int, (Val | Addr | Float | Vec128 | Float32)
+  | Float, (Val | Addr | Int | Vec128 | Float32)
+  | Vec128, (Val | Addr | Int | Float | Float32)
+  | Float32, (Val | Addr | Int | Float | Vec128) ->
     false
 
 let equal_exttype left right =

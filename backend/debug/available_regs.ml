@@ -271,7 +271,7 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                 let reg_is_of_type_addr =
                   match (RD.reg reg).typ with
                   | Addr -> true
-                  | Val | Int | Float | Vec128 -> false
+                  | Val | Int | Float | Vec128 | Float32 -> false
                 in
                 if remains_available
                    || (not (extend_live ()))

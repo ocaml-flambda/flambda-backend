@@ -564,7 +564,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/53) with an unknown \
+      ">> Fatal error: instruction 20 has a register (V/69) with an unknown \
        location"
 
 let () =

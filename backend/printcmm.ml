@@ -29,12 +29,14 @@ let rec_flag ppf = function
   | Nonrecursive -> ()
   | Recursive -> fprintf ppf " rec"
 
-let machtype_component ppf = function
+let machtype_component ppf (ty : machtype_component) =
+  match ty with
   | Val -> fprintf ppf "val"
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
+  | Float32 -> fprintf ppf "float32"
 
 let machtype ppf mty =
   match Array.length mty with

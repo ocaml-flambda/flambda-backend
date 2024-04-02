@@ -116,6 +116,10 @@ let assert_simd_enabled () =
   if not (Language_extension.is_enabled SIMD) then
   Misc.fatal_error "SIMD is not enabled."
 
+let assert_float32_enabled () =
+  if not (Language_extension.is_enabled Small_numbers) then
+  Misc.fatal_error "float32 is not enabled."
+
 (* Specific operations for the AMD64 processor *)
 
 open Format
