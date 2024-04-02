@@ -21,10 +21,10 @@ open Debuginfo.Scoped_location
     This function needs to translate expressions from Typedtree into Lambda, and
     so is parameterized by [Translcore.transl_exp], its [scopes] argument, and
     the [loc]ation. *)
-val comprehension
-  :  transl_exp:(scopes:scopes -> Jkind.sort -> expression -> lambda)
-  -> scopes:scopes
-  -> loc:scoped_location
-  -> array_kind:array_kind
-  -> comprehension
-  -> lambda
+val comprehension :
+  transl_exp:(scopes:scopes -> Jkind.sort -> expression -> lambda) ->
+  scopes:scopes ->
+  loc:scoped_location ->
+  array_kind:array_kind ->
+  comprehension ->
+  lambda
