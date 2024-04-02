@@ -142,19 +142,29 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
 
-let array_load_128 ~dbg arr index element_width_log2 =
-  C.unaligned_load_128 arr
-    (C.lsl_int (C.untag_int index dbg)
-       (Cconst_int (element_width_log2, dbg))
-       dbg)
-    dbg
+let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
+  let index =
+    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
+  in
+  let index =
+    (* Skip custom_ops pointer *)
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
+  in
+  C.unaligned_load_128 arr index dbg
 
-let array_set_128 ~dbg arr index new_value element_width_log2 =
-  C.unaligned_set_128 arr
-    (C.lsl_int (C.untag_int index dbg)
-       (Cconst_int (element_width_log2, dbg))
-       dbg)
-    new_value dbg
+let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
+  let index =
+    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
+  in
+  let index =
+    (* Skip custom_ops pointer *)
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
+  in
+  C.unaligned_set_128 arr index new_value dbg
 
 let array_load ~dbg (kind : P.Array_kind.t)
     (accessor_width : P.array_accessor_width) ~arr ~index =
@@ -165,9 +175,12 @@ let array_load ~dbg (kind : P.Array_kind.t)
   | Values, Scalar -> C.addr_array_ref arr index dbg
   | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
   | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
-  | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
-    array_load_128 ~dbg arr index 3
-  | Naked_int32s, Vec128 -> array_load_128 ~dbg arr index 2
+  | (Immediates | Naked_floats), Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+  | (Naked_int64s | Naked_nativeints), Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+  | Naked_int32s, Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
   | Values, Vec128 ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
@@ -188,9 +201,15 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
       C.unboxed_int32_array_set arr ~index ~new_value dbg
     | (Naked_int64s | Naked_nativeints), Scalar ->
       C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
-    | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
-      array_set_128 ~dbg arr index new_value 3
-    | Naked_int32s, Vec128 -> array_set_128 ~dbg arr index new_value 2
+    | (Immediates | Naked_floats), Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+        new_value
+    | (Naked_int64s | Naked_nativeints), Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+        new_value
+    | Naked_int32s, Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+        new_value
     | Values _, Vec128 ->
       Misc.fatal_error "Attempted to store a SIMD vector to a value array."
   in
