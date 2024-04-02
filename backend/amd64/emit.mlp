@@ -596,86 +596,51 @@ let emit_float_test (width : Cmm.float_width)
      If FP traps are on (they are off by default),
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
-  match width, cmp with
-  | Float64, CFeq when arg i 1 = arg i 0 ->
-      I.ucomisd (arg i 1) (arg i 0);
+  let ucomi, comi =
+    match width with
+    | Float64 -> I.ucomisd, I.comisd
+    | Float32 -> I.ucomiss, I.comiss
+  in
+  match cmp with
+  | CFeq when arg i 1 = arg i 0 ->
+      ucomi (arg i 1) (arg i 0);
       taken NP
-  | Float64, CFeq ->
+  | CFeq ->
       let next = new_label() in
-      I.ucomisd (arg i 1) (arg i 0);
+      ucomi (arg i 1) (arg i 0);
       I.jp (label next);           (* skip if unordered *)
       taken E;                     (* branch taken if x=y *)
       def_label next
-  | Float64, CFneq when arg i 1 = arg i 0 ->
-      I.ucomisd (arg i 1) (arg i 0);
+  | CFneq when arg i 1 = arg i 0 ->
+      ucomi (arg i 1) (arg i 0);
       taken P
-  | Float64, CFneq ->
-      I.ucomisd (arg i 1) (arg i 0);
+  | CFneq ->
+      ucomi (arg i 1) (arg i 0);
       taken P;                     (* branch taken if unordered *)
       taken NE                     (* branch taken if x<y or x>y *)
-  | Float64, CFlt ->
-      I.comisd (arg i 0) (arg i 1);
+  | CFlt ->
+      comi (arg i 0) (arg i 1);
       taken A                      (* branch taken if y>x i.e. x<y *)
-  | Float64, CFnlt ->
-      I.comisd (arg i 0) (arg i 1);
+  | CFnlt ->
+      comi (arg i 0) (arg i 1);
       taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
-  | Float64, CFle ->
-      I.comisd (arg i 0) (arg i 1);(* swap compare *)
+  | CFle ->
+      comi (arg i 0) (arg i 1);    (* swap compare *)
       taken AE                     (* branch taken if y>=x i.e. x<=y *)
-  | Float64, CFnle ->
-      I.comisd (arg i 0) (arg i 1);(* swap compare *)
+  | CFnle ->
+      comi (arg i 0) (arg i 1);    (* swap compare *)
       taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
-  | Float64, CFgt ->
-      I.comisd (arg i 1) (arg i 0);
+  | CFgt ->
+      comi (arg i 1) (arg i 0);
       taken A                      (* branch taken if x>y *)
-  | Float64, CFngt ->
-      I.comisd (arg i 1) (arg i 0);
+  | CFngt ->
+      comi (arg i 1) (arg i 0);
       taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
-  | Float64, CFge ->
-      I.comisd (arg i 1) (arg i 0);(* swap compare *)
+  | CFge ->
+      comi (arg i 1) (arg i 0);    (* swap compare *)
       taken AE                     (* branch taken if x>=y *)
-  | Float64, CFnge ->
-      I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
-  | Float32, CFeq when arg i 1 = arg i 0 ->
-      I.ucomisd (arg i 1) (arg i 0);
-      taken NP
-  | Float32, CFeq ->
-      let next = new_label() in
-      I.ucomisd (arg i 1) (arg i 0);
-      I.jp (label next);           (* skip if unordered *)
-      taken E;                     (* branch taken if x=y *)
-      def_label next
-  | Float32, CFneq when arg i 1 = arg i 0 ->
-      I.ucomiss (arg i 1) (arg i 0);
-      taken P
-  | Float32, CFneq ->
-      I.ucomiss (arg i 1) (arg i 0);
-      taken P;                     (* branch taken if unordered *)
-      taken NE                     (* branch taken if x<y or x>y *)
-  | Float32, CFlt ->
-      I.comiss (arg i 0) (arg i 1);
-      taken A                      (* branch taken if y>x i.e. x<y *)
-  | Float32, CFnlt ->
-      I.comiss (arg i 0) (arg i 1);
-      taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
-  | Float32, CFle ->
-      I.comiss (arg i 0) (arg i 1);(* swap compare *)
-      taken AE                     (* branch taken if y>=x i.e. x<=y *)
-  | Float32, CFnle ->
-      I.comiss (arg i 0) (arg i 1);(* swap compare *)
-      taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
-  | Float32, CFgt ->
-      I.comiss (arg i 1) (arg i 0);
-      taken A                      (* branch taken if x>y *)
-  | Float32, CFngt ->
-      I.comiss (arg i 1) (arg i 0);
-      taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
-  | Float32, CFge ->
-      I.comiss (arg i 1) (arg i 0);(* swap compare *)
-      taken AE                     (* branch taken if x>=y *)
-  | Float32, CFnge ->
-      I.comiss (arg i 1) (arg i 0);(* swap compare *)
+  | CFnge ->
+      comi (arg i 1) (arg i 0);    (* swap compare *)
       taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
 
 let emit_test i ~(taken:X86_ast.condition -> unit) = function
@@ -1567,6 +1532,8 @@ let emit_instr fallthrough i =
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpss cond a1 a0;
       I.movd a0 (res32 i 0);
+      (* CMPSS only sets the bottom 32 bits of the result, so we sign-extend to
+         copy the result to the top 32 bits. *)
       I.movsxd (res32 i 0) (res i 0);
       I.neg (res i 0)
   | Lop(Inegf Float64) ->
@@ -1645,9 +1612,8 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Ifloatsqrtf (Float64, addr))) ->
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float32, addr))) ->
-      I.xorps (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtss (addressing addr REAL8 i 0) (res i 0)
+  | Lop(Ispecific(Ifloatsqrtf (Float32, _addr))) ->
+      Misc.fatal_error "Ifloatsqrtf Float32 should never be generated."
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

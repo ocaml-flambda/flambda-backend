@@ -261,7 +261,7 @@ let () = (* Marshal *)
   CFloat32.check_float32s (fun l r ->
     let b = Poly.to_bytes (Sys.opaque_identity l, Sys.opaque_identity r) [] in
     let (readl, readr) : float32 * float32 = Poly.from_bytes_unsafe b 0 in
-    assert (Float32.compare l readl = 0);
-    assert (Float32.compare r readr = 0)
+    assert (CFloat32.bits_to_int l = CFloat32.bits_to_int readl);
+    assert (CFloat32.bits_to_int r = CFloat32.bits_to_int readr)
   )
 ;;

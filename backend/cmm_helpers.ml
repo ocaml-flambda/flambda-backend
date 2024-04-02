@@ -401,13 +401,13 @@ let mk_compare_ints dbg a1 a2 =
     int_const dbg Nativeint.(compare c1 (of_int c2))
   | a1, a2 -> tag_int (mk_compare_ints_untagged dbg a1 a2) dbg
 
-let mk_compare_floats_untagged dbg a1 a2 =
+let mk_compare_floats_gen ~tag_result ~width dbg a1 a2 =
   bind "float_cmp" a2 (fun a2 ->
       bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf (Float64, CFgt), [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf (Float64, CFlt), [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf (Float64, CFeq), [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf (Float64, CFeq), [a2; a2], dbg) in
+          let op1 = Cop (Ccmpf (width, CFgt), [a1; a2], dbg) in
+          let op2 = Cop (Ccmpf (width, CFlt), [a1; a2], dbg) in
+          let op3 = Cop (Ccmpf (width, CFeq), [a1; a1], dbg) in
+          let op4 = Cop (Ccmpf (width, CFeq), [a2; a2], dbg) in
           (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
              result is op1 - op2.
 
@@ -421,51 +421,18 @@ let mk_compare_floats_untagged dbg a1 a2 =
              Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
              only if a2 is NaN. See also caml_float_compare_unboxed in
              runtime/floats.c *)
-          add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
+          let result =
+            add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg
+          in
+          if tag_result then tag_int result dbg else result))
 
-let mk_compare_float32s_untagged dbg a1 a2 =
-  bind "float32_cmp" a2 (fun a2 ->
-      bind "float32_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf (Float32, CFgt), [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf (Float32, CFlt), [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf (Float32, CFeq), [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf (Float32, CFeq), [a2; a2], dbg) in
-          (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
-             result is op1 - op2.
+let mk_compare_floats = mk_compare_floats_gen ~tag_result:true ~width:Float64
 
-             If at least one of the operands is NaN, then op1 = op2 = 0, and the
-             result is op3 - op4, which orders NaN before other values.
+let mk_compare_floats_untagged =
+  mk_compare_floats_gen ~tag_result:false ~width:Float64
 
-             To detect if the operand is NaN, we use the property:
-
-             for all x, NaN is not equal to x, even if x is NaN.
-
-             Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
-             only if a2 is NaN. See also caml_float_compare_unboxed in
-             runtime/floats.c *)
-          add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
-
-let mk_compare_floats dbg a1 a2 =
-  bind "float_cmp" a2 (fun a2 ->
-      bind "float_cmp" a1 (fun a1 ->
-          let op1 = Cop (Ccmpf (Float64, CFgt), [a1; a2], dbg) in
-          let op2 = Cop (Ccmpf (Float64, CFlt), [a1; a2], dbg) in
-          let op3 = Cop (Ccmpf (Float64, CFeq), [a1; a1], dbg) in
-          let op4 = Cop (Ccmpf (Float64, CFeq), [a2; a2], dbg) in
-          (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1, and the
-             result is op1 - op2.
-
-             If at least one of the operands is NaN, then op1 = op2 = 0, and the
-             result is op3 - op4, which orders NaN before other values.
-
-             To detect if the operand is NaN, we use the property: for all x,
-             NaN is not equal to x, even if x is NaN.
-
-             Therefore, op3 is 0 if and only if a1 is NaN, and op4 is 0 if and
-             only if a2 is NaN.
-
-             See also caml_float_compare_unboxed in runtime/floats.c *)
-          tag_int (add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg) dbg))
+let mk_compare_float32s_untagged =
+  mk_compare_floats_gen ~tag_result:false ~width:Float32
 
 let create_loop body dbg =
   let cont = Lambda.next_raise_count () in

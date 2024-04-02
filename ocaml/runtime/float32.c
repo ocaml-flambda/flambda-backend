@@ -146,6 +146,11 @@ CAMLprim value caml_div_float32(value f, value g)
   return caml_copy_float32(Float32_val(f) / Float32_val(g));
 }
 
+CAMLprim value caml_sqrt_float32(value f)
+{
+  return caml_copy_float32(sqrtf(Float32_val(f)));
+}
+
 CAMLprim value caml_float32_compare(value vf, value vg)
 {
   return Val_int(caml_float32_compare_unboxed(Float32_val(vf), Float32_val(vg)));
