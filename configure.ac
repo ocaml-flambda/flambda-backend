@@ -476,8 +476,8 @@ AC_ARG_ENABLE([stdlib-manpages],
     [do not build or install the library man pages])])
 
 AC_ARG_ENABLE([warn-error],
-  [AS_HELP_STRING([--enable-warn-error],
-    [treat C compiler warnings as errors])])
+  [AS_HELP_STRING([--disable-warn-error],
+    [do not treat C compiler warnings as errors])])
 
 AC_ARG_VAR([WINDOWS_UNICODE_MODE],
   [how to handle Unicode under Windows: ansi, compatible])
@@ -758,8 +758,9 @@ AS_CASE([$ocaml_cv_cc_vendor],
   cc_warnings="-Wall -Wno-pragmas -Wint-conversion -Wstrict-prototypes \
 -Wold-style-definition"])
 
-AS_CASE([$enable_warn_error,OCAML__DEVELOPMENT_VERSION],
-  [yes,*|,true],
+AS_CASE([$enable_warn_error],
+  [no], [],
+  [*],
     [cc_warnings="$cc_warnings $warn_error_flag"])
 
 # We select high optimization levels, provided we can turn off:
