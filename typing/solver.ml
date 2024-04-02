@@ -176,7 +176,7 @@ module Solver_mono (C : Lattices_mono) = struct
   let print_raw :
       type a l r.
       ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
-   fun ?(verbose = true) (obj : a C.obj) ppf m ->
+   fun ?(verbose = false) (obj : a C.obj) ppf m ->
     let traversed = if verbose then Some VarSet.empty else None in
     match m with
     | Amode a -> C.print obj ppf a
@@ -407,36 +407,32 @@ module Solver_mono (C : Lattices_mono) = struct
       | Ok () -> Ok ()
       | Error e -> Error (C.apply obj f e)
 
-  (** Zap the variable to its lower bound. Returns the [log] of the zapping, in
+  (** Zap [mv] to its lower bound. Returns the [log] of the zapping, in
       case the caller are only interested in the lower bound and wants to
       reverse the zapping.
 
-      As mentioned in [var], [v.lower] is not precise; to get the precise lower
-      bound of [v], we call [submode v v.lower]. This would call [submode u
-      v.lower] for every [u] in [v.vlower], which might fail because for some [u]
-      [u.lower] is more up-to-date than [v.lower]. In that case, we call
-      [submode v u.lower]. We repeat this process until no failure, and we will
-      get the precise lower bound.
+      As mentioned in [var], [mlower mv] is not precise; to get the precise
+      lower bound of [mv], we call [submode mv (mlower mv)]. This will propagate
+      to all its children, which might fail because some children's lower bound
+      [a] is more up-to-date than [mv]. In that case, we call [submode mv a]. We
+      repeat this process until no failure, and we will get the precise lower
+      bound.
 
       The loop is guaranteed to terminate, because for each iteration our
       guessed lower bound is strictly higher; and all lattices are finite.
       *)
-  let zap_to_floor_var_aux (type a) (obj : a C.obj) (v : a var) =
+  let zap_to_floor_morphvar_aux (type a r) (obj : a C.obj)
+      (mv : (a, allowed * r) morphvar) =
     let rec loop lower =
       let log = ref empty_changes in
-      let r = submode_vc ~log:(Some log) obj v lower in
+      let r = submode_mvc ~log:(Some log) obj mv lower in
       match r with
       | Ok () -> !log, lower
       | Error a ->
         undo_changes !log;
         loop (C.join obj a lower)
     in
-    loop v.lower
-
-  let zap_to_floor_morphvar_aux dst (Amorphvar (v, f)) =
-    let src = C.src dst f in
-    let log, lower = zap_to_floor_var_aux src v in
-    log, C.apply dst f lower
+    loop (mlower obj mv)
 
   let eq_morphvar :
       type a l0 r0 l1 r1. (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool
@@ -537,8 +533,7 @@ module Solver_mono (C : Lattices_mono) = struct
                     mus)))
 
   let zap_to_ceil_morphvar obj mv ~log =
-    assert (
-      submode obj (Amode (mupper obj mv)) (Amodevar mv) ~log |> Result.is_ok);
+    assert (submode_cmv obj (mupper obj mv) mv ~log |> Result.is_ok);
     mupper obj mv
 
   let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
@@ -633,38 +628,22 @@ module Solver_mono (C : Lattices_mono) = struct
           C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
         a mvs
 
-  let check_const : type a l r. a C.obj -> (a, l * r) mode -> a option =
+  let check_const : type a. a C.obj -> (a, allowed * allowed) mode -> a option =
    fun obj m ->
     match m with
     | Amode a -> Some a
     | Amodevar mv ->
       let lower = zap_to_floor_morphvar obj mv ~commit:None in
       if C.le obj (mupper obj mv) lower then Some lower else None
-    | Amodemeet (a, mvs) ->
-      let upper =
-        List.fold_left (fun x mv -> C.meet obj x (mupper obj mv)) a mvs
-      in
-      let lower =
-        List.fold_left
-          (fun x mv -> C.meet obj x (zap_to_floor_morphvar obj mv ~commit:None))
-          a mvs
-      in
-      if C.le obj upper lower then Some upper else None
-    | Amodejoin (a, mvs) ->
-      let upper =
-        List.fold_left (fun x mv -> C.join obj x (mupper obj mv)) a mvs
-      in
-      let lower =
-        List.fold_left
-          (fun x mv -> C.join obj x (zap_to_floor_morphvar obj mv ~commit:None))
-          a mvs
-      in
-      if C.le obj upper lower then Some lower else None
 
   let print :
-      type a l r.
-      ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
-   fun ?(verbose = true) obj ppf m ->
+      type a.
+      ?verbose:bool ->
+      a C.obj ->
+      Format.formatter ->
+      (a, allowed * allowed) mode ->
+      unit =
+   fun ?(verbose = false) obj ppf m ->
     print_raw obj ~verbose ppf
       (match check_const obj m with None -> m | Some a -> Amode a)
 
