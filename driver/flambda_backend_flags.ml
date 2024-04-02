@@ -53,7 +53,7 @@ module Function_layout = struct
     | Topological -> "topological"
     | Source -> "source"
 
-  let default = Topological
+  let default = Source
 
   let all = [Topological; Source]
 
