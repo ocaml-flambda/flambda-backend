@@ -119,7 +119,7 @@ module Solver_mono (C : Lattices_mono) = struct
   let undo_changes l = List.iter undo_change l
 
   (** [append_changes l0 l1] returns a log that's equivalent to [l0] followed by
-  [l0]. *)
+  [l1]. *)
   let append_changes l0 l1 = l1 @ l0
 
   type ('a, 'd) mode =
@@ -493,17 +493,17 @@ module Solver_mono (C : Lattices_mono) = struct
     let submode_mvc ~log obj v right =
       Result.map_error
         (fun left -> { left; right })
-        (submode_mvc ~log:(Some log) obj v right)
+        (submode_mvc ~log obj v right)
     in
     let submode_cmv ~log obj left v =
       Result.map_error
         (fun right -> { left; right })
-        (submode_cmv ~log:(Some log) obj left v)
+        (submode_cmv ~log obj left v)
     in
     let submode_mvmv ~log obj v u =
       Result.map_error
         (fun (left, right) -> { left; right })
-        (submode_mvmv ~log:(Some log) obj v u)
+        (submode_mvmv ~log obj v u)
     in
     match a, b with
     | Amode left, Amode right -> submode_cc ~log obj left right
@@ -578,7 +578,7 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amode b -> loop (C.join obj a b) mvs xs
           (* some minor optimization: if [a] is lower than [mlower mv], we
               should keep the latter instead. This helps to fail early in
-             [submode_log] *)
+             [submode] *)
           | Amodevar mv ->
             loop (C.join obj a (mlower obj mv)) (cons_dedup mv mvs) xs
           | Amodejoin (b, mvs') ->
@@ -611,9 +611,13 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.max obj) [] l
 
-  let zap_to_floor_morphvar obj mv ~log =
+  (** Zaps a morphvar to its floor and returns the floor. [commit] could be
+      [Some log], in which case the zapping is appended to [log]; it could also
+      be [None], in which case the zapping is reverted. The latter is useful
+      when the caller only wants to know the floor without zapping. *)
+  let zap_to_floor_morphvar obj mv ~commit =
     let log_, lower = zap_to_floor_morphvar_aux obj mv in
-    (match log with
+    (match commit with
     | None -> undo_changes log_
     | Some log -> log := append_changes !log log_);
     lower
@@ -622,11 +626,11 @@ module Solver_mono (C : Lattices_mono) = struct
    fun obj m ~log ->
     match m with
     | Amode a -> a
-    | Amodevar mv -> zap_to_floor_morphvar obj mv ~log:(Some log)
+    | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:log
     | Amodejoin (a, mvs) ->
       List.fold_left
         (fun acc mv ->
-          C.join obj acc (zap_to_floor_morphvar obj mv ~log:(Some log)))
+          C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
         a mvs
 
   let check_const : type a l r. a C.obj -> (a, l * r) mode -> a option =
@@ -634,7 +638,7 @@ module Solver_mono (C : Lattices_mono) = struct
     match m with
     | Amode a -> Some a
     | Amodevar mv ->
-      let lower = zap_to_floor_morphvar obj mv ~log:None in
+      let lower = zap_to_floor_morphvar obj mv ~commit:None in
       if C.le obj (mupper obj mv) lower then Some lower else None
     | Amodemeet (a, mvs) ->
       let upper =
@@ -642,7 +646,7 @@ module Solver_mono (C : Lattices_mono) = struct
       in
       let lower =
         List.fold_left
-          (fun x mv -> C.meet obj x (zap_to_floor_morphvar obj mv ~log:None))
+          (fun x mv -> C.meet obj x (zap_to_floor_morphvar obj mv ~commit:None))
           a mvs
       in
       if C.le obj upper lower then Some upper else None
@@ -652,7 +656,7 @@ module Solver_mono (C : Lattices_mono) = struct
       in
       let lower =
         List.fold_left
-          (fun x mv -> C.join obj x (zap_to_floor_morphvar obj mv ~log:None))
+          (fun x mv -> C.join obj x (zap_to_floor_morphvar obj mv ~commit:None))
           a mvs
       in
       if C.le obj upper lower then Some lower else None

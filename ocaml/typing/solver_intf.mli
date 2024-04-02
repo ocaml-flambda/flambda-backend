@@ -235,10 +235,12 @@ module type Solver_polarized = sig
   (** Pushes the mode variable to the lowest constant possible.
       Expensive.
       WARNING: the lattice must be finite for this to terminate.*)
-  val zap_to_floor : 'a obj -> ('a, allowed * 'r) mode -> log:changes ref -> 'a
+  val zap_to_floor :
+    'a obj -> ('a, allowed * 'r) mode -> log:changes ref option -> 'a
 
   (** Pushes the mode variable to the highest constant possible. *)
-  val zap_to_ceil : 'a obj -> ('a, 'l * allowed) mode -> log:changes ref -> 'a
+  val zap_to_ceil :
+    'a obj -> ('a, 'l * allowed) mode -> log:changes ref option -> 'a
 
   (** Create a new mode variable of the full range. *)
   val newvar : 'a obj -> ('a, 'l * 'r) mode
@@ -248,7 +250,7 @@ module type Solver_polarized = sig
     'a obj ->
     ('a, allowed * 'r) mode ->
     ('a, 'l * allowed) mode ->
-    log:changes ref ->
+    log:changes ref option ->
     (unit, 'a error) result
 
   (** Creates a new mode variable above the given mode and returns [true]. In
@@ -332,11 +334,12 @@ module type S = sig
     (* Backtracking facilities used by [types.ml] *)
 
     (** Represents a sequence of state mutations caused by mode operations. All
-      mutating operations in this module take a [log:changes ref] and append to
-      it all changes made, regardless of success or failure. The caller is
-      responsible for taking care of the log: they can either revert the changes
-      using [undo_changes], or commit the changes to the global log in
-      [types.ml]. *)
+      mutating operations in this module take a [log:changes ref option] and
+      append to it all changes made, regardless of success or failure. It is
+      [option] only for performance reasons; the caller should never provide
+      [log:None]. The caller is responsible for taking care of the appended log:
+      they can either revert the changes using [undo_changes], or commit the
+      changes to the global log in [types.ml]. *)
     type changes
 
     (** An empty sequence of changes. *)

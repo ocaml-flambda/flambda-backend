@@ -1119,20 +1119,22 @@ module type Obj = sig
 end
 
 let atomically op =
-  let log = ref S.empty_changes in
+  let log' = ref S.empty_changes in
+  let log = Some log' in
   match op ~log with
   | Ok _ as x ->
-    !append_changes log;
+    !append_changes log';
     x
   | Error _ as x ->
-    S.undo_changes !log;
+    S.undo_changes !log';
     x
   [@@inline]
 
 let atomically' op =
-  let log = ref S.empty_changes in
+  let log' = ref S.empty_changes in
+  let log = Some log' in
   let r = op ~log in
-  !append_changes log;
+  !append_changes log';
   r
   [@@inline]
 
