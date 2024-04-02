@@ -360,7 +360,7 @@ chunk:
   | SIGNED INT32                { Thirtytwo_signed }
   | INT                         { Word_int }
   | ADDR                        { Word_val }
-  | FLOAT32                     { Single_materialized_as_double }
+  | FLOAT32                     { Single { reg = Float64 } }
   | FLOAT64                     { Double }
   | FLOAT                       { Double }
   | VAL                         { Word_val }
