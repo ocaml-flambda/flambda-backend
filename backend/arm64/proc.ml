@@ -323,8 +323,8 @@ let destroyed_at_oper = function
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
   | Iop( Iscalarcast (Float_of_int _ | Float_to_int _)
-       | Iload{memory_chunk=Single_materialized_as_double; _}
-       | Istore(Single_materialized_as_double, _, _)) ->
+       | Iload{memory_chunk=Single { reg = Float64 }; _}
+       | Istore(Single { reg = Float64 }, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
@@ -347,8 +347,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
   | Op( Scalarcast (Float_of_int _ | Float_to_int _)
-      | Load {memory_chunk = Single_materialized_as_double; _ }
-      | Store(Single_materialized_as_double, _, _)) ->
+      | Load {memory_chunk = Single { reg = Float64 }; _ }
+      | Store(Single { reg = Float64 }, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
@@ -402,8 +402,8 @@ let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
   | Iscalarcast (Float_of_int _ | Float_to_int _)
-  | Iload{memory_chunk=Single_materialized_as_double; _}
-  | Istore(Single_materialized_as_double, _, _) -> [| 23; 31 |]
+  | Iload{memory_chunk=Single { reg = Float64 }; _}
+  | Istore(Single { reg = Float64 }, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
 
 (* Layout of the stack *)
