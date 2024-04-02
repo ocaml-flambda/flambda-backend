@@ -441,6 +441,10 @@ let is_initially_labeled_tuple ty =
   | Otyp_tuple ((Some _, _) :: _) -> true
   | _ -> false
 
+let string_of_gbl_space = function
+  | Ogf_global -> "global_ "
+  | Ogf_unrestricted -> ""
+
 let rec print_out_type_0 mode ppf =
   function
   | Otyp_alias {non_gen; aliased; alias } ->
@@ -626,15 +630,19 @@ and print_typargs ppf =
       pp_print_char ppf ')';
       pp_close_box ppf ();
       pp_print_space ppf ()
-and print_out_label ppf (name, mut_or_gbl, arg) =
+and print_out_label ppf (name, mut, arg, gbl) =
   (* See the notes [NON-LEGACY MODES] *)
-  let flag =
-    match mut_or_gbl with
-    | Ogom_mutable -> "mutable "
-    | Ogom_global -> "global_ "
-    | Ogom_immutable -> ""
+  let mut =
+    match mut with
+    | Om_immutable -> ""
+    | Om_mutable None -> "mutable "
+    | Om_mutable (Some s) -> "mutable(" ^ s ^ ") "
   in
-  fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
+  fprintf ppf "@[<2>%s%s%s :@ %a@];"
+    mut
+    (string_of_gbl_space gbl)
+    name
+    print_out_type arg
 
 let out_label = ref print_out_label
 
