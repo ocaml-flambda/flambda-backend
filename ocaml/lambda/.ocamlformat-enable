@@ -1,2 +1,10 @@
 assume_info.ml
 assume_info.mli
+transl_array_comprehension.ml
+transl_array_comprehension.mli
+transl_comprehension_utils.ml
+transl_comprehension_utils.mli
+transl_list_comprehension.ml
+transl_list_comprehension.mli
+translmode.ml
+translmode.mli

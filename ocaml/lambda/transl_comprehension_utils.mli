@@ -18,19 +18,18 @@ module Let_binding : sig
     (** What sort of variable are we binding? *)
     type t =
       | Immutable of let_kind
-      (** Bind an immutable variable of the specified [let_kind]; corresponds to
+          (** Bind an immutable variable of the specified [let_kind]; corresponds to
           [Llet]. *)
-      | Mutable
-      (** Bind a mutable variable; corresponds to [Lmutlet]. *)
+      | Mutable  (** Bind a mutable variable; corresponds to [Lmutlet]. *)
   end
 
   (** The first-class (in OCaml) type of let bindings. *)
   type t = private
-    { let_kind   : Let_kind.t
-    ; layout     : layout
-    ; id         : Ident.t
-    ; init       : lambda   (* initial value *)
-    ; var        : lambda   (* occurrence of this variable *)
+    { let_kind : Let_kind.t;
+      layout : layout;
+      id : Ident.t;
+      init : lambda; (* initial value *)
+      var : lambda (* occurrence of this variable *)
     }
 
   (** Create a fresh local identifier (with name as given by the string
@@ -51,16 +50,19 @@ module Lambda_utils : sig
   (** Creating AST fragments for constants from OCaml values *)
   module Constants : sig
     (** Lambda integer literals *)
-    val int    : int -> lambda
+    val int : int -> lambda
 
     (** Lambda float literals; be careful with unusual values, as this calls
         [Float.to_string] *)
-    val float  : float -> lambda
+    val float : float -> lambda
 
     (** Unboxed floats and ints *)
     val unboxed_float : float -> lambda
+
     val unboxed_int32 : Int32.t -> lambda
+
     val unboxed_int64 : Int64.t -> lambda
+
     val unboxed_nativeint : Targetint.t -> lambda
 
     (** Lambda string literals; these require a location, and are constructed as
@@ -71,8 +73,12 @@ module Lambda_utils : sig
   (** Apply a Lambda function to some Lambda values, at a location; all the
       other information needed by [Lapply] is set to some default value. *)
   val apply :
-    loc:scoped_location -> mode:alloc_mode -> lambda -> lambda list ->
-      result_layout:layout -> lambda
+    loc:scoped_location ->
+    mode:alloc_mode ->
+    lambda ->
+    lambda list ->
+    result_layout:layout ->
+    lambda
 
   (** Nicer OCaml syntax for constructing Lambda ASTs that operate on integers;
       created by [int_ops], which includes the necessary location in all the
@@ -81,29 +87,40 @@ module Lambda_utils : sig
     (** Integer arithmetic *)
 
     val ( + ) : lambda -> lambda -> lambda
+
     val ( - ) : lambda -> lambda -> lambda
+
     val ( * ) : lambda -> lambda -> lambda
+
     val ( / ) : lambda -> lambda -> lambda
 
     (** Integer comparisons *)
 
-    val ( = )  : lambda -> lambda -> lambda
+    val ( = ) : lambda -> lambda -> lambda
+
     val ( <> ) : lambda -> lambda -> lambda
-    val ( < )  : lambda -> lambda -> lambda
-    val ( > )  : lambda -> lambda -> lambda
+
+    val ( < ) : lambda -> lambda -> lambda
+
+    val ( > ) : lambda -> lambda -> lambda
+
     val ( <= ) : lambda -> lambda -> lambda
+
     val ( >= ) : lambda -> lambda -> lambda
 
     (** Boolean logical operators *)
 
     val ( && ) : lambda -> lambda -> lambda
+
     val ( || ) : lambda -> lambda -> lambda
 
     (** Integer literals *)
 
     val l0 : lambda
+
     val l1 : lambda
-    val i  : int -> lambda
+
+    val i : int -> lambda
   end
 
   (** Construct an [Int_ops] module at the given location *)
