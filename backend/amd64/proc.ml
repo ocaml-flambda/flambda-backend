@@ -346,7 +346,6 @@ let win64_loc_external_arguments arg =
           loc.(i) <- phys_reg ty win64_int_external_arguments.(!reg);
           incr reg
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) ty;
           ofs := !ofs + size_int
         end
@@ -355,7 +354,6 @@ let win64_loc_external_arguments arg =
           loc.(i) <- phys_reg Float win64_float_external_arguments.(!reg);
           incr reg
         end else begin
-          ofs := Misc.align !ofs 8;
           loc.(i) <- stack_slot (Outgoing !ofs) Float;
           ofs := !ofs + size_float
         end
