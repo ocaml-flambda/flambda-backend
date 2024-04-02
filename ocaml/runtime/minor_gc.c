@@ -309,11 +309,21 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
     if( try_update_object_header(v, p, result, infix_offset) ) {
-      /* Copy the non-scannable suffix of fields. */
+      /* Copy the non-scannable suffix of fields.
+         There is some trickiness around the 0th field, which
+         has been overwritten in [v], so we have to use [field0]
+         directly.
+       */
       mlsize_t scannable_sz = Scannable_wosize_hd(hd);
-      for (i = scannable_sz; i < sz; i++) {
+      i = scannable_sz;
+      if (i == 0) {
+        Field(result, i) = field0;
+        i++;
+      }
+      for (; i < sz; i++) {
         Field(result, i) = Field(v, i);
       }
+
       if (scannable_sz == 0) {
         return;
       } else if (scannable_sz > 1){
