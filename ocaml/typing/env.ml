@@ -2958,7 +2958,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 let escape_mode ~errors ~env ~loc id vmode escaping_context =
   match
   Mode.Regionality.submode
-    (Mode.Value.proj_comonadic Areality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     (Mode.Regionality.global)
   with
   | Ok () -> ()
@@ -2969,13 +2969,13 @@ let escape_mode ~errors ~env ~loc id vmode escaping_context =
 let share_mode ~errors ~env ~loc id vmode shared_context =
   match
     Mode.Linearity.submode
-      (Mode.Value.proj_comonadic Linearity vmode)
+      (Mode.Value.proj (Comonadic Linearity) vmode)
       Mode.Linearity.many
   with
   | Error _ ->
       may_lookup_error errors loc env
         (Once_value_used_in (id, shared_context))
-  | Ok () -> Mode.Value.join [Mode.Value.min_with_monadic Uniqueness Mode.Uniqueness.shared; vmode]
+  | Ok () -> Mode.Value.join [Mode.Value.min_with (Monadic Uniqueness) Mode.Uniqueness.shared; vmode]
 
 let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
   closure_context comonadic0 : Mode.Value.l =
@@ -2998,7 +2998,7 @@ let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
 let exclave_mode ~errors ~env ~loc id vmode =
   match
   Mode.Regionality.submode
-    (Mode.Value.proj_comonadic Areality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     Mode.Regionality.regional
 with
 | Ok () -> vmode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value

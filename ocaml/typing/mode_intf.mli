@@ -240,9 +240,7 @@ module type S = sig
     module Monadic : sig
       module Const : Lattice with type t = monadic
 
-      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
-
-      include Common with type error := error and module Const := Const
+      include Common with module Const := Const
     end
 
     module Comonadic : sig
@@ -264,9 +262,17 @@ module type S = sig
         with type t =
           (Regionality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
-    type error =
-      | Monadic of Monadic.error
-      | Comonadic of Comonadic.error
+    (** Represents a mode axis in this product whose constant is ['a], and
+        whose variable is ['m] given the allowness ['d]. *)
+    type ('m, 'a, 'd) axis =
+      | Monadic :
+          (Monadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_monadic, 'a, 'd) axis
+      | Comonadic :
+          (Comonadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
+    type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -281,45 +287,15 @@ module type S = sig
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
 
-    val proj_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('l * 'r) t ->
-      ('a, 'l * 'r) mode_comonadic
+    val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
-    val proj_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> ('l * 'r) t -> ('a, 'l * 'r) mode_monadic
+    val max_with : ('m, 'a, 'l * 'r) axis -> 'm -> (disallowed * 'r) t
 
-    val max_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_monadic ->
-      (disallowed * 'r) t
+    val min_with : ('m, 'a, 'l * 'r) axis -> 'm -> ('l * disallowed) t
 
-    val min_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_monadic ->
-      ('l * disallowed) t
+    val meet_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val min_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_comonadic ->
-      ('l * disallowed) t
-
-    val max_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_comonadic ->
-      (disallowed * 'r) t
-
-    val meet_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+    val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
@@ -335,9 +311,7 @@ module type S = sig
     module Monadic : sig
       module Const : Lattice with type t = monadic
 
-      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
-
-      include Common with type error := error and module Const := Const
+      include Common with module Const := Const
 
       val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
@@ -349,9 +323,7 @@ module type S = sig
         val eq : t -> t -> bool
       end
 
-      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
-
-      include Common with type error := error and module Const := Const
+      include Common with module Const := Const
 
       val meet_const : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
@@ -393,9 +365,17 @@ module type S = sig
       val partial_apply : t -> t
     end
 
-    type error =
-      | Monadic of Monadic.error
-      | Comonadic of Comonadic.error
+    (** Represents a mode axis in this product whose constant is ['a], and
+        whose variable is ['m] given the allowness ['d]. *)
+    type ('m, 'a, 'd) axis =
+      | Monadic :
+          (Monadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_monadic, 'a, 'd) axis
+      | Comonadic :
+          (Comonadic.Const.t, 'a) Axis.t
+          -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
+    type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -407,51 +387,21 @@ module type S = sig
 
     val check_const : (allowed * allowed) t -> Const.Option.t
 
-    val proj_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('l * 'r) t ->
-      ('a, 'l * 'r) mode_comonadic
+    val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
-    val proj_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> ('l * 'r) t -> ('a, 'l * 'r) mode_monadic
+    val max_with : ('m, 'a, 'l * 'r) axis -> 'm -> (disallowed * 'r) t
 
-    val max_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_monadic ->
-      (disallowed * 'r) t
+    val min_with : ('m, 'a, 'l * 'r) axis -> 'm -> ('l * disallowed) t
 
-    val min_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_monadic ->
-      ('l * disallowed) t
+    val meet_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
-    val min_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_comonadic ->
-      ('l * disallowed) t
-
-    val max_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t ->
-      ('a, 'l * 'r) mode_comonadic ->
-      (disallowed * 'r) t
-
-    val meet_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_comonadic :
-      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val meet_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
-
-    val join_with_monadic :
-      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+    val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
 
     val zap_to_ceil : ('l * allowed) t -> Const.t
 
-    val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+    val meet_const : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 

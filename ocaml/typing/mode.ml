@@ -1526,6 +1526,14 @@ module Value = struct
 
   type lr = (allowed * allowed) t
 
+  type ('m, 'a, 'd) axis =
+    | Monadic :
+        (Monadic.Const.t, 'a) Axis.t
+        -> (('a, 'd) mode_monadic, 'a, 'd) axis
+    | Comonadic :
+        (Comonadic.Const.t, 'a) Axis.t
+        -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
   type ('a, 'b, 'c) modes =
     { regionality : 'a;
       linearity : 'b;
@@ -1640,25 +1648,19 @@ module Value = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
-
-  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
-
-  type error =
-    | Monadic of Monadic.error
-    | Comonadic of Comonadic.error
+  type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
   let submode_log { monadic = monadic0; comonadic = comonadic0 }
-      { monadic = monadic1; comonadic = comonadic1 } ~log =
+      { monadic = monadic1; comonadic = comonadic1 } ~log : (_, error) result =
     (* comonadic before monadic, so that locality errors dominate
        (error message backward compatibility) *)
     match Comonadic.submode_log comonadic0 comonadic1 ~log with
-    | Error e -> Error (Comonadic e)
+    | Error (Error (ax, e)) -> Error (Error (Comonadic ax, e))
     | Ok () -> (
       match Monadic.submode_log monadic0 monadic1 ~log with
-      | Error e -> Error (Monadic e)
+      | Error (Error (ax, e)) -> Error (Error (Monadic ax, e))
       | Ok () -> Ok ())
 
   let submode a b = try_with_log (submode_log a b)
@@ -1678,12 +1680,33 @@ module Value = struct
     let monadic = Monadic.legacy in
     { comonadic; monadic }
 
+  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
+
+  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
+
+  let proj : type m a l r. (m, a, l * r) axis -> (l * r) t -> m =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> proj_monadic ax m
+    | Comonadic ax -> proj_comonadic ax m
+
   let max_with_monadic ax m =
     let comonadic =
       Comonadic.max |> Comonadic.disallow_left |> Comonadic.allow_right
     in
     let monadic = Monadic.max_with ax m in
     { comonadic; monadic }
+
+  let max_with_comonadic ax m =
+    let comonadic = Comonadic.max_with ax m in
+    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
+    { comonadic; monadic }
+
+  let max_with : type m a l r. (m, a, l * r) axis -> m -> (disallowed * r) t =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> max_with_monadic ax m
+    | Comonadic ax -> max_with_comonadic ax m
 
   let min_with_monadic ax m =
     let comonadic =
@@ -1692,35 +1715,50 @@ module Value = struct
     let monadic = Monadic.min_with ax m in
     { comonadic; monadic }
 
+  let min_with_comonadic ax m =
+    let comonadic = Comonadic.min_with ax m in
+    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
+    { comonadic; monadic }
+
+  let min_with : type m a l r. (m, a, l * r) axis -> m -> (l * disallowed) t =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> min_with_monadic ax m
+    | Comonadic ax -> min_with_comonadic ax m
+
   let join_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_left comonadic in
     let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
+
+  let join_with_comonadic ax c { monadic; comonadic } =
+    let monadic = Monadic.disallow_left monadic in
+    let comonadic = Comonadic.join_with ax c comonadic in
+    { comonadic; monadic }
+
+  let join_with :
+      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (disallowed * r) t =
+   fun ax c m ->
+    match ax with
+    | Monadic ax -> join_with_monadic ax c m
+    | Comonadic ax -> join_with_comonadic ax c m
 
   let meet_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_right comonadic in
     let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
-  let min_with_comonadic ax m =
-    let comonadic = Comonadic.min_with ax m in
-    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
-    { comonadic; monadic }
-
-  let max_with_comonadic ax m =
-    let comonadic = Comonadic.max_with ax m in
-    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
-    { comonadic; monadic }
-
   let meet_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_right monadic in
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with ax c comonadic in
-    { comonadic; monadic }
+  let meet_with :
+      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * disallowed) t =
+   fun ax c m ->
+    match ax with
+    | Monadic ax -> meet_with_monadic ax c m
+    | Comonadic ax -> meet_with_comonadic ax c m
 
   let join l =
     let como, mo =
@@ -1789,6 +1827,14 @@ module Alloc = struct
 
   type lr = (allowed * allowed) t
 
+  type ('m, 'a, 'd) axis =
+    | Monadic :
+        (Monadic.Const.t, 'a) Axis.t
+        -> (('a, 'd) mode_monadic, 'a, 'd) axis
+    | Comonadic :
+        (Comonadic.Const.t, 'a) Axis.t
+        -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
   type ('a, 'b, 'c) modes =
     { locality : 'a;
       linearity : 'b;
@@ -1848,23 +1894,17 @@ module Alloc = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
-
-  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
-
-  type error =
-    | Monadic of Monadic.error
-    | Comonadic of Comonadic.error
+  type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
   let submode_log { monadic = monadic0; comonadic = comonadic0 }
-      { monadic = monadic1; comonadic = comonadic1 } ~log =
+      { monadic = monadic1; comonadic = comonadic1 } ~log : (_, error) result =
     match Monadic.submode_log monadic0 monadic1 ~log with
-    | Error e -> Error (Monadic e)
+    | Error (Error (ax, e)) -> Error (Error (Monadic ax, e))
     | Ok () -> (
       match Comonadic.submode_log comonadic0 comonadic1 ~log with
-      | Error e -> Error (Comonadic e)
+      | Error (Error (ax, e)) -> Error (Error (Comonadic ax, e))
       | Ok () -> Ok ())
 
   let submode a b = try_with_log (submode_log a b)
@@ -1903,12 +1943,33 @@ module Alloc = struct
      on modes numerically, instead of defining symbolic functions *)
   (* type const = (LR.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes *)
 
+  let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
+
+  let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
+
+  let proj : type m a l r. (m, a, l * r) axis -> (l * r) t -> m =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> proj_monadic ax m
+    | Comonadic ax -> proj_comonadic ax m
+
   let max_with_monadic ax m =
     let comonadic =
       Comonadic.max |> Comonadic.disallow_left |> Comonadic.allow_right
     in
     let monadic = Monadic.max_with ax m in
     { comonadic; monadic }
+
+  let max_with_comonadic ax m =
+    let comonadic = Comonadic.max_with ax m in
+    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
+    { comonadic; monadic }
+
+  let max_with : type m a l r. (m, a, l * r) axis -> m -> (disallowed * r) t =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> max_with_monadic ax m
+    | Comonadic ax -> max_with_comonadic ax m
 
   let min_with_monadic ax m =
     let comonadic =
@@ -1917,35 +1978,50 @@ module Alloc = struct
     let monadic = Monadic.min_with ax m in
     { comonadic; monadic }
 
+  let min_with_comonadic ax m =
+    let comonadic = Comonadic.min_with ax m in
+    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
+    { comonadic; monadic }
+
+  let min_with : type m a l r. (m, a, l * r) axis -> m -> (l * disallowed) t =
+   fun ax m ->
+    match ax with
+    | Monadic ax -> min_with_monadic ax m
+    | Comonadic ax -> min_with_comonadic ax m
+
   let join_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_left comonadic in
     let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
+
+  let join_with_comonadic ax c { monadic; comonadic } =
+    let monadic = Monadic.disallow_left monadic in
+    let comonadic = Comonadic.join_with ax c comonadic in
+    { comonadic; monadic }
+
+  let join_with :
+      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (disallowed * r) t =
+   fun ax c m ->
+    match ax with
+    | Monadic ax -> join_with_monadic ax c m
+    | Comonadic ax -> join_with_comonadic ax c m
 
   let meet_with_monadic ax c { monadic; comonadic } =
     let comonadic = Comonadic.disallow_right comonadic in
     let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
-  let min_with_comonadic ax m =
-    let comonadic = Comonadic.min_with ax m in
-    let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
-    { comonadic; monadic }
-
-  let max_with_comonadic ax m =
-    let comonadic = Comonadic.max_with ax m in
-    let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
-    { comonadic; monadic }
-
   let meet_with_comonadic ax c { monadic; comonadic } =
     let monadic = Monadic.disallow_right monadic in
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
-    let comonadic = Comonadic.join_with ax c comonadic in
-    { comonadic; monadic }
+  let meet_with :
+      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * disallowed) t =
+   fun ax c m ->
+    match ax with
+    | Monadic ax -> meet_with_monadic ax c m
+    | Comonadic ax -> meet_with_comonadic ax c m
 
   let join l =
     let como, mo =
@@ -2053,7 +2129,7 @@ module Alloc = struct
     let merge = merge
   end
 
-  let meet_with c { comonadic; monadic } =
+  let meet_const c { comonadic; monadic } =
     let c = split c in
     let comonadic = Comonadic.meet_const c.comonadic comonadic in
     let monadic = Monadic.meet_const c.monadic monadic in

@@ -1583,9 +1583,9 @@ let prim_mode mvar = function
     put in [mode.ml] *)
 let with_locality locality m =
   let m' = Alloc.newvar () in
-  Locality.equate_exn (Alloc.proj_comonadic Areality m') locality;
-  Alloc.submode_exn m' (Alloc.join_with_comonadic Areality Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with_comonadic Areality Locality.Const.min m) m';
+  Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
+  Alloc.submode_exn m' (Alloc.join_with (Comonadic Areality) Locality.Const.max m);
+  Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
   m'
 
 let rec instance_prim_locals locals mvar macc finalret ty =
@@ -5578,7 +5578,7 @@ let mode_cross_left env ty mode =
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_with upper_bounds mode
+  Alloc.meet_const upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
    and [Alloc] get unified *)
