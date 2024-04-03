@@ -500,11 +500,8 @@ module Make(H: HashedType): (S with type key = H.t) =
 (* Code included below the functorial interface to guard against accidental
    use - see #2202 *)
 
-(* CR mixed blocks: I deleted the [@@noalloc] annotation because hashing
-   can raise now. We probably want to revert this change.
-*)
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash"
+  int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]
 
 let hash x = seeded_hash_param 10 100 0 x
 let hash_param n1 n2 x = seeded_hash_param n1 n2 0 x

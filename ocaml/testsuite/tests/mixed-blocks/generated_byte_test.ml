@@ -35,13 +35,11 @@ let copy_via_tag x =
 let oc = Out_channel.open_bin "/dev/null"
 exception Unexpected_success
 type forget = T : _ -> forget
+let try_hash x = ignore (Hashtbl.hash x : int)
 
 let try_compare x y =
   ignore (compare (T x) (T y) : int);
   ignore ((T x) = (T y) : bool)
-
-let try_hash x =
-  ignore (Hashtbl.hash x : int)
 
 let try_marshal t = output_value oc t;;
 

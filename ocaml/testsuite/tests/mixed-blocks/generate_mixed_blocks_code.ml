@@ -330,6 +330,7 @@ let copy_via_tag x =
   line {|let oc = Out_channel.open_bin "/dev/null"|};
   line {|exception Unexpected_success|};
   line {|type forget = T : _ -> forget|};
+  line {|let try_hash x = ignore (Hashtbl.hash x : int)|};
   if not bytecode
   then
     line
@@ -343,9 +344,6 @@ let try_compare x y =
   expect_failure (fun () -> ignore (compare (T x) (T y) : int));
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
 
-let try_hash x =
-  expect_failure (fun () -> ignore (Hashtbl.hash x : int))
-
 let try_marshal t =
   expect_failure (fun () -> output_value oc t)|}
   else
@@ -357,9 +355,6 @@ let try_marshal t =
 let try_compare x y =
   ignore (compare (T x) (T y) : int);
   ignore ((T x) = (T y) : bool)
-
-let try_hash x =
-  ignore (Hashtbl.hash x : int)
 
 let try_marshal t = output_value oc t;;|};
   line

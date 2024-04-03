@@ -35,6 +35,7 @@ let copy_via_tag x =
 let oc = Out_channel.open_bin "/dev/null"
 exception Unexpected_success
 type forget = T : _ -> forget
+let try_hash x = ignore (Hashtbl.hash x : int)
 
 let expect_failure f =
   try f (); raise Unexpected_success with
@@ -44,9 +45,6 @@ let expect_failure f =
 let try_compare x y =
   expect_failure (fun () -> ignore (compare (T x) (T y) : int));
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
-
-let try_hash x =
-  expect_failure (fun () -> ignore (Hashtbl.hash x : int))
 
 let try_marshal t =
   expect_failure (fun () -> output_value oc t)
