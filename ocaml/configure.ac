@@ -61,7 +61,9 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
+profinfo=true
+profinfo_width=8
 custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
@@ -205,6 +207,8 @@ AC_SUBST([install_bytecode_programs])
 AC_SUBST([install_source_artifacts])
 AC_SUBST([install_ocamlnat])
 AC_SUBST([reserved_header_bits])
+AC_SUBST([profinfo])
+AC_SUBST([profinfo_width])
 AC_SUBST([custom_ops_struct_size])
 AC_SUBST([frame_pointers])
 AC_SUBST([cpp_mangling])
@@ -462,14 +466,6 @@ AC_ARG_ENABLE([cmm-invariants],
 AC_ARG_WITH([target-bindir],
   [AS_HELP_STRING([--with-target-bindir],
     [location of binary programs on target system])])
-
-AC_ARG_ENABLE([reserved-header-bits],
-  [AS_HELP_STRING([--enable-reserved-header-bits=BITS],
-    [reserve BITS (between 0 and 31) bits in block headers])],
-  [AS_CASE([$enable_reserved_header_bits],
-    [[[0-9]]|[[1-2]][[0-9]]|3[[0-1]]],
-      [ reserved_header_bits=$enable_reserved_header_bits],
-  [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
 
 AC_ARG_ENABLE([stdlib-manpages],
   [AS_HELP_STRING([--disable-stdlib-manpages],
@@ -2207,7 +2203,12 @@ AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
 ## Check for mmap support for huge pages and contiguous heap
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
 
+# Unconditionally reserve 8 header bits in both runtime 4 and
+# runtime 5, which is required for mixed block support.
 AC_DEFINE_UNQUOTED([HEADER_RESERVED_BITS], [$reserved_header_bits])
+AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
+AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])
+
 AC_DEFINE_UNQUOTED([CUSTOM_OPS_STRUCT_SIZE], [$custom_ops_struct_size])
 
 AS_IF([test x"$enable_installing_bytecode_programs" = "xno"],

@@ -752,6 +752,8 @@ flambda
 cpp_mangling
 frame_pointers
 custom_ops_struct_size
+profinfo_width
+profinfo
 reserved_header_bits
 install_ocamlnat
 install_source_artifacts
@@ -933,7 +935,6 @@ enable_flambda_invariants
 enable_flambda2
 enable_cmm_invariants
 with_target_bindir
-enable_reserved_header_bits
 enable_stdlib_manpages
 enable_warn_error
 enable_force_safe_string
@@ -1628,9 +1629,6 @@ Optional Features:
                           enable invariants checks in flambda
   --enable-flambda2       enable the Flambda 2 middle end
   --enable-cmm-invariants enable invariants checks in Cmm
-  --enable-reserved-header-bits=BITS
-                          reserve BITS (between 0 and 31) bits in block
-                          headers
   --disable-stdlib-manpages
                           do not build or install the library man pages
   --disable-warn-error    do not treat C compiler warnings as errors
@@ -3208,7 +3206,9 @@ CSCFLAGS=""
 ostype="Unix"
 SO="so"
 toolchain="cc"
-reserved_header_bits=0
+reserved_header_bits=8
+profinfo=true
+profinfo_width=8
 custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
@@ -3341,6 +3341,8 @@ OCAML_VERSION_SHORT=5.1
 
 
  # TODO: rename this variable
+
+
 
 
 
@@ -3911,18 +3913,6 @@ fi
 if test ${with_target_bindir+y}
 then :
   withval=$with_target_bindir;
-fi
-
-
-# Check whether --enable-reserved-header-bits was given.
-if test ${enable_reserved_header_bits+y}
-then :
-  enableval=$enable_reserved_header_bits; case $enable_reserved_header_bits in #(
-  [0-9]|[1-2][0-9]|3[0-1]) :
-     reserved_header_bits=$enable_reserved_header_bits ;; #(
-  *) :
-    as_fn_error $? "invalid argument to --enable-reserved-header-bits" "$LINENO" 5 ;;
-esac
 fi
 
 
@@ -19648,7 +19638,17 @@ fi
 
 
 
+# Unconditionally reserve 8 header bits in both runtime 4 and
+# runtime 5, which is required for mixed block support.
 printf "%s\n" "#define HEADER_RESERVED_BITS $reserved_header_bits" >>confdefs.h
+
+printf "%s\n" "#define PROFINFO_WIDTH $profinfo_width" >>confdefs.h
+
+if $profinfo
+then :
+  printf "%s\n" "#define WITH_PROFINFO 1" >>confdefs.h
+
+fi
 
 printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
