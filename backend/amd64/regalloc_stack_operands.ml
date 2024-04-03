@@ -190,7 +190,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Scalarcast (V128_to_scalar (Int16x8 | Int8x16))) ->
     (* CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
     May_still_have_spilled_registers
-  | Op (Floatofint | Intoffloat | Vectorcast _) ->
+  | Op (Scalarcast (Float_of_int | Float_to_int) | Vectorcast _) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->
     if !Clflags.pic_code || !Clflags.dlcode || Arch.win64 then
