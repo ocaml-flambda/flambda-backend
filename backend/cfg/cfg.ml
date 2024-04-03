@@ -254,16 +254,6 @@ let intop (op : Mach.integer_operation) =
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
 
-let floatop (op : Mach.float_operation) =
-  match op with
-  | Iaddf -> " +. "
-  | Isubf -> " -. "
-  | Imulf -> " *. "
-  | Idivf -> " /. "
-  | Iabsf -> " abs "
-  | Inegf -> " neg "
-  | Icompf cmp -> Printcmm.float_comparison cmp
-
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
@@ -280,7 +270,7 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Floatop op -> Format.fprintf ppf "floatop %s" (floatop op)
+  | Floatop op -> Format.fprintf ppf "floatop %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
