@@ -19,6 +19,14 @@ open Asttypes
 
 type jkind = Jkind.t
 
+type mutability =
+  | Immutable
+  | Mutable of Mode.Alloc.Comonadic.Const.t
+
+let is_mutable = function
+  | Immutable -> false
+  | Mutable _ -> true
+
 (* Type expressions for the core language *)
 
 type transient_expr =
@@ -43,6 +51,12 @@ and type_desc =
   | Tunivar of { name : string option; jkind : Jkind.t }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+
+and arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
 
 and arrow_desc =
   arg_label * Mode.Alloc.lr * Mode.Alloc.lr
@@ -283,7 +297,7 @@ and variant_representation =
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
+    ld_mutable: mutability;
     ld_global: Mode.Global_flag.t;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
@@ -618,7 +632,7 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_global: Mode.Global_flag.t;        (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)

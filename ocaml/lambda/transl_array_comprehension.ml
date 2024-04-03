@@ -207,9 +207,7 @@ end = struct
   let raise_overflow_exn ~loc =
     let loc' = Debuginfo.Scoped_location.to_location loc in
     let slot =
-      transl_extension_path
-        loc
-        (Lazy.force Env.initial)
+      transl_extension_path loc (Lazy.force Env.initial)
         Predef.path_invalid_argument
     in
     (* CR-someday aspectorzabusky: We might want to raise an event here for
@@ -217,15 +215,16 @@ end = struct
        [Translprim.event_after]), but it's not clear what event that would be,
        and this isn't a feature we expect to use.  We can add it when it seems
        important, or when we upstream this change. *)
-    Lprim(Praise Raise_regular,
-          [Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-                 [ slot
-                 ; string
-                     ~loc:loc'
-                     "integer overflow when precomputing the size of an array \
-                      comprehension" ],
-                 loc)],
-          loc)
+    Lprim
+      ( Praise Raise_regular,
+        [ Lprim
+            ( Pmakeblock (0, Immutable, None, alloc_heap),
+              [ slot;
+                string ~loc:loc'
+                  "integer overflow when precomputing the size of an array \
+                   comprehension" ],
+              loc ) ],
+        loc )
 
   (** [safe_mul_pos_vals ~loc x y] generates the lambda expression that computes
       the product [x * y] of two strictly positive (nonzero!) integers and fails
@@ -241,10 +240,11 @@ end = struct
        multiplication: [(x * y)/y = x].  We assume the inputs are values, so we
        don't have to bind them first to avoid extra computation. *)
     Let_binding.let_one product
-      (Lifthenelse(product.var / y = x,
-         product.var,
-         raise_overflow_exn ~loc,
-         Pvalue Pintval))
+      (Lifthenelse
+         ( product.var / y = x,
+           product.var,
+           raise_overflow_exn ~loc,
+           Pvalue Pintval ))
 
   (** [safe_product_pos_vals ~loc xs] generates the lambda expression that
       computes the product of all the lambda values in [xs] assuming they are
@@ -255,17 +255,18 @@ end = struct
     (* This operation is associative, so the fact that [List.fold_left] brackets
        as [(((one * two) * three) * four)] shouldn't matter *)
     | x :: xs -> List.fold_left (safe_mul_pos_vals ~loc) x.Let_binding.var xs
-    | []      -> int 1
-      (* The empty list case can't happen with comprehensions; we could raise an
-         error here instead of returning 1 *)
+    | [] -> int 1
+  (* The empty list case can't happen with comprehensions; we could raise an
+     error here instead of returning 1 *)
 
   (* The inputs are *not* required to be values, as we save them in variables.
      We could avoid making let-bindings for lambda-terms that are already
      variables, but we assume the optimizer can deal with that case nicely. *)
   let safe_product_pos ?(variable_name = "x") ~loc factors =
     let factors =
-      List.map (Let_binding.make (Immutable Strict) (Pvalue Pintval)
-                       variable_name) factors
+      List.map
+        (Let_binding.make (Immutable Strict) (Pvalue Pintval) variable_name)
+        factors
     in
     Let_binding.let_all factors (safe_product_pos_vals ~loc factors)
 end
@@ -291,23 +292,25 @@ module Iterator_bindings = struct
       right-hand side of an [in] iterator; this last binding is also always
       referenced multiple times.) *)
   type t =
-    | Range of { start     : Let_binding.t (* Always bound *)
-               ; stop      : Let_binding.t (* Always bound *)
-               ; direction : direction_flag }
-    (** The translation of [Typedtree.Texp_comp_range], an integer iterator
+    | Range of
+        { start : Let_binding.t; (* Always bound *)
+          stop : Let_binding.t; (* Always bound *)
+          direction : direction_flag
+        }
+        (** The translation of [Typedtree.Texp_comp_range], an integer iterator
         ([... = ... (down)to ...]) *)
-    | Array of { iter_arr : Let_binding.t (* Always bound *)
-               ; iter_len : Let_binding.t }
-    (** The translation of [Typedtree.Texp_comp_in], an array iterator
+    | Array of
+        { iter_arr : Let_binding.t; (* Always bound *)
+          iter_len : Let_binding.t
+        }
+        (** The translation of [Typedtree.Texp_comp_in], an array iterator
         ([... in ...]).  Note that we always remember the array ([iter_arr]), as
         it's indexed repeatedly no matter what. *)
 
   (** Get the [Let_binding.t]s out of a translated iterator *)
   let let_bindings = function
-    | Range { start; stop; direction = _ } ->
-        [start; stop]
-    | Array { iter_arr; iter_len } ->
-        [iter_arr; iter_len]
+    | Range { start; stop; direction = _ } -> [start; stop]
+    | Array { iter_arr; iter_len } -> [iter_arr; iter_len]
 
   (** Get the [Let_binding.t]s out of a list of translated iterators; this is
       the information we need to translate a full [for] comprehension clause
@@ -321,15 +324,11 @@ module Iterator_bindings = struct
     let is_empty ~loc t =
       let open (val Lambda_utils.int_ops ~loc) in
       match t with
-      | Range { start; stop; direction} -> begin
-          let start = start.var in
-          let stop  = stop.var  in
-          match direction with
-          | Upto   -> start > stop
-          | Downto -> start < stop
-        end
-      | Array { iter_arr = _; iter_len } ->
-          iter_len.var = l0
+      | Range { start; stop; direction } -> (
+        let start = start.var in
+        let stop = stop.var in
+        match direction with Upto -> start > stop | Downto -> start < stop)
+      | Array { iter_arr = _; iter_len } -> iter_len.var = l0
 
     (** Check if any of the translated iterators are empty; that is, check if
         any of these iterators will iterate over zero things, and thus check if
@@ -341,13 +340,13 @@ module Iterator_bindings = struct
       let open (val Lambda_utils.int_ops ~loc) in
       match List.map (is_empty ~loc) ts with
       | is_empty :: are_empty ->
-          (* ( || ) is associative, so the fact that [List.fold_left] brackets
-             as [(((one || two) || three) || four)] shouldn't matter *)
-          List.fold_left ( || ) is_empty are_empty
-      | [] ->
-          l0 (* false *)
-          (* The empty list case can't happen with comprehensions; we could
-             raise an error here instead *)
+        (* ( || ) is associative, so the fact that [List.fold_left] brackets
+           as [(((one || two) || three) || four)] shouldn't matter *)
+        List.fold_left ( || ) is_empty are_empty
+      | [] -> l0
+    (* false *)
+    (* The empty list case can't happen with comprehensions; we could
+       raise an error here instead *)
 
     (** Compute the size of a single nonempty array iterator.  This is either
         the size of a range, which itself is either [stop - start + 1] or
@@ -360,28 +359,27 @@ module Iterator_bindings = struct
         this. *)
     let size_nonempty ~loc = function
       | Range { start; stop; direction } ->
-          let open (val Lambda_utils.int_ops ~loc) in
-          let start = start.var in
-          let stop  = stop.var in
-          let low, high = match direction with
-            | Upto   -> start, stop
-            | Downto -> stop,  start
-          in
-          (* We can assume that the range is nonempty, but computing its size
-             still might overflow *)
-          let range_size =
-            Let_binding.make (Immutable Alias) (Pvalue Pintval)
-              "range_size" (high - low + l1)
-          in
-          Let_binding.let_one range_size
-            (* If the computed size of the range is positive, there was no
-               overflow; if it was zero or negative, then there was overflow *)
-            (Lifthenelse(range_size.var > l0,
-                         range_size.var,
-                         Precompute_array_size.raise_overflow_exn ~loc,
-                         Pvalue Pintval))
-      | Array { iter_arr = _; iter_len } ->
-          iter_len.var
+        let open (val Lambda_utils.int_ops ~loc) in
+        let start = start.var in
+        let stop = stop.var in
+        let low, high =
+          match direction with Upto -> start, stop | Downto -> stop, start
+        in
+        (* We can assume that the range is nonempty, but computing its size
+           still might overflow *)
+        let range_size =
+          Let_binding.make (Immutable Alias) (Pvalue Pintval) "range_size"
+            (high - low + l1)
+        in
+        Let_binding.let_one range_size
+          (* If the computed size of the range is positive, there was no
+             overflow; if it was zero or negative, then there was overflow *)
+          (Lifthenelse
+             ( range_size.var > l0,
+               range_size.var,
+               Precompute_array_size.raise_overflow_exn ~loc,
+               Pvalue Pintval ))
+      | Array { iter_arr = _; iter_len } -> iter_len.var
 
     (** Compute the total size of an array built out of a list of translated
         iterators, as long as all the iterators are nonempty; since this forms a
@@ -391,9 +389,7 @@ module Iterator_bindings = struct
         a nonempty fixed-size array; check against [are_any_empty] first to
         address the case of fixedly-empty array. *)
     let total_size_nonempty ~loc iterators =
-      Precompute_array_size.safe_product_pos
-        ~variable_name:"iterator_size"
-        ~loc
+      Precompute_array_size.safe_product_pos ~variable_name:"iterator_size" ~loc
         (List.map (size_nonempty ~loc) iterators)
   end
 end
@@ -421,9 +417,10 @@ module Resizable_array = struct
       default value and sometimes it will be the first element of the
       comprehension. *)
   let make ~loc array_kind elt =
-    Lprim(Pmakearray(array_kind, Mutable, alloc_heap),
-          Misc.replicate_list elt starting_size,
-          loc)
+    Lprim
+      ( Pmakearray (array_kind, Mutable, alloc_heap),
+        Misc.replicate_list elt starting_size,
+        loc )
 
   (** Create a new array that's twice the size of the old one.  The first half
       of the array contains the same elements, and the latter half's contents
@@ -444,75 +441,70 @@ end
 
     This function returns both a pair of said CPSed Lambda term and the let
     bindings generated by this term (as an [Iterator_bindings.t], which see). *)
-let iterator ~transl_exp ~scopes ~loc
-    : comprehension_iterator -> (lambda -> lambda) * Iterator_bindings.t
-    = function
+let iterator ~transl_exp ~scopes ~loc :
+    comprehension_iterator -> (lambda -> lambda) * Iterator_bindings.t =
+  function
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
-      let bound name value =
-        Let_binding.make (Immutable Strict) (Pvalue Pintval)
-          name (transl_exp ~scopes Jkind.Sort.for_predef_value value)
-      in
-      let start = bound "start" start in
-      let stop  = bound "stop"  stop  in
-      let mk_iterator body =
-        Lfor { for_id     = ident
-             ; for_loc    = loc
-             ; for_from   = start.var
-             ; for_to     = stop.var
-             ; for_dir    = direction
-             ; for_body   = body }
-      in
-      mk_iterator, Range { start
-                         ; stop
-                         ; direction }
+    let bound name value =
+      Let_binding.make (Immutable Strict) (Pvalue Pintval) name
+        (transl_exp ~scopes Jkind.Sort.for_predef_value value)
+    in
+    let start = bound "start" start in
+    let stop = bound "stop" stop in
+    let mk_iterator body =
+      Lfor
+        { for_id = ident;
+          for_loc = loc;
+          for_from = start.var;
+          for_to = stop.var;
+          for_dir = direction;
+          for_body = body
+        }
+    in
+    mk_iterator, Range { start; stop; direction }
   | Texp_comp_in { pattern; sequence = iter_arr_exp } ->
-      let iter_arr =
-        Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_arr" (transl_exp ~scopes Jkind.Sort.for_predef_value iter_arr_exp)
-      in
-      let iter_arr_kind =
-        (* CR layouts v4: [~elt_sort:None] here is not ideal and
-           should be fixed. To do that, we will need to store a sort
-           on [Texp_comp_in]. *)
-        Typeopt.array_type_kind
-          ~elt_sort:None
-          iter_arr_exp.exp_env
-          iter_arr_exp.exp_loc
-          iter_arr_exp.exp_type
-      in
-      let iter_len =
-        (* Extra let-binding if we're not in the fixed-size array case; the
-           middle-end will simplify this for us *)
-        Let_binding.make (Immutable Alias) (Pvalue Pintval)
-          "iter_len"
-          (Lprim(Parraylength iter_arr_kind, [iter_arr.var], loc))
-      in
-      let iter_ix = Ident.create_local "iter_ix" in
-      let mk_iterator body =
-        let open (val Lambda_utils.int_ops ~loc) in
-        (* for iter_ix = 0 to Array.length iter_arr - 1 ... *)
-        (* CR layouts v4: will need updating when we allow non-values in arrays. *)
-        Lfor { for_id     = iter_ix
-             ; for_loc    = loc
-             ; for_from   = l0
-             ; for_to     = iter_len.var - l1
-             ; for_dir    = Upto
-             ; for_body   =
-                 Matching.for_let
-                   ~scopes
-                   ~arg_sort:Jkind.Sort.for_array_comprehension_element
-                   ~return_layout:(Pvalue Pintval)
-                   pattern.pat_loc
-                   (Lprim(Parrayrefu
-                            (Lambda.(array_ref_kind alloc_heap iter_arr_kind),
-                            Ptagged_int_index),
-                          [iter_arr.var; Lvar iter_ix],
-                          loc))
-                   pattern
-                   body
-             }
-      in
-      mk_iterator, Array { iter_arr; iter_len }
+    let iter_arr =
+      Let_binding.make (Immutable Strict) (Pvalue Pgenval) "iter_arr"
+        (transl_exp ~scopes Jkind.Sort.for_predef_value iter_arr_exp)
+    in
+    let iter_arr_kind =
+      (* CR layouts v4: [~elt_sort:None] here is not ideal and
+         should be fixed. To do that, we will need to store a sort
+         on [Texp_comp_in]. *)
+      Typeopt.array_type_kind ~elt_sort:None iter_arr_exp.exp_env
+        iter_arr_exp.exp_loc iter_arr_exp.exp_type
+    in
+    let iter_len =
+      (* Extra let-binding if we're not in the fixed-size array case; the
+         middle-end will simplify this for us *)
+      Let_binding.make (Immutable Alias) (Pvalue Pintval) "iter_len"
+        (Lprim (Parraylength iter_arr_kind, [iter_arr.var], loc))
+    in
+    let iter_ix = Ident.create_local "iter_ix" in
+    let mk_iterator body =
+      let open (val Lambda_utils.int_ops ~loc) in
+      (* for iter_ix = 0 to Array.length iter_arr - 1 ... *)
+      (* CR layouts v4: will need updating when we allow non-values in arrays. *)
+      Lfor
+        { for_id = iter_ix;
+          for_loc = loc;
+          for_from = l0;
+          for_to = iter_len.var - l1;
+          for_dir = Upto;
+          for_body =
+            Matching.for_let ~scopes
+              ~arg_sort:Jkind.Sort.for_array_comprehension_element
+              ~return_layout:(Pvalue Pintval) pattern.pat_loc
+              (Lprim
+                 ( Parrayrefu
+                     ( Lambda.(array_ref_kind alloc_heap iter_arr_kind),
+                       Ptagged_int_index ),
+                   [iter_arr.var; Lvar iter_ix],
+                   loc ))
+              pattern body
+        }
+    in
+    mk_iterator, Array { iter_arr; iter_len }
 
 (** Translates an array comprehension binding
     ([Typedtree.comprehension_clause_binding]) into Lambda.  At parse time,
@@ -521,11 +513,8 @@ let iterator ~transl_exp ~scopes ~loc
     range iterators can just have an [Ident.t], for translation into for loops),
     so bindings are just like iterators with a possible annotation.  As a
     result, this function is essentially the same as [iterator], which see. *)
-let binding
-      ~transl_exp
-      ~scopes
-      ~loc
-      { comp_cb_iterator; comp_cb_attributes = _ } =
+let binding ~transl_exp ~scopes ~loc
+    { comp_cb_iterator; comp_cb_attributes = _ } =
   (* No attributes are meaningful here; see the definition of
      [comp_cb_attributes]. *)
   iterator ~transl_exp ~loc ~scopes comp_cb_iterator
@@ -550,17 +539,20 @@ let for_and_clause ~transl_exp ~scopes ~loc =
     [clauses] and [for_and_clause] for more details. *)
 let clause ~transl_exp ~scopes ~loc = function
   | Texp_comp_for bindings ->
-      let make_clause, var_bindings =
-        for_and_clause ~transl_exp ~loc ~scopes bindings
-      in
-      fun body -> Let_binding.let_all
-                    (Iterator_bindings.all_let_bindings var_bindings)
-                    (make_clause body)
+    let make_clause, var_bindings =
+      for_and_clause ~transl_exp ~loc ~scopes bindings
+    in
+    fun body ->
+      Let_binding.let_all
+        (Iterator_bindings.all_let_bindings var_bindings)
+        (make_clause body)
   | Texp_comp_when cond ->
-      fun body -> Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
-                    body,
-                    lambda_unit,
-                    (Pvalue Pintval) (* [unit] is immediate *))
+    fun body ->
+      Lifthenelse
+        ( transl_exp ~scopes Jkind.Sort.for_predef_value cond,
+          body,
+          lambda_unit,
+          Pvalue Pintval (* [unit] is immediate *) )
 
 (** The [array_sizing] type describes whether an array comprehension has been
     translated using the fixed-size array optimization ([Fixed_size]), or it has
@@ -586,31 +578,31 @@ type array_sizing =
     create pieces, which can operate only knowing the [array_sizing]. *)
 type array_sizing_info =
   | Fixed_size_info of Iterator_bindings.t list
-  (** In the fixed-size case, we need to collect the lengths of the iterators
+      (** In the fixed-size case, we need to collect the lengths of the iterators
       being iterated over, which determine the size of the array; thus, the
       iterator bindings need to be available early, before we even allocate the
       array. *)
   | Dynamic_size_info
-  (** In the dynamic-size case, we don't need to collect any other
+      (** In the dynamic-size case, we don't need to collect any other
       information. *)
 
 (** The result of translating the clauses portion of an array comprehension
     (everything but the body) *)
 type translated_clauses =
-  { array_sizing_info  : array_sizing_info
-  (** Whether the array is of a fixed size or must be grown dynamically, along
+  { array_sizing_info : array_sizing_info;
+        (** Whether the array is of a fixed size or must be grown dynamically, along
       with supporting information; see the [array_sizing] and
       [array_sizing_info] types for more details. *)
-  ; array_size : Let_binding.t
-  (** The binding that defines the array size; comes in between any extra
+    array_size : Let_binding.t;
+        (** The binding that defines the array size; comes in between any extra
       information from [array_sizing_info] and the definition of the array.  In
       the case where the array has been translated with the fixed-size array
       optimization (when [array_sizing_info] is [Fixed_size _]), the variable
       holding the size is immutable; in the usual dynamically-sized array case
       (when [array_sizing_info] is [Dynamic_size_info]), the variable holding
       the size is mutable so that the array size can be grown.*)
-  ; make_comprehension : lambda -> lambda
-  (** The translation of the comprehension's iterators, awaiting the translation
+    make_comprehension : lambda -> lambda
+        (** The translation of the comprehension's iterators, awaiting the translation
       of the comprehension's body.  All that remains to be done after this
       function is called is the creation and disposal of the array that is being
       constructed; the extra information from [array_sizing_info] must also be
@@ -629,30 +621,27 @@ type translated_clauses =
     array size as a binding. *)
 let clauses ~transl_exp ~scopes ~loc = function
   | [Texp_comp_for bindings] ->
-      let make_comprehension, var_bindings =
-        for_and_clause ~transl_exp ~loc ~scopes bindings
-      in
-      let array_size =
-        Let_binding.make (Immutable Alias) (Pvalue Pintval)
-          "array_size"
-          (Iterator_bindings.Fixed_size_array.total_size_nonempty
-             ~loc var_bindings)
-      in
-      { array_sizing_info  = Fixed_size_info var_bindings
-      ; array_size
-      ; make_comprehension
-      }
+    let make_comprehension, var_bindings =
+      for_and_clause ~transl_exp ~loc ~scopes bindings
+    in
+    let array_size =
+      Let_binding.make (Immutable Alias) (Pvalue Pintval) "array_size"
+        (Iterator_bindings.Fixed_size_array.total_size_nonempty ~loc
+           var_bindings)
+    in
+    { array_sizing_info = Fixed_size_info var_bindings;
+      array_size;
+      make_comprehension
+    }
   | clauses ->
-      let array_size =
-        Let_binding.make Mutable (Pvalue Pintval)
-          "array_size" (int Resizable_array.starting_size)
-      in
-      let make_comprehension =
-        Cps_utils.compose_map (clause ~transl_exp ~loc ~scopes) clauses
-      in
-      { array_sizing_info  = Dynamic_size_info
-      ; array_size
-      ; make_comprehension }
+    let array_size =
+      Let_binding.make Mutable (Pvalue Pintval) "array_size"
+        (int Resizable_array.starting_size)
+    in
+    let make_comprehension =
+      Cps_utils.compose_map (clause ~transl_exp ~loc ~scopes) clauses
+    in
+    { array_sizing_info = Dynamic_size_info; array_size; make_comprehension }
 
 (** Create the initial array that will be filled by an array comprehension,
     returning both its identifier and the let binding that binds it.  The logic
@@ -701,39 +690,39 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     match array_sizing, array_kind with
     (* Case 1: Float array optimization difficulties *)
     | (Fixed_size | Dynamic_size), Pgenarray ->
-        Mutable,
-        Lprim(Pmakearray(Pgenarray, Immutable, Lambda.alloc_heap), [], loc)
+      ( Mutable,
+        Lprim (Pmakearray (Pgenarray, Immutable, Lambda.alloc_heap), [], loc) )
     (* Case 2: Fixed size, known array kind *)
     | Fixed_size, (Pintarray | Paddrarray) ->
-        Immutable StrictOpt,
-        make_vect ~loc ~length:array_size.var ~init:(int 0)
+      Immutable StrictOpt, make_vect ~loc ~length:array_size.var ~init:(int 0)
     | Fixed_size, (Pfloatarray | Punboxedfloatarray Pfloat64) ->
-        (* The representations of these two are the same, it's only
-           accesses that differ. *)
-        Immutable StrictOpt, make_float_vect ~loc array_size.var
-    | Fixed_size , Punboxedintarray Pint32 ->
-        Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
+      (* The representations of these two are the same, it's only
+         accesses that differ. *)
+      Immutable StrictOpt, make_float_vect ~loc array_size.var
+    | Fixed_size, Punboxedintarray Pint32 ->
+      Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pint64 ->
-        Immutable StrictOpt, make_unboxed_int64_vect ~loc array_size.var
+      Immutable StrictOpt, make_unboxed_int64_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pnativeint ->
-        Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
+      Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
-        Mutable, Resizable_array.make ~loc array_kind (int 0)
+      Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
-        Mutable, Resizable_array.make ~loc array_kind (float 0.)
+      Mutable, Resizable_array.make ~loc array_kind (float 0.)
     | Dynamic_size, Punboxedfloatarray Pfloat64 ->
-        Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
     | (Fixed_size | Dynamic_size), Punboxedfloatarray Pfloat32 ->
-        (* CR mslater: (float32) array support *)
-        assert false
+      (* CR mslater: (float32) array support *)
+      assert false
     | Dynamic_size, Punboxedintarray Pint32 ->
-        Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
     | Dynamic_size, Punboxedintarray Pint64 ->
-        Mutable, Resizable_array.make ~loc array_kind (unboxed_int64 0L)
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_int64 0L)
     | Dynamic_size, Punboxedintarray Pnativeint ->
-        Mutable, Resizable_array.make ~loc array_kind
-          (unboxed_nativeint Targetint.zero)
+      ( Mutable,
+        Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
+      )
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -745,15 +734,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     optimization or not and whether we are in the fixed size array case or not,
     so the correctness depends on getting the correct bindings from
     [initial_array] and [clauses]. *)
-let body
-      ~loc
-      ~array_kind
-      ~array_size
-      ~array_sizing
-      ~array
-      ~index
-      ~body
-  =
+let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
   (* The body of an array comprehension has three jobs:
        1. Compute the next element
        2. Assign it (mutably) to the next element of the array
@@ -786,128 +767,119 @@ let body
   let open Let_binding in
   let set_element_raw elt =
     (* array.(index) <- elt *)
-    Lprim(Parraysetu (Lambda.(array_set_kind modify_heap array_kind),
-                      Ptagged_int_index),
-          [array.var; index.var; elt],
-          loc)
+    Lprim
+      ( Parraysetu
+          (Lambda.(array_set_kind modify_heap array_kind), Ptagged_int_index),
+        [array.var; index.var; elt],
+        loc )
   in
-  let set_element_in_bounds elt = match array_sizing with
-    | Fixed_size ->
-        set_element_raw elt
+  let set_element_in_bounds elt =
+    match array_sizing with
+    | Fixed_size -> set_element_raw elt
     | Dynamic_size ->
-        Lsequence(
-          (* Double the size of the array if it's time... *)
-          Lifthenelse(index.var < array_size.var,
-            lambda_unit,
-            Lsequence(
-              Lassign(array_size.id, i 2 * array_size.var),
-              Lassign(array.id,
-                      Resizable_array.double ~loc array.var)),
-            (Pvalue Pintval) (* [unit] is immediate *)),
+      Lsequence
+        ( (* Double the size of the array if it's time... *)
+          Lifthenelse
+            ( index.var < array_size.var,
+              lambda_unit,
+              Lsequence
+                ( Lassign (array_size.id, i 2 * array_size.var),
+                  Lassign (array.id, Resizable_array.double ~loc array.var) ),
+              Pvalue Pintval (* [unit] is immediate *) ),
           (* ...and then set the element now that the array is big enough *)
-          set_element_raw elt)
+          set_element_raw elt )
   in
-  let set_element_known_kind_in_bounds = match array_kind with
+  let set_element_known_kind_in_bounds =
+    match array_kind with
     | Pgenarray ->
-        let is_first_iteration = (index.var = l0) in
-        let elt = Let_binding.make (Immutable Strict) (Pvalue Pgenval) "elt" body in
-        let make_array = match array_sizing with
-          | Fixed_size ->
-              make_vect ~loc ~length:array_size.var ~init:elt.var
-          | Dynamic_size ->
-              Resizable_array.make ~loc Pgenarray elt.var
-        in
-        Let_binding.let_one elt
-             (Lifthenelse(is_first_iteration,
-               Lassign(array.id, make_array),
-               set_element_in_bounds elt.var,
-               (Pvalue Pintval) (* [unit] is immediate *)))
-    | Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray Pfloat64
+      let is_first_iteration = index.var = l0 in
+      let elt =
+        Let_binding.make (Immutable Strict) (Pvalue Pgenval) "elt" body
+      in
+      let make_array =
+        match array_sizing with
+        | Fixed_size -> make_vect ~loc ~length:array_size.var ~init:elt.var
+        | Dynamic_size -> Resizable_array.make ~loc Pgenarray elt.var
+      in
+      Let_binding.let_one elt
+        (Lifthenelse
+           ( is_first_iteration,
+             Lassign (array.id, make_array),
+             set_element_in_bounds elt.var,
+             Pvalue Pintval (* [unit] is immediate *) ))
+    | Pintarray | Paddrarray | Pfloatarray
+    | Punboxedfloatarray Pfloat64
     | Punboxedintarray _ ->
-        set_element_in_bounds body
+      set_element_in_bounds body
     | Punboxedfloatarray Pfloat32 ->
       (* CR mslater: (float32) array support *)
       assert false
   in
-  Lsequence(
-    set_element_known_kind_in_bounds,
-    Lassign(index.id, index.var + l1))
+  Lsequence
+    (set_element_known_kind_in_bounds, Lassign (index.id, index.var + l1))
 
-let comprehension
-      ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
-      { comp_body; comp_clauses } =
+let comprehension ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
+    { comp_body; comp_clauses } =
   (match array_kind with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
   | Punboxedfloatarray _ | Punboxedintarray _ ->
-    if not !Clflags.native_code then
+    if not !Clflags.native_code
+    then
       Misc.fatal_errorf
         "Array comprehensions for kind %s are not allowed in bytecode"
         (Printlambda.array_kind array_kind);
-    if Targetint.size <> 64 then
+    if Targetint.size <> 64
+    then
       Misc.fatal_errorf
-        "Array comprehensions for kind %s can only be compiled for \
-         64-bit native targets"
-        (Printlambda.array_kind array_kind)
-  );
+        "Array comprehensions for kind %s can only be compiled for 64-bit \
+         native targets"
+        (Printlambda.array_kind array_kind));
   let { array_sizing_info; array_size; make_comprehension } =
     clauses ~transl_exp ~scopes ~loc comp_clauses
   in
-  let array_sizing = match array_sizing_info with
+  let array_sizing =
+    match array_sizing_info with
     | Fixed_size_info _ -> Fixed_size
     | Dynamic_size_info -> Dynamic_size
   in
-  let array =
-    initial_array ~loc ~array_kind ~array_size ~array_sizing
-  in
+  let array = initial_array ~loc ~array_kind ~array_size ~array_sizing in
   let index = Let_binding.make Mutable (Pvalue Pintval) "index" (int 0) in
   (* The core of the comprehension: the array, the index, and the iteration that
      fills everything in.  The translation of the clauses will produce a check
      to see if we can avoid doing the hard work of growing the array, which is
      the case when the array is known to be empty after the fixed-size array
-     optimization; we also have to check again when we're done.  *)
+     optimization; we also have to check again when we're done. *)
   let comprehension =
-    Let_binding.let_all
-      [array_size; array; index]
-      (Lsequence(
-         (* Create the array *)
-         make_comprehension
-           (body
-              ~loc
-              ~array_kind
-              ~array_size
-              ~array_sizing
-              ~array
-              ~index
-              (* CR layouts v4: Ensure that the [transl_exp] here can cope
-                 with non-values. *)
-              ~body:(transl_exp
-                        ~scopes
-                        Jkind.Sort.for_array_comprehension_element
-                        comp_body)),
-         (* If it was dynamically grown, cut it down to size *)
-         match array_sizing with
-         | Fixed_size -> array.var
-         | Dynamic_size ->
-             array_sub ~loc array.var ~offset:(int 0)
-               ~length:index.var))
+    Let_binding.let_all [array_size; array; index]
+      (Lsequence
+         ( (* Create the array *)
+           make_comprehension
+             (body ~loc ~array_kind ~array_size ~array_sizing ~array
+                ~index
+                  (* CR layouts v4: Ensure that the [transl_exp] here can cope
+                     with non-values. *)
+                ~body:
+                  (transl_exp ~scopes Jkind.Sort.for_array_comprehension_element
+                     comp_body)),
+           (* If it was dynamically grown, cut it down to size *)
+           match array_sizing with
+           | Fixed_size -> array.var
+           | Dynamic_size ->
+             array_sub ~loc array.var ~offset:(int 0) ~length:index.var ))
   in
   (* If we're in the fixed-size array case, do the extra setup necessary. *)
   match array_sizing_info with
   | Fixed_size_info var_bindings ->
-      Let_binding.let_all
-        (Iterator_bindings.all_let_bindings var_bindings)
-        (Lifthenelse(Iterator_bindings.Fixed_size_array.are_any_empty
-                       ~loc var_bindings,
+    Let_binding.let_all
+      (Iterator_bindings.all_let_bindings var_bindings)
+      (Lifthenelse
+         ( Iterator_bindings.Fixed_size_array.are_any_empty ~loc var_bindings,
            (* If the array is known to be empty, we short-circuit and return the
               empty array; all empty arrays are identical, so we don't care
               about its kind or mutability *)
-           Lprim(
-             Pmakearray(Pgenarray, Immutable, Lambda.alloc_heap),
-             [],
-             loc),
+           Lprim (Pmakearray (Pgenarray, Immutable, Lambda.alloc_heap), [], loc),
            (* Otherwise, we translate it normally *)
            comprehension,
            (* (And the result has the [value_kind] of the array) *)
-           (Pvalue (Parrayval array_kind))))
-  | Dynamic_size_info ->
-      comprehension
+           Pvalue (Parrayval array_kind) ))
+  | Dynamic_size_info -> comprehension

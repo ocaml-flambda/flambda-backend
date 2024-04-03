@@ -20,25 +20,20 @@ let transl_locality_mode = function
   | Locality.Const.Local -> alloc_local
 
 let transl_locality_mode_l locality =
-  Locality.zap_to_floor locality
-  |> transl_locality_mode
+  Locality.zap_to_floor locality |> transl_locality_mode
 
 let transl_locality_mode_r locality =
   (* r mode are for allocations; [optimise_allocations] should have pushed it
-     to ceil and determined. *)
-  Locality.check_const locality
-  |> Option.get
-  |> transl_locality_mode
+     to ceil and determined; here we push it again just to get the constant. *)
+  Locality.zap_to_ceil locality |> transl_locality_mode
 
 let transl_alloc_mode_l mode =
-(* we only take the locality axis *)
-  Alloc.locality mode
-  |> transl_locality_mode_l
+  (* we only take the locality axis *)
+  Alloc.locality mode |> transl_locality_mode_l
 
 let transl_alloc_mode_r mode =
   (* we only take the locality axis *)
-  Alloc.locality mode
-  |> transl_locality_mode_r
+  Alloc.locality mode |> transl_locality_mode_r
 
 let transl_modify_mode locality =
   match Locality.zap_to_floor locality with

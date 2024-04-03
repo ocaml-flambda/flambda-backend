@@ -127,9 +127,6 @@ method! reload_operation op arg res =
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
-  | Ifloatofint | Iintoffloat ->
-      (* Result must be in register, but argument can be on stack *)
-      (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iconst_int n ->
       if n <= 0x7FFFFFFFn && n >= -0x80000000n
       then (arg, res)
@@ -161,6 +158,9 @@ method! reload_operation op arg res =
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
+  | Iscalarcast (Float_of_int | Float_to_int) ->
+    (* Result must be in register, but argument can be on stack *)
+    (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iscalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2)) ->
     (* These are just moves; either the argument or result may be on the stack. *)
     begin match stackp arg.(0), stackp res.(0) with

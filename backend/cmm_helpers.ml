@@ -3468,9 +3468,9 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary Cintoffloat
+let int_of_float = unary (Cscalarcast Float_to_int)
 
-let float_of_int = unary Cfloatofint
+let float_of_int = unary (Cscalarcast Float_of_int)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg

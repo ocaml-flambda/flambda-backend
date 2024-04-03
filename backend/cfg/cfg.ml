@@ -278,11 +278,11 @@ let dump_op ppf = function
   | Divf -> Format.fprintf ppf "divf"
   | Compf _ -> Format.fprintf ppf "compf"
   | Csel _ -> Format.fprintf ppf "csel"
-  | Floatofint -> Format.fprintf ppf "floattoint"
-  | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast Float_of_int -> Format.fprintf ppf "int->float"
+  | Scalarcast Float_to_int -> Format.fprintf ppf "float->int"
   | Scalarcast (V128_to_scalar ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
   | Scalarcast (V128_of_scalar ty) ->
@@ -486,8 +486,6 @@ let is_pure_operation : operation -> bool = function
   | Divf -> true
   | Compf _ -> true
   | Csel _ -> true
-  | Floatofint -> true
-  | Intoffloat -> true
   | Vectorcast _ -> true
   | Scalarcast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
@@ -548,9 +546,9 @@ let is_noop_move instr =
       ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Opaque | Valueofint | Intofvalue | Scalarcast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ | Begin_region | End_region | Dls_get
+      | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

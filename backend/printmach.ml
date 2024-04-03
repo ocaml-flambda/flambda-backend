@@ -221,13 +221,13 @@ let operation' ?(print_reg = reg) op arg ppf res =
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
       (test tst) arg reg arg.(len-2) reg arg.(len-1)
-  | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
-  | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Ivectorcast Bits128 ->
     fprintf ppf "vec128->vec128 %a"
-      reg arg.(0)
+    reg arg.(0)
+  | Iscalarcast Float_of_int -> fprintf ppf "int->float %a" reg arg.(0)
+  | Iscalarcast Float_to_int -> fprintf ppf "float->int %a" reg arg.(0)
   | Iscalarcast (V128_of_scalar ty) ->
     fprintf ppf "scalar->%s %a"
       (Primitive.vec128_name ty) reg arg.(0)

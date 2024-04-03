@@ -935,7 +935,6 @@ enable_flambda_invariants
 enable_flambda2
 enable_cmm_invariants
 with_target_bindir
-with_profinfo
 enable_stdlib_manpages
 enable_warn_error
 enable_force_safe_string
@@ -1632,7 +1631,7 @@ Optional Features:
   --enable-cmm-invariants enable invariants checks in Cmm
   --disable-stdlib-manpages
                           do not build or install the library man pages
-  --enable-warn-error     treat C compiler warnings as errors
+  --disable-warn-error    do not treat C compiler warnings as errors
   --disable-flat-float-array
                           do not use flat float arrays
   --disable-function-sections
@@ -1653,10 +1652,6 @@ Optional Packages:
   --with-dune             Path to dune executable (otherwise PATH is searched)
   --with-odoc             build documentation with odoc
   --with-target-bindir    location of binary programs on target system
-  --enable-profinfo-width=8
-                          reserved bits in block headers in runtime 4. 8 bits
-                          are required for mixed block support in runtime 4;
-                          any other value is not sensible.
   --with-afl              use the AFL fuzzer
   --with-flexdll          bootstrap FlexDLL from the given sources
   --without-zstd          disable compression of marshaled data
@@ -3212,8 +3207,8 @@ ostype="Unix"
 SO="so"
 toolchain="cc"
 reserved_header_bits=8
-profinfo=false
-profinfo_width=0
+profinfo=true
+profinfo_width=8
 custom_ops_struct_size=64
 instrumented_runtime=false
 instrumented_runtime_libs=""
@@ -3918,20 +3913,6 @@ fi
 if test ${with_target_bindir+y}
 then :
   withval=$with_target_bindir;
-fi
-
-
-
-# Check whether --with-profinfo was given.
-if test ${with_profinfo+y}
-then :
-  withval=$with_profinfo; case $enable_profinfo_width in #(
-  8) :
-    with_profinfo=true
-      profinfo_width="$enable_profinfo_width" ;; #(
-  *) :
-    as_fn_error $? "invalid argument to --enable-profinfo-width (must be 8)" "$LINENO" 5 ;;
-esac
 fi
 
 
@@ -13656,6 +13637,16 @@ esac
 otherlibraries="dynlink"
 lib_dynlink=true
 
+ac_config_files="$ac_config_files otherlibs/upstream_compatible/META"
+
+ac_config_files="$ac_config_files otherlibs/stable/META"
+
+ac_config_files="$ac_config_files otherlibs/beta/META"
+
+ac_config_files="$ac_config_files otherlibs/alpha/META"
+
+otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
+
 if test x"$enable_runtime5" = x"yes"
 then :
   otherlibraries="$otherlibraries runtime_events"
@@ -13779,8 +13770,10 @@ case $ocaml_cv_cc_vendor in #(
 -Wold-style-definition" ;;
 esac
 
-case $enable_warn_error,false in #(
-  yes,*|,true) :
+case $enable_warn_error in #(
+  no) :
+     ;; #(
+  *) :
     cc_warnings="$cc_warnings $warn_error_flag" ;; #(
   *) :
      ;;
@@ -19645,6 +19638,8 @@ fi
 
 
 
+# Unconditionally reserve 8 header bits in both runtime 4 and
+# runtime 5, which is required for mixed block support.
 printf "%s\n" "#define HEADER_RESERVED_BITS $reserved_header_bits" >>confdefs.h
 
 printf "%s\n" "#define PROFINFO_WIDTH $profinfo_width" >>confdefs.h
@@ -19654,6 +19649,7 @@ then :
   printf "%s\n" "#define WITH_PROFINFO 1" >>confdefs.h
 
 fi
+
 printf "%s\n" "#define CUSTOM_OPS_STRUCT_SIZE $custom_ops_struct_size" >>confdefs.h
 
 
@@ -21296,6 +21292,10 @@ do
     "otherlibs/runtime_events/META") CONFIG_FILES="$CONFIG_FILES otherlibs/runtime_events/META" ;;
     "stdlib/META") CONFIG_FILES="$CONFIG_FILES stdlib/META" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
+    "otherlibs/upstream_compatible/META") CONFIG_FILES="$CONFIG_FILES otherlibs/upstream_compatible/META" ;;
+    "otherlibs/stable/META") CONFIG_FILES="$CONFIG_FILES otherlibs/stable/META" ;;
+    "otherlibs/beta/META") CONFIG_FILES="$CONFIG_FILES otherlibs/beta/META" ;;
+    "otherlibs/alpha/META") CONFIG_FILES="$CONFIG_FILES otherlibs/alpha/META" ;;
     "otherlibs/unix/META") CONFIG_FILES="$CONFIG_FILES otherlibs/unix/META" ;;
     "otherlibs/str/META") CONFIG_FILES="$CONFIG_FILES otherlibs/str/META" ;;
     "otherlibs/systhreads/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads/META" ;;

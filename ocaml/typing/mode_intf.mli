@@ -83,13 +83,11 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
+  val print_raw :
+    ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
+
   val print :
-    ?raw:bool ->
-    ?verbose:bool ->
-    unit ->
-    Format.formatter ->
-    ('l * 'r) t ->
-    unit
+    ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
 
   val zap_to_floor : (allowed * 'r) t -> Const.t
 
@@ -153,7 +151,7 @@ module type S = sig
 
     val zap_to_legacy : (allowed * 'r) t -> Const.t
 
-    val check_const : ('l * 'r) t -> Const.t option
+    val check_const : (allowed * allowed) t -> Const.t option
   end
 
   module Regionality : sig
@@ -259,22 +257,6 @@ module type S = sig
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
-
-    val check_const :
-      ('l * 'r) t ->
-      ( Regionality.Const.t option,
-        Linearity.Const.t option,
-        Uniqueness.Const.t option )
-      modes
-
     val regionality : ('l * 'r) t -> ('l * 'r) Regionality.t
 
     val uniqueness : ('l * 'r) t -> ('l * 'r) Uniqueness.t
@@ -331,11 +313,18 @@ module type S = sig
     end
 
     module Comonadic : sig
+      module Const : sig
+        include Lattice
+
+        val eq : t -> t -> bool
+      end
+
       include
         Common
           with type error =
             [ `Locality of Locality.error
             | `Linearity of Linearity.error ]
+           and module Const := Const
 
       val meet_with : Const.t -> ('l * 'r) t -> ('l * disallowed) t
     end
@@ -353,6 +342,8 @@ module type S = sig
             (Locality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
+
+      val merge : (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic -> t
 
       module Option : sig
         type some = t
@@ -388,16 +379,7 @@ module type S = sig
          and type error := error
          and type 'd t := 'd t
 
-    (* some overriding *)
-    val print :
-      ?raw:bool ->
-      ?verbose:bool ->
-      unit ->
-      Format.formatter ->
-      ('l * 'r) t ->
-      unit
-
-    val check_const : ('l * 'r) t -> Const.Option.t
+    val check_const : (allowed * allowed) t -> Const.Option.t
 
     val locality : ('l * 'r) t -> ('l * 'r) Locality.t
 

@@ -27,7 +27,7 @@ open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 type type_forcing_context =
   | If_conditional
@@ -216,7 +216,7 @@ type error =
       Value.error * submode_reason *
       Env.closure_context option *
       Env.shared_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
   | Uncurried_function_escapes of Alloc.error
   | Local_return_annotation_mismatch of Location.t
@@ -229,6 +229,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -485,9 +486,6 @@ let mode_with_position mode position =
 
 let mode_max_with_position position =
   { mode_max with position }
-
-let mode_box_modality gf expected_mode =
-  mode_default (modality_box_right gf expected_mode.mode)
 
 let mode_global expected_mode =
   let mode = meet_global expected_mode.mode in
@@ -748,6 +746,15 @@ let extract_option_type env ty =
 let protect_expansion env ty =
   if Env.has_local_constraints env then generic_instance ty else ty
 
+let src_pos loc attrs env =
+  { exp_desc = Texp_src_pos
+  ; exp_loc = loc
+  ; exp_extra = []
+  ; exp_type = instance Predef.type_lexing_position
+  ; exp_attributes = attrs
+  ; exp_env = env
+  }
+
 type record_extraction_result =
   | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
   | Not_a_record_type
@@ -866,6 +873,56 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
     | Ok () -> ()
     | Error (s, e) -> error (s, `Linearity e)
     ) m.linearity
+
+(** Takes the mutability and modalities on a record field, and [m] which is a
+    left mode on the record being accessed, returns the left mode of the
+    projected field. *)
+let project_field mutability modalities (m : (allowed * _) Value.t) =
+  ignore mutability;
+  modality_unbox_left modalities m
+
+(** Takes [m0] which is the parameter on mutable, and [m] which is a right mode
+    on the record being constructed, returns the right mode for the mutable
+    field used for construction. *)
+let construct_mutable m0 m =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
+  let m0 = Const.alloc_as_value m0 in
+  (* We require [join m0 ret <= m], which is equivalent to [m0 <= m] and [ret <=
+    m].  *)
+  (match Value.submode (Value.of_const m0) m with
+  | Ok () -> ()
+  | Error _ -> Misc.fatal_error
+      "mutable defaults to Comonadic.legacy, \
+      which is min, so this call cannot fail."
+  );
+  m |> Value.disallow_left
+
+(** Takes [m0] which is the parameter on mutable, returns the right mode for the
+    new value of the mutable field. *)
+let mutate_mutable m0 =
+  let m0 =
+    Alloc.Const.merge
+      {comonadic = m0;
+       monadic = Alloc.Monadic.Const.min}
+  in
+  let m0 = Const.alloc_as_value m0 in
+  m0 |> Value.of_const |> Value.disallow_left
+
+(** Takes the mutability and modalities on the field, and expected mode of the
+    record (adjusted for allocation), returns the expected mode for the field.
+    *)
+let construct_field mutability modalities (argument_mode : expected_mode) =
+  let mode =
+    match mutability with
+    | Immutable -> argument_mode.mode
+    | Mutable m0 -> construct_mutable m0 argument_mode.mode
+  in
+  let mode = modality_box_right modalities mode in
+  mode_default mode
 
 (* Typing of patterns *)
 
@@ -1564,9 +1621,9 @@ let solve_Ppat_record_field ~refine loc env label label_lid record_ty =
   end
 
 let solve_Ppat_array ~refine loc env mutability expected_ty =
-  let type_some_array = match mutability with
-    | Immutable -> Predef.type_iarray
-    | Mutable -> Predef.type_array
+  let type_some_array =
+    if Types.is_mutable mutability then Predef.type_array
+    else Predef.type_iarray
   in
   let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
@@ -2366,11 +2423,12 @@ and type_pat_aux
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
-    let alloc_mode =
-      match mutability with
-      | Mutable -> simple_pat_mode Value.legacy
-      | Immutable -> alloc_mode
+    let modalities : Global_flag.t =
+      (* CR zqian: decouple mutable and global modality *)
+      if Types.is_mutable mutability then Global else Unrestricted
     in
+    let alloc_mode = project_field mutability modalities alloc_mode.mode in
+    let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
       pat_desc = Tpat_array (mutability, arg_sort, pl);
@@ -2612,7 +2670,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
+             let alloc_mode = project_field Immutable gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2655,10 +2713,8 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let alloc_mode =
-          modality_unbox_left label.lbl_global alloc_mode.mode
-        in
-        let alloc_mode = simple_pat_mode alloc_mode in
+        let mode = project_field label.lbl_mut label.lbl_global alloc_mode.mode in
+        let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
       let make_record_pat lbl_pat_list =
@@ -2680,7 +2736,7 @@ and type_pat_aux
       let lbl_a_list = List.map type_label_pat lbl_a_list in
       rvp @@ solve_expected (make_record_pat lbl_a_list)
   | Ppat_array spl ->
-      type_pat_array Mutable spl sp.ppat_attributes
+      type_pat_array (Mutable Alloc.Comonadic.Const.legacy) spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       (* Reset pattern forces for just [tps2] because later we append
          [tps1] and [tps2]'s pattern forces, and we don't want to
@@ -3359,7 +3415,8 @@ type untyped_apply_arg =
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr}
   | Eliminated_optional_arg of
-      { mode_fun: Alloc.lr;
+      { expected_label: arg_label;
+        mode_fun: Alloc.lr;
         ty_arg : type_expr;
         sort_arg : Jkind.sort;
         mode_arg : Alloc.lr;
@@ -3389,7 +3446,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
              let closed_args = mode_arg :: closed_args in
              (ty_ret, mode_ret, closed_args)
          | Arg (Eliminated_optional_arg
-                  { mode_fun; ty_arg; mode_arg; level })
+                  { mode_fun; ty_arg; mode_arg; level; _ })
          | Omitted { mode_fun; ty_arg; mode_arg; level } ->
              let arrow_desc = lbl, mode_arg, mode_ret in
              let ty_ret =
@@ -3462,7 +3519,7 @@ let check_local_application_complete ~env ~app_loc args =
 let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar =
   let labels_match ~param ~arg =
     param = arg
-    || !Clflags.classic && arg = Nolabel && not (is_optional param)
+    || !Clflags.classic && arg = Nolabel && not (is_omittable param)
   in
   let has_label l ty_fun =
     let ls, tvar = list_labels env ty_fun in
@@ -3577,7 +3634,8 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                                      Function_type_not_rep(ty_arg, err)))
         in
         let name = label_name l
-        and optional = is_optional l in
+        and optional = is_optional l
+        and omittable = is_omittable l in
         let use_arg ~commuted sarg l' =
           let wrapped_in_some = optional && not (is_optional l') in
           if wrapped_in_some then
@@ -3587,12 +3645,13 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
-        let eliminate_optional_arg () =
+        let eliminate_omittable_arg expected_label =
           may_warn funct.exp_loc
-            (Warnings.Non_principal_labels "eliminated optional argument");
+            (Warnings.Non_principal_labels "eliminated omittable argument");
           Arg
             (Eliminated_optional_arg
-               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv })
+               { mode_fun; ty_arg; mode_arg
+               ; sort_arg; level = lv; expected_label})
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -3600,19 +3659,19 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             match sargs with
             | [] -> assert false
             | (l', sarg) :: remaining_sargs ->
-                if name = label_name l' || (not optional && l' = Nolabel) then
+                if name = label_name l' || (not omittable && l' = Nolabel) then
                   (remaining_sargs, use_arg ~commuted:false sarg l')
                 else if
-                  optional &&
+                  omittable &&
                   not (List.exists (fun (l, _) -> name = label_name l)
                          remaining_sargs) &&
                   List.exists (function (Nolabel, _) -> true | _ -> false)
                     sargs
                 then
-                  (sargs, eliminate_optional_arg ())
+                  (sargs, eliminate_omittable_arg l)
                 else
                   raise(Error(sarg.pexp_loc, env,
-                              Apply_wrong_label(l', ty_fun', optional)))
+                              Apply_wrong_label(l', ty_fun', omittable)))
           end else
             (* Arguments can be commuted, try to fetch the argument
                corresponding to the first parameter. *)
@@ -3628,8 +3687,8 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                 remaining_sargs, use_arg ~commuted sarg l'
             | None ->
                 sargs,
-                if optional && List.mem_assoc Nolabel sargs then
-                  eliminate_optional_arg ()
+                if omittable && List.mem_assoc Nolabel sargs then
+                  eliminate_omittable_arg l
                 else begin
                   (* No argument was given for this parameter, we abstract over
                      it. *)
@@ -3697,6 +3756,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
+  | Texp_src_pos
   | Texp_array (_, _, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
@@ -3755,7 +3815,7 @@ let rec is_nonexpansive exp =
           | Tcf_inherit _ -> false
           | Tcf_attribute _ -> true)
         fields &&
-      Vars.fold (fun _ (mut,_,_) b -> decr count; b && mut = Immutable)
+      Vars.fold (fun _ (mut,_,_) b -> decr count; b && mut = Asttypes.Immutable)
         vars true &&
       !count = 0
   | Texp_letmodule (_, _, _, mexp, e)
@@ -3995,6 +4055,7 @@ let rec approx_type env sty =
   | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
+      let p = Typetexp.transl_label p (Some arg_sty) in
       (* CR layouts v5: value requirement here to be relaxed *)
       if is_optional p then newvar Predef.option_argument_jkind
       else begin
@@ -4012,6 +4073,7 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
+      let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
         then type_option (newvar Predef.option_argument_jkind)
@@ -4189,6 +4251,7 @@ and type_approx_function =
     match params with
     | { pparam_desc = Pparam_newtype _ } :: _ -> ()
     | { pparam_desc = Pparam_val (label, _, pat) } :: params ->
+        let label, pat = Typetexp.transl_label_from_pat label pat in
         let ty_res =
           type_approx_fun_one_param env loc label (Some pat) ty_expected
             ~first ~in_function
@@ -4361,7 +4424,7 @@ let check_partial_application ~statement exp =
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
-            | Texp_probe _ | Texp_probe_is_enabled _
+            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos
             | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
@@ -5496,9 +5559,11 @@ and type_expect_
         else
           None, expected_mode
       in
-      let lbl_exp_list =
-        List.map (type_label_exp true env argument_mode loc ty_record) lbl_a_list
+      let type_label_exp ((_, label, _) as x) =
+        let argument_mode = construct_field label.lbl_mut label.lbl_global argument_mode in
+        type_label_exp true env argument_mode loc ty_record x
       in
+      let lbl_exp_list = List.map type_label_exp lbl_a_list in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
       (* note: check_duplicates would better be implemented in
@@ -5556,10 +5621,8 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
-                  let argument_mode =
-                    mode_box_modality lbl.lbl_global argument_mode
-                  in
+                  let mode = project_field lbl.lbl_mut lbl.lbl_global mode in
+                  let argument_mode = construct_field lbl.lbl_mut lbl.lbl_global argument_mode in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -5605,7 +5668,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = project_field label.lbl_mut label.lbl_global rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5646,11 +5709,16 @@ and type_expect_
         else record.exp_type
       in
       let (label_loc, label, newval) =
-        type_label_exp false env (mode_default rmode) loc
-          ty_record (lid, label, snewval) in
+        match label.lbl_mut with
+        | Mutable m0 ->
+          let mode = mutate_mutable m0 in
+          let mode = modality_box_right label.lbl_global mode in
+          type_label_exp false env (mode_default mode) loc
+            ty_record (lid, label, snewval)
+        | Immutable ->
+          raise(Error(loc, env, Label_not_mutable lid.txt))
+      in
       unify_exp env record ty_record;
-      if label.lbl_mut = Immutable then
-        raise(Error(loc, env, Label_not_mutable lid.txt));
       rue {
         exp_desc = Texp_setfield(record,
           Locality.disallow_right (regional_to_local (Value.regionality rmode)),
@@ -5666,7 +5734,7 @@ and type_expect_
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~mutability:Mutable
+        ~mutability:(Mutable Alloc.Comonadic.Const.legacy)
         ~attributes:sexp.pexp_attributes
         sargl
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
@@ -6290,6 +6358,8 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
+  | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
+      rue (src_pos loc sexp.pexp_attributes env)
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -6556,9 +6626,12 @@ and type_function
   | { pparam_desc = Pparam_val (arg_label, default_arg, pat); pparam_loc }
       :: rest
     ->
+      let typed_arg_label, pat =
+        Typetexp.transl_label_from_pat arg_label pat
+      in
       let mode_annots, pat = mode_annots_from_pat_attrs pat in
       let has_poly = has_poly_constraint pat in
-      if has_poly && is_optional arg_label then
+      if has_poly && is_optional_parsetree arg_label then
         raise(Error(pat.ppat_loc, env, Optional_poly_param));
       if has_poly
       && not (Language_extension.is_enabled Polymorphic_parameters) then
@@ -6586,7 +6659,7 @@ and type_function
           } =
         split_function_ty env expected_mode ty_expected loc
           ~is_first_val_param:first ~is_final_val_param
-          ~arg_label ~in_function ~has_poly ~mode_annots
+          ~arg_label:typed_arg_label ~in_function ~has_poly ~mode_annots
       in
       (* [ty_arg_internal] is the type of the parameter viewed internally
          to the function. This is different than [ty_arg_mono] exactly for
@@ -6695,7 +6768,7 @@ and type_function
         instance
           (newgenty
              (Tarrow
-                ((arg_label, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok)))
+                ((typed_arg_label, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok)))
       in
       (* This is quadratic, as it operates over the entire tail of the
          type for each new parameter. Now that functions are n-ary, we
@@ -6711,11 +6784,13 @@ and type_function
         let ls, tvar = list_labels env ty in
         List.for_all (( <> ) Nolabel) ls && not tvar
       in
-      if is_optional arg_label && not_nolabel_function ty_ret
-      then
-        Location.prerr_warning
-          pat.pat_loc
-          Warnings.Unerasable_optional_argument;
+      if not_nolabel_function ty_ret then
+        if is_optional typed_arg_label then
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_optional_argument
+        else if is_position typed_arg_label then
+          Location.prerr_warning pat.pat_loc
+            Warnings.Unerasable_position_argument;
       let fp_kind, fp_param =
         match default_arg with
         | None ->
@@ -6729,7 +6804,7 @@ and type_function
         { has_poly;
           param =
             { fp_kind;
-              fp_arg_label = arg_label;
+              fp_arg_label = typed_arg_label;
               fp_param;
               fp_partial = partial;
               fp_newtypes = newtypes;
@@ -7106,12 +7181,11 @@ and type_option_some env expected_mode sarg ty ty0 =
     (type_option arg.exp_type) arg.exp_loc arg.exp_env
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
-   allocation but not modality *)
-and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
+   allocation, mutation and modalities. *)
+and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let arg_mode = mode_box_modality label.lbl_global expected_mode in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
      - first try: we try with [ty_arg] as expected type;
      - second try; if that fails, we backtrack and try without
@@ -7246,7 +7320,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
   in
   match may_coerce with
     Some (safe_expect, lv) ->
-      (* apply optional arguments when expected type is "" *)
+      (* apply omittable arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
       let exp_mode, _ = Value.newvar_below mode.mode in
       let texp =
@@ -7263,6 +7337,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             (* CR layouts v5: change value assumption below when we allow
                non-values in structures. *)
             make_args ((l, Arg (ty, Jkind.Sort.value)) :: args) ty_fun
+        | Tarrow ((l,_marg,_mret),_,ty_fun,_) when is_position l ->
+            let arg = src_pos (Location.ghostify sarg.pexp_loc) [] env in
+            make_args ((l, Arg (arg, Jkind.Sort.value)) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
         | Tvar _ ->  List.rev args, ty_fun, false
@@ -7363,7 +7440,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         (Warnings.Eliminated_optional_arguments
            (List.map (fun (l, _) -> Printtyp.string_of_label l) args));
       if warn then Location.prerr_warning texp.exp_loc
-          (Warnings.Non_principal_labels "eliminated optional argument");
+          (Warnings.Non_principal_labels "eliminated omittable argument");
       (* let-expand to have side effects *)
       let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
       re { texp with exp_type = ty_fun;
@@ -7451,9 +7528,15 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         end
       in
       (lbl, Arg (arg, mode_arg, sort_arg))
-  | Arg (Eliminated_optional_arg { ty_arg; sort_arg; _ }) ->
-      let arg = type_option_none env (instance ty_arg) Location.none in
-      (lbl, Arg (arg, Value.legacy, sort_arg))
+  | Arg (Eliminated_optional_arg { ty_arg; sort_arg; expected_label; _ }) ->
+      (match expected_label with
+      | Optional _ ->
+          let arg = type_option_none env (instance ty_arg) Location.none in
+          (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
+      | Position _ ->
+          let arg = src_pos (Location.ghostify app_loc) [] env in
+          (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
+      | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode position_and_mode
@@ -7465,7 +7548,7 @@ and type_application env app_loc expected_mode position_and_mode
   in
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
-    [Nolabel, sarg] when is_ignore funct ->
+    [Parsetree.Nolabel, sarg] when is_ignore funct ->
       let {ty_arg; arg_mode; ty_ret; ret_mode} =
         with_local_level_if_principal (fun () ->
           filter_arrow_mono env (instance funct.exp_type) Nolabel
@@ -7497,9 +7580,9 @@ and type_application env app_loc expected_mode position_and_mode
         begin
           let ls, tvar = list_labels env funct.exp_type in
           not tvar &&
-          let labels = List.filter (fun l -> not (is_optional l)) ls in
+          let labels = List.filter (fun l -> not (is_omittable l)) ls in
           List.length labels = List.length sargs &&
-          List.for_all (fun (l,_) -> l = Nolabel) sargs &&
+          List.for_all (fun (l,_) -> l = Parsetree.Nolabel) sargs &&
           List.exists (fun l -> l <> Nolabel) labels &&
           (Location.prerr_warning
              funct.exp_loc
@@ -7511,6 +7594,13 @@ and type_application env app_loc expected_mode position_and_mode
       in
       let ty_ret, mode_ret, args, position_and_mode =
         with_local_level_if_principal begin fun () ->
+          let sargs = List.map
+            (* Application will never contain Position labels, so no need to pass
+               argument type here. When checking against the function type,
+               Labelled arguments will be matched up to Position parameters
+               based on label names *)
+            (fun (label, e) -> Typetexp.transl_label label None, e) sargs
+          in
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
               (value_to_alloc_r2l funct_mode) sargs ret_tvar
@@ -7685,7 +7775,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let args =
     List.map2
       (fun e ((ty, gf),t0) ->
-         let argument_mode = mode_box_modality gf argument_mode in
+         let argument_mode = construct_field Immutable gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
@@ -8553,7 +8643,7 @@ and type_andops env sarg sands expected_sort expected_ty =
 and type_generic_array
       ~loc
       ~env
-      ~expected_mode
+      ~(expected_mode : expected_mode)
       ~ty_expected
       ~explanation
       ~mutability
@@ -8561,10 +8651,14 @@ and type_generic_array
       sargl
   =
   let alloc_mode, argument_mode = register_allocation expected_mode in
-  let type_, argument_mode = match mutability with
-    | Mutable -> Predef.type_array, mode_default Value.legacy
-    | Immutable -> Predef.type_iarray, argument_mode
+  let type_, modalities =
+    (* CR zqian: decouple mutable and global *)
+    if Types.is_mutable mutability then
+      Predef.type_array, Global_flag.Global
+    else
+      Predef.type_iarray, Global_flag.Unrestricted
   in
+  let argument_mode = construct_field mutability modalities argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
@@ -8874,15 +8968,15 @@ and type_comprehension_expr
         comp,
         Predef.list_argument_jkind
     | Cexp_array_comprehension (amut, comp) ->
-        let container_type = match amut with
-          | Mutable   -> Predef.type_array
-          | Immutable -> Predef.type_iarray
+        let container_type, mut = match amut with
+          | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
+          | Immutable -> Predef.type_iarray, Immutable
         in
-        Array_comprehension amut,
+        Array_comprehension mut,
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
-            (amut, Jkind.Sort.for_array_comprehension_element, tcomp)),
+            (mut, Jkind.Sort.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See
@@ -9322,7 +9416,7 @@ let report_type_expected_explanation expl ppf =
       let a_comp_ty =
         match comp_ty with
         | List_comprehension            -> "a list"
-        | Array_comprehension Mutable   -> "an array"
+        | Array_comprehension (Mutable _)   -> "an array"
         | Array_comprehension Immutable -> "an immutable array"
       in
       because ("a for-in iterator in " ^ a_comp_ty ^ " comprehension")
@@ -9625,7 +9719,11 @@ let report_error ~loc env = function
   | Apply_wrong_label (l, ty, extra_info) ->
       let print_label ppf = function
         | Nolabel -> fprintf ppf "without label"
-        | l -> fprintf ppf "with label %s" (prefixed_label_name l)
+        |(Labelled _ | Optional _) as l -> fprintf ppf "with label %s"
+                                           (prefixed_label_name l)
+        | Position _ -> assert false
+          (* Since Position labels never occur in function applications,
+             this case is never run *)
       in
       let extra_info =
         if not extra_info then
@@ -9767,22 +9865,32 @@ let report_error ~loc env = function
         Printtyp.type_expr ty
         (report_type_expected_explanation_opt explanation)
   | Abstract_wrong_label {got; expected; expected_type; explanation} ->
-      let label ~long = function
+      let label ~long l =
+        match l with
         | Nolabel -> "unlabeled"
-        | l       -> (if long then "labeled " else "") ^ prefixed_label_name l
+        | Position l -> sprintf "~(%s:[%%call_pos])" l
+        | Labelled _ | Optional _ ->
+            (if long then "labeled " else "") ^ prefixed_label_name l
       in
       let second_long = match got, expected with
         | Nolabel, _ | _, Nolabel -> true
         | _                       -> false
       in
+      let maybe_positional_argument_hint = 
+        match got, expected with
+        | Labelled _, Position _ ->
+          "\nHint: Consider explicitly annotating the label with '[%call_pos]'"
+        | _ -> ""
+      in
       Location.errorf ~loc
         "@[<v>@[<2>This function should have type@ %a%t@]@,\
-         @[but its first argument is %s@ instead of %s%s@]@]"
+         @[but its first argument is %s@ instead of %s%s@]%s@]"
         Printtyp.type_expr expected_type
         (report_type_expected_explanation_opt explanation)
         (label ~long:true got)
         (if second_long then "being " else "")
         (label ~long:second_long expected)
+        maybe_positional_argument_hint
   | Scoping_let_module(id, ty) ->
       Location.errorf ~loc
         "This `let module' expression has type@ %a@ \
@@ -10009,7 +10117,7 @@ let report_error ~loc env = function
           let lbl =
             match lbl with
             | Nolabel -> "_"
-            | Labelled s | Optional s -> s
+            | Labelled s | Optional s | Position s -> s
           in
           [Location.msg
              "@[Hint: Try splitting the application in two. The arguments that come@ \
@@ -10083,6 +10191,13 @@ let report_error ~loc env = function
   | Modes_on_pattern ->
       Location.errorf ~loc
         "@[Mode annotations on patterns are not supported yet.@]"
+  | Invalid_label_for_src_pos arg_label ->
+      Location.errorf ~loc
+        "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ | Position _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

@@ -922,29 +922,6 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
-(* ISA Extension Checking *)
-
-module Extension = struct
-  module E = Arch.Extension
-
-  (* Keep in sync with [isa.c] in the runtime. *)
-  let symbol : E.t -> string =
-    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
-
-  let is_nasm_or_masm () =
-    match system with
-    | S_macosx | S_win32 | S_win64 -> true
-    | _ -> false
-
-  let emit_symbols () =
-    if !arch_check_symbols && not (is_nasm_or_masm ()) then
-    List.iter (fun ext ->
-      let name = symbol ext in
-      D.label name;
-      D.weak name
-    ) (E.available ())
-end
-
 (* Emit Code *)
 
 let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
@@ -1506,12 +1483,12 @@ let emit_instr fallthrough i =
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
   | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
-  | Lop(Ifloatofint) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iintoffloat) ->
-      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float_of_int) ->
+      I.cvtsi2sd  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast Float_to_int) ->
+      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
@@ -2011,7 +1988,6 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
-  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;

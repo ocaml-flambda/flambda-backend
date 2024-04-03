@@ -77,6 +77,7 @@
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
+   zero_alloc_utils
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -98,7 +99,7 @@
    annot outcometree
 
    ;; lambda/
-   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   assume_info debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -329,6 +330,7 @@
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)
     (debuginfo.mli as compiler-libs/debuginfo.mli)
+    (assume_info.mli as compiler-libs/assume_info.mli)
     (lambda.mli as compiler-libs/lambda.mli)
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)
@@ -359,5 +361,6 @@
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
+    (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)
 
   ))

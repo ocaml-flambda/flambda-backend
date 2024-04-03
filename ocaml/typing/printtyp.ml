@@ -600,9 +600,9 @@ let print_name ppf = function
     None -> fprintf ppf "None"
   | Some name -> fprintf ppf "\"%s\"" name
 
-let string_of_label = function
+let string_of_label : Types.arg_label -> string = function
     Nolabel -> ""
-  | Labelled s -> s
+  | Labelled s | Position s -> s
   | Optional s -> "?"^s
 
 let visited = ref []
@@ -1275,6 +1275,12 @@ let alias_nongen_row mode px ty =
           add_alias_proxy px
     | _ -> ()
 
+let outcome_label : Types.arg_label -> Outcometree.arg_label = function
+  | Nolabel -> Nolabel
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Position l -> Position l
+
 let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
@@ -1291,7 +1297,8 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-          if !print_labels || is_optional l then string_of_label l else ""
+          if !print_labels || is_omittable l then outcome_label l
+          else Nolabel
         in
         let t1 =
           if is_optional l then
@@ -1570,13 +1577,20 @@ let param_jkind ty =
   | _ -> None (* this is (C2.2) from Note [When to print jkind annotations] *)
 
 let tree_of_label l =
-  let gom =
+  let mut, gbl =
     match l.ld_mutable, l.ld_global with
-    | Mutable, _ -> Ogom_mutable
-    | Immutable, Global -> Ogom_global
-    | Immutable, Unrestricted -> Ogom_immutable
+    | Mutable m, _ ->
+        let mut =
+          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+            Om_mutable None
+          else
+            Om_mutable (Some "<non-legacy>")
+        in
+        mut, Ogf_unrestricted
+    | Immutable, Global -> Om_immutable, Ogf_global
+    | Immutable, Unrestricted -> Om_immutable, Ogf_unrestricted
   in
-  (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
+  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, gbl)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l
@@ -2017,7 +2031,7 @@ let rec tree_of_class_type mode params =
       let csil =
         List.fold_left
           (fun csil (l, m, v, t) ->
-            Ocsg_value (l, m = Mutable, v = Virtual, tree_of_typexp mode t)
+            Ocsg_value (l, m = Asttypes.Mutable, v = Virtual, tree_of_typexp mode t)
             :: csil)
           csil all_vars
       in
@@ -2035,7 +2049,8 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-        if !print_labels || is_optional l then string_of_label l else ""
+        if !print_labels || is_omittable l then outcome_label l
+        else Nolabel
       in
       let tr =
        if is_optional l then

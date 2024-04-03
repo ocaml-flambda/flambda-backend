@@ -32,8 +32,6 @@ let precondition : Cfg_with_layout.t -> unit =
       | Divf -> ()
       | Compf _ -> ()
       | Csel _ -> ()
-      | Floatofint -> ()
-      | Intoffloat -> ()
       | Valueofint -> ()
       | Intofvalue -> ()
       | Vectorcast _ -> ()

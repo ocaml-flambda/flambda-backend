@@ -17,7 +17,6 @@
 
 open Path
 open Types
-open Asttypes
 open Typedtree
 open Lambda
 
@@ -478,9 +477,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           (fun (is_mutable, num_nodes_visited)
                (label:Types.label_declaration) ->
               let is_mutable =
-                match label.ld_mutable with
-                | Mutable -> true
-                | Immutable -> is_mutable
+                Types.is_mutable label.ld_mutable || is_mutable
               in
               let num_nodes_visited = num_nodes_visited + 1 in
               let num_nodes_visited, field =
@@ -549,9 +546,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           (fun (idx, is_mutable, num_nodes_visited)
                (label:Types.label_declaration) ->
             let is_mutable =
-              match label.ld_mutable with
-              | Mutable -> true
-              | Immutable -> is_mutable
+              Types.is_mutable label.ld_mutable || is_mutable
             in
             let num_nodes_visited = num_nodes_visited + 1 in
             let num_nodes_visited, field =

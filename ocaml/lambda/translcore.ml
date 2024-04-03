@@ -438,22 +438,34 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let tailcall = Translattribute.get_tailcall_attribute funct in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
+        let assume_zero_alloc =
+          Translattribute.get_assume_zero_alloc ~with_warnings:true
+            funct.exp_attributes
+        in
         let position = transl_apply_position pos in
         let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
-          (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
+          (transl_apply ~scopes ~tailcall ~inlined ~specialised
+             ~assume_zero_alloc
+             ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
   | Texp_apply(funct, oargs, position, ap_mode) ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
+      let assume_zero_alloc =
+        Translattribute.get_assume_zero_alloc ~with_warnings:true
+          funct.exp_attributes
+      in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
       let mode = transl_locality_mode_l ap_mode in
       event_after ~scopes e
-        (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
+        (transl_apply ~scopes ~tailcall ~inlined ~specialised
+           ~assume_zero_alloc
+           ~result_layout
            ~position ~mode (transl_exp ~scopes Jkind.Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
@@ -542,9 +554,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
-        match lbl.lbl_mut with
-        | Immutable -> Reads_agree
-        | Mutable -> Reads_vary
+        if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
@@ -647,16 +657,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       in
       let imm_array = makearray Immutable in
       let lambda_arr_mut : Lambda.mutable_flag =
-        match (amut : Asttypes.mutable_flag) with
-        | Mutable   -> Mutable
-        | Immutable -> Immutable
+        if Types.is_mutable amut then Mutable else Immutable
       in
       begin try
         (* For native code the decision as to which compilation strategy to
            use is made later.  This enables the Flambda passes to lift certain
            kinds of array definitions to symbols. *)
         (* Deactivate constant optimization if array is small enough *)
-        if amut = Asttypes.Mutable &&
+        if Types.is_mutable amut &&
            List.length ll <= use_dup_for_constant_mutable_arrays_bigger_than
         then begin
           raise Not_constant
@@ -665,7 +673,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if is_local_mode mode then raise Not_constant;
         begin match List.map extract_constant ll with
         | exception Not_constant
-          when kind = Pfloatarray && amut = Asttypes.Mutable ->
+          when kind = Pfloatarray && Types.is_mutable amut ->
             (* We cannot currently lift mutable [Pintarray] arrays safely in
                Flambda because [caml_modify] might be called upon them
                (e.g. from code operating on polymorphic arrays, or functions
@@ -694,9 +702,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 | Punboxedfloatarray _ | Punboxedintarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
-            match amut with
-            | Mutable   -> duparray_to_mutable const
-            | Immutable -> const
+            if Types.is_mutable amut then duparray_to_mutable const else const
         end
       with Not_constant ->
         makearray lambda_arr_mut
@@ -1069,6 +1075,23 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     let l = transl_exp ~scopes sort e in
     if Config.stack_allocation then Lexclave l
     else l
+  | Texp_src_pos ->
+      let pos = e.exp_loc.loc_start in
+      let pos =
+        match !Clflags.directory with
+        | None -> pos
+        | Some directory ->
+          let pos_fname = directory ^ "/" ^ pos.pos_fname in
+          { pos with pos_fname }
+      in
+      let cl =
+        [ Const_base (Const_string (pos.pos_fname, e.exp_loc, None))
+        ; Const_base (Const_int pos.pos_lnum)
+        ; Const_base (Const_int pos.pos_bol)
+        ; Const_base (Const_int pos.pos_cnum)
+        ]
+      in
+      Lconst(Const_block(0, cl))
 
 and pure_module m =
   match m.mod_desc with
@@ -1136,6 +1159,7 @@ and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
       ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
+      ?(assume_zero_alloc = Assume_info.none)
       ?(position=Rc_normal)
       ?(mode=alloc_heap)
       ~result_layout
@@ -1166,6 +1190,14 @@ and transl_apply ~scopes
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode; ap_result_layout = result_layout }
     | lexp, _ ->
+      (* [assume_zero_alloc] is not used in the cases above but
+         Misplaced_attribute won't be reported for it.
+         Same for [@inlined] [@specialized] and tailcall.
+         It's fine for [Lsend] cases because [assume_zero_alloc] is
+         always false currently for them. *)
+        let loc =
+          map_scopes (update_assume_zero_alloc ~assume_zero_alloc) loc
+        in
         Lapply {
           ap_loc=loc;
           ap_func=lexp;
@@ -1528,10 +1560,8 @@ and transl_function ~in_new_scope ~scopes e params body
     Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
   in
   let scopes =
-    if in_new_scope then begin
-      if assume_zero_alloc then set_assume_zero_alloc ~scopes
-      else scopes
-    end
+    if in_new_scope then
+      update_assume_zero_alloc ~scopes ~assume_zero_alloc
     else enter_anonymous_function ~scopes ~assume_zero_alloc
   in
   let sreturn_mode = transl_alloc_mode_l sreturn_mode in
@@ -1664,9 +1694,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
                in
                let sem =
-                 match mut with
-                 | Immutable -> Reads_agree
-                 | Mutable -> Reads_vary
+                 if Types.is_mutable mut then Reads_vary else Reads_agree
                in
                let access =
                  match repres with
@@ -1710,7 +1738,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     in
     let ll, shape = List.split (Array.to_list lv) in
     let mut : Lambda.mutable_flag =
-      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Asttypes.Mutable) fields
+      if Array.exists (fun (lbl, _) -> Types.is_mutable lbl.lbl_mut) fields
       then Mutable
       else Immutable in
     let lam =
@@ -2045,7 +2073,7 @@ let transl_scoped_exp ~scopes sort exp =
 let transl_apply
       ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn args loc =
   maybe_region_layout result_layout (transl_apply
-      ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn args loc)
+      ~scopes ?tailcall ?inlined ?specialised ~assume_zero_alloc:Assume_info.none ?position ?mode ~result_layout fn args loc)
 
 (* Error report *)
 

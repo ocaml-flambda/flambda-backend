@@ -237,9 +237,9 @@ val reserved_header_bits : int
    regardless of whether we're in runtime 4 or runtime 5.
 
    In runtime 5, this corresponds to the HEADER_RESERVED_BITS C preprocessor
-   macro.  In runtime 4, this corresponds to the PROFINFO_WIDTH C preprocessor
-   macro (and is controlled by the --with-profinfo and --enable-profinfo-width
-   configure arguments), and is only set when WITH_PROFINFO is also true.
+   macro. In runtime 4, this corresponds to the PROFINFO_WIDTH C preprocessor
+   macro. Both of these are unconditionally set to a constant by the configure
+   script in order to enable mixed block support.
  *)
 
 val custom_ops_struct_size : int
