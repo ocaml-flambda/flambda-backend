@@ -28,12 +28,10 @@ let check_floats f =
   f zero;
   f one;
   f minus_one;
-  f one;
   f (-0.0);
   f nan;
   f infinity;
   f neg_infinity;
-  f nan;
   f max_float;
   f min_float;
   for i = 0 to 100_000 do
