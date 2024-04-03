@@ -1,4 +1,4 @@
-let do_print = false
+let do_print = Sys.getenv_opt "PRT" <> None
 
 type field =
   | Block of int

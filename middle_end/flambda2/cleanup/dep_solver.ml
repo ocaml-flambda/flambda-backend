@@ -7,6 +7,38 @@ type field = Cleanup_deps.field
 module DepSet = Cleanup_deps.DepSet
 module SCC = Strongly_connected_components.Make (Code_id_or_name)
 
+
+module Field = struct
+  module M = struct
+    type t = field
+
+    let compare : t -> t -> int = compare
+
+    let equal a b = compare a b = 0
+
+    let hash = Hashtbl.hash
+
+    let print = Cleanup_deps.pp_field
+  end
+
+  module Container = Container_types.Make (M)
+
+  (* module Set = Container.Set *)
+  module Map = Container.Map
+end
+
+let max_depth = 2
+
+(** Represents the part of a value that can be accessed *)
+type elt =
+  | Top  (** Value completely accessed *)
+  | Fields of { depth : int; fields : elt Field.Map.t }
+    (** Those fields of the value are accessed;
+        invariants:
+        * depth is the maximum of fields depth + 1
+        * no element of fields is Bottom *)
+  | Bottom  (** Value not accessed *)
+
 module Make_SCC = struct
   let dep (d : Cleanup_deps.Dep.t) =
     match d with
@@ -79,7 +111,8 @@ module Make_SCC = struct
           fun_graph.called acc
       in
       Hashtbl.fold
-        (fun cn _ acc ->
+        (fun _ ds acc ->
+           DepSet.fold (fun dp acc -> Code_id_or_name.Set.fold (fun cn acc ->
           let cn, code_id = if invert then code_id, cn else cn, code_id in
           let d =
             match Code_id_or_name.Map.find_opt code_id acc with
@@ -87,46 +120,21 @@ module Make_SCC = struct
             | Some d -> d
           in
           let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
-          Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
+          Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc) (dep dp) acc) ds acc)
         fun_graph.name_to_dep acc
 
-  let from_graph (graph : graph) : SCC.directed_graph =
-    Hashtbl.fold
+  let from_graph (graph : graph) result : SCC.directed_graph =
+    let acc = Hashtbl.fold
       (fun code_id fun_graph acc -> add_fungraph (Some code_id) acc fun_graph)
       graph.function_graphs
       (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph)
+    in
+    ignore result;
+    if true then
+    Code_id_or_name.Map.map (Code_id_or_name.Set.filter (fun n -> Hashtbl.find_opt result n <> Some Top)) acc
+else Code_id_or_name.Map.mapi (fun n d -> if Hashtbl.find_opt result n = Some Top then Code_id_or_name.Set.empty else d) acc
+
 end
-
-module Field = struct
-  module M = struct
-    type t = field
-
-    let compare : t -> t -> int = compare
-
-    let equal a b = compare a b = 0
-
-    let hash = Hashtbl.hash
-
-    let print = Cleanup_deps.pp_field
-  end
-
-  module Container = Container_types.Make (M)
-
-  (* module Set = Container.Set *)
-  module Map = Container.Map
-end
-
-let max_depth = 2
-
-(** Represents the part of a value that can be accessed *)
-type elt =
-  | Top  (** Value completely accessed *)
-  | Fields of { depth : int; fields : elt Field.Map.t }
-    (** Those fields of the value are accessed;
-        invariants:
-        * depth is the maximum of fields depth + 1
-        * no element of fields is Bottom *)
-  | Bottom  (** Value not accessed *)
 
 (* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
    Top *)
@@ -209,6 +217,18 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
     end
   end
 
+let propagate_top (dep : dep) : Code_id_or_name.t option =
+    match dep with
+    | Return_of_that_function n ->
+      Some (Code_id_or_name.name n)
+    | Alias n -> Some (Code_id_or_name.name n)
+    | Apply (n, _) -> Some (Code_id_or_name.name n)
+    | Contains n -> Some (n)
+    | Use n -> Some (Code_id_or_name.name n)
+    | Field _ -> None
+    | Block (_, n) -> 
+      Some (n)
+
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
 let pp_result ppf (res : result) =
@@ -234,8 +254,10 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
   let add_used used =
     Hashtbl.iter
       (fun n () ->
-        Hashtbl.replace result n Top;
-        push n)
+        if Hashtbl.find_opt result n <> Some Top then begin
+           Hashtbl.replace result n Top;
+           push n
+        end)
       used
   in
   let add_called called =
@@ -243,12 +265,13 @@ let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
       (fun code_id () ->
         let code_id = Code_id_or_name.code_id code_id in
         if not (Hashtbl.mem result code_id)
-        then
+        then begin
           Hashtbl.replace result code_id
             (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+            push code_id
+        end
         (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
-           Field.Map.singleton Apply Top)) *)
-        push code_id)
+           Field.Map.singleton Apply Top)) *))
       called
   in
   add_used fun_graph.used;
@@ -258,12 +281,72 @@ let create_state (graph : graph) =
   let state =
     { result = Hashtbl.create 100;
       all_added = Hashtbl.create 100;
-      all_deps = Hashtbl.copy graph.toplevel_graph.name_to_dep;
+      all_deps = graph.toplevel_graph.name_to_dep;
       added_fungraph = Hashtbl.create 100
     }
   in
-  add_subgraph (fun _ -> ()) state graph.toplevel_graph;
+  let stack = ref [] in
+  let called_stack = ref [] in
+  let add_used used =
+    if not (Hashtbl.mem state.result used) then begin
+      Hashtbl.replace state.result used Top;
+      stack := used :: !stack
+    end
+  in
+  let add_called called =
+    if Hashtbl.mem graph.function_graphs called then begin
+      Hashtbl.replace state.added_fungraph called ();
+      let subgraph = Hashtbl.find graph.function_graphs called in
+      Hashtbl.remove graph.function_graphs called;
+      called_stack := subgraph :: !called_stack
+    end
+  in
+  let add_subgraph (subgraph : Cleanup_deps.fun_graph) =
+    Hashtbl.iter (fun n () -> add_used n) subgraph.used;
+    Hashtbl.iter (fun code_id () -> add_called code_id) subgraph.called;
+    Hashtbl.iter
+      (fun n deps ->
+         if Hashtbl.mem state.result n then
+           DepSet.iter (fun dep -> match propagate_top dep with None -> () | Some n2 -> add_used n2) deps;
+         (match Hashtbl.find_opt state.all_deps n with
+          | None -> Hashtbl.add state.all_deps n deps
+          | Some deps2 -> Hashtbl.replace state.all_deps n (DepSet.union deps deps2)))
+      subgraph.name_to_dep
+  in
+  let rec loop () =
+    match !stack with
+    | n :: rest ->
+      stack := rest;
+      let cur_deps = try Hashtbl.find state.all_deps n with Not_found -> DepSet.empty in
+      DepSet.iter (fun dep -> match propagate_top dep with None -> () | Some n2 -> add_used n2) cur_deps;
+      Code_id_or_name.pattern_match' n ~name:(fun _ -> ()) ~code_id:(fun code_id ->
+        add_called code_id
+        );
+      loop ()
+    | [] ->
+      match !called_stack with
+      | (subgraph : Cleanup_deps.fun_graph) :: rest ->
+        called_stack := rest;
+        add_subgraph subgraph;
+        loop ()
+      | [] -> ()
+  in
+  Hashtbl.iter (fun n () -> add_used n) graph.toplevel_graph.used;
+  Hashtbl.iter (fun code_id () -> add_called code_id) graph.toplevel_graph.called;
+  loop ();
+  Hashtbl.iter (fun n _ -> Hashtbl.replace graph.toplevel_graph.used n ()) state.result;
+  Hashtbl.iter (fun code_id0 () -> 
+      let code_id = Code_id_or_name.code_id code_id0 in
+      if not (Hashtbl.mem state.result code_id)
+      then begin
+        Hashtbl.replace state.result code_id
+          (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        Hashtbl.replace graph.toplevel_graph.called code_id0 ()
+      end
+    ) state.added_fungraph;
   state
+
+let dbg = Sys.getenv_opt "ABCD" <> None
 
 let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     (graph : graph) =
@@ -277,10 +360,11 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     match component with
     | No_loop id ->
       Queue.push id q;
-      fun n -> assert (not (Hashtbl.mem state.all_added n))
+      fun n -> if dbg then Format.eprintf "PUSH %a@." Code_id_or_name.print n; assert (not (Hashtbl.mem state.all_added n))
     | Has_loop ids ->
       List.iter (fun id -> Queue.push id q) ids;
       fun n ->
+        if dbg then Format.eprintf "PUSH %a@." Code_id_or_name.print n;
         assert (not (Hashtbl.mem state.all_added n));
         if Code_id_or_name.Set.mem n !q_s
         then begin
@@ -288,13 +372,14 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
           q_s := Code_id_or_name.Set.remove n !q_s
         end
   in
+  if dbg then Format.eprintf "=====@.";
   let rec add_fungraph (fungraph : Cleanup_deps.fun_graph) =
     Hashtbl.iter
       (fun n deps ->
         (match Hashtbl.find_opt all_deps n with
         | None -> Hashtbl.add all_deps n deps
         | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
-        if Hashtbl.mem result n then push n)
+        if Hashtbl.mem result n then propagate_elt n (Hashtbl.find result n) deps)
       fungraph.name_to_dep;
     add_subgraph push state fungraph
   and check_and_add_fungraph n elt =
@@ -306,10 +391,32 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
            && (not (Hashtbl.mem added_fungraphs code_id))
            && Hashtbl.mem graph.function_graphs code_id
         then begin
+          if dbg then Format.eprintf "ADD_FUNGRAPH %a@." Code_id.print code_id;
           add_fungraph (Hashtbl.find graph.function_graphs code_id);
           Hashtbl.add added_fungraphs code_id ()
         end)
       n
+  and propagate_elt n elt deps =
+    if dbg then Format.eprintf "PROPAGATE %a %a@." Code_id_or_name.print n pp_elt elt;
+    check_and_add_fungraph n elt;
+    DepSet.iter
+      (fun dep ->
+         match propagate elt dep with
+         | None -> ()
+         | Some (dep_upon, dep_elt) -> (
+             assert (dep_elt <> Bottom);
+             match Hashtbl.find_opt result dep_upon with
+             | None ->
+               Hashtbl.replace result dep_upon dep_elt;
+               push dep_upon
+             | Some prev_dep ->
+               let u = join_elt dep_elt prev_dep in
+               if not (equal_elt u prev_dep)
+               then begin
+                 Hashtbl.replace result dep_upon u;
+                 push dep_upon
+               end))
+      deps
   in
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
@@ -320,34 +427,20 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
       | Some s -> s
     in
     match Hashtbl.find_opt result n with
-    | None -> (* Unreachable *) ()
+    | None -> if dbg then Format.eprintf "POP %a %a@." Code_id_or_name.print n pp_elt Bottom; ()
     | Some elt ->
-      check_and_add_fungraph n elt;
-      DepSet.iter
-        (fun dep ->
-          match propagate elt dep with
-          | None -> ()
-          | Some (dep_upon, dep_elt) -> (
-            assert (dep_elt <> Bottom);
-            match Hashtbl.find_opt result dep_upon with
-            | None ->
-              Hashtbl.replace result dep_upon dep_elt;
-              push dep_upon
-            | Some prev_dep ->
-              let u = join_elt dep_elt prev_dep in
-              if not (equal_elt u prev_dep)
-              then begin
-                Hashtbl.replace result dep_upon u;
-                push dep_upon
-              end))
-        deps
-  done
+      if dbg then Format.eprintf "POP %a %a@." Code_id_or_name.print n pp_elt elt;
+      propagate_elt n elt deps
+  done;
+  match component with
+  | No_loop id -> Hashtbl.add state.all_added id ()
+  | Has_loop ids -> List.iter (fun n -> Hashtbl.add state.all_added n ()) ids
 
 let fixpoint_topo (graph : graph) : result =
   let state = create_state graph in
   let components =
     SCC.connected_components_sorted_from_roots_to_leaf
-      (Make_SCC.from_graph graph)
+      (Make_SCC.from_graph graph state.result)
   in
   if Sys.getenv_opt "SHOWCOMP" <> None
   then begin
@@ -356,7 +449,12 @@ let fixpoint_topo (graph : graph) : result =
          (fun m -> function
            | SCC.No_loop _ -> m
            | SCC.Has_loop l -> max m (List.length l))
-         0 components)
+         0 components);
+    Array.iter (function
+      | SCC.No_loop id -> Format.eprintf "%a@ " Code_id_or_name.print id
+      | SCC.Has_loop l -> Format.eprintf "[%a]@ " (Format.pp_print_list Code_id_or_name.print) l
+      ) components;
+    Format.eprintf "@."
   end;
   Array.iter
     (fun component -> fixpoint_component state component graph)
@@ -468,20 +566,20 @@ let print_diff r1 r2 =
     | (k1, e1) :: t1, (k2, e2) :: t2 ->
       let c = Code_id_or_name.compare k1 k2 in
       if c < 0
-      then Format.printf "--- %a@." Code_id_or_name.print k1
+      then (Format.printf "--- %a@." Code_id_or_name.print k1; loop t1 ((k2, e2) :: t2))
       else if c > 0
-      then Format.printf "+++ %a@." Code_id_or_name.print k2
-      else if not (equal_elt e1 e2)
+      then (Format.printf "+++ %a@." Code_id_or_name.print k2; loop ((k1, e1) :: t1) t2)
+      else (if not (equal_elt e1 e2)
       then
         Format.printf "DIFF %a: %a %a@." Code_id_or_name.print k1 pp_elt e1
           pp_elt e2;
-      loop t1 t2
+      loop t1 t2)
   in
   loop l1 l2
 
 let fixpoint graph =
-  let result_topo = fixpoint_topo graph in
   let result = fixpoint graph in
+  let result_topo = fixpoint_topo graph in
   if Sys.getenv_opt "TOTO" <> None
   then (
     Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
