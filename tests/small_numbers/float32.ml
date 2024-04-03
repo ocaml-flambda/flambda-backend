@@ -139,11 +139,9 @@ module Float64 = struct
     let open Float in
     Random.set_state (Random.State.make [|1234567890|]);
     f zero;
-    f one;
     f minus_one;
     f one;
     f (-0.0);
-    f nan;
     f infinity;
     f neg_infinity;
     f nan;

@@ -291,7 +291,7 @@ let dump_op ppf = function
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "floatofint"
   | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "intoffloat"
-  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "float32toint"
+  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "float32ofint"
   | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "intoffloat32"
   | Scalarcast Float_of_float32 -> Format.fprintf ppf "floatoffloat32"
   | Scalarcast Float_to_float32 -> Format.fprintf ppf "float32offloat"

@@ -33,7 +33,7 @@ let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     (Others)
+      Addr     Float32     Float     Vec128
        ^
        |
       Val

@@ -205,8 +205,8 @@ let size_component : machtype_component -> int = function
   | Int -> Arch.size_int
   | Float -> Arch.size_float
   | Float32 ->
-    (* float32 slots still take up a full word *)
-    Arch.size_float
+    assert (Arch.size_float = 8);
+    Arch.size_float / 2
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -222,8 +222,8 @@ let size_expr (env:environment) exp =
     | Cconst_symbol _ ->
         Arch.size_addr
     | Cconst_float32 _ ->
-      (* float32 slots still take up a full word *)
-      Arch.size_float
+      assert (Arch.size_float = 8);
+      Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -1023,8 +1023,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
           | Ialloc { bytes = _; mode } ->
               let rd = self#regs_for typ_val in
               let bytes = size_expr env (Ctuple new_args) in
-              assert (bytes mod Arch.size_addr = 0);
-              let alloc_words = bytes / Arch.size_addr in
+              let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
                 Ialloc { bytes;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
