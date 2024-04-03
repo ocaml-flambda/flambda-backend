@@ -22,7 +22,7 @@ open Types
    found in; it's used by [type_forcing_context], which see. *)
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 (* This variant is used to print improved error messages, and does not affect
    the behavior of the typechecker itself.

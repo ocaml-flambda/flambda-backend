@@ -1104,7 +1104,10 @@ type changes = S.changes
 
 let undo_changes = S.undo_changes
 
-let set_append_changes = S.set_append_changes
+(* To be filled in by [types.ml] *)
+let append_changes : (changes ref -> unit) ref = ref (fun _ -> assert false)
+
+let set_append_changes f = append_changes := f
 
 (** Representing a single object *)
 module type Obj = sig
@@ -1115,11 +1118,31 @@ module type Obj = sig
   val obj : const C.obj
 end
 
-let equate_from_submode submode m0 m1 =
-  match submode m0 m1 with
+let try_with_log op =
+  let log' = ref S.empty_changes in
+  let log = Some log' in
+  match op ~log with
+  | Ok _ as x ->
+    !append_changes log';
+    x
+  | Error _ as x ->
+    S.undo_changes !log';
+    x
+  [@@inline]
+
+let with_log op =
+  let log' = ref S.empty_changes in
+  let log = Some log' in
+  let r = op ~log in
+  !append_changes log';
+  r
+  [@@inline]
+
+let equate_from_submode submode_log m0 m1 ~log =
+  match submode_log m0 m1 ~log with
   | Error e -> Error (Left_le_right, e)
   | Ok () -> (
-    match submode m1 m0 with
+    match submode_log m1 m0 ~log with
     | Error e -> Error (Right_le_left, e)
     | Ok () -> Ok ())
   [@@inline]
@@ -1159,7 +1182,9 @@ module Common (Obj : Obj) = struct
 
   let newvar_below m = Solver.newvar_below obj m
 
-  let submode m0 m1 : (unit, error) result = Solver.submode obj m0 m1
+  let submode_log a b ~log = Solver.submode obj a b ~log
+
+  let submode a b = try_with_log (submode_log a b)
 
   let join l = Solver.join obj l
 
@@ -1167,18 +1192,17 @@ module Common (Obj : Obj) = struct
 
   let submode_exn m0 m1 = assert (submode m0 m1 |> Result.is_ok)
 
-  let equate = equate_from_submode submode
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
 
-  let print ?(raw = false) ?verbose () ppf m =
-    if raw
-    then Solver.print_raw ?verbose obj ppf m
-    else Solver.print ?verbose obj ppf m
+  let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
 
-  let zap_to_ceil m = Solver.zap_to_ceil obj m
+  let print_raw ?verbose () ppf m = Solver.print_raw ?verbose obj ppf m
 
-  let zap_to_floor m = Solver.zap_to_floor obj m
+  let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
+
+  let zap_to_floor m = with_log (Solver.zap_to_floor obj m)
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
@@ -1361,8 +1385,8 @@ module Comonadic_with_regionality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let submode_log m0 m1 ~log =
+    match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
     | Error { left = reg0, lin0; right = reg1, lin1 } ->
       if Regionality.Const.le reg0 reg1
@@ -1372,19 +1396,17 @@ module Comonadic_with_regionality = struct
         else Error (`Linearity { left = lin0; right = lin1 })
       else Error (`Regionality { left = reg0; right = reg1 })
 
-  (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let submode a b = try_with_log (submode_log a b)
 
-  (** overriding to check per-axis *)
-  let check_const m =
-    let regionality = Regionality.check_const (regionality m) in
-    let linearity = Linearity.check_const (linearity m) in
-    regionality, linearity
+  (* override to report the offending axis *)
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 end
 
 module Comonadic_with_locality = struct
   module Const = struct
     include C.Comonadic_with_locality
+
+    let eq a b = le a b && le b a
   end
 
   module Obj = struct
@@ -1459,8 +1481,8 @@ module Comonadic_with_locality = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let submode_log m0 m1 ~log =
+    match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
     | Error { left = loc0, lin0; right = loc1, lin1 } ->
       if Locality.Const.le loc0 loc1
@@ -1470,8 +1492,10 @@ module Comonadic_with_locality = struct
         else Error (`Linearity { left = lin0; right = lin1 })
       else Error (`Locality { left = loc0; right = loc1 })
 
+  let submode a b = try_with_log (submode_log a b)
+
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1537,16 +1561,18 @@ module Monadic = struct
   let legacy = of_const Const.legacy
 
   (* overriding to report the offending axis *)
-  let submode m0 m1 =
-    match submode m0 m1 with
+  let submode_log m0 m1 ~log =
+    match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
     | Error { left = uni0, (); right = uni1, () } ->
       if Uniqueness.Const.le uni0 uni1
       then assert false
       else Error (`Uniqueness { left = uni0; right = uni1 })
 
+  let submode a b = try_with_log (submode_log a b)
+
   (* override to report the offending axis *)
-  let equate = equate_from_submode submode
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   (** overriding to check per-axis *)
   let check_const m =
@@ -1636,19 +1662,20 @@ module Value = struct
 
   type equate_error = equate_step * error
 
-  (* NB: state mutated when error *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
-      { monadic = monadic1; comonadic = comonadic1 } =
+  let submode_log { monadic = monadic0; comonadic = comonadic0 }
+      { monadic = monadic1; comonadic = comonadic1 } ~log =
     (* comonadic before monadic, so that locality errors dominate
        (error message backward compatibility) *)
-    match Comonadic.submode comonadic0 comonadic1 with
+    match Comonadic.submode_log comonadic0 comonadic1 ~log with
     | Error e -> Error e
     | Ok () -> (
-      match Monadic.submode monadic0 monadic1 with
+      match Monadic.submode_log monadic0 monadic1 ~log with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let submode a b = try_with_log (submode_log a b)
+
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let submode_exn m0 m1 =
     match submode m0 m1 with
@@ -1658,11 +1685,18 @@ module Value = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let zap_to_floor { comonadic; monadic } =
@@ -1679,11 +1713,6 @@ module Value = struct
     match Monadic.zap_to_legacy monadic, Comonadic.zap_to_legacy comonadic with
     | (uniqueness, ()), (regionality, linearity) ->
       { regionality; linearity; uniqueness }
-
-  let check_const { comonadic; monadic } =
-    let regionality, linearity = Comonadic.check_const comonadic in
-    let uniqueness = Monadic.check_const monadic in
-    { regionality; linearity; uniqueness }
 
   let of_const { regionality; linearity; uniqueness } =
     let comonadic = Comonadic.of_const (regionality, linearity) in
@@ -1815,7 +1844,7 @@ module Value = struct
       && Uniqueness.Const.le m0.uniqueness m1.uniqueness
       && Linearity.Const.le m0.linearity m1.linearity
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       { regionality = Regionality.Const.legacy;
@@ -1939,18 +1968,18 @@ module Alloc = struct
 
   type equate_error = equate_step * error
 
-  (* NB: state mutated when error - should be fine as this always indicates type
-     error in typecore.ml which triggers backtracking. *)
-  let submode { monadic = monadic0; comonadic = comonadic0 }
-      { monadic = monadic1; comonadic = comonadic1 } =
-    match Monadic.submode monadic0 monadic1 with
+  let submode_log { monadic = monadic0; comonadic = comonadic0 }
+      { monadic = monadic1; comonadic = comonadic1 } ~log =
+    match Monadic.submode_log monadic0 monadic1 ~log with
     | Error e -> Error e
     | Ok () -> (
-      match Comonadic.submode comonadic0 comonadic1 with
+      match Comonadic.submode_log comonadic0 comonadic1 ~log with
       | Error e -> Error e
       | Ok () -> Ok ())
 
-  let equate = equate_from_submode submode
+  let submode a b = try_with_log (submode_log a b)
+
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
 
   let submode_exn m0 m1 =
     match submode m0 m1 with
@@ -1960,11 +1989,18 @@ module Alloc = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print ?raw ?verbose () ppf { monadic; comonadic } =
+  let print_raw ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
-      (Comonadic.print ?raw ?verbose ())
+      (Comonadic.print_raw ?verbose ())
       comonadic
-      (Monadic.print ?raw ?verbose ())
+      (Monadic.print_raw ?verbose ())
+      monadic
+
+  let print ?verbose () ppf { monadic; comonadic } =
+    Format.fprintf ppf "%a,%a"
+      (Comonadic.print ?verbose ())
+      comonadic
+      (Monadic.print ?verbose ())
       monadic
 
   let legacy =
@@ -2092,7 +2128,7 @@ module Alloc = struct
       && Uniqueness.Const.le m0.uniqueness m1.uniqueness
       && Linearity.Const.le m0.linearity m1.linearity
 
-    let print ppf m = print () ppf (of_const m)
+    let print ppf m = print_raw () ppf (of_const m)
 
     let legacy =
       let locality = Locality.Const.legacy in
