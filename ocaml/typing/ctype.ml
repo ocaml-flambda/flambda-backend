@@ -1583,9 +1583,9 @@ let prim_mode mvar = function
     put in [mode.ml] *)
 let with_locality locality m =
   let m' = Alloc.newvar () in
-  Locality.equate_exn (Alloc.proj_comonadic Locality m') locality;
-  Alloc.submode_exn m' (Alloc.join_with_comonadic Locality Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with_comonadic Locality Locality.Const.min m) m';
+  Locality.equate_exn (Alloc.proj_comonadic Areality m') locality;
+  Alloc.submode_exn m' (Alloc.join_with_comonadic Areality Locality.Const.max m);
+  Alloc.submode_exn (Alloc.meet_with_comonadic Areality Locality.Const.min m) m';
   m'
 
 let rec instance_prim_locals locals mvar macc finalret ty =

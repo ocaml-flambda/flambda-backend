@@ -2958,7 +2958,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 let escape_mode ~errors ~env ~loc id vmode escaping_context =
   match
   Mode.Regionality.submode
-    (Mode.Value.proj_comonadic Regionality vmode)
+    (Mode.Value.proj_comonadic Areality vmode)
     (Mode.Regionality.global)
   with
   | Ok () -> ()
@@ -2998,7 +2998,7 @@ let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
 let exclave_mode ~errors ~env ~loc id vmode =
   match
   Mode.Regionality.submode
-    (Mode.Value.proj_comonadic Regionality vmode)
+    (Mode.Value.proj_comonadic Areality vmode)
     Mode.Regionality.regional
 with
 | Ok () -> vmode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
@@ -3962,7 +3962,7 @@ let report_lookup_error _loc env ppf = function
   | Value_used_in_closure (lid, error, context) ->
       let e0, e1 =
         match error with
-        | Error (Regionality, _) -> "local", "might escape"
+        | Error (Areality, _) -> "local", "might escape"
         | Error (Linearity, _) -> "once", "is many"
       in
       fprintf ppf
@@ -3970,7 +3970,7 @@ let report_lookup_error _loc env ppf = function
             inside a closure that %s.@]"
       !print_longident lid e0 e1;
       begin match error, context with
-      | Error (Regionality, _), Some Tailcall_argument ->
+      | Error (Areality, _), Some Tailcall_argument ->
          fprintf ppf "@.@[Hint: The closure might escape because it \
                           is an argument to a tail call@]"
       | _ -> ()

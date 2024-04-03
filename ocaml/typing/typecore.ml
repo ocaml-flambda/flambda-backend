@@ -412,10 +412,10 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet [mode; (Value.max_with_comonadic Regionality Regionality.regional)]
+  Value.meet [mode; (Value.max_with_comonadic Areality Regionality.regional)]
 
 let meet_global mode =
-  Value.meet [mode; (Value.max_with_comonadic Regionality Regionality.global)]
+  Value.meet [mode; (Value.max_with_comonadic Areality Regionality.global)]
 
 let meet_many mode =
   Value.meet [mode; (Value.max_with_comonadic Linearity Linearity.many)]
@@ -435,7 +435,7 @@ let modality_unbox_left global_flag mode =
   match global_flag with
   | Global_flag.Global ->
       mode
-      |> Value.meet_with_comonadic Regionality Regionality.Const.Global
+      |> Value.meet_with_comonadic Areality Regionality.Const.Global
       |> join_shared
       |> Value.meet_with_comonadic Linearity Linearity.Const.Many
   | Global_flag.Unrestricted -> mode
@@ -465,7 +465,7 @@ mode is the mode of the function region *)
 let mode_return mode =
   { (mode_default (meet_regional mode)) with
     position = RTail (Regionality.disallow_left
-      (Value.proj_comonadic Regionality mode), FTail);
+      (Value.proj_comonadic Areality mode), FTail);
     closure_context = Some Return;
   }
 
@@ -474,7 +474,7 @@ let mode_region mode =
   { (mode_default (meet_regional mode)) with
     position =
       RTail (Regionality.disallow_left
-        (Value.proj_comonadic Regionality mode), FNontail);
+        (Value.proj_comonadic Areality mode), FNontail);
     closure_context = None;
   }
 
@@ -493,7 +493,7 @@ let mode_global expected_mode =
 
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with_comonadic Regionality
+    Value.join_with_comonadic Areality
       Regionality.Const.Local expected_mode.mode
   in
   { (mode_default mode)
@@ -555,7 +555,7 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   | _, _, (Nontail | Default) ->
      mode_default vmode, vmode
   | _, _, Tail -> begin
-    Regionality.submode_exn (Value.proj_comonadic Regionality vmode)
+    Regionality.submode_exn (Value.proj_comonadic Areality vmode)
       Regionality.regional;
     mode_tailcall_argument vmode, vmode
   end
@@ -4808,7 +4808,7 @@ let split_function_ty
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
-    Locality.submode_exn Locality.local (Alloc.proj_comonadic Locality alloc_mode);
+    Locality.submode_exn Locality.local (Alloc.proj_comonadic Areality alloc_mode);
   let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
     in_function
   in
@@ -4873,7 +4873,7 @@ let split_function_ty
         else begin
           (* if the function has no region, we force the ret_mode to be local *)
           match
-            Locality.submode Locality.local (Alloc.proj_comonadic Locality ret_mode)
+            Locality.submode Locality.local (Alloc.proj_comonadic Areality ret_mode)
           with
           | Ok () -> mode_default ret_value_mode
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
@@ -5276,7 +5276,7 @@ and type_expect_
             type_expect ~recarg new_env mode' sbody ty_expected_explained
           in
           submode ~loc ~env ~reason:Other
-            (Value.min_with_comonadic Regionality Regionality.regional) expected_mode;
+            (Value.min_with_comonadic Areality Regionality.regional) expected_mode;
           { exp_desc = Texp_exclave exp;
             exp_loc = loc;
             exp_extra = [];
@@ -5293,7 +5293,7 @@ and type_expect_
         | Tail ->
           let mode, _ =
             Value.newvar_below
-              (Value.max_with_comonadic Regionality Regionality.regional)
+              (Value.max_with_comonadic Areality Regionality.regional)
           in
           mode, mode_tailcall_function mode
         | Nontail | Default ->
@@ -5702,7 +5702,7 @@ and type_expect_
       rue {
         exp_desc = Texp_setfield(record,
           Locality.disallow_right (regional_to_local
-            (Value.proj_comonadic Regionality rmode)),
+            (Value.proj_comonadic Areality rmode)),
           label_loc, label, newval);
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
@@ -6513,7 +6513,7 @@ and type_ident env ?(recarg=Rejected) lid =
           we then register allocation for further optimization *)
        | (Prim_poly, _), Some mode ->
            register_allocation_mode
-             (Alloc.meet [Alloc.max_with_comonadic Locality mode;
+             (Alloc.meet [Alloc.max_with_comonadic Areality mode;
                           Alloc.max_with_comonadic Linearity Linearity.many])
        | _ -> ()
        end;
@@ -7372,7 +7372,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
       Regionality.submode_exn
-        (Value.proj_comonadic Regionality eta_mode) Regionality.regional;
+        (Value.proj_comonadic Areality eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test
@@ -7394,7 +7394,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
              (texp,
               args @ [Nolabel, Arg (eta_var, arg_sort)], Nontail,
               ret_mode
-              |> Value.proj_comonadic Regionality
+              |> Value.proj_comonadic Areality
               |> regional_to_global
               |> Locality.disallow_right)}
         in
@@ -7542,7 +7542,7 @@ and type_application env app_loc expected_mode position_and_mode
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
-      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Locality ret_mode) in
+      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Areality ret_mode) in
       let mode_res =
         mode_cross_left env ty_ret (alloc_as_value ret_mode)
       in
@@ -7604,7 +7604,7 @@ and type_application env app_loc expected_mode position_and_mode
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
-      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Locality mode_ret) in
+      let ap_mode = Locality.disallow_right (Alloc.proj_comonadic Areality mode_ret) in
       let mode_ret =
         mode_cross_left env ty_ret (alloc_as_value mode_ret)
       in
@@ -9390,7 +9390,7 @@ let report_type_expected_explanation expl ppf =
 let escaping_hint (failure_reason : Value.error) submode_reason
       (context : Env.closure_context option) =
   begin match failure_reason, context with
-  | Comonadic (Error (Regionality, e)), Some h ->
+  | Comonadic (Error (Areality, e)), Some h ->
     begin match e, h with
     | {left=Local; right=Regional}, Return ->
       (* Only hint to use exclave_, when the user wants to return local, but
@@ -9424,7 +9424,7 @@ let escaping_hint (failure_reason : Value.error) submode_reason
         match get_desc ty with
         | Tarrow ((_, _, res_mode), _, res_ty, _) ->
           begin match
-            Locality.check_const (Alloc.proj_comonadic Locality res_mode)
+            Locality.check_const (Alloc.proj_comonadic Areality res_mode)
           with
           | Some Global ->
             Some (n+1, true)
@@ -10054,12 +10054,12 @@ let report_error ~loc env = function
         match fail_reason with
         | Comonadic (Error (Linearity, _)) | Monadic (Error (Uniqueness, _)) ->
           sharedness_hint fail_reason submode_reason shared_context
-        | Comonadic (Error (Regionality, _)) ->
+        | Comonadic (Error (Areality, _)) ->
           escaping_hint fail_reason submode_reason closure_context
       in
       Location.errorf ~loc ~sub "%t" begin
         match fail_reason with
-        | Comonadic (Error (Regionality, _)) ->
+        | Comonadic (Error (Areality, _)) ->
             Format.dprintf "This value escapes its region"
         | Monadic (Error (Uniqueness, {left; right})) ->
             Format.dprintf "Found a %a value where a %a value was expected"
@@ -10104,7 +10104,7 @@ let report_error ~loc env = function
           f actual f expected
       in begin
       match mkind with
-      | Comonadic (Error (Locality, e)) ->
+      | Comonadic (Error (Areality, e)) ->
           print_error Locality.Const.print (s, e)
       | Monadic (Error (Uniqueness, e)) ->
           print_error Uniqueness.Const.print (s, e)
@@ -10113,7 +10113,7 @@ let report_error ~loc env = function
       end
   | Uncurried_function_escapes e -> begin
       match e with
-      | Comonadic (Error (Locality, _)) ->
+      | Comonadic (Error (Areality, _)) ->
           Location.errorf ~loc "This function or one of its parameters escape their region @ \
           when it is partially applied."
       | Monadic (Error (Uniqueness, _)) -> assert false

@@ -93,16 +93,6 @@ module type Common = sig
 end
 
 module type S = sig
-  module Axis : sig
-    type t =
-      [ `Locality
-      | `Regionality
-      | `Uniqueness
-      | `Linearity ]
-
-    val to_string : t -> string
-  end
-
   module Global_flag : sig
     type t =
       | Global
@@ -123,9 +113,9 @@ module type S = sig
 
   type nonrec equate_step = equate_step
 
-  type ('a, 'd) monadic constraint 'd = 'l * 'r
+  type ('a, 'd) mode_monadic constraint 'd = 'l * 'r
 
-  type ('a, 'd) comonadic constraint 'd = 'l * 'r
+  type ('a, 'd) mode_comonadic constraint 'd = 'l * 'r
 
   type ('a, 'b) monadic_comonadic =
     { monadic : 'a;
@@ -147,7 +137,7 @@ module type S = sig
       Common
         with module Const := Const
          and type error := error
-         and type 'd t = (Const.t, 'd) comonadic
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val global : lr
 
@@ -176,7 +166,7 @@ module type S = sig
       Common
         with module Const := Const
          and type error := error
-         and type 'd t = (Const.t, 'd) comonadic
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val global : lr
 
@@ -200,7 +190,7 @@ module type S = sig
       Common
         with module Const := Const
          and type error := error
-         and type 'd t = (Const.t, 'd) comonadic
+         and type 'd t = (Const.t, 'd) mode_comonadic
 
     val many : lr
 
@@ -222,32 +212,45 @@ module type S = sig
       Common
         with module Const := Const
          and type error := error
-         and type 'd t = (Const.t, 'd) monadic
+         and type 'd t = (Const.t, 'd) mode_monadic
 
     val shared : lr
 
     val unique : lr
   end
 
+  type 'a comonadic_with = private 'a * Linearity.Const.t
+
+  type monadic = private Uniqueness.Const.t * unit
+
+  module Axis : sig
+    (** ('p, 'r) t represents a projection from a product of type ['p] to an
+    element of type ['r]. *)
+    type ('p, 'r) t =
+      | Areality : ('a comonadic_with, 'a) t
+      | Linearity : ('areality comonadic_with, Linearity.Const.t) t
+      | Uniqueness : (monadic, Uniqueness.Const.t) t
+
+    val print : Format.formatter -> ('p, 'r) t -> unit
+  end
+
   (** The most general mode. Used in most type checking,
       including in value bindings in [Env] *)
   module Value : sig
     module Monadic : sig
-      type 'a ax = Uniqueness : Uniqueness.Const.t ax
+      module Const : Lattice with type t = monadic
 
-      type error = Error : 'a ax * 'a Solver.error -> error
+      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
 
-      include Common with type error := error
+      include Common with type error := error and module Const := Const
     end
 
     module Comonadic : sig
-      type 'a ax =
-        | Regionality : Regionality.Const.t ax
-        | Linearity : Linearity.Const.t ax
+      module Const : Lattice with type t = Regionality.Const.t comonadic_with
 
-      type error = Error : 'a ax * 'a Solver.error -> error
+      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
 
-      include Common with type error := error
+      include Common with type error := error and module Const := Const
     end
 
     type ('a, 'b, 'c) modes =
@@ -279,33 +282,44 @@ module type S = sig
     end
 
     val proj_comonadic :
-      'a Comonadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) comonadic
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('l * 'r) t ->
+      ('a, 'l * 'r) mode_comonadic
 
-    val proj_monadic : 'a Monadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) monadic
+    val proj_monadic :
+      (Monadic.Const.t, 'a) Axis.t -> ('l * 'r) t -> ('a, 'l * 'r) mode_monadic
 
     val max_with_monadic :
-      'a Monadic.ax -> ('a, 'l * 'r) monadic -> (disallowed * 'r) t
+      (Monadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_monadic ->
+      (disallowed * 'r) t
 
     val min_with_monadic :
-      'a Monadic.ax -> ('a, 'l * 'r) monadic -> ('l * disallowed) t
+      (Monadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_monadic ->
+      ('l * disallowed) t
 
     val min_with_comonadic :
-      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> ('l * disallowed) t
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_comonadic ->
+      ('l * disallowed) t
 
     val max_with_comonadic :
-      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> (disallowed * 'r) t
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_comonadic ->
+      (disallowed * 'r) t
 
     val meet_with_comonadic :
-      'a Comonadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
+      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
     val join_with_comonadic :
-      'a Comonadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val meet_with_monadic :
-      'a Monadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
+      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
     val join_with_monadic :
-      'a Monadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
@@ -319,27 +333,23 @@ module type S = sig
       and would be hard to understand if it involves [Regionality]. *)
   module Alloc : sig
     module Monadic : sig
-      type 'a ax = Uniqueness : Uniqueness.Const.t ax
+      module Const : Lattice with type t = monadic
 
-      type error = Error : 'a ax * 'a Solver.error -> error
+      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
 
-      include Common with type error := error
+      include Common with type error := error and module Const := Const
 
       val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
       module Const : sig
-        include Lattice
+        include Lattice with type t = Locality.Const.t comonadic_with
 
         val eq : t -> t -> bool
       end
 
-      type 'a ax =
-        | Locality : Locality.Const.t ax
-        | Linearity : Linearity.Const.t ax
-
-      type error = Error : 'a ax * 'a Solver.error -> error
+      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
 
       include Common with type error := error and module Const := Const
 
@@ -398,33 +408,44 @@ module type S = sig
     val check_const : (allowed * allowed) t -> Const.Option.t
 
     val proj_comonadic :
-      'a Comonadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) comonadic
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('l * 'r) t ->
+      ('a, 'l * 'r) mode_comonadic
 
-    val proj_monadic : 'a Monadic.ax -> ('l * 'r) t -> ('a, 'l * 'r) monadic
+    val proj_monadic :
+      (Monadic.Const.t, 'a) Axis.t -> ('l * 'r) t -> ('a, 'l * 'r) mode_monadic
 
     val max_with_monadic :
-      'a Monadic.ax -> ('a, 'l * 'r) monadic -> (disallowed * 'r) t
+      (Monadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_monadic ->
+      (disallowed * 'r) t
 
     val min_with_monadic :
-      'a Monadic.ax -> ('a, 'l * 'r) monadic -> ('l * disallowed) t
+      (Monadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_monadic ->
+      ('l * disallowed) t
 
     val min_with_comonadic :
-      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> ('l * disallowed) t
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_comonadic ->
+      ('l * disallowed) t
 
     val max_with_comonadic :
-      'a Comonadic.ax -> ('a, 'l * 'r) comonadic -> (disallowed * 'r) t
+      (Comonadic.Const.t, 'a) Axis.t ->
+      ('a, 'l * 'r) mode_comonadic ->
+      (disallowed * 'r) t
 
     val meet_with_comonadic :
-      'a Comonadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
+      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
     val join_with_comonadic :
-      'a Comonadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+      (Comonadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val meet_with_monadic :
-      'a Monadic.ax -> 'a -> ('l * 'r) t -> ('l * disallowed) t
+      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> ('l * disallowed) t
 
     val join_with_monadic :
-      'a Monadic.ax -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
+      (Monadic.Const.t, 'a) Axis.t -> 'a -> ('l * 'r) t -> (disallowed * 'r) t
 
     val zap_to_legacy : lr -> Const.t
 
