@@ -121,6 +121,9 @@ let ghloc ~loc d = { txt = d; loc = ghost_loc loc }
 let ghstr ~loc d = Str.mk ~loc:(ghost_loc loc) d
 let ghsig ~loc d = Sig.mk ~loc:(ghost_loc loc) d
 
+let ghpatvar ~loc name =
+  ghpat ~loc (Ppat_var (mkrhs name loc))
+
 let mkinfix arg1 op arg2 =
   Pexp_apply(op, [Nolabel, arg1; Nolabel, arg2])
 
@@ -3165,7 +3168,7 @@ let_binding_body:
       { let p,e,c,attrs = $1 in (p,e,c,false), attrs }
 /* BEGIN AVOID */
   | val_ident %prec below_HASH
-      { (mkpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true), [] }
+      { (ghpatvar ~loc:$loc $1, mkexpvar ~loc:$loc $1, None, true), [] }
   (* The production that allows puns is marked so that [make list-parse-errors]
      does not attempt to exploit it. That would be problematic because it
      would then generate bindings such as [let x], which are rejected by the
