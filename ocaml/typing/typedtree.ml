@@ -53,13 +53,23 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
-type texp_field_boxing =
-  | Boxing of Mode.Alloc.r * unique_use
-  | Non_boxing of unique_use
+type unique_bounds = Mode.Uniqueness.Const.t * Mode.Linearity.Const.t
 
-let shared_many_use =
-  ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
-    Mode.Linearity.disallow_right Mode.Linearity.many )
+let unique_use =
+  Uniqueness.disallow_left Uniqueness.shared,
+  Linearity.disallow_right Linearity.many
+
+let unique_bounds : unique_bounds = Shared, Once
+
+let meet_unique_bounds (uni0, lin0) (uni1, lin1) =
+  Uniqueness.Const.meet uni0 uni1,
+  Linearity.Const.meet lin0 lin1
+
+type unique_use_with_bounds = unique_use * unique_bounds
+
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use_with_bounds
+  | Non_boxing of unique_use
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
