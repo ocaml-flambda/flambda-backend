@@ -29,11 +29,11 @@ let transl_locality_mode_r locality =
 
 let transl_alloc_mode_l mode =
   (* we only take the locality axis *)
-  Alloc.locality mode |> transl_locality_mode_l
+  Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_l
 
 let transl_alloc_mode_r mode =
   (* we only take the locality axis *)
-  Alloc.locality mode |> transl_locality_mode_r
+  Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_r
 
 let transl_modify_mode locality =
   match Locality.zap_to_floor locality with
