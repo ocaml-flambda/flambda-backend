@@ -43,6 +43,7 @@ let transl_global_flags modalities =
     | m :: rest ->
       let ({ txt; loc }) = (m : Asttypes.modality Location.loc) in
       let acc : Global_flag.t Location.loc =
+        let (Modality txt) = txt in
         match txt with
         | "global" -> (
           match acc.txt with

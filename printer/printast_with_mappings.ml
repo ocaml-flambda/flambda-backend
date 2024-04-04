@@ -938,7 +938,9 @@ and constructor_decl i ppf
 
 and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
   line i ppf "%a\n" fmt_location pca_loc;
-  list (i+1) string_loc ppf pca_modalities;
+  list (i+1) string_loc ppf (
+    List.map (Location.map (fun (Modality x) -> x)) pca_modalities
+  );
   core_type (i+1) ppf pca_type
 
 and constructor_arguments i ppf = function

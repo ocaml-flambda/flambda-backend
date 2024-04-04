@@ -4420,7 +4420,7 @@ atat_mode_expr:
 /* Modalities */
 
 %inline modality:
-  | LIDENT { mkloc $1 (make_loc $sloc) }
+  | LIDENT { mkloc (Modality $1) (make_loc $sloc) }
 
 %inline modalities:
   | modality+ { $1 }
@@ -4871,11 +4871,11 @@ mutable_or_global_flag:
   | MUTABLE
     { Mutable, [] }
   | GLOBAL
-    { Immutable, [ mkloc "global" (make_loc $sloc)] }
+    { Immutable, [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 %inline global_flag:
            { [] }
-  | GLOBAL { [ mkloc "global" (make_loc $sloc)] }
+  | GLOBAL { [ mkloc (Modality "global") (make_loc $sloc)] }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

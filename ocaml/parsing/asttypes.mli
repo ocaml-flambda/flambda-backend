@@ -72,4 +72,4 @@ type injectivity =
   | Injective
   | NoInjectivity
 
-type modality = string
+type modality = | Modality of string

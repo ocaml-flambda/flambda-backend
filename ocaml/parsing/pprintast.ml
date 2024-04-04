@@ -329,8 +329,8 @@ let legacy_modality f m =
   let {txt; _} = (m : modality Location.loc) in
   let s =
     match txt with
-    | "global" -> "global_"
-    | s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
+    | Modality "global" -> "global_"
+    | Modality s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
   in
   pp_print_string f s
 
