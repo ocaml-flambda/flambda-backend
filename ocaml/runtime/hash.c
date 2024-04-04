@@ -283,27 +283,18 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
         /* Mix in the tag and size, but do not count this towards [num] */
         h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
 
-	/* If it's a mixed block, we can't hash some portion of the fields:
-	   they may or may not be floats, and very soon these floats could
-	   be different widths. Furthermore, to preserve the hash invariant,
-	   it's important for NaN bit patterns (which poly-compare as equal)
-	   to be hashed the same, likewise for 0 and -0. For the time being
-	   we've decided to sidestep this complexity by just taking the hash
-	   of the scannable prefix *length*, and not attempting to take the
-	   hash of any of the fields. (Taking the hash of the scannable prefix,
-	   while possible, could create the illusion that this hash function
-	   is high-quality.)
-	 */
-	if (Is_mixed_block_reserved(Reserved_val(v))) {
-	  h = caml_hash_mix_intnat(h, Scannable_wosize_val(v));
-	  break;
-	}
-
         /* Copy fields into queue, not exceeding the total size [sz] */
-        for (i = 0, len = Wosize_val(v); i < len; i++) {
+        for (i = 0, len = Scannable_wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
           queue[wr++] = Field(v, i);
         }
+
+	/* We don't attempt to hash the flat suffix of a mixed block.
+	   This is consistent with abstract blocks which, like mixed
+	   blocks, cause polymorphic comparison to raise and don't
+	   attempt to hash the non-scannable portion.
+	 */
+
         break;
       }
     }
