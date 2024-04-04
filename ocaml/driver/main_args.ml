@@ -166,13 +166,8 @@ let mk_H f =
  \     (Like -I, but the program can not directly reference these dependencies)"
 
 let mk_libloc f =
-  "-libloc", Arg.String f, "<dir>  Location of .libloc dir"
-
-let mk_Ilibs f =
-  "-Ilibs", Arg.String f, "<libs>  Comma-separated list of libs resolved via .libloc"
-
-let mk_Hlibs f =
-  "-Hlibs", Arg.String f, "<libs>  Comma-separated list of hidden libs resolved via .libloc"
+  "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Location of .libloc dir as well \
+    as library hames resolveable using it"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -890,8 +885,6 @@ module type Common_options = sig
   val _I : string -> unit
   val _H : string -> unit
   val _libloc : string -> unit
-  val _Ilibs : string -> unit
-  val _Hlibs : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -1188,8 +1181,6 @@ struct
     mk_I F._I;
     mk_H F._H;
     mk_libloc F._libloc;
-    mk_Ilibs F._Ilibs;
-    mk_Hlibs F._Hlibs;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1295,8 +1286,6 @@ struct
     mk_I F._I;
     mk_H F._H;
     mk_libloc F._libloc;
-    mk_Ilibs F._Ilibs;
-    mk_Hlibs F._Hlibs;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1412,8 +1401,6 @@ struct
     mk_I F._I;
     mk_H F._H;
     mk_libloc F._libloc;
-    mk_Ilibs F._Ilibs;
-    mk_Hlibs F._Hlibs;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1560,8 +1547,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_I F._I;
     mk_H F._H;
     mk_libloc F._libloc;
-    mk_Ilibs F._Ilibs;
-    mk_Hlibs F._Hlibs;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1679,8 +1664,6 @@ struct
     mk_I F._I;
     mk_H F._H;
     mk_libloc F._libloc;
-    mk_Ilibs F._Ilibs;
-    mk_Hlibs F._Hlibs;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1833,9 +1816,13 @@ module Default = struct
     include Common
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
-    let _libloc dir = libloc := Some dir
-    let _Ilibs libs = libloc_libs := (String.split_on_char ',' libs) @ (!libloc_libs)
-    let _Hlibs libs = libloc_hidden_libs := (String.split_on_char ',' libs) @ (!libloc_hidden_libs)
+    let _libloc s =
+      match String.split_on_char ':' s with
+      | [ path; libs; hidden_libs ] ->
+        let libs = String.split_on_char ',' libs in
+        let hidden_libs = String.split_on_char ',' hidden_libs in
+        libloc := { Libloc.path; libs; hidden_libs } :: !libloc
+      | _ -> Compenv.fatal "Incorrect -libloc format, expected: <path>:<lib1>,<lib2>,...:<hidden_lib1>,<hidden_lib2>,..."
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dparsetree = set dump_parsetree
@@ -2092,8 +2079,6 @@ module Default = struct
            (s :: (!Odoc_global.hidden_include_dirs))
       *) ()
     let _libloc(_:string) = ()
-    let _Ilibs(_:string) = ()
-    let _Hlibs(_:string) = ()
     let _impl (_:string) =
       (* placeholder:
          Odoc_global.files := ((!Odoc_global.files) @ [Odoc_global.Impl_file s])

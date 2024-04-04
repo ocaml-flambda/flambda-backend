@@ -202,11 +202,10 @@ let init ~auto_include ~visible ~hidden =
   reset ();
   visible_dirs := List.rev_map (Dir.create ~hidden:false) visible;
   hidden_dirs := List.rev_map (Dir.create ~hidden:true) hidden;
-  (match !Clflags.libloc with
-  | None -> ()
-  | Some libloc ->
-    visible_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:false ~libloc lib) !Clflags.libloc_libs !visible_dirs;
-    hidden_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:true ~libloc lib) !Clflags.libloc_hidden_libs !hidden_dirs);
+  List.iter (fun (libloc : Clflags.Libloc.t) ->
+    visible_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:false ~libloc:libloc.path lib) libloc.libs !visible_dirs;
+    hidden_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:true ~libloc:libloc.path lib) libloc.hidden_libs !hidden_dirs
+  ) !Clflags.libloc;
   List.iter Path_cache.prepend_add !hidden_dirs;
   List.iter Path_cache.prepend_add !visible_dirs;
   auto_include_callback := auto_include
