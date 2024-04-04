@@ -1257,6 +1257,18 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
+let tree_of_mode mode l =
+  match mode with
+  | None -> []
+  (* should never raise *)
+  | Some x -> [List.assoc x l]
+
+let tree_of_modes modes =
+  let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
+  tree_of_mode diff.locality [Mode.Locality.Const.Local, Omd_local] @
+  tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_once] @
+  tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_unique]
+
 (* [alloc_mode] is only used if [ty] is arrow-shaped. *)
 let rec tree_of_typexp mode alloc_mode ty =
   let px = proxy ty in
@@ -1294,7 +1306,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         in
         let acc_mode = curry_mode alloc_mode am in
         let (rm, t2) = tree_of_ret_typ mode acc_mode (mret, ty2) in
-        Otyp_arrow (lab, Alloc.Const.diff am Alloc.Const.legacy, t1, rm, t2)
+        Otyp_arrow (lab, tree_of_modes am, t1, rm, t2)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
@@ -1436,12 +1448,12 @@ and tree_of_ret_typ mode acc_mode (m, ty) =
         axes and we adopt a similar logic to the [marg] above. *)
         let m = Alloc.zap_to_legacy m in
         let ty = tree_of_typexp mode m ty in
-        (Orm_parens (Alloc.Const.diff m Alloc.Const.legacy), ty)
+        (Orm_parens (tree_of_modes m), ty)
       end
   | _ ->
     let m = Alloc.zap_to_legacy m in
     let ty = tree_of_typexp mode m ty in
-    (Orm_not_arrow (Alloc.Const.diff m Alloc.Const.legacy), ty)
+    (Orm_not_arrow (tree_of_modes m), ty)
 
 and tree_of_typobject mode fi nm =
   begin match nm with

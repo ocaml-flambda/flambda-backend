@@ -84,14 +84,19 @@ type arg_label =
   | Optional of string
   | Position of string
 
-type out_arg_mode = Mode.Alloc.Const.Option.t
+type out_mode =
+  | Omd_local
+  | Omd_unique
+  | Omd_once
+
+type out_arg_mode = out_mode list
 
 type out_ret_mode =
-  | Orm_not_arrow of Mode.Alloc.Const.Option.t
+  | Orm_not_arrow of out_mode list
   (** The ret type is not arrow, with modes annotating. *)
   | Orm_no_parens
   (** The ret type is arrow, and no need to print parens around the arrow *)
-  | Orm_parens of Mode.Alloc.Const.Option.t
+  | Orm_parens of out_mode list
   (** The ret type is arrow, and need to print parens around the arrow, with
       modes annotating. *)
 
