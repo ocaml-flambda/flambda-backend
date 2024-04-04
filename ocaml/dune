@@ -279,7 +279,6 @@
     (depend.mli as compiler-libs/depend.mli)
     (asttypes.mli as compiler-libs/asttypes.mli)
     (jane_asttypes.mli as compiler-libs/jane_asttypes.mli)
-    (modality.mli as compiler-libs/modality.mli)
     (parsetree.mli as compiler-libs/parsetree.mli)
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
