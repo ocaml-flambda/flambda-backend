@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes;;
-open Modality;;
 open Format;;
 open Lexing;;
 open Location;;
@@ -939,9 +938,7 @@ and constructor_decl i ppf
 
 and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
   line i ppf "%a\n" fmt_location pca_loc;
-  list (i+1) string_loc ppf (
-    List.map (Location.map modality_to_string) pca_modalities
-  );
+  list (i+1) string_loc ppf pca_modalities;
   core_type (i+1) ppf pca_type
 
 and constructor_arguments i ppf = function

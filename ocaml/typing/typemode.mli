@@ -7,4 +7,4 @@ val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
 
 (** Interpret modality annotation *)
 val transl_global_flags :
-  Modality.modality Location.loc list -> Mode.Global_flag.t Location.loc
+  Asttypes.modality Location.loc list -> Mode.Global_flag.t Location.loc

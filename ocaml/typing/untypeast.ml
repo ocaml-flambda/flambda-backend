@@ -262,7 +262,7 @@ let type_kind sub tk = match tk with
 let global_flag_to_modalities sub = function
   | {txt = Mode.Global_flag.Global; loc} ->
     [{
-      txt = Modality.modality_of_string "global";
+      txt = "global";
       loc = sub.location sub loc
     }]
   | {txt = Mode.Global_flag.Unrestricted; _} -> []

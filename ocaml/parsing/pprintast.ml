@@ -326,9 +326,9 @@ let optional_legacy_modes f m =
     pp_print_space f ()
 
 let legacy_modality f m =
-  let {txt; _} = (m : Modality.modality Location.loc) in
+  let {txt; _} = (m : modality Location.loc) in
   let s =
-    match Modality.modality_to_string txt with
+    match txt with
     | "global" -> "global_"
     | s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
   in

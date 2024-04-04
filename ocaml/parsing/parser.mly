@@ -25,7 +25,6 @@
 %{
 
 open Asttypes
-open Modality
 open Longident
 open Parsetree
 open Ast_helper
@@ -4421,7 +4420,7 @@ atat_mode_expr:
 /* Modalities */
 
 %inline modality:
-  | LIDENT { mkloc (modality_of_string $1) (make_loc $sloc) }
+  | LIDENT { mkloc $1 (make_loc $sloc) }
 
 %inline modalities:
   | modality+ { $1 }
@@ -4872,11 +4871,11 @@ mutable_or_global_flag:
   | MUTABLE
     { Mutable, [] }
   | GLOBAL
-    { Immutable, [ mkloc (modality_of_string "global") (make_loc $sloc)] }
+    { Immutable, [ mkloc "global" (make_loc $sloc)] }
 ;
 %inline global_flag:
            { [] }
-  | GLOBAL { [ mkloc (modality_of_string "global") (make_loc $sloc)] }
+  | GLOBAL { [ mkloc "global" (make_loc $sloc)] }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

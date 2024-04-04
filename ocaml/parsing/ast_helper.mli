@@ -21,7 +21,6 @@
 *)
 
 open Asttypes
-open Modality
 open Docstrings
 open Parsetree
 

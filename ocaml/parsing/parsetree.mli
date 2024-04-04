@@ -21,7 +21,6 @@
 *)
 
 open Asttypes
-open Modality
 
 type constant =
   | Pconst_integer of string * char option
@@ -553,7 +552,7 @@ and constructor_argument =
   {
     pca_modalities: modality loc list;
     pca_type: core_type;
-    pca_loc: Location.t; (* REMOVEME *)
+    pca_loc: Location.t;
   }
 
 and constructor_arguments =
