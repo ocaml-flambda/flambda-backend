@@ -1819,8 +1819,13 @@ module Default = struct
     let _libloc s =
       match String.split_on_char ':' s with
       | [ path; libs; hidden_libs ] ->
-        let libs = String.split_on_char ',' libs in
-        let hidden_libs = String.split_on_char ',' hidden_libs in
+        let split libs =
+          match libs |> String.split_on_char ',' with
+          | [ "" ] -> []
+          | libs -> libs
+        in
+        let libs = split libs in
+        let hidden_libs = split hidden_libs in
         libloc := { Libloc.path; libs; hidden_libs } :: !libloc
       | _ -> Compenv.fatal "Incorrect -libloc format, expected: <path>:<lib1>,<lib2>,...:<hidden_lib1>,<hidden_lib2>,..."
     let _color = Misc.set_or_ignore color_reader.parse color
