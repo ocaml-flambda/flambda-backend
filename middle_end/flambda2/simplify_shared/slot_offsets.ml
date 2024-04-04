@@ -740,13 +740,13 @@ end = struct
       let size =
         match code_id with
         | None -> 2
-        | Some code_id ->
+        | Some code_id -> try
           let code_metadata = get_code_metadata code_id in
         let module CM = Code_metadata in
         let is_tupled = CM.is_tupled code_metadata in
         let params_arity = CM.params_arity code_metadata in
         let arity = Flambda_arity.num_params params_arity in
-        if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
+        if (arity = 0 || arity = 1) && not is_tupled then 2 else 3 with Not_found -> 3
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;

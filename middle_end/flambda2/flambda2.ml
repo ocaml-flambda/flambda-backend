@@ -170,10 +170,14 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
           | Some ("no" | "NO" | "n" | "N") ->
             flambda, free_names, all_code, slot_offsets
           | _ ->
-            let flambda, free_names, all_code, slot_offsets =
+            let flambda, free_names', all_code, slot_offsets' =
               Profile.record_call ~accumulate:true "cleanup" (fun () ->
                   Flambda2_cleanup.Cleanup_test.run ~cmx_loader flambda)
             in
+            (* let free_names = if Sys.getenv_opt "OLD_FREENAMES" = None then free_names' else free_names in
+            let slot_offsets = if Sys.getenv_opt "OLD_SLOTOFFSETS" = None then slot_offsets' else slot_offsets in *)
+            let free_names = if false then free_names' else free_names in
+            let slot_offsets = if false then slot_offsets' else slot_offsets in
             print_flambda "cleanup" ppf flambda;
             print_flexpect "cleanup" ppf ~raw_flambda flambda;
             flambda, free_names, all_code, slot_offsets

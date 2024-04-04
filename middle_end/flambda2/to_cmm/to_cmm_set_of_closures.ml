@@ -236,7 +236,7 @@ end = struct
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
       | Full_application_only ->
-        if size <> 2
+        if size < 2
         then
           Misc.fatal_errorf
             "fill_slot: Function slot %a is of size %d, but it is used to \
@@ -246,6 +246,7 @@ end = struct
         let acc =
           P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
         in
+        let acc = if size > 2 then (assert (size = 3); P.int ~dbg 0n :: acc) else acc in
         ( acc,
           Backend_var.Set.empty,
           slot_offset + size,

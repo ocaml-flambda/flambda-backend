@@ -151,9 +151,16 @@ let rewrite_field_of_static_block _kinds uses (field : Field_of_static_block.t) 
   | Dynamically_computed (v, _) ->
     if Hashtbl.mem uses (Code_id_or_name.var v) then field else Field_of_static_block.Tagged_immediate (Targetint_31_63.of_int poison_value)
 
-let rewrite_static_const kinds uses (sc : Static_const.t) =
+let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   match sc with
   | Static_const.Set_of_closures sc ->
+    let function_decls = Set_of_closures.function_decls sc in
+let function_decls =
+  let open Function_declarations in
+              Function_declarations.create
+                (Function_slot.Lmap.mapi (fun _slot code_id -> match code_id with Deleted -> Deleted | Code_id code_id -> if (* slot_is_used (Function_slot slot) *) (match Hashtbl.find_opt uses (Code_id_or_name.code_id code_id) with None | Some Bottom -> false | Some Top | Some (Fields _) -> true) then Code_id code_id else Deleted)
+                (Function_declarations.funs_in_order function_decls))
+in  
     let set_of_closures =
       Set_of_closures.create
         ~value_slots:
@@ -161,7 +168,7 @@ let rewrite_static_const kinds uses (sc : Static_const.t) =
              (rewrite_simple kinds uses)
              (Set_of_closures.value_slots sc))
         (Set_of_closures.alloc_mode sc)
-        (Set_of_closures.function_decls sc)
+        function_decls
     in
     all_slot_offsets
       := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom:false
@@ -228,7 +235,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode function_
             let open Function_declarations in
             let function_decls =
               Function_declarations.create
-                (Function_slot.Lmap.mapi (fun slot code_id -> if slot_is_used (Function_slot slot)  then code_id else Deleted)
+                (Function_slot.Lmap.mapi (fun _slot code_id -> match code_id with Deleted -> Deleted | Code_id code_id -> if (* slot_is_used (Function_slot slot) *) (match Hashtbl.find_opt uses (Code_id_or_name.code_id code_id) with None | Some Bottom -> false | Some Top | Some (Fields _) -> true) then Code_id code_id else Deleted)
                 (Function_declarations.funs_in_order function_decls))
                in
             (* TODO remove unused function slots as well *)
