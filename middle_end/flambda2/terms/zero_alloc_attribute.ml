@@ -44,7 +44,7 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
        && Builtin_attributes.is_check_enabled ~opt:false Zero_alloc
     then Check { strict = false; loc }
     else Default_check
-  | Ignore_assert_all Zero_alloc -> Default_check
+  | Ignore_assert_all -> Default_check
   | Assume
       { strict; never_returns_normally; never_raises; loc; arity = _ }
     ->
@@ -56,7 +56,7 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
         loc
       }
   | Check { strict; opt; loc; arity = _ } ->
-    if Builtin_attributes.is_check_enabled ~opt
+    if Builtin_attributes.is_zero_alloc_check_enabled ~opt
     then Check { strict; loc }
     else Default_check
 

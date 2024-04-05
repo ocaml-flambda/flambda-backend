@@ -13,15 +13,13 @@
 type t =
   | Default_check
   | Assume of
-      {
-        strict : bool;
+      { strict : bool;
         never_returns_normally : bool;
         never_raises : bool;
         loc : Location.t
       }
   | Check of
-      {
-        strict : bool;
+      { strict : bool;
         loc : Location.t
       }
 
