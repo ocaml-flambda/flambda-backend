@@ -24,7 +24,6 @@
 #include "caml/custom.h"
 #include "caml/memory.h"
 #include "caml/hash.h"
-#include "caml/fail.h"
 
 /* The implementation based on MurmurHash 3,
    https://github.com/aappleby/smhasher/ */
@@ -282,7 +281,6 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
       default:
         /* Mix in the tag and size, but do not count this towards [num] */
         h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
-
         /* Copy fields into queue, not exceeding the total size [sz] */
         for (i = 0, len = Scannable_wosize_val(v); i < len; i++) {
           if (wr >= sz) break;

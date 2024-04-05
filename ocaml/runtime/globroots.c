@@ -218,7 +218,6 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
   CAMLassert (Is_block(*glob_block));
 
   if (Tag_val(*glob_block) < No_scan_tag) {
-
     /* Note: if a [Closure_tag] block is registered as a global root
        (possibly containing one or more [Infix_tag] blocks), then only one
        out of the combined set of the [Closure_tag] and [Infix_tag] blocks
