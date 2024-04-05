@@ -293,8 +293,10 @@ utils/zero_alloc_annotations.cmx : \
     utils/zero_alloc_annotations.cmi
 utils/zero_alloc_annotations.cmi :
 utils/zero_alloc_utils.cmo : \
+    utils/clflags.cmi \
     utils/zero_alloc_utils.cmi
 utils/zero_alloc_utils.cmx : \
+    utils/clflags.cmx \
     utils/zero_alloc_utils.cmi
 utils/zero_alloc_utils.cmi :
 parsing/ast_helper.cmo : \
@@ -4321,6 +4323,7 @@ lambda/transl_list_comprehension.cmi : \
     typing/jkind.cmi \
     lambda/debuginfo.cmi
 lambda/translattribute.cmo : \
+    utils/zero_alloc_utils.cmi \
     utils/warnings.cmi \
     typing/typedtree.cmi \
     parsing/parsetree.cmi \
@@ -4330,6 +4333,7 @@ lambda/translattribute.cmo : \
     parsing/builtin_attributes.cmi \
     lambda/translattribute.cmi
 lambda/translattribute.cmx : \
+    utils/zero_alloc_utils.cmx \
     utils/warnings.cmx \
     typing/typedtree.cmx \
     parsing/parsetree.cmi \
