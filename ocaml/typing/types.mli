@@ -580,6 +580,15 @@ and record_representation =
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
+  | Record_inlined_mixed of tag * mixed_record_shape *
+                            record_inlined_mixed_variant_representation
+  (* Unlike [Record_mixed], [mixed_record_shape] might represent only one
+     element.
+
+     Unlike [Record_inlined], the variant representation can't be "unboxed",
+     so we've minted a separate type
+  *)
+  (* CR mixed blocks: clean up *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each
@@ -589,6 +598,10 @@ and variant_representation =
   | Variant_unboxed
   | Variant_boxed of jkind array array
   | Variant_extensible
+
+and record_inlined_mixed_variant_representation =
+  | Variant_boxed of jkind array
+  |
 
 and label_declaration =
   {
