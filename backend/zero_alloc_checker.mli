@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+(** Check that functions do not allocate on the heap (local allocations are ignored). *)
+
 (** Maintains shared state per compilation unit *)
 
 (** Removes all information *)

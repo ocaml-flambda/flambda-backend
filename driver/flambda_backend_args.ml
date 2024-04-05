@@ -958,7 +958,7 @@ module Flambda_backend_options_impl = struct
     | Some a ->
       Clflags.zero_alloc_check := a
 
-  let dzero_alloc_checker = set' Flambda_backend_flags.dump_zero_alloc_checker
+  let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
   let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
   let disable_precise_zero_alloc_checker = set' Flambda_backend_flags.disable_precise_zero_alloc_checker
   let zero_alloc_checker_details_cutoff n =
@@ -1256,7 +1256,7 @@ module Extra_params = struct
          raise
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
-    | "dump-zero-alloc-checker" -> set' Flambda_backend_flags.dump_zero_alloc_checker
+    | "dump-zero-alloc" -> set' Flambda_backend_flags.dump_zero_alloc
     | "disable-zero-alloc-checker" -> set' Flambda_backend_flags.disable_zero_alloc_checker
     | "disable-precise-zero-alloc-checker" -> set' Flambda_backend_flags.disable_precise_zero_alloc_checker
     | "zero-alloc-checker-details-cutoff" ->

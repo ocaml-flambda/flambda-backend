@@ -35,7 +35,7 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val dump_zero_alloc_checker : bool ref
+val dump_zero_alloc : bool ref
 val disable_zero_alloc_checker : bool ref
 val disable_precise_zero_alloc_checker : bool ref
 val davail : bool ref

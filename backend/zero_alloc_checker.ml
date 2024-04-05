@@ -531,14 +531,15 @@ end = struct
     exception Widen
 
     let maybe_widen t =
-      match !Flambda_backend_flags.checkmach_join with
+      match !Flambda_backend_flags.zero_alloc_checker_join with
       | Keep_all -> t
       | Widen n -> if M.cardinal t > n then raise Widen else t
       | Error n ->
         if M.cardinal t > n
         then
           Misc.fatal_errorf
-            "Join with %d paths is too big, use -disable-precise-checkmach"
+            "Join with %d paths is too big, use \
+             -disable-precise-zero-alloc-checker"
             (M.cardinal t)
         else t
 
@@ -812,7 +813,7 @@ end = struct
         Misc.fatal_errorf "Join Top without witnesses in args:%a"
           (Args.print ~witnesses:false)
           args;
-      match !Flambda_backend_flags.checkmach_details_cutoff with
+      match !Flambda_backend_flags.zero_alloc_checker_details_cutoff with
       | Keep_all -> Args_with_top { w; args }
       | No_details ->
         Misc.fatal_errorf "unexpected: (Join (Top %a) %a) " Witnesses.print w
@@ -1705,22 +1706,6 @@ end = struct
   let update t value = t.value <- value
 end
 
-module type Spec = sig
-  (** Is the check enabled? *)
-  val enabled : unit -> bool
-
-  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
-      either because the check passed or because of user-defined "assume" annotation.
-      If [f] was compiled with checks disabled, returns None.
-  *)
-  val get_value_opt : string -> Value.t option
-
-  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
-  val set_value : string -> Value.t -> unit
-
-  (** Summary of target specific operations. *)
-  val transform_specific : Witnesses.t -> Arch.specific_operation -> Value.t
-end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
    functions. *)
 
@@ -1854,11 +1839,68 @@ end = struct
     String.Tbl.filter_map_inplace remove t
 end
 
+module Compilenv_utils : sig
+  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
+      either because the check passed or because of user-defined "assume" annotation.
+      If [f] was compiled with checks disabled, returns None.
+  *)
+  val get_value_opt : string -> Value.t option
+
+  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
+  val set_value : string -> Value.t -> unit
+end = struct
+  (* Compact the mapping from function name to Value.t to reduce size of Checks
+     in cmx and memory consumption Compilenv. Different components have
+     different frequencies of Top/Bot. The most likely value is encoded as None
+     (i.e., not stored). *)
+  let encode (v : V.t) = match v with Top _ -> 0 | Safe -> 1 | Bot -> 2
+
+  (* Witnesses are not used across functions and not stored in cmx. Witnesses
+     that appear in a function's summary are only used for error messages about
+     that function, not about its callers. Witnesses from the summary of a
+     callee are ignored, and replaced by the name of the callee. *)
+  let decoded_witness = Witnesses.empty
+
+  let decode = function
+    | 0 -> V.Top decoded_witness
+    | 1 -> V.Safe
+    | 2 -> V.Bot
+    | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
+
+  let encode (v : Value.t) : Checks.value =
+    let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
+    if c = 0 then None else Some c
+
+  let decode : Checks.value -> Value.t = function
+    | None -> Value.top decoded_witness
+    | Some d ->
+      if d = 0 then Misc.fatal_error "Zero_alloc_checker unexpected 0 encoding";
+      let nor = decode (d land 3) in
+      let exn = decode ((d lsr 2) land 3) in
+      let div = decode ((d lsr 4) land 3) in
+      { nor; exn; div }
+
+  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
+  let set_value s (v : Value.t) =
+    let checks = (Compilenv.current_unit_infos ()).ui_checks in
+    Checks.set_value checks s (encode v)
+
+  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
+      either because the check passed or because of user-defined "assume" annotation.
+      If [f] was compiled with checks disabled, returns None.
+  *)
+  let get_value_opt s =
+    let checks = Compilenv.cached_checks in
+    match Checks.get_value checks s with
+    | None -> None
+    | Some (c : Checks.value) -> Some (decode c)
+end
+
 (** The analysis involved some fixed point computations.
     Termination: [Value.t] is a finite height domain and
     [transfer] is a monotone function w.r.t. [Value.lessequal] order.
 *)
-module Analysis (S : Spec) : sig
+module Analysis : sig
   (** Check one function. *)
   val fundecl :
     Mach.fundecl ->
@@ -1894,8 +1936,18 @@ end = struct
 
   let analysis_name = "zero_alloc"
 
+  (** Is the checking of "assert" annotations enabled? *)
+  let enabled () =
+    (* Zero_alloc_checker no longer distinguishes between opt and default
+       checks. *)
+    match !Clflags.zero_alloc_check with
+    | No_check -> false
+    | Check_default -> true
+    | Check_all -> true
+    | Check_opt_only -> true
+
   let report' ppf v ~current_fun_name ~msg ~desc dbg =
-    if !Flambda_backend_flags.dump_zero_alloc_checker
+    if !Flambda_backend_flags.dump_zero_alloc
     then
       Format.fprintf ppf "*** check %s %s in %s: %s with %a (%a)\n"
         analysis_name msg current_fun_name desc
@@ -1908,13 +1960,13 @@ end = struct
   let is_future_funcname t callee = String.Set.mem callee t.future_funcnames
 
   let report_unit_info ppf unit_info ~msg =
-    if !Flambda_backend_flags.dump_zero_alloc_checker
+    if !Flambda_backend_flags.dump_zero_alloc
     then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Unit_info.iter unit_info ~f:(Func_info.print ~witnesses:true ppf ~msg)
 
   let report_func_info ~msg ppf func_info =
-    if !Flambda_backend_flags.dump_zero_alloc_checker
+    if !Flambda_backend_flags.dump_zero_alloc
     then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Func_info.print ~witnesses:true ppf ~msg func_info
@@ -1928,7 +1980,7 @@ end = struct
         Builtin_attributes.mark_zero_alloc_attribute_checked analysis_name
           (Annotation.get_loc a);
         if (not (Annotation.is_assume a))
-           && S.enabled ()
+           && enabled ()
            && not (Annotation.valid a func_info.value)
         then
           (* CR-soon gyorsh: keeping track of all the witnesses until the end of
@@ -1949,7 +2001,7 @@ end = struct
                }
                :: !errors);
       report_func_info ~msg:"record" ppf func_info;
-      S.set_value func_info.name func_info.value
+      Compilenv_utils.set_value func_info.name func_info.value
     in
     Unit_info.iter unit_info ~f:record;
     match !errors with [] -> () | errors -> raise (Report.Fail errors)
@@ -1997,7 +2049,7 @@ end = struct
       match Unit_info.find_opt t.unit_info callee with
       | None -> (
         (* Callee is not defined in the current compilation unit. *)
-        match S.get_value_opt callee with
+        match Compilenv_utils.get_value_opt callee with
         | None ->
           unresolved (Value.top w)
             "missing summary: callee compiled without checks"
@@ -2054,6 +2106,15 @@ end = struct
       | None -> v
     in
     transform t ~next ~exn ~effect desc dbg
+
+  (** Summary of target specific operations. *)
+  let transform_specific w s =
+    (* Conservatively assume that operation can return normally. *)
+    let nor = if Arch.operation_allocates s then V.Top w else V.Safe in
+    let exn = if Arch.operation_can_raise s then nor else V.Bot in
+    (* Assume that the operation does not diverge. *)
+    let div = V.Bot in
+    { Value.nor; exn; div }
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -2136,7 +2197,7 @@ end = struct
           Metadata.assume_value dbg ~can_raise:(Arch.operation_can_raise s) w
         with
         | Some v -> v
-        | None -> S.transform_specific w s
+        | None -> transform_specific w s
       in
       transform t ~next ~exn ~effect "Arch.specific_operation" dbg
     | Idls_get -> Misc.fatal_error "Idls_get not supported"
@@ -2233,7 +2294,7 @@ end = struct
     let iter t ~f = String.Map.iter (fun _name d -> f d.func_info d.approx) t
 
     let print ~msg ppf t =
-      if !Flambda_backend_flags.dump_checkmach
+      if !Flambda_backend_flags.dump_zero_alloc
       then
         iter t ~f:(fun func_info approx ->
             Format.fprintf ppf "Env %s: %s: %a@." msg func_info.name
@@ -2258,7 +2319,7 @@ end = struct
         Env.map
           ~f:(fun func_info v ->
             let v' = Value.apply func_info.value (lookup env) in
-            if !Flambda_backend_flags.dump_checkmach
+            if !Flambda_backend_flags.dump_zero_alloc
             then
               Format.fprintf ppf "fixpoint after apply: %s %a@." func_info.name
                 (Value.print ~witnesses:true)
@@ -2267,7 +2328,7 @@ end = struct
             if not (Value.lessequal v' v)
             then (
               changed := true;
-              if !Flambda_backend_flags.dump_checkmach
+              if !Flambda_backend_flags.dump_zero_alloc
               then
                 Format.fprintf ppf "fixpoint update: %s %a@." func_info.name
                   (Value.print ~witnesses:true)
@@ -2409,81 +2470,13 @@ end = struct
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
 
-(** Check that functions do not allocate on the heap (local allocations are ignored) *)
-module Spec_zero_alloc : Spec = struct
-  let enabled () =
-    (* Zero_alloc_checker no longer distinguishes between opt and default
-       checks. *)
-    match !Clflags.zero_alloc_check with
-    | No_check -> false
-    | Check_default -> true
-    | Check_all -> true
-    | Check_opt_only -> true
-
-  (* Compact the mapping from function name to Value.t to reduce size of Checks
-     in cmx and memory consumption Compilenv. Different components have
-     different frequencies of Top/Bot. The most likely value is encoded as None
-     (i.e., not stored). *)
-  let encode (v : V.t) =
-    V.match_with v
-      ~top:(fun _ -> 0)
-      ~safe:1 ~bot:2
-      ~unresolved:(fun () -> assert false)
-
-  (* Witnesses are not used across functions and not stored in cmx. Witnesses
-     that appear in a function's summary are only used for error messages about
-     that function, not about its callers. Witnesses from the summary of a
-     callee are ignored, and replaced by the name of the callee. *)
-  let decoded_witness = Witnesses.empty
-
-  let decode = function
-    | 0 -> V.top decoded_witness
-    | 1 -> V.safe
-    | 2 -> V.bot
-    | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
-
-  let encode (v : Value.t) : Checks.value =
-    let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
-    if c = 0 then None else Some c
-
-  let decode : Checks.value -> Value.t = function
-    | None -> Value.top decoded_witness
-    | Some d ->
-      if d = 0 then Misc.fatal_error "Zero_alloc_checker unexpected 0 encoding";
-      let nor = decode (d land 3) in
-      let exn = decode ((d lsr 2) land 3) in
-      let div = decode ((d lsr 4) land 3) in
-      { nor; exn; div }
-
-  let set_value s (v : Value.t) =
-    let checks = (Compilenv.current_unit_infos ()).ui_checks in
-    Checks.set_value checks s (encode v)
-
-  let get_value_opt s =
-    let checks = Compilenv.cached_checks in
-    match Checks.get_value checks s with
-    | None -> None
-    | Some (c : Checks.value) -> Some (decode c)
-
-  let transform_specific w s =
-    (* Conservatively assume that operation can return normally. *)
-    let nor = if Arch.operation_allocates s then V.top w else V.safe in
-    let exn = if Arch.operation_can_raise s then nor else V.bot in
-    (* Assume that the operation does not diverge. *)
-    let div = V.bot in
-    { Value.nor; exn; div }
-end
-
-module Check_zero_alloc = Analysis (Spec_zero_alloc)
-
 (** Information about the current unit. *)
 let unit_info = Unit_info.create ()
 
 let unresolved_deps = Unresolved_dependencies.create ()
 
 let fundecl ppf_dump ~future_funcnames fd =
-  Check_zero_alloc.fundecl fd ~future_funcnames unit_info unresolved_deps
-    ppf_dump;
+  Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
   fd
 
 let reset_unit_info () =
@@ -2491,7 +2484,7 @@ let reset_unit_info () =
   Unresolved_dependencies.reset unresolved_deps
 
 let record_unit_info ppf_dump =
-  Check_zero_alloc.record_unit unit_info unresolved_deps ppf_dump;
+  Analysis.record_unit unit_info unresolved_deps ppf_dump;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
