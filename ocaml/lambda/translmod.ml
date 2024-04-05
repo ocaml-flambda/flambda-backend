@@ -162,7 +162,7 @@ and apply_coercion_result loc strict funct params args cc_res =
              ~return:Lambda.layout_module
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
-                        check = Ignore_assert_all Zero_alloc;
+                        zero_alloc = Ignore_assert_all;
                         stub = true; }
              ~loc
              ~mode:alloc_heap
@@ -572,7 +572,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       loop = Never_loop;
       is_a_functor = true;
       is_opaque = false;
-      check = Ignore_assert_all Zero_alloc;
+      zero_alloc = Ignore_assert_all;
       stub = false;
       tmc_candidate = false;
       may_fuse_arity = true;

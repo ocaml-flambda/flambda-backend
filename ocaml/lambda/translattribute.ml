@@ -195,7 +195,6 @@ let get_opaque_attribute l =
   let attr = find_attribute is_opaque_attribute l in
   parse_opaque_attribute attr
 
-
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
   parse_poll_attribute attr
@@ -445,6 +444,12 @@ let add_function_attributes lam loc attr =
     add_local_attribute lam loc attr
   in
   let lam =
+<<<<<<< HEAD
+=======
+    add_zero_alloc_attribute lam loc attr
+  in
+  let lam =
+>>>>>>> 2bb76db708 (Remove "Lambda.property" and rename "Lambda.check_attribute" and)
     add_loop_attribute lam loc attr
   in
   let lam =

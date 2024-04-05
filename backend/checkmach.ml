@@ -1389,8 +1389,7 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
-  val find :
-    Cmm.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
+  val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
   val expected_value : t -> Value.t
 
@@ -1454,12 +1453,12 @@ end = struct
 
   let is_strict t = t.strict
 
-  let find codegen_options spec fun_name dbg =
+  let find codegen_options fun_name dbg =
     let a =
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check { property; strict; loc } when property = spec ->
+          | Check_zero_alloc { strict; loc } ->
             Some
               { strict;
                 assume = false;
@@ -1467,9 +1466,7 @@ end = struct
                 never_raises = false;
                 loc
               }
-          | Assume
-              { property; strict; never_returns_normally; never_raises; loc }
-            when property = spec ->
+          | Assume_zero_alloc { never_returns_normally; never_raises; loc } ->
             Some
               { strict;
                 assume = true;
@@ -1477,9 +1474,7 @@ end = struct
                 never_raises;
                 loc
               }
-          | Check _ | Assume _ | Reduce_code_size | No_CSE
-          | Use_linscan_regalloc ->
-            None)
+          | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
     in
     match a with
@@ -1490,12 +1485,9 @@ end = struct
         Debuginfo.print_compact dbg fun_name ()
 
   let is_check_enabled codegen_options fun_name dbg =
-    let is_enabled p =
-      match find codegen_options p fun_name dbg with
-      | None -> false
-      | Some { assume; _ } -> not assume
-    in
-    List.exists is_enabled Cmm.all_properties
+    match find codegen_options fun_name dbg with
+    | None -> false
+    | Some { assume; _ } -> not assume
 end
 
 module Metadata : sig
@@ -1535,7 +1527,7 @@ module Report : sig
       witnesses : Witnesses.components
     }
 
-  exception Fail of t list * Cmm.property
+  exception Fail of t list
 
   val print : exn -> Location.error option
 end = struct
@@ -1546,9 +1538,9 @@ end = struct
       witnesses : Witnesses.components
     }
 
-  exception Fail of t list * Cmm.property
+  exception Fail of t list
 
-  let annotation_error ~property_name t =
+  let annotation_error t =
     (* print location of the annotation, print function name as part of the
        message. *)
     let loc = Annotation.get_loc t.a in
@@ -1559,14 +1551,14 @@ end = struct
                Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
         |> String.concat ","
       in
-      Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
-        property_name
+      Format.fprintf ppf
+        "Annotation check for zero_alloc%s failed on function %s (%s)"
         (if Annotation.is_strict t.a then " strict" else "")
         scoped_name t.fun_name
     in
     Location.error_of_printer ~loc print_annotated_fun ()
 
-  let error_messages ~property_name t : Location.error list =
+  let error_messages t : Location.error list =
     let pp_inlined_dbg ppf dbg =
       (* Show inlined locations, if dbg has more than one item. The first item
          will be shown at the start of the error message. *)
@@ -1650,7 +1642,7 @@ end = struct
           let result, _ = Misc.Stdlib.List.split_at cutoff all in
           result
     in
-    annotation_error ~property_name t :: details
+    annotation_error t :: details
 
   let rec print_all msgs =
     (* Print all errors message in a compilation unit as separate messages to
@@ -1665,8 +1657,7 @@ end = struct
       print_all tl
 
   let print = function
-    | Fail (reports, property) ->
-      let property_name = Printcmm.property_to_string property in
+    | Fail reports ->
       (* Sort by function's location. If debuginfo is missing, keep sorted by
          function name. *)
       let compare t1 t2 =
@@ -1676,7 +1667,7 @@ end = struct
         else String.compare t1.fun_name t2.fun_name
       in
       reports |> List.stable_sort compare
-      |> List.concat_map (error_messages ~property_name)
+      |> List.concat_map error_messages
       |> print_all
     | _ -> None
 end
@@ -1729,8 +1720,6 @@ module type Spec = sig
 
   (** Summary of target specific operations. *)
   val transform_specific : Witnesses.t -> Arch.specific_operation -> Value.t
-
-  val property : Cmm.property
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
    functions. *)
@@ -1903,7 +1892,7 @@ end = struct
     let keep_witnesses = should_keep_witnesses (Option.is_some annot) in
     { ppf; current_fun_name; future_funcnames; unit_info; keep_witnesses }
 
-  let analysis_name = Printcmm.property_to_string S.property
+  let analysis_name = "zero_alloc"
 
   let report' ppf v ~current_fun_name ~msg ~desc dbg =
     if !Flambda_backend_flags.dump_checkmach
@@ -1936,7 +1925,7 @@ end = struct
       (match func_info.annotation with
       | None -> ()
       | Some a ->
-        Builtin_attributes.mark_property_checked analysis_name
+        Builtin_attributes.mark_zero_alloc_attribute_checked analysis_name
           (Annotation.get_loc a);
         if (not (Annotation.is_assume a))
            && S.enabled ()
@@ -1963,9 +1952,7 @@ end = struct
       S.set_value func_info.name func_info.value
     in
     Unit_info.iter unit_info ~f:record;
-    match !errors with
-    | [] -> ()
-    | errors -> raise (Report.Fail (errors, S.property))
+    match !errors with [] -> () | errors -> raise (Report.Fail errors)
 
   let[@inline always] create_witnesses t kind dbg =
     if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
@@ -2382,9 +2369,7 @@ end = struct
       =
     let check () =
       let fun_name = f.fun_name in
-      let a =
-        Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
-      in
+      let a = Annotation.find f.fun_codegen_options fun_name f.fun_dbg in
       let t = create ppf fun_name future_funcnames unit_info a in
       let really_check () =
         let res = check_instr t f.fun_body in
@@ -2426,8 +2411,6 @@ end
 
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)
 module Spec_zero_alloc : Spec = struct
-  let property = Cmm.Zero_alloc
-
   let enabled () =
     (* Checkmach no longer distinguishes between opt and default checks. *)
     match !Clflags.zero_alloc_check with

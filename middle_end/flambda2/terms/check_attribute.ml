@@ -10,42 +10,30 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Property = struct
-  type t = Zero_alloc
-
-  let print ppf = function Zero_alloc -> Format.fprintf ppf "zero_alloc"
-
-  let equal x y = match x, y with Zero_alloc, Zero_alloc -> true
-
-  let from_lambda : Lambda.property -> t = function Zero_alloc -> Zero_alloc
-end
-
 type t =
   | Default_check
   | Assume of
-      { property : Property.t;
-        strict : bool;
+      { strict : bool;
         never_returns_normally : bool;
         never_raises : bool;
         loc : Location.t
       }
   | Check of
-      { property : Property.t;
-        strict : bool;
+      { strict : bool;
         loc : Location.t
       }
 
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Assume { property; strict; never_returns_normally; never_raises; loc = _ }
+  | Assume { strict; never_returns_normally; never_raises; loc = _ }
     ->
-    Format.fprintf ppf "@[assume_%a%s%s%s@]" Property.print property
+    Format.fprintf ppf "@[assume_zero_alloc%s%s%s@]"
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
       (if never_raises then "_never_raises" else "")
-  | Check { property; strict; loc = _ } ->
-    Format.fprintf ppf "@[assert_%a%s@]" Property.print property
+  | Check { strict; loc = _ } ->
+    Format.fprintf ppf "@[assert_zero_alloc%s@]"
       (if strict then "_strict" else "")
 
 let from_lambda : Lambda.check_attribute -> Location.t -> t =
@@ -54,45 +42,45 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
   | Default_check ->
     if !Clflags.zero_alloc_check_assert_all
        && Builtin_attributes.is_check_enabled ~opt:false Zero_alloc
-    then Check { property = Zero_alloc; strict = false; loc }
+    then Check { strict = false; loc }
     else Default_check
   | Ignore_assert_all Zero_alloc -> Default_check
   | Assume
-      { property; strict; never_returns_normally; never_raises; loc; arity = _ }
+      { strict; never_returns_normally; never_raises; loc; arity = _ }
     ->
     Assume
-      { property = Property.from_lambda property;
+      {
         strict;
         never_returns_normally;
         never_raises;
         loc
       }
-  | Check { property; strict; opt; loc; arity = _ } ->
-    if Builtin_attributes.is_check_enabled ~opt property
-    then Check { property = Property.from_lambda property; strict; loc }
+  | Check { strict; opt; loc; arity = _ } ->
+    if Builtin_attributes.is_check_enabled ~opt
+    then Check { strict; loc }
     else Default_check
 
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | ( Check { property = p1; strict = s1; loc = loc1 },
-      Check { property = p2; strict = s2; loc = loc2 } ) ->
-    Property.equal p1 p2 && Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
+  | ( Check { strict = s1; loc = loc1 },
+      Check { strict = s2; loc = loc2 } ) ->
+    Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
   | ( Assume
-        { property = p1;
+        {
           strict = s1;
           never_returns_normally = n1;
           never_raises = r1;
           loc = loc1
         },
       Assume
-        { property = p2;
+        {
           strict = s2;
           never_returns_normally = n2;
           never_raises = r2;
           loc = loc2
         } ) ->
-    Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2
+    Bool.equal s1 s2 && Bool.equal n1 n2
     && Bool.equal r1 r2
     && Location.compare loc1 loc2 = 0
   | (Default_check | Check _ | Assume _), _ -> false
@@ -100,3 +88,4 @@ let equal x y =
 let is_default : t -> bool = function
   | Default_check -> true
   | Check _ | Assume _ -> false
+

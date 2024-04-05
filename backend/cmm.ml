@@ -312,17 +312,14 @@ type expression =
       * Backend_var.With_provenance.t * expression * Debuginfo.t
       * kind_for_unboxing
 
-type property =
-  | Zero_alloc
-
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assume of { property: property; strict: bool; never_returns_normally: bool;
-                never_raises: bool;
-                loc: Location.t }
-  | Check of { property: property; strict: bool; loc : Location.t; }
+  | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
+                           never_raises: bool;
+                           loc: Location.t }
+  | Check_zero_alloc of { strict: bool; loc : Location.t; }
 
 type fundecl =
   { fun_name: symbol;
@@ -685,7 +682,5 @@ let equal_integer_comparison left right =
   | Cle, (Ceq | Cne | Clt | Cgt | Cge)
   | Cge, (Ceq | Cne | Clt | Cgt | Cle) ->
     false
-
-let all_properties = [Zero_alloc]
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"

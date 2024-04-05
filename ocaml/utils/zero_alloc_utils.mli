@@ -173,3 +173,5 @@ module Assume_info : sig
 
   val get_value : t -> Value.t option
 end
+
+val is_check_enabled : opt:bool -> bool

@@ -247,3 +247,10 @@ module Assume_info = struct
 
   let is_none t = match t with No_assume -> true | Assume _ -> false
 end
+
+let is_check_enabled ~opt =
+  match !Clflags.zero_alloc_check with
+  | No_check -> false
+  | Check_all -> true
+  | Check_default -> not opt
+  | Check_opt_only -> opt

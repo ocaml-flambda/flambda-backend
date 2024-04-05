@@ -345,22 +345,18 @@ end)
 
 (* Translation of "check" attributes on functions. *)
 
-let transl_property : Check_attribute.Property.t -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
-  | Assume { property; strict; never_returns_normally; never_raises; loc } ->
-    [ Assume
-        { property = transl_property property;
-          strict;
+  | Assume { strict; never_returns_normally; never_raises; loc } ->
+    [ Assume_zero_alloc
+        { strict;
           never_returns_normally;
           never_raises;
           loc
         } ]
-  | Check { property; strict; loc } ->
-    [Check { property = transl_property property; strict; loc }]
+  | Check { strict; loc } ->
+    [Check_zero_alloc { strict; loc }]
 
 (* Translation of the bodies of functions. *)
 

@@ -2707,7 +2707,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { inline = Default_inline;
         specialise = Default_specialise;
         local = Default_local;
-        check = Default_check;
+        zero_alloc = Default_zero_alloc;
         loop = Default_loop;
         is_a_functor = false;
         is_opaque = false;
