@@ -286,10 +286,17 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
         /* Mix in the tag and size, but do not count this towards [num] */
         h = caml_hash_mix_uint32(h, Whitehd_hd(Hd_val(v)));
         /* Copy fields into queue, not exceeding the total size [sz] */
-        for (i = 0, len = Wosize_val(v); i < len; i++) {
+        for (i = 0, len = Scannable_wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
           queue[wr++] = Field(v, i);
         }
+
+        /* We don't attempt to hash the flat suffix of a mixed block.
+           This is consistent with abstract blocks which, like mixed
+           blocks, cause polymorphic comparison to raise and don't
+           attempt to hash the non-scannable portion.
+        */
+
         break;
       }
     }
