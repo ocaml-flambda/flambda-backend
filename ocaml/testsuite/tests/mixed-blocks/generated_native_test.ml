@@ -29,7 +29,7 @@ let copy_via_weak x =
 
 let copy_via_tag x =
   let obj = Obj.repr x in
-  Obj.with_tag (Obj.tag obj) obj |> Obj.obj;; let copy_via_tag x = x
+  Obj.with_tag (Obj.tag obj) obj |> Obj.obj;;
 
 (* Helper functions for testing polymorphic operations. *)
 let oc = Out_channel.open_bin "/dev/null"

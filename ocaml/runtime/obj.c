@@ -158,12 +158,14 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     res = caml_alloc(sz, tg);
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
-    res = caml_alloc_small(sz, tg);
+    reserved_t reserved = Reserved_val(arg);
+    res = caml_alloc_small_reserved(sz, tg, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
     mlsize_t scannable_sz = Scannable_wosize_val(arg);
+    reserved_t reserved = Reserved_val(arg);
 
-    res = caml_alloc_shr(sz, tg);
+    res = caml_alloc_shr_reserved(sz, tg, reserved);
     /* It is safe to use [caml_initialize] even if [tag == Closure_tag]
        and some of the "values" being copied are actually code pointers.
        That's because the new "value" does not point to the minor heap. */
@@ -171,10 +173,8 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
       caml_initialize(&Field(res, i), Field(arg, i));
     }
 
-    if (scannable_sz < sz) {
-      memcpy(Op_val(res) + scannable_sz,
-             Op_val(arg) + scannable_sz,
-             Bsize_wsize(sz - scannable_sz));
+    for (i = scannable_sz; i < sz; i++) {
+      Field(res, i) = Field(arg, i);
     }
 
     /* Give gc a chance to run, and run memprof callbacks */

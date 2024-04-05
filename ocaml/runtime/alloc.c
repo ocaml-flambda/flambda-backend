@@ -170,7 +170,8 @@ CAMLexport value caml_alloc_9 (tag_t tag, value a, value b, value c, value d,
   Do_alloc_small(9, tag, a, b, c, d, e, f, g, h, i);
 }
 
-CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_small_reserved (mlsize_t wosize, tag_t tag,
+                                            reserved_t reserved)
 {
   value result;
 
@@ -178,8 +179,14 @@ CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
   CAMLassert (wosize <= Max_young_wosize);
   CAMLassert (tag < 256);
   CAMLassert (tag != Infix_tag);
-  Alloc_small (result, wosize, tag, Alloc_small_enter_GC);
+  Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
+                             reserved);
   return result;
+}
+
+CAMLexport value caml_alloc_small (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_small_reserved(wosize, tag, 0);
 }
 
 /* [n] is a number of words (fields) */
