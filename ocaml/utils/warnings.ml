@@ -561,7 +561,7 @@ let descriptions = [
     description = "Probe name must be at most 100 characters long.";
     since = since 4 14 };
   { number = 199;
-    names = ["unchecked-property-attribute"];
+    names = ["unchecked-zero-alloc-attribute"];
     description = "A property of a function that was \
                    optimized away cannot be checked.";
     since = since 4 14 };
