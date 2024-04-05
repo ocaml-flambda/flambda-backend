@@ -17,7 +17,7 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dzero-alloc-checker -dump-into-file -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -75,7 +75,7 @@ let () =
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          ${extra_flags} -checkmach-details-cutoff ${cutoff} -O3))
+          ${extra_flags} -zero-alloc-checker-details-cutoff ${cutoff} -O3))
     (run "./${filter}")
    ))))
 
@@ -148,10 +148,10 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail24";
   print_test ~extra_flags:"-zero-alloc-check default -function-layout topological"  "test_raise_message.ml";
   print_test_expected_output ~cutoff:default_cutoff
-    ~extra_flags:"-zero-alloc-check default -disable-precise-checkmach -function-layout source"
+    ~extra_flags:"-zero-alloc-check default -disable-precise-zero-alloc-checker -function-layout source"
     ~extra_dep:None ~exit_code:2 "fail25";
   print_test_expected_output ~cutoff:default_cutoff
-    ~extra_flags:"-zero-alloc-check default -disable-checkmach -function-layout source"
+    ~extra_flags:"-zero-alloc-check default -disable-zero-alloc-checker -function-layout source"
     ~extra_dep:None ~exit_code:2 "fail26";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_flags:"-zero-alloc-check default"

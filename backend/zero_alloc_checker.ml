@@ -126,7 +126,7 @@ end = struct
 
   let join t1 t2 =
     let res = union t1 t2 in
-    match !Flambda_backend_flags.checkmach_details_cutoff with
+    match !Flambda_backend_flags.zero_alloc_checker_details_cutoff with
     | Keep_all -> res
     | No_details ->
       if not (is_empty res)
@@ -1629,7 +1629,7 @@ end = struct
       List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
     let details =
-      match !Flambda_backend_flags.checkmach_details_cutoff with
+      match !Flambda_backend_flags.zero_alloc_checker_details_cutoff with
       | No_details ->
         (* do not print witnesses. *)
         []
@@ -1883,7 +1883,7 @@ end = struct
     }
 
   let should_keep_witnesses keep =
-    match !Flambda_backend_flags.checkmach_details_cutoff with
+    match !Flambda_backend_flags.zero_alloc_checker_details_cutoff with
     | Keep_all -> true
     | No_details -> false
     | At_most _ -> keep
@@ -1895,7 +1895,7 @@ end = struct
   let analysis_name = "zero_alloc"
 
   let report' ppf v ~current_fun_name ~msg ~desc dbg =
-    if !Flambda_backend_flags.dump_checkmach
+    if !Flambda_backend_flags.dump_zero_alloc_checker
     then
       Format.fprintf ppf "*** check %s %s in %s: %s with %a (%a)\n"
         analysis_name msg current_fun_name desc
@@ -1908,13 +1908,13 @@ end = struct
   let is_future_funcname t callee = String.Set.mem callee t.future_funcnames
 
   let report_unit_info ppf unit_info ~msg =
-    if !Flambda_backend_flags.dump_checkmach
+    if !Flambda_backend_flags.dump_zero_alloc_checker
     then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Unit_info.iter unit_info ~f:(Func_info.print ~witnesses:true ppf ~msg)
 
   let report_func_info ~msg ppf func_info =
-    if !Flambda_backend_flags.dump_checkmach
+    if !Flambda_backend_flags.dump_zero_alloc_checker
     then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Func_info.print ~witnesses:true ppf ~msg func_info
@@ -1977,7 +1977,7 @@ end = struct
     in
     if is_future_funcname t callee
     then
-      if !Flambda_backend_flags.disable_precise_checkmach
+      if !Flambda_backend_flags.disable_precise_zero_alloc_checker
       then
         (* Conservatively return Top. Won't be able to prove any recursive
            functions as non-allocating. *)
@@ -2385,7 +2385,7 @@ end = struct
         report_unit_info ppf unit_info ~msg:"after record"
       in
       let really_check () =
-        if !Flambda_backend_flags.disable_checkmach
+        if !Flambda_backend_flags.disable_zero_alloc_checker
         then
           (* Do not analyze the body of the function, conservatively assume that
              the summary is top. *)

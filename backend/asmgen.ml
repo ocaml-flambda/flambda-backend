@@ -277,7 +277,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "polling"
        (Polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
-  ++ Profile.record ~accumulate:true "checkmach"
+  ++ Profile.record ~accumulate:true "zero_alloc_checker"
        (Zero_alloc_checker.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ (fun fd ->
       match !Flambda_backend_flags.cfg_cse_optimize with
