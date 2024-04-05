@@ -288,6 +288,7 @@ and record_representation =
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_record_shape
+  | Record_inlined_mixed of tag * mixed_record_shape
 
 and variant_representation =
   | Variant_unboxed
