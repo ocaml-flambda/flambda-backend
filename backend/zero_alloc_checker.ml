@@ -1496,11 +1496,11 @@ module Metadata : sig
     Debuginfo.t -> can_raise:bool -> Witnesses.t -> Value.t option
 end = struct
   (* CR gyorsh: The return type of [Assume_info.get_value] is
-     [Assume_info.Value.t]. It is not the same as [Checkmach.Value.t], because
-     [Witnesses] in [Checkmach] depend on Debuginfo and cannot be used in
-     Assume_info due to cyclic dependencies. The witnesses in Assume_info are
-     always empty and the translation is trivial. Is there a better way to avoid
-     duplicating [Zero_alloc_utils]? *)
+     [Assume_info.Value.t]. It is not the same as [Zero_alloc_checker.Value.t],
+     because [Witnesses] in [Zero_alloc_checker] depend on Debuginfo and cannot
+     be used in Assume_info due to cyclic dependencies. The witnesses in
+     Assume_info are always empty and the translation is trivial. Is there a
+     better way to avoid duplicating [Zero_alloc_utils]? *)
   let transl w (v : Zero_alloc_utils.Assume_info.V.t) : V.t =
     match v with Top _ -> V.top w | Safe -> V.safe | Bot -> V.bot
 
@@ -1571,8 +1571,8 @@ end = struct
       | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
-           checkmach is before comballoc. In the future, this may be done in the
-           middle-end. *)
+           zero_alloc_checker is before comballoc. In the future, this may be
+           done in the middle-end. *)
         let msg =
           Printf.sprintf " combining %d allocations below"
             (List.length alloc_dbginfo)
@@ -2412,7 +2412,8 @@ end
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)
 module Spec_zero_alloc : Spec = struct
   let enabled () =
-    (* Checkmach no longer distinguishes between opt and default checks. *)
+    (* Zero_alloc_checker no longer distinguishes between opt and default
+       checks. *)
     match !Clflags.zero_alloc_check with
     | No_check -> false
     | Check_default -> true
@@ -2439,7 +2440,7 @@ module Spec_zero_alloc : Spec = struct
     | 0 -> V.top decoded_witness
     | 1 -> V.safe
     | 2 -> V.bot
-    | n -> Misc.fatal_errorf "Checkmach cannot decode %d" n
+    | n -> Misc.fatal_errorf "Zero_alloc_checker cannot decode %d" n
 
   let encode (v : Value.t) : Checks.value =
     let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
@@ -2448,7 +2449,7 @@ module Spec_zero_alloc : Spec = struct
   let decode : Checks.value -> Value.t = function
     | None -> Value.top decoded_witness
     | Some d ->
-      if d = 0 then Misc.fatal_error "Checkmach unexpected 0 encoding";
+      if d = 0 then Misc.fatal_error "Zero_alloc_checker unexpected 0 encoding";
       let nor = decode (d land 3) in
       let exn = decode ((d lsr 2) land 3) in
       let div = decode ((d lsr 4) land 3) in

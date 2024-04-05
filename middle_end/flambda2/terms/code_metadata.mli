@@ -50,7 +50,7 @@ module type Code_metadata_accessors_result_type = sig
 
   val inline : 'a t -> Inline_attribute.t
 
-  val check : 'a t -> Check_attribute.t
+  val check : 'a t -> Zero_alloc_attribute.t
 
   val poll_attribute : 'a t -> Poll_attribute.t
 
@@ -98,7 +98,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
-  check:Check_attribute.t ->
+  check:Zero_alloc_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
   is_opaque:bool ->

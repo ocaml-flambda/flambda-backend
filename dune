@@ -116,7 +116,7 @@
   printcmm
   printlinear
   printmach
-  checkmach
+  zero_alloc_checker
   proc
   simd
   simd_selection

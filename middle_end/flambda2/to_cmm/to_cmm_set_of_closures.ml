@@ -345,7 +345,7 @@ end)
 
 (* Translation of "check" attributes on functions. *)
 
-let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
+let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
   | Assume { strict; never_returns_normally; never_raises; loc } ->

@@ -29,7 +29,7 @@ type t =
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
-    check : Check_attribute.t;
+    check : Zero_alloc_attribute.t;
     poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
     is_opaque : bool;
@@ -138,7 +138,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
-  check:Check_attribute.t ->
+  check:Zero_alloc_attribute.t ->
   poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
   is_opaque:bool ->
@@ -283,9 +283,9 @@ let [@ocamlformat "disable"] print ppf
     else C.none)
     Inline_attribute.print inline
     Flambda_colours.pop
-    (if Check_attribute.is_default check
+    (if Zero_alloc_attribute.is_default check
      then Flambda_colours.elide else C.none)
-    Check_attribute.print check
+    Zero_alloc_attribute.print check
     Flambda_colours.pop
     (if Poll_attribute.is_default poll_attribute
      then Flambda_colours.elide else C.none)
@@ -555,7 +555,7 @@ let approx_equal
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
-  && Check_attribute.equal check1 check2
+  && Zero_alloc_attribute.equal check1 check2
   && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
   && Bool.equal is_opaque1 is_opaque2
