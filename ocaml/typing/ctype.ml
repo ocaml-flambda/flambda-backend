@@ -1594,9 +1594,19 @@ let curry_mode alloc arg : Alloc.Const.t =
       (Alloc.Const.close_over arg)
       (Alloc.Const.partial_apply alloc)
   in
-  (* Arrow types cross uniqueness axis. Therefore, when user writes an
-  A -> B -> C (to be used as constraint on something), we should make
-  (B -> C) shared. A proper way to do this is via modal kinds. *)
+  (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
+    legacy mode which helps with legacy compatibility. Arrow types cross
+    uniqueness so we are not losing too much expressvity here. One
+    counter-example is:
+
+    let g : (A -> B -> C) = ...
+    let f (g : A -> unique_ (B -> C)) = ...
+
+    And [f g] would not work, as mode crossing doesn't work deeply into arrows.
+    Our answer to this issue is that, the author of f shouldn't ask B -> C to be
+    unique_. Instead, they should leave it as default which is shared, and mode
+    crossing it to unique at the location where B -> C is a real value (instead
+    of the return of a function). *)
   {acc with uniqueness=Uniqueness.Const.Shared}
 
 let rec instance_prim_locals locals mvar macc finalret ty =

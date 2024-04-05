@@ -211,6 +211,10 @@ val prim_mode :
 val instance_prim:
         Primitive.description -> type_expr ->
         type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+
+(** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
+    user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c
+    to have. *)
 val curry_mode : Alloc.Const.t -> Alloc.Const.t -> Alloc.Const.t
 
 val apply:

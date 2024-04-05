@@ -1257,19 +1257,25 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
-let tree_of_mode mode l =
-  match mode with
-  | None -> []
-  (* should never raise *)
-  | Some x -> [List.assoc x l]
+(** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
+Raise if not found. *)
+let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
+  Option.map (fun x -> List.assoc x l) mode
 
 let tree_of_modes modes =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
-  tree_of_mode diff.locality [Mode.Locality.Const.Local, Omd_local] @
-  tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_once] @
-  tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_unique]
+  (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
+  let l = [
+    tree_of_mode diff.locality [Mode.Locality.Const.Local, Omd_local];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_once];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_unique]]
+  in
+  List.filter_map Fun.id l
 
-(* [alloc_mode] is only used if [ty] is arrow-shaped. *)
+(* [alloc_mode] is the mode that our printing has expressed on [ty]. For the
+  example [A -> local_ (B -> C)], we will call [tree_of_typexp] on (B -> C) with
+  alloc_mode = local. This is helpful for reproducing the mode currying logic in
+  [ctype.ml], so that parsing and printing roundtrip. *)
 let rec tree_of_typexp mode alloc_mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
@@ -1285,28 +1291,32 @@ let rec tree_of_typexp mode alloc_mode ty =
         let name_gen = Names.new_var_name ~non_gen ty in
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
+        (* In this branch we do some mutation that needs to be reverted, as
+           printing should not mutate states. *)
+        let snap = Btype.snapshot () in
         let lab =
           if !print_labels || is_omittable l then outcome_label l
           else Nolabel
         in
         (* [marg] will contain undetermined axes. It would be imprecise if we
-          don't print anything for those axes, since user would interpret that
-         as legacy. The best we can do is to zap to legacy and if they do land
-         at legacy, we will be able to omit the printing. *)
-        let am = Alloc.zap_to_legacy marg in
+           don't print anything for those axes, since user would interpret that
+           as legacy. The best we can do is to zap to legacy and if they do land
+           at legacy, we will be able to omit printing them. *)
+        let arg_mode = Alloc.zap_to_legacy marg in
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
-                tree_of_typexp mode am ty
+                tree_of_typexp mode arg_mode ty
             | _ -> Otyp_stuff "<hidden>"
           else
-            tree_of_typexp mode am ty1
+            tree_of_typexp mode arg_mode ty1
         in
-        let acc_mode = curry_mode alloc_mode am in
-        let (rm, t2) = tree_of_ret_typ mode acc_mode (mret, ty2) in
-        Otyp_arrow (lab, tree_of_modes am, t1, rm, t2)
+        let acc_mode = curry_mode alloc_mode arg_mode in
+        let (rm, t2) = tree_of_ret_typ_unsafe mode acc_mode (mret, ty2) in
+        Btype.backtrack snap;
+        Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
@@ -1434,11 +1444,20 @@ and tree_of_typ_gf (ty, gf) =
   in
   (tree_of_typexp Type Alloc.Const.legacy ty, gf)
 
-and tree_of_ret_typ mode acc_mode (m, ty) =
+(** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
+    is the return mode. This function decides the printed modes on [ty].
+    - If [ty] is another arrow type, [acc_mode] is the mode that has accumulated
+      from the currying, and thus the mode that the user would interpret as on
+      [ty] if it doesn't have parens around it.
+    - If [ty] is not an arrow type, [acc_mode] is meaningless.
+
+    NB: This function might mutate states; the caller is responsible for
+    reverting them. *)
+and tree_of_ret_typ_unsafe mode acc_mode (m, ty) =
   match get_desc ty with
   | Tarrow _ -> begin
-     (* We first try to equate [m] with the [acc_mode]; if that succeeds, we can
-        omit parens and modes. *)
+      (* We first try to equate [m] with the [acc_mode]; if that succeeds, we
+        can omit parens and modes. *)
       match Alloc.equate (Alloc.of_const acc_mode) m with
       | Ok () ->
         let ty = tree_of_typexp mode acc_mode ty in
