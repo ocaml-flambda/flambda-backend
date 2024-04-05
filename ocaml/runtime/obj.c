@@ -159,7 +159,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
     memcpy(Bp_val(res), Bp_val(arg), sz * sizeof(value));
   } else if (sz <= Max_young_wosize) {
     reserved_t reserved = Reserved_val(arg);
-    res = caml_alloc_small_reserved(sz, tg, reserved);
+    res = caml_alloc_small_with_reserved(sz, tg, reserved);
     for (i = 0; i < sz; i++) Field(res, i) = Field(arg, i);
   } else {
     mlsize_t scannable_sz = Scannable_wosize_val(arg);
