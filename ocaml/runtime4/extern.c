@@ -732,9 +732,7 @@ static void extern_rec(value v)
     mlsize_t sz = Wosize_hd(hd);
     reserved_t reserved = Reserved_hd(hd);
     if (Is_mixed_block_reserved(reserved)) {
-      char buf[60];
-      sprintf(buf, "output_value: mixed block (%ld)", reserved);
-      extern_invalid_argument(buf);
+      extern_invalid_argument("output_value: mixed block");
       break;
     }
 
