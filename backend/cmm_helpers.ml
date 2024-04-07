@@ -1424,7 +1424,6 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
       | false, Scan_prefix prefix_len ->
-          (* CR mixed blocks: this is not implemeneted *)
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed", [wordsize; tag; prefix_len]
     in

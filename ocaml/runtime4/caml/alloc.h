@@ -32,6 +32,8 @@ extern "C" {
 
 CAMLextern value caml_alloc_with_reserved (mlsize_t, tag_t, reserved_t);
 CAMLextern value caml_alloc (mlsize_t wosize, tag_t);
+CAMLextern value caml_alloc_mixed (mlsize_t wosize, tag_t,
+                                   mlsize_t scannable_wosize);
 CAMLextern value caml_alloc_small (mlsize_t wosize, tag_t);
 CAMLextern value caml_alloc_small_with_reserved (mlsize_t wosize, tag_t,
                                                  reserved_t);

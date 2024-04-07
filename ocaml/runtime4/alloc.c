@@ -59,7 +59,7 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
   }else{
     result = caml_alloc_shr_reserved (wosize, tag, reserved);
     if (tag < No_scan_tag){
-      for (i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+      for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
     }
     result = caml_check_urgent_gc (result);
   }
@@ -68,6 +68,13 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
 
 CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
+}
+
+CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
+                                   mlsize_t scannable_prefix) {
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize(scannable_prefix);
+  return caml_alloc_with_reserved (wosize, tag, reserved);
 }
 
 CAMLexport value caml_alloc_small_with_reserved (mlsize_t wosize, tag_t tag,
