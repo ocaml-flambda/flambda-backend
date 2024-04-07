@@ -1,6 +1,5 @@
 (* TEST
-  * runtime5
-  ** expect
+  * expect
  *)
 
 (* Mixed float-float# blocks are always OK. *)

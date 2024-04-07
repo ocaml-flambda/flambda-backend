@@ -1,8 +1,7 @@
 (* TEST
    flags = "-extension layouts_alpha"
 
-   * runtime5
-   ** expect
+   * expect
  *)
 
 (* Test bytecode printing of values *)

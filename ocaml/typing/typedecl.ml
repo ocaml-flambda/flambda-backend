@@ -1118,8 +1118,7 @@ let assert_mixed_record_support =
     if not (Language_extension.is_at_least Layouts required_layouts_level) then
       raise (Error (loc, Illegal_mixed_record
                           (Insufficient_level { required_layouts_level })));
-    if Config.reserved_header_bits < required_reserved_header_bits
-    || not Config.runtime5 then
+    if Config.reserved_header_bits < required_reserved_header_bits then
       raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
     if value_prefix_len > max_value_prefix_len then
       raise

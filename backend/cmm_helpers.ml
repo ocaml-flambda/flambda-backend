@@ -93,9 +93,7 @@ end = struct
 
   let assert_mixed_block_support =
     lazy
-      (if not Config.runtime5
-       then Misc.fatal_error "Mixed blocks are only supported in runtime5";
-       if not Config.native_compiler
+      (if not Config.native_compiler
        then Misc.fatal_error "Mixed blocks are only supported in native code";
        let reserved_header_bits = Config.reserved_header_bits in
        let addr_size_bits = Arch.size_addr * 8 in
@@ -1425,10 +1423,10 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
       | true, Scan_prefix prefix_len ->
         Mixed_block_support.assert_mixed_block_support ();
         "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
-      | false, Scan_prefix _ ->
-        Misc.fatal_error
-          "mixed blocks not implemented for runtime 4. (It uses the PROFINFO \
-           configuration instead of HEADER_RESERVED_WORDS.)"
+      | false, Scan_prefix prefix_len ->
+          (* CR mixed blocks: this is not implemeneted *)
+        Mixed_block_support.assert_mixed_block_support ();
+        "caml_alloc_mixed", [wordsize; tag; prefix_len]
     in
     Clet
       ( VP.create id,

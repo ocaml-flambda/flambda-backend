@@ -1,10 +1,9 @@
 (* TEST
-   * runtime5
-   ** flambda2
+   * flambda2
    reference = "${test_source_directory}/test_mixed_blocks.reference"
-   *** native
+   ** native
      flags = "-extension layouts_alpha"
-   *** bytecode
+   ** bytecode
      flags = "-extension layouts_alpha"
 *)
 
