@@ -77,16 +77,34 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
    information (issue #11482). */
 
 #ifdef NATIVE_CODE
-CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
+
+value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
+                                        reserved_t reserved)
 {
   CAMLassert (tag < Num_tags);
   CAMLassert (tag != Infix_tag);
   caml_check_urgent_gc (Val_unit);
-  value result = caml_alloc_shr (wosize, tag);
+  value result = caml_alloc_shr_reserved (wosize, tag, reserved);
   if (tag < No_scan_tag) {
-    for (mlsize_t i = 0; i < wosize; i++) Field (result, i) = Val_unit;
+    mlsize_t scannable_wosize = Scannable_wosize_val(result);
+    for (mlsize_t i = 0; i < scannable_wosize; i++) {
+      Field (result, i) = Val_unit;
+    }
   }
   return result;
+}
+
+CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, 0);
+}
+
+CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
+                                                intnat scannable_prefix_len)
+{
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize(scannable_prefix_len);
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, reserved);
 }
 #endif
 
