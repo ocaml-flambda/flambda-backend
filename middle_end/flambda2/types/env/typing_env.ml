@@ -108,7 +108,7 @@ type t =
     next_binding_time : Binding_time.t;
     min_binding_time : Binding_time.t;
         (* Earlier variables have mode In_types *)
-    has_bottom : bool
+    is_bottom : bool
   }
 
 and serializable =
@@ -124,9 +124,9 @@ let is_empty t =
   && (match t.prev_levels with [] -> true | _ :: _ -> false)
   && Symbol.Set.is_empty t.defined_symbols
 
-let make_bottom t = { t with has_bottom = true }
+let make_bottom t = { t with is_bottom = true }
 
-let has_bottom t = t.has_bottom
+let is_bottom t = t.is_bottom
 
 let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
@@ -136,11 +136,11 @@ let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; min_binding_time;
-         has_bottom;
+         is_bottom;
        } as t) =
   if is_empty t then
     Format.pp_print_string ppf "Empty"
-  else if has_bottom then
+  else if is_bottom then
     Format.pp_print_string ppf "Bottom"
   else
     let levels =
@@ -381,7 +381,7 @@ let create ~resolver ~get_imported_names =
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
     min_binding_time = Binding_time.earliest_var;
-    has_bottom = false
+    is_bottom = false
   }
 
 let increment_scope t =
@@ -498,7 +498,7 @@ let find_with_binding_time_and_mode' t name kind =
   | found ->
     let ty, binding_time_and_mode = found in
     check_optional_kind_matches name ty kind;
-    if t.has_bottom then MTC.bottom_like ty, binding_time_and_mode else found
+    if t.is_bottom then MTC.bottom_like ty, binding_time_and_mode else found
 
 (* This version doesn't check min_binding_time. This ensures that no allocation
    occurs when we're not interested in the name mode. *)
@@ -955,14 +955,14 @@ let add_env_extension_from_level t level ~meet_type : t =
     t
 
 let add_equation_strict t name ty ~meet_type : _ Or_bottom.t =
-  if t.has_bottom
+  if t.is_bottom
   then Bottom
   else
     try Ok (add_equation ~raise_on_bottom:true t name ty ~meet_type)
     with Bottom_equation -> Bottom
 
 let add_env_extension_strict t env_extension ~meet_type : _ Or_bottom.t =
-  if t.has_bottom
+  if t.is_bottom
   then Bottom
   else
     try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)

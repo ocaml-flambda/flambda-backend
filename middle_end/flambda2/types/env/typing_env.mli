@@ -115,7 +115,7 @@ val create :
   get_imported_names:(unit -> Name.Set.t) ->
   t
 
-val has_bottom : t -> bool
+val is_bottom : t -> bool
 
 val closure_env : t -> t
 

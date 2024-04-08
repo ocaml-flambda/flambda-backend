@@ -1246,7 +1246,7 @@ and meet_function_type (env : TE.t)
       ~right_a:code_id2 ~meet_b:meet ~left_b:rec_info1 ~right_b:rec_info2
 
 and meet_type env t1 t2 : _ Or_bottom.t =
-  if TE.has_bottom env
+  if TE.is_bottom env
   then Bottom
   else
     match meet env t1 t2 with
@@ -1916,7 +1916,7 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
 
 (* Exposed to the outside world with Or_bottom type *)
 let meet env ty1 ty2 : _ Or_bottom.t =
-  if TE.has_bottom env
+  if TE.is_bottom env
   then Bottom
   else
     let scope = TE.current_scope env in
@@ -1932,7 +1932,7 @@ let meet env ty1 ty2 : _ Or_bottom.t =
         Ok (res_ty, env_extension)
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
-  if TE.has_bottom env
+  if TE.is_bottom env
   then Bottom
   else
     let result = Bound_name.create_var result_var in
@@ -1942,7 +1942,7 @@ let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
     | Ok (_, env_extension) -> Ok env_extension
 
 let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
-  if TE.has_bottom env
+  if TE.is_bottom env
   then Bottom
   else
     let scope = TE.current_scope env in

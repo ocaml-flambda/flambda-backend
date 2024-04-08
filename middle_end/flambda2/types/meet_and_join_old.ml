@@ -130,7 +130,7 @@ let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
-  if TE.has_bottom (Meet_env.env env)
+  if TE.is_bottom (Meet_env.env env)
   then Bottom
   else
     let t, env_extension = meet0 env t1 t2 in
@@ -1015,7 +1015,7 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
     meet_env_extension0 env ext new_ext extra_extensions
 
 and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
-  if TE.has_bottom (Meet_env.env env)
+  if TE.is_bottom (Meet_env.env env)
   then Bottom
   else try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
@@ -1682,7 +1682,7 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
   TEE.from_map equations
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
-  if TE.has_bottom env
+  if TE.is_bottom env
   then Bottom
   else
     let result = Bound_name.create_var result_var in
