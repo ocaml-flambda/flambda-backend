@@ -2,9 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Sebastien Hinderer, projet Gallium, INRIA Paris            *)
+(*               Damien Doligez, projet Cambium, INRIA Paris              *)
 (*                                                                        *)
-(*   Copyright 2016 Institut National de Recherche en Informatique et     *)
+(*   Copyright 2023 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
@@ -13,26 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Description of ocamltest's command-line options *)
+(* Translate a test file from old to new syntax. *)
 
-val log_to_stderr : bool
+type style =
+| Plain
+| Lines
+| Chars
 
-val files_to_test : string list
-
-val promote : bool
-
-val default_timeout : int
-
-val usage : string
-
-val find_test_dirs : string list
-
-val list_tests : string list
-
-val keep_test_dir_on_success : bool
-
-val show_timings : bool
-
-val translate : bool
-val style : Translate.style
-val compact : bool
+val file : style:style -> compact:bool -> string -> unit
