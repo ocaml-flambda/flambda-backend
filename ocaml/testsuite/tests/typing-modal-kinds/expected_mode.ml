@@ -115,10 +115,13 @@ Line 1, characters 56-57:
 Error: This value escapes its region
 |}]
 
+(* CR layouts: The following should pass, even in principal mode. *)
 let float_u_escape : local_ _ -> (float#, float#) Float_u.pair =
   fun x -> Float_u.mk_pair x x [@nontail]
 
 [%%expect{|
+val float_u_escape : local_ float# -> (float#, float#) Float_u.pair = <fun>
+|}, Principal{|
 Line 2, characters 27-28:
 2 |   fun x -> Float_u.mk_pair x x [@nontail]
                                ^
@@ -130,6 +133,10 @@ let hidden_float_u_escape :
   fun x -> Float_u.mk_pair x x [@nontail]
 
 [%%expect{|
+val hidden_float_u_escape :
+  local_ Hidden_float_u.t ->
+  (Hidden_float_u.t, Hidden_float_u.t) Float_u.pair = <fun>
+|}, Principal{|
 Line 3, characters 27-28:
 3 |   fun x -> Float_u.mk_pair x x [@nontail]
                                ^
@@ -238,19 +245,14 @@ Error: Found a once value where a many value was expected
 let float_u_duplicate : once_ _ -> float# = fun x -> x
 
 [%%expect{|
-Line 1, characters 53-54:
-1 | let float_u_duplicate : once_ _ -> float# = fun x -> x
-                                                         ^
-Error: Found a once value where a many value was expected
+val float_u_duplicate : once_ float# -> float# = <fun>
 |}]
 
 let hidden_float_u_duplicate : once_ _ -> Hidden_float_u.t = fun x -> x
 
 [%%expect{|
-Line 1, characters 70-71:
-1 | let hidden_float_u_duplicate : once_ _ -> Hidden_float_u.t = fun x -> x
-                                                                          ^
-Error: Found a once value where a many value was expected
+val hidden_float_u_duplicate : once_ Hidden_float_u.t -> Hidden_float_u.t =
+  <fun>
 |}]
 
 let float_u_record_duplicate : once_ _ -> float_u_record =
@@ -355,19 +357,14 @@ Error: Found a shared value where a unique value was expected
 let float_u_unshare : _ -> unique_ float# = fun x -> x
 
 [%%expect{|
-Line 1, characters 53-54:
-1 | let float_u_unshare : _ -> unique_ float# = fun x -> x
-                                                         ^
-Error: Found a shared value where a unique value was expected
+val float_u_unshare : float# -> unique_ float# = <fun>
 |}]
 
 let hidden_float_u_unshare : _ -> unique_ Hidden_float_u.t = fun x -> x
 
 [%%expect{|
-Line 1, characters 70-71:
-1 | let hidden_float_u_unshare : _ -> unique_ Hidden_float_u.t = fun x -> x
-                                                                          ^
-Error: Found a shared value where a unique value was expected
+val hidden_float_u_unshare : Hidden_float_u.t -> unique_ Hidden_float_u.t =
+  <fun>
 |}]
 
 let float_u_record_unshare : _ -> unique_ float_u_record =

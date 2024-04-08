@@ -33,6 +33,25 @@ module Hidden_int : sig type t : immediate val hide : int -> t end
 module Hidden_float_u : sig type t : float64 val hide : float# -> t end
 |}]
 
+module Immediate : sig
+  val id : ('a : immediate). 'a -> 'a
+  val ignore : ('a : immediate). 'a -> unit
+  val unique : ('a : immediate). unique_ 'a -> 'a
+end = struct
+  let id x = x
+  let ignore _ = ()
+  let unique (unique_ x) = x
+end
+
+[%%expect{|
+module Immediate :
+  sig
+    val id : ('a : immediate). 'a -> 'a
+    val ignore : ('a : immediate). 'a -> unit
+    val unique : ('a : immediate). unique_ 'a -> 'a
+  end
+|}]
+
 module Float_u : sig
   val id : ('a : float64). 'a -> 'a
   val ignore : ('a : float64). 'a -> unit
@@ -141,24 +160,17 @@ Line 1, characters 50-51:
 Error: This value escapes its region
 |}]
 
-let float_u_escape = let local_ x : float# = #3.14 in x
+let float_u_escape () = let local_ x : float# = #3.14 in x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 54-55:
-1 | let float_u_escape = let local_ x : float# = #3.14 in x
-                                                          ^
-Error: This value escapes its region
+val float_u_escape : unit -> float# = <fun>
 |}]
 
-let hidden_float_u_escape =
+let hidden_float_u_escape () =
   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
 
 [%%expect{|
-Line 2, characters 65-66:
-2 |   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
-                                                                     ^
-Error: This value escapes its region
+val hidden_float_u_escape : unit -> Hidden_float_u.t = <fun>
 |}]
 
 let float_u_record_escape =
@@ -188,13 +200,9 @@ let foo () =
   (* [r.x] is allocated global and can escape. *)
   r.x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
 type r = { x : float; y : float; }
-Line 6, characters 2-5:
-6 |   r.x
-      ^^^
-Error: This value escapes its region
+val foo : unit -> float = <fun>
 |}]
 
 let function_escape = let local_ x : int -> int = fun y -> y in x
@@ -304,24 +312,17 @@ Line 1, characters 59-60:
 Error: Found a once value where a many value was expected
 |}]
 
-let float_u_duplicate = let once_ x : float# = #3.14 in Float_u.id x
+let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 67-68:
-1 | let float_u_duplicate = let once_ x : float# = #3.14 in Float_u.id x
-                                                                       ^
-Error: Found a once value where a many value was expected
+val float_u_duplicate : unit -> float# = <fun>
 |}]
 
-let hidden_float_u_duplicate =
+let hidden_float_u_duplicate () =
   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
 
 [%%expect{|
-Line 2, characters 75-76:
-2 |   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
-                                                                               ^
-Error: Found a once value where a many value was expected
+val hidden_float_u_duplicate : unit -> Hidden_float_u.t = <fun>
 |}]
 
 let float_u_record_duplicate =
@@ -493,29 +494,50 @@ Line 1, characters 51-52:
 
 |}]
 
-let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+(* CR layouts: The following should pass, even in principal mode, because the
+argument kind is known to cross mode. *)
 
-(* CR layouts v2.8: this should succeed *)
+let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+
 [%%expect{|
-Line 1, characters 81-82:
-1 | let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
-                                                                                     ^
+val float_u_unshare : unit -> float# = <fun>
+|}, Principal{|
+Line 1, characters 84-85:
+1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+                                                                                        ^
 Error: This value is used here as unique, but it has already been used:
-Line 1, characters 63-64:
-1 | let float_u_unshare = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
-                                                                   ^
+Line 1, characters 66-67:
+1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
+                                                                      ^
 
 |}]
 
-let hidden_float_u_unshare =
+let imm_escape () = Immediate.id (local_ 42) [@nontail]
+
+[%%expect{|
+val imm_escape : unit -> int = <fun>
+|}, Principal{|
+Line 1, characters 33-44:
+1 | let imm_escape () = Immediate.id (local_ 42) [@nontail]
+                                     ^^^^^^^^^^^
+Error: This value escapes its region
+|}]
+
+let hidden_float_u_unshare () =
   let x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in
   Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
+val hidden_float_u_unshare : unit -> Hidden_float_u.t = <fun>
+|}, Principal{|
 Line 3, characters 35-36:
 3 |   Float_u.ignore x; Float_u.unique x
                                        ^
-Error: Found a shared value where a unique value was expected
+Error: This value is used here as unique, but it has already been used:
+Line 3, characters 17-18:
+3 |   Float_u.ignore x; Float_u.unique x
+                     ^
+
 |}]
 
 let float_u_record_unshare =
