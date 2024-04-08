@@ -18,7 +18,8 @@ module Dir : sig
   type t
 
   val path : t -> string
-  val files : t -> string list
+  val files : t -> (string * string) list
+  val basenames : t -> string list
   val hidden : t -> bool
 
   val create : hidden:bool -> string -> t
@@ -28,25 +29,27 @@ module Dir : sig
 end = struct
   type t = {
     path : string;
-    files : string list;
+    files : (string * string) list;
     hidden : bool;
   }
 
   let path t = t.path
   let files t = t.files
+  let basenames t = List.map fst t.files
   let hidden t = t.hidden
 
   let find t fn =
-    if List.mem fn t.files then
-      Some (Filename.concat t.path fn)
-    else
-      None
+    List.find_map (fun (base, path) ->
+      if String.equal base fn then
+        Some path
+      else
+        None) t.files
 
   let find_uncap t fn =
     let fn = String.uncapitalize_ascii fn in
-    let search base =
+    let search (base, path) =
       if String.uncapitalize_ascii base = fn then
-        Some (Filename.concat t.path base)
+        Some path
       else
         None
     in
@@ -62,7 +65,7 @@ end = struct
       [||]
 
   let create ~hidden path =
-    { path; files = Array.to_list (readdir_compat path); hidden }
+    { path; files = Array.to_list (readdir_compat path) |> List.map (fun base -> base, Filename.concat path base); hidden }
 end
 
 type visibility = Visible | Hidden
@@ -103,8 +106,7 @@ end = struct
     STbl.clear !visible_files_uncap
 
   let prepend_add dir =
-    List.iter (fun base ->
-        let fn = Filename.concat (Dir.path dir) base in
+    List.iter (fun (base, fn) ->
         if Dir.hidden dir then begin
           STbl.replace !hidden_files base fn;
           STbl.replace !hidden_files_uncap (String.uncapitalize_ascii base) fn
@@ -122,8 +124,7 @@ end = struct
         STbl.replace !visible_files base fn
     in
     List.iter
-      (fun base ->
-         let fn = Filename.concat (Dir.path dir) base in
+      (fun (base, fn) ->
          update base fn visible_files hidden_files;
          let ubase = String.uncapitalize_ascii base in
          update ubase fn visible_files_uncap hidden_files_uncap)
