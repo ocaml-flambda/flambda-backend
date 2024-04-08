@@ -58,12 +58,12 @@ module Rebuilt_expr = struct
         ~body:body.expr ~free_names_of_body:(Known body.free_names)
     in
     let free_names =
-      Name_occurrences.union body.free_names cont_handler.free_names
+      Name_occurrences.union (Name_occurrences.remove_continuation body.free_names ~continuation:cont) cont_handler.free_names
     in
     { expr; free_names }
 
-  let create_recursive_let_cont ~invariant_params handlers ~body =
-    let handlers = create_continuation_handlers handlers in
+  let create_recursive_let_cont ~invariant_params handlers0 ~body =
+    let handlers = create_continuation_handlers handlers0 in
     let expr =
       Flambda.Let_cont_expr.create_recursive ~invariant_params handlers.handlers
         ~body:body.expr
@@ -71,6 +71,7 @@ module Rebuilt_expr = struct
     let free_names =
       Name_occurrences.union body.free_names handlers.free_names
     in
+    let free_names = Continuation.Map.fold (fun cont _ free_names -> Name_occurrences.remove_continuation free_names ~continuation:cont) handlers0 free_names in
     { expr; free_names }
 
   let from_expr ~expr ~free_names = { expr; free_names }
