@@ -43,8 +43,8 @@ method! class_of_operation op =
     | Ipause
     | Iprefetch _ -> Op_other
     end
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
+  | Imove | Ispill | Ireload
+  | Ifloatop _
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
@@ -86,8 +86,8 @@ class cfg_cse = object
     | Ipause
     | Iprefetch _ -> Op_other
       end
-  | Move | Spill | Reload | Negf | Absf | Addf | Subf | Mulf | Divf
-  | Compf _
+  | Move | Spill | Reload
+  | Floatop _
   | Csel _
   | Valueofint | Intofvalue | Vectorcast _ | Scalarcast _
   | Const_int _ | Const_float32 _ | Const_float _

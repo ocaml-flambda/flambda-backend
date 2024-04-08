@@ -126,7 +126,7 @@ let get_ids_from_exp exp =
    | { pexp_desc = Pexp_apply (exp, args) } ->
      get_id_from_exp exp ::
      List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+       | (Nolabel, arg) -> get_id_from_exp arg
        | (_, _) -> Result.Error ())
        args
    | _ -> [get_id_from_exp exp])
@@ -463,14 +463,26 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let assume_zero_alloc ?mark_used attributes =
+let assume_zero_alloc ?mark_used attributes : Assume_info.t =
   let p = Zero_alloc in
   let attr = find_attribute ?mark_used (is_property_attribute p) attributes in
-  match parse_property_attribute attr p with
-  | Default_check -> false
-  | Ignore_assert_all _ -> false
-  | Assume { property = Zero_alloc; _ } -> true
-  | Check { property = Zero_alloc; _ } -> false
+  let res = parse_property_attribute attr p in
+  match res with
+  | Default_check -> Assume_info.none
+  | Ignore_assert_all _ -> Assume_info.none
+  | Assume { strict; never_returns_normally; } ->
+    Assume_info.create ~strict ~never_returns_normally
+  | Check { loc; _ } ->
+    let attr = Option.get attr in
+    let name = attr.attr_name.txt in
+    let msg = "Only the following combinations are supported in this context: \
+               'zero_alloc assume', \
+               `zero_alloc assume strict`, \
+               `zero_alloc assume never_returns_normally`,\
+               `zero_alloc assume never_returns_normally strict`."
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
+    Assume_info.none
 
 let get_assume_zero_alloc ~with_warnings attributes =
   if with_warnings then

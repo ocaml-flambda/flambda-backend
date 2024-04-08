@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Stable extensions library"
+archive(byte) = "stable.cma"
+archive(native) = "stable.cmxa"
+plugin(byte) = "stable.cma"
+plugin(native) = "stable.cmxs"
