@@ -167,7 +167,7 @@ let mk_H f =
 
 let mk_libloc f =
   "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Location of .libloc dir as well \
-    as library hames resolveable using it"
+    as library names accessible using it"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
