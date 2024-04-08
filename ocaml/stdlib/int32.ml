@@ -109,7 +109,10 @@ let[@inline available] unsigned_div n d =
 let[@inline available] unsigned_rem n d =
   sub n (mul ((unsigned_div[@inlined]) n d) d)
 
+(* [caml_hash_exn] doesn't raise on int32s, so it's safe for
+   it to be marked as [@@noalloc].
+ *)
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]
+  int -> int -> int -> int32 -> int = "caml_hash_exn" [@@noalloc]
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x

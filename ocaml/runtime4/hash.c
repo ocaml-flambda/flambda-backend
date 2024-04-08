@@ -181,7 +181,13 @@ CAMLexport uint32_t caml_hash_mix_string(uint32_t h, value s)
 
 /* The generic hash function */
 
-CAMLprim value caml_hash(value count, value limit, value seed, value obj)
+/* Internally to Jane Street, we have renamed [caml_hash] to [caml_hash_exn]
+   to suggest that calling it could raise. (E.g. it raises on mixed blocks.)
+   As such, we've removed [@@noalloc] from the OCaml [external] that references
+   this C binding, and would likewise need to remove [@@noalloc] from any
+   other [external] formerly bound to [caml_hash].
+*/
+CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
 {
   value queue[HASH_QUEUE_SIZE]; /* Queue of values to examine */
   intnat rd;                    /* Position of first value in queue */
