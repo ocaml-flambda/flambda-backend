@@ -71,9 +71,9 @@ method class_of_operation op =
   | Iintop _ -> Op_pure
   | Iintop_imm(_, _) -> Op_pure
   | Iintop_atomic _ -> Op_store true
-  | Icompf _
+  | Ifloatop _
   | Icsel _
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Iscalarcast _
+  | Iscalarcast _
   | Ivalueofint | Iintofvalue | Ivectorcast _ -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_other

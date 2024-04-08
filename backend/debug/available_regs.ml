@@ -224,9 +224,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           (( Icall_ind | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
            | Iconst_int _ | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _
            | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-           | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-           | Isubf | Imulf | Idivf | Icsel _ | Ivalueofint | Iintofvalue
-           | Iopaque | Ispecific _ | Iscalarcast _ | Ivectorcast _
+           | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _ | Ivalueofint
+           | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _ | Ivectorcast _
            | Iprobe_is_enabled _ | Ibeginregion | Iendregion | Idls_get ) as op)
         ->
         (* We split the calculation of registers that become unavailable after a
@@ -287,9 +286,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
           | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
           | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind | Itailcall_imm _
           | Iextcall _ | Istackoffset _ | Iload _ | Istore _ | Iintop _
-          | Iintop_imm _ | Iintop_atomic _ | Icompf _ | Inegf | Iabsf | Iaddf
-          | Isubf | Imulf | Idivf | Icsel _ | Ivalueofint | Iintofvalue
-          | Iopaque | Ispecific _ | Iscalarcast _ | Ivectorcast _
+          | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _ | Ivalueofint
+          | Iintofvalue | Iopaque | Ispecific _ | Iscalarcast _ | Ivectorcast _
           | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion | Idls_get
             ->
             RD.Set.empty

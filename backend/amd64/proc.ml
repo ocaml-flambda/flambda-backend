@@ -449,8 +449,7 @@ let destroyed_at_oper = function
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
-  | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-       | Icompf _
+  | Iop(Imove | Ispill | Ireload | Ifloatop _
        | Icsel _
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
@@ -502,8 +501,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
        | Intop_atomic _
-       | Negf | Absf | Addf | Subf | Mulf | Divf
-       | Compf _
+       | Floatop _
        | Csel _
        | Valueofint | Intofvalue
        | Vectorcast _
@@ -581,9 +579,8 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ivalueofint | Iintofvalue | Ivectorcast _
-  | Icompf _ | Iscalarcast _
+  | Ifloatop _ | Iscalarcast _
   | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -610,7 +607,7 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single, _, _) | Icompf _ ->
+  | Istore(Single, _, _) | Ifloatop (Icompf _) ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
     (match Simd_proc.register_behavior op with
@@ -635,7 +632,7 @@ let max_register_pressure =
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Imove | Ispill | Ireload | Ifloatop (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
