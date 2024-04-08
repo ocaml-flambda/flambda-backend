@@ -4,6 +4,7 @@
  (name flambda2_numbers)
  (wrapped true)
  (instrumentation (backend bisect_ppx))
+ (foreign_stubs (language c) (names float32))
  (flags
   (:standard
    -principal
