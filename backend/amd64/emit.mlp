@@ -478,12 +478,12 @@ let clear_stack_realloc () =
 let emit_stack_realloc () =
   begin match !stack_realloc with
   | None -> ()
-  | Some { sc_label; sc_return; sc_max_frame_size; } -> begin
+  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } -> begin
       def_label sc_label;
       (* Pass the desired frame size on the stack, since all of the
          argument-passing registers may be in use.
          Also serves to align the stack properly before the call *)
-      I.push (int (Config.stack_threshold + sc_max_frame_size / 8));
+      I.push (int (Config.stack_threshold + sc_max_frame_size_in_bytes / 8));
       cfi_adjust_cfa_offset 8;
       (* measured in words *)
       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
