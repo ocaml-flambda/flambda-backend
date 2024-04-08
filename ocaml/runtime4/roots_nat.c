@@ -578,7 +578,7 @@ static void do_local_allocations(caml_local_arenas* loc,
     i = 0;
     if (Tag_hd(hd) == Closure_tag)
       i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
-    for (; i < Wosize_hd(hd); i++) {
+    for (; i < Scannable_wosize_hd(hd); i++) {
       value *p = &Field(Val_hp(hp), i);
       int marked_local = visit(maj, min, p);
       if (marked_local) {
