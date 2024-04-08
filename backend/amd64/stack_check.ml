@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -15,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-=======
->>>>>>> c6f0154e (ocamlformat)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -45,11 +42,6 @@ let frame_size :
 
 let linear : Linear.fundecl -> Linear.fundecl =
  fun fundecl ->
-<<<<<<< HEAD
-=======
-  (* CR mshinwell: this should be conditionalized on a specific "stack checks
-     enabled" config option, so we can backport to 4.x *)
->>>>>>> c6f0154e (ocamlformat)
   match Config.runtime5 with
   | false -> fundecl
   | true ->
@@ -68,16 +60,9 @@ let linear : Linear.fundecl -> Linear.fundecl =
     then
       let fun_body =
         Linear.instr_cons
-<<<<<<< HEAD
           (Lstackcheck { max_frame_size_bytes = max_frame_size })
           [||] [||] ~available_before:fundecl.fun_body.available_before
           ~available_across:fundecl.fun_body.available_across fundecl.fun_body
-=======
-          (Lstackcheck
-             { max_frame_size_bytes = max_frame_size; save_registers = false })
-          [||] [||] ~available_before:None ~available_across:None
-          fundecl.fun_body
->>>>>>> c6f0154e (ocamlformat)
       in
       { fundecl with fun_body }
     else fundecl
