@@ -67,10 +67,10 @@ module Vars = struct
         | Lop (Istackoffset delta) -> t.stack_offset + delta
         | Lpushtrap _ -> t.stack_offset + Proc.trap_frame_size_in_bytes
         | Lpoptrap -> t.stack_offset - Proc.trap_frame_size_in_bytes
+        | Ladjust_stack_offset { delta_bytes } -> t.stack_offset + delta_bytes
         | Lend | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _
         | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
-        | Lraise _ | Ladjust_stack_offset _ | Lstackcheck _ ->
-          (* CR xclerc for xclerc: double check `Lstackcheck`. *)
+        | Lraise _ | Lstackcheck _ ->
           t.stack_offset
       in
       { stack_offset }

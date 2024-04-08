@@ -346,16 +346,9 @@ let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
     State.add_to_explore state expected_lbl_handler result_lbl_handler
   | Poptrap, Poptrap -> ()
   | Prologue, Prologue -> ()
-  | ( Stack_check
-        { max_frame_size_bytes = expected_max_frame_size_bytes;
-          save_registers = expected_save_registers
-        },
-      Stack_check
-        { max_frame_size_bytes = result_max_frame_size_bytes;
-          save_registers = result_save_registers
-        } ) ->
+  | ( Stack_check { max_frame_size_bytes = expected_max_frame_size_bytes },
+      Stack_check { max_frame_size_bytes = result_max_frame_size_bytes } ) ->
     if expected_max_frame_size_bytes <> result_max_frame_size_bytes
-       || expected_save_registers <> result_save_registers
     then different location "stack check"
   | _ -> different location "basic"
  [@@ocaml.warning "-4"]

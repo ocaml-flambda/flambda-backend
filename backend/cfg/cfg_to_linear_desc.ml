@@ -6,8 +6,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
   | Reloadretaddr -> Lreloadretaddr
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
-  | Stack_check { max_frame_size_bytes; save_registers } ->
-    Lstackcheck { max_frame_size_bytes; save_registers }
+  | Stack_check { max_frame_size_bytes } -> Lstackcheck { max_frame_size_bytes }
   | Op op ->
     let op : Mach.operation =
       match op with

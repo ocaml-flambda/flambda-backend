@@ -308,8 +308,8 @@ let dump_basic ppf (basic : basic) =
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
-  | Stack_check { max_frame_size_bytes; save_registers = _ } ->
-    fprintf ppf "Stack_checl size=%d" max_frame_size_bytes
+  | Stack_check { max_frame_size_bytes } ->
+    fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")

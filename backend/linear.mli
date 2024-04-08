@@ -45,7 +45,7 @@ and instruction_desc =
   | Lpushtrap of { lbl_handler : label; }
   | Lpoptrap
   | Lraise of Lambda.raise_kind
-  | Lstackcheck of { max_frame_size_bytes : int; save_registers : bool; }
+  | Lstackcheck of { max_frame_size_bytes : int; }
 
 val has_fallthrough :  instruction_desc -> bool
 val end_instr: instruction

@@ -45,7 +45,7 @@ and instruction_desc =
   | Lpushtrap of { lbl_handler : label; }
   | Lpoptrap
   | Lraise of Lambda.raise_kind
-  | Lstackcheck of { max_frame_size_bytes : int; save_registers : bool; }
+  | Lstackcheck of { max_frame_size_bytes : int; }
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _
