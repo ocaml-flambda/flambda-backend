@@ -115,7 +115,7 @@ Line 1, characters 56-57:
 Error: This value escapes its region
 |}]
 
-(* CR layouts: The following should pass, even in principal mode. *)
+(* CR layouts v2.8: The following should pass, even in principal mode. *)
 let float_u_escape : local_ _ -> (float#, float#) Float_u.pair =
   fun x -> Float_u.mk_pair x x [@nontail]
 
