@@ -123,13 +123,13 @@ let label_usage_complaint priv mut lu
   | Asttypes.Private, _ ->
       if lu.lu_projection then None
       else Some Unused
-  | Asttypes.Public, Asttypes.Immutable -> begin
+  | Asttypes.Public, Types.Immutable -> begin
       match lu.lu_projection, lu.lu_construct with
       | true, _ -> None
       | false, false -> Some Unused
       | false, true -> Some Not_read
     end
-  | Asttypes.Public, Asttypes.Mutable -> begin
+  | Asttypes.Public, Types.Mutable _ -> begin
       match lu.lu_projection, lu.lu_mutation, lu.lu_construct with
       | true, true, _ -> None
       | false, false, false -> Some Unused
@@ -2958,7 +2958,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 let escape_mode ~errors ~env ~loc id vmode escaping_context =
   match
   Mode.Regionality.submode
-    (Mode.Value.regionality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     (Mode.Regionality.global)
   with
   | Ok () -> ()
@@ -2969,13 +2969,13 @@ let escape_mode ~errors ~env ~loc id vmode escaping_context =
 let share_mode ~errors ~env ~loc id vmode shared_context =
   match
     Mode.Linearity.submode
-      (Mode.Value.linearity vmode)
+      (Mode.Value.proj (Comonadic Linearity) vmode)
       Mode.Linearity.many
   with
   | Error _ ->
       may_lookup_error errors loc env
         (Once_value_used_in (id, shared_context))
-  | Ok () -> Mode.Value.join [Mode.Value.min_with_uniqueness Mode.Uniqueness.shared; vmode]
+  | Ok () -> Mode.Value.join [Mode.Value.min_with (Monadic Uniqueness) Mode.Uniqueness.shared; vmode]
 
 let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
   closure_context comonadic0 : Mode.Value.l =
@@ -2998,7 +2998,7 @@ let closure_mode ~errors ~env ~loc id {Mode.monadic; comonadic}
 let exclave_mode ~errors ~env ~loc id vmode =
   match
   Mode.Regionality.submode
-    (Mode.Value.regionality vmode)
+    (Mode.Value.proj (Comonadic Areality) vmode)
     Mode.Regionality.regional
 with
 | Ok () -> vmode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
@@ -3962,15 +3962,15 @@ let report_lookup_error _loc env ppf = function
   | Value_used_in_closure (lid, error, context) ->
       let e0, e1 =
         match error with
-        | `Regionality _ -> "local", "might escape"
-        | `Linearity _ -> "once", "is many"
+        | Error (Areality, _) -> "local", "might escape"
+        | Error (Linearity, _) -> "once", "is many"
       in
       fprintf ppf
       "@[The value %a is %s, so cannot be used \
             inside a closure that %s.@]"
       !print_longident lid e0 e1;
       begin match error, context with
-      | `Regionality _, Some Tailcall_argument ->
+      | Error (Areality, _), Some Tailcall_argument ->
          fprintf ppf "@.@[Hint: The closure might escape because it \
                           is an argument to a tail call@]"
       | _ -> ()

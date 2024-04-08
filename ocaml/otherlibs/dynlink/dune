@@ -89,12 +89,14 @@
     types
     btype
     lazy_backtrack
+    zero_alloc_utils
     subst
     predef
     datarepr
     cmi_format
     persistent_env
     env
+    assume_info
     debuginfo
     lambda
     runtimedef
@@ -161,6 +163,7 @@
 (copy_files ../../utils/symbol.ml)
 (copy_files ../../utils/linkage_name.ml)
 (copy_files ../../utils/lazy_backtrack.ml)
+(copy_files ../../utils/zero_alloc_utils.ml)
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
@@ -190,6 +193,7 @@
 (copy_files ../../file_formats/cmi_format.ml)
 (copy_files ../../typing/persistent_env.ml)
 (copy_files ../../typing/env.ml)
+(copy_files ../../lambda/assume_info.ml)
 (copy_files ../../lambda/debuginfo.ml)
 (copy_files ../../lambda/lambda.ml)
 (copy_files ../../lambda/runtimedef.ml)
@@ -225,6 +229,7 @@
 (copy_files ../../utils/symbol.mli)
 (copy_files ../../utils/linkage_name.mli)
 (copy_files ../../utils/lazy_backtrack.mli)
+(copy_files ../../utils/zero_alloc_utils.mli)
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
@@ -254,6 +259,7 @@
 (copy_files ../../file_formats/cmi_format.mli)
 (copy_files ../../typing/persistent_env.mli)
 (copy_files ../../typing/env.mli)
+(copy_files ../../lambda/assume_info.mli)
 (copy_files ../../lambda/debuginfo.mli)
 (copy_files ../../lambda/lambda.mli)
 (copy_files ../../lambda/runtimedef.mli)
@@ -343,6 +349,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Zero_alloc_utils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_asttypes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
@@ -359,6 +366,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Assume_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
@@ -420,6 +428,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc_utils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
@@ -439,6 +448,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Assume_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx

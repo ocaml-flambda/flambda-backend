@@ -84,8 +84,7 @@ class cse_generic =
       | Intop _ -> Op_pure
       | Intop_imm (_, _) -> Op_pure
       | Intop_atomic _ -> Op_store true
-      | Compf _ | Csel _ | Negf | Absf | Addf | Subf | Mulf | Divf
-      | Scalarcast _ | Floatofint | Intoffloat | Valueofint | Intofvalue
+      | Floatop _ | Csel _ | Scalarcast _ | Valueofint | Intofvalue
       | Vectorcast _ ->
         Op_pure
       | Specific _ -> Op_other

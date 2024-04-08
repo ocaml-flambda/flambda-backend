@@ -3368,9 +3368,9 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary Cintoffloat
+let int_of_float = unary (Cscalarcast Float_to_int)
 
-let float_of_int = unary Cfloatofint
+let float_of_int = unary (Cscalarcast Float_of_int)
 
 let int_of_float32 ~dbg:_ _exp =
   (* CR mslater: (float32) backend support *)

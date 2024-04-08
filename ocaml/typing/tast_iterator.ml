@@ -403,6 +403,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_probe {handler;_} -> sub.expr sub handler
   | Texp_probe_is_enabled _ -> ()
   | Texp_exclave exp -> sub.expr sub exp
+  | Texp_src_pos -> ()
 
 
 let package_type sub {pack_fields; pack_txt; _} =
@@ -624,6 +625,7 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
       sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
+  | Ttyp_call_pos -> ()
 
 let class_structure sub {cstr_self; cstr_fields; _} =
   sub.pat sub cstr_self;

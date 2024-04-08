@@ -1,26 +1,9 @@
-File "test_assume_on_call.ml", line 8, characters 8-18:
-Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
+File "test_assume_on_call.ml", line 4, characters 8-18:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+Only the following combinations are supported in this context: 'zero_alloc assume', `zero_alloc assume strict`, `zero_alloc assume never_returns_normally`,`zero_alloc assume never_returns_normally strict`.
 
-File "test_assume_on_call.ml", line 11, characters 8-18:
-Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
-
-File "test_assume_on_call.ml", line 14, characters 8-18:
-Warning 53 [misplaced-attribute]: the "zero_alloc" attribute cannot appear in this context
-
-File "test_assume_on_call.ml", line 7, characters 5-15:
+File "test_assume_on_call.ml", line 3, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test1 (camlTest_assume_on_call.test1_HIDE_STAMP)
 
-File "test_assume_on_call.ml", line 8, characters 2-22:
-Error: allocation of 24 bytes (test_assume_on_call.ml:8,2--22;test_assume_on_call.ml:1,28--33)
-
-File "test_assume_on_call.ml", line 10, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test2 (camlTest_assume_on_call.test2_HIDE_STAMP)
-
-File "test_assume_on_call.ml", line 11, characters 2-36:
-Error: allocation of 24 bytes (test_assume_on_call.ml:11,2--36;test_assume_on_call.ml:1,28--33)
-
-File "test_assume_on_call.ml", line 13, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Test_assume_on_call.test3 (camlTest_assume_on_call.test3_HIDE_STAMP)
-
-File "test_assume_on_call.ml", line 14, characters 2-52:
-Error: allocation of 24 bytes (test_assume_on_call.ml:14,2--52;test_assume_on_call.ml:1,28--33)
+File "test_assume_on_call.ml", line 4, characters 2-22:
+Error: allocation of 24 bytes (test_assume_on_call.ml:4,2--22;test_assume_on_call.ml:1,28--33)

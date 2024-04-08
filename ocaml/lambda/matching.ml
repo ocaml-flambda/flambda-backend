@@ -2145,9 +2145,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
-        match lbl.lbl_mut with
-        | Immutable -> Reads_agree
-        | Mutable -> Reads_vary
+        if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let access, sort, layout =
         match lbl.lbl_repres with
@@ -2170,11 +2168,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
       in
-      let str =
-        match lbl.lbl_mut with
-        | Immutable -> Alias
-        | Mutable -> StrictOpt
-      in
+      let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       (access, str, sort, layout) :: make_args (pos + 1)
   in
   make_args 0
@@ -2222,9 +2216,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
           (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
-        (match am with
-        | Mutable   -> StrictOpt
-        | Immutable -> Alias),
+        (if Types.is_mutable am then StrictOpt else Alias),
         arg_sort,
         result_layout)
       :: make_args (pos + 1)
@@ -3640,10 +3632,7 @@ let is_record_with_mutable_field p =
   match p.pat_desc with
   | Tpat_record (lps, _) ->
       List.exists
-        (fun (_, lbl, _) ->
-          match lbl.Types.lbl_mut with
-          | Mutable -> true
-          | Immutable -> false)
+        (fun (_, lbl, _) -> Types.is_mutable lbl.lbl_mut)
         lps
   | Tpat_alias _
   | Tpat_variant _

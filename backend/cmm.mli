@@ -175,6 +175,8 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_int
+  | Float_of_int
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -216,7 +218,6 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
