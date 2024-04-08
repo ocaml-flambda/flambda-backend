@@ -25,6 +25,8 @@ let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
 let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
 
+let cfg_stack_checks = ref false        (* -[no-]cfg-stack-check *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 
