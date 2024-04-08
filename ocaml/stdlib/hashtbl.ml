@@ -501,7 +501,7 @@ module Make(H: HashedType): (S with type key = H.t) =
    use - see #2202 *)
 
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash"
+  int -> int -> int -> 'a -> int = "caml_hash_exn"
 
 let hash x = seeded_hash_param 10 100 0 x
 let hash_param n1 n2 x = seeded_hash_param n1 n2 0 x

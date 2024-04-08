@@ -20,13 +20,20 @@
 
 (* Currently bytecode/native hashes of mixed records are different.
    Mixed records are represented as mixed blocks in native code and
-   normal blocks in bytecode. We don't make any special effort to get
-   their hash values to line up. This is something we could consider
-   revisiting -- the simplest way to accomplish this may well be to
-   support mixed blocks in bytecode.
- *)
+   normal blocks in bytecode. Hash raises on mixed blocks (but not
+   on normal blocks).
 
-let hash = Hashtbl.hash
+   We could consider making native hash return a value instead. But,
+   if it's a different value than bytecode, it's important that users
+   can't marshal mixed block values from native code to bytecode.
+   (Otherwise you could marshal a hashtable, breaking its invariants.)
+*)
+
+let hash x =
+ match Hashtbl.hash x with
+ | exception exn -> Printf.sprintf "raised %s" (Printexc.to_string exn)
+ | i -> string_of_int i
+
 let printf = Printf.printf
 
 let () = printf "All Float Mixed Records\n"
@@ -39,7 +46,7 @@ let () =
       }
   end in
   hash { x = 4.0; y = #5.1 }
-  |> printf "\t{ x : float; y : float# } = %d\n"
+  |> printf "\t{ x : float; y : float# } = %s\n"
 
 
 let () =
@@ -50,7 +57,7 @@ let () =
       }
   end in
   hash { x = #4.0; y = 5.1 }
-  |> printf "\t{ x : float#; y : float } = %d\n"
+  |> printf "\t{ x : float#; y : float } = %s\n"
 
 let () = printf "General Mixed Records\n"
 
@@ -63,7 +70,7 @@ let () =
       }
   end in
   hash { x = "abc"; y = #5.1 }
-  |> printf "\t{ x : string; y : float# } = %d\n"
+  |> printf "\t{ x : string; y : float# } = %s\n"
 
 let () =
   let open struct
@@ -73,7 +80,7 @@ let () =
       }
   end in
   hash { x = 23940; y = #5.1 }
-  |> printf "\t{ x : int; y : float# } = %d\n"
+  |> printf "\t{ x : int; y : float# } = %s\n"
 
 let () =
   let open struct
@@ -84,7 +91,7 @@ let () =
       }
   end in
   hash { x = 23940; y = #5.1; z = 1340 }
-  |> printf "\t{ x : int; y : float#; z : int } = %d\n"
+  |> printf "\t{ x : int; y : float#; z : int } = %s\n"
 
 let () =
   let open struct
@@ -96,4 +103,4 @@ let () =
       }
   end in
   hash { a = "abc"; x = 23940; y = #5.1; z = 1340 }
-  |> printf "\t{ a : string; x : int; y : float#; z : int } = %d\n"
+  |> printf "\t{ a : string; x : int; y : float#; z : int } = %s\n"
