@@ -211,6 +211,8 @@ module Float_by_bit_pattern_gen (Bits : sig
 
   val float_of_bits : t -> float
 
+  val of_string : string -> t
+
   val compare : t -> t -> int
 
   val equal : t -> t -> bool
@@ -224,7 +226,7 @@ struct
 
   let of_bits bits = bits
 
-  let of_string str = create (float_of_string str)
+  let of_string str = Bits.of_string str
 
   let to_float t = Bits.float_of_bits t
 
@@ -285,6 +287,8 @@ end
 module Float_by_bit_pattern = Float_by_bit_pattern_gen (struct
   include Int64
 
+  let of_string str = bits_of_float (float_of_string str)
+
   module IEEE_semantics = struct
     type nonrec t = t
 
@@ -316,6 +320,8 @@ end)
 
 module Float32_by_bit_pattern = Float_by_bit_pattern_gen (struct
   include Int32
+
+  let of_string str = Float32.to_bits (Float32.of_string str)
 
   module IEEE_semantics = struct
     type nonrec t = t
