@@ -497,22 +497,17 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
-    | Lop (Icompf _) -> 2
+    | Lop (Ifloatop (Icompf _)) -> 2
     | Lop (Iintop_imm (Icomp _, _)) -> 2
     | Lop (Iintop Imod) -> 2
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
-    | Lop (Iabsf | Inegf | Ispecific Isqrtf) -> 1
+    | Lop (Ifloatop (Iabsf | Inegf) | Ispecific Isqrtf) -> 1
     | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Ivectorcast _) -> 1
-    | Lop (Iscalarcast (Float_of_int Float64 | Float_to_int Float64)) -> 1
-    | Lop (Iscalarcast (Float_of_int Float32 | Float_to_int Float32 |
-                        Float_of_float32 | Float_to_float32)) ->
-      Misc.fatal_error "float32 not supported on this architecture"
-    | Lop (Iscalarcast (V128_of_scalar _ | V128_to_scalar _)) ->
-      Misc.fatal_error "SIMD not supported on this architecture"
-    | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
+    | Lop (Iscalarcast _) -> 1
+    | Lop (Ifloatop (Iaddf | Isubf | Imulf | Idivf) | Ispecific Inegmulf) -> 1
     | Lop (Iopaque) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
@@ -703,11 +698,12 @@ let emit_instr i =
     | Lop(Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop(Iscalarcast (Float_of_float32 | Float_to_float32 |
-                       Float_of_int Float32 | Float_to_int Float32 |
-                       V128_of_scalar _ | V128_to_scalar _) |
-          Ivectorcast _) ->
-      (* Never generated; float32 and SIMD instructions are not yet translated *)
+    | Lop(Iscalarcast Float_to_int) ->
+        `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Iscalarcast Float_of_int) ->
+        `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Ivectorcast _ | Iscalarcast _) ->
+      (* Never generated; SIMD instructions are not yet translated *)
       assert false
     | Lop(Imove | Ispill | Ireload) ->
         move i.arg.(0) i.res.(0)
@@ -882,7 +878,7 @@ let emit_instr i =
     | Lop(Iintop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Icompf cmp) ->
+    | Lop(Ifloatop(Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
         `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
@@ -902,14 +898,10 @@ let emit_instr i =
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Iscalarcast (Float_of_int Float64)) ->
-      `	{emit_string "scvtf"}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iscalarcast (Float_to_int Float64)) ->
-      `	{emit_string "fcvtzs"} {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iabsf | Inegf | Ispecific Isqrtf as op) ->
+    | Lop(Ifloatop (Iabsf | Inegf) | Ispecific Isqrtf as op) ->
         let instr = (match op with
-                     | Iabsf            -> "fabs"
-                     | Inegf            -> "fneg"
+                     | Ifloatop Iabsf   -> "fabs"
+                     | Ifloatop Inegf   -> "fneg"
                      | Ispecific Isqrtf -> "fsqrt"
                      | _                -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
@@ -926,12 +918,12 @@ let emit_instr i =
           | _ ->
               assert false
         end
-    | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
+    | Lop(Ifloatop (Iaddf | Isubf | Imulf | Idivf) | Ispecific Inegmulf as op) ->
         let instr = (match op with
-                     | Iaddf              -> "fadd"
-                     | Isubf              -> "fsub"
-                     | Imulf              -> "fmul"
-                     | Idivf              -> "fdiv"
+                     | Ifloatop Iaddf     -> "fadd"
+                     | Ifloatop Isubf     -> "fsub"
+                     | Ifloatop Imulf     -> "fmul"
+                     | Ifloatop Idivf     -> "fdiv"
                      | Ispecific Inegmulf -> "fnmul"
                      | _                  -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`

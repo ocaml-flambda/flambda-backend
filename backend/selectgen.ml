@@ -173,14 +173,12 @@ let oper_result_type = function
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Ccsel ty -> ty
-  | Cscalarcast (Float_of_float32) -> typ_float
-  | Cscalarcast (Float_to_float32) -> typ_float32
-  | Cscalarcast (Float_of_int Float64) -> typ_float
-  | Cscalarcast (Float_of_int Float32) -> typ_float32
-  | Cscalarcast (Float_to_int _) -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
+  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
+  | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
   | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
@@ -671,16 +669,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Icompf comp, args)
+  | (Ccmpf comp, _) -> (Ifloatop(Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf, _) -> (Inegf, args)
-  | (Cabsf, _) -> (Iabsf, args)
-  | (Caddf, _) -> (Iaddf, args)
-  | (Csubf, _) -> (Isubf, args)
-  | (Cmulf, _) -> (Imulf, args)
-  | (Cdivf, _) -> (Idivf, args)
+  | (Cnegf, _) -> (Ifloatop Inegf, args)
+  | (Cabsf, _) -> (Ifloatop Iabsf, args)
+  | (Caddf, _) -> (Ifloatop Iaddf, args)
+  | (Csubf, _) -> (Ifloatop Isubf, args)
+  | (Cmulf, _) -> (Ifloatop Imulf, args)
+  | (Cdivf, _) -> (Ifloatop Idivf, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)

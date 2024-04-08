@@ -195,7 +195,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_unreachable
     | Texp_extension_constructor _
     | Texp_probe _
-    | Texp_probe_is_enabled _ ->
+    | Texp_probe_is_enabled _
+    | Texp_src_pos ->
         Static
 
     | Texp_match _
@@ -527,7 +528,7 @@ let array_mode exp elt_sort = match Typeopt.array_kind exp elt_sort with
     (* non-generic, non-float arrays act as constructors *)
     Guard
   | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _ ->
-    Guard
+    Dereference
 
 (* Expression judgment:
      G |- e : m
@@ -875,6 +876,7 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+    | Texp_src_pos -> empty
 
 (* Function bodies.
     G |-{body} b : m

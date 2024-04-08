@@ -1,0 +1,5 @@
+beta.cmo : \
+    beta.cmi
+beta.cmx : \
+    beta.cmi
+beta.cmi :

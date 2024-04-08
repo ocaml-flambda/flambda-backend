@@ -110,6 +110,12 @@ let mk_disable_checkmach f =
     Disables computation of zero_alloc function summaries, \
     unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
 
+let mk_disable_precise_checkmach f =
+  "-disable-precise-checkmach", Arg.Unit f,
+  " Conservatively assume that all forward calls and mutually recursive functions may \
+    allocate. Disables fixed point computation of summaries for these functions. \
+    Intended as a temporary workaround when precise analysis is too expensive."
+
 let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
@@ -641,6 +647,7 @@ module type Flambda_backend_options = sig
   val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
   val disable_checkmach : unit -> unit
+  val disable_precise_checkmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
   val function_layout : string -> unit
@@ -755,6 +762,7 @@ struct
     mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
     mk_disable_checkmach F.disable_checkmach;
+    mk_disable_precise_checkmach F.disable_precise_checkmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
     mk_function_layout F.function_layout;
@@ -917,6 +925,7 @@ module Flambda_backend_options_impl = struct
 
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
   let disable_checkmach = set' Flambda_backend_flags.disable_checkmach
+  let disable_precise_checkmach = set' Flambda_backend_flags.disable_precise_checkmach
   let checkmach_details_cutoff n =
     let c : Flambda_backend_flags.checkmach_details_cutoff =
       if n < 0 then Keep_all
@@ -1197,6 +1206,7 @@ module Extra_params = struct
               (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "disable-checkmach" -> set' Flambda_backend_flags.disable_checkmach
+    | "disable-precise-checkmach" -> set' Flambda_backend_flags.disable_precise_checkmach
     | "checkmach-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->

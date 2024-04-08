@@ -224,16 +224,16 @@ let operation d = function
   | Cdivf -> "/f"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cscalarcast (Float_of_int Float64) -> "floatofint"
-  | Cscalarcast (Float_of_int Float32) -> "float32ofint"
-  | Cscalarcast (Float_to_int Float64) -> "intoffloat"
-  | Cscalarcast (Float_to_int Float32) -> "intoffloat32"
-  | Cscalarcast (Float_of_float32) -> "floatoffloat32"
-  | Cscalarcast (Float_to_float32) -> "float32offloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
+  | Cscalarcast (Float_to_int Float64) -> "float->int"
+  | Cscalarcast (Float_of_int Float64) -> "int->float"
+  | Cscalarcast (Float_to_int Float32) -> "float32->int"
+  | Cscalarcast (Float_of_int Float32) -> "int->float32"
+  | Cscalarcast (Float_to_float32) -> "float->float32"
+  | Cscalarcast (Float_of_float32) -> "float32->float"
   | Cscalarcast (V128_to_scalar ty) ->
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->

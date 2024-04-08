@@ -1,0 +1,5 @@
+upstream_compatible.cmo : \
+    upstream_compatible.cmi
+upstream_compatible.cmx : \
+    upstream_compatible.cmi
+upstream_compatible.cmi :

@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Alpha extensions library"
+archive(byte) = "alpha.cma"
+archive(native) = "alpha.cmxa"
+plugin(byte) = "alpha.cma"
+plugin(native) = "alpha.cmxs"

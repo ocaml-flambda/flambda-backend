@@ -72,172 +72,6 @@ module Int16 = struct
   let to_int t = t
 end
 
-module Float_by_bit_pattern = struct
-  let create f = Int64.bits_of_float f
-
-  let of_bits bits = bits
-
-  let of_string str = create (float_of_string str)
-
-  let to_float t = Int64.float_of_bits t
-
-  let zero = create 0.
-
-  let one = create 1.
-
-  let minus_one = create (-1.)
-
-  module T0 = struct
-    type t = Int64.t
-
-    let compare = Int64.compare
-
-    let equal = Int64.equal
-
-    let hash f = Hashtbl.hash f
-
-    let print ppf t = Format.pp_print_float ppf (Int64.float_of_bits t)
-  end
-
-  include T0
-  module Self = Container_types.Make (T0)
-  include Self
-
-  module Pair = struct
-    include
-      Container_types.Make_pair
-        (struct
-          type nonrec t = t
-
-          include Self
-        end)
-        (struct
-          type nonrec t = t
-
-          include Self
-        end)
-
-    type nonrec t = t * t
-  end
-
-  let cross_product = Pair.create_from_cross_product
-
-  module IEEE_semantics = struct
-    let add t1 t2 = create (Stdlib.( +. ) (to_float t1) (to_float t2))
-
-    let sub t1 t2 = create (Stdlib.( -. ) (to_float t1) (to_float t2))
-
-    let mul t1 t2 = create (Stdlib.( *. ) (to_float t1) (to_float t2))
-
-    let div t1 t2 = create (Stdlib.( /. ) (to_float t1) (to_float t2))
-
-    let mod_ t1 t2 = create (Stdlib.mod_float (to_float t1) (to_float t2))
-
-    let neg t = create (Stdlib.( ~-. ) (to_float t))
-
-    let abs t = create (Stdlib.abs_float (to_float t))
-
-    let compare t1 t2 = Stdlib.compare (to_float t1) (to_float t2)
-
-    let equal t1 t2 =
-      (* N.B. This can't just be defined in terms of [compare_ieee]! *)
-      Stdlib.( = ) (to_float t1) (to_float t2)
-  end
-
-  let is_any_nan t =
-    match classify_float (to_float t) with
-    | FP_nan -> true
-    | FP_normal | FP_subnormal | FP_infinite | FP_zero -> false
-
-  let is_either_zero t =
-    match classify_float (to_float t) with
-    | FP_zero -> true
-    | FP_normal | FP_subnormal | FP_infinite | FP_nan -> false
-end
-
-module Float32_by_bit_pattern = struct
-  let create f = Int32.bits_of_float f
-
-  let of_bits bits = bits
-
-  let of_string str = create (float_of_string str)
-
-  let to_float t = Int32.float_of_bits t
-
-  let zero = create 0.
-
-  let one = create 1.
-
-  let minus_one = create (-1.)
-
-  module T0 = struct
-    type t = Int32.t
-
-    let compare = Int32.compare
-
-    let equal = Int32.equal
-
-    let hash f = Hashtbl.hash f
-
-    let print ppf t = Format.pp_print_float ppf (Int32.float_of_bits t)
-  end
-
-  include T0
-  module Self = Container_types.Make (T0)
-  include Self
-
-  module Pair = struct
-    include
-      Container_types.Make_pair
-        (struct
-          type nonrec t = t
-
-          include Self
-        end)
-        (struct
-          type nonrec t = t
-
-          include Self
-        end)
-
-    type nonrec t = t * t
-  end
-
-  let cross_product = Pair.create_from_cross_product
-
-  module IEEE_semantics = struct
-    let add t1 t2 = create (Stdlib.( +. ) (to_float t1) (to_float t2))
-
-    let sub t1 t2 = create (Stdlib.( -. ) (to_float t1) (to_float t2))
-
-    let mul t1 t2 = create (Stdlib.( *. ) (to_float t1) (to_float t2))
-
-    let div t1 t2 = create (Stdlib.( /. ) (to_float t1) (to_float t2))
-
-    let mod_ t1 t2 = create (Stdlib.mod_float (to_float t1) (to_float t2))
-
-    let neg t = create (Stdlib.( ~-. ) (to_float t))
-
-    let abs t = create (Stdlib.abs_float (to_float t))
-
-    let compare t1 t2 = Stdlib.compare (to_float t1) (to_float t2)
-
-    let equal t1 t2 =
-      (* N.B. This can't just be defined in terms of [compare_ieee]! *)
-      Stdlib.( = ) (to_float t1) (to_float t2)
-  end
-
-  let is_any_nan t =
-    match classify_float (to_float t) with
-    | FP_nan -> true
-    | FP_normal | FP_subnormal | FP_infinite | FP_zero -> false
-
-  let is_either_zero t =
-    match classify_float (to_float t) with
-    | FP_zero -> true
-    | FP_normal | FP_subnormal | FP_infinite | FP_nan -> false
-end
-
 module Int32 = struct
   include Int32
 
@@ -317,3 +151,203 @@ module Int64 = struct
 
   let cross_product = Pair.create_from_cross_product
 end
+
+module type IEEE_semantics = sig
+  type t
+
+  val add : t -> t -> t
+
+  val sub : t -> t -> t
+
+  val mul : t -> t -> t
+
+  val div : t -> t -> t
+
+  val mod_ : t -> t -> t
+
+  val neg : t -> t
+
+  val abs : t -> t
+
+  val compare : t -> t -> int
+
+  val equal : t -> t -> bool
+end
+
+module type Float_by_bit_pattern = sig
+  type bits
+
+  include Container_types.S
+
+  val create : float -> t
+
+  val of_bits : bits -> t
+
+  val of_string : string -> t
+
+  val to_float : t -> float
+
+  val one : t
+
+  val zero : t
+
+  val minus_one : t
+
+  val is_either_zero : t -> bool
+
+  val is_any_nan : t -> bool
+
+  module IEEE_semantics : IEEE_semantics with type t = t
+
+  module Pair : Container_types.S with type t = t * t
+
+  val cross_product : Set.t -> Set.t -> Pair.Set.t
+end
+
+module Float_by_bit_pattern_gen (Bits : sig
+  type t
+
+  val bits_of_float : float -> t
+
+  val float_of_bits : t -> float
+
+  val of_string : string -> t
+
+  val compare : t -> t -> int
+
+  val equal : t -> t -> bool
+
+  module IEEE_semantics : IEEE_semantics with type t = t
+end) =
+struct
+  type bits = Bits.t
+
+  let create f = Bits.bits_of_float f
+
+  let of_bits bits = bits
+
+  let of_string str = Bits.of_string str
+
+  let to_float t = Bits.float_of_bits t
+
+  let zero = create 0.
+
+  let one = create 1.
+
+  let minus_one = create (-1.)
+
+  module T0 = struct
+    type t = Bits.t
+
+    let compare = Bits.compare
+
+    let equal = Bits.equal
+
+    let hash f = Hashtbl.hash f
+
+    let print ppf t = Format.pp_print_float ppf (Bits.float_of_bits t)
+  end
+
+  include T0
+  module Self = Container_types.Make (T0)
+  include Self
+
+  module Pair = struct
+    include
+      Container_types.Make_pair
+        (struct
+          type nonrec t = t
+
+          include Self
+        end)
+        (struct
+          type nonrec t = t
+
+          include Self
+        end)
+
+    type nonrec t = t * t
+  end
+
+  let cross_product = Pair.create_from_cross_product
+
+  module IEEE_semantics = Bits.IEEE_semantics
+
+  let is_any_nan t =
+    match classify_float (to_float t) with
+    | FP_nan -> true
+    | FP_normal | FP_subnormal | FP_infinite | FP_zero -> false
+
+  let is_either_zero t =
+    match classify_float (to_float t) with
+    | FP_zero -> true
+    | FP_normal | FP_subnormal | FP_infinite | FP_nan -> false
+end
+
+module Float_by_bit_pattern = Float_by_bit_pattern_gen (struct
+  include Int64
+
+  let of_string str = bits_of_float (float_of_string str)
+
+  module IEEE_semantics = struct
+    type nonrec t = t
+
+    let of_ = bits_of_float
+
+    let to_ = float_of_bits
+
+    let add t1 t2 = of_ (Stdlib.( +. ) (to_ t1) (to_ t2))
+
+    let sub t1 t2 = of_ (Stdlib.( -. ) (to_ t1) (to_ t2))
+
+    let mul t1 t2 = of_ (Stdlib.( *. ) (to_ t1) (to_ t2))
+
+    let div t1 t2 = of_ (Stdlib.( /. ) (to_ t1) (to_ t2))
+
+    let mod_ t1 t2 = of_ (Stdlib.mod_float (to_ t1) (to_ t2))
+
+    let neg t = of_ (Stdlib.( ~-. ) (to_ t))
+
+    let abs t = of_ (Stdlib.abs_float (to_ t))
+
+    let compare t1 t2 = Stdlib.compare (to_ t1) (to_ t2)
+
+    let equal t1 t2 =
+      (* N.B. This can't just be defined in terms of [compare_ieee]! *)
+      Stdlib.( = ) (to_ t1) (to_ t2)
+  end
+end)
+
+module Float32_by_bit_pattern = Float_by_bit_pattern_gen (struct
+  include Int32
+
+  let of_string str = Float32.to_bits (Float32.of_string str)
+
+  module IEEE_semantics = struct
+    type nonrec t = t
+
+    let of_ = Float32.to_bits
+
+    let to_ = Float32.of_bits
+
+    let add t1 t2 = of_ (Float32.add (to_ t1) (to_ t2))
+
+    let sub t1 t2 = of_ (Float32.sub (to_ t1) (to_ t2))
+
+    let mul t1 t2 = of_ (Float32.mul (to_ t1) (to_ t2))
+
+    let div t1 t2 = of_ (Float32.div (to_ t1) (to_ t2))
+
+    let mod_ t1 t2 = of_ (Float32.mod_ (to_ t1) (to_ t2))
+
+    let neg t = of_ (Float32.neg (to_ t))
+
+    let abs t = of_ (Float32.abs (to_ t))
+
+    let compare t1 t2 = Float32.compare (to_ t1) (to_ t2)
+
+    let equal t1 t2 =
+      (* N.B. This can't just be defined in terms of [compare_ieee]! *)
+      Float32.equal (to_ t1) (to_ t2)
+  end
+end)
