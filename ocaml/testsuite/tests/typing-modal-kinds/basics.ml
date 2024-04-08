@@ -494,7 +494,7 @@ Line 1, characters 51-52:
 
 |}]
 
-(* CR layouts: The following should pass, even in principal mode, because the
+(* CR layouts v2.8: The following should pass, even in principal mode, because the
 argument kind is known to cross mode. *)
 
 let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
