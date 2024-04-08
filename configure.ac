@@ -48,22 +48,22 @@ AC_ARG_ENABLE([middle-end],
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
     [Use the OCaml 5 runtime])],
-  [runtime5_arg=--enable-runtime5],
-  [runtime5_arg=])
+  [],
+  [enable_runtime5=no])
 
 AC_ARG_ENABLE([coverage],
   [AS_HELP_STRING([--enable-coverage],
     [Run compiler tests instrumented to output coverage data using bisect_ppx
      (WARNING: Cannot build an installable compiler with this flag enabled.
      Mainly intended for use in CI.)])],
-  [coverage=yes],
-  [coverage=no])
+  [],
+  [enable_coverage=no])
 
 AC_ARG_ENABLE([legacy-library-layout],
   [AS_HELP_STRING([--enable-legacy-library-layout],
     [Install libraries unix, str, dynlink and bigarray in the toplevel
      ocaml library directory (Same as upstream OCaml < 5.0)])],
-  [legacy_layout=yes],
+  [],
   [legacy_layout=no])
 
 AC_ARG_ENABLE([dev],
@@ -71,14 +71,21 @@ AC_ARG_ENABLE([dev],
     [Use the dev build profile for dune when building the 2nd stage.
      Can speed up the compile time by a lot. (WARNING: do not use for
      production compiler deployments)])],
-  [main_build_profile=dev],
-  [main_build_profile=main])
+  [],
+  [enable_dev=no])
 
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
+
+coverage="$enable_coverage"
 AC_SUBST([coverage])
+
+legacy_layout="$legacy_layout"
 AC_SUBST([legacy_layout])
+
+main_build_profile=main
+AS_IF([test x"$enable_dev" = xyes], [main_build_profile=dev])
 AC_SUBST([main_build_profile])
 
 # Don't error on options that this configure script doesn't understand but
@@ -86,7 +93,7 @@ AC_SUBST([main_build_profile])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,$runtime5_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
+  [$middle_end_arg,--enable-runtime5=$enable_runtime5,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest,--without-zstd],
   [],
   [],
   [])
