@@ -73,6 +73,8 @@ type specific_operation =
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
+  | Ifloatarithconst of float_operation * float
+                                       (* Float arith operation with constant *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign

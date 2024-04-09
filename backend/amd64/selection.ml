@@ -122,7 +122,7 @@ let pseudoregs_for_operation op arg res =
      rdx. *)
   | Iintop(Imulh _) ->
       ([| rax; arg.(1) |], [| rdx |])
-  | Ispecific(Ifloatarithmem(_,_)) ->
+  | Ispecific(Ifloatarithmem(_,_)|Ifloatarithconst _) ->
       let arg' = Array.copy arg in
       arg'.(0) <- res.(0);
       (arg', res)
@@ -398,7 +398,11 @@ method select_floatarith commutative regular_op mem_op args =
     [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] ->
       let (addr, arg2) = self#select_addressing chunk loc2 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
-                 [arg1; arg2])
+       [arg1; arg2])
+  | [arg1; Cconst_float (const, _)] ->
+      (Ispecific(Ifloatarithconst(mem_op, const)), [arg1])
+  | [Cconst_float (const, _); arg2] when commutative ->
+      (Ispecific(Ifloatarithconst(mem_op, const)), [arg2])
   | [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
         when commutative ->
       let (addr, arg1) = self#select_addressing chunk loc1 in

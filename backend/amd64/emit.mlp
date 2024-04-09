@@ -39,6 +39,18 @@ open! Branch_relaxation
 
 let _label s = D.label ~typ:QWORD s
 
+(* Floating-point constants *)
+
+let float_constants = ref ([] : (int64 * int) list)
+
+let add_float_constant cst : Label.t =
+  try
+    List.assoc cst !float_constants
+  with Not_found ->
+    let lbl = new_label() in
+    float_constants := (cst, lbl) :: !float_constants;
+    lbl
+
 (* Override proc.ml *)
 
 let int_reg_name =
@@ -676,15 +688,6 @@ let output_epilogue f =
 
 (* Floating-point constants *)
 
-let float_constants = ref ([] : (int64 * int) list)
-
-let add_float_constant cst =
-  try
-    List.assoc cst !float_constants
-  with Not_found ->
-    let lbl = new_label() in
-    float_constants := (cst, lbl) :: !float_constants;
-    lbl
 
 let emit_float_constant f lbl =
   _label (emit_label lbl);
@@ -1531,6 +1534,9 @@ let emit_instr fallthrough i =
       I.add (int n) (addressing addr QWORD i 0)
   | Lop(Ispecific(Ifloatarithmem(op, addr))) ->
       instr_for_floatarithmem op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithconst(op, const))) ->
+      let label = add_float_constant (Int64.bits_of_float const) in
+      instr_for_floatarithmem op (mem64_rip REAL8 (emit_label label)) (res i 0)
   | Lop(Ispecific(Ibswap { bitwidth = Sixteen })) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)

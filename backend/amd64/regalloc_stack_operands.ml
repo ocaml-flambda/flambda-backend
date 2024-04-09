@@ -229,7 +229,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
   | Op (Specific (Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
-                 | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+                 | Ioffset_loc (_, _) | Ifloatarithmem (_, _) | Ifloatarithconst _
                  | Ipause
                  | Iprefetch _
                  | Ibswap _ | Ifloatsqrtf _))
