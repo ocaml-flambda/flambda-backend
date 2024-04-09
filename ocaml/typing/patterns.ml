@@ -58,7 +58,7 @@ module Simple = struct
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutable_flag * Jkind.sort * pattern list
+    | `Array of mutability * Jkind.sort * pattern list
     | `Lazy of pattern
   ]
 
@@ -147,7 +147,7 @@ module Head : sig
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
           type_row : unit -> row_desc; }
-    | Array of mutable_flag * Jkind.sort * int
+    | Array of mutability * Jkind.sort * int
     | Lazy
 
   type t = desc pattern_data
@@ -174,7 +174,7 @@ end = struct
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutable_flag * Jkind.sort * int
+    | Array of mutability * Jkind.sort * int
     | Lazy
 
   type t = desc pattern_data

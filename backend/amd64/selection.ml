@@ -97,7 +97,8 @@ let _xmm0v () = phys_reg Vec128 100
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf _|Isubf _|Imulf _|Idivf _ ->
+  | Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor)
+  | Ifloatop((Float32|Float64), (Iaddf|Isubf|Imulf|Idivf)) ->
       ([|res.(0); arg.(1)|], res)
   | Iintop_atomic {op = Compare_and_swap; size = _; addr = _} ->
       (* first arg must be rax *)
@@ -111,7 +112,7 @@ let pseudoregs_for_operation op arg res =
       (arg, res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
-  | Iabsf _ | Inegf _
+  | Ifloatop((Float64 | Float32), (Iabsf | Inegf))
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
@@ -122,7 +123,7 @@ let pseudoregs_for_operation op arg res =
      rdx. *)
   | Iintop(Imulh _) ->
       ([| rax; arg.(1) |], [| rdx |])
-  | Ispecific(Ifloatarithmem(_,_)) ->
+  | Ispecific(Ifloatarithmem(_,_,_)) ->
       let arg' = Array.copy arg in
       arg'.(0) <- res.(0);
       (arg', res)
@@ -136,7 +137,7 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Icompf (_width, cond) ->
+  | Ifloatop(Float64, Icompf cond) ->
     (* CR gyorsh: make this optimization as a separate PR. *)
       (* We need to temporarily store the result of the comparison in a
          float register, but we don't want to clobber any of the inputs
@@ -146,6 +147,11 @@ let pseudoregs_for_operation op arg res =
          register, which makes it more likely an extra mov would be added
          to transfer the argument to the fixed register. *)
       let treg = Reg.create Float in
+      let _,is_swapped = float_cond_and_need_swap cond in
+      (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
+    , [| res.(0); treg |]
+  | Ifloatop(Float32, Icompf cond) ->
+      let treg = Reg.create Float32 in
       let _,is_swapped = float_cond_and_need_swap cond in
       (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
     , [| res.(0); treg |]
@@ -285,13 +291,13 @@ method! select_operation op args dbg =
       end
   (* Recognize float arithmetic with memory. *)
   | Caddf width ->
-      self#select_floatarith true (Iaddf width) (Ifloatadd width) args
+      self#select_floatarith true width Iaddf Ifloatadd args
   | Csubf width ->
-      self#select_floatarith false (Isubf width) (Ifloatsub width) args
+      self#select_floatarith false width Isubf Ifloatsub args
   | Cmulf width ->
-      self#select_floatarith true (Imulf width) (Ifloatmul width) args
+      self#select_floatarith true width Imulf Ifloatmul args
   | Cdivf width ->
-      self#select_floatarith false (Idivf width) (Ifloatdiv width) args
+      self#select_floatarith false width Idivf Ifloatdiv args
   (* Special cases overriding C implementations. *)
   | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
@@ -395,19 +401,21 @@ method! select_operation op args dbg =
 
 (* Recognize float arithmetic with mem *)
 
-method select_floatarith commutative regular_op mem_op args =
-  match args with
-    [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] ->
+method select_floatarith commutative width regular_op mem_op args =
+  match width, args with
+  | Float64, [arg1; Cop(Cload { memory_chunk = Double as chunk; _ }, [loc2], _)]
+  | Float32, [arg1; Cop(Cload { memory_chunk = Single { reg = Float32 } as chunk; _ }, [loc2], _)] ->
       let (addr, arg2) = self#select_addressing chunk loc2 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
+      (Ispecific(Ifloatarithmem(width, mem_op, addr)),
                  [arg1; arg2])
-  | [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
+  | Float64, [Cop(Cload { memory_chunk = Double as chunk; _}, [loc1], _); arg2]
+  | Float32, [Cop(Cload { memory_chunk = Single { reg = Float32 } as chunk; _}, [loc1], _); arg2]
         when commutative ->
       let (addr, arg1) = self#select_addressing chunk loc1 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
+      (Ispecific(Ifloatarithmem(width, mem_op, addr)),
                  [arg2; arg1])
-  | [arg1; arg2] ->
-      (regular_op, [arg1; arg2])
+  | _, [arg1; arg2] ->
+      (Ifloatop (width, regular_op), [arg1; arg2])
   | _ ->
       assert false
 

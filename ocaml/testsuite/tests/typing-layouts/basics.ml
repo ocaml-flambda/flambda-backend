@@ -363,7 +363,7 @@ Error: This expression has type t_any but an expression was expected of type
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function result.
+         we must know concretely how to return a function result.
 |}];;
 
 let f1 (x : t_any) = ();;
@@ -377,7 +377,7 @@ Error: This pattern matches values of type t_any
        The layout of t_any is any, because
          of the definition of t_any at line 5, characters 0-18.
        But the layout of t_any must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}];;
 
 (*****************************************************)

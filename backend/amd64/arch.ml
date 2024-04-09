@@ -105,11 +105,7 @@ let command_line_options =
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information";
-    "-farch-check", Arg.Set arch_check_symbols,
-      " Emit ISA extension symbols for CPUID check (default)";
-    "-fno-arch-check", Arg.Clear arch_check_symbols,
-      " Do not emit ISA extension symbols for CPUID check";
+      " Do not emit .note.ocaml_eh section with trap handling information"
   ] @ Extension.args
 
 let assert_simd_enabled () =
@@ -151,7 +147,7 @@ type specific_operation =
                                        (* Store an integer constant *)
   | Ioffset_loc of int * addressing_mode
                                        (* Add a constant to a location *)
-  | Ifloatarithmem of float_operation * addressing_mode
+  | Ifloatarithmem of float_width * float_operation * addressing_mode
                                        (* Float arith operation with memory *)
   | Ifloatsqrtf of float_width * addressing_mode
                                        (* Float square root from memory *)
@@ -174,10 +170,10 @@ type specific_operation =
       }
 
 and float_operation =
-  | Ifloatadd of float_width
-  | Ifloatsub of float_width
-  | Ifloatmul of float_width
-  | Ifloatdiv of float_width
+  | Ifloatadd
+  | Ifloatsub
+  | Ifloatmul
+  | Ifloatdiv
 
 (* Sizes, endianness *)
 
@@ -261,17 +257,17 @@ let print_specific_operation printreg op ppf arg =
   | Ifloatsqrtf (Float32, addr) ->
      fprintf ppf "sqrtf float32[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
-  | Ifloatarithmem(op, addr) ->
-      let op_name = function
-      | Ifloatadd Float64 -> "+f"
-      | Ifloatsub Float64 -> "-f"
-      | Ifloatmul Float64 -> "*f"
-      | Ifloatdiv Float64 -> "/f"
-      | Ifloatadd Float32 -> "+f32"
-      | Ifloatsub Float32 -> "-f32"
-      | Ifloatmul Float32 -> "*f32"
-      | Ifloatdiv Float32 -> "/f32" in
-      fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
+  | Ifloatarithmem(width, op, addr) ->
+      let op_name = match width, op with
+      | Float64, Ifloatadd -> "+f"
+      | Float64, Ifloatsub -> "-f"
+      | Float64, Ifloatmul -> "*f"
+      | Float64, Ifloatdiv -> "/f"
+      | Float32, Ifloatadd -> "+f32"
+      | Float32, Ifloatsub -> "-f32"
+      | Float32, Ifloatmul -> "*f32"
+      | Float32, Ifloatdiv -> "/f32" in
+      fprintf ppf "%a %s float64[%a]" printreg arg.(0) op_name
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
   | Ibswap { bitwidth } ->
@@ -378,11 +374,11 @@ let equal_prefetch_temporal_locality_hint left right =
 
 let equal_float_operation left right =
   match left, right with
-  | Ifloatadd f1, Ifloatadd f2
-  | Ifloatsub f1, Ifloatsub f2
-  | Ifloatmul f1, Ifloatmul f2
-  | Ifloatdiv f1, Ifloatdiv f2 -> Cmm.equal_float_width f1 f2
-  | (Ifloatadd _ | Ifloatsub _ | Ifloatmul _ | Ifloatdiv _), _ -> false
+  | Ifloatadd, Ifloatadd
+  | Ifloatsub, Ifloatsub
+  | Ifloatmul, Ifloatmul
+  | Ifloatdiv, Ifloatdiv -> true
+  | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
 let equal_specific_operation left right =
   match left, right with
@@ -391,8 +387,10 @@ let equal_specific_operation left right =
     Nativeint.equal x y && equal_addressing_mode x' y' && Bool.equal x'' y''
   | Ioffset_loc (x, x'), Ioffset_loc (y, y') ->
     Int.equal x y && equal_addressing_mode x' y'
-  | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
-    equal_float_operation x y && equal_addressing_mode x' y'
+  | Ifloatarithmem (xw, x, x'), Ifloatarithmem (yw, y, y') ->
+    Cmm.equal_float_width xw yw &&
+    equal_float_operation x y &&
+    equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Ifloatsqrtf (left_w, left), Ifloatsqrtf (right_w, right) ->

@@ -33,10 +33,9 @@ type t = private
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t Or_variable.t
   | Immutable_float_block of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
-  | Immutable_float32_array of
-      Numeric_types.Float32_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  (* CR mslater: (float32) unboxed arrays *)
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
@@ -76,11 +75,6 @@ val boxed_vec128 : Vector_types.Vec128.Bit_pattern.t Or_variable.t -> t
 
 val immutable_float_block :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list -> t
-
-(** This function can accept empty lists of fields; [Empty_array] will be
-    produced. *)
-val immutable_float32_array :
-  Numeric_types.Float32_by_bit_pattern.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)

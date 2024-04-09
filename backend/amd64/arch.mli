@@ -75,7 +75,7 @@ type specific_operation =
   | Istore_int of nativeint * addressing_mode * bool
                                         (* Store an integer constant *)
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
-  | Ifloatarithmem of float_operation * addressing_mode
+  | Ifloatarithmem of float_width * float_operation * addressing_mode
                                        (* Float arith operation with memory *)
   | Ifloatsqrtf of float_width * addressing_mode
                                        (* Float square root from memory *)
@@ -98,10 +98,10 @@ type specific_operation =
       }
 
 and float_operation =
-  | Ifloatadd of float_width
-  | Ifloatsub of float_width
-  | Ifloatmul of float_width
-  | Ifloatdiv of float_width
+  | Ifloatadd
+  | Ifloatsub
+  | Ifloatmul
+  | Ifloatdiv
 
 val equal_specific_operation : specific_operation -> specific_operation -> bool
 

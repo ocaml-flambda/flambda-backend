@@ -109,6 +109,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
+  | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_property_attribute of string  (* 199 *)
@@ -195,6 +196,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
+  | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
   | Probe_name_too_long _ -> 190
   | Unchecked_property_attribute _ -> 199
@@ -544,6 +546,10 @@ let descriptions = [
     names = ["generative-application-expects-unit"];
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
+    since = since 5 1 };
+  { number = 188;
+    names = ["unerasable-position-argument"];
+    description = "Unerasable position argument.";
     since = since 5 1 };
   { number = 189;
     names = ["unnecessarily-partial-tuple-pattern"];
@@ -1168,6 +1174,7 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
+  | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
        unnecessarily ends in '..', as it explicitly matches all components\n\

@@ -259,7 +259,7 @@ Error: This definition has type 'b -> 'b which is less general than
        The layout of 'a is any, because
          of the annotation on the universal variable 'a.
        But the layout of 'a must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}]
 (* CR layouts v2.9: This error message is not great. Check later if layout history
    is able to improve it. *)
@@ -399,7 +399,7 @@ Error: This pattern matches values of type a
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
        But the layout of a must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}]
 
 (****************************************)
@@ -433,7 +433,7 @@ Error: Function arguments and returns must be representable.
        The layout of a is any, because
          of the annotation on the abstract type declaration for a.
        But the layout of a must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}]
 
 (**************************************************)

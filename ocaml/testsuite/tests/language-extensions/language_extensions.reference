@@ -61,36 +61,60 @@ Succeeded
 # Enable two layouts, in reverse order [comprehensions enabled]:
 Succeeded
 
-# can disallow extensions while extensions are enabled [comprehensions disabled]:
-Succeeded at disallowing all extensions
+# can set [No_extensions] while extensions are enabled [comprehensions disabled]:
+Succeeded at setting universe no_extensions
 
-# can disallow extensions while extensions are already disallowed [comprehensions disabled]:
-Succeeded at disallowing all extensions
+# setting [No_extensions] is idempotent [comprehensions disabled]:
+Succeeded at setting universe no_extensions
 
-# can't call [set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+# can't call [set ~enabled:true] when in universe no_extensions [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
-# can call [set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
+# can call [set ~enabled:false] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [set ~enabled:false]
 
-# can't call [enable] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+# can't call [enable] when in universe no_extensions [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
-# can call [disable] when extensions are disallowed [comprehensions disabled]:
+# can call [disable] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [disable]
 
-# can't call [with_set ~enabled:true] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+# can't call [with_set ~enabled:true] when in universe no_extensions [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
-# can call [with_set ~enabled:false] when extensions are disallowed [comprehensions disabled]:
+# can call [with_set ~enabled:false] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [with_set ~enabled:false]
 
-# can't call [with_enabled] when extensions are disallowed [comprehensions disabled]:
-Failed as expected: Cannot enable extension comprehensions: incompatible with flag -disable-all-extensions
+# can't call [with_enabled] when in universe no_extensions [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe no_extensions
 
-# can call [with_disabled] when extensions are disallowed [comprehensions disabled]:
+# can call [with_disabled] when in universe no_extensions [comprehensions disabled]:
 Succeeded at redundantly calling [with_disabled]
 
 # [is_enabled] returns [false] when extensions are disallowed [comprehensions disabled]:
 "comprehensions" is correctly disabled
+
+# can set [Stable] while extensions are disabled [comprehensions disabled]:
+Succeeded at setting universe stable
+
+# can call [Language_extension.(enable Layouts Stable)] when in universe stable [comprehensions disabled]:
+Succeeded at redundantly calling [Language_extension.(enable Layouts Stable)]
+
+# can't call [Language_extension.(enable Comprehensions) ] when in universe stable [comprehensions disabled]:
+Failed as expected: Cannot enable extension comprehensions: incompatible with flag -extension-universe stable
+
+# can't call [Language_extension.(enable Layouts Alpha)] when in universe stable [comprehensions disabled]:
+Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -extension-universe stable
+
+# can set [Beta] from [Stable] [comprehensions enabled]:
+Succeeded at setting universe beta
+
+# "comprehensions" extension enabled via [Universe.set] [comprehensions enabled]:
+Successfully typechecked "[x for x = 1 to 10]"
+
+# can call [Language_extension.(enable Comprehensions) ] when in universe stable [comprehensions enabled]:
+Succeeded at redundantly calling [Language_extension.(enable Comprehensions) ]
+
+# can't call [Language_extension.(enable Layouts Alpha)] when in universe stable [comprehensions enabled]:
+Failed as expected: Cannot enable extension layouts_alpha: incompatible with flag -extension-universe beta
 

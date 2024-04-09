@@ -182,10 +182,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
-  | Float_to_float32
-  | Float_of_float32
   | Float_to_int of float_width
   | Float_of_int of float_width
+  | Float_to_float32
+  | Float_of_float32
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 

@@ -272,30 +272,18 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Negf Float64 -> Format.fprintf ppf "negf"
-  | Absf Float64 -> Format.fprintf ppf "absf"
-  | Addf Float64 -> Format.fprintf ppf "addf"
-  | Subf Float64 -> Format.fprintf ppf "subf"
-  | Mulf Float64 -> Format.fprintf ppf "mulf"
-  | Divf Float64 -> Format.fprintf ppf "divf"
-  | Compf (Float64, _) -> Format.fprintf ppf "compf"
-  | Negf Float32 -> Format.fprintf ppf "negf32"
-  | Absf Float32 -> Format.fprintf ppf "absf32"
-  | Addf Float32 -> Format.fprintf ppf "addf32"
-  | Subf Float32 -> Format.fprintf ppf "subf32"
-  | Mulf Float32 -> Format.fprintf ppf "mulf32"
-  | Divf Float32 -> Format.fprintf ppf "divf32"
-  | Compf (Float32, _) -> Format.fprintf ppf "compf32"
+  | Floatop (Float64, op) -> Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float32, op) -> Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
-  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "floatofint"
-  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "intoffloat"
-  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "float32ofint"
-  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "intoffloat32"
-  | Scalarcast Float_of_float32 -> Format.fprintf ppf "floatoffloat32"
-  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float32offloat"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
+  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
+  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
+  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "float32->int"
+  | Scalarcast Float_of_float32 -> Format.fprintf ppf "float32->float"
+  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float->float32"
   | Scalarcast (V128_to_scalar ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
   | Scalarcast (V128_of_scalar ty) ->
@@ -492,13 +480,7 @@ let is_pure_operation : operation -> bool = function
   | Intop _ -> true
   | Intop_imm _ -> true
   | Intop_atomic _ -> false
-  | Negf _ -> true
-  | Absf _ -> true
-  | Addf _ -> true
-  | Subf _ -> true
-  | Mulf _ -> true
-  | Divf _ -> true
-  | Compf _ -> true
+  | Floatop _ -> true
   | Csel _ -> true
   | Vectorcast _ -> true
   | Scalarcast _ -> true
@@ -557,12 +539,12 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
-      ( Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Negf _ | Absf _ | Addf _ | Subf _
-      | Mulf _ | Divf _ | Compf _ | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Valueofint
+      | Intofvalue | Scalarcast _ | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
+      | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

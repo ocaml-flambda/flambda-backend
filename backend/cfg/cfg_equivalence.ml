@@ -239,20 +239,9 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Negf w1, Negf w2
-  | Absf w1, Absf w2
-  | Addf w1, Addf w2
-  | Subf w1, Subf w2
-  | Mulf w1, Mulf w2
-  | Divf w1, Divf w2
-    when Cmm.equal_float_width w1 w2 ->
-    ()
-  | Compf (w1, left_comp), Compf (w2, right_comp)
-    when Cmm.equal_float_width w1 w2
-         && Cmm.equal_float_comparison left_comp right_comp ->
-    ()
-  | Scalarcast left_scalar, Scalarcast right_scalar
-    when Cmm.equal_scalar_cast left_scalar right_scalar ->
+  | Floatop (left_w, left_op), Floatop (right_w, right_op)
+    when Mach.equal_float_width left_w right_w
+         && Mach.equal_float_operation left_op right_op ->
     ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()

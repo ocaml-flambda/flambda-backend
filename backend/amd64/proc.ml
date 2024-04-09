@@ -488,7 +488,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause | Iprefetch _
-                 | Ifloatarithmem (_, _) | Ifloatsqrtf (_, _) | Ibswap _))
+                 | Ifloatarithmem (_, _, _) | Ifloatsqrtf (_, _) | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
@@ -496,10 +496,9 @@ let destroyed_at_oper = function
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Single { reg = Float32 }
+               | Single { reg = Float32 } | Double
                | Onetwentyeight_aligned | Onetwentyeight_unaligned), _, _))
-  | Iop(Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
-       | Imulf _ | Idivf _ | Icompf _
+  | Iop(Imove | Ispill | Ireload | Ifloatop _
        | Icsel _
        | Ivalueofint | Iintofvalue
        | Ivectorcast _ | Iscalarcast _
@@ -554,8 +553,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
        | Intop_atomic _
-       | Negf _ | Absf _ | Addf _ | Subf _ | Mulf _ | Divf _
-       | Compf _
+       | Floatop _
        | Csel _
        | Valueofint | Intofvalue
        | Vectorcast _
@@ -633,9 +631,8 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
-  | Inegf _ | Iabsf _ | Iaddf _ | Isubf _ | Imulf _ | Idivf _
   | Ivalueofint | Iintofvalue | Ivectorcast _
-  | Icompf _ | Iscalarcast _
+  | Ifloatop _ | Iscalarcast _
   | Icsel _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
   | Iconst_symbol _ | Iconst_vec128 _
@@ -663,7 +660,8 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single { reg = Float64 }, _, _) | Icompf _ ->
+  | Istore(Single { reg = Float64 }, _, _)
+  | Ifloatop ((Float64 | Float32), Icompf _) ->
     consumes ~int:0 ~float:1
   | Ispecific(Isimd op) ->
     (match Simd_proc.register_behavior op with
@@ -689,18 +687,18 @@ let max_register_pressure =
             | Single { reg = Float32 } | Double
             | Onetwentyeight_aligned | Onetwentyeight_unaligned),
             _, _)
-  | Imove | Ispill | Ireload | Inegf _ | Iabsf _ | Iaddf _ | Isubf _
-  | Imulf _ | Idivf _
+  | Imove | Ispill | Ireload
+  | Ifloatop ((Float64 | Float32), (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf))
   | Icsel _
   | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
-  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+  | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
              | Ifloatsqrtf (_, _)
              | Ibswap _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque

@@ -553,26 +553,28 @@ let instr_for_intop = function
   | Iasr -> I.sar
   | _ -> assert false
 
-let instr_for_floatop = function
-  | Iaddf Float64 -> I.addsd
-  | Isubf Float64 -> I.subsd
-  | Imulf Float64 -> I.mulsd
-  | Idivf Float64 -> I.divsd
-  | Iaddf Float32 -> I.addss
-  | Isubf Float32 -> I.subss
-  | Imulf Float32 -> I.mulss
-  | Idivf Float32 -> I.divss
+let instr_for_floatop width op =
+  match width, op with
+  | Float64, Iaddf -> I.addsd
+  | Float64, Isubf -> I.subsd
+  | Float64, Imulf -> I.mulsd
+  | Float64, Idivf -> I.divsd
+  | Float32, Iaddf -> I.addss
+  | Float32, Isubf -> I.subss
+  | Float32, Imulf -> I.mulss
+  | Float32, Idivf -> I.divss
   | _ -> assert false
 
-let instr_for_floatarithmem = function
-  | Ifloatadd Float64 -> I.addsd
-  | Ifloatsub Float64 -> I.subsd
-  | Ifloatmul Float64 -> I.mulsd
-  | Ifloatdiv Float64 -> I.divsd
-  | Ifloatadd Float32 -> I.addss
-  | Ifloatsub Float32 -> I.subss
-  | Ifloatmul Float32 -> I.mulss
-  | Ifloatdiv Float32 -> I.divss
+let instr_for_floatarithmem width op =
+  match width, op with
+  | Float64, Ifloatadd -> I.addsd
+  | Float64, Ifloatsub -> I.subsd
+  | Float64, Ifloatmul -> I.mulsd
+  | Float64, Ifloatdiv -> I.divsd
+  | Float32, Ifloatadd -> I.addss
+  | Float32, Ifloatsub -> I.subss
+  | Float32, Ifloatmul -> I.mulss
+  | Float32, Ifloatdiv -> I.divss
 
 let cond = function
   | Isigned Ceq   -> E   | Isigned Cne   -> NE
@@ -947,29 +949,6 @@ let emit_push_trap_label handler =
   def_label lbl;
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
-
-(* ISA Extension Checking *)
-
-module Extension = struct
-  module E = Arch.Extension
-
-  (* Keep in sync with [isa.c] in the runtime. *)
-  let symbol : E.t -> string =
-    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
-
-  let is_nasm_or_masm () =
-    match system with
-    | S_macosx | S_win32 | S_win64 -> true
-    | _ -> false
-
-  let emit_symbols () =
-    if !arch_check_symbols && not (is_nasm_or_masm ()) then
-    List.iter (fun ext ->
-      let name = symbol ext in
-      D.label name;
-      D.weak name
-    ) (E.available ())
-end
 
 (* Emit Code *)
 
@@ -1533,13 +1512,13 @@ let emit_instr fallthrough i =
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Icompf (Float64, cmp)) ->
+  | Lop(Ifloatop(Float64, Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Icompf (Float32, cmp)) ->
+  | Lop(Ifloatop(Float32, Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpss cond a1 a0;
@@ -1548,30 +1527,30 @@ let emit_instr fallthrough i =
          copy the result to the top 32 bits. *)
       I.movsxd (res32 i 0) (res i 0);
       I.neg (res i 0)
-  | Lop(Inegf Float64) ->
+  | Lop(Ifloatop(Float64, Inegf)) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Iabsf Float64) ->
+  | Lop(Ifloatop(Float64, Iabsf)) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Inegf Float32) ->
+  | Lop(Ifloatop(Float32, Inegf)) ->
       I.xorps (mem64_rip VEC128 (emit_symbol "caml_negf32_mask")) (res i 0)
-  | Lop(Iabsf Float32) ->
+  | Lop(Ifloatop(Float32, Iabsf)) ->
       I.andps (mem64_rip VEC128 (emit_symbol "caml_absf32_mask")) (res i 0)
-  | Lop((Iaddf _ | Isubf _ | Imulf _ | Idivf _) as floatop) ->
-      instr_for_floatop floatop (arg i 1) (res i 0)
+  | Lop(Ifloatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
+      instr_for_floatop width floatop (arg i 1) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
-  | Lop(Iscalarcast (Float_of_float32)) ->
-      I.cvtss2sd (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_to_float32)) ->
-      I.cvtsd2ss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_of_int Float32)) ->
-      I.cvtsi2ss (arg i 0) (res i 0)
-  | Lop(Iscalarcast (Float_to_int Float32)) ->
-      I.cvttss2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (Float_of_int Float64)) ->
-      I.cvtsi2sd (arg i 0) (res i 0)
+      I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iscalarcast (Float_to_int Float64)) ->
       I.cvttsd2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast (Float_of_int Float32)) ->
+      I.cvtsi2ss  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast (Float_to_int Float32)) ->
+      I.cvttss2si (arg i 0) (res i 0)
+  | Lop(Iscalarcast Float_of_float32) ->
+      I.cvtss2sd  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast Float_to_float32) ->
+      I.cvtsd2ss  (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
@@ -1612,8 +1591,10 @@ let emit_instr fallthrough i =
       I.mov (nat n) (addressing addr QWORD i 0)
   | Lop(Ispecific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
-  | Lop(Ispecific(Ifloatarithmem(op, addr))) ->
-      instr_for_floatarithmem op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithmem(Float64, op, addr))) ->
+      instr_for_floatarithmem Float64 op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithmem(Float32, op, addr))) ->
+      instr_for_floatarithmem Float32 op (addressing addr REAL4 i 1) (res i 0)
   | Lop(Ispecific(Ibswap { bitwidth = Sixteen })) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)
@@ -1625,6 +1606,7 @@ let emit_instr fallthrough i =
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
   | Lop(Ispecific(Ifloatsqrtf (Float32, _addr))) ->
+      (* CR mslater: (float32) Ifloatsqrtf Float32 *)
       Misc.fatal_error "Ifloatsqrtf Float32 should never be generated."
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
@@ -2080,7 +2062,6 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
-  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;

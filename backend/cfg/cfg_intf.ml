@@ -74,15 +74,7 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Negf of Cmm.float_width
-    | Absf of Cmm.float_width
-    | Addf of Cmm.float_width
-    | Subf of Cmm.float_width
-    | Mulf of Cmm.float_width
-    | Divf of Cmm.float_width
-    | Compf of
-        Cmm.float_width
-        * Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
+    | Floatop of Mach.float_width * Mach.float_operation
     | Csel of Mach.test
     | Valueofint
     | Intofvalue

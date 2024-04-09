@@ -173,14 +173,12 @@ let oper_result_type = function
   | Cadda -> typ_addr
   | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ -> typ_float
   | Ccsel ty -> ty
-  | Cscalarcast (Float_of_float32) -> typ_float
-  | Cscalarcast (Float_to_float32) -> typ_float32
-  | Cscalarcast (Float_of_int Float64) -> typ_float
-  | Cscalarcast (Float_of_int Float32) -> typ_float32
-  | Cscalarcast (Float_to_int _) -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
+  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
+  | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
   | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
     (* CR mslater: (SIMD) replace once we have unboxed float32 *)
@@ -671,16 +669,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf (width, comp), _) -> (Icompf (width, comp), args)
+  | (Ccmpf (w, comp), _) -> (Ifloatop(w, Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf width, _) -> (Inegf width, args)
-  | (Cabsf width, _) -> (Iabsf width, args)
-  | (Caddf width, _) -> (Iaddf width, args)
-  | (Csubf width, _) -> (Isubf width, args)
-  | (Cmulf width, _) -> (Imulf width, args)
-  | (Cdivf width, _) -> (Idivf width, args)
+  | (Cnegf w, _) -> (Ifloatop (w, Inegf), args)
+  | (Cabsf w, _) -> (Ifloatop (w, Iabsf), args)
+  | (Caddf w, _) -> (Ifloatop (w, Iaddf), args)
+  | (Csubf w, _) -> (Ifloatop (w, Isubf), args)
+  | (Cmulf w, _) -> (Ifloatop (w, Imulf), args)
+  | (Cdivf w, _) -> (Ifloatop (w, Idivf), args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)

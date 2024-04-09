@@ -49,12 +49,38 @@ with type 'a extn := 'a t
 (** Equality on language extensions *)
 val equal : 'a t -> 'b t -> bool
 
+(** The type of language extension universes. Each universe allows a set of
+    extensions, and every successive universe includes the previous one.
+
+    Each variant corresponds to the [-extension-universe <variant>] CLI flag.
+
+    Each extension universe, except for [No_extensions], should also have
+    a corresponding library in [otherlibs/]. Those libraries must contain
+    OCaml code for corresponding extensions that would normally go into Stdlib.
+*)
+module Universe : sig
+  type t =
+    | No_extensions
+    | Upstream_compatible
+        (** Upstream compatible extensions, also known as "erasable". *)
+    | Stable  (** Extensions of [Stable] maturity. *)
+    | Beta  (** Extensions of [Beta] maturity. *)
+    | Alpha
+        (** All extensions. This is the universe enabled by default
+        for the time being. *)
+
+  val all : t list
+
+  (** Equal to [Alpha]. *)
+  val maximal : t
+
+  val to_string : t -> string
+
+  val of_string : string -> t option
+end
+
 (** Disable all extensions *)
 val disable_all : unit -> unit
-
-(** Maximally enable all extensions (that is, set to [Alpha] for [maturity]
-    extensions. *)
-val enable_maximal : unit -> unit
 
 (** Check if a language extension is "erasable", i.e. whether it can be
     harmlessly translated to attributes and compiled with the upstream
@@ -95,42 +121,26 @@ val is_enabled : 'a t -> bool
 val is_at_least : 'a t -> 'a -> bool
 
 (** Tooling support: Temporarily enable and disable language extensions; these
-    operations are idempotent.  Calls to [set], [enable], [disable], and
-    [disallow_extensions] inside the body of the function argument will also
-    be rolled back when the function finishes, but this behavior may change;
-    nest multiple [with_*] functions instead.  *)
+    operations are idempotent.  Calls to [set], [enable], [disable] inside the body
+    of the function argument will also be rolled back when the function finishes,
+    but this behavior may change; nest multiple [with_*] functions instead.  *)
 val with_set : unit t -> enabled:bool -> (unit -> unit) -> unit
 
 val with_enabled : 'a t -> 'a -> (unit -> unit) -> unit
 
 val with_disabled : 'a t -> (unit -> unit) -> unit
 
-(** Permanently restrict the allowable extensions to those that are
-    "erasable", i.e. those that can be harmlessly translated to attributes and
-    compiled with the upstream compiler.  Used for [-only-erasable-extensions]
-    to ensure that some code is guaranteed to be compatible with upstream
-    OCaml after rewriting to attributes.  When called, disables any
-    currently-enabled non-erasable extensions, including any that are on by
-    default.  Causes any future uses of [set ~enabled:true], [enable], and
-    their [with_] variants to raise if used with a non-erasable extension.
-    The [is_enabled] function will still work on any extensions, it will just
-    always return [false] on non-erasable ones.  Will raise if called after
-    [disallow_extensions]; the ratchet of extension restriction only goes one
-    way. *)
-val restrict_to_erasable_extensions : unit -> unit
-
-(** Permanently ban all extensions; used for [-disable-all-extensions] to ensure
-    that some code is 100% extension-free.  When called, disables any
-    currently-enabled extensions, including the defaults.  Causes any future
-    uses of [set ~enabled:true], [enable], and their [with_] variants to raise;
-    also causes any future uses of [restrict_to_erasable_extensions] to raise.
-    The [is_enabled] function will still work, it will just always return
-    [false].*)
-val disallow_extensions : unit -> unit
-
 (** Check if the allowable extensions are restricted to only those that are
-    "erasable". This is true when [restrict_to_erasable_extensions] was called. *)
+    "erasable". This is true when the universe is set to [No_extensions] or
+    [Upstream_compatible]. *)
 val erasable_extensions_only : unit -> bool
+
+(** Set the extension universe and enable all allowed extensions. *)
+val set_universe_and_enable_all : Universe.t -> unit
+
+(** Parse a command-line string and call [set_universe_and_enable_all].
+    Raises if the argument is invalid. *)
+val set_universe_and_enable_all_of_string_exn : string -> unit
 
 (**/**)
 
