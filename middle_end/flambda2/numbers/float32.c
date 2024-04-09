@@ -15,6 +15,12 @@
 /*                                                                        */
 /**************************************************************************/
 
+/* Needed for uselocale */
+#define _XOPEN_SOURCE 700
+
+/* Needed for strtod_l */
+#define _GNU_SOURCE
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -29,9 +35,7 @@
 
 #if defined(HAS_LOCALE_H) || defined(__MINGW32__)
 #include <locale.h>
-#endif
-
-#if defined(HAS_XLOCALE_H)
+#elif defined(HAS_XLOCALE_H)
 #include <xlocale.h>
 #endif
 
