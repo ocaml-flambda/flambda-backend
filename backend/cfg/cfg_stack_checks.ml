@@ -138,58 +138,62 @@ let rec find_stack_check_block :
     else find_stack_check_block candidate ~to_cover ~num_checks ~loop_infos
   | _ -> assert false
 
+let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
+    ~blocks_needing_stack_checks ~max_instr_id =
+  (* CR-soon xclerc for xclerc: use the dominators and loop infos from
+     Cfg_with_infos (at least on some paths). *)
+  let doms = Cfg_dominators.build cfg in
+  let loop_infos = lazy (Cfg_loop_infos.build cfg doms) in
+  List.iter
+    (fun (tree : Cfg_dominators.dominator_tree) ->
+      (* note: the other entries in the forest are dead code *)
+      if Label.equal tree.label cfg.entry_label
+      then
+        let num_checks = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+        let num_checks_root =
+          num_checks_tree tree ~blocks_needing_stack_checks ~num_checks
+        in
+        match num_checks_root with
+        | 0 -> ()
+        | to_cover ->
+          let label =
+            find_stack_check_block tree ~to_cover ~num_checks ~loop_infos
+          in
+          let block = Cfg.get_block_exn cfg label in
+          let stack_offset =
+            match DLL.hd block.body with
+            | None -> block.terminator.stack_offset
+            | Some instr -> instr.stack_offset
+          in
+          let check : Cfg.basic Cfg.instruction =
+            { desc = Stack_check { max_frame_size_bytes = max_frame_size };
+              arg = [||];
+              res = [||];
+              dbg = Debuginfo.none;
+              fdo = Fdo_info.none;
+              live = Reg.Set.empty;
+              stack_offset;
+              id = succ max_instr_id;
+              irc_work_list = Unknown_list;
+              ls_order = 0;
+              (* CR xclerc for xclerc: double check `available_before` and
+                 `available_across`. *)
+              available_before = None;
+              available_across = None
+            }
+          in
+          DLL.add_begin block.body check)
+    (Cfg_dominators.dominator_forest doms)
+
 (* CR-someday xclerc for xclerc: we may want to duplicate the check in some
    cases, rather than simply pushing it down. *)
-let cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
- fun cfg_with_layout ->
+let cfg (cfg_with_layout : Cfg_with_layout.t) =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
     build_cfg_infos cfg
   in
-  (if not (Label.Set.is_empty blocks_needing_stack_checks)
+  if not (Label.Set.is_empty blocks_needing_stack_checks)
   then
-    (* CR-soon xclerc for xclerc: use the dominators and loop infos from
-       Cfg_with_infos (at least on some paths). *)
-    let doms = Cfg_dominators.build cfg in
-    let loop_infos = lazy (Cfg_loop_infos.build cfg doms) in
-    List.iter
-      (fun (tree : Cfg_dominators.dominator_tree) ->
-        (* note: the other entries in the forest are dead code *)
-        if Label.equal tree.label cfg.entry_label
-        then
-          let num_checks = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
-          let num_checks_root =
-            num_checks_tree tree ~blocks_needing_stack_checks ~num_checks
-          in
-          match num_checks_root with
-          | 0 -> ()
-          | to_cover ->
-            let label =
-              find_stack_check_block tree ~to_cover ~num_checks ~loop_infos
-            in
-            let block = Cfg.get_block_exn cfg label in
-            let stack_offset =
-              match DLL.hd block.body with
-              | None -> block.terminator.stack_offset
-              | Some instr -> instr.stack_offset
-            in
-            let check : Cfg.basic Cfg.instruction =
-              { desc = Stack_check { max_frame_size_bytes = max_frame_size };
-                arg = [||];
-                res = [||];
-                dbg = Debuginfo.none;
-                fdo = Fdo_info.none;
-                live = Reg.Set.empty;
-                stack_offset;
-                id = succ max_instr_id;
-                irc_work_list = Unknown_list;
-                ls_order = 0;
-                (* CR xclerc for xclerc: double check `available_before` and
-                   `available_across`. *)
-                available_before = None;
-                available_across = None
-              }
-            in
-            DLL.add_begin block.body check)
-      (Cfg_dominators.dominator_forest doms));
+    insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
+      ~max_instr_id;
   cfg_with_layout
