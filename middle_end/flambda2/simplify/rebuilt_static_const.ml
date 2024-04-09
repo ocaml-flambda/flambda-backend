@@ -167,9 +167,6 @@ let create_immutable_naked_number_array builder are_rebuilding fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (builder fields)
 
-let create_immutable_float32_array =
-  create_immutable_naked_number_array SC.immutable_float32_array
-
 let create_immutable_float_array =
   create_immutable_naked_number_array SC.immutable_float_array
 
@@ -227,10 +224,9 @@ let map_set_of_closures t ~f =
       | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_float32_array _ | Immutable_int32_array _
-      | Immutable_int64_array _ | Immutable_nativeint_array _
-      | Immutable_value_array _ | Empty_array _ | Mutable_string _
-      | Immutable_string _ ->
+      | Immutable_int32_array _ | Immutable_int64_array _
+      | Immutable_nativeint_array _ | Immutable_value_array _ | Empty_array _
+      | Mutable_string _ | Immutable_string _ ->
         t))
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->
     t

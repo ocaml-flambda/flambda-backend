@@ -700,11 +700,11 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
           | Naked_number Naked_vec128 -> C.vec128 ~dbg { high = 0L; low = 0L }
-          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Region | Rec_info ->
             Misc.fatal_errorf "No dummy value available for kind %a"
               K.With_subkind.print kind
