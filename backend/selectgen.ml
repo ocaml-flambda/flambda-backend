@@ -1023,7 +1023,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
               let bytes = size_expr env (Ctuple new_args) in
               let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
-                Ialloc { bytes;
+                Ialloc { bytes = alloc_words * Arch.size_addr;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
                          mode }
               in
