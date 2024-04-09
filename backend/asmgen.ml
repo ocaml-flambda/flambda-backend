@@ -338,7 +338,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
           match !Flambda_backend_flags.cfg_stack_checks with
           | false -> cfg_with_layout
-          | true -> Stack_check.cfg cfg_with_layout)
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -383,7 +383,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
           match !Flambda_backend_flags.cfg_stack_checks with
           | false -> cfg_with_layout
-          | true -> Stack_check.cfg cfg_with_layout)
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)

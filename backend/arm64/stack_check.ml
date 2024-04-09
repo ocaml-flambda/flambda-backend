@@ -26,7 +26,3 @@ let frame_size :
 
 let linear : Linear.fundecl -> Linear.fundecl =
  fun _fundecl -> Misc.fatal_error "stack checks are not supported on arm64"
-
-let cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
- fun _cfg_with_layout ->
-  Misc.fatal_error "stack checks are not supported on arm64"
