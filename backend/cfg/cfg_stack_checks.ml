@@ -37,6 +37,7 @@ let block_preproc_stack_check_result :
     Emitaux.preproc_stack_check_result * int =
  fun block ~frame_size ->
   let contains_nontail_calls =
+    (* CR mshinwell: move to a method in Cfg somewhere? *)
     match block.terminator.desc with
     | Call_no_return _ | Call _ -> true
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
@@ -161,6 +162,8 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
   List.iter
     (fun (tree : Cfg_dominators.dominator_tree) ->
       (* note: the other entries in the forest are dead code *)
+      (* CR mshinwell: maybe there should be a method on Cfg to just retrieve
+         the correct dominator tree and ignore the dead code ones? *)
       if Label.equal tree.label cfg.entry_label
       then
         let num_checks = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
@@ -175,11 +178,15 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
           in
           let block = Cfg.get_block_exn cfg label in
           let stack_offset =
+            (* CR mshinwell: It would maybe be nice if this were just a method
+               on Cfg, to get the stack offset. *)
             match DLL.hd block.body with
             | None -> block.terminator.stack_offset
             | Some instr -> instr.stack_offset
           in
           let check : Cfg.basic Cfg.instruction =
+            (* CR mshinwell: I'm surprised there isn't a creation function for
+               these, maybe this is a good time to add one? *)
             { desc = Stack_check { max_frame_size_bytes = max_frame_size };
               arg = [||];
               res = [||];
@@ -187,11 +194,19 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
               fdo = Fdo_info.none;
               live = Reg.Set.empty;
               stack_offset;
+              (* CR mshinwell: maybe there should be an explicit check that this
+                 code hasn't been executed twice, since we don't update
+                 [max_instr_id] (or expect checks to be duplicated at
+                 present)? *)
               id = succ max_instr_id;
               irc_work_list = Unknown_list;
               ls_order = 0;
               (* CR xclerc for xclerc: double check `available_before` and
-                 `available_across`. *)
+                 `available_across`.
+
+                 mshinwell: having these as None should be fine, so long as this
+                 is run before the forthcoming Cfg_available_regs (which it
+                 probably should be)? *)
               available_before = None;
               available_across = None
             }
