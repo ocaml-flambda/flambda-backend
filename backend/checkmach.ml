@@ -294,7 +294,6 @@ end = struct
   let is_strict t = t.strict
 
   let find codegen_options spec fun_name dbg =
-    let ignore_assert_all = ref false in
     let a =
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
@@ -304,10 +303,7 @@ end = struct
           | Assume { property; strict; never_returns_normally; loc }
             when property = spec ->
             Some { strict; assume = true; never_returns_normally; loc }
-          | Ignore_assert_all property when property = spec ->
-            ignore_assert_all := true;
-            None
-          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
+          | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options
