@@ -18,7 +18,7 @@
 /* Needed for uselocale */
 #define _XOPEN_SOURCE 700
 
-/* Needed for strtod_l */
+/* Needed for strtof_l */
 #define _GNU_SOURCE
 
 #include <stdbool.h>
