@@ -851,8 +851,6 @@ val gc_root_table : Cmm.symbol list -> phrase
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
 
-val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
-
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
