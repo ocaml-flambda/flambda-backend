@@ -272,8 +272,10 @@ let dump_op ppf = function
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Intop_atomic { op; size = _; addr = _ } ->
     Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Floatop (Float64, op) -> Format.fprintf ppf "floatop %a" Printmach.floatop op
-  | Floatop (Float32, op) -> Format.fprintf ppf "float32op %a" Printmach.floatop op
+  | Floatop (Float64, op) ->
+    Format.fprintf ppf "floatop %a" Printmach.floatop op
+  | Floatop (Float32, op) ->
+    Format.fprintf ppf "float32op %a" Printmach.floatop op
   | Csel _ -> Format.fprintf ppf "csel"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"

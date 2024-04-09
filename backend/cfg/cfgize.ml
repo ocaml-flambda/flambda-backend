@@ -173,7 +173,7 @@ let basic_or_terminator_of_operation :
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
   | Ifloatop (w, Icompf comp) -> Basic (Op (Floatop (w, Icompf comp)))
-  | Ifloatop (w, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf as op)) ->
+  | Ifloatop (w, ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op)) ->
     Basic (Op (Floatop (w, op)))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
