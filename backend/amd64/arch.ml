@@ -142,6 +142,8 @@ type specific_operation =
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
+  | Ifloatarithconst of float_operation * float
+                                       (* Float arith operation with constant *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
@@ -231,6 +233,12 @@ let print_addressing printreg addr ppf arg =
       let idx = if n <> 0 then Printf.sprintf " + %i" n else "" in
       fprintf ppf "%a + %a * %i%s" printreg arg.(0) printreg arg.(1) scale idx
 
+let string_of_float_operation = function
+  | Ifloatadd -> "+f"
+  | Ifloatsub -> "-f"
+  | Ifloatmul -> "*f"
+  | Ifloatdiv -> "/f"
+
 let print_specific_operation printreg op ppf arg =
   match op with
   | Ilea addr -> print_addressing printreg addr ppf arg
@@ -244,14 +252,14 @@ let print_specific_operation printreg op ppf arg =
      fprintf ppf "sqrtf float64[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
   | Ifloatarithmem(op, addr) ->
-      let op_name = function
-      | Ifloatadd -> "+f"
-      | Ifloatsub -> "-f"
-      | Ifloatmul -> "*f"
-      | Ifloatdiv -> "/f" in
-      fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
+      let op_name = string_of_float_operation op in
+      fprintf ppf "%a %s float64[%a]" printreg arg.(0) op_name
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
+  | Ifloatarithconst(op, const) ->
+      (* CR xclerc for xclerc: double check "%f" formatter *)
+      let op_name = string_of_float_operation op in
+      fprintf ppf "%a %s %f" printreg arg.(0) op_name const
   | Ibswap { bitwidth } ->
     fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
   | Isextend32 ->
@@ -287,7 +295,7 @@ let win64 =
 
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _ -> true
+  | Ifloatarithmem _ | Ifloatarithconst _ | Ifloatsqrtf _ -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -298,7 +306,7 @@ let operation_is_pure = function
 
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _ | Ifloatarithconst _ | Ifloatsqrtf _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -306,7 +314,7 @@ let operation_can_raise = function
 
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _ | Ifloatarithconst _ | Ifloatsqrtf _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -371,6 +379,10 @@ let equal_specific_operation left right =
     Int.equal x y && equal_addressing_mode x' y'
   | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
     equal_float_operation x y && equal_addressing_mode x' y'
+  | Ifloatarithconst (x, x'), Ifloatarithconst (y, y') ->
+    (* CR xclerc for xclerc: probably already defined *)
+    let eq_float_bits x y = Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y) in
+    equal_float_operation x y && eq_float_bits x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Ifloatsqrtf left, Ifloatsqrtf right ->
@@ -397,7 +409,7 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
-  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ |
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ifloatarithconst _ | Ifloatsqrtf _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Iprefetch _), _ ->
     false
