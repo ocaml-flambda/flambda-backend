@@ -22,7 +22,6 @@ end
 
 type t =
   | Default_check
-  | Ignore_assert_all of Property.t
   | Assume of
       { property : Property.t;
         strict : bool;
@@ -38,8 +37,6 @@ type t =
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Ignore_assert_all property ->
-    Format.fprintf ppf "@[ignore %a@]" Property.print property
   | Assume { property; strict; never_returns_normally; loc = _ } ->
     Format.fprintf ppf "@[assume_%a%s%s@]" Property.print property
       (if strict then "_strict" else "")
@@ -71,7 +68,6 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | Ignore_assert_all p1, Ignore_assert_all p2 -> Property.equal p1 p2
   | ( Check { property = p1; strict = s1; loc = loc1 },
       Check { property = p2; strict = s2; loc = loc2 } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
@@ -82,8 +78,8 @@ let equal x y =
     ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2
     && Location.compare loc1 loc2 = 0
-  | (Default_check | Ignore_assert_all _ | Check _ | Assume _), _ -> false
+  | (Default_check | Check _ | Assume _), _ -> false
 
 let is_default : t -> bool = function
   | Default_check -> true
-  | Ignore_assert_all _ | Check _ | Assume _ -> false
+  | Check _ | Assume _ -> false

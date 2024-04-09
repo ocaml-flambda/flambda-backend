@@ -16,7 +16,6 @@ end
 
 type t =
   | Default_check
-  | Ignore_assert_all of Property.t
   | Assume of
       { property : Property.t;
         strict : bool;
