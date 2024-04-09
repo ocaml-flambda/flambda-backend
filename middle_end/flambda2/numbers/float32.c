@@ -15,29 +15,22 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* Needed for uselocale */
-#define _XOPEN_SOURCE 700
-
 /* Needed for strtof_l */
 #define _GNU_SOURCE
+#ifdef __APPLE__
+#include <xlocale.h>
+#endif
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <locale.h>
 #include <limits.h>
 
 #include "caml/alloc.h"
 #include "caml/fail.h"
 #include "caml/memory.h"
-
-#if defined(HAS_LOCALE) || defined(__MINGW32__)
-
-#if defined(HAS_LOCALE_H) || defined(__MINGW32__)
-#include <locale.h>
-#elif defined(HAS_XLOCALE_H)
-#include <xlocale.h>
-#endif
 
 #if defined(_MSC_VER)
 #ifndef locale_t
@@ -46,12 +39,12 @@
 #ifndef freelocale
 #define freelocale _free_locale
 #endif
-#ifndef strtod_l
-#define strtod_l _strtod_l
+#ifndef strtof_l
+#define strtof_l _strtof_l
 #endif
 #endif
 
-#endif /* defined(HAS_LOCALE) */
+extern locale_t caml_locale;
 
 static float float32_of_int32(int32_t i)
 {
@@ -190,27 +183,6 @@ value flambda2_float32_to_float_boxed(value i)
     return caml_copy_double(flambda2_float32_to_float(Int32_val(i)));
 }
 
-/*
- OCaml runtime itself doesn't call setlocale, i.e. it is using
- standard "C" locale by default, but it is possible that
- third-party code loaded into process does.
-*/
-#ifdef HAS_LOCALE
-extern locale_t caml_locale;
-#endif
-
-#if defined(_MSC_VER) || defined(__MINGW32__)
-/* there is no analogue to uselocale in MSVC so just set locale for thread */
-#define USE_LOCALE setlocale(LC_NUMERIC,"C")
-#define RESTORE_LOCALE do {} while(0)
-#elif defined(HAS_LOCALE)
-#define USE_LOCALE locale_t saved_locale = uselocale(caml_locale)
-#define RESTORE_LOCALE uselocale(saved_locale)
-#else
-#define USE_LOCALE do {} while(0)
-#define RESTORE_LOCALE do {} while(0)
-#endif
-
 static int flambda2_float32_of_hex(const char * s, const char * end, float * res)
 {
   /* See caml_float_of_hex */
@@ -332,14 +304,8 @@ CAMLprim value flambda2_float32_of_string(value vs)
     if (flambda2_float32_of_hex(src + 2, dst, &f) == -1) goto error;
     if (sign < 0) f = -f;
   } else {
-    /* Convert using strtod */
-#if defined(HAS_STRTOF_L) && defined(HAS_LOCALE)
+    /* Convert using strtof */
     f = strtof_l((const char *) buf, &end, caml_locale);
-#else
-    USE_LOCALE;
-    f = strtof((const char *) buf, &end);
-    RESTORE_LOCALE;
-#endif /* HAS_STRTOF_L */
     if (end != dst) goto error;
   }
   if (buf != parse_buffer) caml_stat_free(buf);
