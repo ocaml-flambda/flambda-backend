@@ -48,9 +48,14 @@ let print ppf t =
     Format.fprintf ppf "@[assert_%a%s@]" Property.print property
       (if strict then "_strict" else "")
 
-let from_lambda : Lambda.check_attribute -> t = function
-  | Default_check -> Default_check
-  | Ignore_assert_all p -> Ignore_assert_all (Property.from_lambda p)
+let from_lambda : Lambda.check_attribute -> Location.t -> t =
+ fun a loc ->
+  match a with
+  | Default_check ->
+    if !Clflags.zero_alloc_check_assert_all
+    then Check { property = Zero_alloc; strict = false; loc }
+    else Default_check
+  | Ignore_assert_all Zero_alloc -> Default_check
   | Assume { property; strict; never_returns_normally; loc } ->
     Assume
       { property = Property.from_lambda property;

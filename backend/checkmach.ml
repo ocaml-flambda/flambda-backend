@@ -313,16 +313,7 @@ end = struct
         codegen_options
     in
     match a with
-    | [] ->
-      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
-      then
-        Some
-          { strict = false;
-            assume = false;
-            never_returns_normally = false;
-            loc = Debuginfo.to_location dbg
-          }
-      else None
+    | [] -> None
     | [p] -> Some p
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"

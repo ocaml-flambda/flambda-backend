@@ -35,4 +35,5 @@ val equal : t -> t -> bool
 
 val is_default : t -> bool
 
-val from_lambda : Lambda.check_attribute -> t
+val from_lambda : Lambda.check_attribute -> Location.t -> t
+

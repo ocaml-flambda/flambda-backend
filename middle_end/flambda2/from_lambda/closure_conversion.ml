@@ -1827,7 +1827,8 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl)
+                (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -2191,7 +2192,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl)
+                 (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:(Function_decl.is_opaque decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -2318,6 +2320,7 @@ let close_functions acc external_env ~current_region function_declarations =
         in
         let check =
           Check_attribute.from_lambda (Function_decl.check_attribute decl)
+          (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
         in
         let cost_metrics = Cost_metrics.zero in
         let dbg = Debuginfo.from_location (Function_decl.loc decl) in
