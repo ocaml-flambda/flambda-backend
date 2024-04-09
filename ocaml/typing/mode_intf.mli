@@ -358,6 +358,10 @@ module type S = sig
         val value : t -> default:some -> some
       end
 
+      (** [diff a b] returns [None] for axes where [a] and [b] match, and [Some
+      a0] for axes where [a] is [a0] and [b] isn't. *)
+      val diff : t -> t -> Option.t
+
       (** Similar to [Alloc.close_over] but for constants *)
       val close_over : t -> t
 
