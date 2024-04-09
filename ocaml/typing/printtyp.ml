@@ -1314,7 +1314,7 @@ let rec tree_of_typexp mode alloc_mode ty =
             tree_of_typexp mode arg_mode ty1
         in
         let acc_mode = curry_mode alloc_mode arg_mode in
-        let (rm, t2) = tree_of_ret_typ_unsafe mode acc_mode (mret, ty2) in
+        let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
         Btype.backtrack snap;
         Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
     | Ttuple labeled_tyl ->
@@ -1453,7 +1453,7 @@ and tree_of_typ_gf (ty, gf) =
 
     NB: This function might mutate states; the caller is responsible for
     reverting them. *)
-and tree_of_ret_typ_unsafe mode acc_mode (m, ty) =
+and tree_of_ret_typ_mutating mode acc_mode (m, ty) =
   match get_desc ty with
   | Tarrow _ -> begin
       (* We first try to equate [m] with the [acc_mode]; if that succeeds, we
