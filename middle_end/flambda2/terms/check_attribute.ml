@@ -49,7 +49,8 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
  fun a loc ->
   match a with
   | Default_check ->
-    if !Clflags.zero_alloc_check_assert_all
+    if !Clflags.zero_alloc_check_assert_all &&
+       Lambda.is_check_enabled ~opt:false Zero_alloc
     then Check { property = Zero_alloc; strict = false; loc }
     else Default_check
   | Ignore_assert_all Zero_alloc -> Default_check
