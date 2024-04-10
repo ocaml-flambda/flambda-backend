@@ -64,7 +64,7 @@ AC_ARG_ENABLE([legacy-library-layout],
     [Install libraries unix, str, dynlink and bigarray in the toplevel
      ocaml library directory (Same as upstream OCaml < 5.0)])],
   [],
-  [legacy_layout=no])
+  [enable_legacy_layout=no])
 
 AC_ARG_ENABLE([dev],
   [AS_HELP_STRING([--enable-dev],
@@ -81,7 +81,7 @@ AC_SUBST([dune])
 coverage="$enable_coverage"
 AC_SUBST([coverage])
 
-legacy_layout="$legacy_layout"
+legacy_layout="$enable_legacy_layout"
 AC_SUBST([legacy_layout])
 
 main_build_profile=main
