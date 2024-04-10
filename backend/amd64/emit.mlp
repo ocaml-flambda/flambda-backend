@@ -676,7 +676,7 @@ let output_epilogue f =
 
 (* Floating-point constants *)
 
-let float_constants = ref ([] : (int64 * int) list)
+let float_constants = ref ([] : (int64 * label) list)
 
 let add_float_constant cst =
   try
@@ -692,7 +692,7 @@ let emit_float_constant f lbl =
 
 (* Vector constants *)
 
-let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
+let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 
 let add_vec128_constant bits =
   try
