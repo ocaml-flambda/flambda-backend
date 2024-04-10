@@ -28,9 +28,10 @@
 
 [@@@ocaml.warning "+4"]
 
+open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-(* Returns the stack check infos, and the max of seen instruction ids. *)
+(* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :
     Cfg.basic_block ->
     frame_size:int ->
@@ -54,13 +55,13 @@ let block_preproc_stack_check_result :
   in
   { max_frame_size; contains_nontail_calls }, max_instr_id
 
-type cfg_infos =
+type cfg_info =
   { max_frame_size : int;
     blocks_needing_stack_checks : Label.Set.t;
     max_instr_id : int
   }
 
-let build_cfg_infos : Cfg.t -> cfg_infos =
+let build_cfg_info : Cfg.t -> cfg_info =
  fun cfg ->
   let frame_required =
     Proc.frame_required ~fun_contains_calls:cfg.fun_contains_calls
@@ -135,11 +136,11 @@ let rec find_stack_check_block :
     loop_infos:Cfg_loop_infos.t Lazy.t ->
     Label.t =
  fun tree ~to_cover ~num_checks ~loop_infos ->
-  assert (to_cover = Label.Tbl.find num_checks tree.label);
+  assert (Label.equal to_cover (Label.Tbl.find num_checks tree.label));
   let candidates =
     List.filter
       (fun (child : Cfg_dominators.dominator_tree) ->
-        Label.Tbl.find num_checks child.label = to_cover)
+        Label.equal to_cover (Label.Tbl.find num_checks child.label))
       tree.children
   in
   match candidates with
@@ -219,7 +220,7 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
 let cfg (cfg_with_layout : Cfg_with_layout.t) =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
-    build_cfg_infos cfg
+    build_cfg_info cfg
   in
   if not (Label.Set.is_empty blocks_needing_stack_checks)
   then
