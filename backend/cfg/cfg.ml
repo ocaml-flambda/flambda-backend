@@ -57,9 +57,7 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     match hd with
     | No_CSE -> No_CSE :: of_cmm_codegen_option tl
     | Reduce_code_size -> Reduce_code_size :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc | Assume _ | Check _
-      ->
-      of_cmm_codegen_option tl)
+    | Use_linscan_regalloc | Assume _ | Check _ -> of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
