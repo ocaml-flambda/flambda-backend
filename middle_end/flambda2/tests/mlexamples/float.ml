@@ -563,7 +563,7 @@ let[@inline] min_max_num (x : float) (y : float) =
   else y, x
 
 (* [caml_hash_exn] doesn't raise on floats, so it's fine for it to be
-   marked [@@noalloc].)
+   marked [@@noalloc]. *)
 external seeded_hash_param : int -> int -> int -> float -> int = "caml_hash_exn"
   [@@noalloc]
 
