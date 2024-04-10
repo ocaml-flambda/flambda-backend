@@ -6762,16 +6762,17 @@ and type_function
          there might be an opportunity to improve this.
       *)
       let not_nolabel_function ty =
+        (* [list_labels] does expansion and is potentially expensive; only
+           call this when necessary. *)
         let ls, tvar = list_labels env ty in
         List.for_all (( <> ) Nolabel) ls && not tvar
       in
-      if not_nolabel_function ty_ret then
-        if is_optional typed_arg_label then
-          Location.prerr_warning pat.pat_loc
-            Warnings.Unerasable_optional_argument
-        else if is_position typed_arg_label then
-          Location.prerr_warning pat.pat_loc
-            Warnings.Unerasable_position_argument;
+      if is_optional typed_arg_label && not_nolabel_function ty_ret then
+        Location.prerr_warning pat.pat_loc
+          Warnings.Unerasable_optional_argument
+      else if is_position typed_arg_label && not_nolabel_function ty_ret then
+        Location.prerr_warning pat.pat_loc
+          Warnings.Unerasable_position_argument;
       let fp_kind, fp_param =
         match default_arg with
         | None ->
@@ -9838,7 +9839,7 @@ let report_error ~loc env = function
         | Nolabel, _ | _, Nolabel -> true
         | _                       -> false
       in
-      let maybe_positional_argument_hint = 
+      let maybe_positional_argument_hint =
         match got, expected with
         | Labelled _, Position _ ->
           "\nHint: Consider explicitly annotating the label with '[%call_pos]'"
