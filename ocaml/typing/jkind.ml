@@ -717,7 +717,8 @@ module Jkind_desc = struct
 
   let float64 =
     { layout = Layout.float64;
-      modes_upper_bounds = Modes.max;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External
     }
 

@@ -1244,30 +1244,6 @@ let out_jkind_option_of_jkind jkind =
     then Some (Olay_var (Jkind.Sort.var_name v))
     else None
 
-let tree_of_mode mode =
-  let {locality; linearity; uniqueness} : Alloc.Const.Option.t
-    = Alloc.check_const mode
-  in
-  let oam_locality =
-    match locality with
-    | Some Global -> Olm_global
-    | Some Local -> Olm_local
-    | None -> Olm_unknown
-  in
-  let oam_uniqueness =
-    match uniqueness with
-    | Some Unique -> Oum_unique
-    | Some Shared -> Oum_shared
-    | None -> Oum_unknown
-  in
-  let oam_linearity =
-    match linearity with
-    | Some Many -> Olinm_many
-    | Some Once -> Olinm_once
-    | None -> Olinm_unknown
-  in
-  {oam_locality; oam_uniqueness; oam_linearity}
-
 let alias_nongen_row mode px ty =
     match get_desc ty with
     | Tvariant _ | Tobject _ ->
@@ -1281,7 +1257,26 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
-let rec tree_of_typexp mode ty =
+(** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
+Raise if not found. *)
+let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
+  Option.map (fun x -> List.assoc x l) mode
+
+let tree_of_modes modes =
+  let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
+  (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
+  let l = [
+    tree_of_mode diff.locality [Mode.Locality.Const.Local, Omd_local];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_once];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_unique]]
+  in
+  List.filter_map Fun.id l
+
+(* [alloc_mode] is the mode that our printing has expressed on [ty]. For the
+  example [A -> local_ (B -> C)], we will call [tree_of_typexp] on (B -> C) with
+  alloc_mode = local. This is helpful for reproducing the mode currying logic in
+  [ctype.ml], so that parsing and printing roundtrip. *)
+let rec tree_of_typexp mode alloc_mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
    let non_gen = is_non_gen mode (Transient_expr.type_expr px) in
@@ -1296,31 +1291,39 @@ let rec tree_of_typexp mode ty =
         let name_gen = Names.new_var_name ~non_gen ty in
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
+        (* In this branch we do some mutation that needs to be reverted, as
+           printing should not mutate states. *)
+        let snap = Btype.snapshot () in
         let lab =
           if !print_labels || is_omittable l then outcome_label l
           else Nolabel
         in
+        (* [marg] will contain undetermined axes. It would be imprecise if we
+           don't print anything for those axes, since user would interpret that
+           as legacy. The best we can do is to zap to legacy and if they do land
+           at legacy, we will be able to omit printing them. *)
+        let arg_mode = Alloc.zap_to_legacy marg in
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
-                tree_of_typexp mode ty
+                tree_of_typexp mode arg_mode ty
             | _ -> Otyp_stuff "<hidden>"
           else
-            tree_of_typexp mode ty1
+            tree_of_typexp mode arg_mode ty1
         in
-        let am = tree_of_mode marg in
-        let t2 = tree_of_typexp mode ty2 in
-        let rm = tree_of_mode mret in
-        Otyp_arrow (lab, am, t1, rm, t2)
+        let acc_mode = curry_mode alloc_mode arg_mode in
+        let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
+        Btype.backtrack snap;
+        Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
         let p', s = best_type_path p in
         let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
-        then tree_of_typexp mode (List.hd tyl')
+        then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
@@ -1366,7 +1369,7 @@ let rec tree_of_typexp mode ty =
     | Tlink _ ->
         fatal_error "Printtyp.tree_of_typexp"
     | Tpoly (ty, []) ->
-        tree_of_typexp mode ty
+        tree_of_typexp mode alloc_mode ty
     | Tpoly (ty, tyl) ->
         (*let print_names () =
           List.iter (fun (_, name) -> prerr_string (name ^ " ")) !names;
@@ -1377,7 +1380,7 @@ let rec tree_of_typexp mode ty =
            printed once when used as proxy *)
         List.iter add_delayed tyl;
         let tl = tree_of_qtvs tyl in
-        let tr = Otyp_poly (tl, tree_of_typexp mode ty) in
+        let tr = Otyp_poly (tl, tree_of_typexp mode alloc_mode ty) in
         (* Forget names when we leave scope *)
         Names.remove_names tyl;
         delayed := old_delayed; tr
@@ -1388,7 +1391,7 @@ let rec tree_of_typexp mode ty =
           List.map
             (fun (li, ty) -> (
               String.concat "." (Longident.flatten li),
-              tree_of_typexp mode ty
+              tree_of_typexp mode Alloc.Const.legacy ty
             )) fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
   in
@@ -1420,7 +1423,7 @@ and tree_of_qtvs qtvs =
 and tree_of_row_field mode (l, f) =
   match row_field_repr f with
   | Rpresent None | Reither(true, [], _) -> (l, false, [])
-  | Rpresent(Some ty) -> (l, false, [tree_of_typexp mode ty])
+  | Rpresent(Some ty) -> (l, false, [tree_of_typexp mode Alloc.Const.legacy ty])
   | Reither(c, tyl, _) ->
       if c (* contradiction: constant constructor with an argument *)
       then (l, true, tree_of_typlist mode tyl)
@@ -1428,10 +1431,10 @@ and tree_of_row_field mode (l, f) =
   | Rabsent -> (l, false, [] (* actually, an error *))
 
 and tree_of_typlist mode tyl =
-  List.map (tree_of_typexp mode) tyl
+  List.map (tree_of_typexp mode Alloc.Const.legacy) tyl
 
 and tree_of_labeled_typlist mode tyl =
-  List.map (fun (label, ty) -> label, tree_of_typexp mode ty) tyl
+  List.map (fun (label, ty) -> label, tree_of_typexp mode Alloc.Const.legacy ty) tyl
 
 and tree_of_typ_gf (ty, gf) =
   let gf =
@@ -1439,7 +1442,37 @@ and tree_of_typ_gf (ty, gf) =
     | Global_flag.Global -> Ogf_global
     | Global_flag.Unrestricted -> Ogf_unrestricted
   in
-  (tree_of_typexp Type ty, gf)
+  (tree_of_typexp Type Alloc.Const.legacy ty, gf)
+
+(** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
+    is the return mode. This function decides the printed modes on [ty].
+    - If [ty] is another arrow type, [acc_mode] is the mode that has accumulated
+      from the currying, and thus the mode that the user would interpret as on
+      [ty] if it doesn't have parens around it.
+    - If [ty] is not an arrow type, [acc_mode] is meaningless.
+
+    NB: This function might mutate states; the caller is responsible for
+    reverting them. *)
+and tree_of_ret_typ_mutating mode acc_mode (m, ty) =
+  match get_desc ty with
+  | Tarrow _ -> begin
+      (* We first try to equate [m] with the [acc_mode]; if that succeeds, we
+        can omit parens and modes. *)
+      match Alloc.equate (Alloc.of_const acc_mode) m with
+      | Ok () ->
+        let ty = tree_of_typexp mode acc_mode ty in
+        (Orm_no_parens, ty)
+      | Error _ ->
+        (* In this branch we need to print parens. [m] might have undetermined
+        axes and we adopt a similar logic to the [marg] above. *)
+        let m = Alloc.zap_to_legacy m in
+        let ty = tree_of_typexp mode m ty in
+        (Orm_parens (tree_of_modes m), ty)
+      end
+  | _ ->
+    let m = Alloc.zap_to_legacy m in
+    let ty = tree_of_typexp mode m ty in
+    (Orm_not_arrow (tree_of_modes m), ty)
 
 and tree_of_typobject mode fi nm =
   begin match nm with
@@ -1478,9 +1511,11 @@ and tree_of_typfields mode rest = function
       in
       ([], open_row)
   | (s, t) :: l ->
-      let field = (s, tree_of_typexp mode t) in
+      let field = (s, tree_of_typexp mode Alloc.Const.legacy t) in
       let (fields, rest) = tree_of_typfields mode rest l in
       (field :: fields, rest)
+
+let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
 
 let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)

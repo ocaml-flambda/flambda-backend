@@ -3718,24 +3718,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
-let transl_property : Lambda.property -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Assume { property; strict; never_returns_normally; loc } ->
-    [ Assume
-        { property = transl_property property;
-          strict;
-          never_returns_normally;
-          loc
-        } ]
-  | Check { property; strict; loc; opt } ->
-    if Lambda.is_check_enabled ~opt property
-    then [Check { property = transl_property property; strict; loc }]
-    else []
-
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
   | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float

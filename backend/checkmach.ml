@@ -294,7 +294,6 @@ end = struct
   let is_strict t = t.strict
 
   let find codegen_options spec fun_name dbg =
-    let ignore_assert_all = ref false in
     let a =
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
@@ -304,25 +303,13 @@ end = struct
           | Assume { property; strict; never_returns_normally; loc }
             when property = spec ->
             Some { strict; assume = true; never_returns_normally; loc }
-          | Ignore_assert_all property when property = spec ->
-            ignore_assert_all := true;
-            None
-          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
+          | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options
     in
     match a with
-    | [] ->
-      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
-      then
-        Some
-          { strict = false;
-            assume = false;
-            never_returns_normally = false;
-            loc = Debuginfo.to_location dbg
-          }
-      else None
+    | [] -> None
     | [p] -> Some p
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
@@ -856,8 +843,7 @@ end = struct
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-    | Iconst_vec128 _ | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf
-    | Imulf | Idivf | Ivectorcast _ | Iscalarcast _
+    | Iconst_vec128 _ | Iload _ | Ifloatop _ | Ivectorcast _ | Iscalarcast _
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
