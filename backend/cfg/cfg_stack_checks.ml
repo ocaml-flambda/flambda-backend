@@ -137,11 +137,11 @@ let rec find_stack_check_block :
     loop_infos:Cfg_loop_infos.t Lazy.t ->
     Label.t =
  fun tree ~to_cover ~num_checks ~loop_infos ->
-  assert (Label.equal to_cover (Label.Tbl.find num_checks tree.label));
+  assert (to_cover = Label.Tbl.find num_checks tree.label);
   let candidates =
     List.filter
       (fun (child : Cfg_dominators.dominator_tree) ->
-        Label.equal to_cover (Label.Tbl.find num_checks child.label))
+        to_cover = Label.Tbl.find num_checks child.label)
       tree.children
   in
   match candidates with
