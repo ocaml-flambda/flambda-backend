@@ -130,4 +130,13 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_flags:"-zero-alloc-check default -disable-checkmach -function-layout source"
     ~extra_dep:None ~exit_code:2 "fail26";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default"
+    ~extra_dep:None ~exit_code:2 "test_all_opt";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:None ~exit_code:2 "test_all_opt2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check opt"
+    ~extra_dep:None ~exit_code:2 "test_all_opt3";
   ()
