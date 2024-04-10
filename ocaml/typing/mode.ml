@@ -252,81 +252,135 @@ module Lattices = struct
     end)
   end
 
-  module Unit = struct
-    type t = unit
+  module Portability = struct
+    type t =
+      | Portable
+      | Nonportable
 
     include Total (struct
       type nonrec t = t
 
-      let min = ()
+      let min = Portable
 
-      let max = ()
+      let max = Nonportable
 
-      let legacy = ()
+      let legacy = Nonportable
 
-      let le () () = true
+      let le a b =
+        match a, b with
+        | Portable, _ | _, Nonportable -> true
+        | Nonportable, Portable -> false
 
-      let join () () = ()
+      let join a b =
+        match a, b with
+        | Nonportable, _ | _, Nonportable -> Nonportable
+        | Portable, Portable -> Portable
 
-      let meet () () = ()
+      let meet a b =
+        match a, b with
+        | Portable, _ | _, Portable -> Portable
+        | Nonportable, Nonportable -> Nonportable
 
-      let print _ppf () = ()
+      let print ppf = function
+        | Portable -> Format.fprintf ppf "portable"
+        | Nonportable -> Format.fprintf ppf "nonportable"
     end)
   end
 
-  type monadic = Uniqueness.t * Unit.t
+  module Contention = struct
+    type t =
+      | Contended
+      | Uncontended
 
-  module Monadic = struct
-    (* CR zqian: the extra unit is to distinguish [Moandic.t] from
-       [Uniqueness.t], in order to eliminate some GADT match cases. There might
-       be smarter ways to do this, but we will very soon replace [unit] with
-       proper [Contention.t] anyway, so this seem like a easy quick fix. *)
-    type t = monadic
+    include Total (struct
+      type nonrec t = t
 
-    let min = Uniqueness.min, Unit.min
+      let min = Uncontended
 
-    let max = Uniqueness.max, Unit.max
+      let max = Contended
 
-    let legacy = Uniqueness.legacy, Unit.legacy
+      let legacy = Uncontended
 
-    let le (a0, a1) (b0, b1) = Uniqueness.le a0 b0 && Unit.le a1 b1
+      let le a b =
+        match a, b with
+        | Uncontended, _ | _, Contended -> true
+        | Contended, Uncontended -> false
 
-    let join (a0, a1) (b0, b1) = Uniqueness.join a0 b0, Unit.join a1 b1
+      let join a b =
+        match a, b with
+        | Contended, _ | _, Contended -> Contended
+        | Uncontended, Uncontended -> Uncontended
 
-    let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Unit.meet a1 b1
+      let meet a b =
+        match a, b with
+        | Uncontended, _ | _, Uncontended -> Uncontended
+        | Contended, Contended -> Contended
 
-    let imply (a0, a1) (b0, b1) = Uniqueness.imply a0 b0, Unit.imply a1 b1
-
-    let subtract (a0, a1) (b0, b1) =
-      Uniqueness.subtract a0 b0, Unit.subtract a1 b1
-
-    let print ppf (a0, ()) = Format.fprintf ppf "%a" Uniqueness.print a0
+      let print ppf = function
+        | Contended -> Format.fprintf ppf "contended"
+        | Uncontended -> Format.fprintf ppf "uncontended"
+    end)
   end
 
-  type 'areality comonadic_with = 'areality * Linearity.t
+  module Contention_op = Opposite (Contention)
+
+  type monadic = Uniqueness.t * Contention.t
+
+  module Monadic = struct
+    type t = monadic
+
+    let min = Uniqueness.min, Contention.min
+
+    let max = Uniqueness.max, Contention.max
+
+    let legacy = Uniqueness.legacy, Contention.legacy
+
+    let le (a0, a1) (b0, b1) = Uniqueness.le a0 b0 && Contention.le a1 b1
+
+    let join (a0, a1) (b0, b1) = Uniqueness.join a0 b0, Contention.join a1 b1
+
+    let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Contention.meet a1 b1
+
+    let imply (a0, a1) (b0, b1) = Uniqueness.imply a0 b0, Contention.imply a1 b1
+
+    let subtract (a0, a1) (b0, b1) =
+      Uniqueness.subtract a0 b0, Contention.subtract a1 b1
+
+    let print ppf (a0, a1) =
+      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
+  end
+
+  type 'areality comonadic_with = 'areality * Linearity.t * Portability.t
 
   module Comonadic_with (Areality : Areality) = struct
     type t = Areality.t comonadic_with
 
-    let min = Areality.min, Linearity.min
+    let min = Areality.min, Linearity.min, Portability.min
 
-    let max = Areality.max, Linearity.max
+    let max = Areality.max, Linearity.max, Portability.max
 
-    let legacy = Areality.legacy, Linearity.legacy
+    let legacy = Areality.legacy, Linearity.legacy, Portability.legacy
 
-    let le (a0, a1) (b0, b1) = Areality.le a0 b0 && Linearity.le a1 b1
+    let le (a0, a1, a2) (b0, b1, b2) =
+      Areality.le a0 b0 && Linearity.le a1 b1 && Portability.le a2 b2
 
-    let join (a0, a1) (b0, b1) = Areality.join a0 b0, Linearity.join a1 b1
+    let join (a0, a1, a2) (b0, b1, b2) =
+      Areality.join a0 b0, Linearity.join a1 b1, Portability.join a2 b2
 
-    let meet (a0, a1) (b0, b1) = Areality.meet a0 b0, Linearity.meet a1 b1
+    let meet (a0, a1, a2) (b0, b1, b2) =
+      Areality.meet a0 b0, Linearity.meet a1 b1, Portability.meet a2 b2
 
-    let imply (a0, a1) (b0, b1) = Areality.imply a0 b0, Linearity.imply a1 b1
+    let imply (a0, a1, a2) (b0, b1, b2) =
+      Areality.imply a0 b0, Linearity.imply a1 b1, Portability.imply a2 b2
 
-    let subtract (a0, a1) (b0, b1) =
-      Areality.subtract a0 b0, Linearity.subtract a1 b1
+    let subtract (a0, a1, a2) (b0, b1, b2) =
+      ( Areality.subtract a0 b0,
+        Linearity.subtract a1 b1,
+        Portability.subtract a2 b2 )
 
-    let print ppf (a0, a1) =
-      Format.fprintf ppf "%a,%a" Areality.print a0 Linearity.print a1
+    let print ppf (a0, a1, a2) =
+      Format.fprintf ppf "%a,%a,%a" Areality.print a0 Linearity.print a1
+        Portability.print a2
   end
   [@@inline]
 
@@ -344,6 +398,8 @@ module Lattices = struct
     | Regionality : Regionality.t obj
     | Uniqueness_op : Uniqueness_op.t obj
     | Linearity : Linearity.t obj
+    | Portability : Portability.t obj
+    | Contention_op : Contention_op.t obj
     | Monadic_op : Monadic_op.t obj
     | Comonadic_with_regionality : Comonadic_with_regionality.t obj
     | Comonadic_with_locality : Comonadic_with_locality.t obj
@@ -354,6 +410,8 @@ module Lattices = struct
     | Regionality -> Format.fprintf ppf "Regionality"
     | Uniqueness_op -> Format.fprintf ppf "Uniqueness_op"
     | Linearity -> Format.fprintf ppf "Linearity"
+    | Portability -> Format.fprintf ppf "Portability"
+    | Contention_op -> Format.fprintf ppf "Contention_op"
     | Monadic_op -> Format.fprintf ppf "Monadic_op"
     | Comonadic_with_locality -> Format.fprintf ppf "Comonadic_with_locality"
     | Comonadic_with_regionality ->
@@ -363,7 +421,9 @@ module Lattices = struct
     | Locality -> Locality.min
     | Regionality -> Regionality.min
     | Uniqueness_op -> Uniqueness_op.min
+    | Contention_op -> Contention_op.min
     | Linearity -> Linearity.min
+    | Portability -> Portability.min
     | Monadic_op -> Monadic_op.min
     | Comonadic_with_locality -> Comonadic_with_locality.min
     | Comonadic_with_regionality -> Comonadic_with_regionality.min
@@ -372,7 +432,9 @@ module Lattices = struct
     | Locality -> Locality.max
     | Regionality -> Regionality.max
     | Uniqueness_op -> Uniqueness_op.max
+    | Contention_op -> Contention_op.max
     | Linearity -> Linearity.max
+    | Portability -> Portability.max
     | Monadic_op -> Monadic_op.max
     | Comonadic_with_locality -> Comonadic_with_locality.max
     | Comonadic_with_regionality -> Comonadic_with_regionality.max
@@ -383,7 +445,9 @@ module Lattices = struct
     | Locality -> Locality.le a b
     | Regionality -> Regionality.le a b
     | Uniqueness_op -> Uniqueness_op.le a b
+    | Contention_op -> Contention_op.le a b
     | Linearity -> Linearity.le a b
+    | Portability -> Portability.le a b
     | Monadic_op -> Monadic_op.le a b
     | Comonadic_with_locality -> Comonadic_with_locality.le a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.le a b
@@ -394,7 +458,9 @@ module Lattices = struct
     | Locality -> Locality.join a b
     | Regionality -> Regionality.join a b
     | Uniqueness_op -> Uniqueness_op.join a b
+    | Contention_op -> Contention_op.join a b
     | Linearity -> Linearity.join a b
+    | Portability -> Portability.join a b
     | Monadic_op -> Monadic_op.join a b
     | Comonadic_with_locality -> Comonadic_with_locality.join a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.join a b
@@ -405,7 +471,9 @@ module Lattices = struct
     | Locality -> Locality.meet a b
     | Regionality -> Regionality.meet a b
     | Uniqueness_op -> Uniqueness_op.meet a b
+    | Contention_op -> Contention_op.meet a b
     | Linearity -> Linearity.meet a b
+    | Portability -> Portability.meet a b
     | Monadic_op -> Monadic_op.meet a b
     | Comonadic_with_locality -> Comonadic_with_locality.meet a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.meet a b
@@ -416,7 +484,9 @@ module Lattices = struct
     | Locality -> Locality.imply a b
     | Regionality -> Regionality.imply a b
     | Uniqueness_op -> Uniqueness_op.imply a b
+    | Contention_op -> Contention_op.imply a b
     | Linearity -> Linearity.imply a b
+    | Portability -> Portability.imply a b
     | Comonadic_with_locality -> Comonadic_with_locality.imply a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.imply a b
     | Monadic_op -> Monadic_op.imply a b
@@ -427,7 +497,9 @@ module Lattices = struct
     | Locality -> Locality.subtract a b
     | Regionality -> Regionality.subtract a b
     | Uniqueness_op -> Uniqueness_op.subtract a b
+    | Contention_op -> Contention_op.subtract a b
     | Linearity -> Linearity.subtract a b
+    | Portability -> Portability.subtract a b
     | Comonadic_with_locality -> Comonadic_with_locality.subtract a b
     | Comonadic_with_regionality -> Comonadic_with_regionality.subtract a b
     | Monadic_op -> Monadic_op.subtract a b
@@ -437,7 +509,9 @@ module Lattices = struct
     | Locality -> Locality.print
     | Regionality -> Regionality.print
     | Uniqueness_op -> Uniqueness_op.print
+    | Contention_op -> Contention_op.print
     | Linearity -> Linearity.print
+    | Portability -> Portability.print
     | Monadic_op -> Monadic_op.print
     | Comonadic_with_locality -> Comonadic_with_locality.print
     | Comonadic_with_regionality -> Comonadic_with_regionality.print
@@ -448,15 +522,18 @@ module Lattices = struct
     let equal : type a b. a obj -> b obj -> (a, b) Misc.eq option =
      fun a b ->
       match a, b with
-      | Locality, Locality -> Some Misc.Refl
-      | Regionality, Regionality -> Some Misc.Refl
-      | Uniqueness_op, Uniqueness_op -> Some Misc.Refl
-      | Linearity, Linearity -> Some Misc.Refl
-      | Monadic_op, Monadic_op -> Some Misc.Refl
-      | Comonadic_with_locality, Comonadic_with_locality -> Some Misc.Refl
-      | Comonadic_with_regionality, Comonadic_with_regionality -> Some Misc.Refl
-      | ( ( Locality | Regionality | Uniqueness_op | Linearity | Monadic_op
-          | Comonadic_with_locality | Comonadic_with_regionality ),
+      | Locality, Locality -> Some Refl
+      | Regionality, Regionality -> Some Refl
+      | Uniqueness_op, Uniqueness_op -> Some Refl
+      | Contention_op, Contention_op -> Some Refl
+      | Linearity, Linearity -> Some Refl
+      | Portability, Portability -> Some Refl
+      | Monadic_op, Monadic_op -> Some Refl
+      | Comonadic_with_locality, Comonadic_with_locality -> Some Refl
+      | Comonadic_with_regionality, Comonadic_with_regionality -> Some Refl
+      | ( ( Locality | Regionality | Uniqueness_op | Contention_op | Linearity
+          | Portability | Monadic_op | Comonadic_with_locality
+          | Comonadic_with_regionality ),
           _ ) ->
         None
   end)
@@ -471,35 +548,46 @@ module Lattices_mono = struct
     type ('t, 'r) t =
       | Areality : ('a comonadic_with, 'a) t
       | Linearity : ('areality comonadic_with, Linearity.t) t
+      | Portability : ('areality comonadic_with, Portability.t) t
       | Uniqueness : (Monadic_op.t, Uniqueness_op.t) t
+      | Contention : (Monadic_op.t, Contention_op.t) t
 
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
       | Areality -> Format.fprintf ppf "areality"
       | Linearity -> Format.fprintf ppf "linearity"
+      | Portability -> Format.fprintf ppf "portability"
       | Uniqueness -> Format.fprintf ppf "uniqueness"
+      | Contention -> Format.fprintf ppf "contention"
 
     let eq : type p r0 r1. (p, r0) t -> (p, r1) t -> (r0, r1) Misc.eq option =
      fun ax0 ax1 ->
       match ax0, ax1 with
       | Areality, Areality -> Some Refl
       | Linearity, Linearity -> Some Refl
+      | Portability, Portability -> Some Refl
       | Uniqueness, Uniqueness -> Some Refl
-      | (Areality | Linearity | Uniqueness), _ -> None
+      | Contention, Contention -> Some Refl
+      | (Areality | Linearity | Uniqueness | Portability | Contention), _ ->
+        None
 
     let proj : type p r. (p, r) t -> p -> r =
      fun ax t ->
       match ax, t with
-      | Areality, (a, _) -> a
-      | Linearity, (_, lin) -> lin
-      | Uniqueness, (uni, ()) -> uni
+      | Areality, (a, _, _) -> a
+      | Linearity, (_, lin, _) -> lin
+      | Portability, (_, _, s) -> s
+      | Uniqueness, (uni, _) -> uni
+      | Contention, (_, con) -> con
 
     let update : type p r. (p, r) t -> r -> p -> p =
      fun ax r t ->
       match ax, t with
-      | Areality, (_, lin) -> r, lin
-      | Linearity, (area, _) -> area, r
-      | Uniqueness, (_, ()) -> r, ()
+      | Areality, (_, lin, portable) -> r, lin, portable
+      | Linearity, (area, _, portable) -> area, r, portable
+      | Portability, (area, lin, _) -> area, lin, r
+      | Uniqueness, (_, con) -> r, con
+      | Contention, (uni, _) -> uni, r
   end
 
   type ('a, 'b, 'd) morph =
@@ -652,7 +740,7 @@ module Lattices_mono = struct
   end)
 
   let set_areality : type a0 a1. a1 -> a0 comonadic_with -> a1 comonadic_with =
-   fun r (_, lin) -> r, lin
+   fun r (_, lin, portable) -> r, lin, portable
 
   let proj_obj : type t r. (t, r) Axis.t -> t obj -> r obj =
    fun ax obj ->
@@ -661,7 +749,10 @@ module Lattices_mono = struct
     | Areality, Comonadic_with_regionality -> Regionality
     | Linearity, Comonadic_with_locality -> Linearity
     | Linearity, Comonadic_with_regionality -> Linearity
+    | Portability, Comonadic_with_locality -> Portability
+    | Portability, Comonadic_with_regionality -> Portability
     | Uniqueness, Monadic_op -> Uniqueness_op
+    | Contention, Monadic_op -> Contention_op
 
   let comonadic_with_obj : type a. a obj -> a comonadic_with obj =
    fun a0 ->
@@ -669,7 +760,7 @@ module Lattices_mono = struct
     | Locality -> Comonadic_with_locality
     | Regionality -> Comonadic_with_regionality
     | Uniqueness_op | Linearity | Monadic_op | Comonadic_with_regionality
-    | Comonadic_with_locality ->
+    | Comonadic_with_locality | Contention_op | Portability ->
       assert false
 
   let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
@@ -795,6 +886,14 @@ module Lattices_mono = struct
     | Uniqueness.Unique -> Linearity.Once
     | Uniqueness.Shared -> Linearity.Many
 
+  let portable_to_contended = function
+    | Portability.Portable -> Contention.Contended
+    | Portability.Nonportable -> Contention.Uncontended
+
+  let contended_to_portable = function
+    | Contention.Contended -> Portability.Portable
+    | Contention.Uncontended -> Portability.Nonportable
+
   let local_to_regional = function
     | Locality.Global -> Regionality.Global
     | Locality.Local -> Regionality.Regional
@@ -823,24 +922,38 @@ module Lattices_mono = struct
 
   let monadic_to_comonadic_min :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
-   fun obj (uniqueness, ()) ->
+   fun obj (uniqueness, contention) ->
     match obj with
-    | Comonadic_with_locality -> Locality.min, unique_to_linear uniqueness
-    | Comonadic_with_regionality -> Regionality.min, unique_to_linear uniqueness
+    | Comonadic_with_locality ->
+      ( Locality.min,
+        unique_to_linear uniqueness,
+        contended_to_portable contention )
+    | Comonadic_with_regionality ->
+      ( Regionality.min,
+        unique_to_linear uniqueness,
+        contended_to_portable contention )
 
   let comonadic_to_monadic :
       type a. a comonadic_with obj -> a comonadic_with -> Monadic_op.t =
-   fun obj (_, linearity) ->
+   fun obj (_, linearity, portability) ->
     match obj with
-    | Comonadic_with_locality -> linear_to_unique linearity, ()
-    | Comonadic_with_regionality -> linear_to_unique linearity, ()
+    | Comonadic_with_locality ->
+      linear_to_unique linearity, portable_to_contended portability
+    | Comonadic_with_regionality ->
+      linear_to_unique linearity, portable_to_contended portability
 
   let monadic_to_comonadic_max :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
-   fun obj (uniqueness, ()) ->
+   fun obj (uniqueness, contention) ->
     match obj with
-    | Comonadic_with_locality -> Locality.max, unique_to_linear uniqueness
-    | Comonadic_with_regionality -> Regionality.max, unique_to_linear uniqueness
+    | Comonadic_with_locality ->
+      ( Locality.max,
+        unique_to_linear uniqueness,
+        contended_to_portable contention )
+    | Comonadic_with_regionality ->
+      ( Regionality.max,
+        unique_to_linear uniqueness,
+        contended_to_portable contention )
 
   let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
    fun dst f a ->
@@ -868,8 +981,8 @@ module Lattices_mono = struct
     | Global_to_regional -> global_to_regional a
     | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
-      let a0, a1 = a in
-      apply dst0 f a0, a1
+      let a0 = Axis.proj Areality a in
+      set_areality (apply dst0 f a0) a
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
@@ -928,7 +1041,8 @@ module Lattices_mono = struct
       let src' = src mid m1 in
       match ax with
       | Areality -> Some (compose dst f (Proj (src', Areality)))
-      | Linearity -> Some (Proj (src', Linearity)))
+      | Linearity -> Some (Proj (src', Linearity))
+      | Portability -> Some (Proj (src', Portability)))
     | Proj _, Monadic_to_comonadic_min -> None
     | Proj _, Monadic_to_comonadic_max -> None
     | Proj _, Comonadic_to_monadic _ -> None
@@ -1305,6 +1419,24 @@ module Linearity = struct
   let zap_to_legacy = zap_to_floor
 end
 
+module Portability = struct
+  module Const = C.Portability
+
+  module Obj = struct
+    type const = Const.t
+
+    module Solver = S.Positive
+
+    let obj : _ C.obj = C.Portability
+  end
+
+  include Common (Obj)
+
+  let legacy = of_const Const.legacy
+
+  let zap_to_legacy = zap_to_ceil
+end
+
 module Uniqueness = struct
   module Const = C.Uniqueness
 
@@ -1326,6 +1458,25 @@ module Uniqueness = struct
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_ceil
+end
+
+module Contention = struct
+  module Const = C.Contention
+
+  module Obj = struct
+    type const = Const.t
+
+    (* the negation of Uniqueness_op gives us the proper uniqueness *)
+    module Solver = S.Negative
+
+    let obj = C.Contention_op
+  end
+
+  include Common (Obj)
+
+  let legacy = of_const Const.legacy
+
+  let zap_to_legacy = zap_to_floor
 end
 
 let regional_to_local m =
@@ -1389,7 +1540,8 @@ module Comonadic_with (Areality : Areality) = struct
   let zap_to_legacy m =
     let areality = proj Areality m |> Areality.zap_to_legacy in
     let linearity = proj Linearity m |> Linearity.zap_to_legacy in
-    areality, linearity
+    let portability = proj Portability m |> Portability.zap_to_legacy in
+    areality, linearity, portability
 
   let imply c m = Solver.via_monotone obj (Imply c) (Solver.disallow_left m)
 
@@ -1399,11 +1551,14 @@ module Comonadic_with (Areality : Areality) = struct
   let submode_log m0 m1 ~log : _ result =
     match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
-    | Error { left = area0, lin0; right = area1, lin1 } ->
+    | Error { left = area0, lin0, syn0; right = area1, lin1, syn1 } ->
       if Areality.Const.le area0 area1
       then
         if Linearity.Const.le lin0 lin1
-        then assert false
+        then
+          if Portability.Const.le syn0 syn1
+          then assert false
+          else Error (Error (Portability, { left = syn0; right = syn1 }))
         else Error (Error (Linearity, { left = lin0; right = lin1 }))
       else Error (Error (Areality, { left = area0; right = area1 }))
 
@@ -1461,7 +1616,8 @@ module Monadic = struct
 
   let zap_to_legacy m =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
-    uniqueness, ()
+    let contention = proj Contention m |> Contention.zap_to_legacy in
+    uniqueness, contention
 
   let legacy = of_const Const.legacy
 
@@ -1469,9 +1625,12 @@ module Monadic = struct
   let submode_log m0 m1 ~log : _ result =
     match submode_log m0 m1 ~log with
     | Ok () -> Ok ()
-    | Error { left = uni0, (); right = uni1, () } ->
+    | Error { left = uni0, con0; right = uni1, con1 } ->
       if Uniqueness.Const.le uni0 uni1
-      then assert false
+      then
+        if Contention.Const.le con0 con1
+        then assert false
+        else Error (Error (Contention, { left = con0; right = con1 }))
       else Error (Error (Uniqueness, { left = uni0; right = uni1 }))
 
   let submode a b = try_with_log (submode_log a b)
@@ -1509,21 +1668,23 @@ module Value_with (Areality : Areality) = struct
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
 
-  type ('a, 'b, 'c) modes =
+  type ('a, 'b, 'c, 'd, 'e) modes =
     { areality : 'a;
       linearity : 'b;
-      uniqueness : 'c
+      uniqueness : 'c;
+      portability : 'd;
+      contention : 'e
     }
 
-  let split { areality; linearity; uniqueness } =
-    let monadic = uniqueness, () in
-    let comonadic = areality, linearity in
+  let split { areality; linearity; portability; uniqueness; contention } =
+    let monadic = uniqueness, contention in
+    let comonadic = areality, linearity, portability in
     { comonadic; monadic }
 
   let merge { comonadic; monadic } =
-    let areality, linearity = comonadic in
-    let uniqueness, () = monadic in
-    { areality; linearity; uniqueness }
+    let areality, linearity, portability = comonadic in
+    let uniqueness, contention = monadic in
+    { areality; linearity; portability; uniqueness; contention }
 
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
@@ -1539,7 +1700,13 @@ module Value_with (Areality : Areality) = struct
     { comonadic; monadic }
 
   module Const = struct
-    type t = (Areality.Const.t, Linearity.Const.t, Uniqueness.Const.t) modes
+    type t =
+      ( Areality.Const.t,
+        Linearity.Const.t,
+        Uniqueness.Const.t,
+        Portability.Const.t,
+        Contention.Const.t )
+      modes
 
     module Monadic = Monadic.Const
     module Comonadic = Comonadic.Const
@@ -1580,10 +1747,18 @@ module Value_with (Areality : Areality) = struct
       type t =
         ( Areality.Const.t option,
           Linearity.Const.t option,
-          Uniqueness.Const.t option )
+          Uniqueness.Const.t option,
+          Portability.Const.t option,
+          Contention.Const.t option )
         modes
 
-      let none = { areality = None; uniqueness = None; linearity = None }
+      let none =
+        { areality = None;
+          uniqueness = None;
+          linearity = None;
+          portability = None;
+          contention = None
+        }
 
       let value opt ~default =
         let areality = Option.value opt.areality ~default:default.areality in
@@ -1591,7 +1766,13 @@ module Value_with (Areality : Areality) = struct
           Option.value opt.uniqueness ~default:default.uniqueness
         in
         let linearity = Option.value opt.linearity ~default:default.linearity in
-        { areality; uniqueness; linearity }
+        let portability =
+          Option.value opt.portability ~default:default.portability
+        in
+        let contention =
+          Option.value opt.contention ~default:default.contention
+        in
+        { areality; uniqueness; linearity; portability; contention }
     end
 
     let diff m0 m1 =
@@ -1599,7 +1780,11 @@ module Value_with (Areality : Areality) = struct
       let areality = diff Areality.Const.le m0.areality m1.areality in
       let linearity = diff Linearity.Const.le m0.linearity m1.linearity in
       let uniqueness = diff Uniqueness.Const.le m0.uniqueness m1.uniqueness in
-      { areality; linearity; uniqueness }
+      let portability =
+        diff Portability.Const.le m0.portability m1.portability
+      in
+      let contention = diff Contention.Const.le m0.contention m1.contention in
+      { areality; linearity; uniqueness; portability; contention }
 
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =
@@ -1876,10 +2061,11 @@ module Value = Value_with (Regionality)
 module Alloc = Value_with (Locality)
 
 module Const = struct
-  let alloc_as_value ({ areality; linearity; uniqueness } : Alloc.Const.t) :
-      Value.Const.t =
+  let alloc_as_value
+      ({ areality; linearity; portability; uniqueness; contention } :
+        Alloc.Const.t) : Value.Const.t =
     let areality = C.locality_as_regionality areality in
-    { areality; linearity; uniqueness }
+    { areality; linearity; portability; uniqueness; contention }
 end
 
 let alloc_as_value m =

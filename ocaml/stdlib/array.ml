@@ -23,7 +23,7 @@ type 'a t = 'a array
 
 (* Array operations *)
 
-external length : 'a array -> int = "%array_length"
+external length : 'a array @ contended -> int = "%array_length"
 external get: 'a array -> int -> 'a = "%array_safe_get"
 external set: 'a array -> int -> 'a -> unit = "%array_safe_set"
 external unsafe_get: 'a array -> int -> 'a = "%array_unsafe_get"
@@ -41,7 +41,7 @@ external create_float: int -> float array = "caml_make_float_vect"
 
 module Floatarray = struct
   external create : int -> floatarray = "caml_floatarray_create"
-  external length : floatarray -> int = "%floatarray_length"
+  external length : floatarray @ contended -> int = "%floatarray_length"
   external get : floatarray -> int -> float = "%floatarray_safe_get"
   external set : floatarray -> int -> float -> unit = "%floatarray_safe_set"
   external unsafe_get : floatarray -> int -> float = "%floatarray_unsafe_get"
