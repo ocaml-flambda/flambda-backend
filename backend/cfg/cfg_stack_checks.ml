@@ -50,9 +50,10 @@ let block_preproc_stack_check_result :
     DLL.fold_left block.body
       ~init:(block.terminator.stack_offset, block.terminator.id)
       ~f:(fun (max_stack_frame, max_instr_id) (instr : _ Cfg.instruction) ->
-        ( Int.max max_stack_frame (instr.stack_offset + frame_size),
+        ( Int.max max_stack_frame instr.stack_offset,
           Int.max max_instr_id instr.id ))
   in
+  let max_frame_size = max_frame_size + frame_size in
   { max_frame_size; contains_nontail_calls }, max_instr_id
 
 type cfg_info =
