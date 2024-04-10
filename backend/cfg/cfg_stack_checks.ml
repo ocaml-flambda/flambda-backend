@@ -127,9 +127,7 @@ let rec num_checks_tree :
 (* Determines which block should have the stack check. `num_checks` contains for
    each label the number of blocks needing the check in the subtree; `to_cover`
    is the number of blocks needing the check at the entry point. We recursively
-   choose the child whose `num_checks` is equal to `to_cover`, if it exists.
-   There cannot be two such children since the `num_checks` value for the
-   current node is know to be `>=` the sum of the values for the children. *)
+   choose the child whose `num_checks` is equal to `to_cover`, if it exists. *)
 let rec find_stack_check_block :
     Cfg_dominators.dominator_tree ->
     to_cover:int ->
@@ -138,6 +136,13 @@ let rec find_stack_check_block :
     Label.t =
  fun tree ~to_cover ~num_checks ~loop_infos ->
   assert (to_cover = Label.Tbl.find num_checks tree.label);
+  (* Either:
+   *   to_cover = num_checks_child0 + ... + num_checks_childN
+   * or (in the case where the current root block needs a stack check):
+   *   to_cover = 1 + num_checks_child0 + ... + num_checks_childN
+   * This allows us to work out whether to put a stack check before the
+   * current root block, or before exactly one of the children.
+   *)
   let candidates =
     List.filter
       (fun (child : Cfg_dominators.dominator_tree) ->
@@ -147,13 +152,18 @@ let rec find_stack_check_block :
   match candidates with
   | [] -> tree.label
   | [candidate] ->
+    (* Never push a stack check into a loop. *)
     let candidate_is_in_a_loop =
       Label.Map.find candidate.label (Lazy.force loop_infos).loop_depths > 0
     in
     if candidate_is_in_a_loop
     then tree.label
     else find_stack_check_block candidate ~to_cover ~num_checks ~loop_infos
-  | _ -> assert false
+  | _ :: _ :: _ ->
+    Misc.fatal_errorf
+      "More than one child has num_checks = %d (= to_cover), maybe a bug in \
+       num_checks_tree"
+      to_cover
 
 let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
     ~blocks_needing_stack_checks ~max_instr_id =
