@@ -788,7 +788,6 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
   let never_delete =
     match Code_metadata.check code_metadata with
     | Default_check -> !Clflags.zero_alloc_check_assert_all
-    | Ignore_assert_all Zero_alloc -> false
     | Assume { property = Zero_alloc; _ } -> false
     | Check { property = Zero_alloc; _ } -> true
   in
