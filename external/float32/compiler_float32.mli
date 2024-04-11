@@ -15,46 +15,43 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = int32
+(** IEE754 32-bit floats represented as 32-bit integers.
+    Operations are implemented in C stubs. *)
 
-let to_bits x = x
+type t
 
-let of_bits x = x
+val neg : t -> t
 
-external neg : t -> t = "flambda2_float32_neg_boxed" "flambda2_float32_neg"
-  [@@unboxed]
+val abs : t -> t
 
-external abs : t -> t = "flambda2_float32_abs_boxed" "flambda2_float32_abs"
-  [@@unboxed]
+val add : t -> t -> t
 
-external add : t -> t -> t = "flambda2_float32_add_boxed" "flambda2_float32_add"
-  [@@unboxed]
+val sub : t -> t -> t
 
-external sub : t -> t -> t = "flambda2_float32_sub_boxed" "flambda2_float32_sub"
-  [@@unboxed]
+val mul : t -> t -> t
 
-external mul : t -> t -> t = "flambda2_float32_mul_boxed" "flambda2_float32_mul"
-  [@@unboxed]
+val div : t -> t -> t
 
-external div : t -> t -> t = "flambda2_float32_div_boxed" "flambda2_float32_div"
-  [@@unboxed]
+val mod_ : t -> t -> t
 
-external mod_ : t -> t -> t
-  = "flambda2_float32_mod_boxed" "flambda2_float32_mod"
-  [@@unboxed]
+val compare : t -> t -> int
 
-external compare : (t[@unboxed]) -> (t[@unboxed]) -> int
-  = "flambda2_float32_compare_boxed" "flambda2_float32_compare"
+val equal : t -> t -> bool
 
-external equal : (t[@unboxed]) -> (t[@unboxed]) -> bool
-  = "flambda2_float32_equal_boxed" "flambda2_float32_equal"
+(** Parse 32-bit float literal. *)
+val of_string : string -> t
 
-external of_float : float -> t
-  = "flambda2_float32_of_float_boxed" "flambda2_float32_of_float"
-  [@@unboxed]
+(** Format 32-bit float to string. *)
+val to_string : t -> string
 
-external to_float : t -> float
-  = "flambda2_float32_to_float_boxed" "flambda2_float32_to_float"
-  [@@unboxed]
+(** Convert from a 64-bit float; rounds to the nearest 32-bit float. *)
+val of_float : float -> t
 
-external of_string : string -> t = "flambda2_float32_of_string"
+(** Convert to a 64-bit float; exact. *)
+val to_float : t -> float
+
+(** Bit-cast to 32-bit integer. *)
+val to_bits : t -> int32
+
+(** Bit-cast from 32-bit integer. *)
+val of_bits : int32 -> t
