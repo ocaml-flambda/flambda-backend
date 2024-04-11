@@ -31,6 +31,8 @@ val find_dominance_frontier : t -> Label.t -> Label.Set.t
 
 val dominator_forest : t -> dominator_tree list
 
+val dominator_tree_for_entry_point : t -> dominator_tree
+
 val iter_breadth_dominator_forest : t -> f:(Label.t -> unit) -> unit
 (* [iter_breadth_dominator_forest doms ~f] iterates over the dominator forest
    from [doms] in a breadth-first manner (iterating over a whole tree of the
