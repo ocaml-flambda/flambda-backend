@@ -43,7 +43,7 @@ module Acc : sig
 
   val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> unit
 
-  val record_deps : denv:denv -> Code_id_or_name.t -> Deps.DepSet.t -> t -> unit
+  val record_deps : denv:denv -> Code_id_or_name.t -> Deps.Dep.Set.t -> t -> unit
 
   val cont_dep : denv:denv -> Variable.t -> Simple.t -> t -> unit
 
@@ -277,17 +277,17 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         Simple.pattern_match
           ~const:(fun _ -> set)
           ~name:(fun name ~coercion:_ ->
-            Deps.DepSet.add
+            Deps.Dep.Set.add
               (Block (Value_slot value_slot, Code_id_or_name.name name))
               set)
           simple)
       (Set_of_closures.value_slots set_of_closures)
-      Deps.DepSet.empty
+      Deps.Dep.Set.empty
   in
   let deps =
     Function_slot.Lmap.fold
       (fun function_slot name set ->
-        Deps.DepSet.add
+        Deps.Dep.Set.add
           (Block (Function_slot function_slot, Code_id_or_name.name name))
           set)
       names_and_function_slots deps

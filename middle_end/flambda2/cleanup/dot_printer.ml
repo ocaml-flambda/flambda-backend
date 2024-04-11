@@ -59,7 +59,7 @@ module P = struct
     Hashtbl.iter
       (fun name dep ->
         let dep_names =
-          Deps.DepSet.fold (fun dep acc -> dep_names dep @ acc) dep []
+          Deps.Dep.Set.fold (fun dep acc -> dep_names dep @ acc) dep []
         in
         List.iter (fun name -> Hashtbl.replace names name ()) (name :: dep_names))
       t.Deps.name_to_dep;
@@ -104,7 +104,7 @@ module P = struct
   let edges ~ctx ppf t =
     Hashtbl.iter
       (fun src dst_set ->
-        Deps.DepSet.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
+        Deps.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
       t.Deps.name_to_dep
 
   let code_deps ~ctx ~code_id ppf code_dep =

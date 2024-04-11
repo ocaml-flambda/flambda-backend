@@ -40,40 +40,43 @@ module Field = struct
 end
 
 module Dep = struct
-  type t =
-    | Alias of Name.t
-    | Use of Name.t
-    | Contains of Code_id_or_name.t
-    | Field of Field.t * Name.t
-    | Block of Field.t * Code_id_or_name.t
-    | Apply of Name.t * Code_id.t
-    | Return_of_that_function of Name.t
+  module M = struct
+    type t =
+      | Alias of Name.t
+      | Use of Name.t
+      | Contains of Code_id_or_name.t
+      | Field of Field.t * Name.t
+      | Block of Field.t * Code_id_or_name.t
+      | Apply of Name.t * Code_id.t
+      | Return_of_that_function of Name.t
 
-  let compare = compare
+    let compare = compare
 
-  let equal x y = compare x y = 0
+    let equal x y = compare x y = 0
 
-  let hash = Hashtbl.hash
+    let hash = Hashtbl.hash
 
-  let print ppf = function
-    | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
-    | Use n -> Format.fprintf ppf "Use %a" Name.print n
-    | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
-    | Field (f, n) ->
-      Format.fprintf ppf "Field %a %a" Field.print f Name.print n
-    | Block (f, n) ->
-      Format.fprintf ppf "Block %a %a" Field.print f Code_id_or_name.print n
-    | Apply (n, c) ->
-      Format.fprintf ppf "Apply %a %a" Name.print n Code_id.print c
-    | Return_of_that_function n ->
-      Format.fprintf ppf "Return_of_that_function %a" Name.print n
+    let print ppf = function
+      | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
+      | Use n -> Format.fprintf ppf "Use %a" Name.print n
+      | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
+      | Field (f, n) ->
+        Format.fprintf ppf "Field %a %a" Field.print f Name.print n
+      | Block (f, n) ->
+        Format.fprintf ppf "Block %a %a" Field.print f Code_id_or_name.print n
+      | Apply (n, c) ->
+        Format.fprintf ppf "Apply %a %a" Name.print n Code_id.print c
+      | Return_of_that_function n ->
+        Format.fprintf ppf "Return_of_that_function %a" Name.print n
+  end
+
+  include M
+  module Container = Container_types.Make (M)
+  module Set = Container.Set
 end
 
-module C = Container_types.Make (Dep)
-module DepSet = C.Set
-
 type fun_graph =
-  { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
+  { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t;
     called : (Code_id.t, unit) Hashtbl.t
   }
@@ -110,13 +113,13 @@ let create () =
 
 let insert t k v =
   match Hashtbl.find_opt t k with
-  | None -> Hashtbl.add t k (DepSet.singleton v)
-  | Some s -> Hashtbl.replace t k (DepSet.add v s)
+  | None -> Hashtbl.add t k (Dep.Set.singleton v)
+  | Some s -> Hashtbl.replace t k (Dep.Set.add v s)
 
 let inserts t k v =
   match Hashtbl.find_opt t k with
   | None -> Hashtbl.add t k v
-  | Some s -> Hashtbl.replace t k (DepSet.union v s)
+  | Some s -> Hashtbl.replace t k (Dep.Set.union v s)
 
 let add_opaque_let_dependency t bp fv =
   let tbl = t.name_to_dep in

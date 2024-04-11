@@ -23,12 +23,12 @@ module Dep : sig
     | Return_of_that_function of Name.t
 
   val print : Format.formatter -> t -> unit
+
+  module Set : Container_types.Set with type elt = t
 end
 
-module DepSet : Container_types.Set with type elt = Dep.t
-
 type fun_graph =
-  { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
+  { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t;
     called : (Code_id.t, unit) Hashtbl.t
   }
@@ -44,7 +44,7 @@ val pp_used : Format.formatter -> graph -> unit
 
 val create : unit -> fun_graph
 
-val inserts : ('a, DepSet.t) Hashtbl.t -> 'a -> DepSet.t -> unit
+val inserts : ('a, Dep.Set.t) Hashtbl.t -> 'a -> Dep.Set.t -> unit
 
 val add_opaque_let_dependency :
   fun_graph -> Bound_pattern.t -> Name_occurrences.t -> unit
@@ -53,7 +53,7 @@ val add_let_field : fun_graph -> Bound_pattern.t -> Field.t -> Name.t -> unit
 
 val add_dep : fun_graph -> Code_id_or_name.t -> Dep.t -> unit
 
-val add_deps : fun_graph -> Code_id_or_name.t -> DepSet.t -> unit
+val add_deps : fun_graph -> Code_id_or_name.t -> Dep.Set.t -> unit
 
 val add_let_dep : fun_graph -> Bound_pattern.t -> Dep.t -> unit
 
