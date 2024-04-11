@@ -50,7 +50,35 @@ module Dep = struct
       | Apply of Name.t * Code_id.t
       | Return_of_that_function of Name.t
 
-    let compare = compare
+    let compare t1 t2 =
+      let numbering = function
+        | Alias _ -> 0
+        | Use _ -> 1
+        | Contains _ -> 2
+        | Field _ -> 3
+        | Block _ -> 4
+        | Apply _ -> 5
+        | Return_of_that_function _ -> 6
+      in
+      match t1, t2 with
+      | Alias v1, Alias v2 -> Name.compare v1 v2
+      | Use v1, Use v2 -> Name.compare v1 v2
+      | Contains v1, Contains v2 -> Code_id_or_name.compare v1 v2
+      | Field (f1, v1), Field (f2, v2) ->
+        let c = Field.compare f1 f2 in
+        if c <> 0 then c else Name.compare v1 v2
+      | Block (f1, v1), Block (f2, v2) ->
+        let c = Field.compare f1 f2 in
+        if c <> 0 then c else Code_id_or_name.compare v1 v2
+      | Apply (n1, c1), Apply (n2, c2) ->
+        let c = Name.compare n1 n2 in
+        if c <> 0 then c else Code_id.compare c1 c2
+      | Return_of_that_function n1, Return_of_that_function n2 ->
+        Name.compare n1 n2
+      | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Apply _
+          | Return_of_that_function _ ),
+          _ ) ->
+        Int.compare (numbering t1) (numbering t2)
 
     let equal x y = compare x y = 0
 
