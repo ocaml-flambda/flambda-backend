@@ -367,8 +367,6 @@ let create_state (graph : graph) =
     state.added_fungraph;
   state
 
-let dbg = Sys.getenv_opt "ABCD" <> None
-
 let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     (graph : graph) =
   let result : result = state.result in
@@ -382,12 +380,10 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     | No_loop id ->
       Queue.push id q;
       fun n ->
-        if dbg then Format.eprintf "PUSH %a@." Code_id_or_name.print n;
         assert (not (Hashtbl.mem state.all_added n))
     | Has_loop ids ->
       List.iter (fun id -> Queue.push id q) ids;
       fun n ->
-        if dbg then Format.eprintf "PUSH %a@." Code_id_or_name.print n;
         assert (not (Hashtbl.mem state.all_added n));
         if Code_id_or_name.Set.mem n !q_s
         then begin
@@ -395,7 +391,6 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
           q_s := Code_id_or_name.Set.remove n !q_s
         end
   in
-  if dbg then Format.eprintf "=====@.";
   let rec add_fungraph (fungraph : Global_flow_graph.fun_graph) =
     Hashtbl.iter
       (fun n deps ->
@@ -415,14 +410,11 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
            && (not (Hashtbl.mem added_fungraphs code_id))
            && Hashtbl.mem graph.function_graphs code_id
         then begin
-          if dbg then Format.eprintf "ADD_FUNGRAPH %a@." Code_id.print code_id;
           add_fungraph (Hashtbl.find graph.function_graphs code_id);
           Hashtbl.add added_fungraphs code_id ()
         end)
       n
   and propagate_elt n elt deps =
-    if dbg
-    then Format.eprintf "PROPAGATE %a %a@." Code_id_or_name.print n pp_elt elt;
     check_and_add_fungraph n elt;
     DepSet.iter
       (fun dep ->
@@ -453,12 +445,8 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     in
     match Hashtbl.find_opt result n with
     | None ->
-      if dbg
-      then Format.eprintf "POP %a %a@." Code_id_or_name.print n pp_elt Bottom;
       ()
     | Some elt ->
-      if dbg
-      then Format.eprintf "POP %a %a@." Code_id_or_name.print n pp_elt elt;
       propagate_elt n elt deps
   done;
   match component with
