@@ -299,18 +299,21 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   in
   let code_dep = { return; my_closure; exn; params } in
   let () =
-    if has_unsafe_result_type then
-      List.iter (fun var -> Acc.used ~denv (Simple.var var) acc) (my_closure :: params @ exn :: return)
+    if has_unsafe_result_type
+    then
+      List.iter
+        (fun var -> Acc.used ~denv (Simple.var var) acc)
+        ((my_closure :: params) @ (exn :: return))
     else
       let deps =
         Deps.Dep.Return_of_that_function (Name.var exn)
         :: List.map
-          (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
-          return
+             (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+             return
       in
       List.iter
         (fun dep ->
-           Acc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep acc)
+          Acc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep acc)
         deps
   in
   Acc.add_code code_id code_dep acc
@@ -806,22 +809,16 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~free_names_of_body:_
        ->
       let code_dep = Acc.find_code acc code_id in
-      let maybe_opaque var =
-        if is_opaque then
-          Variable.rename var
-        else
-          var
-      in
+      let maybe_opaque var = if is_opaque then Variable.rename var else var in
       let return = List.map maybe_opaque code_dep.return in
       let exn = maybe_opaque code_dep.exn in
       let conts =
         Continuation.Map.of_list
-          [ return_continuation, Normal return;
-            exn_continuation, Normal [exn] ]
+          [return_continuation, Normal return; exn_continuation, Normal [exn]]
       in
       let denv = { parent = Up; conts; current_code_id = Some code_id } in
-      if is_opaque then
-        List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
+      if is_opaque
+      then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
       let () =
         List.iter
           (fun bp -> Acc.bound_parameter_kind bp acc)
@@ -831,8 +828,11 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
       Acc.kind (Name.var my_region) Flambda_kind.region acc;
       Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
       let () =
-        if is_opaque then
-          List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
+        if is_opaque
+        then
+          List.iter
+            (fun arg -> Acc.used ~denv (Simple.var arg) acc)
+            code_dep.params
         else
           List.iter2
             (fun param arg -> Acc.func_param_dep ~denv param arg acc)
@@ -840,8 +840,8 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
             code_dep.params
       in
       let () =
-        if is_opaque then
-          Acc.used ~denv (Simple.var code_dep.my_closure) acc
+        if is_opaque
+        then Acc.used ~denv (Simple.var code_dep.my_closure) acc
         else
           Acc.record_dep ~denv (Name.var my_closure)
             (Alias (Name.var code_dep.my_closure))

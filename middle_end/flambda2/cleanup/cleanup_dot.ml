@@ -109,8 +109,7 @@ module P = struct
 
   let code_deps ~ctx ~code_id ppf code_dep =
     node ~ctx ~root:false ppf (Code_id_or_name.code_id code_id);
-    node ~ctx ~root:false ppf
-      (Code_id_or_name.var code_dep.my_closure);
+    node ~ctx ~root:false ppf (Code_id_or_name.var code_dep.my_closure);
     List.iter
       (fun v -> node ~ctx ~root:false ppf (Code_id_or_name.var v))
       ((code_dep.exn :: code_dep.return) @ code_dep.params)

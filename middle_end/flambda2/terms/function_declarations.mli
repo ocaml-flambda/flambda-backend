@@ -22,8 +22,9 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-
-type code_id_in_function_declaration = Deleted | Code_id of Code_id.t
+type code_id_in_function_declaration =
+  | Deleted
+  | Code_id of Code_id.t
 
 val empty : t
 
@@ -47,4 +48,5 @@ val binds_function_slot : t -> Function_slot.t -> bool
 
 val compare : t -> t -> int
 
-val filter : t -> f:(Function_slot.t -> code_id_in_function_declaration -> bool) -> t
+val filter :
+  t -> f:(Function_slot.t -> code_id_in_function_declaration -> bool) -> t

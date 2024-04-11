@@ -84,8 +84,7 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
     match UA.slot_offsets uacc with
     | Unknown ->
       Misc.fatal_error "Slot offsets must be computed and cannot be unknown"
-    | Known slot_offsets ->
-      slot_offsets
+    | Known slot_offsets -> slot_offsets
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~toplevel_my_region

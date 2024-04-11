@@ -49,12 +49,14 @@ let [@ocamlformat "disable"] print ppf { in_order; _ } =
 let free_names { funs; _ } =
   Function_slot.Map.fold
     (fun function_slot code_id syms ->
-       let syms =         (Name_occurrences.add_function_slot_in_declaration syms function_slot
-                             Name_mode.normal)
-       in
-       match code_id with Deleted -> syms | Code_id code_id ->
-      Name_occurrences.add_code_id syms
-        code_id Name_mode.normal)
+      let syms =
+        Name_occurrences.add_function_slot_in_declaration syms function_slot
+          Name_mode.normal
+      in
+      match code_id with
+      | Deleted -> syms
+      | Code_id code_id ->
+        Name_occurrences.add_code_id syms code_id Name_mode.normal)
     funs Name_occurrences.empty
 
 (* Note: the call to {create} at the end already takes into account the
@@ -63,9 +65,12 @@ let free_names { funs; _ } =
 let apply_renaming ({ in_order; _ } as t) renaming =
   let in_order' =
     Function_slot.Lmap.map_sharing
-      (fun t->
-         match t with Deleted -> Deleted | Code_id code_id ->
-         let code_id' = Renaming.apply_code_id renaming code_id in if code_id == code_id' then t else Code_id code_id')
+      (fun t ->
+        match t with
+        | Deleted -> Deleted
+        | Code_id code_id ->
+          let code_id' = Renaming.apply_code_id renaming code_id in
+          if code_id == code_id' then t else Code_id code_id')
       in_order
   in
   if in_order == in_order' then t else create in_order'
@@ -73,12 +78,14 @@ let apply_renaming ({ in_order; _ } as t) renaming =
 let ids_for_export { funs; _ } =
   Function_slot.Map.fold
     (fun _function_slot code_id ids ->
-       match code_id with Deleted -> ids | Code_id code_id ->
-       Ids_for_export.add_code_id ids code_id)
+      match code_id with
+      | Deleted -> ids
+      | Code_id code_id -> Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
 let compare { funs = funs1; _ } { funs = funs2; _ } =
-  Function_slot.Map.compare (fun code_id1 code_id2 ->
+  Function_slot.Map.compare
+    (fun code_id1 code_id2 ->
       match code_id1, code_id2 with
       | Deleted, Deleted -> 0
       | Deleted, Code_id _ -> -1
