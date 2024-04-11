@@ -1246,9 +1246,12 @@ and meet_function_type (env : TE.t)
       ~right_a:code_id2 ~meet_b:meet ~left_b:rec_info1 ~right_b:rec_info2
 
 and meet_type env t1 t2 : _ Or_bottom.t =
-  match meet env t1 t2 with
-  | Ok (res, env) -> Ok (extract_value res t1 t2, env)
-  | Bottom -> Bottom
+  if TE.is_bottom env
+  then Bottom
+  else
+    match meet env t1 t2 with
+    | Ok (res, env) -> Ok (extract_value res t1 t2, env)
+    | Bottom -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
@@ -1913,37 +1916,46 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
 
 (* Exposed to the outside world with Or_bottom type *)
 let meet env ty1 ty2 : _ Or_bottom.t =
-  let scope = TE.current_scope env in
-  let scoped_env = TE.increment_scope env in
-  match meet scoped_env ty1 ty2 with
-  | Bottom -> Bottom
-  | Ok (r, scoped_env) ->
-    let res_ty = extract_value r ty1 ty2 in
-    if TG.is_obviously_bottom res_ty
-    then Bottom
-    else
-      let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-      Ok (res_ty, env_extension)
+  if TE.is_bottom env
+  then Bottom
+  else
+    let scope = TE.current_scope env in
+    let scoped_env = TE.increment_scope env in
+    match meet scoped_env ty1 ty2 with
+    | Bottom -> Bottom
+    | Ok (r, scoped_env) ->
+      let res_ty = extract_value r ty1 ty2 in
+      if TG.is_obviously_bottom res_ty
+      then Bottom
+      else
+        let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
+        Ok (res_ty, env_extension)
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
-  let result = Bound_name.create_var result_var in
-  let env = TE.add_definition env result result_kind in
-  match meet env t shape with
-  | Bottom -> Bottom
-  | Ok (_, env_extension) -> Ok env_extension
+  if TE.is_bottom env
+  then Bottom
+  else
+    let result = Bound_name.create_var result_var in
+    let env = TE.add_definition env result result_kind in
+    match meet env t shape with
+    | Bottom -> Bottom
+    | Ok (_, env_extension) -> Ok env_extension
 
 let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
-  let scope = TE.current_scope env in
-  let scoped_env = TE.increment_scope env in
-  match
-    TE.add_env_extension_strict scoped_env ext1 ~meet_type:(New meet_type)
-  with
-  | Bottom -> Bottom
-  | Ok scoped_env -> (
+  if TE.is_bottom env
+  then Bottom
+  else
+    let scope = TE.current_scope env in
+    let scoped_env = TE.increment_scope env in
     match
-      TE.add_env_extension_strict scoped_env ext2 ~meet_type:(New meet_type)
+      TE.add_env_extension_strict scoped_env ext1 ~meet_type:(New meet_type)
     with
     | Bottom -> Bottom
-    | Ok scoped_env ->
-      let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-      Ok env_extension)
+    | Ok scoped_env -> (
+      match
+        TE.add_env_extension_strict scoped_env ext2 ~meet_type:(New meet_type)
+      with
+      | Bottom -> Bottom
+      | Ok scoped_env ->
+        let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
+        Ok env_extension)
