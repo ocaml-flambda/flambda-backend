@@ -64,7 +64,7 @@ type t = char
 let compare c1 c2 = code c1 - code c2
 let equal (c1: t) (c2: t) = compare c1 c2 = 0
 
-(* [caml_hash_exn] doesn't raise on booleans, so it's safe for
+(* [caml_hash_exn] doesn't raise on chars, so it's safe for
    it to be marked as [@@noalloc].
  *)
 external seeded_hash_param :
