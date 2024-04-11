@@ -321,33 +321,35 @@ end)
 module Float32_by_bit_pattern = Float_by_bit_pattern_gen (struct
   include Int32
 
-  let of_string str = Float32.to_bits (Float32.of_string str)
+  module F32 = Compiler_float32
+
+  let of_string str = F32.to_bits (F32.of_string str)
 
   module IEEE_semantics = struct
     type nonrec t = t
 
-    let of_ = Float32.to_bits
+    let of_ = F32.to_bits
 
-    let to_ = Float32.of_bits
+    let to_ = F32.of_bits
 
-    let add t1 t2 = of_ (Float32.add (to_ t1) (to_ t2))
+    let add t1 t2 = of_ (F32.add (to_ t1) (to_ t2))
 
-    let sub t1 t2 = of_ (Float32.sub (to_ t1) (to_ t2))
+    let sub t1 t2 = of_ (F32.sub (to_ t1) (to_ t2))
 
-    let mul t1 t2 = of_ (Float32.mul (to_ t1) (to_ t2))
+    let mul t1 t2 = of_ (F32.mul (to_ t1) (to_ t2))
 
-    let div t1 t2 = of_ (Float32.div (to_ t1) (to_ t2))
+    let div t1 t2 = of_ (F32.div (to_ t1) (to_ t2))
 
-    let mod_ t1 t2 = of_ (Float32.mod_ (to_ t1) (to_ t2))
+    let mod_ t1 t2 = of_ (F32.mod_ (to_ t1) (to_ t2))
 
-    let neg t = of_ (Float32.neg (to_ t))
+    let neg t = of_ (F32.neg (to_ t))
 
-    let abs t = of_ (Float32.abs (to_ t))
+    let abs t = of_ (F32.abs (to_ t))
 
-    let compare t1 t2 = Float32.compare (to_ t1) (to_ t2)
+    let compare t1 t2 = F32.compare (to_ t1) (to_ t2)
 
     let equal t1 t2 =
       (* N.B. This can't just be defined in terms of [compare_ieee]! *)
-      Float32.equal (to_ t1) (to_ t2)
+      F32.equal (to_ t1) (to_ t2)
   end
 end)
