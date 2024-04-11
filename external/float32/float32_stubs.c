@@ -46,6 +46,9 @@
 
 extern locale_t caml_locale;
 
+#define USE_LOCALE locale_t saved_locale = uselocale(caml_locale)
+#define RESTORE_LOCALE uselocale(saved_locale)
+
 static float float32_of_int32(int32_t i)
 {
     union
@@ -68,42 +71,42 @@ static int32_t int32_of_float32(float f)
     return u.i;
 }
 
-int32_t flambda2_float32_neg(int32_t i)
+int32_t compiler_float32_neg(int32_t i)
 {
     return int32_of_float32(-float32_of_int32(i));
 }
 
-int32_t flambda2_float32_abs(int32_t i)
+int32_t compiler_float32_abs(int32_t i)
 {
     return int32_of_float32(fabsf(float32_of_int32(i)));
 }
 
-int32_t flambda2_float32_add(int32_t i, int32_t j)
+int32_t compiler_float32_add(int32_t i, int32_t j)
 {
     return int32_of_float32(float32_of_int32(i) + float32_of_int32(j));
 }
 
-int32_t flambda2_float32_sub(int32_t i, int32_t j)
+int32_t compiler_float32_sub(int32_t i, int32_t j)
 {
     return int32_of_float32(float32_of_int32(i) - float32_of_int32(j));
 }
 
-int32_t flambda2_float32_mul(int32_t i, int32_t j)
+int32_t compiler_float32_mul(int32_t i, int32_t j)
 {
     return int32_of_float32(float32_of_int32(i) * float32_of_int32(j));
 }
 
-int32_t flambda2_float32_div(int32_t i, int32_t j)
+int32_t compiler_float32_div(int32_t i, int32_t j)
 {
     return int32_of_float32(float32_of_int32(i) / float32_of_int32(j));
 }
 
-int32_t flambda2_float32_mod(int32_t i, int32_t j)
+int32_t compiler_float32_mod(int32_t i, int32_t j)
 {
     return int32_of_float32(fmodf(float32_of_int32(i), float32_of_int32(j)));
 }
 
-intnat flambda2_float32_compare(int32_t i, int32_t j)
+intnat compiler_float32_compare(int32_t i, int32_t j)
 {
     /* See caml_float_compare_unboxed */
     float f = float32_of_int32(i);
@@ -113,77 +116,77 @@ intnat flambda2_float32_compare(int32_t i, int32_t j)
     return res;
 }
 
-bool flambda2_float32_equal(int32_t i, int32_t j)
+bool compiler_float32_equal(int32_t i, int32_t j)
 {
     return float32_of_int32(i) == float32_of_int32(j);
 }
 
-int32_t flambda2_float32_of_float(double d)
+int32_t compiler_float32_of_float(double d)
 {
     return int32_of_float32((float)d);
 }
 
-double flambda2_float32_to_float(int32_t i)
+double compiler_float32_to_float(int32_t i)
 {
     return (double)float32_of_int32(i);
 }
 
-value flambda2_float32_neg_boxed(value i)
+value compiler_float32_neg_boxed(value i)
 {
-    return caml_copy_int32(flambda2_float32_neg(Int32_val(i)));
+    return caml_copy_int32(compiler_float32_neg(Int32_val(i)));
 }
 
-value flambda2_float32_abs_boxed(value i)
+value compiler_float32_abs_boxed(value i)
 {
-    return caml_copy_int32(flambda2_float32_abs(Int32_val(i)));
+    return caml_copy_int32(compiler_float32_abs(Int32_val(i)));
 }
 
-value flambda2_float32_add_boxed(value i, value j)
+value compiler_float32_add_boxed(value i, value j)
 {
-    return caml_copy_int32(flambda2_float32_add(Int32_val(i), Int32_val(j)));
+    return caml_copy_int32(compiler_float32_add(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_sub_boxed(value i, value j)
+value compiler_float32_sub_boxed(value i, value j)
 {
-    return caml_copy_int32(flambda2_float32_sub(Int32_val(i), Int32_val(j)));
+    return caml_copy_int32(compiler_float32_sub(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_mul_boxed(value i, value j)
+value compiler_float32_mul_boxed(value i, value j)
 {
-    return caml_copy_int32(flambda2_float32_mul(Int32_val(i), Int32_val(j)));
+    return caml_copy_int32(compiler_float32_mul(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_div_boxed(value i, value j)
+value compiler_float32_div_boxed(value i, value j)
 {
-    return caml_copy_int32(flambda2_float32_div(Int32_val(i), Int32_val(j)));
+    return caml_copy_int32(compiler_float32_div(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_mod_boxed(value i, value j)
+value compiler_float32_mod_boxed(value i, value j)
 {
-    return caml_copy_int32(flambda2_float32_mod(Int32_val(i), Int32_val(j)));
+    return caml_copy_int32(compiler_float32_mod(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_compare_boxed(value i, value j)
+value compiler_float32_compare_boxed(value i, value j)
 {
-    return Val_int(flambda2_float32_compare(Int32_val(i), Int32_val(j)));
+    return Val_int(compiler_float32_compare(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_equal_boxed(value i, value j)
+value compiler_float32_equal_boxed(value i, value j)
 {
-    return Val_bool(flambda2_float32_equal(Int32_val(i), Int32_val(j)));
+    return Val_bool(compiler_float32_equal(Int32_val(i), Int32_val(j)));
 }
 
-value flambda2_float32_of_float_boxed(value d)
+value compiler_float32_of_float_boxed(value d)
 {
-    return caml_copy_int32(flambda2_float32_of_float(Double_val(d)));
+    return caml_copy_int32(compiler_float32_of_float(Double_val(d)));
 }
 
-value flambda2_float32_to_float_boxed(value i)
+value compiler_float32_to_float_boxed(value i)
 {
-    return caml_copy_double(flambda2_float32_to_float(Int32_val(i)));
+    return caml_copy_double(compiler_float32_to_float(Int32_val(i)));
 }
 
-static int flambda2_float32_of_hex(const char * s, const char * end, float * res)
+static int compiler_float32_of_hex(const char * s, const char * end, float * res)
 {
   /* See caml_float_of_hex */
   int64_t m = 0;                /* the mantissa - top 24 bits at most */
@@ -273,7 +276,7 @@ static int flambda2_float32_of_hex(const char * s, const char * end, float * res
   return 0;
 }
 
-CAMLprim value flambda2_float32_of_string(value vs)
+CAMLprim value compiler_float32_of_string(value vs)
 {
   /* See caml_float_of_string */
   char parse_buffer[64];
@@ -301,7 +304,7 @@ CAMLprim value flambda2_float32_of_string(value vs)
   else if (*src == '+') { src++; };
   if (src[0] == '0' && (src[1] == 'x' || src[1] == 'X')) {
     /* Convert using our hexadecimal FP parser */
-    if (flambda2_float32_of_hex(src + 2, dst, &f) == -1) goto error;
+    if (compiler_float32_of_hex(src + 2, dst, &f) == -1) goto error;
     if (sign < 0) f = -f;
   } else {
     /* Convert using strtof */
@@ -314,4 +317,16 @@ CAMLprim value flambda2_float32_of_string(value vs)
   if (buf != parse_buffer) caml_stat_free(buf);
   caml_failwith("float32_of_string");
   return Val_unit; /* not reached */
+}
+
+CAMLprim value compiler_float32_format(value fmt, value arg)
+{
+  value res;
+  float f = float32_of_int32(Int32_val(arg));
+
+  USE_LOCALE;
+  res = caml_alloc_sprintf(String_val(fmt), f);
+  RESTORE_LOCALE;
+
+  return res;
 }
