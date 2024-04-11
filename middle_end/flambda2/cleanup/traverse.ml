@@ -1,5 +1,4 @@
 open! Rev_expr
-
 module Deps = Global_flow_graph
 module Dot = Dot_printer
 
@@ -579,7 +578,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                   match field with
                   | Symbol s ->
                     record acc name
-                      (Deps.Dep.Block (Deps.Field.Block i, Code_id_or_name.symbol s))
+                      (Deps.Dep.Block
+                         (Deps.Field.Block i, Code_id_or_name.symbol s))
                   | Tagged_immediate _ -> ()
                   | Dynamically_computed (v, _) ->
                     record acc name
@@ -603,7 +603,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
               Simple.pattern_match field
                 ~name:(fun name ~coercion:_ ->
                   default_bp acc
-                    (Deps.Dep.Block (Deps.Field.Block i, Code_id_or_name.name name)))
+                    (Deps.Dep.Block
+                       (Deps.Field.Block i, Code_id_or_name.name name)))
                 ~const:(fun _ -> ()))
             fields
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->

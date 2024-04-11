@@ -71,7 +71,8 @@ module Rebuilt_expr = struct
         ~body:body.expr
     in
     let free_names =
-      Name_occurrences.union body.free_names handlers.free_names
+      Name_occurrences.union body.free_names
+        (Name_occurrences.increase_counts handlers.free_names)
     in
     let free_names =
       Continuation.Map.fold
@@ -92,7 +93,6 @@ type rev_expr = Rev_expr.t
 let all_slot_offsets = ref Slot_offsets.empty
 
 let all_code = ref Code_id.Map.empty
-
 
 type uses = Dep_solver.result
 

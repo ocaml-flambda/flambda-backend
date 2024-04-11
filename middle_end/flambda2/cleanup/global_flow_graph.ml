@@ -2,7 +2,7 @@ let debug_print = false
 
 module Field = struct
   module M = struct
-    type t = 
+    type t =
       | Block of int
       | Value_slot of Value_slot.t
       | Function_slot of Function_slot.t
@@ -33,13 +33,11 @@ module Field = struct
   end
 
   include M
-
   module Container = Container_types.Make (M)
 
   (* module Set = Container.Set *)
   module Map = Container.Map
 end
-
 
 module Dep = struct
   type t =
@@ -61,7 +59,8 @@ module Dep = struct
     | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
     | Use n -> Format.fprintf ppf "Use %a" Name.print n
     | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
-    | Field (f, n) -> Format.fprintf ppf "Field %a %a" Field.print f Name.print n
+    | Field (f, n) ->
+      Format.fprintf ppf "Field %a %a" Field.print f Name.print n
     | Block (f, n) ->
       Format.fprintf ppf "Block %a %a" Field.print f Code_id_or_name.print n
     | Apply (n, c) ->

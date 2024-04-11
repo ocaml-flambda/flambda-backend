@@ -3,7 +3,6 @@ type graph = Global_flow_graph.graph
 type dep = Global_flow_graph.Dep.t
 
 module Field = Global_flow_graph.Field
-
 module DepSet = Global_flow_graph.DepSet
 module SCC = Strongly_connected_components.Make (Code_id_or_name)
 

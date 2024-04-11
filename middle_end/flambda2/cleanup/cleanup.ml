@@ -13,14 +13,15 @@ let run ~cmx_loader (unit : Flambda_unit.t) =
   let holed, deps, kinds = Traverse.run unit in
   if debug_print then Format.printf "USED %a@." Global_flow_graph.pp_used deps;
   let solved_dep = Dep_solver.fixpoint deps in
-  if debug_print then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
+  if debug_print
+  then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
   let rebuilt_expr, free_names, all_code, slot_offsets =
     Rebuild.rebuild kinds solved_dep holed
   in
-  (* Is this what we really want? This keeps all the code that has not been deleted
-     by this pass to be exported in the cmx. It looks like this does the same thing
-     as [Simplify], but on the other hand, we might not want to export un-inlinable
-     functions. *)
+  (* Is this what we really want? This keeps all the code that has not been
+     deleted by this pass to be exported in the cmx. It looks like this does the
+     same thing as [Simplify], but on the other hand, we might not want to
+     export un-inlinable functions. *)
   let all_code =
     Exported_code.add_code
       ~keep_code:(fun _ -> true)
