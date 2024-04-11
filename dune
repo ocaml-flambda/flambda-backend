@@ -227,7 +227,6 @@
   flambda2_identifiers
   flambda2_cmx
   compiler_owee
-  compiler_float32
   gc_timings
   dwarf_low
   dwarf_high))
@@ -359,7 +358,6 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
    %{dep:external/owee/compiler_owee.a}
-   %{dep:external/float32/compiler_float32.a}
    %{dep:external/gc-timings/gc_timings.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
@@ -396,7 +394,6 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
    %{dep:external/owee/compiler_owee.cma}
-   %{dep:external/float32/compiler_float32.cma}
    %{dep:external/gc-timings/gc_timings.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
@@ -433,7 +430,6 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:external/owee/compiler_owee.cmxa}
-   %{dep:external/float32/compiler_float32.cmxa}
    %{dep:external/gc-timings/gc_timings.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
@@ -454,12 +450,6 @@
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs_native.a)
-  (external/float32/libcompiler_float32_stubs.a
-   as
-   compiler-libs/libcompiler_float32_stubs.a)
-  (external/float32/libcompiler_float32_stubs.a
-   as
-   compiler-libs/libcompiler_float32_native_stubs.a)
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs.a)
@@ -507,9 +497,6 @@
   (glob_files backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
   (glob_files external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files external/owee/.compiler_owee.objs/native/*.cmx)
-  (glob_files
-   external/float32/.compiler_float32.objs/byte/*.{cmi,cmo,cmt,cmti})
-  (glob_files external/float32/.compiler_float32.objs/native/*.cmx)
   (glob_files
    external/gc-timings/.gc_timings.objs/byte/gc_timings.{cmi,cmti})
   external/gc-timings/.gc_timings.objs/native/gc_timings.cmx)

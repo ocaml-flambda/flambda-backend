@@ -268,6 +268,8 @@ install_for_test: _install
 	# Various directories are put on the -I paths by tools/Makefile;
 	# utils/ is one such, so we just dump the .cm* files in there for
 	# various things.
+	mkdir _runtest/external
+	cp $(main_build)/external/float32/*.{cma,a,cmxa} _runtest/external
 	mkdir _runtest/utils
 	cp _install/lib/ocaml/compiler-libs/*.{cmi,cmx} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
