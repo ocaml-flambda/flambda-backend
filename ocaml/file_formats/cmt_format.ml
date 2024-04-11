@@ -226,7 +226,7 @@ let iter_on_occurrences
       | Texp_object _ | Texp_pack _ | Texp_letop _ | Texp_unreachable
       | Texp_list_comprehension _ | Texp_array_comprehension _ | Texp_probe _
       | Texp_probe_is_enabled _ | Texp_exclave _
-      | Texp_open _ -> ());
+      | Texp_open _ | Texp_src_pos -> ());
       default_iterator.expr sub e);
 
   (* Remark: some types get iterated over twice due to how constraints are
@@ -243,7 +243,8 @@ let iter_on_occurrences
           (* Deprecated syntax to extend a polymorphic variant *)
           f ~namespace:Type ctyp_env path lid
       | Ttyp_var _ | Ttyp_arrow _ | Ttyp_tuple _ | Ttyp_object _
-      | Ttyp_alias _ | Ttyp_variant _ | Ttyp_poly _ -> ());
+      | Ttyp_alias _ | Ttyp_variant _ | Ttyp_poly _
+      | Ttyp_call_pos -> ());
       default_iterator.typ sub ct);
 
   pat =
