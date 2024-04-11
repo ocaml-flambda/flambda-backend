@@ -26,7 +26,7 @@ type cms_infos = {
   cms_uid_to_loc : Location.t Shape.Uid.Tbl.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
-  cmt_ident_occurrences :
+  cms_ident_occurrences :
     (Longident.t Location.loc * Shape_reduce.result) array
 }
 
@@ -50,7 +50,7 @@ val save_cms :
   Shape.t option ->
   unit
 
-val register_topevel_attributes :
+val register_toplevel_attributes :
   Shape.Uid.t ->
   attributes:Parsetree.attribute list ->
   loc:Location.t ->
