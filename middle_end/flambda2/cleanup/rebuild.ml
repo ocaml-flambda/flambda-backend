@@ -85,9 +85,9 @@ module Rebuilt_expr = struct
 end
 
 module RE = Rebuilt_expr
-open! Traverse
+open! Rev_expr
 
-type rev_expr = Traverse.rev_expr
+type rev_expr = Rev_expr.rev_expr
 
 let all_slot_offsets = ref Slot_offsets.empty
 
