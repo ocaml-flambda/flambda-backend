@@ -1,0 +1,66 @@
+val debug_print : bool
+
+module Field : sig
+  type t =
+    | Block of int
+    | Value_slot of Value_slot.t
+    | Function_slot of Function_slot.t
+    | Apply
+
+  val print : Format.formatter -> t -> unit
+
+  module Map : Container_types.Map with type key = t
+end
+
+module Dep : sig
+  type t =
+    | Alias of Name.t
+    | Use of Name.t
+    | Contains of Code_id_or_name.t
+    | Field of Field.t * Name.t
+    | Block of Field.t * Code_id_or_name.t
+    | Apply of Name.t * Code_id.t
+    | Return_of_that_function of Name.t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module DepSet : Container_types.Set with type elt = Dep.t
+
+type fun_graph =
+  { name_to_dep : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
+    used : (Code_id_or_name.t, unit) Hashtbl.t;
+    called : (Code_id.t, unit) Hashtbl.t
+  }
+
+type graph =
+  { toplevel_graph : fun_graph;
+    function_graphs : (Code_id.t, fun_graph) Hashtbl.t
+  }
+
+val pp_used_fun_graph : Format.formatter -> fun_graph -> unit
+
+val pp_used : Format.formatter -> graph -> unit
+
+val create : unit -> fun_graph
+
+val inserts : ('a, DepSet.t) Hashtbl.t -> 'a -> DepSet.t -> unit
+
+val add_opaque_let_dependency :
+  fun_graph -> Bound_pattern.t -> Name_occurrences.t -> unit
+
+val add_let_field : fun_graph -> Bound_pattern.t -> Field.t -> Name.t -> unit
+
+val add_dep : fun_graph -> Code_id_or_name.t -> Dep.t -> unit
+
+val add_deps : fun_graph -> Code_id_or_name.t -> DepSet.t -> unit
+
+val add_let_dep : fun_graph -> Bound_pattern.t -> Dep.t -> unit
+
+val add_cont_dep : fun_graph -> Int_ids.Variable.t -> Name.t -> unit
+
+val add_func_param : fun_graph -> param:Int_ids.Variable.t -> arg:Name.t -> unit
+
+val add_use : fun_graph -> Code_id_or_name.t -> unit
+
+val add_called : fun_graph -> Code_id.t -> unit
