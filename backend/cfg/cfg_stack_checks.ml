@@ -173,8 +173,6 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
   let loop_infos = lazy (Cfg_loop_infos.build cfg doms) in
   (* note: the other entries in the forest are dead code *)
   let tree = Cfg_dominators.dominator_tree_for_entry_point doms in
-  (* XCR mshinwell: maybe there should be a method on Cfg to just retrieve the
-     correct dominator tree and ignore the dead code ones? *)
   let num_checks = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   let num_checks_root =
     num_checks_tree tree ~blocks_needing_stack_checks ~num_checks
@@ -201,10 +199,6 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
         fdo = Fdo_info.none;
         live = Reg.Set.empty;
         stack_offset;
-        (* XCR mshinwell: maybe there should be an explicit check that this code
-           hasn't been executed twice, since we don't update [max_instr_id] (or
-           expect checks to be duplicated at present)? xclerc: with the utility
-           function to get the only interesting tree, we no longer iterate. *)
         id = succ max_instr_id;
         irc_work_list = Unknown_list;
         ls_order = 0;
