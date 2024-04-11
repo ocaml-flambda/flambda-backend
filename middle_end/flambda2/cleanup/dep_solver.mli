@@ -1,7 +1,5 @@
-type field = Cleanup_deps.field
-
 module Field : sig
-  module Map : Container_types.Map with type key = field
+  module Map : Container_types.Map with type key = Global_flow_graph.field
 end
 
 type elt =
@@ -12,10 +10,8 @@ type elt =
       }
   | Bottom
 
-type graph = Cleanup_deps.graph
-
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
 val pp_result : Format.formatter -> result -> unit
 
-val fixpoint : graph -> result
+val fixpoint : Global_flow_graph.graph -> result

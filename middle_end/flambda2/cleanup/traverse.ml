@@ -66,10 +66,10 @@ and rev_expr =
     holed_expr : rev_expr_holed
   }
 
-module Deps = Cleanup_deps
-module Dot = Cleanup_dot
+module Deps = Global_flow_graph
+module Dot = Dot_printer
 
-type code_dep = Cleanup_dot.code_dep =
+type code_dep = Dot.code_dep =
   { params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
@@ -883,7 +883,7 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler acc)
 
-let do_print = Cleanup_deps.do_print
+let do_print = Global_flow_graph.do_print
 
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in

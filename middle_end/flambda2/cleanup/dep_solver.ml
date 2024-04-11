@@ -1,10 +1,10 @@
-type graph = Cleanup_deps.graph
+type graph = Global_flow_graph.graph
 
-type dep = Cleanup_deps.Dep.t
+type dep = Global_flow_graph.Dep.t
 
-type field = Cleanup_deps.field
+type field = Global_flow_graph.field
 
-module DepSet = Cleanup_deps.DepSet
+module DepSet = Global_flow_graph.DepSet
 module SCC = Strongly_connected_components.Make (Code_id_or_name)
 
 module Field = struct
@@ -17,7 +17,7 @@ module Field = struct
 
     let hash = Hashtbl.hash
 
-    let print = Cleanup_deps.pp_field
+    let print = Global_flow_graph.pp_field
   end
 
   module Container = Container_types.Make (M)
@@ -42,7 +42,7 @@ type elt =
   | Bottom  (** Value not accessed *)
 
 module Make_SCC = struct
-  let dep (d : Cleanup_deps.Dep.t) =
+  let dep (d : Global_flow_graph.Dep.t) =
     match d with
     | Alias n | Use n | Field (_, n) | Return_of_that_function n ->
       Code_id_or_name.Set.singleton (Code_id_or_name.name n)
@@ -66,7 +66,7 @@ module Make_SCC = struct
       s acc
 
   let add_fungraph code_id (acc : SCC.directed_graph)
-      (fun_graph : Cleanup_deps.fun_graph) =
+      (fun_graph : Global_flow_graph.fun_graph) =
     let acc =
       Hashtbl.fold
         (fun cn d acc ->
@@ -272,7 +272,7 @@ type fixpoint_state =
     added_fungraph : (Code_id.t, unit) Hashtbl.t
   }
 
-let add_subgraph push state (fun_graph : Cleanup_deps.fun_graph) =
+let add_subgraph push state (fun_graph : Global_flow_graph.fun_graph) =
   let result = state.result in
   let add_used used =
     Hashtbl.iter
@@ -327,7 +327,7 @@ let create_state (graph : graph) =
       called_stack := subgraph :: !called_stack
     end
   in
-  let add_subgraph (subgraph : Cleanup_deps.fun_graph) =
+  let add_subgraph (subgraph : Global_flow_graph.fun_graph) =
     Hashtbl.iter (fun n () -> add_used n) subgraph.used;
     Hashtbl.iter (fun code_id () -> add_called code_id) subgraph.called;
     Hashtbl.iter
@@ -361,7 +361,7 @@ let create_state (graph : graph) =
       loop ()
     | [] -> (
       match !called_stack with
-      | (subgraph : Cleanup_deps.fun_graph) :: rest ->
+      | (subgraph : Global_flow_graph.fun_graph) :: rest ->
         called_stack := rest;
         add_subgraph subgraph;
         loop ()
@@ -416,7 +416,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
         end
   in
   if dbg then Format.eprintf "=====@.";
-  let rec add_fungraph (fungraph : Cleanup_deps.fun_graph) =
+  let rec add_fungraph (fungraph : Global_flow_graph.fun_graph) =
     Hashtbl.iter
       (fun n deps ->
         (match Hashtbl.find_opt all_deps n with
@@ -536,7 +536,7 @@ let fixpoint (graph : graph) : result =
            Field.Map.singleton Apply Top)) *)
         Queue.push code_id q (* CR do better, push_front? *))
       called
-  and add_fungraph (fungraph : Cleanup_deps.fun_graph) =
+  and add_fungraph (fungraph : Global_flow_graph.fun_graph) =
     Hashtbl.iter
       (fun n deps ->
         (match Hashtbl.find_opt all_deps n with

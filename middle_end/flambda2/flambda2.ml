@@ -172,7 +172,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
           | _ ->
             let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "cleanup" (fun () ->
-                  Flambda2_cleanup.Cleanup_test.run ~cmx_loader flambda)
+                  Flambda2_cleanup.Cleanup.run ~cmx_loader flambda)
             in
             print_flambda "cleanup" ppf flambda;
             print_flexpect "cleanup" ppf ~raw_flambda flambda;

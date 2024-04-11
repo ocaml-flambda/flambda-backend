@@ -69,4 +69,4 @@ and rev_expr =
 type cont_kind = Normal of Variable.t list
 
 val run :
-  Flambda_unit.t -> rev_expr * Cleanup_deps.graph * Flambda_kind.t Name.Map.t
+  Flambda_unit.t -> rev_expr * Global_flow_graph.graph * Flambda_kind.t Name.Map.t

@@ -1,4 +1,4 @@
-module Deps = Cleanup_deps
+module Deps = Global_flow_graph
 
 type code_dep =
   { params : Variable.t list;
