@@ -1404,7 +1404,7 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value_lazy id' vd new_env
+            | vd -> Env.add_value_lazy ~mode:Mode.Value.max id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
@@ -1451,7 +1451,7 @@ let subst update_env ?freshen_bound_variables s =
 let rename idmap lam =
   let update_env oldid vd env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value_lazy newid vd env
+    Env.add_value_lazy ~mode:Mode.Value.max newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
