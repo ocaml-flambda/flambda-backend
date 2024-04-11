@@ -1,5 +1,5 @@
 open! Rev_expr
-module Deps = Global_flow_graph
+module Graph = Global_flow_graph
 module Dot = Dot_printer
 
 type code_dep = Dot.code_dep =
@@ -39,12 +39,12 @@ module Acc : sig
 
   val kinds : t -> Flambda_kind.t Name.Map.t
 
-  val record_dep : denv:denv -> Name.t -> Deps.Dep.t -> t -> unit
+  val record_dep : denv:denv -> Name.t -> Graph.Dep.t -> t -> unit
 
-  val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> unit
+  val record_dep' : denv:denv -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
 
   val record_deps :
-    denv:denv -> Code_id_or_name.t -> Deps.Dep.Set.t -> t -> unit
+    denv:denv -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
 
   val cont_dep : denv:denv -> Variable.t -> Simple.t -> t -> unit
 
@@ -66,12 +66,12 @@ module Acc : sig
 
   val code_deps : t -> code_dep Code_id.Map.t
 
-  val deps : t -> Deps.graph
+  val deps : t -> Graph.graph
 end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
       mutable apply_deps : apply_dep list;
-      deps : Deps.graph;
+      deps : Graph.graph;
       mutable kinds : Flambda_kind.t Name.Map.t
     }
 
@@ -81,7 +81,7 @@ end = struct
     { code = Code_id.Map.empty;
       apply_deps = [];
       deps =
-        { toplevel_graph = Deps.create ();
+        { toplevel_graph = Graph.create ();
           function_graphs = Hashtbl.create 100
         };
       kinds = Name.Map.empty
@@ -129,7 +129,7 @@ end = struct
     | Some code_id -> (
       match Hashtbl.find_opt t.deps.function_graphs code_id with
       | None ->
-        let deps = Deps.create () in
+        let deps = Graph.create () in
         Hashtbl.add t.deps.function_graphs code_id deps;
         deps
       | Some deps -> deps)
@@ -138,37 +138,37 @@ end = struct
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
-    Deps.add_dep (cur_deps ~denv t) name dep
+    Graph.add_dep (cur_deps ~denv t) name dep
 
   let record_dep' ~denv code_id_or_name dep t =
-    Deps.add_dep (cur_deps ~denv t) code_id_or_name dep
+    Graph.add_dep (cur_deps ~denv t) code_id_or_name dep
 
   let record_deps ~denv code_id_or_name deps t =
-    Deps.add_deps (cur_deps ~denv t) code_id_or_name deps
+    Graph.add_deps (cur_deps ~denv t) code_id_or_name deps
 
   let cont_dep ~denv pat dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
-        Deps.add_cont_dep (cur_deps ~denv t) pat name)
+        Graph.add_cont_dep (cur_deps ~denv t) pat name)
       ~const:(fun _ -> ())
 
   let func_param_dep ~denv param arg t =
-    Deps.add_func_param (cur_deps ~denv t)
+    Graph.add_func_param (cur_deps ~denv t)
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg)
 
-  let root v t = Deps.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
+  let root v t = Graph.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
-        Deps.add_use (cur_deps ~denv t) (Code_id_or_name.name name))
+        Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name))
       ~const:(fun _ -> ())
 
   let used_code_id code_id t =
-    Deps.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id)
+    Graph.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id)
 
-  let called ~denv code_id t = Deps.add_called (cur_deps ~denv t) code_id
+  let called ~denv code_id t = Graph.add_called (cur_deps ~denv t) code_id
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -186,7 +186,7 @@ end = struct
         List.iter2
           (fun param arg ->
             Simple.pattern_match arg
-              ~name:(fun name ~coercion:_ -> Deps.add_cont_dep deps param name)
+              ~name:(fun name ~coercion:_ -> Graph.add_cont_dep deps param name)
               ~const:(fun _ -> ()))
           code_dep.params apply_params;
         (match apply_closure with
@@ -194,15 +194,15 @@ end = struct
         | Some apply_closure ->
           Simple.pattern_match apply_closure
             ~name:(fun name ~coercion:_ ->
-              Deps.add_cont_dep deps code_dep.my_closure name)
+              Graph.add_cont_dep deps code_dep.my_closure name)
             ~const:(fun _ -> ()));
         (match apply_return with
         | None -> ()
         | Some apply_return ->
           List.iter2
-            (fun arg param -> Deps.add_cont_dep deps param (Name.var arg))
+            (fun arg param -> Graph.add_cont_dep deps param (Name.var arg))
             code_dep.return apply_return);
-        Deps.add_cont_dep deps apply_exn (Name.var code_dep.exn))
+        Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn))
       t.apply_deps;
     t.deps
 end
@@ -240,9 +240,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
         ((my_closure :: params) @ (exn :: return))
     else
       let deps =
-        Deps.Dep.Return_of_that_function (Name.var exn)
+        Graph.Dep.Return_of_that_function (Name.var exn)
         :: List.map
-             (fun var -> Deps.Dep.Return_of_that_function (Name.var var))
+             (fun var -> Graph.Dep.Return_of_that_function (Name.var var))
              return
       in
       List.iter
@@ -269,7 +269,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         | Deleted -> ()
         | Code_id code_id ->
           let code_id = Code_id_or_name.code_id code_id in
-          Acc.record_dep ~denv name (Deps.Dep.Contains code_id) acc)
+          Acc.record_dep ~denv name (Graph.Dep.Contains code_id) acc)
       names_and_function_slots
   in
   let deps =
@@ -278,17 +278,17 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         Simple.pattern_match
           ~const:(fun _ -> set)
           ~name:(fun name ~coercion:_ ->
-            Deps.Dep.Set.add
+            Graph.Dep.Set.add
               (Block (Value_slot value_slot, Code_id_or_name.name name))
               set)
           simple)
       (Set_of_closures.value_slots set_of_closures)
-      Deps.Dep.Set.empty
+      Graph.Dep.Set.empty
   in
   let deps =
     Function_slot.Lmap.fold
       (fun function_slot name set ->
-        Deps.Dep.Set.add
+        Graph.Dep.Set.add
           (Block (Function_slot function_slot, Code_id_or_name.name name))
           set)
       names_and_function_slots deps
@@ -524,7 +524,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
     in
     let default acc =
       Name_occurrences.fold_names
-        ~f:(fun () free_name -> default_bp acc (Deps.Dep.Use free_name))
+        ~f:(fun () free_name -> default_bp acc (Graph.Dep.Use free_name))
         ~init:()
         (Flambda.Named.free_names defining_expr)
     in
@@ -579,12 +579,12 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                   match field with
                   | Symbol s ->
                     record acc name
-                      (Deps.Dep.Block
-                         (Deps.Field.Block i, Code_id_or_name.symbol s))
+                      (Graph.Dep.Block
+                         (Graph.Field.Block i, Code_id_or_name.symbol s))
                   | Tagged_immediate _ -> ()
                   | Dynamically_computed (v, _) ->
                     record acc name
-                      (Deps.Dep.Block (Deps.Field.Block i, Code_id_or_name.var v)))
+                      (Graph.Dep.Block (Graph.Field.Block i, Code_id_or_name.var v)))
                 fields
             | Set_of_closures _ -> assert false
             | _ -> ())
@@ -604,8 +604,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
               Simple.pattern_match field
                 ~name:(fun name ~coercion:_ ->
                   default_bp acc
-                    (Deps.Dep.Block
-                       (Deps.Field.Block i, Code_id_or_name.name name)))
+                    (Graph.Dep.Block
+                       (Graph.Field.Block i, Code_id_or_name.name name)))
                 ~const:(fun _ -> ()))
             fields
         | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -614,7 +614,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
               ~name:(fun name ~coercion:_ -> name)
               ~const:(fun _ -> assert false)
           in
-          let dep = Deps.Dep.Field (Function_slot move_to, block) in
+          let dep = Graph.Dep.Field (Function_slot move_to, block) in
           default_bp acc dep
         | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
           let block =
@@ -622,7 +622,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
               ~name:(fun name ~coercion:_ -> name)
               ~const:(fun _ -> assert false)
           in
-          let dep = Deps.Dep.Field (Value_slot value_slot, block) in
+          let dep = Graph.Dep.Field (Value_slot value_slot, block) in
           default_bp acc dep
         | Binary (Block_load (_access_kind, _mutability), block, field) -> begin
           (* Loads from mutable blocks are tracked here. This is ok as long as
@@ -632,7 +632,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           match known_field_of_block field block with
           | None -> default acc
           | Some (field, block) ->
-            default_bp acc (Deps.Dep.Field (Block field, block))
+            default_bp acc (Graph.Dep.Field (Block field, block))
         end
         | prim ->
           let () =
@@ -657,7 +657,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           Acc.alias_kind name s acc
         in
         Simple.pattern_match s
-          ~name:(fun name ~coercion:_ -> default_bp acc (Deps.Dep.Alias name))
+          ~name:(fun name ~coercion:_ -> default_bp acc (Graph.Dep.Alias name))
           ~const:(fun _ -> default acc)
       | Rec_info _ ->
         (* TODO kind *)

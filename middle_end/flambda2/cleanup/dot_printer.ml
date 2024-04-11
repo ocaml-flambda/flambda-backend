@@ -1,4 +1,4 @@
-module Deps = Global_flow_graph
+module Graph = Global_flow_graph
 
 type code_dep =
   { params : Variable.t list;
@@ -43,15 +43,15 @@ module P = struct
       Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) name
         Code_id_or_name.print name
 
-  let dep_names (dep : Deps.Dep.t) =
+  let dep_names (dep : Graph.Dep.t) =
     match dep with
-    | Deps.Dep.Return_of_that_function n
-    | Deps.Dep.Alias n
-    | Deps.Dep.Use n
-    | Deps.Dep.Field (_, n) ->
+    | Graph.Dep.Return_of_that_function n
+    | Graph.Dep.Alias n
+    | Graph.Dep.Use n
+    | Graph.Dep.Field (_, n) ->
       [Code_id_or_name.name n]
-    | Deps.Dep.Contains n | Deps.Dep.Block (_, n) -> [n]
-    | Deps.Dep.Apply (n, c) ->
+    | Graph.Dep.Contains n | Graph.Dep.Block (_, n) -> [n]
+    | Graph.Dep.Apply (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
 
   let all_names t =
@@ -59,10 +59,10 @@ module P = struct
     Hashtbl.iter
       (fun name dep ->
         let dep_names =
-          Deps.Dep.Set.fold (fun dep acc -> dep_names dep @ acc) dep []
+          Graph.Dep.Set.fold (fun dep acc -> dep_names dep @ acc) dep []
         in
         List.iter (fun name -> Hashtbl.replace names name ()) (name :: dep_names))
-      t.Deps.name_to_dep;
+      t.Graph.name_to_dep;
     names
 
   let nodes ~all_cdep ~ctx ppf t =
@@ -75,13 +75,13 @@ module P = struct
             Code_id_or_name.pattern_match'
               ~code_id:(fun _ -> false)
               ~name:(fun name ->
-                Hashtbl.mem t.Deps.used (Code_id_or_name.name name))
+                Hashtbl.mem t.Graph.used (Code_id_or_name.name name))
               name
           in
           node ~ctx ~root ppf name)
       (all_names t)
 
-  let edge ~ctx ppf src (dst : Deps.Dep.t) =
+  let edge ~ctx ppf src (dst : Graph.Dep.t) =
     let color, deps =
       match dst with
       | Return_of_that_function name -> "purple", [Code_id_or_name.name name]
@@ -104,8 +104,8 @@ module P = struct
   let edges ~ctx ppf t =
     Hashtbl.iter
       (fun src dst_set ->
-        Deps.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
-      t.Deps.name_to_dep
+        Graph.Dep.Set.iter (fun dst -> edge ~ctx ppf src dst) dst_set)
+      t.Graph.name_to_dep
 
   let code_deps ~ctx ~code_id ppf code_dep =
     node ~ctx ~root:false ppf (Code_id_or_name.code_id code_id);
@@ -136,12 +136,12 @@ module P = struct
           ~ctx code_id ppf fungraph)
       fundeps
 
-  let all_edges ~ctx ppf (t : Deps.graph) =
+  let all_edges ~ctx ppf (t : Graph.graph) =
     edges ~ctx ppf t.toplevel_graph;
     Hashtbl.iter (fun _ fungraph -> edges ~ctx ppf fungraph) t.function_graphs
 
   let print ~ctx ~print_name ppf
-      ((code_dep, t) : code_dep Code_id.Map.t * Deps.graph) =
+      ((code_dep, t) : code_dep Code_id.Map.t * Graph.graph) =
     let all_cdep =
       Code_id.Map.fold
         (fun code_id dep s ->
