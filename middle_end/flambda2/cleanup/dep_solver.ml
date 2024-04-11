@@ -118,19 +118,10 @@ module Make_SCC = struct
         (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph)
     in
     ignore result;
-    if true
-    then
-      Code_id_or_name.Map.map
-        (Code_id_or_name.Set.filter (fun n ->
-             Hashtbl.find_opt result n <> Some Top))
-        acc
-    else
-      Code_id_or_name.Map.mapi
-        (fun n d ->
-          if Hashtbl.find_opt result n = Some Top
-          then Code_id_or_name.Set.empty
-          else d)
-        acc
+    Code_id_or_name.Map.map
+      (Code_id_or_name.Set.filter (fun n ->
+           Hashtbl.find_opt result n <> Some Top))
+      acc
 end
 
 (* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
@@ -373,8 +364,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     match component with
     | No_loop id ->
       Queue.push id q;
-      fun n ->
-        assert (not (Hashtbl.mem state.all_added n))
+      fun n -> assert (not (Hashtbl.mem state.all_added n))
     | Has_loop ids ->
       List.iter (fun id -> Queue.push id q) ids;
       fun n ->
@@ -438,10 +428,8 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
       | Some s -> s
     in
     match Hashtbl.find_opt result n with
-    | None ->
-      ()
-    | Some elt ->
-      propagate_elt n elt deps
+    | None -> ()
+    | Some elt -> propagate_elt n elt deps
   done;
   match component with
   | No_loop id -> Hashtbl.add state.all_added id ()

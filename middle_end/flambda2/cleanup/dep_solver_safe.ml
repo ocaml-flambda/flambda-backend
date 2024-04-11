@@ -379,8 +379,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     match component with
     | No_loop id ->
       Queue.push id q;
-      fun n ->
-        assert (not (Hashtbl.mem state.all_added n))
+      fun n -> assert (not (Hashtbl.mem state.all_added n))
     | Has_loop ids ->
       List.iter (fun id -> Queue.push id q) ids;
       fun n ->
@@ -444,10 +443,8 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
       | Some s -> s
     in
     match Hashtbl.find_opt result n with
-    | None ->
-      ()
-    | Some elt ->
-      propagate_elt n elt deps
+    | None -> ()
+    | Some elt -> propagate_elt n elt deps
   done;
   match component with
   | No_loop id -> Hashtbl.add state.all_added id ()

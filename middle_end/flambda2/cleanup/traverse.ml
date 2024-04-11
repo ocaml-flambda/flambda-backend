@@ -584,7 +584,8 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
                   | Tagged_immediate _ -> ()
                   | Dynamically_computed (v, _) ->
                     record acc name
-                      (Graph.Dep.Block (Graph.Field.Block i, Code_id_or_name.var v)))
+                      (Graph.Dep.Block
+                         (Graph.Field.Block i, Code_id_or_name.var v)))
                 fields
             | Set_of_closures _ -> assert false
             | _ -> ())
