@@ -322,7 +322,7 @@ test: install_for_test
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
 	 cd _runtest/testsuite \
-	  && if false; \
+	  && if $$(which parallel > /dev/null 2>&1); \
              then \
 	       echo "Running testsuite in parallel (nproc=$$(nproc))"; \
                if [ "$(middle_end)" = "flambda2" ]; then \
