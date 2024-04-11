@@ -1618,11 +1618,9 @@ end = struct
       return ~msg v
     in
     let resolved v =
-      if Value.is_resolved v
-      then
-        let msg = Printf.sprintf "resolved  %s" callee in
-        return ~msg v
-      else unresolved v "defined earlier with unresolved dependencies"
+      assert (Value.is_resolved v);
+      let msg = Printf.sprintf "resolved  %s" callee in
+      return ~msg v
     in
     if is_future_funcname t callee
     then
@@ -1654,7 +1652,12 @@ end = struct
       | Some callee_info ->
         (* Callee defined earlier in the same compilation unit. May have
            unresolved dependencies. *)
-        resolved callee_info.value
+        if Value.is_resolved callee_info.value
+        then resolved callee_info.value
+        else
+          unresolved
+            (Value.unresolved callee w)
+            "defined earlier with unresolved dependencies"
 
   let transform_return ~(effect : V.t) dst =
     (* Instead of calling [Value.transform] directly, first check for trivial
