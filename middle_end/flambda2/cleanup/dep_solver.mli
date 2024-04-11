@@ -1,12 +1,8 @@
-module Field : sig
-  module Map : Container_types.Map with type key = Global_flow_graph.field
-end
-
 type elt =
   | Top
   | Fields of
       { depth : int;
-        fields : elt Field.Map.t
+        fields : elt Global_flow_graph.Field.Map.t
       }
   | Bottom
 

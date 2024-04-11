@@ -1,24 +1,53 @@
 let do_print = Sys.getenv_opt "PRT" <> None
 
-type field =
-  | Block of int
-  | Value_slot of Value_slot.t
-  | Function_slot of Function_slot.t
-  | Apply
+module Field = struct
+  module M = struct
+    type t = 
+      | Block of int
+      | Value_slot of Value_slot.t
+      | Function_slot of Function_slot.t
+      | Apply
 
-let pp_field ppf = function
-  | Block i -> Format.fprintf ppf "%i" i
-  | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
-  | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
-  | Apply -> Format.fprintf ppf "apply"
+    let compare t1 t2 =
+      match t1, t2 with
+      | Block n1, Block n2 -> Int.compare n1 n2
+      | Value_slot v1, Value_slot v2 -> Value_slot.compare v1 v2
+      | Function_slot f1, Function_slot f2 -> Function_slot.compare f1 f2
+      | Apply, Apply -> 0
+      | Block _, (Value_slot _ | Function_slot _ | Apply) -> -1
+      | (Value_slot _ | Function_slot _ | Apply), Block _ -> 1
+      | Value_slot _, (Function_slot _ | Apply) -> -1
+      | (Function_slot _ | Apply), Value_slot _ -> 1
+      | Function_slot _, Apply -> -1
+      | Apply, Function_slot _ -> 1
+
+    let equal a b = compare a b = 0
+
+    let hash = Hashtbl.hash
+
+    let print ppf = function
+      | Block i -> Format.fprintf ppf "%i" i
+      | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
+      | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
+      | Apply -> Format.fprintf ppf "apply"
+  end
+
+  include M
+
+  module Container = Container_types.Make (M)
+
+  (* module Set = Container.Set *)
+  module Map = Container.Map
+end
+
 
 module Dep = struct
   type t =
     | Alias of Name.t
     | Use of Name.t
     | Contains of Code_id_or_name.t
-    | Field of field * Name.t
-    | Block of field * Code_id_or_name.t
+    | Field of Field.t * Name.t
+    | Block of Field.t * Code_id_or_name.t
     | Apply of Name.t * Code_id.t
     | Return_of_that_function of Name.t
 
@@ -32,9 +61,9 @@ module Dep = struct
     | Alias n -> Format.fprintf ppf "Alias %a" Name.print n
     | Use n -> Format.fprintf ppf "Use %a" Name.print n
     | Contains n -> Format.fprintf ppf "Contains %a" Code_id_or_name.print n
-    | Field (f, n) -> Format.fprintf ppf "Field %a %a" pp_field f Name.print n
+    | Field (f, n) -> Format.fprintf ppf "Field %a %a" Field.print f Name.print n
     | Block (f, n) ->
-      Format.fprintf ppf "Block %a %a" pp_field f Code_id_or_name.print n
+      Format.fprintf ppf "Block %a %a" Field.print f Code_id_or_name.print n
     | Apply (n, c) ->
       Format.fprintf ppf "Apply %a %a" Name.print n Code_id.print c
     | Return_of_that_function n ->

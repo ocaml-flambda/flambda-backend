@@ -2,29 +2,10 @@ type graph = Global_flow_graph.graph
 
 type dep = Global_flow_graph.Dep.t
 
-type field = Global_flow_graph.field
+module Field = Global_flow_graph.Field
 
 module DepSet = Global_flow_graph.DepSet
 module SCC = Strongly_connected_components.Make (Code_id_or_name)
-
-module Field = struct
-  module M = struct
-    type t = field
-
-    let compare : t -> t -> int = compare
-
-    let equal a b = compare a b = 0
-
-    let hash = Hashtbl.hash
-
-    let print = Global_flow_graph.pp_field
-  end
-
-  module Container = Container_types.Make (M)
-
-  (* module Set = Container.Set *)
-  module Map = Container.Map
-end
 
 let max_depth = 2
 
