@@ -87,13 +87,12 @@ end
 module RE = Rebuilt_expr
 open! Rev_expr
 
-type rev_expr = Rev_expr.rev_expr
+type rev_expr = Rev_expr.t
 
 let all_slot_offsets = ref Slot_offsets.empty
 
 let all_code = ref Code_id.Map.empty
 
-let deleted_code = ref Code_id.Map.empty
 
 type uses = Dep_solver.result
 
@@ -434,9 +433,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
                     then Some arg
                     else (
                       (match e with
-                      | Code { code_metadata; _ } ->
-                        deleted_code
-                          := Code_id.Map.add code_id code_metadata !deleted_code
+                      | Code _ -> ()
                       | Deleted_code -> ()
                       | Static_const _ -> assert false);
                       Some (p, Deleted_code))
@@ -551,8 +548,6 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
 let rebuild kinds solved_dep holed =
   all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
-  (* Not really used: to remove *)
-  deleted_code := Code_id.Map.empty;
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds solved_dep holed)

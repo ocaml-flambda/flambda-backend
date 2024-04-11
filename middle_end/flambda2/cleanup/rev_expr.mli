@@ -65,3 +65,5 @@ and rev_expr =
   { expr : tail_expr;
     holed_expr : rev_expr_holed
   }
+
+type t = rev_expr

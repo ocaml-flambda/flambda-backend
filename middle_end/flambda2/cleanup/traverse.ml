@@ -817,7 +817,7 @@ and traverse_cont_handler :
       let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
       k handler acc)
 
-let do_print = Global_flow_graph.do_print
+let debug_print = Global_flow_graph.debug_print
 
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in
@@ -839,5 +839,5 @@ let run (unit : Flambda_unit.t) =
   in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
-  let () = if do_print then Dot.print_dep (Acc.code_deps acc, deps) in
+  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, deps) in
   holed, deps, kinds

@@ -1,4 +1,4 @@
-let do_print = Sys.getenv_opt "PRT" <> None
+let debug_print = false
 
 module Field = struct
   module M = struct
