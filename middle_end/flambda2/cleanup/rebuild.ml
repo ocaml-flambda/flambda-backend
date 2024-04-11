@@ -545,12 +545,12 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (uses : uses)
     in
     rebuild_holed kinds uses parent let_cont_expr
 
-type result = {
-  body : Flambda.Expr.t;
-  free_names : Name_occurrences.t;
-  all_code : Code.t Code_id.Map.t;
-  slot_offsets : Slot_offsets.t;
-}
+type result =
+  { body : Flambda.Expr.t;
+    free_names : Name_occurrences.t;
+    all_code : Code.t Code_id.Map.t;
+    slot_offsets : Slot_offsets.t
+  }
 
 let rebuild kinds solved_dep holed =
   all_slot_offsets := Slot_offsets.empty;
@@ -562,4 +562,5 @@ let rebuild kinds solved_dep holed =
   { body = rebuilt_expr.expr;
     free_names = rebuilt_expr.free_names;
     all_code = !all_code;
-    slot_offsets = !all_slot_offsets; }
+    slot_offsets = !all_slot_offsets
+  }

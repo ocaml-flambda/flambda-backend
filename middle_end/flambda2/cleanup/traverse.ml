@@ -43,7 +43,8 @@ module Acc : sig
 
   val record_dep' : denv:denv -> Code_id_or_name.t -> Deps.Dep.t -> t -> unit
 
-  val record_deps : denv:denv -> Code_id_or_name.t -> Deps.Dep.Set.t -> t -> unit
+  val record_deps :
+    denv:denv -> Code_id_or_name.t -> Deps.Dep.Set.t -> t -> unit
 
   val cont_dep : denv:denv -> Variable.t -> Simple.t -> t -> unit
 
