@@ -64,11 +64,9 @@ module Make_SCC = struct
     | Some code_id ->
       let code_id = Code_id_or_name.code_id code_id in
       let acc = ensure_domain acc (Code_id_or_name.Set.singleton code_id) in
-      let invert = false in
       let acc =
         Hashtbl.fold
           (fun cn () acc ->
-            let cn, code_id = if invert then code_id, cn else cn, code_id in
             let d =
               match Code_id_or_name.Map.find_opt code_id acc with
               | None -> Code_id_or_name.Set.empty
@@ -82,7 +80,6 @@ module Make_SCC = struct
         Hashtbl.fold
           (fun cid2 () acc ->
             let cn = Code_id_or_name.code_id cid2 in
-            let cn, code_id = if invert then code_id, cn else cn, code_id in
             let d =
               match Code_id_or_name.Map.find_opt code_id acc with
               | None -> Code_id_or_name.Set.empty
@@ -98,9 +95,6 @@ module Make_SCC = struct
             (fun dp acc ->
               Code_id_or_name.Set.fold
                 (fun cn acc ->
-                  let cn, code_id =
-                    if invert then code_id, cn else cn, code_id
-                  in
                   let d =
                     match Code_id_or_name.Map.find_opt code_id acc with
                     | None -> Code_id_or_name.Set.empty
