@@ -9,7 +9,7 @@ module SCC = Strongly_connected_components.Make (Code_id_or_name)
 let max_depth = 2
 
 (** Represents the part of a value that can be accessed *)
-type elt = Dep_solver_safe.elt =
+type elt =
   | Top  (** Value completely accessed *)
   | Fields of
       { depth : int;
@@ -453,46 +453,123 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
   | No_loop id -> Hashtbl.add state.all_added id ()
   | Has_loop ids -> List.iter (fun n -> Hashtbl.add state.all_added n ()) ids
 
-let fixpoint_topo (graph : graph) : result =
-  let state = create_state graph in
-  let components =
-    SCC.connected_components_sorted_from_roots_to_leaf
-      (Make_SCC.from_graph graph state.result)
+let fixpoint (graph : graph) : result =
+  let result : result = Hashtbl.create 100 in
+  let q = Queue.create () in
+  let all_deps = Hashtbl.copy graph.toplevel_graph.name_to_dep in
+  let add_used used =
+    Hashtbl.iter
+      (fun n () ->
+        Hashtbl.replace result n Top;
+        Queue.push n q)
+      used
   in
-  if Sys.getenv_opt "SHOWCOMP" <> None
-  then begin
-    Format.eprintf "ncomps: %d, max size: %d@." (Array.length components)
-      (Array.fold_left
-         (fun m -> function
-           | SCC.No_loop _ -> m
-           | SCC.Has_loop l -> max m (List.length l))
-         0 components);
-    Array.iter
-      (function
-        | SCC.No_loop id -> Format.eprintf "%a@ " Code_id_or_name.print id
-        | SCC.Has_loop l ->
-          Format.eprintf "[%a]@ " (Format.pp_print_list Code_id_or_name.print) l)
-      components;
-    Format.eprintf "@."
-  end;
-  Array.iter
-    (fun component -> fixpoint_component state component graph)
-    components;
-  state.result
-
-let fixpoint graph =
-  let result = Dep_solver_safe.fixpoint graph in
-  let result_topo = fixpoint_topo graph in
-  if Sys.getenv_opt "TOTO" <> None
-  then (
-    Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
-    Format.eprintf "NORMAL:@.%a@.@." pp_result result);
-  if not (Dep_solver_safe.equal_result result_topo result)
-  then begin
-    Format.printf "NOT EQUAL:@.%a@.XXX@.%a@.END@.XXXXXXX@.DIFF:@." pp_result
-      result_topo pp_result result;
-    Dep_solver_safe.print_diff result result_topo;
-    assert false
-  end;
-  assert (Dep_solver_safe.equal_result result_topo result);
+  let added_fungraphs = Hashtbl.create 100 in
+  let rec add_called called =
+    Hashtbl.iter
+      (fun code_id () ->
+        let code_id = Code_id_or_name.code_id code_id in
+        if not (Hashtbl.mem result code_id)
+        then
+          Hashtbl.replace result code_id
+            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
+           Field.Map.singleton Apply Top)) *)
+        Queue.push code_id q (* CR do better, push_front? *))
+      called
+  and add_fungraph (fungraph : Global_flow_graph.fun_graph) =
+    Hashtbl.iter
+      (fun n deps ->
+        (match Hashtbl.find_opt all_deps n with
+        | None -> Hashtbl.add all_deps n deps
+        | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
+        if Hashtbl.mem result n then Queue.push n q)
+      fungraph.name_to_dep;
+    add_used fungraph.used;
+    add_called fungraph.called
+  and check_and_add_fungraph n elt =
+    Code_id_or_name.pattern_match'
+      ~name:(fun _ -> ())
+      ~code_id:(fun code_id ->
+        if (match elt with Bottom -> false | Fields _ | Top -> true)
+           && (not (Hashtbl.mem added_fungraphs code_id))
+           && Hashtbl.mem graph.function_graphs code_id
+        then begin
+          add_fungraph (Hashtbl.find graph.function_graphs code_id);
+          Hashtbl.add added_fungraphs code_id ()
+        end)
+      n
+  in
+  add_used graph.toplevel_graph.used;
+  add_called graph.toplevel_graph.called;
+  while not (Queue.is_empty q) do
+    let n = Queue.pop q in
+    let deps =
+      match Hashtbl.find_opt all_deps n with
+      | None -> DepSet.empty
+      | Some s -> s
+    in
+    let elt = Hashtbl.find result n in
+    check_and_add_fungraph n elt;
+    DepSet.iter
+      (fun dep ->
+        match propagate elt dep with
+        | None -> ()
+        | Some (dep_upon, dep_elt) -> (
+          assert (dep_elt <> Bottom);
+          match Hashtbl.find_opt result dep_upon with
+          | None ->
+            Hashtbl.replace result dep_upon dep_elt;
+            Queue.push dep_upon q
+          | Some prev_dep ->
+            let u = join_elt dep_elt prev_dep in
+            if not (equal_elt u prev_dep)
+            then begin
+              Hashtbl.replace result dep_upon u;
+              Queue.push dep_upon q
+            end))
+      deps
+  done;
   result
+
+let equal_result r1 r2 =
+  let s1 = List.of_seq @@ Hashtbl.to_seq r1 in
+  let s2 = List.of_seq @@ Hashtbl.to_seq r2 in
+  let l1 = List.sort (fun (k1, _) (k2, _) -> compare k1 k2) s1 in
+  let l2 = List.sort (fun (k1, _) (k2, _) -> compare k1 k2) s2 in
+  List.equal
+    (fun (k1, e1) (k2, e2) -> Code_id_or_name.equal k1 k2 && equal_elt e1 e2)
+    l1 l2
+
+let print_diff r1 r2 =
+  let s1 = List.of_seq @@ Hashtbl.to_seq r1 in
+  let s2 = List.of_seq @@ Hashtbl.to_seq r2 in
+  let l1 = List.sort (fun (k1, _) (k2, _) -> compare k1 k2) s1 in
+  let l2 = List.sort (fun (k1, _) (k2, _) -> compare k1 k2) s2 in
+  let rec loop l1 l2 =
+    match l1, l2 with
+    | [], [] -> ()
+    | (k1, _) :: t1, [] ->
+      Format.printf "--- %a@." Code_id_or_name.print k1;
+      loop t1 []
+    | [], (k2, _) :: t2 ->
+      Format.printf "+++ %a@." Code_id_or_name.print k2;
+      loop [] t2
+    | (k1, e1) :: t1, (k2, e2) :: t2 ->
+      let c = Code_id_or_name.compare k1 k2 in
+      if c < 0
+      then (
+        Format.printf "--- %a@." Code_id_or_name.print k1;
+        loop t1 ((k2, e2) :: t2))
+      else if c > 0
+      then (
+        Format.printf "+++ %a@." Code_id_or_name.print k2;
+        loop ((k1, e1) :: t1) t2)
+      else (
+        if not (equal_elt e1 e2)
+        then
+          Format.printf "DIFF %a: %a %a@." Code_id_or_name.print k1 pp_elt e1
+            pp_elt e2;
+        loop t1 t2)
+  in
+  loop l1 l2
