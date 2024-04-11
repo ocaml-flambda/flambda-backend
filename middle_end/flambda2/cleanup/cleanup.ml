@@ -15,7 +15,7 @@ let run ~cmx_loader (unit : Flambda_unit.t) =
   let solved_dep = Dep_solver.fixpoint deps in
   if debug_print
   then Format.printf "RESULT@ %a@." Dep_solver.pp_result solved_dep;
-  let rebuilt_expr, free_names, all_code, slot_offsets =
+  let Rebuild.{ body; free_names; all_code; slot_offsets } =
     Rebuild.rebuild kinds solved_dep holed
   in
   (* Is this what we really want? This keeps all the code that has not been
@@ -29,4 +29,4 @@ let run ~cmx_loader (unit : Flambda_unit.t) =
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
-  unit_with_body unit rebuilt_expr, free_names, all_code, slot_offsets
+  unit_with_body unit body, free_names, all_code, slot_offsets
