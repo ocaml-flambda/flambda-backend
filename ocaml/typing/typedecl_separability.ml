@@ -132,6 +132,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
       [ty1; ty2]
   | Ttuple(tys) -> List.map snd tys
   | Tpackage(_, fl) -> (snd (List.split fl))
+  | Tfunctor(_, (_, fl), ty) -> ty :: (snd (List.split fl))
   | Tobject(row,class_ty) ->
       let class_subtys =
         match !class_ty with
@@ -407,14 +408,16 @@ let check_type
     | (Tvariant(_)        , Sep    )
     | (Tobject(_,_)       , Sep    )
     | ((Tnil | Tfield _)  , Sep    )
-    | (Tpackage(_,_)      , Sep    ) -> empty
+    | (Tpackage(_,_)      , Sep    )
+    | (Tfunctor(_,_,_)    , Sep    ) -> empty
     (* "Deeply separable" case for these same constructors. *)
     | (Tarrow _           , Deepsep)
     | (Ttuple _           , Deepsep)
     | (Tvariant(_)        , Deepsep)
     | (Tobject(_,_)       , Deepsep)
     | ((Tnil | Tfield _)  , Deepsep)
-    | (Tpackage(_,_)      , Deepsep) ->
+    | (Tpackage(_,_)      , Deepsep)
+    | (Tfunctor(_,_,_)    , Deepsep) ->
         let tys = immediate_subtypes ty in
         let on_subtype context ty =
           context ++ check_type (Hyps.guard hyps) ty Deepsep in

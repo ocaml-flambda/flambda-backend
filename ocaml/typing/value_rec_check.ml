@@ -656,8 +656,8 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _,
-         _, _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)},
+          [_, Arg (Targ_expr (arg, _))], _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -669,7 +669,7 @@ let rec expression : Typedtree.expression -> term_judg =
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty
-          | Arg (e, _) -> expression e
+          | Arg arg -> argument arg
         in
         let app_mode = if List.exists is_abstracted_arg args
           then (* see the comment on Texp_apply in typedtree.mli;
@@ -898,6 +898,7 @@ let rec expression : Typedtree.expression -> term_judg =
           *)
           match param.fp_kind with
           | Tparam_pat pat -> pat
+          | Tparam_module (pat, _) -> pat
           | Tparam_optional_default (pat, _, _) -> pat
         in
         (* Optional argument defaults.
@@ -912,6 +913,8 @@ let rec expression : Typedtree.expression -> term_judg =
                       G |-{def} ?(p=e) : m
                   *)
               expression default
+          | Tparam_module _ ->
+              empty
           | Tparam_pat _ ->
                   (*
                       ------------------
@@ -962,6 +965,10 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
     | Texp_src_pos -> empty
+
+and argument = function
+    | Targ_expr (e, _) -> expression e
+    | Targ_module me -> modexp me
 
 (* Function bodies.
     G |-{body} b : m

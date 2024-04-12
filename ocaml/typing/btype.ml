@@ -101,6 +101,8 @@ let print_raw =
 
 let generic_level = Ident.highest_scope
 
+let highest_level = generic_level - 1
+
 (* Used to mark a type during a traversal. *)
 let lowest_level = Ident.lowest_scope
 let pivot_level = 2 * lowest_level - 1
@@ -290,6 +292,9 @@ let fold_type_expr f init ty =
     List.fold_left f result tyl
   | Tpackage (_, fl)  ->
     List.fold_left (fun result (_n, ty) -> f result ty) init fl
+  | Tfunctor (_, (_, fl), ty) ->
+      let res = List.fold_left (fun result (_n, ty) -> f result ty) init fl in
+      f res ty
 
 let iter_type_expr f ty =
   fold_type_expr (fun () v -> f v) () ty
@@ -409,6 +414,7 @@ let type_iterators =
     match get_desc ty with
       Tconstr (p, _, _)
     | Tobject (_, {contents=Some (p, _)})
+    | Tfunctor (_, (p, _), _)
     | Tpackage (p, _) ->
         it.it_path p
     | Tvariant row ->
@@ -466,6 +472,8 @@ let rec copy_type_desc ?(keep_names=false) f = function
       let tyl = List.map f tyl in
       Tpoly (f ty, tyl)
   | Tpackage (p, fl)  -> Tpackage (p, List.map (fun (n, ty) -> (n, f ty)) fl)
+  | Tfunctor (id, (p, fl), ty) ->
+      Tfunctor (id, (p, List.map (fun (n, ty) -> (n, f ty)) fl), f ty)    
 
 (* Utilities for copying *)
 
