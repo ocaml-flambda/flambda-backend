@@ -17,12 +17,15 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
   Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
-type texp_apply_identifier = apply_position * Locality.l * Assume_info.t
+
+type texp_apply_identifier =
+  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
 
 let mkTexp_apply
     ?id:(pos, mode, za =
-        (Default, Locality.disallow_right Locality.legacy, Assume_info.none))
-    (exp, args) =
+        ( Default,
+          Locality.disallow_right Locality.legacy,
+          Zero_alloc_utils.Assume_info.none )) (exp, args) =
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
