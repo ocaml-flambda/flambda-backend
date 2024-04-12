@@ -291,11 +291,11 @@ and record_representation =
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of jkind array array
+  | Variant_boxed of constructor_representation array
   | Variant_extensible
 
 and constructor_representation =
-  | Constructor_regular
+  | Constructor_regular of Jkind.t array
   | Constructor_mixed of mixed_record_shape
 
 and label_declaration =
@@ -567,8 +567,10 @@ let equal_tag t1 t2 =
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
-  | Variant_boxed lays1, Variant_boxed lays2 ->
-      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2
+  | Variant_boxed _cstrs1, Variant_boxed _cstrs2 ->
+      (* CR mixed blocks: *)
+      assert false
+      (* Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2 *)
   | Variant_extensible, Variant_extensible ->
       true
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->

@@ -777,10 +777,11 @@ let transl_declaration env sdecl (id, uid) =
             Variant_boxed (
               Array.map
                 (fun cstr ->
-                   match Types.(cstr.cd_args) with
-                   | Cstr_tuple args ->
-                     Array.make (List.length args) any
-                   | Cstr_record _ -> [| any |])
+                   Constructor_regular (
+                     match Types.(cstr.cd_args) with
+                     | Cstr_tuple args ->
+                       Array.make (List.length args) any
+                     | Cstr_record _ -> [| any |]))
                 (Array.of_list cstrs)
             ),
             Jkind.value ~why:Boxed_variant
@@ -1096,6 +1097,7 @@ let check_representable ~why ~allow_float env loc kloc typ =
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
+(* CR mixed blocks: move me back down? *)
 (* [Element_repr] is used to classify whether something is a "mixed product"
    (a mixed record or mixed variant constructor), meaning that some of the
    fields are unboxed in a way that isnt encoded in the usual short numeric tag.
@@ -1122,7 +1124,7 @@ module Element_repr = struct
       | Any ->
           Misc.fatal_error "Element_repr.classify: unexpected Any"
 
-  let element_repr_to_flat : _ -> flat_element option = function
+  let to_flat : _ -> flat_element option = function
     | Imm_element -> Some Imm
     | Flat_float64_element -> Some Float64
     (* CR layouts v7: Eventually void components will have no runtime width.
@@ -1142,7 +1144,7 @@ module Element_repr = struct
           | Flat_float64_element ->
               let suffix =
                 List.map (fun (t2, t2_extra) ->
-                    match element_repr_to_flat t2 with
+                    match to_flat t2 with
                     | Some flat -> flat
                     | None ->
                         on_flat_field_expected
@@ -1160,7 +1162,7 @@ module Element_repr = struct
               | Some `Stop _ as stop -> stop
               | Some `Continue suffix ->
                   Some (
-                    match element_repr_to_flat repr with
+                    match to_flat repr with
                     | None -> `Stop suffix
                     | Some flat -> `Continue (flat :: suffix))
             end
@@ -1364,7 +1366,7 @@ let update_decl_jkind env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              ~allow_float:true env cd_loc Cstr_tuple ty;
+              ~allow_float:false env cd_loc Cstr_tuple ty;
             let jkind = Ctype.type_jkind env ty in
             cstrs, Variant_unboxed, jkind
           end
@@ -1379,12 +1381,66 @@ let update_decl_jkind env dpath decl =
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
       end
-    | cstrs, Variant_boxed jkinds ->
+    | cstrs, Variant_boxed cstr_shapes ->
       let (_,cstrs,all_voids) =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
+          let arg_jkinds =
+            match cstr_shapes.(idx) with
+            | Constructor_regular arg_jkinds -> arg_jkinds
+            | Constructor_mixed _ ->
+                fatal_error
+                  "Typedecl.update_variant_kind doesn't expect mixed \
+                   constructor as input"
+          in
           let cd_args, all_void =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
-              cstr.Types.cd_args jkinds.(idx)
+              cstr.Types.cd_args arg_jkinds
+          in
+          let arg_reprs =
+            let arg_types =
+              match cd_args with
+              | Cstr_tuple tys_and_modes -> List.map fst tys_and_modes
+              | Cstr_record lds -> List.map (fun ld -> ld.Types.ld_type) lds
+            in
+            List.mapi
+              (fun i arg_type ->
+                 Element_repr.classify env arg_type arg_jkinds.(i), i)
+              arg_types
+          in
+          let flat_suffix =
+            Element_repr.mixed_product_flat_suffix arg_reprs
+              ~on_flat_field_expected:(fun ~non_value ~boxed ->
+                  match cd_args with
+                  | Cstr_tuple args ->
+                      let non_value, _ = List.nth args non_value
+                      and boxed, _     = List.nth args boxed
+                      in
+                      ignore boxed;
+                      ignore non_value;
+                      (* CR mixed blocks: *)
+                      raise (Error (cstr.Types.cd_loc, assert false))
+                  | Cstr_record args ->
+                      let non_value = List.nth args non_value
+                      and boxed     = List.nth args boxed
+                      in
+                      let violation =
+                        Flat_field_expected
+                          { non_value_lbl = non_value.ld_id;
+                            boxed_lbl = boxed.ld_id;
+                          }
+                      in
+                      raise (Error (non_value.ld_loc,
+                                    Illegal_mixed_record violation)))
+          in
+          let () =
+            match flat_suffix with
+            | None -> ()
+            | Some flat_suffix ->
+                let value_prefix_len =
+                  Array.length arg_jkinds - Array.length flat_suffix
+                in
+                cstr_shapes.(idx) <-
+                  Constructor_mixed { value_prefix_len; flat_suffix }
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
