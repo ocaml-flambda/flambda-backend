@@ -1841,7 +1841,7 @@ let rec emit_all ~first ~fallthrough i =
   | Lend -> ()
   | _ ->
       emit_instr ~first ~fallthrough i;
-      emit_all ~first:false (Linear.has_fallthrough i.desc) i.next
+      emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
