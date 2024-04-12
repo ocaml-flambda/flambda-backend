@@ -446,6 +446,7 @@
 
 (install
  (files
+  (ocaml/compilerlibs/META as compiler-libs/META)
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs.a)
