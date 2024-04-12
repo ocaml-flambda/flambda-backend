@@ -119,7 +119,7 @@ let jkind_layout_must_be_value loc jkind =
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
   | (Value | Immediate | Immediate64), _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
@@ -2166,6 +2166,22 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
            lbl_sort, lbl_layout
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
+            lbl_sort, lbl_layout
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+            let read =
+              if pos < value_prefix_len then Mread_value_prefix ptr
+              else
+                let read =
+                  match flat_suffix.(pos - value_prefix_len) with
+                  | Imm -> Flat_read_imm
+                  | Float64 -> Flat_read_float64
+                  | Float ->
+                      (* TODO: could optimise to Alloc_local sometimes *)
+                      Flat_read_float alloc_heap
+                in
+                Mread_flat_suffix read
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
             lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in

@@ -644,17 +644,25 @@ let rec expression : Typedtree.expression -> term_judg =
       option (fun (e, _) -> expression e) eo << Guard
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
-        let field_mode = match rep with
+        let field_mode i = match rep with
           | Record_float | Record_ufloat -> Dereference
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
+          | Record_mixed mixed_shape ->
+              (match get_mixed_record_element mixed_shape i with
+               | Value_prefix -> Guard
+               | Flat_suffix _ -> Dereference)
         in
-        let field (_label, field_def) = match field_def with
-            Kept _ -> empty
-          | Overridden (_, e) -> expression e
+        let field (label, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << field_mode label.lbl_num
         in
         join [
-          array field es << field_mode;
+          array field es;
           option expression eo << Dereference
         ]
     | Texp_ifthenelse (cond, ifso, ifnot) ->

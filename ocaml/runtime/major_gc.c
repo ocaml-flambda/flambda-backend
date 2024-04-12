@@ -743,7 +743,7 @@ Caml_inline void mark_stack_push_range(struct mark_stack* stk,
 static intnat mark_stack_push_block(struct mark_stack* stk, value block)
 {
   int i, end;
-  uintnat block_wsz = Wosize_val(block), offset = 0;
+  uintnat block_scannable_wsz, offset = 0;
 
   if (Tag_val(block) == Closure_tag) {
     /* Skip the code pointers and integers at beginning of closure;
@@ -760,9 +760,11 @@ static intnat mark_stack_push_block(struct mark_stack* stk, value block)
   CAMLassert(Tag_val(block) < No_scan_tag);
   CAMLassert(Tag_val(block) != Cont_tag);
 
+  block_scannable_wsz = Scannable_wosize_val(block);
+
   /* Optimisation to avoid pushing small, unmarkable objects such as
      [Some 42] into the mark stack. */
-  end = (block_wsz < 8 ? block_wsz : 8);
+  end = (block_scannable_wsz < 8 ? block_scannable_wsz : 8);
 
   for (i = offset; i < end; i++) {
     value v = Field(block, i);
@@ -771,14 +773,14 @@ static intnat mark_stack_push_block(struct mark_stack* stk, value block)
       break;
   }
 
-  if (i == block_wsz){
+  if (i == block_scannable_wsz){
     /* nothing left to mark and credit header */
-    return Whsize_wosize(block_wsz - offset);
+    return Whsize_wosize(block_scannable_wsz - offset);
   }
 
   mark_stack_push_range(stk,
                         Op_val(block) + i,
-                        Op_val(block) + block_wsz);
+                        Op_val(block) + block_scannable_wsz);
 
   /* take credit for the work we skipped due to the optimisation.
      we will take credit for the header later as part of marking. */
@@ -913,7 +915,16 @@ again:
       }
 
       me.start = Op_val(block);
-      me.end = me.start + Wosize_hd(hd);
+
+      reserved_t reserved = Reserved_hd(hd);
+      if (Is_mixed_block_reserved(reserved)) {
+        uintnat scannable_wosize =
+          Mixed_block_scannable_wosize_reserved(reserved);
+        me.end = me.start + scannable_wosize;
+        budget -= Wosize_hd(hd) - scannable_wosize; /* unscannable suffix */
+      } else {
+        me.end = me.start + Wosize_hd(hd);
+      }
 
       if (Tag_hd(hd) == Closure_tag) {
         uintnat env_offset = Start_env_closinfo(Closinfo_val(block));
