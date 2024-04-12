@@ -583,7 +583,7 @@ and record_representation =
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of jkind array array
+  | Variant_boxed of constructor_representation array
   (* CR mixed blocks: fix wording *)
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
@@ -595,7 +595,7 @@ and variant_representation =
   | Variant_extensible
 
 and constructor_representation =
-  | Constructor_regular
+  | Constructor_regular of Jkind.t array
   (* A constant constructor or a constructor all of whose fields are values. *)
   | Constructor_mixed of mixed_record_shape
   (* A constructor that has some non-value fields. *)

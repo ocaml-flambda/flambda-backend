@@ -289,6 +289,8 @@ let build_initial_env add_type add_extension empty_env =
       }
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
+  (* CR mixed blocks: not foo *)
+  let foo jkinds = Constructor_regular jkinds in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
@@ -299,8 +301,8 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
   |> add_type ident_bool
-       ~kind:(variant [cstr ident_false []; cstr ident_true []]
-                [| [| |]; [| |] |])
+       ~kind:(variant [ cstr ident_false []; cstr ident_true []]
+                [| foo [| |]; foo [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Immediate
@@ -324,7 +326,7 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| list_argument_jkind;
+           [| foo [| |]; foo [| list_argument_jkind;
                         Jkind.value ~why:Boxed_variant |] |] )
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_nativeint
@@ -333,7 +335,7 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| option_argument_jkind |] |])
+           [| foo [| |]; foo [| option_argument_jkind |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
@@ -378,7 +380,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind_annotation:Bits64
   |> add_type ident_bytes
   |> add_type ident_unit
-       ~kind:(variant [cstr ident_void []] [| [| |] |])
+       ~kind:(variant [cstr ident_void []] [| foo [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure

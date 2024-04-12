@@ -435,8 +435,15 @@ let constructor_tag ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed layss ->
-    Variant_boxed (Array.map (Array.map (prepare_jkind loc)) layss)
+  | Variant_boxed cstrs ->
+    Variant_boxed
+      (Array.map (function
+          | Constructor_regular jkinds ->
+              Constructor_regular (Array.map (prepare_jkind loc) jkinds)
+          (* CR mixed blocks: check no jkinds *)
+          | Constructor_mixed _ as mixed -> mixed)
+        cstrs)
+
   | Variant_extensible -> Variant_extensible
 
 (* called only when additional_action is [Prepare_for_saving] *)
