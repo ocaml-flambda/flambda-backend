@@ -342,7 +342,16 @@ go into `ocaml/`, then run the upstream configure script.  After that perform th
 `make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
-## Testing the compiler built locally with OPAM
+## Testing the compiler built locally with OPAM (new method)
+
+This is still under development, but should work!
+```shell
+opam repo add flambda-backend git+https://github.com/chambart/opam-repository-js.git#with-extensions
+opam switch create 5.1.1+flambda2 --repos flambda-backend,default
+eval $(opam env --switch=5.1.1+flambda2)
+```
+
+## Testing the compiler built locally with OPAM (old method)
 
 It is possible to create a OPAM switch with the Flambda backend compiler.
 
