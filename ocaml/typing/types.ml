@@ -288,12 +288,15 @@ and record_representation =
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_record_shape
-  | Record_inlined_mixed of tag * mixed_record_shape
 
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of jkind array array
   | Variant_extensible
+
+and constructor_representation =
+  | Constructor_regular
+  | Constructor_mixed of mixed_record_shape
 
 and label_declaration =
   {
