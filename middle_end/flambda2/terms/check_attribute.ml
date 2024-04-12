@@ -50,7 +50,7 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
   match a with
   | Default_check ->
     if !Clflags.zero_alloc_check_assert_all
-       && Lambda.is_check_enabled ~opt:false Zero_alloc
+       && Builtin_attributes.is_check_enabled ~opt:false Zero_alloc
     then Check { property = Zero_alloc; strict = false; loc }
     else Default_check
   | Ignore_assert_all Zero_alloc -> Default_check
@@ -62,7 +62,7 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
         loc
       }
   | Check { property; strict; opt; loc } ->
-    if Lambda.is_check_enabled ~opt property
+    if Builtin_attributes.is_check_enabled ~opt property
     then Check { property = Property.from_lambda property; strict; loc }
     else Default_check
 

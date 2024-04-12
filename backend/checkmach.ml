@@ -335,17 +335,17 @@ end = struct
      Assume_info due to cyclic dependencies. The witnesses in Assume_info are
      always empty and the translation is trivial. Is there a better way to avoid
      duplicating [Zero_alloc_utils]? *)
-  let transl w (v : Assume_info.V.t) : V.t =
+  let transl w (v : Zero_alloc_utils.Assume_info.V.t) : V.t =
     match v with Top _ -> Top w | Safe -> Safe | Bot -> Bot
 
-  let transl w (v : Assume_info.Value.t) : Value.t =
+  let transl w (v : Zero_alloc_utils.Assume_info.Value.t) : Value.t =
     { nor = transl w v.nor; exn = transl w v.exn; div = transl w v.div }
 
   let assume_value dbg ~can_raise w =
     (* [loc] can be obtained by [Debuginfo.to_location dbg], For now just return
        [Location.none] because it is not used. *)
     let a = Debuginfo.assume_zero_alloc dbg in
-    match Assume_info.get_value a with
+    match Zero_alloc_utils.Assume_info.get_value a with
     | None -> None
     | Some v ->
       let v = transl w v in

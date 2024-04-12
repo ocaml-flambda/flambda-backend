@@ -400,6 +400,7 @@ parsing/attr_helper.cmi : \
     parsing/location.cmi \
     parsing/asttypes.cmi
 parsing/builtin_attributes.cmo : \
+    utils/zero_alloc_utils.cmi \
     utils/warnings.cmi \
     parsing/parsetree.cmi \
     utils/misc.cmi \
@@ -412,6 +413,7 @@ parsing/builtin_attributes.cmo : \
     parsing/ast_helper.cmi \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmx : \
+    utils/zero_alloc_utils.cmx \
     utils/warnings.cmx \
     parsing/parsetree.cmi \
     utils/misc.cmx \
@@ -424,6 +426,7 @@ parsing/builtin_attributes.cmx : \
     parsing/ast_helper.cmx \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmi : \
+    utils/zero_alloc_utils.cmi \
     parsing/parsetree.cmi \
     utils/misc.cmi \
     parsing/location.cmi
@@ -1452,6 +1455,7 @@ typing/printtyp.cmi : \
     typing/env.cmi \
     parsing/asttypes.cmi
 typing/printtyped.cmo : \
+    utils/zero_alloc_utils.cmi \
     typing/types.cmi \
     typing/typedtree.cmi \
     parsing/printast.cmi \
@@ -1468,6 +1472,7 @@ typing/printtyped.cmo : \
     parsing/asttypes.cmi \
     typing/printtyped.cmi
 typing/printtyped.cmx : \
+    utils/zero_alloc_utils.cmx \
     typing/types.cmx \
     typing/typedtree.cmx \
     parsing/printast.cmx \
@@ -1731,6 +1736,7 @@ typing/typeclass.cmi : \
     typing/ctype.cmi \
     parsing/asttypes.cmi
 typing/typecore.cmo : \
+    utils/zero_alloc_utils.cmi \
     utils/warnings.cmi \
     typing/untypeast.cmi \
     typing/uniqueness_analysis.cmi \
@@ -1773,6 +1779,7 @@ typing/typecore.cmo : \
     parsing/ast_helper.cmi \
     typing/typecore.cmi
 typing/typecore.cmx : \
+    utils/zero_alloc_utils.cmx \
     utils/warnings.cmx \
     typing/untypeast.cmx \
     typing/uniqueness_analysis.cmx \
@@ -1994,6 +2001,7 @@ typing/typedecl_variance.cmi : \
     typing/env.cmi \
     parsing/asttypes.cmi
 typing/typedtree.cmo : \
+    utils/zero_alloc_utils.cmi \
     typing/types.cmi \
     typing/shape.cmi \
     typing/primitive.cmi \
@@ -2007,9 +2015,11 @@ typing/typedtree.cmo : \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     typing/typedtree.cmi
 typing/typedtree.cmx : \
+    utils/zero_alloc_utils.cmx \
     typing/types.cmx \
     typing/shape.cmx \
     typing/primitive.cmx \
@@ -2023,9 +2033,11 @@ typing/typedtree.cmx : \
     parsing/jane_asttypes.cmx \
     typing/ident.cmx \
     typing/env.cmx \
+    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     typing/typedtree.cmi
 typing/typedtree.cmi : \
+    utils/zero_alloc_utils.cmi \
     typing/types.cmi \
     typing/shape.cmi \
     typing/primitive.cmi \
@@ -2039,6 +2051,7 @@ typing/typedtree.cmi : \
     parsing/jane_asttypes.cmi \
     typing/ident.cmi \
     typing/env.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 typing/typemod.cmo : \
     utils/warnings.cmi \
@@ -3958,36 +3971,28 @@ middle_end/variable.cmi : \
     utils/identifiable.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi
-lambda/assume_info.cmo : \
-    utils/zero_alloc_utils.cmi \
-    lambda/assume_info.cmi
-lambda/assume_info.cmx : \
-    utils/zero_alloc_utils.cmx \
-    lambda/assume_info.cmi
-lambda/assume_info.cmi : \
-    utils/zero_alloc_utils.cmi
 lambda/debuginfo.cmo : \
+    utils/zero_alloc_utils.cmi \
     parsing/location.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
     lambda/debuginfo.cmi
 lambda/debuginfo.cmx : \
+    utils/zero_alloc_utils.cmx \
     parsing/location.cmx \
     utils/int_replace_polymorphic_compare.cmx \
     typing/ident.cmx \
     utils/compilation_unit.cmx \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
     lambda/debuginfo.cmi
 lambda/debuginfo.cmi : \
+    utils/zero_alloc_utils.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi \
-    parsing/asttypes.cmi \
-    lambda/assume_info.cmi
+    parsing/asttypes.cmi
 lambda/lambda.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -4003,6 +4008,7 @@ lambda/lambda.cmo : \
     utils/config.cmi \
     utils/compilation_unit.cmi \
     utils/clflags.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
 lambda/lambda.cmx : \
@@ -4020,6 +4026,7 @@ lambda/lambda.cmx : \
     utils/config.cmx \
     utils/compilation_unit.cmx \
     utils/clflags.cmx \
+    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
 lambda/lambda.cmi : \
@@ -4034,6 +4041,7 @@ lambda/lambda.cmi : \
     typing/env.cmi \
     lambda/debuginfo.cmi \
     utils/compilation_unit.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 lambda/matching.cmo : \
     typing/types.cmi \
@@ -4249,36 +4257,25 @@ lambda/translattribute.cmo : \
     utils/warnings.cmi \
     typing/typedtree.cmi \
     parsing/parsetree.cmi \
-    utils/misc.cmi \
-    parsing/longident.cmi \
     parsing/location.cmi \
     lambda/lambda.cmi \
     utils/config.cmi \
-    utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
-    parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
     lambda/translattribute.cmi
 lambda/translattribute.cmx : \
     utils/warnings.cmx \
     typing/typedtree.cmx \
     parsing/parsetree.cmi \
-    utils/misc.cmx \
-    parsing/longident.cmx \
     parsing/location.cmx \
     lambda/lambda.cmx \
     utils/config.cmx \
-    utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
-    parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
     lambda/translattribute.cmi
 lambda/translattribute.cmi : \
     typing/typedtree.cmi \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    lambda/lambda.cmi \
-    lambda/assume_info.cmi
+    lambda/lambda.cmi
 lambda/translclass.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
@@ -4323,6 +4320,7 @@ lambda/translclass.cmi : \
     lambda/debuginfo.cmi \
     parsing/asttypes.cmi
 lambda/translcore.cmo : \
+    utils/zero_alloc_utils.cmi \
     typing/types.cmi \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
@@ -4352,11 +4350,12 @@ lambda/translcore.cmo : \
     typing/ctype.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
+    parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmi \
     lambda/translcore.cmi
 lambda/translcore.cmx : \
+    utils/zero_alloc_utils.cmx \
     typing/types.cmx \
     typing/typeopt.cmx \
     typing/typedtree.cmx \
@@ -4386,9 +4385,9 @@ lambda/translcore.cmx : \
     typing/ctype.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
+    parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
-    lambda/assume_info.cmx \
     lambda/translcore.cmi
 lambda/translcore.cmi : \
     typing/types.cmi \

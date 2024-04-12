@@ -443,7 +443,7 @@ and expression i ppf x =
       alloc_mode i ppf am;
       list i function_param ppf params;
       function_body i ppf body;
-  | Texp_apply (e, l, m, am) ->
+  | Texp_apply (e, l, m, am, za) ->
       line i ppf "Texp_apply\n";
       line i ppf "apply_mode %s\n"
         (match m with
@@ -451,6 +451,9 @@ and expression i ppf x =
          | Nontail -> "Nontail"
          | Default -> "Default");
       locality_mode i ppf am;
+      if not (Zero_alloc_utils.Assume_info.is_none za) then
+        line i ppf "assume_zero_alloc %a\n"
+          Zero_alloc_utils.Assume_info.print za;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, sort, l, _partial) ->
