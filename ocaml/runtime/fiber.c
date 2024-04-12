@@ -790,6 +790,7 @@ int caml_try_realloc_stack(asize_t required_space)
 
   caml_free_stack(old_stack);
   Caml_state->current_stack = new_stack;
+  Caml_state->current_stack_bound = Caml_state->current_stack + Stack_threshold_offset;
   return 1;
 }
 

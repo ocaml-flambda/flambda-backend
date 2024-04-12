@@ -994,7 +994,7 @@ CFI_STARTPROC
     /* Load new stack pointer and set parent */
         movq    Stack_handler(%rax), %r11
         movq    %rcx, Handler_parent(%r11)
-        movq    %rax, Caml_state(current_stack)
+        movq    %rax, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
         movq    Stack_sp(%rax), %r11
     /* Create an exception handler on the target stack
        after 16byte DWARF & gc_regs block (which is unused here) */
@@ -1027,7 +1027,7 @@ LBL(frame_runstack):
     /* restore parent stack and exn_handler into Caml_state */
         movq    Handler_parent(%r11), %r10
         movq    Stack_exception(%r10), %r11
-        movq    %r10, Caml_state(current_stack)
+        movq    %r10, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
         movq    %r11, Caml_state(exn_handler)
     /* free old stack by switching directly to c_stack; is a no-alloc call */
         movq    Stack_sp(%r10), %r13 /* saved across C call */
