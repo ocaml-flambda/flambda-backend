@@ -123,6 +123,8 @@ val can_raise_interproc : basic_block -> bool
 
 val first_instruction_id : basic_block -> int
 
+val first_instruction_stack_offset : basic_block -> int
+
 val mem_block : t -> Label.t -> bool
 
 val add_block_exn : t -> basic_block -> unit

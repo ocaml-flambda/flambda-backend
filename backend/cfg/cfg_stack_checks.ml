@@ -31,6 +31,14 @@
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
+let is_nontail_call : Cfg.terminator -> bool = fun term_desc ->
+  match term_desc with
+  | Call_no_return _ | Call _ -> true
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+  | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+  | Tailcall_func _ | Prim _ | Specific_can_raise _ ->
+    false
+
 (* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :
     Cfg.basic_block ->
@@ -38,13 +46,10 @@ let block_preproc_stack_check_result :
     Emitaux.preproc_stack_check_result * int =
  fun block ~frame_size ->
   let contains_nontail_calls =
-    (* CR mshinwell: move to a method in Cfg somewhere? *)
-    match block.terminator.desc with
-    | Call_no_return _ | Call _ -> true
-    | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-    | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Prim _ | Specific_can_raise _ ->
-      false
+    (* XCR mshinwell: move to a method in Cfg somewhere?
+     * I have extracter the match to a dedicated function, but I don't
+     * think the predicate is generic enough to be moved to `Cfg`. *)
+    is_nontail_call block.terminator.desc
   in
   let max_frame_size, max_instr_id =
     DLL.fold_left block.body
@@ -183,11 +188,7 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
     let label = find_stack_check_block tree ~to_cover ~num_checks ~loop_infos in
     let block = Cfg.get_block_exn cfg label in
     let stack_offset =
-      (* CR mshinwell: It would maybe be nice if this were just a method on Cfg,
-         to get the stack offset. *)
-      match DLL.hd block.body with
-      | None -> block.terminator.stack_offset
-      | Some instr -> instr.stack_offset
+      Cfg.first_instruction_stack_offset block
     in
     let check : Cfg.basic Cfg.instruction =
       (* CR mshinwell: I'm surprised there isn't a creation function for these,

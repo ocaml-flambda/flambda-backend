@@ -193,10 +193,18 @@ let get_block_exn t label =
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
-let first_instruction_id (block : basic_block) : int =
+type 'a instr_mapper = { f : 'b . 'b instruction -> 'a }[@@unboxed]
+
+let map_first_instruction (block : basic_block) (t : 'a instr_mapper) =
   match DLL.hd block.body with
-  | None -> block.terminator.id
-  | Some first_instr -> first_instr.id
+  | None -> t.f block.terminator
+  | Some first_instr -> t.f first_instr
+
+let first_instruction_id (block : basic_block) : int =
+  map_first_instruction block { f = fun instr -> instr.id }
+
+let first_instruction_stack_offset (block : basic_block) : int =
+  map_first_instruction block { f = fun instr -> instr.stack_offset }
 
 let fun_name t = t.fun_name
 
