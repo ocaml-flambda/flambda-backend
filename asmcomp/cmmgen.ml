@@ -646,6 +646,9 @@ let rec transl env e =
           transl_prim_2 env p arg1 arg2 dbg
       | (p, [arg1; arg2; arg3]) ->
           transl_prim_3 env p arg1 arg2 arg3 dbg
+      (* Mixed blocks *)
+      | (Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _), _->
+          Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
       | (Pread_symbol _, _::_::_::_::_)
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
@@ -1036,6 +1039,9 @@ and transl_prim_1 env p arg dbg =
       Cop(mk_load_atomic Word_int, [transl env arg], dbg)
   | Patomic_load {immediate_or_pointer = Pointer} ->
       Cop(mk_load_atomic Word_val, [transl env arg], dbg)
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
   | (Pfield_computed | Psequand | Psequor
     | Prunstack | Presume | Preperform
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add
@@ -1252,6 +1258,11 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Patomic_fetch_add ->
      Cop (Cextcall ("caml_atomic_fetch_add", typ_int, [], false),
           [transl env arg1; transl env arg2], dbg)
+
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+
   | Prunstack | Pperform | Presume | Preperform | Pdls_get
   | Patomic_cas | Patomic_load _
   | Pnot | Pnegint | Pintoffloat _ | Pfloatofint (_, _)
@@ -1313,6 +1324,10 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Patomic_cas ->
      Cop (Cextcall ("caml_atomic_cas", typ_int, [], false),
           [transl env arg1; transl env arg2; transl env arg3], dbg)
+
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
 
   (* Effects *)
   | Presume ->

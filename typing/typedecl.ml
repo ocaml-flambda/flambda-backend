@@ -42,6 +42,19 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
+type mixed_record_violation =
+  | Runtime_support_not_enabled
+  | Value_prefix_too_long of
+      { value_prefix_len : int;
+        max_value_prefix_len : int;
+      }
+  | Flat_field_expected of
+      { boxed_lbl : Ident.t;
+        non_value_lbl : Ident.t;
+      }
+  | Insufficient_level of
+      { required_layouts_level : Language_extension.maturity }
+
 type bad_jkind_inference_location =
   | Check_constraints
   | Delayed_checks
@@ -92,7 +105,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
-  | Mixed_block
+  | Illegal_mixed_record of mixed_record_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -751,12 +764,15 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_record lbls ->
           let lbls, lbls' = transl_labels ~new_var_jkind:Any env None true lbls in
           let rep, jkind =
+            (* Note this is inaccurate, using `Record_boxed` in cases where the
+               correct representation is [Record_float], [Record_ufloat], or
+               [Record_mixed].  Those cases are fixed up after we can get
+               accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
               Record_unboxed, any
-            else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
-            then Record_float
-            else Record_boxed (Array.make (List.length lbls) any)),
-                 Jkind.value ~why:Boxed_record
+            else
+              Record_boxed (Array.make (List.length lbls) any),
+              Jkind.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
@@ -1091,6 +1107,27 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
+let assert_mixed_record_support =
+  let required_reserved_header_bits = 8 in
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
+  fun loc ~value_prefix_len ->
+    let required_layouts_level = Language_extension.Alpha in
+    if not (Language_extension.is_at_least Layouts required_layouts_level) then
+      raise (Error (loc, Illegal_mixed_record
+                          (Insufficient_level { required_layouts_level })));
+    if Config.reserved_header_bits < required_reserved_header_bits
+    || not Config.runtime5 then
+      raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
+    if value_prefix_len > max_value_prefix_len then
+      raise
+        (Error (loc,
+                Illegal_mixed_record
+                  (Value_prefix_too_long
+                     { value_prefix_len; max_value_prefix_len })))
+
 (* This function updates jkind stored in kinds with more accurate jkinds.
    It is called after the circularity checks and the delayed jkind checks
    have happened, so we can fully compute jkinds of types.
@@ -1102,10 +1139,81 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
 *)
 let update_decl_jkind env dpath decl =
   let open struct
-    (* For tracking what types appear in record blocks. *)
-    type has_values = Has_values | No_values
-    type has_float64s = Has_float64s | No_float64s
+    (* For tracking what types appear in record blocks. The field [x]
+       tracks whether there is a record field whose most-precise layout
+       is [x]. (For example, [values] may be [false] even if [imms] is [true].)
+    *)
+    type element_reprs =
+      {  mutable values : bool; (* also includes [imm64] *)
+         mutable imms : bool;
+         mutable floats: bool;
+         (* float is not technically a 'layout', contrary to the comment above.
+            For purposes of this record, [floats] tracks whether any field
+            has layout value and is known to be a float.
+         *)
+         mutable float64s : bool }
+
+    type element_repr =
+      | Imm_element
+      | Flat_float64_element
+      | Float_element
+      | Value_element
+      | Element_without_runtime_component
+
+    let element_repr_to_flat : _ -> flat_element option = function
+      | Imm_element -> Some Imm
+      | Flat_float64_element -> Some Float64
+      (* CR layouts v7: Eventually void components will have no runtime width.
+         We return [Some Imm] as a nonsense placeholder for now. (No record
+         with a void field can be compiled past lambda.)
+      *)
+      | Element_without_runtime_component -> Some Imm
+      | Float_element | Value_element -> None
   end in
+
+  (* Compute the [flat_suffix] field of a mixed block record kind. *)
+  let find_mixed_block_flat_suffix =
+    let rec find_flat_suffix classifications =
+      match classifications with
+      | [] -> Misc.fatal_error "Expected at least one Float64"
+      | (ld, c) :: classifications ->
+          match c with
+          | Flat_float64_element ->
+              let suffix =
+                List.map (fun (repr_ld, repr) ->
+                    match element_repr_to_flat repr with
+                    | Some flat -> flat
+                    | None ->
+                        let violation =
+                          Flat_field_expected
+                            { boxed_lbl = repr_ld.Types.ld_id;
+                              non_value_lbl = ld.Types.ld_id;
+                            }
+                        in
+                        raise (Error (repr_ld.Types.ld_loc,
+                                      Illegal_mixed_record violation)))
+                  classifications
+              in
+              `Continue (Float64 :: suffix)
+          | Float_element
+          | Imm_element
+          | Value_element
+          | Element_without_runtime_component as repr -> begin
+              match find_flat_suffix classifications with
+              | `Stop _ as stop -> stop
+              | `Continue suffix -> begin
+                  match element_repr_to_flat repr with
+                  | None -> `Stop suffix
+                  | Some flat -> `Continue (flat :: suffix)
+                end
+            end
+    in
+    fun classifications ->
+      let (`Continue flat_suffix | `Stop flat_suffix) =
+        find_flat_suffix classifications
+      in
+      Array.of_list flat_suffix
+  in
 
   (* returns updated labels, updated rep, and updated jkind *)
   let update_record_kind loc lbls rep =
@@ -1118,40 +1226,79 @@ let update_decl_jkind env dpath decl =
     | _, Record_boxed jkinds ->
       let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
       let jkind = Jkind.for_boxed_record ~all_void in
-      let has_values, has_floats =
-        Array.fold_left
-          (fun (values, floats) jkind ->
-             match Jkind.get_default_value jkind with
-             | Value | Immediate64 | Immediate -> (Has_values, floats)
-             | Float64 -> (values, Has_float64s)
-             | Void -> (values, floats)
-             (* CR layouts v2.1: make unboxed ints work with records *)
-             | Word | Bits32 | Bits64 ->
-              Misc.fatal_error "Typedecl.update_record_kind: no support for unboxed ints"
-             | Any -> assert false)
-          (No_values, No_float64s) jkinds
+      let classify (lbl : Types.label_declaration) jkind =
+        if is_float env lbl.ld_type then Float_element
+        else match Jkind.get_default_value jkind with
+          | Value | Immediate64 -> Value_element
+          | Immediate -> Imm_element
+          | Float64 -> Flat_float64_element
+          | Void -> Element_without_runtime_component
+          | Word | Bits32 | Bits64 ->
+              Misc.fatal_error
+                "Typedecl.update_record_kind: no support for unboxed ints"
+          | Any ->
+              Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
       in
+      let classifications =
+        List.mapi (fun i lbl -> lbl, classify lbl jkinds.(i)) lbls
+      in
+      let element_reprs =
+        { values = false; imms = false; floats = false; float64s = false }
+      in
+      List.iter
+        (fun (_lbl, repr) ->
+           match repr with
+           | Float_element -> element_reprs.floats <- true
+           | Imm_element -> element_reprs.imms <- true
+           | Flat_float64_element -> element_reprs.float64s <- true
+           | Value_element -> element_reprs.values <- true
+           | Element_without_runtime_component -> ())
+        classifications;
       let rep =
-        match has_values, has_floats with
-        | Has_values, Has_float64s -> raise (Error (loc, Mixed_block))
-        | Has_values, No_float64s -> rep
-        | No_values, Has_float64s -> Record_ufloat
-        | No_values, No_float64s ->
+        match[@warning "+9"] element_reprs with
+        | { values = false; imms = false; floats = true ; float64s = true  } ->
+            (* We store mixed float/float64 records as flat if there are no
+                non-float fields.
+            *)
+            let flat_suffix =
+              List.map
+                (fun (_, c) ->
+                  match c with
+                  | Float_element -> Float
+                  | Flat_float64_element -> Float64
+                  | Element_without_runtime_component -> Imm
+                  | Imm_element | Value_element ->
+                      Misc.fatal_error "Expected only floats and float64s")
+                classifications
+              |> Array.of_list
+            in
+            assert_mixed_record_support loc ~value_prefix_len:0;
+            Record_mixed { value_prefix_len = 0; flat_suffix }
+        | { values = true ; imms = _    ; floats = _    ; float64s = true  }
+        | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
+            let flat_suffix = find_mixed_block_flat_suffix classifications in
+            let value_prefix_len =
+              Array.length jkinds - Array.length flat_suffix
+            in
+            assert_mixed_record_support loc ~value_prefix_len;
+            Record_mixed { value_prefix_len; flat_suffix }
+        | { values = true ; imms = _    ; floats = _    ; float64s = false }
+        | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
+          rep
+        | { values = false; imms = false; floats = true ; float64s = false } ->
+          Record_float
+        | { values = false; imms = false; floats = false; float64s = true  } ->
+          Record_ufloat
+        | { values = false; imms = false; floats = false; float64s = false } ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
-    | _, Record_float ->
-      (* CR layouts v2.5: When we have an unboxed float jkind, does it make
-         sense to use that here?  The use of value feels inaccurate, but I think
-         the code that would look at first looks at the rep. *)
-      let lbls =
-        List.map (fun lbl ->
-          { lbl with ld_jkind = Jkind.value ~why:Float_record_field })
-          lbls
-      in
-      lbls, rep, Jkind.value ~why:Boxed_record
-    | (([] | (_ :: _)), Record_unboxed
-      | _, (Record_inlined _ | Record_ufloat)) -> assert false
+    | _, ( Record_inlined _ | Record_float | Record_ufloat
+         | Record_mixed _)
+    | ([] | (_ :: _)), Record_unboxed ->
+      (* These are never created by [transl_declaration]. *)
+      Misc.fatal_error
+        "Typedecl.update_record_kind: unexpected record representation"
   in
 
   (* returns updated constructors, updated rep, and updated jkind *)
@@ -3174,9 +3321,38 @@ let report_error ppf = function
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
-  | Mixed_block  ->
-    fprintf ppf
-      "@[Records may not contain both unboxed floats and normal values.@]"
+  | Illegal_mixed_record error -> begin
+      match error with
+      | Flat_field_expected { boxed_lbl; non_value_lbl } ->
+          fprintf ppf
+            "@[Expected all flat fields after non-value field, %s,@]@,\
+            \ @[but found boxed field, %s.@]"
+            (Ident.name non_value_lbl)
+            (Ident.name boxed_lbl)
+      | Runtime_support_not_enabled ->
+          fprintf ppf
+            "@[This OCaml runtime doesn't support mixed records.@]"
+      | Value_prefix_too_long { value_prefix_len; max_value_prefix_len } ->
+          fprintf ppf
+            "@[Mixed records may contain at most %d value fields prior to the\
+            \ flat suffix, but this one contains %d.@]"
+            max_value_prefix_len value_prefix_len
+      | Insufficient_level { required_layouts_level } -> (
+        let hint ppf =
+          Format.fprintf ppf "You must enable -extension %s to use this feature."
+            (Language_extension.to_command_line_string Layouts
+               required_layouts_level)
+        in
+        match Language_extension.is_enabled Layouts with
+        | false ->
+          fprintf ppf
+            "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
+        | true ->
+          fprintf ppf
+            "@[<v>The enabled layouts extension does not allow for mixed records.@;\
+             %t@]"
+            hint)
+    end
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

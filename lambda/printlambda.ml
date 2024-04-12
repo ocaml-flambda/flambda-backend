@@ -285,6 +285,7 @@ let record_rep ppf r = match r with
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
   | Record_ufloat -> fprintf ppf "ufloat"
+  | Record_mixed _ -> fprintf ppf "mixed"
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -297,6 +298,45 @@ let block_shape ppf shape = match shape with
           Format.fprintf ppf ",%a" field_kind elt)
         t;
       Format.fprintf ppf ")"
+
+let flat_element ppf : flat_element -> unit = function
+  | Imm -> pp_print_string ppf "int"
+  | Float -> pp_print_string ppf "float"
+  | Float64 -> pp_print_string ppf "float64"
+
+let flat_element_read ppf : flat_element_read -> unit = function
+  | Flat_read_imm -> pp_print_string ppf "int"
+  | Flat_read_float m -> fprintf ppf "float[%a]" alloc_mode m
+  | Flat_read_float64 -> pp_print_string ppf "float64"
+
+let mixed_block_read ppf : mixed_block_read -> unit = function
+  | Mread_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mread_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mread_flat_suffix flat -> flat_element_read ppf flat
+
+let mixed_block_write ppf : mixed_block_write -> unit = function
+  | Mwrite_value_prefix Immediate -> pp_print_string ppf "value_int"
+  | Mwrite_value_prefix Pointer -> pp_print_string ppf "value"
+  | Mwrite_flat_suffix flat -> flat_element ppf flat
+
+let mixed_block_shape ppf { value_prefix_len; flat_suffix } =
+  begin match value_prefix_len with
+    | 0 -> ()
+    | n -> fprintf ppf " (prefix=%d)" n
+  end;
+  match Array.length flat_suffix with
+  | 0 -> ()
+  | 1 ->
+      fprintf ppf " (%a)" flat_element (flat_suffix.(0))
+  | _ -> begin
+    Array.iteri (fun i elt ->
+      if i = 0 then
+        fprintf ppf " (%a" flat_element elt
+      else
+        fprintf ppf ",%a" flat_element elt)
+      flat_suffix;
+    fprintf ppf ")"
+  end
 
 let integer_comparison ppf = function
   | Ceq -> fprintf ppf "=="
@@ -357,6 +397,15 @@ let primitive ppf = function
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
         (alloc_mode_if_local mode)
+  | Pmakemixedblock (Immutable, abs, mode) ->
+      fprintf ppf "make%amixedblock Immutable%a"
+        alloc_mode mode mixed_block_shape abs
+  | Pmakemixedblock (Immutable_unique, abs, mode) ->
+     fprintf ppf "make%amixedblock Immutable_unique%a"
+        alloc_mode mode mixed_block_shape abs
+  | Pmakemixedblock (Mutable, abs, mode) ->
+     fprintf ppf "make%amixedblock Mutable%a"
+        alloc_mode mode mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -401,6 +450,9 @@ let primitive ppf = function
   | Pufloatfield (n, sem) ->
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
+  | Pmixedfield (n, read, sem) ->
+      fprintf ppf "mixedfield%a %i %a"
+        field_read_semantics sem n mixed_block_read read
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -419,6 +471,16 @@ let primitive ppf = function
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setufloatfield%s %i" init n
+  | Psetmixedfield (n, write, init) ->
+      let init =
+        match init with
+        | Heap_initialization -> "(heap-init)"
+        | Root_initialization -> "(root-init)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
+      in
+      fprintf ppf "setmixedfield%s %i %a"
+        init n mixed_block_write write
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"
@@ -705,6 +767,7 @@ let name_of_primitive = function
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pmakeufloatblock _ -> "Pmakeufloatblock"
+  | Pmakemixedblock _ -> "Pmakemixedblock"
   | Pfield _ -> "Pfield"
   | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
@@ -713,6 +776,8 @@ let name_of_primitive = function
   | Psetfloatfield _ -> "Psetfloatfield"
   | Pufloatfield _ -> "Pufloatfield"
   | Psetufloatfield _ -> "Psetufloatfield"
+  | Pmixedfield _ -> "Pmixedfield"
+  | Psetmixedfield _ -> "Psetmixedfield"
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"

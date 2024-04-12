@@ -68,7 +68,7 @@ let record_field_kind l =
 let check_record_field_sort loc sort repres =
   match Jkind.Sort.get_default_value sort, repres with
   | Value, _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (loc, Illegal_record_field Float64))
@@ -578,6 +578,28 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_inlined (_, Variant_extensible) ->
           Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+          let read =
+            if lbl.lbl_num < value_prefix_len then
+              Mread_value_prefix (maybe_pointer e)
+            else
+              let flat_read =
+                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                | Imm -> Flat_read_imm
+                | Float64 -> Flat_read_float64
+                | Float ->
+                  (match float with
+                    | Boxing (mode, _) ->
+                        Flat_read_float (transl_alloc_mode_r mode)
+                    | Non_boxing _ ->
+                        Misc.fatal_error
+                          "expected typechecking to make [float] boxing mode\
+                          \ present for float field read")
+              in
+              Mread_flat_suffix flat_read
+          in
+          Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [targ],
+                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
@@ -600,6 +622,21 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_ufloat -> Psetufloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
+        | Record_mixed { value_prefix_len; flat_suffix } -> begin
+          let write =
+            if lbl.lbl_num < value_prefix_len then
+              Mwrite_value_prefix (maybe_pointer newval)
+            else
+              let flat_element =
+                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                | Imm -> Imm
+                | Float -> Float
+                | Float64 -> Float64
+              in
+              Mwrite_flat_suffix flat_element
+           in
+           Psetmixedfield(lbl.lbl_pos, write, mode)
+        end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
@@ -1672,6 +1709,24 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                        so it's simpler to leave it Alloc_heap *)
                     Pfloatfield (i, sem, alloc_heap)
                  | Record_ufloat -> Pufloatfield (i, sem)
+                 | Record_mixed { value_prefix_len; flat_suffix } ->
+                   let read =
+                    if lbl.lbl_num < value_prefix_len then
+                      Mread_value_prefix (maybe_pointer_type env typ)
+                    else
+                      let read =
+                        match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                        | Imm -> Flat_read_imm
+                        | Float ->
+                            (* See the handling of [Record_float] above for
+                                why we choose Alloc_heap.
+                            *)
+                            Flat_read_float alloc_heap
+                        | Float64 -> Flat_read_float64
+                      in
+                      Mread_flat_suffix read
+                   in
+                   Pmixedfield (i, read, sem)
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -1698,7 +1753,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
-        | Record_ufloat ->
+        | Record_ufloat | Record_mixed _ ->
             (* CR layouts v2.5: When we add unboxed float literals, we may need
                to do something here.  (Currrently this case isn't reachable for
                `float#` records because `extact_constant` will have raised
@@ -1728,6 +1783,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
+        | Record_mixed shape ->
+            let shape = transl_mixed_record_shape shape in
+            Lprim (Pmakemixedblock (mut, shape, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
       None -> lam
@@ -1760,6 +1818,23 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 let pos = lbl.lbl_pos + 1 in
                 let ptr = maybe_pointer expr in
                 Psetfield(pos, ptr, Assignment modify_heap)
+            | Record_mixed { value_prefix_len; flat_suffix } -> begin
+                let write =
+                  if lbl.lbl_num < value_prefix_len then
+                    let ptr = maybe_pointer expr in
+                    Mwrite_value_prefix ptr
+                  else
+                    let flat_element =
+                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                      | Imm -> Imm
+                      | Float -> Float
+                      | Float64 -> Float64
+                    in
+                    Mwrite_flat_suffix flat_element
+                in
+                Psetmixedfield
+                  (lbl.lbl_pos, write, Assignment modify_heap)
+              end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
                                 transl_exp ~scopes lbl_sort expr],

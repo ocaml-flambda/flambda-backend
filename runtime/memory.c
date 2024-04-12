@@ -324,17 +324,6 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
   return ret;
 }
 
-CAMLexport void caml_set_fields (value obj, value v)
-{
-  int i;
-  CAMLassert (Is_block(obj));
-
-  mlsize_t size = Wosize_val(obj);
-  for (i = 0; i < size; i++) {
-    caml_modify(&Field(obj, i), v);
-  }
-}
-
 CAMLexport int caml_is_stack (value v)
 {
   int i;
@@ -500,6 +489,8 @@ Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
 
 #ifdef DEBUG
   if (tag < No_scan_tag) {
+    /* We don't check the reserved bits here because this is OK even for mixed
+       blocks. */
     mlsize_t i;
     for (i = 0; i < wosize; i++)
       Op_hp(v)[i] = Debug_uninit_major;

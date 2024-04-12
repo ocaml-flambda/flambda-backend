@@ -54,6 +54,8 @@ end
 (* Test 1: some basic arithmetic *)
 
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
+let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
+let print_int prefix x = Printf.printf "%s: %d\n" prefix x
 
 (* Tests all the operators above *)
 let test1 () =

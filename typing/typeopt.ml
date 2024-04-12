@@ -539,10 +539,11 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
-  | _ -> begin
-      let (is_mutable, num_nodes_visited), fields =
+  | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
+  | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
+      let (_, is_mutable, num_nodes_visited), fields =
         List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
+          (fun (idx, is_mutable, num_nodes_visited)
                (label:Types.label_declaration) ->
             let is_mutable =
               Types.is_mutable label.ld_mutable || is_mutable
@@ -554,19 +555,27 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                  sort (we can get this info from the label.ld_jkind).  For now
                  we rely on the layout check at the top of value_kind to rule
                  out void. *)
+              (* We're using the `Pboxedfloatval` value kind for unboxed floats
+                 inside of records.  This is kind of a lie, but that was already
+                 happening here due to the float record optimization. *)
               match rep with
               | Record_float | Record_ufloat ->
-                (* We're using the `Pboxedfloatval` value kind for unboxed floats.
-                   This is kind of a lie (there are unboxed floats in here, not
-                   boxed floats), but that was already happening here due to the
-                   float record optimization. *)
                 num_nodes_visited, Pboxedfloatval Pfloat64
+              | Record_mixed shape ->
+                begin match Types.get_mixed_record_element shape idx with
+                | Value_prefix ->
+                    value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                      label.ld_type
+                | Flat_suffix Imm -> num_nodes_visited, Pintval
+                | Flat_suffix (Float | Float64) ->
+                    num_nodes_visited, Pboxedfloatval Pfloat64
+                end
               | Record_boxed _ | Record_inlined _ | Record_unboxed ->
                 value_kind env ~loc ~visited ~depth ~num_nodes_visited
                   label.ld_type
             in
-            (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+            (idx + 1, is_mutable, num_nodes_visited), field)
+          (0, false, num_nodes_visited) labels
       in
       if is_mutable then
         num_nodes_visited, Pgenval
@@ -580,6 +589,9 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
+            [0, fields]
+          | Record_mixed _ ->
+            (* CR mixed blocks v1: Tag should not be 0. *)
             [0, fields]
           | Record_unboxed -> assert false
         in

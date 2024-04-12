@@ -445,8 +445,7 @@ let record_representation ~prepare_jkind loc = function
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_jkind loc) lays)
-  | Record_float -> Record_float
-  | Record_ufloat -> Record_ufloat
+  | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;

@@ -102,14 +102,20 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  (* [Pmixedfield] is an access to either the flat suffix or value prefix of a
+     mixed record.
+  *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -340,6 +346,24 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and flat_element = Imm | Float | Float64
+and flat_element_read =
+  | Flat_read_imm
+  | Flat_read_float of alloc_mode
+  | Flat_read_float64
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
+and mixed_block_shape =
+  { value_prefix_len : int;
+    (* We use an array just so we can index into the middle. *)
+    flat_suffix : flat_element array;
+  }
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
@@ -743,6 +767,16 @@ val transl_module_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
+
+val transl_mixed_record_shape: Types.mixed_record_shape -> mixed_block_shape
+val count_mixed_block_values_and_floats : mixed_block_shape -> int * int
+
+type mixed_block_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+(** Raises if the int is out of bounds. *)
+val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
