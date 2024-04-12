@@ -4016,7 +4016,7 @@ let rec is_nonexpansive exp =
              Val_prim {Primitive.prim_name =
                          ("%raise" | "%reraise" | "%raise_notrace")}},
              Id_prim _, _) },
-      [Nolabel, Arg (Targ_expr (e, _))], _, _) ->
+      [Nolabel, Arg (Targ_expr (e, _))], _, _, _) ->
      is_nonexpansive e
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
