@@ -488,7 +488,6 @@ let emit_stack_realloc () =
       (* measured in words *)
       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
       I.add (int 8) rsp;
-      I.pop r10; (* ignored *)
       cfi_adjust_cfa_offset (-8);
       I.jmp (label sc_return)
     end
