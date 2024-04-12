@@ -158,6 +158,7 @@
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
     (socketaddr.h as caml/socketaddr.h)
     (unixsupport.h as caml/unixsupport.h)
+    (META as unix/META)
   )
   (section lib)
   (package ocaml))
