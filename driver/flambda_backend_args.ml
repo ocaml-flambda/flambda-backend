@@ -63,6 +63,12 @@ let mk_cfg_cse_optimize f =
 let mk_no_cfg_cse_optimize f =
   "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
 
+let mk_cfg_stack_checks f =
+  "-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the CFG representation"
+
+let mk_no_cfg_stack_checks f =
+    "-no-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the linear representation"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -637,6 +643,9 @@ module type Flambda_backend_options = sig
   val cfg_cse_optimize : unit -> unit
   val no_cfg_cse_optimize : unit -> unit
 
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -751,6 +760,9 @@ struct
 
     mk_cfg_cse_optimize F.cfg_cse_optimize;
     mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
+
+    mk_cfg_stack_checks F.cfg_stack_checks;
+    mk_no_cfg_stack_checks F.no_cfg_stack_checks;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -895,6 +907,9 @@ module Flambda_backend_options_impl = struct
 
   let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
   let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
+
+  let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
+  let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -1189,6 +1204,7 @@ module Extra_params = struct
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
+    | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges

@@ -159,6 +159,7 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_stack_checks
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
