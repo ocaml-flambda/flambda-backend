@@ -218,7 +218,7 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
    cases, rather than simply pushing it down. *)
 let cfg (cfg_with_layout : Cfg_with_layout.t) =
   match Config.runtime5 with
-  | false -> fundecl
+  | false -> cfg_with_layout
   | true ->
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
