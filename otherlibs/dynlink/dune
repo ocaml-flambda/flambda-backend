@@ -503,6 +503,8 @@
     (dynlink.cmi as dynlink/dynlink.cmi)
 
     .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
+
+    (META as dynlink/META)
   )
   (section lib)
   (package ocaml))
