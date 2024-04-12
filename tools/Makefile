@@ -88,7 +88,7 @@ OCAMLPROF=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
   syntaxerr.cmo ast_helper.cmo \
   language_extension_kernel.cmo language_extension.cmo \
   jane_asttypes.cmo jane_syntax_parsing.cmo jane_syntax.cmo \
-   ast_iterator.cmo builtin_attributes.cmo \
+   ast_iterator.cmo zero_alloc_utils.cmo builtin_attributes.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \
   lexer.cmo parse.cmo ocamlprof.cmo

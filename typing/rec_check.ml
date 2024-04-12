@@ -169,10 +169,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _, _)
       when is_ref vd ->
         Static
-    | Texp_apply (_, args, _, _)
+    | Texp_apply (_, args, _, _, _)
       when List.exists is_abstracted_arg args ->
         Static
     | Texp_apply _ ->
@@ -586,7 +586,8 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _, _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _,
+         _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -594,7 +595,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- ref e: m
       *)
       expression arg << Guard
-    | Texp_apply (e, args, _, _)  ->
+    | Texp_apply (e, args, _, _, _)  ->
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty

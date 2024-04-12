@@ -162,6 +162,13 @@ val filter_attributes :
   ?mark:bool ->
   Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
 
+(** [find_attribute] behaves like [filter_attribute], except that it returns at
+    most one matching attribute and issues a "duplicated attribute" warning if
+    there are multiple matches. *)
+val find_attribute :
+  ?mark_used:bool -> Attributes_filter.t -> Parsetree.attributes ->
+  Parsetree.attribute option
+
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
 
@@ -199,3 +206,62 @@ val jkind : Parsetree.attributes -> jkind_attribute Location.loc option
     There should be at most one "error_message" attribute, additional ones are sliently
     ignored. **)
 val error_message_attr : Parsetree.attributes -> string option
+
+(** [get_int_payload] is a helper for working with attribute payloads.
+    Given a payload that consist of a structure containing exactly
+    {[
+      PStr [
+        {pstr_desc =
+           Pstr_eval (Pexp_constant (Pconst_integer(i, None)), [])
+        }
+      ]
+    ]}
+    it returns [i].
+  *)
+val get_int_payload : Parsetree.payload -> (int, unit) Result.t
+
+(** [get_optional_bool_payload] is a helper for working with attribute payloads.
+    It behaves like [get_int_payload], except that it looks for a boolean
+    constant rather than an int constant, and returns [None] rather than [Error]
+    if the payload is empty. *)
+val get_optional_bool_payload :
+    Parsetree.payload -> (bool option, unit) Result.t
+
+(** [parse_id_payload] is a helper for parsing information from an attribute
+   whose payload is an identifier. If the given payload consists of a single
+   identifier, that identifier is looked up in the association list.  The result
+   is returned, if it exists.  The [empty] value is returned if the payload is
+   empty.  Otherwise, [Error ()] is returned and a warning is issued. *)
+val parse_optional_id_payload :
+  string -> Location.t -> empty:'a -> (string * 'a) list ->
+  Parsetree.payload -> ('a,unit) Result.t
+
+(* Support for property attributes like zero_alloc *)
+type property =
+  | Zero_alloc
+
+type check_attribute =
+  | Default_check
+  | Ignore_assert_all of property
+  | Check of { property: property;
+               strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally,
+                  then the property holds (but property violations on
+                  exceptional returns or diverging loops are ignored).
+                  This definition may not be applicable to new properties. *)
+               opt: bool;
+               loc: Location.t;
+             }
+  | Assume of { property: property;
+                strict: bool;
+                loc: Location.t;
+                never_returns_normally: bool;
+              }
+
+val is_check_enabled : opt:bool -> property -> bool
+
+val get_property_attribute : Parsetree.attributes -> property -> check_attribute
+
+val assume_zero_alloc :
+  is_check_allowed:bool -> check_attribute -> Zero_alloc_utils.Assume_info.t
