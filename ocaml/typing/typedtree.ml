@@ -99,7 +99,7 @@ and 'k pattern_desc =
         closed_flag ->
       value pattern_desc
   | Tpat_array :
-      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
+      mutability * Jkind.sort * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -126,6 +126,12 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
   | Texp_mode_coerce of Jane_syntax.Mode_expr.t
+
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
 
 and expression_desc =
     Texp_ident of
@@ -159,9 +165,9 @@ and expression_desc =
       expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * Jkind.sort * comprehension
+  | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -207,6 +213,7 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool; }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
@@ -288,7 +295,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * mutable_flag * unique_use
+  | Kept of Types.type_expr * mutability * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -604,6 +611,7 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_call_pos
 
 and package_type = {
   pack_path : Path.t;
@@ -666,7 +674,7 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-     ld_mutable: mutable_flag;
+     ld_mutable: mutability;
      ld_global: Global_flag.t;
      ld_type: core_type;
      ld_loc: Location.t;

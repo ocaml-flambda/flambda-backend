@@ -3351,9 +3351,9 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary Cintoffloat
+let int_of_float = unary (Cscalarcast Float_to_int)
 
-let float_of_int = unary Cfloatofint
+let float_of_int = unary (Cscalarcast Float_of_int)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -3600,24 +3600,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
-
-let transl_property : Lambda.property -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Assume { property; strict; never_returns_normally; loc } ->
-    [ Assume
-        { property = transl_property property;
-          strict;
-          never_returns_normally;
-          loc
-        } ]
-  | Check { property; strict; loc; opt } ->
-    if Lambda.is_check_enabled ~opt property
-    then [Check { property = transl_property property; strict; loc }]
-    else []
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with

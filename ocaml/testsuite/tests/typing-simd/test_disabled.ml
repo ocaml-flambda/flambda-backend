@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-no-extension simd"
    * expect
 *)
 

@@ -488,6 +488,7 @@ let emit_stack_realloc () =
       (* measured in words *)
       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
       I.add (int 8) rsp;
+      I.pop r10; (* ignored *)
       cfi_adjust_cfa_offset (-8);
       I.jmp (label sc_return)
     end
@@ -696,7 +697,7 @@ let output_epilogue f =
 
 (* Floating-point constants *)
 
-let float_constants = ref ([] : (int64 * int) list)
+let float_constants = ref ([] : (int64 * label) list)
 
 let add_float_constant cst =
   try
@@ -712,7 +713,7 @@ let emit_float_constant f lbl =
 
 (* Vector constants *)
 
-let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
+let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 
 let add_vec128_constant bits =
   try
@@ -941,29 +942,6 @@ let emit_push_trap_label handler =
   def_label lbl;
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
-
-(* ISA Extension Checking *)
-
-module Extension = struct
-  module E = Arch.Extension
-
-  (* Keep in sync with [isa.c] in the runtime. *)
-  let symbol : E.t -> string =
-    fun t -> "caml_arch_" ^ String.lowercase_ascii (E.name t)
-
-  let is_nasm_or_masm () =
-    match system with
-    | S_macosx | S_win32 | S_win64 -> true
-    | _ -> false
-
-  let emit_symbols () =
-    if !arch_check_symbols && not (is_nasm_or_masm ()) then
-    List.iter (fun ext ->
-      let name = symbol ext in
-      D.label name;
-      D.weak name
-    ) (E.available ())
-end
 
 (* Emit Code *)
 
@@ -1240,7 +1218,7 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 (* Emit an instruction *)
-let emit_instr first fallthrough i =
+let emit_instr ~first ~fallthrough i =
   emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
@@ -1514,24 +1492,24 @@ let emit_instr first fallthrough i =
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Icompf cmp) ->
+  | Lop(Ifloatop(Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Inegf) ->
+  | Lop(Ifloatop(Inegf)) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Iabsf) ->
+  | Lop(Ifloatop(Iabsf)) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
+  | Lop(Ifloatop(Iaddf | Isubf | Imulf | Idivf as floatop)) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
-  | Lop(Ifloatofint) ->
-      I.cvtsi2sd  (arg i 0)  (res i 0)
-  | Lop(Iintoffloat) ->
-      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iintofvalue | Ivalueofint | Ivectorcast Bits128) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float_of_int) ->
+      I.cvtsi2sd  (arg i 0)  (res i 0)
+  | Lop(Iscalarcast Float_to_int) ->
+      I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)) ->
       I.movsd (arg i 0) (res i 0)
   | Lop(Iscalarcast (V128_to_scalar Int64x2 | V128_of_scalar Int64x2)) ->
@@ -1836,12 +1814,12 @@ let emit_instr first fallthrough i =
       sc_max_frame_size_in_bytes = max_frame_size_bytes;
     }
 
-let rec emit_all first fallthrough i =
+let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
   | _ ->
-      emit_instr first fallthrough i;
-      emit_all false (Linear.has_fallthrough i.desc) i.next
+      emit_instr ~first ~fallthrough i;
+      emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
@@ -1900,7 +1878,7 @@ let fundecl fundecl =
   if Config.runtime5 && !Clflags.runtime_variant = "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
-  emit_all true true fundecl.fun_body;
+  emit_all ~first:true ~fallthrough:true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
@@ -2008,7 +1986,6 @@ let begin_assembly unix =
 
   D.data ();
   emit_global_label "data_begin";
-  Extension.emit_symbols ();
 
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;

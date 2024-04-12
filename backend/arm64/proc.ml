@@ -310,7 +310,7 @@ let destroyed_at_oper = function
     else destroyed_at_c_noalloc_call
   | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
-  | Iop( Iintoffloat | Ifloatofint
+  | Iop( Iscalarcast (Float_to_int | Float_of_int)
        | Iload{memory_chunk=Single; _} | Istore(Single, _, _)) ->
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
@@ -333,7 +333,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op( Intoffloat | Floatofint
+  | Op( Scalarcast (Float_to_int | Float_of_int)
       | Load {memory_chunk = Single; _ } | Store(Single, _, _)) ->
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
@@ -388,7 +388,7 @@ let safe_register_pressure = function
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
-  | Iintoffloat | Ifloatofint
+  | Iscalarcast (Float_to_int | Float_of_int)
   | Iload{memory_chunk=Single; _} | Istore(Single, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
 
@@ -430,7 +430,7 @@ let init () = ()
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _ | Catomic _
-  | Cvectorcast _ | Cscalarcast _
+  | Cvectorcast _ | Cscalarcast (V128_of_scalar _ | V128_to_scalar _)
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
@@ -438,7 +438,8 @@ let operation_supported = function
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat | Cintofvalue | Cvalueofint
+  | Cintofvalue | Cvalueofint
+  | Cscalarcast (Float_of_int | Float_to_int)
   | Ccmpf _
   | Ccsel _
   | Craise _

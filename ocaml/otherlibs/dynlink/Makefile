@@ -99,6 +99,7 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
+  utils/zero_alloc_utils.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -128,6 +129,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
+  lambda/assume_info.ml \
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \

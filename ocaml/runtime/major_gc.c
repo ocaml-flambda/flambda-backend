@@ -266,7 +266,8 @@ static caml_plat_mutex orphaned_lock = CAML_PLAT_MUTEX_INITIALIZER;
 
 void caml_add_orphaned_finalisers (struct caml_final_info* f)
 {
-  CAMLassert (caml_gc_phase == Phase_sweep_main);
+  CAMLassert (caml_gc_phase == Phase_sweep_main ||
+              caml_gc_phase == Phase_sweep_and_mark_main);
   CAMLassert (!f->updated_first);
   CAMLassert (!f->updated_last);
 

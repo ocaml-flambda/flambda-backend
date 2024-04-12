@@ -172,11 +172,11 @@ let oper_result_type = function
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Ccsel ty -> ty
-  | Cfloatofint -> typ_float
-  | Cintoffloat -> typ_int
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
+  | Cscalarcast Float_of_int -> typ_float
+  | Cscalarcast Float_to_int -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
   | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) -> typ_float
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
@@ -485,7 +485,7 @@ method is_simple_expr = function
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Ccsel _
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cabsf | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue
       | Ctuple_field _
@@ -543,7 +543,7 @@ method effects_of exp =
       | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Caddf | Csubf | Cmulf | Cdivf
       | Cvectorcast _ | Cscalarcast _
       | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
@@ -658,18 +658,16 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Icompf comp, args)
+  | (Ccmpf comp, _) -> (Ifloatop(Icompf comp), args)
   | (Ccsel _, [cond; ifso; ifnot]) ->
      let (cond, earg) = self#select_condition cond in
      (Icsel cond, [ earg; ifso; ifnot ])
-  | (Cnegf, _) -> (Inegf, args)
-  | (Cabsf, _) -> (Iabsf, args)
-  | (Caddf, _) -> (Iaddf, args)
-  | (Csubf, _) -> (Isubf, args)
-  | (Cmulf, _) -> (Imulf, args)
-  | (Cdivf, _) -> (Idivf, args)
-  | (Cfloatofint, _) -> (Ifloatofint, args)
-  | (Cintoffloat, _) -> (Iintoffloat, args)
+  | (Cnegf, _) -> (Ifloatop Inegf, args)
+  | (Cabsf, _) -> (Ifloatop Iabsf, args)
+  | (Caddf, _) -> (Ifloatop Iaddf, args)
+  | (Csubf, _) -> (Ifloatop Isubf, args)
+  | (Cmulf, _) -> (Ifloatop Imulf, args)
+  | (Cdivf, _) -> (Ifloatop Idivf, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Cvectorcast cast, _) -> (Ivectorcast cast, args)

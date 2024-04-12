@@ -21,7 +21,6 @@
 #endif
 #include "config.h"
 #include "misc.h"
-#include "isa.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,14 +103,15 @@ For 64-bit architectures:
      +--------+-------+-----+
 bits  63    10 9     8 7   0
 
-For x86-64 with Spacetime profiling:
-  P = PROFINFO_WIDTH (as set by "configure", currently 26 bits, giving a
-    maximum block size of just under 4Gb)
+For 64-bit architectures with mixed block support enabled:
+  P = PROFINFO_WIDTH (as set by "configure", currently 8 bits)
      +----------------+----------------+-------------+
-     | profiling info | wosize         | color | tag |
+     | scannable size | wosize         | color | tag |
      +----------------+----------------+-------------+
 bits  63        (64-P) (63-P)        10 9     8 7   0
 
+Mixed block support uses the PROFINFO_WIDTH functionality
+originally built for Spacetime profiling, hence the odd name.
 */
 
 #define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
@@ -125,8 +125,7 @@ bits  63        (64-P) (63-P)        10 9     8 7   0
 #ifdef WITH_PROFINFO
 #define PROFINFO_SHIFT (Gen_profinfo_shift(PROFINFO_WIDTH))
 #define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
-/* Use NO_PROFINFO to debug problems with profinfo macros */
-#define NO_PROFINFO 0xff
+#define NO_PROFINFO 0
 #define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
 #define Wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
 #define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))

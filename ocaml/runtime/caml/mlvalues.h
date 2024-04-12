@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include "misc.h"
-#include "isa.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,8 +105,10 @@ For 64-bit architectures:
      +----------+--------+-------+-----+
 bits  63    64-R 63-R  10 9     8 7   0
 
-where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
---enable-reserved-header-bits=R argument to configure.
+where 0 <= R <= 31 is HEADER_RESERVED_BITS. R is always
+set to 8 for the flambda-backend compiler in order to support
+mixed blocks. In the upstream compiler, R is set with the
+--enable-reserved-header-bits=R argument.
 
 */
 

@@ -220,12 +220,12 @@ let operation d = function
   | Cdivf -> "/f"
   | Ccsel ret_typ ->
     to_string "csel %a" machtype ret_typ
-  | Cfloatofint -> "floatofint"
-  | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
+  | Cscalarcast Float_to_int -> "float->int"
+  | Cscalarcast Float_of_int -> "int->float"
   | Cscalarcast (V128_to_scalar ty) ->
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->
@@ -383,8 +383,6 @@ let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Ignore_assert_all property ->
-    Printf.sprintf "ignore %s" (property_to_string property)
   | Assume { property; strict; never_returns_normally = _; loc = _ } ->
     Printf.sprintf "assume_%s%s%s"
       (property_to_string property)

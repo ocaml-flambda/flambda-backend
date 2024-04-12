@@ -27,10 +27,12 @@ module type Common_options = sig
   val _no_alias_deps : unit -> unit
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
+  val _directory : string -> unit
   val _disable_all_extensions : unit -> unit
   val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
   val _no_extension : string -> unit
+  val _extension_universe : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit

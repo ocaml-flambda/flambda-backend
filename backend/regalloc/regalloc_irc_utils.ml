@@ -121,16 +121,8 @@ let is_move_basic : Cfg.basic -> bool =
     | Intop _ -> false
     | Intop_imm _ -> false
     | Intop_atomic _ -> false
-    | Negf -> false
-    | Absf -> false
-    | Addf -> false
-    | Subf -> false
-    | Mulf -> false
-    | Divf -> false
-    | Compf _ -> false
+    | Floatop _ -> false
     | Csel _ -> false
-    | Floatofint -> false
-    | Intoffloat -> false
     | Valueofint -> false
     | Intofvalue -> false
     | Probe_is_enabled _ -> false
