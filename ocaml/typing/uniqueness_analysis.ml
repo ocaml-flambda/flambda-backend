@@ -1228,7 +1228,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     (* we are constructing a closure here, and therefore any implicit
        borrowing of free variables in the closure is in fact using shared. *)
     lift_implicit_borrowing uf
-  | Texp_apply (fn, args, _, _) ->
+  | Texp_apply (fn, args, _, _, _) ->
     let uf_fn = check_uniqueness_exp ienv fn in
     let uf_args =
       List.map
@@ -1373,6 +1373,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_probe { handler } -> check_uniqueness_exp ienv handler
   | Texp_probe_is_enabled _ -> UF.unused
   | Texp_exclave e -> check_uniqueness_exp ienv e
+  | Texp_src_pos -> UF.unused
 
 (**
 Corresponds to the first mode.

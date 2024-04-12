@@ -256,7 +256,8 @@ let for_constr = function
   | Types.Cstr_tuple l -> List.map (fun {ca_type; _} -> false, ca_type) l
   | Types.Cstr_record l ->
       List.map
-        (fun {Types.ld_mutable; ld_type} -> (ld_mutable = Mutable, ld_type))
+        (fun {Types.ld_mutable; ld_type} ->
+          (Types.is_mutable ld_mutable, ld_type))
         l
 
 let compute_variance_gadt env ~check (required, loc as rloc) decl
@@ -353,7 +354,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
       | Type_record (ftl, _) ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
-                 (ld_mutable = Mutable, ld_type)) ftl)
+                 (Types.is_mutable ld_mutable, ld_type)) ftl)
     in
     if mn = [] || not abstract then
       List.map Variance.strengthen vari

@@ -969,6 +969,19 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
+  | Pmakemixedblock (mutability, shape, mode), _ ->
+    let args = List.flatten args in
+    let args =
+      List.mapi
+        (fun i arg ->
+          match Lambda.get_mixed_block_element shape i with
+          | Value_prefix | Flat_suffix (Float64 | Imm) -> arg
+          | Flat_suffix Float -> unbox_float arg)
+        args
+    in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    let mutability = Mutability.from_lambda mutability in
+    [Variadic (Make_mixed_block (shape, mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1014,6 +1027,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
+      | Record_mixed _ -> Mixed
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;
@@ -1358,6 +1372,34 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     [Binary (Block_load (block_access, mutability), arg, Simple field)]
+  | Pmixedfield (field, read, sem), [[arg]] -> (
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Pmixedfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let mutability = convert_field_read_semantics sem in
+    let block_access : P.Block_access_kind.t =
+      let field_kind : P.Mixed_block_access_field_kind.t =
+        match read with
+        (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
+        | Mread_value_prefix _int_or_pointer -> Value_prefix Any_value
+        | Mread_flat_suffix read ->
+          Flat_suffix
+            (match read with
+            | Flat_read_imm -> Imm
+            | Flat_read_float _ -> Float
+            | Flat_read_float64 -> Float64)
+      in
+      Mixed { field_kind; size = Unknown }
+    in
+    let block_access : H.expr_primitive =
+      Binary (Block_load (block_access, mutability), arg, Simple field)
+    in
+    match read with
+    | Mread_value_prefix _
+    | Mread_flat_suffix (Flat_read_imm | Flat_read_float64) ->
+      [block_access]
+    | Mread_flat_suffix (Flat_read_float mode) ->
+      [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -1392,6 +1434,31 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    [ Ternary
+        (Block_set (block_access, init_or_assign), block, Simple field, value)
+    ]
+  | ( Psetmixedfield (field, write, initialization_or_assignment),
+      [[block]; [value]] ) ->
+    let imm = Targetint_31_63.of_int field in
+    check_non_negative_imm imm "Psetmixedfield";
+    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let block_access : P.Block_access_kind.t =
+      Mixed
+        { field_kind =
+            (match write with
+            | Mwrite_value_prefix immediate_or_pointer ->
+              Value_prefix
+                (convert_block_access_field_kind immediate_or_pointer)
+            | Mwrite_flat_suffix flat -> Flat_suffix flat);
+          size = Unknown
+        }
+    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
+    let value =
+      match write with
+      | Mwrite_value_prefix _ | Mwrite_flat_suffix (Imm | Float64) -> value
+      | Mwrite_flat_suffix Float -> unbox_float value
+    in
     [ Ternary
         (Block_set (block_access, init_or_assign), block, Simple field, value)
     ]
@@ -1765,7 +1832,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_float Pfloat64
       | Pbox_float (Pfloat64, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ ),
+      | Pufloatfield _ | Patomic_load _ | Pmixedfield _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1786,11 +1853,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
       | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
       | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Punboxed_int_comp _
-      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-      | Pbigstring_load_128 _ | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
-      | Pint_array_load_128 _ | Punboxed_float_array_load_128 _
-      | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
-      | Punboxed_nativeint_array_load_128 _
+      | Psetmixedfield _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
+      | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pfloatarray_load_128 _
+      | Pfloat_array_load_128 _ | Pint_array_load_128 _
+      | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
+      | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _

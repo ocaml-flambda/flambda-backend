@@ -208,6 +208,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -391,6 +392,11 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses float# representation"
+  | Mixed_representation ord ->
+      (* CR layouts: As above. *)
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses mixed representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -543,11 +549,22 @@ module Record_diffing = struct
   let compare_labels env params1 params2
         (ld1 : Types.label_declaration)
         (ld2 : Types.label_declaration) =
-        if ld1.ld_mutable <> ld2.ld_mutable
-        then
-          let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-          Some (Mutability ord)
-        else begin
+        let mut =
+          match ld1.ld_mutable, ld2.ld_mutable with
+          | Immutable, Immutable -> None
+          | Mutable _, Immutable -> Some First
+          | Immutable, Mutable _ -> Some Second
+          | Mutable m1, Mutable m2 ->
+            let open Mode.Alloc.Comonadic.Const in
+            (if not (eq m1 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m1);
+            (if not (eq m2 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m2);
+            None
+        in
+        begin match mut with
+        | Some mut -> Some (Mutability mut)
+        | None ->
           match compare_global_flags ld1.ld_global.txt ld2.ld_global.txt with
           | None ->
             let tl1 = params1 @ [ld1.ld_type] in
@@ -679,6 +696,12 @@ module Record_diffing = struct
         Some (Record_mismatch (Ufloat_representation First))
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
+
+     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed _, _ ->
+        Some (Record_mismatch (Mixed_representation First))
+     | _, Record_mixed _ ->
+        Some (Record_mismatch (Mixed_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None
 

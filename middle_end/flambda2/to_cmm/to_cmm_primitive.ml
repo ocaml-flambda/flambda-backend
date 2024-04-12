@@ -95,22 +95,35 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
   let mutability = Mutability.to_asttypes mutability in
   match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
   | Values { field_kind = Any_value; _ } ->
     C.get_field_computed Pointer mutability ~block ~index dbg
+  | Mixed { field_kind = Value_prefix Immediate; _ }
   | Values { field_kind = Immediate; _ } ->
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
+  | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
+    match field_kind with
+    | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
+    | Float | Float64 -> C.unboxed_float_array_ref block index dbg)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
   let expr =
     match kind with
+    | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
       C.setfield_computed Pointer init_or_assign block index new_value dbg
+    | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
       C.setfield_computed Immediate init_or_assign block index new_value dbg
     | Naked_floats _ -> C.float_array_set block index new_value dbg
+    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
+      match field_kind with
+      | Imm ->
+        C.setfield_computed Immediate init_or_assign block index new_value dbg
+      | Float | Float64 -> C.float_array_set block index new_value dbg)
   in
   C.return_unit dbg expr
 
@@ -129,6 +142,11 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
 
+let make_mixed_block ~dbg shape alloc_mode args =
+  check_alloc_fields args;
+  let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+  C.make_mixed_alloc ~mode dbg shape args
+
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
   | Immediates | Values | Naked_floats ->
@@ -142,19 +160,29 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
 
-let array_load_128 ~dbg arr index element_width_log2 =
-  C.unaligned_load_128 arr
-    (C.lsl_int (C.untag_int index dbg)
-       (Cconst_int (element_width_log2, dbg))
-       dbg)
-    dbg
+let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
+  let index =
+    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
+  in
+  let index =
+    (* Skip custom_ops pointer *)
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
+  in
+  C.unaligned_load_128 arr index dbg
 
-let array_set_128 ~dbg arr index new_value element_width_log2 =
-  C.unaligned_set_128 arr
-    (C.lsl_int (C.untag_int index dbg)
-       (Cconst_int (element_width_log2, dbg))
-       dbg)
-    new_value dbg
+let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
+  let index =
+    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
+  in
+  let index =
+    (* Skip custom_ops pointer *)
+    if has_custom_ops
+    then C.add_int index (Cconst_int (Arch.size_addr, dbg)) dbg
+    else index
+  in
+  C.unaligned_set_128 arr index new_value dbg
 
 let array_load ~dbg (kind : P.Array_kind.t)
     (accessor_width : P.array_accessor_width) ~arr ~index =
@@ -165,9 +193,12 @@ let array_load ~dbg (kind : P.Array_kind.t)
   | Values, Scalar -> C.addr_array_ref arr index dbg
   | Naked_floats, Scalar -> C.unboxed_float_array_ref arr index dbg
   | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
-  | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
-    array_load_128 ~dbg arr index 3
-  | Naked_int32s, Vec128 -> array_load_128 ~dbg arr index 2
+  | (Immediates | Naked_floats), Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+  | (Naked_int64s | Naked_nativeints), Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+  | Naked_int32s, Vec128 ->
+    array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
   | Values, Vec128 ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
@@ -188,9 +219,15 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
       C.unboxed_int32_array_set arr ~index ~new_value dbg
     | (Naked_int64s | Naked_nativeints), Scalar ->
       C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
-    | (Immediates | Naked_int64s | Naked_nativeints | Naked_floats), Vec128 ->
-      array_set_128 ~dbg arr index new_value 3
-    | Naked_int32s, Vec128 -> array_set_128 ~dbg arr index new_value 2
+    | (Immediates | Naked_floats), Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+        new_value
+    | (Naked_int64s | Naked_nativeints), Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+        new_value
+    | Naked_int32s, Vec128 ->
+      array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+        new_value
     | Values _, Vec128 ->
       Misc.fatal_error "Attempted to store a SIMD vector to a value array."
   in
@@ -736,6 +773,8 @@ let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
+  | Make_mixed_block (shape, _mut, alloc_mode) ->
+    make_mixed_block ~dbg shape alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
@@ -802,7 +841,8 @@ let consider_inlining_effectful_expressions p =
      that the Cmm translation for such primitive both respects right-to-left
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
-  | Variadic ((Make_block _ | Make_array _), _) -> Some true
+  | Variadic ((Make_block _ | Make_array _ | Make_mixed_block _), _) ->
+    Some true
   | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
 
 let prim_simple env res dbg p =
@@ -853,7 +893,8 @@ let prim_simple env res dbg p =
     let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
-  | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+  | Variadic
+      (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
@@ -888,7 +929,8 @@ let prim_complex env res dbg p =
       let To_cmm_env.{ env; res; expr = z } = arg env res z in
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
-    | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+    | Variadic
+        (((Make_block _ | Make_array _ | Make_mixed_block _) as variadic), l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =
         arg_list' ?consider_inlining_effectful_expressions ~dbg env res l

@@ -48,6 +48,8 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_lexing_position = ident_create "lexing_position"
+
 and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
 and ident_unboxed_int32 = ident_create "int32#"
@@ -79,6 +81,8 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_lexing_position = Pident ident_lexing_position
+
 and path_unboxed_float = Pident ident_unboxed_float
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
 and path_unboxed_int32 = Pident ident_unboxed_int32
@@ -111,6 +115,8 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
+
 and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
 and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
@@ -344,6 +350,34 @@ let build_initial_env add_type add_extension empty_env =
            ]
            [| [| |]; [| option_argument_jkind |] |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
+  |> add_type ident_lexing_position
+       ~kind:(
+         let lbl (field, field_type, jkind) =
+           let id = Ident.create_predef field in
+             {
+               ld_id=id;
+               ld_mutable=Immutable;
+               ld_global=Global_flag.unrestricted_with_loc;
+               ld_type=field_type;
+               ld_jkind=jkind;
+               ld_loc=Location.none;
+               ld_attributes=[];
+               ld_uid=Uid.of_predef_id id;
+             }
+         in
+         let immediate = Jkind.value ~why:(Primitive ident_int) in
+         let labels = List.map lbl [
+           ("pos_fname", type_string, Jkind.value ~why:(Primitive ident_string));
+           ("pos_lnum", type_int, immediate);
+           ("pos_bol", type_int, immediate);
+           ("pos_cnum", type_int, immediate) ]
+         in
+         Type_record (
+           labels,
+           (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
+         )
+       )
+       ~jkind:(Jkind.value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.float64 ~why:(Primitive ident_unboxed_float))

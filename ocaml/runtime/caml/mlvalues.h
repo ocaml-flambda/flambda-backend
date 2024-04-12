@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include "misc.h"
-#include "isa.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,8 +105,10 @@ For 64-bit architectures:
      +----------+--------+-------+-----+
 bits  63    64-R 63-R  10 9     8 7   0
 
-where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
---enable-reserved-header-bits=R argument to configure.
+where 0 <= R <= 31 is HEADER_RESERVED_BITS. R is always
+set to 8 for the flambda-backend compiler in order to support
+mixed blocks. In the upstream compiler, R is set with the
+--enable-reserved-header-bits=R argument.
 
 */
 
@@ -148,6 +149,36 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Hd_reserved(res)  ((header_t)0)
 
 #endif
+
+/* Header bits reserved for mixed blocks */
+
+#define Is_mixed_block_reserved(res)               (((reserved_t)(res)) > 0)
+#define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)(res)) - 1)
+#define Reserved_mixed_block_scannable_wosize(sz)  (((mlsize_t)(sz)) + 1)
+
+/* The scannable size of a block is how many fields are values as opposed
+   to flat floats/ints/etc. This is different than the (normal) size of a
+   block for mixed blocks.
+
+   The runtime has several functions that traverse over the structure of
+   an OCaml value. (e.g. polymorphic comparison, GC marking/sweeping)
+   All of these traversals must be written to have one of the following
+   properties:
+     - it's known that the input can never be a mixed block,
+     - it raises an exception on mixed blocks, or
+     - it uses the scannable size (not the normal size) to figure out which
+       fields to recursively descend into.
+
+   Otherwise, the traversal could attempt to recursively descend into
+   a flat field, which could segfault (or worse).
+*/
+Caml_inline mlsize_t Scannable_wosize_hd(header_t hd) {
+  reserved_t res = Reserved_hd(hd);
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved(res)
+    : Wosize_hd(hd);
+}
 
 /* Color values are pre-shifted */
 
@@ -201,6 +232,8 @@ where 0 <= R <= 31 is HEADER_RESERVED_BITS, set with the
 #define Bhsize_hd(hd) (Bsize_wsize (Whsize_hd (hd)))
 
 #define Reserved_val(val) (Reserved_hd (Hd_val (val)))
+
+#define Scannable_wosize_val(val) (Scannable_wosize_hd (Hd_val (val)))
 
 #ifdef ARCH_BIG_ENDIAN
 #define Tag_val(val) (((volatile unsigned char *) (val)) [-1])

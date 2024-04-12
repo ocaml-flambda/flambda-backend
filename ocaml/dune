@@ -99,7 +99,7 @@
    annot outcometree
 
    ;; lambda/
-   assume_info debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -330,7 +330,6 @@
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)
     (debuginfo.mli as compiler-libs/debuginfo.mli)
-    (assume_info.mli as compiler-libs/assume_info.mli)
     (lambda.mli as compiler-libs/lambda.mli)
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)

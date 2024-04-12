@@ -119,7 +119,7 @@ let jkind_layout_must_be_value loc jkind =
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
   | (Value | Immediate | Immediate64), _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
@@ -2145,9 +2145,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
-        match lbl.lbl_mut with
-        | Immutable -> Reads_agree
-        | Mutable -> Reads_vary
+        if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let access, sort, layout =
         match lbl.lbl_repres with
@@ -2169,12 +2167,24 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+            let read =
+              if pos < value_prefix_len then Mread_value_prefix ptr
+              else
+                let read =
+                  match flat_suffix.(pos - value_prefix_len) with
+                  | Imm -> Flat_read_imm
+                  | Float64 -> Flat_read_float64
+                  | Float ->
+                      (* TODO: could optimise to Alloc_local sometimes *)
+                      Flat_read_float alloc_heap
+                in
+                Mread_flat_suffix read
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
+            lbl_sort, lbl_layout
       in
-      let str =
-        match lbl.lbl_mut with
-        | Immutable -> Alias
-        | Mutable -> StrictOpt
-      in
+      let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       (access, str, sort, layout) :: make_args (pos + 1)
   in
   make_args 0
@@ -2222,9 +2232,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
           (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
-        (match am with
-        | Mutable   -> StrictOpt
-        | Immutable -> Alias),
+        (if Types.is_mutable am then StrictOpt else Alias),
         arg_sort,
         result_layout)
       :: make_args (pos + 1)
@@ -3640,10 +3648,7 @@ let is_record_with_mutable_field p =
   match p.pat_desc with
   | Tpat_record (lps, _) ->
       List.exists
-        (fun (_, lbl, _) ->
-          match lbl.Types.lbl_mut with
-          | Mutable -> true
-          | Immutable -> false)
+        (fun (_, lbl, _) -> Types.is_mutable lbl.lbl_mut)
         lps
   | Tpat_alias _
   | Tpat_variant _

@@ -437,18 +437,20 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort } ->
+    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                      zero_alloc } ->
         let params = List.map (function_param sub) params in
         let body = function_body sub body in
-        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort }
-    | Texp_apply (exp, list, pos, am) ->
+        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                        zero_alloc }
+    | Texp_apply (exp, list, pos, am, za) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
-          pos, am
+          pos, am, za
         )
     | Texp_match (exp, sort, cases, p) ->
         Texp_match (
@@ -591,6 +593,7 @@ let expr sub x =
     | Texp_probe_is_enabled _ as e -> e
     | Texp_exclave exp ->
         Texp_exclave (sub.expr sub exp)
+    | Texp_src_pos -> Texp_src_pos
   in
   let exp_attributes = sub.attributes sub x.exp_attributes in
   {x with exp_loc; exp_extra; exp_desc; exp_env; exp_attributes}
@@ -869,7 +872,7 @@ let typ sub x =
   let ctyp_env = sub.env sub x.ctyp_env in
   let ctyp_desc =
     match x.ctyp_desc with
-    | Ttyp_var (_,None) as d -> d
+    | (Ttyp_var (_,None) | Ttyp_call_pos) as d -> d
     | Ttyp_var (s, Some jkind) ->
         Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
     | Ttyp_arrow (label, ct1, ct2) ->

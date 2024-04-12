@@ -7,6 +7,7 @@ let dummy_value_mode = Value.disallow_right Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
+  let label = Typetexp.transl_label label None in
   Tarrow ((label, Alloc.legacy, Alloc.legacy), t1, t2, comm)
 
 type texp_ident_identifier = ident_kind * unique_use
@@ -16,12 +17,19 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
   Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
-type texp_apply_identifier = apply_position * Locality.l
+
+type texp_apply_identifier =
+  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
 
 let mkTexp_apply
-    ?id:(pos, mode = (Default, Locality.disallow_right Locality.legacy))
-    (exp, args) =
-  Texp_apply (exp, args, pos, mode)
+    ?id:(pos, mode, za =
+        ( Default,
+          Locality.disallow_right Locality.legacy,
+          Zero_alloc_utils.Assume_info.none )) (exp, args) =
+  let args =
+    List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
+  in
+  Texp_apply (exp, args, pos, mode, za)
 
 type texp_tuple_identifier = string option list * Alloc.r
 
@@ -82,6 +90,7 @@ type texp_function_identifier = {
   ret_sort : Jkind.sort;
   region : bool;
   ret_mode : Alloc.l;
+  zero_alloc : Builtin_attributes.check_attribute;
 }
 
 let texp_function_cases_identifier_defaults =
@@ -106,6 +115,7 @@ let texp_function_defaults =
     ret_sort = Jkind.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
+    zero_alloc = Builtin_attributes.Default_check;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -122,6 +132,7 @@ let mkTexp_function ?(id = texp_function_defaults)
                  param_identifier = id;
                  optional_default;
                } ->
+            let arg_label = Typetexp.transl_label arg_label None in
             {
               fp_arg_label = arg_label;
               fp_kind =
@@ -158,6 +169,7 @@ let mkTexp_function ?(id = texp_function_defaults)
       region = id.region;
       ret_sort = id.ret_sort;
       ret_mode = id.ret_mode;
+      zero_alloc = id.zero_alloc;
     }
 
 type texp_sequence_identifier = Jkind.sort
@@ -192,17 +204,25 @@ type matched_expression_desc =
       expression * computation case list * partial * texp_match_identifier
   | O of expression_desc
 
+let untype_label = function
+  | Typedtree.Position l | Labelled l -> Asttypes.Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
+
 let view_texp (e : expression_desc) =
   match e with
   | Texp_ident (path, longident, vd, ident_kind, uu) ->
       Texp_ident (path, longident, vd, (ident_kind, uu))
-  | Texp_apply (exp, args, pos, mode) -> Texp_apply (exp, args, (pos, mode))
+  | Texp_apply (exp, args, pos, mode, za) ->
+      let args = List.map (fun (label, x) -> (untype_label label, x)) args in
+      Texp_apply (exp, args, (pos, mode, za))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
   | Texp_tuple (args, mode) ->
       let labels, args = List.split args in
       Texp_tuple (args, (labels, mode))
-  | Texp_function { params; body; alloc_mode; region; ret_sort; ret_mode } ->
+  | Texp_function
+      { params; body; alloc_mode; region; ret_sort; ret_mode; zero_alloc } ->
       let params =
         List.map
           (fun param ->
@@ -213,7 +233,7 @@ let view_texp (e : expression_desc) =
               | Tparam_pat pattern -> (pattern, None)
             in
             {
-              arg_label = param.fp_arg_label;
+              arg_label = untype_label param.fp_arg_label;
               param = param.fp_param;
               partial = param.fp_partial;
               pattern;
@@ -247,7 +267,8 @@ let view_texp (e : expression_desc) =
               }
       in
       Texp_function
-        ({ params; body }, { alloc_mode; region; ret_sort; ret_mode })
+        ( { params; body },
+          { alloc_mode; region; ret_sort; ret_mode; zero_alloc } )
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
@@ -262,9 +283,11 @@ type tpat_alias_identifier = Value.l
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = Asttypes.mutable_flag * Jkind.sort
+type tpat_array_identifier = mutability * Jkind.sort
 
-let mkTpat_array ?id:(mut, arg_sort = (Asttypes.Mutable, Jkind.Sort.value)) l =
+let mkTpat_array
+    ?id:(mut, arg_sort =
+        (Mutable Alloc.Comonadic.Const.legacy, Jkind.Sort.value)) l =
   Tpat_array (mut, arg_sort, l)
 
 type tpat_tuple_identifier = string option list

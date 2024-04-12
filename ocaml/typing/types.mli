@@ -28,6 +28,16 @@ open Asttypes
 (* CR layouts v2.8: Say more here. *)
 type jkind = Jkind.t
 
+(** Describes a mutable field/element. *)
+type mutability =
+  | Immutable
+  | Mutable of Mode.Alloc.Comonadic.Const.t
+  (** The upper bound of the new field value upon mutation. *)
+
+(** Returns [true] is the [mutable_flag] is mutable. Should be called if not
+    interested in the payload of [Mutable]. *)
+val is_mutable : mutability -> bool
+
 (** Type expressions for the core language.
 
     The [type_desc] variant defines all the possible type expressions one can
@@ -141,6 +151,15 @@ and type_desc =
 
   | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
+
+(** This is used in the Typedtree. It is distinct from
+    {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
+    discovered through typechecking. *)
+and arg_label =
+  | Nolabel
+  | Labelled of string (** [label:T -> ...] *)
+  | Optional of string (** [?label:T -> ...] *)
+  | Position of string (** [label:[%call_pos] -> ...] *)
 
 and arrow_desc =
   arg_label * Mode.Alloc.lr * Mode.Alloc.lr
@@ -535,6 +554,17 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
+(* A mixed record contains a prefix of values followed by a non-empty suffix of
+   "flat" elements. Intuitively, a flat element is one that need not be scanned
+   by the garbage collector.
+*)
+and flat_element = Imm | Float | Float64
+and mixed_record_shape =
+  { value_prefix_len : int;
+    (* We use an array just so we can index into the middle. *)
+    flat_suffix : flat_element array;
+  }
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
@@ -546,6 +576,10 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
+  | Record_mixed of mixed_record_shape
+  (* The record contains a mix of values and unboxed elements. The block
+     is tagged such that polymorphic operations will not work.
+  *)
 
 (* For unboxed variants, we record the jkind of the mandatory single argument.
    For boxed variants, we record the jkinds for the arguments of each
@@ -559,7 +593,7 @@ and variant_representation =
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
+    ld_mutable: mutability;
     ld_global: Mode.Global_flag.t loc;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
@@ -796,7 +830,7 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_global: Mode.Global_flag.t loc; (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
@@ -827,6 +861,15 @@ val lbl_pos_void : int
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+
+val count_mixed_record_values_and_floats : mixed_record_shape -> int * int
+
+type mixed_record_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+(** Raises if the int is out of bounds. *)
+val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
 
 (**** Utilities for backtracking ****)
 

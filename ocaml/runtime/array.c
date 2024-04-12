@@ -133,7 +133,11 @@ CAMLprim value caml_floatarray_get(value array, value index)
   double d;
   value res;
 
-  CAMLassert (Tag_val(array) == Double_array_tag);
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+             || index > Scannable_wosize_val(array) );
+
   if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
     caml_array_bound_error();
   d = Double_flat_field(array, idx);
@@ -149,7 +153,11 @@ CAMLprim value caml_floatarray_get_local(value array, value index)
   double d;
   value res;
 
-  CAMLassert (Tag_val(array) == Double_array_tag);
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+             || index > Scannable_wosize_val(array) );
+
   if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
     caml_array_bound_error();
   d = Double_flat_field(array, idx);

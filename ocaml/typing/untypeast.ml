@@ -286,11 +286,22 @@ let constructor_declaration sub cd =
     ~info:Docstrings.empty_info
     (map_loc sub cd.cd_name)
 
+let mutable_ (mut : Types.mutability) : mutable_flag =
+  match mut with
+  | Immutable -> Immutable
+  | Mutable m ->
+      if Mode.Alloc.Comonadic.Const.eq m Mode.Alloc.Comonadic.Const.legacy then
+        Mutable
+      else
+        Misc.fatal_errorf "unexpected mutable(%a)"
+          Mode.Alloc.Comonadic.Const.print m
+
 let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in
   let attrs = sub.attributes sub ld.ld_attributes in
+  let mut = mutable_ ld.ld_mutable in
   Type.field ~loc ~attrs
-    ~mut:ld.ld_mutable
+    ~mut
     ~modalities:(global_flag_to_modalities sub ld.ld_global)
     (map_loc sub ld.ld_name)
     (sub.typ sub ld.ld_type)
@@ -407,9 +418,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
             map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, _, list) -> begin
         let pats = List.map (sub.pat sub) list in
-        match am with
-        | Mutable   -> Ppat_array pats
-        | Immutable ->
+        if Types.is_mutable am then Ppat_array pats
+        else
           Jane_syntax.Immutable_arrays.pat_of
             ~loc
             (Iapat_immutable_array pats)
@@ -500,6 +510,17 @@ let comprehension sub comp_type comp =
   in
   Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
 
+let label : Types.arg_label -> Parsetree.arg_label = function
+  (* There is no Position label in the Parsetree, since we parse [%call_pos]
+     arguments as Labelled. The correctness of this translation depends on
+     also re-inserting the constraint pattern (P : [%call_pos]) to the generated
+     tree. *)
+  | Labelled l | Position l -> Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
+
+let call_pos_extension = Location.mknoloc "call_pos_extension", PStr []
+
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
@@ -575,14 +596,16 @@ let expression sub exp =
                    fp.fp_newtypes
                in
                let pparam_desc =
-                 Pparam_val (fp.fp_arg_label, default_arg, pat)
+                 let parg_label = label fp.fp_arg_label in
+                 Pparam_val (parg_label, default_arg, pat)
                in
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
         in
         Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
         |> add_jane_syntax_attributes
-    | Texp_apply (exp, list, _, _) ->
+    | Texp_apply (exp, list, _, _, _) ->
+        let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
@@ -623,10 +646,8 @@ let expression sub exp =
     | Texp_array (amut, _, list, _) -> begin
         (* Can be inlined when we get to upstream immutable arrays *)
         let plist = List.map (sub.expr sub) list in
-        match amut with
-        | Mutable ->
-            Pexp_array plist
-        | Immutable ->
+        if Types.is_mutable amut then Pexp_array plist
+        else
             Jane_syntax.Immutable_arrays.expr_of
               ~loc (Iaexp_immutable_array plist)
             |> add_jane_syntax_attributes
@@ -636,6 +657,7 @@ let expression sub exp =
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
         |> add_jane_syntax_attributes
     | Texp_array_comprehension (amut, _, comp) ->
+        let amut = mutable_ amut in
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
         |> add_jane_syntax_attributes
@@ -740,6 +762,7 @@ let expression sub exp =
         pexp_loc_stack = [];
         pexp_attributes = [];
       }, [Nolabel, sub.expr sub exp])
+    | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs:!attrs desc)
@@ -936,10 +959,11 @@ let class_expr sub cexpr =
           List.map (sub.typ sub) tyl)
     | Tcl_structure clstr -> Pcl_structure (sub.class_structure sub clstr)
 
-    | Tcl_fun (label, pat, _pv, cl, _partial) ->
-        Pcl_fun (label, None, sub.pat sub pat, sub.class_expr sub cl)
+    | Tcl_fun (arg_label, pat, _pv, cl, _partial) ->
+        Pcl_fun (label arg_label, None, sub.pat sub pat, sub.class_expr sub cl)
 
     | Tcl_apply (cl, args) ->
+        let args = List.map (fun (arg_label, expo) -> label arg_label, expo) args in
         Pcl_apply (sub.class_expr sub cl,
           List.fold_right (fun (label, expo) list ->
               match expo with
@@ -970,8 +994,8 @@ let class_type sub ct =
       Tcty_signature csg -> Pcty_signature (sub.class_signature sub csg)
     | Tcty_constr (_path, lid, list) ->
         Pcty_constr (map_loc sub lid, List.map (sub.typ sub) list)
-    | Tcty_arrow (label, ct, cl) ->
-        Pcty_arrow (label, sub.typ sub ct, sub.class_type sub cl)
+    | Tcty_arrow (arg_label, ct, cl) ->
+        Pcty_arrow (label arg_label, sub.typ sub ct, sub.class_type sub cl)
     | Tcty_open (od, e) ->
         Pcty_open (sub.open_description sub od, sub.class_type sub e)
   in
@@ -1017,8 +1041,8 @@ let core_type sub ct =
         Jane_syntax.Layouts.type_of ~loc
           (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
-    | Ttyp_arrow (label, ct1, ct2) ->
-        Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
+    | Ttyp_arrow (arg_label, ct1, ct2) ->
+        Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->
         Jane_syntax.Labeled_tuples.typ_of ~loc
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
@@ -1048,6 +1072,8 @@ let core_type sub ct =
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
+    | Ttyp_call_pos ->
+        Ptyp_extension call_pos_extension
   in
   Typ.mk ~loc ~attrs:!attrs desc
 

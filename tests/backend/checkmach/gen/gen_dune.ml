@@ -117,11 +117,25 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_fail";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_on_call";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
-  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_misplaced_attr";
   print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_all";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_attr_check_none";
   print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail24";
-  print_test "test_raise_message.ml";
+  print_test ~extra_flags:"-zero-alloc-check default -function-layout topological"  "test_raise_message.ml";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-precise-checkmach -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail25";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-checkmach -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail26";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default"
+    ~extra_dep:None ~exit_code:2 "test_all_opt";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:None ~exit_code:2 "test_all_opt2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check opt"
+    ~extra_dep:None ~exit_code:2 "test_all_opt3";
   ()

@@ -97,7 +97,7 @@ let _xmm0v () = phys_reg Vec128 100
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
+  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Ifloatop(Iaddf|Isubf|Imulf|Idivf) ->
       ([|res.(0); arg.(1)|], res)
   | Iintop_atomic {op = Compare_and_swap; size = _; addr = _} ->
       (* first arg must be rax *)
@@ -111,7 +111,7 @@ let pseudoregs_for_operation op arg res =
       (arg, res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
-  | Iabsf | Inegf
+  | Ifloatop(Iabsf | Inegf)
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
@@ -136,7 +136,7 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Icompf cond ->
+  | Ifloatop(Icompf cond) ->
     (* CR gyorsh: make this optimization as a separate PR. *)
       (* We need to temporarily store the result of the comparison in a
          float register, but we don't want to clobber any of the inputs
@@ -168,7 +168,7 @@ let pseudoregs_for_operation op arg res =
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+  | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
   | Ivectorcast _ | Iscalarcast _
   | Iconst_int _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
@@ -405,7 +405,7 @@ method select_floatarith commutative regular_op mem_op args =
       (Ispecific(Ifloatarithmem(mem_op, addr)),
                  [arg2; arg1])
   | [arg1; arg2] ->
-      (regular_op, [arg1; arg2])
+      (Ifloatop regular_op, [arg1; arg2])
   | _ ->
       assert false
 

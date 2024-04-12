@@ -510,7 +510,6 @@ let simplify_function context ~outer_dacc function_slot code_id
     let never_delete =
       match Code_metadata.check code_metadata with
       | Default_check -> !Clflags.zero_alloc_check_assert_all
-      | Ignore_assert_all Zero_alloc -> false
       | Assume { property = Zero_alloc; _ } -> false
       | Check { property = Zero_alloc; _ } -> true
     in

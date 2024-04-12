@@ -3,7 +3,7 @@ open Mode
 open Jane_syntax
 
 type error =
-  | Duplicated_mode of Axis.t
+  | Duplicated_mode : ('a, 'b) Axis.t -> error
   | Unrecognized_mode of string
   | Unrecognized_modality of string
 
@@ -22,15 +22,15 @@ let transl_mode_annots modes =
         | "local" -> (
           match acc.locality with
           | None -> { acc with locality = Some Local }
-          | Some _ -> raise (Error (loc, Duplicated_mode `Locality)))
+          | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
         | "unique" -> (
           match acc.uniqueness with
           | None -> { acc with uniqueness = Some Unique }
-          | Some _ -> raise (Error (loc, Duplicated_mode `Uniqueness)))
+          | Some _ -> raise (Error (loc, Duplicated_mode Uniqueness)))
         | "once" -> (
           match acc.linearity with
           | None -> { acc with linearity = Some Once }
-          | Some _ -> raise (Error (loc, Duplicated_mode `Linearity)))
+          | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
         | s -> raise (Error (loc, Unrecognized_mode s))
       in
       loop acc rest
@@ -68,7 +68,12 @@ open Format
 
 let report_error ppf = function
   | Duplicated_mode ax ->
-    fprintf ppf "The %s axis has already been specified." (Axis.to_string ax)
+    let ax =
+      match ax with
+      | Areality -> dprintf "locality"
+      | _ -> dprintf "%a" Axis.print ax
+    in
+    fprintf ppf "The %t axis has already been specified." ax
   | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
   | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
 

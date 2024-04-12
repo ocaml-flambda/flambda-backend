@@ -120,10 +120,10 @@ let preserve_tailcall_for_prim = function
   | Pget_header _
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
-  | Pufloatfield _ | Psetufloatfield _
+  | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
@@ -204,6 +204,7 @@ let rec size_of_lambda env = function
   | Llet (Strict, _k, id, Lprim (Pduprecord (kind, size), _, _), body)
     when check_recordwith_updates id body ->
       begin match kind with
+      | Record_mixed _
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float | Record_ufloat -> RHS_floatblock size
@@ -235,6 +236,8 @@ let rec size_of_lambda env = function
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
+  | Lprim (Pmakemixedblock (_, _, _), args, _) ->
+      RHS_block (List.length args)
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
@@ -458,6 +461,17 @@ let comp_primitive stack_info p sz args =
      instructions for the ufloat primitives. *)
   | Pufloatfield (n, _sem) -> Kgetfloatfield n
   | Psetufloatfield (n, _init) -> Ksetfloatfield n
+  | Pmixedfield (n, _, _sem) ->
+      (* CR layouts: This will need reworking if we ever want bytecode
+         to unbox fields that are written with unboxed types in the source
+         language. *)
+      (* Note, non-value mixed fields are always boxed in bytecode; they
+         aren't stored flat like they are in native code.
+      *)
+      Kgetfield n
+  | Psetmixedfield (n, _shape, _init) ->
+      (* See the comment in the [Pmixedfield] case. *)
+      Ksetfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
   | Pperform ->
@@ -654,6 +668,7 @@ let comp_primitive stack_info p sz args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pmakeufloatblock _
+  | Pmakemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
@@ -813,7 +828,8 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_nonrec new_env sz i = function
           | [] -> comp_rec new_env sz ndecl decl_size
           | (_id, _exp, (RHS_block _ | RHS_infix _ |
-                         RHS_floatblock _ | RHS_function _))
+                         RHS_floatblock _ |
+                         RHS_function _))
             :: rem ->
               comp_nonrec new_env sz (i-1) rem
           | (_id, exp, RHS_nonrec) :: rem ->
@@ -822,7 +838,8 @@ let rec comp_expr stack_info env exp sz cont =
         and comp_rec new_env sz i = function
           | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
           | (_id, exp, (RHS_block _ | RHS_infix _ |
-                        RHS_floatblock _ | RHS_function _))
+                        RHS_floatblock _ |
+                        RHS_function _))
             :: rem ->
               comp_expr stack_info new_env exp sz
                 (Kpush :: Kacc i :: Kccall("caml_update_dummy", 2) ::
@@ -895,6 +912,19 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
+  | Lprim(Pmakemixedblock (_, shape, _), args, loc) ->
+      (* There is no notion of a mixed block at runtime in bytecode. Further,
+         source-level unboxed types are represented as boxed in bytecode, so
+         no ceremony is needed to box values before inserting them into
+         the (normal, unmixed) block.
+      *)
+      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env args sz
+        (* CR mixed blocks v1: We will need to use the actual tag instead of [0]
+           once mixed blocks can have non-zero tags.
+        *)
+        (Kmakeblock (total_len, 0) :: cont)
   | Lprim((Pmakearray (kind, _, _)) as p, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

@@ -795,8 +795,9 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Some exn_continuation -> exn_continuation
     in
     close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
-  | (Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _), []
-    ->
+  | ( ( Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakearray _
+      | Pmakemixedblock _ ),
+      [] ) ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
@@ -814,6 +815,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakeufloatblock _ ->
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
+      | Pmakemixedblock _ ->
+        Misc.fatal_error "Unexpected empty mixed block in [Closure_conversion]"
       | Pmakearray (array_kind, _, _mode) ->
         let array_kind = Empty_array_kind.of_lambda array_kind in
         register_const0 acc (Static_const.empty_array array_kind) "empty_array"
@@ -822,10 +825,10 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
       | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
       | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
-      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
-      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat _
+      | Pmixedfield _ | Psetmixedfield _ | Paddint | Psubint | Pmulint
+      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
+      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
       | Pfloatofint (_, _)
       | Pnegfloat (_, _)
       | Pabsfloat (_, _)
@@ -1827,7 +1830,10 @@ let make_unboxed_function_wrapper acc function_slot params params_arity
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~check:
+        (Check_attribute.from_lambda
+           (Function_decl.check_attribute decl)
+           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -2191,7 +2197,10 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
-      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~check:
+        (Check_attribute.from_lambda
+           (Function_decl.check_attribute decl)
+           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:(Function_decl.is_opaque decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -2317,7 +2326,9 @@ let close_functions acc external_env ~current_region function_declarations =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
         let check =
-          Check_attribute.from_lambda (Function_decl.check_attribute decl)
+          Check_attribute.from_lambda
+            (Function_decl.check_attribute decl)
+            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
         in
         let cost_metrics = Cost_metrics.zero in
         let dbg = Debuginfo.from_location (Function_decl.loc decl) in

@@ -335,6 +335,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
              we would have to recompute it here. Recomputing it here breaks the CI because
              the liveness_analysis algorithm does not work properly after register allocation. *)
         ++ Profile.record ~accumulate:true "peephole_optimize_cfg" Peephole_optimize.peephole_optimize_cfg
+        ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
+          match !Flambda_backend_flags.cfg_stack_checks with
+          | false -> cfg_with_layout
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -376,6 +380,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                 ~simplify_terminators:true)
         ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
+        ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
+          match !Flambda_backend_flags.cfg_stack_checks with
+          | false -> cfg_with_layout
+          | true -> Cfg_stack_checks.cfg cfg_with_layout)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
@@ -385,6 +393,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
+  ++ (fun (fd : Linear.fundecl) ->
+    match !Flambda_backend_flags.cfg_stack_checks with
+    | false -> Stack_check.linear fd
+    | true -> fd)
   ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl
 
 let compile_data dl =

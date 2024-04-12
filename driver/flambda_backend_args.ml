@@ -63,6 +63,12 @@ let mk_cfg_cse_optimize f =
 let mk_no_cfg_cse_optimize f =
   "-no-cfg-cse-optimize", Arg.Unit f, " Do not apply CSE optimizations to CFG"
 
+let mk_cfg_stack_checks f =
+  "-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the CFG representation"
+
+let mk_no_cfg_stack_checks f =
+    "-no-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the linear representation"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -109,6 +115,12 @@ let mk_disable_checkmach f =
   " Conservatively assume that all functions may allocate, without checking. \
     Disables computation of zero_alloc function summaries, \
     unlike \"-zero-alloc-check none\" which disables checking of zero_alloc annotations)"
+
+let mk_disable_precise_checkmach f =
+  "-disable-precise-checkmach", Arg.Unit f,
+  " Conservatively assume that all forward calls and mutually recursive functions may \
+    allocate. Disables fixed point computation of summaries for these functions. \
+    Intended as a temporary workaround when precise analysis is too expensive."
 
 let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,
@@ -631,6 +643,9 @@ module type Flambda_backend_options = sig
   val cfg_cse_optimize : unit -> unit
   val no_cfg_cse_optimize : unit -> unit
 
+  val cfg_stack_checks : unit -> unit
+  val no_cfg_stack_checks : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -641,6 +656,7 @@ module type Flambda_backend_options = sig
   val zero_alloc_check : string -> unit
   val dcheckmach : unit -> unit
   val disable_checkmach : unit -> unit
+  val disable_precise_checkmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
   val function_layout : string -> unit
@@ -745,6 +761,9 @@ struct
     mk_cfg_cse_optimize F.cfg_cse_optimize;
     mk_no_cfg_cse_optimize F.no_cfg_cse_optimize;
 
+    mk_cfg_stack_checks F.cfg_stack_checks;
+    mk_no_cfg_stack_checks F.no_cfg_stack_checks;
+
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
 
@@ -755,6 +774,7 @@ struct
     mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
     mk_disable_checkmach F.disable_checkmach;
+    mk_disable_precise_checkmach F.disable_precise_checkmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
     mk_function_layout F.function_layout;
@@ -888,6 +908,9 @@ module Flambda_backend_options_impl = struct
   let cfg_cse_optimize = set' Flambda_backend_flags.cfg_cse_optimize
   let no_cfg_cse_optimize = clear' Flambda_backend_flags.cfg_cse_optimize
 
+  let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
+  let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
+
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
@@ -917,6 +940,7 @@ module Flambda_backend_options_impl = struct
 
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
   let disable_checkmach = set' Flambda_backend_flags.disable_checkmach
+  let disable_precise_checkmach = set' Flambda_backend_flags.disable_precise_checkmach
   let checkmach_details_cutoff n =
     let c : Flambda_backend_flags.checkmach_details_cutoff =
       if n < 0 then Keep_all
@@ -1180,6 +1204,7 @@ module Extra_params = struct
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
+    | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
@@ -1197,6 +1222,7 @@ module Extra_params = struct
               (Printf.sprintf "Unexpected value %s for %s" v name)))
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "disable-checkmach" -> set' Flambda_backend_flags.disable_checkmach
+    | "disable-precise-checkmach" -> set' Flambda_backend_flags.disable_precise_checkmach
     | "checkmach-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->

@@ -84,8 +84,7 @@ class cse_generic =
       | Intop _ -> Op_pure
       | Intop_imm (_, _) -> Op_pure
       | Intop_atomic _ -> Op_store true
-      | Compf _ | Csel _ | Negf | Absf | Addf | Subf | Mulf | Divf
-      | Scalarcast _ | Floatofint | Intoffloat | Valueofint | Intofvalue
+      | Floatop _ | Csel _ | Scalarcast _ | Valueofint | Intofvalue
       | Vectorcast _ ->
         Op_pure
       | Specific _ -> Op_other
@@ -109,7 +108,7 @@ class cse_generic =
       fun state n cell ->
         let i = DLL.value cell in
         match i.desc with
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> n
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> n
         | Op (Move | Spill | Reload) ->
           (* For moves, we associate the same value number to the result reg as
              to the argument reg. *)

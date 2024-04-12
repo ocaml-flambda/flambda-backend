@@ -163,7 +163,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      mutable_flag * Jkind.sort * value general_pattern list -> value pattern_desc
+      Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -224,6 +224,12 @@ and exp_extra =
    the syntax changes.
 *)
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 (** Jkinds in the typed tree: Compilation of the typed tree to lambda
     sometimes requires jkind information.  Our approach is to
     propagate jkind information inward during compilation.  This
@@ -258,8 +264,10 @@ and expression_desc =
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r
+        alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
+        zero_alloc : Builtin_attributes.check_attribute
+        (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
           fun P0 P1 -> E                             (body = Tfunction_body _)
@@ -271,7 +279,8 @@ and expression_desc =
           saturated with n arguments.
       *)
   | Texp_apply of
-      expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.l
+      expression * (arg_label * apply_arg) list * apply_position *
+        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -286,7 +295,11 @@ and expression_desc =
                         [(Nolabel, Omitted _);
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
-         *)
+
+            The [Zero_alloc_utils.Assume_info.t] records the optional
+            [@zero_alloc assume] attribute that may appear on applications.  If
+            that attribute is absent, it is [Assume_info.none].
+          *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
@@ -348,9 +361,9 @@ and expression_desc =
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of mutable_flag * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of Types.mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * Jkind.sort * comprehension
+  | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -397,6 +410,10 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
+    (* A source position value which has been automatically inferred, either
+       as a result of [%call_pos] occuring in an expression, or omission of a
+       Position argument in function application *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
@@ -510,7 +527,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * mutable_flag * unique_use
+  | Kept of Types.type_expr * Types.mutability * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -836,6 +853,9 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_call_pos
+      (** [Ttyp_call_pos] represents the type of the value of a Position
+          argument ([lbl:[%call_pos] -> ...]). *)
 
 and package_type = {
   pack_path : Path.t;
@@ -899,7 +919,7 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-     ld_mutable: mutable_flag;
+     ld_mutable: Types.mutability;
      ld_global: Mode.Global_flag.t loc;
      ld_type: core_type;
      ld_loc: Location.t;

@@ -6,6 +6,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
   | Reloadretaddr -> Lreloadretaddr
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
+  | Stack_check { max_frame_size_bytes } -> Lstackcheck { max_frame_size_bytes }
   | Op op ->
     let op : Mach.operation =
       match op with
@@ -28,16 +29,8 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
       | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
-      | Negf -> Inegf
-      | Absf -> Iabsf
-      | Addf -> Iaddf
-      | Subf -> Isubf
-      | Mulf -> Imulf
-      | Divf -> Idivf
-      | Compf c -> Icompf c
+      | Floatop op -> Ifloatop op
       | Csel c -> Icsel c
-      | Floatofint -> Ifloatofint
-      | Intoffloat -> Iintoffloat
       | Valueofint -> Ivalueofint
       | Intofvalue -> Iintofvalue
       | Vectorcast cast -> Ivectorcast cast

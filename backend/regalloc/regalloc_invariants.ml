@@ -24,16 +24,8 @@ let precondition : Cfg_with_layout.t -> unit =
       | Intop _ -> ()
       | Intop_imm _ -> ()
       | Intop_atomic _ -> ()
-      | Negf -> ()
-      | Absf -> ()
-      | Addf -> ()
-      | Subf -> ()
-      | Mulf -> ()
-      | Divf -> ()
-      | Compf _ -> ()
+      | Floatop _ -> ()
       | Csel _ -> ()
-      | Floatofint -> ()
-      | Intoffloat -> ()
       | Valueofint -> ()
       | Intofvalue -> ()
       | Vectorcast _ -> ()
@@ -53,7 +45,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Dls_get -> ()
       | Poll -> ()
       | Alloc _ -> ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with

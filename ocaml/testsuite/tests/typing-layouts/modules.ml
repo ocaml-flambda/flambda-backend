@@ -706,7 +706,7 @@ Error: Function arguments and returns must be representable.
        The layout of X.t is any, because
          of the definition of t at line 2, characters 2-14.
        But the layout of X.t must be representable, because
-         it's the type of a function argument.
+         we must know concretely how to pass a function argument.
 |}]
 
 (***********************************)

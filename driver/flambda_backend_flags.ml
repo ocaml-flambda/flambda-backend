@@ -25,6 +25,8 @@ let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 
 let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
 
+let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 
@@ -34,6 +36,7 @@ let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 let disable_checkmach = ref false       (* -disable-checkmach *)
+let disable_precise_checkmach = ref false  (* -disable-precise-checkmach *)
 
 type checkmach_details_cutoff =
   | Keep_all
@@ -52,7 +55,7 @@ module Function_layout = struct
     | Topological -> "topological"
     | Source -> "source"
 
-  let default = Topological
+  let default = Source
 
   let all = [Topological; Source]
 

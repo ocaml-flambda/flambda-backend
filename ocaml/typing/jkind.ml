@@ -717,7 +717,8 @@ module Jkind_desc = struct
 
   let float64 =
     { layout = Layout.float64;
-      modes_upper_bounds = Modes.max;
+      modes_upper_bounds =
+        { locality = Global; linearity = Many; uniqueness = Unique };
       externality_upper_bound = External
     }
 
@@ -811,7 +812,6 @@ type value_creation_reason =
   | Univar
   | Polymorphic_variant_field
   | Default_type_jkind
-  | Float_record_field
   | Existential_type_variable
   | Array_comprehension_element
   | Lazy_expression
@@ -1219,8 +1219,10 @@ end = struct
     | Record_assignment ->
       fprintf ppf "it's the record type used in an assignment"
     | Let_binding -> fprintf ppf "it's the type of a variable bound by a `let`"
-    | Function_argument -> fprintf ppf "it's the type of a function argument"
-    | Function_result -> fprintf ppf "it's the type of a function result"
+    | Function_argument ->
+      fprintf ppf "we must know concretely how to pass a function argument"
+    | Function_result ->
+      fprintf ppf "we must know concretely how to return a function result"
     | Structure_item_expression ->
       fprintf ppf "it's the type of an expression in a structure"
     | External_argument ->
@@ -1333,7 +1335,6 @@ end = struct
       fprintf ppf "it's the type of the field of a polymorphic variant"
     | Default_type_jkind ->
       fprintf ppf "an abstract type has the value layout by default"
-    | Float_record_field -> fprintf ppf "it's the type of a float record field"
     | Existential_type_variable ->
       fprintf ppf "it's an unannotated existential type variable"
     | Array_comprehension_element ->
@@ -1719,7 +1720,6 @@ module Debug_printers = struct
     | Univar -> fprintf ppf "Univar"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
-    | Float_record_field -> fprintf ppf "Float_record_field"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | Lazy_expression -> fprintf ppf "Lazy_expression"
