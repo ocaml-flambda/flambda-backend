@@ -1889,7 +1889,7 @@ end = struct
     let init_env =
       (* initialize [env] with Bot for all functions on normal and exceptional
          return, and Safe for diverage component conservatively. *)
-      let init_val = Value.safe in
+      let init_val = Value.diverges in
       Unit_info.fold unit_info ~init:Env.empty ~f:(fun func_info env ->
           let v =
             if Value.is_resolved func_info.value
