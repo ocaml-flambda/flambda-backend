@@ -48,8 +48,9 @@ let block_preproc_stack_check_result :
  fun block ~frame_size ->
   let contains_nontail_calls =
     (* XCR mshinwell: move to a method in Cfg somewhere?
-     * I have extracter the match to a dedicated function, but I don't
-     * think the predicate is generic enough to be moved to `Cfg`. *)
+
+       xclerc: I have extracted the match to a dedicated function, but I don't
+       think the predicate is generic enough to be moved to `Cfg`. *)
     is_nontail_call block.terminator.desc
   in
   let max_frame_size, max_instr_id =
