@@ -33,11 +33,18 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let is_nontail_call : Cfg.terminator -> bool =
  fun term_desc ->
+  (* CR-soon xclerc for xclerc: reconsider whether this predicate is generic and
+     well-defined enough to be moved to `Cfg` once the transitive checks are
+     implemented. *)
   match term_desc with
   | Call_no_return _ | Call _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Prim _
+  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Prim _ ->
+    false
   | Specific_can_raise _ ->
+    (* Specific operations cannot raise, and hence cannot call OCaml functions;
+       for the purpose of this check it is thus fine to return `false` even
+       though a specific operation may call some C code. *)
     false
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
