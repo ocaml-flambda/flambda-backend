@@ -45,7 +45,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Dls_get -> ()
       | Poll -> ()
       | Alloc _ -> ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with

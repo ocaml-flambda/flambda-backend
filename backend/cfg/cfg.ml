@@ -300,6 +300,8 @@ let dump_basic ppf (basic : basic) =
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
+  | Stack_check { max_frame_size_bytes } ->
+    fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
 let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
@@ -507,6 +509,9 @@ let is_pure_basic : basic -> bool = function
        ensured that it wouldn't modify the stack pointer (e.g. there are no used
        local stack slots nor calls). *)
     false
+  | Stack_check _ ->
+    (* May reallocate the stack. *)
+    false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
   Reg.same_loc r1 r2
@@ -534,7 +539,7 @@ let is_noop_move instr =
       | Intop_atomic _ | Floatop _ | Opaque | Valueofint | Intofvalue
       | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region | Dls_get | Poll | Alloc _ )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =

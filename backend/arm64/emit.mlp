@@ -546,6 +546,7 @@ module BR = Branch_relaxation.Make (struct
       | Lambda.Raise_reraise -> 1
       | Lambda.Raise_notrace -> 4
       end
+    | Lstackcheck _ -> assert false (* not supported *)
 
   let relax_poll ~return_label =
     Lop (Ispecific (Ifar_poll { return_label }))
@@ -1090,7 +1091,8 @@ let emit_instr i =
           `	ldr	{emit_reg reg_tmp1}, [sp, #8]\n`;
           `	ldr	{emit_reg reg_trap_ptr}, [sp], 16\n`;
           `	br	{emit_reg reg_tmp1}\n`
-        end
+      end
+    | Lstackcheck _ -> assert false (* not supported *)
 
 (* Emission of an instruction sequence *)
 
