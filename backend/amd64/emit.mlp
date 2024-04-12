@@ -1798,7 +1798,7 @@ let emit_instr ~first ~fallthrough i =
           I.jmp r11
     end
   | Lstackcheck { max_frame_size_bytes; } ->
-    let save_registers = first in
+    let save_registers = not first in
     let overflow = new_label () and ret = new_label () in
     let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
     if save_registers then I.push r10;
