@@ -21,9 +21,12 @@ let stack_threshold_size = 0
 let frame_size
   : stack_offset:int -> frame_required:bool -> num_stack_slots:int array ->  int
   = fun ~stack_offset:_ ~frame_required:_ ~num_stack_slots:_ ->
-    Misc.fatal_error "stack checks are not supported on arm64"
+  Misc.fatal_error "stack checks are not supported on arm64"
 
 let linear
   : Linear.fundecl -> Linear.fundecl
-  = fun _fundecl ->
+  = fun fundecl ->
+  match Config.runtime5 with
+  | false -> fundecl
+  | true ->
     Misc.fatal_error "stack checks are not supported on arm64"
