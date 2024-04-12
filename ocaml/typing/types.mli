@@ -580,28 +580,25 @@ and record_representation =
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
-  | Record_inlined_mixed of tag * mixed_record_shape *
-                            record_inlined_mixed_variant_representation
-  (* Unlike [Record_mixed], [mixed_record_shape] might represent only one
-     element.
 
-     Unlike [Record_inlined], the variant representation can't be "unboxed",
-     so we've minted a separate type
-  *)
-  (* CR mixed blocks: clean up *)
-
-(* For unboxed variants, we record the jkind of the mandatory single argument.
-   For boxed variants, we record the jkinds for the arguments of each
-   constructor.  For boxed inlined records, this is just a length 1 array with
-   the jkind of the record itself, not the jkinds of each field.  *)
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of jkind array array
+  (* CR mixed blocks: fix wording *)
+  (* The outer array has an element for each constructor. Each inner array
+     has a jkind for each argument of the corresponding constructor.
+
+     A constructor with a boxed inlined record constructor has length-1 inner
+     array. Its single element is the jkind of the record itself. (It doesn't
+     have a jkind for each field.)
+  *)
   | Variant_extensible
 
-and record_inlined_mixed_variant_representation =
-  | Variant_boxed of jkind array
-  |
+and constructor_representation =
+  | Constructor_regular
+  (* A constant constructor or a constructor all of whose fields are values. *)
+  | Constructor_mixed of mixed_record_shape
+  (* A constructor that has some non-value fields. *)
 
 and label_declaration =
   {
