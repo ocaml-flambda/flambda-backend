@@ -20,6 +20,7 @@ open Ast_helper
 module T = Typedtree
 
 type mapper = {
+  argument: mapper -> T.argument -> argument;
   attribute: mapper -> T.attribute -> attribute;
   attributes: mapper -> T.attribute list -> attribute list;
   binding_op: mapper -> T.binding_op -> T.pattern -> binding_op;
@@ -571,16 +572,19 @@ let expression sub exp =
               in
               Pfunction_cases (cases, loc, attributes), constraint_
         in
+        let is_module_arg fp =
+          match fp.fp_kind with
+          | Tparam_module _ -> true
+          | _ -> false
+        in
+        let extract_name (p : pattern) =
+          match p.pat_desc with
+            Tpat_var (_, i, _, _) -> i
+          | _ -> assert false
+        in
         let params =
           List.concat_map
             (fun fp ->
-               let pat, default_arg =
-                 match fp.fp_kind with
-                 | Tparam_pat pat -> pat, None
-                 | Tparam_optional_default (pat, expr, _) -> pat, Some expr
-               in
-               let pat = sub.pat sub pat in
-               let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
                    (fun (x, annot) ->
@@ -590,8 +594,26 @@ let expression sub exp =
                    fp.fp_newtypes
                in
                let pparam_desc =
-                 let parg_label = label fp.fp_arg_label in
-                 Pparam_val (parg_label, default_arg, pat)
+                 if is_module_arg fp
+                 then
+                   let (i, ptyp) =
+                     match fp.fp_kind with
+                       Tparam_module (pat, ptyp) -> (extract_name pat, ptyp)
+                     | _ -> assert false
+                   in
+                   let () = assert (fp.fp_arg_label = Nolabel) in
+                   Pparam_module (i, sub.package_type sub ptyp)
+                 else
+                   let parg_label = label fp.fp_arg_label in
+                   let pat, default_arg =
+                     match fp.fp_kind with
+                     | Tparam_pat pat -> pat, None
+                     | Tparam_module _ -> assert false
+                     | Tparam_optional_default (pat, expr, _) -> pat, Some expr
+                   in
+                   let pat = sub.pat sub pat in
+                   let default_arg = Option.map (sub.expr sub) default_arg in
+                   Pparam_val (parg_label, default_arg, pat)
                in
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
@@ -604,7 +626,7 @@ let expression sub exp =
           List.fold_right (fun (label, arg) list ->
               match arg with
               | Omitted _ -> list
-              | Arg (exp, _) -> (label, sub.expr sub exp) :: list
+              | Arg arg -> (label, sub.argument sub arg) :: list
           ) list [])
     | Texp_match (exp, _, cases, _) ->
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
@@ -723,7 +745,7 @@ let expression sub exp =
                         ; pexp_loc_stack =[]
                         ; pexp_attributes=[]
                         }
-                      , [Nolabel, sub.expr sub handler]))
+                      , [Nolabel, Parg_expr (sub.expr sub handler)]))
                       ; pexp_loc=loc
                       ; pexp_loc_stack =[]
                       ; pexp_attributes=[]
@@ -755,7 +777,7 @@ let expression sub exp =
         pexp_loc = loc;
         pexp_loc_stack = [];
         pexp_attributes = [];
-      }, [Nolabel, sub.expr sub exp])
+      }, [Nolabel, Parg_expr (sub.expr sub exp)])
     | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
@@ -767,6 +789,10 @@ let binding_op sub bop pat =
   let pbop_exp = sub.expr sub bop.bop_exp in
   let pbop_loc = bop.bop_loc in
   {pbop_op; pbop_pat; pbop_exp; pbop_loc}
+
+let argument sub = function
+  | Targ_expr (e, _) -> Parg_expr (sub.expr sub e)
+  | Targ_module me -> Parg_module (sub.module_expr sub me)
 
 let package_type sub pack =
   (map_loc sub pack.pack_txt,
@@ -1068,6 +1094,9 @@ let core_type sub ct =
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
+    | Ttyp_functor (name, pack, ct) ->
+        let name = Location.mkloc (Ident.name name.txt) name.loc in
+        Ptyp_functor (name, sub.package_type sub pack, sub.typ sub ct)
   in
   Typ.mk ~loc ~attrs:!attrs desc
 
@@ -1154,6 +1183,7 @@ let location _sub l = l
 
 let default_mapper =
   {
+    argument = argument;
     attribute = attribute;
     attributes = attributes;
     binding_op = binding_op;

@@ -20,6 +20,7 @@ open Typedtree
 
 type mapper =
   {
+    argument : mapper -> argument -> argument;
     attribute : mapper -> attribute -> attribute;
     attributes : mapper -> attributes -> attributes;
     binding_op: mapper -> binding_op -> binding_op;

@@ -414,6 +414,9 @@ and core_type ctxt f x =
     | Ptyp_arrow (l, ct1, ct2) ->
         pp f "@[<2>%a@;->@;%a@]" (* FIXME remove parens later *)
           (type_with_label ctxt) (l,ct1) (return_type ctxt) ct2
+    | Ptyp_functor (name, pack, ct) ->
+        pp f "@[<2>@[<hov2>{%s :@ %a}@]@;->@;%a@]" name.txt (package_type ctxt)
+          pack (core_type ctxt) ct
     | Ptyp_alias (ct, s) ->
       pp f "@[<2>%a@;as@;%a@]" (core_type1 ctxt) ct tyvar s
     | Ptyp_poly ([], ct) ->
@@ -499,16 +502,18 @@ and core_type1 ctxt f x =
         pp f "@[<hov2>%a@;#%a@]"
           (list (core_type ctxt) ~sep:"," ~first:"(" ~last:")") l
           longident_loc li
-    | Ptyp_package (lid, cstrs) ->
-        let aux f (s, ct) =
-          pp f "type %a@ =@ %a" longident_loc s (core_type ctxt) ct  in
-        (match cstrs with
-         |[] -> pp f "@[<hov2>(module@ %a)@]" longident_loc lid
-         |_ ->
-             pp f "@[<hov2>(module@ %a@ with@ %a)@]" longident_loc lid
-               (list aux  ~sep:"@ and@ ")  cstrs)
+    | Ptyp_package pck_ty ->
+        pp f "@[<hov2>(module@ %a)@]" (package_type ctxt) pck_ty
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
+and package_type ctxt f (lid, cstrs) =
+  let aux f (s, ct) =
+    pp f "type %a@ =@ %a" longident_loc s (core_type ctxt) ct  in
+  (match cstrs with
+   |[] -> pp f "%a" longident_loc lid
+   |_ ->
+       pp f "%a@ with@ %a" longident_loc lid
+         (list aux  ~sep:"@ and@ ")  cstrs)
 
 and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   let filtered_attrs = filter_curry_attrs attrs in
@@ -764,11 +769,12 @@ and label_exp ctxt f (l,opt,p) =
     | _ ->  pp f "~%s:%a" l (maybe_modes_pat ctxt m) p
 
 and sugar_expr ctxt f e =
+  let is_expr = function Parg_expr _ -> true | Parg_module _ -> false in
   if e.pexp_attributes <> [] then false
   else match e.pexp_desc with
   | Pexp_apply ({ pexp_desc = Pexp_ident {txt = id; _};
                   pexp_attributes=[]; _}, args)
-    when List.for_all (fun (lab, _) -> lab = Nolabel) args -> begin
+    when List.for_all (fun (lab, a) -> lab = Nolabel && is_expr a) args -> begin
       let print_indexop a path_prefix assign left sep right print_index indices
           rem_args =
         let print_path ppf = function
@@ -785,7 +791,10 @@ and sugar_expr ctxt f e =
                 left (list ~sep print_index) indices right
                 (simple_expr ctxt) v; true
             | _ -> false in
-      match id, List.map snd args with
+      let args = List.map (function
+              | (_, Parg_module _) -> assert false
+              | (_, Parg_expr e) -> e) args in
+      match id, args with
       | Lident "!", [e] ->
         pp f "@[<hov>!%a@]" (simple_expr ctxt) e; true
       | Ldot (path, ("get"|"set" as func)), a :: other_args -> begin
@@ -873,6 +882,9 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
           (pp_print_pexp_function ctxt "->") e
     | Pexp_function l ->
         pp f "@[<hv>function%a@]" (case_list ctxt) l
+    | Pexp_functor (l, mty, e) ->
+        pp f "@[<2>fun@;{%s@;%s@;%a}@;%a@]" l.txt ":"
+          (package_type ctxt) mty (pp_print_pexp_function ctxt "->") e
     | Pexp_match (e, l) ->
         pp f "@[<hv0>@[<hv0>@[<2>match %a@]@ with@]%a@]"
           (expression reset_ctxt) e (case_list ctxt) l
@@ -890,7 +902,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
           (expression ctxt) e
     | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.exclave"}, PStr []) },
-       [Nolabel, sbody]) ->
+       [Nolabel, Parg_expr sbody]) ->
         pp f "@[<2>exclave_ %a@]" (expression ctxt) sbody
     | Pexp_apply (e, l) ->
         begin if not (sugar_expr ctxt f x) then
@@ -898,14 +910,14 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
             | `Infix s ->
                 begin match l with
                 | [ (Nolabel, _) as arg1; (Nolabel, _) as arg2 ] ->
-                    (* FIXME associativity label_x_expression_param *)
+                    (* FIXME associativity label_x_argument_param *)
                     pp f "@[<2>%a@;%s@;%a@]"
-                      (label_x_expression_param reset_ctxt) arg1 s
-                      (label_x_expression_param ctxt) arg2
+                      (label_x_argument_param reset_ctxt) arg1 s
+                      (label_x_argument_param ctxt) arg2
                 | _ ->
                     pp f "@[<2>%a %a@]"
                       (simple_expr ctxt) e
-                      (list (label_x_expression_param ctxt)) l
+                      (list (label_x_argument_param ctxt)) l
                 end
             | `Prefix s ->
                 let s =
@@ -913,21 +925,21 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
                    (match l with
                     (* See #7200: avoid turning (~- 1) into (- 1) which is
                        parsed as an int literal *)
-                    |[(_,{pexp_desc=Pexp_constant _})] -> false
+                    |[(_,Parg_expr {pexp_desc=Pexp_constant _})] -> false
                     | _ -> true)
                   then String.sub s 1 (String.length s -1)
                   else s in
                 begin match l with
-                | [(Nolabel, x)] ->
+                | [(Nolabel, Parg_expr x)] ->
                   pp f "@[<2>%s@;%a@]" s (simple_expr ctxt) x
                 | _   ->
                   pp f "@[<2>%a %a@]" (simple_expr ctxt) e
-                    (list (label_x_expression_param ctxt)) l
+                    (list (label_x_argument_param ctxt)) l
                 end
             | _ ->
                 pp f "@[<hov2>%a@]" begin fun f (e,l) ->
                   pp f "%a@ %a" (expression2 ctxt) e
-                    (list (label_x_expression_param reset_ctxt))  l
+                    (list (label_x_argument_param reset_ctxt))  l
                     (* reset here only because [function,match,try,sequence]
                        are lower priority *)
                 end (e,l)
@@ -2049,6 +2061,13 @@ and label_x_expression_param ctxt f (l,e) =
       else
         pp f "~%s:%a" lbl (simple_expr ctxt) e
 
+and label_x_argument_param ctxt f = function
+  | (l, Parg_expr e) -> label_x_expression_param ctxt f (l, e)
+  | (lbl, Parg_module me) ->
+    (* TODO : choose syntax for labelled module arguments *)
+    assert (lbl = Nolabel);
+    pp f "{%a}" (module_expr ctxt) me
+
 and tuple_component ctxt f (l,e) =
   let simple_name = match e with
     | {pexp_desc=Pexp_ident {txt=Lident l;_};
@@ -2174,6 +2193,8 @@ and function_param ctxt f
   =
   match pparam_desc with
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
+  | Pparam_module (l, mty) ->
+      pp f "@[{%s : %a}@]" l.txt (package_type ctxt) mty
   | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
   | Pparam_newtype (ty, Some annot) ->
       pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot

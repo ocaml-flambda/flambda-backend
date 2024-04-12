@@ -206,6 +206,9 @@ val instance_poly:
         bool -> type_expr list -> type_expr -> type_expr list * type_expr
         (* Take an instance of a type scheme containing free univars *)
 val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
+val instance_funct:
+        id_in:Ident.t -> p_out:Path.t -> fixed:bool ->
+        type_expr -> type_expr
 val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
@@ -299,6 +302,11 @@ val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
            [force_poly] is false then the usual invariant that the
            argument type be a [Tpoly] node is not enforced. Raises
            [Filter_arrow_failed] instead of [Unify].  *)
+val filter_functor:
+        Env.t -> type_expr ->
+        (Ident.t * (Path.t * (Longident.t * type_expr) list) * type_expr) option
+        (* A special case of unification with [{M:P} -> 'a]  Raises
+           [Filter_arrow_failed] instead of [Unify]. *)
 val filter_mono: type_expr -> type_expr
         (* A special case of unification (with Tpoly('a, [])). Can
            only be called on [Tpoly] nodes. Raises [Filter_mono_failed]
@@ -518,6 +526,10 @@ val wrap_trace_gadt_instances: Env.t -> ('a -> 'b) -> 'a -> 'b
 val package_subtype :
     (Env.t -> Path.t -> (Longident.t * type_expr) list ->
       Path.t -> (Longident.t * type_expr) list -> bool) ref
+
+val modtype_of_package :
+     (Env.t -> Location.t -> Path.t -> (Longident.t * type_expr) list ->
+      module_type) ref
 
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit

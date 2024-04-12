@@ -468,7 +468,7 @@ module Modes = struct
     match pexp_desc with
     | Pexp_apply
         ( { pexp_desc = Pexp_extension ({ txt; _ }, payload); pexp_loc; _ },
-          [(Nolabel, body)] )
+          [(Nolabel, Parg_expr body)] )
       when txt = extension_name ->
       let modes = Mode_expr.of_payload ~loc:pexp_loc payload in
       Coerce (modes, body), pexp_attributes
@@ -485,7 +485,7 @@ module Modes = struct
           (Location.mknoloc extension_name, payload)
       in
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
-          Ast_helper.Exp.apply ~loc ext [Nolabel, body])
+          Ast_helper.Exp.apply ~loc ext [Nolabel, Parg_expr body])
 end
 
 module Jkind = struct
@@ -934,6 +934,7 @@ module N_ary_functions = struct
 
   type function_param_desc =
     | Pparam_val of arg_label * expression option * pattern
+    | Pparam_module of string loc * package_type
     | Pparam_newtype of string loc * Jkind.annotation option
 
   type function_param =
@@ -1188,6 +1189,15 @@ module N_ary_functions = struct
       in
       let pparam_desc = Pparam_newtype (newtype, jkind) in
       Some ({ pparam_desc; pparam_loc }, body)
+    | Pexp_functor (name, pck, body), None ->
+      let pparam_loc : Location.t =
+        { loc_ghost = true;
+          loc_start = pexp_loc.loc_start;
+          loc_end = (fst pck).loc.loc_end
+        }
+      in
+      let pparam_desc = Pparam_module (name, pck) in
+      Some ({ pparam_desc; pparam_loc }, body)
     | _, None -> None
     | _, Some jkind ->
       Desugaring_error.raise_with_loc pexp_loc
@@ -1339,6 +1349,9 @@ module N_ary_functions = struct
         match pparam_desc with
         | Pparam_val (label, default, pat) ->
           Ast_helper.Exp.fun_ label default pat body ~loc
+          [@alert "-prefer_jane_syntax"]
+        | Pparam_module (n, pack) ->
+          Ast_helper.Exp.functor_ n pack body ~loc
           [@alert "-prefer_jane_syntax"]
         | Pparam_newtype (newtype, jkind) -> (
           match jkind with

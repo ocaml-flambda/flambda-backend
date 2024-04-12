@@ -231,7 +231,8 @@ let kind_and_message = function
          Pstr_eval
            ({pexp_desc=Pexp_apply
                  ({pexp_desc=Pexp_ident{txt=Longident.Lident id}},
-                  [Nolabel,{pexp_desc=Pexp_constant (Pconst_string(s,_,_))}])
+                  [Nolabel,Parg_expr {pexp_desc=Pexp_constant
+                                        (Pconst_string(s,_,_))}])
             },_)}] ->
       Some (id, s)
   | PStr[
@@ -982,12 +983,12 @@ let get_tracing_probe_payload (payload : Parsetree.payload) =
   in
   let* arg, enabled_at_init =
     match args with
-    | [Nolabel, arg] -> Ok (arg, false)
+    | [Nolabel, Parg_expr arg] -> Ok (arg, false)
     | [Labelled "enabled_at_init",
-        { pexp_desc =
+        Parg_expr { pexp_desc =
             Pexp_construct({ txt = Longident.Lident b; _ },
                           None); _ };
-        Nolabel, arg] ->
+        Nolabel, Parg_expr arg] ->
           let* enabled_at_init = bool_of_string b in
           Ok (arg, enabled_at_init)
     | _ -> Error ()

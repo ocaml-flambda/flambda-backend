@@ -334,11 +334,11 @@ let transl_ident loc env ty path desc kind =
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
 let can_apply_primitive p pmode pos args =
-  let is_omitted = function
-    | Arg _ -> false
-    | Omitted _ -> true
+  let is_omitted_or_module = function
+    | Arg (Targ_expr _) -> false
+    | Omitted _ | Arg (Targ_module _) -> true
   in
-  if List.exists (fun (_, arg) -> is_omitted arg) args then false
+  if List.exists (fun (_, arg) -> is_omitted_or_module arg) args then false
   else begin
     let nargs = List.length args in
     if nargs = p.prim_arity then true
@@ -425,14 +425,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         match prim_repr, oargs with
         | [], _ -> [], oargs
         | _, [] -> failwith "Translcore cut_args"
-        | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
+        | ((_, arg_repr) :: prim_repr),
+          ((_, Arg (Targ_expr (x, _))) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
             Jkind.Sort.of_const
               (Translprim.sort_of_native_repr arg_repr ~poly_sort:psort)
           in
           (x, arg_sort) :: arg_exps, extra_args
-        | _, ((_, Omitted _) :: _) -> assert false
+        | _, ((_, (Omitted _ | Arg (Targ_module _))) :: _) -> assert false
       in
       let arg_exps, extra_args = cut_args p.prim_native_repr_args oargs in
       let args = transl_list ~scopes arg_exps in
@@ -1343,8 +1344,11 @@ and transl_apply ~scopes
       (fun (_, arg) ->
          match arg with
          | Omitted _ as arg -> arg
-         | Arg (exp, sort_arg) ->
-           Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
+         | Arg (Targ_expr (exp, sort_arg)) ->
+             Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp)
+         | Arg (Targ_module me) ->
+             Arg (!transl_module ~scopes Tcoerce_none None me,
+                  Lambda.layout_module))
       sargs
   in
   build_apply lam [] loc position mode args
@@ -1500,7 +1504,7 @@ and transl_curried_function ~scopes loc repr params body
         let { fp_param; fp_kind; fp_mode; fp_sort; fp_partial; fp_loc } = fp in
         let arg_env, arg_type, attributes =
           match fp_kind with
-          | Tparam_pat pat ->
+          | Tparam_pat pat | Tparam_module (pat, _) ->
               pat.pat_env, pat.pat_type, Translattribute.transl_param_attributes pat
           | Tparam_optional_default (pat, expr, _) ->
               expr.exp_env, Predef.type_option expr.exp_type, Translattribute.transl_param_attributes pat
@@ -1516,7 +1520,7 @@ and transl_curried_function ~scopes loc repr params body
         in
         let body =
           match fp_kind with
-          | Tparam_pat pat ->
+          | Tparam_pat pat | Tparam_module (pat, _) ->
               Matching.for_function ~scopes fp_loc None (Lvar fp_param)
                 [ pat, body ]
                 fp_partial

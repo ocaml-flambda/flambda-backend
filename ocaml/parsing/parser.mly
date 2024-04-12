@@ -125,7 +125,7 @@ let ghexpvar ~loc name =
   ghexp ~loc (Pexp_ident (ghrhs (Lident name) loc))
 
 let mkinfix arg1 op arg2 =
-  Pexp_apply(op, [Nolabel, arg1; Nolabel, arg2])
+  Pexp_apply(op, [Nolabel, Exp.arg_expr arg1; Nolabel, Exp.arg_expr arg2])
 
 let neg_string f =
   if String.length f > 0 && f.[0] = '-'
@@ -139,7 +139,8 @@ let mkuminus ~oploc name arg =
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
       Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name),
+                 [Nolabel, Exp.arg_expr arg]), []
 
 let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
@@ -147,7 +148,8 @@ let mkuplus ~oploc name arg =
   | "+", Pexp_constant(Pconst_integer _)
   | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name),
+                 [Nolabel, Exp.arg_expr arg]), []
 
 let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
@@ -204,7 +206,8 @@ let exclave_extension loc =
     (Pexp_extension(exclave_ext_loc loc, PStr []))
 
 let mkexp_exclave ~loc ~kwd_loc exp =
-  ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc), [Nolabel, exp]))
+  ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc),
+                         [Nolabel, Exp.arg_expr exp]))
 
 let is_curry_attr attr =
   attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
@@ -421,7 +424,7 @@ type ('dot,'index) array_family = {
 
   index:
     Lexing.position * Lexing.position -> paren_kind -> 'index
-    -> index_dim * (arg_label * expression) list
+    -> index_dim * (arg_label * argument) list
    (*
      [index (start,stop) paren index] computes the dimension of the
      index argument and how it should be desugared when transformed
@@ -463,14 +466,17 @@ let builtin_arraylike_name loc _ ~assign paren_kind n =
    ghloc ~loc (Ldot(prefix,opname))
 
 let builtin_arraylike_index loc paren_kind index = match paren_kind with
-    | Paren | Bracket -> One, [Nolabel, index]
+    | Paren | Bracket -> One, [Nolabel, Exp.arg_expr index]
     | Brace ->
        (* Multi-indices for bigarray are comma-separated ([a.{1,2,3,4}]) *)
        match bigarray_untuplify index with
-     | [x] -> One, [Nolabel, x]
-     | [x;y] -> Two, [Nolabel, x; Nolabel, y]
-     | [x;y;z] -> Three, [Nolabel, x; Nolabel, y; Nolabel, z]
-     | coords -> Many, [Nolabel, ghexp ~loc (Pexp_array coords)]
+     | [x] -> One, [Nolabel, Exp.arg_expr x]
+     | [x;y] -> Two, [Nolabel, Exp.arg_expr x; Nolabel, Exp.arg_expr y]
+     | [x;y;z] -> Three,
+        [Nolabel, Exp.arg_expr x;
+         Nolabel, Exp.arg_expr y;
+         Nolabel, Exp.arg_expr z]
+     | coords -> Many, [Nolabel, Exp.arg_expr (ghexp ~loc (Pexp_array coords))]
 
 let builtin_indexing_operators : (unit, expression) array_family  =
   { index = builtin_arraylike_index; name = builtin_arraylike_name }
@@ -497,8 +503,8 @@ let user_index loc _ index =
   (* Multi-indices for user-defined operators are semicolon-separated
      ([a.%[1;2;3;4]]) *)
   match index with
-    | [a] -> One, [Nolabel, a]
-    | l -> Many, [Nolabel, mkexp ~loc (Pexp_array l)]
+    | [a] -> One, [Nolabel, Exp.arg_expr a]
+    | l -> Many, [Nolabel, Exp.arg_expr (mkexp ~loc (Pexp_array l))]
 
 let user_indexing_operators:
       (Longident.t option * string, expression list) array_family
@@ -511,8 +517,8 @@ let mk_indexop_expr array_indexing_operator ~loc
   let fn = array_indexing_operator.name loc dot ~assign paren n in
   let set_arg = match set_expr with
     | None -> []
-    | Some expr -> [Nolabel, expr] in
-  let args = (Nolabel,array) :: index @ set_arg in
+    | Some expr -> [Nolabel, Exp.arg_expr expr] in
+  let args = (Nolabel, Exp.arg_expr array) :: index @ set_arg in
   mkexp ~loc (Pexp_apply(ghexp ~loc (Pexp_ident fn), args))
 
 let indexop_unclosed_error loc_s s loc_e =
@@ -748,11 +754,13 @@ let all_params_as_newtypes =
   let is_newtype { pparam_desc; _ } =
     match pparam_desc with
     | Pparam_newtype _ -> true
+    | Pparam_module _ -> false
     | Pparam_val _ -> false
   in
   let as_newtype { pparam_desc; _ } =
     match pparam_desc with
     | Pparam_newtype (x, jkind) -> Some (x, jkind)
+    | Pparam_module _ -> None
     | Pparam_val _ -> None
   in
   fun params ->
@@ -1652,6 +1660,38 @@ module_expr:
     | (* Functor applied to unit. *)
       me = module_expr LPAREN RPAREN
         { Pmod_apply_unit me }
+    | (* An extension. *)
+      ex = extension
+        { Pmod_extension ex }
+    )
+    { $1 }
+;
+module_expr_without_parens:
+  | STRUCT attrs = attributes s = structure END
+      { mkmod ~loc:$sloc ~attrs (Pmod_structure s) }
+  | STRUCT attributes structure error
+      { unclosed "struct" $loc($1) "end" $loc($4) }
+  | FUNCTOR attrs = attributes args = functor_args MINUSGREATER me = module_expr
+      { wrap_mod_attrs ~loc:$sloc attrs (
+          List.fold_left (fun acc (startpos, arg) ->
+            mkmod ~loc:(startpos, $endpos) (Pmod_functor (arg, acc))
+          ) me args
+        ) }
+  | me = module_expr_without_parens attr = attribute
+      { Mod.attr me attr }
+  | LPAREN VAL attrs = attributes e = expr_colon_package_type RPAREN
+      { mkmod ~loc:$sloc ~attrs (Pmod_unpack e) }
+  | mkmod(
+      (* A module identifier. *)
+      x = mkrhs(mod_longident)
+        { Pmod_ident x }
+    | (* In a functor application, the actual argument must be parenthesized. *)
+      me1 = module_expr_without_parens me2 = paren_module_expr
+        { Pmod_apply(me1, me2) }
+    | (* Application to unit is sugar for application to an empty structure. *)
+      me1 = module_expr_without_parens LPAREN RPAREN
+        { (* TODO review mkmod location *)
+          Pmod_apply(me1, mkmod ~loc:$sloc (Pmod_structure [])) }
     | (* An extension. *)
       ex = extension
         { Pmod_extension ex }
@@ -2809,7 +2849,7 @@ fun_expr:
       { unclosed "do" $loc($1) "done" $loc($2) }
 ;
 %inline expr_:
-  | simple_expr nonempty_llist(labeled_simple_expr)
+  | simple_expr nonempty_llist(labeled_argument)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
   | labeled_tuple %prec below_COMMA
       { pexp_ltuple $sloc $1 }
@@ -2972,9 +3012,9 @@ comprehension_clause:
   | name_tag %prec prec_constant_constructor
       { Pexp_variant($1, None) }
   | op(PREFIXOP) simple_expr
-      { Pexp_apply($1, [Nolabel,$2]) }
+      { Pexp_apply($1, [Nolabel, Exp.arg_expr $2]) }
   | op(BANG {"!"}) simple_expr
-      { Pexp_apply($1, [Nolabel,$2]) }
+      { Pexp_apply($1, [Nolabel, Exp.arg_expr $2]) }
   | LBRACELESS object_expr_content GREATERRBRACE
       { Pexp_override $2 }
   | LBRACELESS object_expr_content error
@@ -3043,6 +3083,12 @@ comprehension_clause:
   | mod_longident DOT
     LPAREN MODULE ext_attributes module_expr COLON error
       { unclosed "(" $loc($3) ")" $loc($8) }
+;
+labeled_argument:
+    le = labeled_simple_expr
+      { let (l, e) = le in  (l, Exp.arg_expr e) }
+  | LBRACE me = module_expr_without_parens RBRACE
+      { Nolabel, Parg_module me }
 ;
 labeled_simple_expr:
     simple_expr %prec below_HASH
@@ -3291,6 +3337,12 @@ fun_param_as_list:
             pparam_desc = Pparam_val (a, b, c)
           }
         ]
+      }
+  | LBRACE s = mkrhs(UIDENT) COLON mt = module_type RBRACE
+      {
+        let (lid, cstrs, _attrs) = package_type_of_module_type mt in
+        [ { N_ary.pparam_loc = make_loc $sloc;
+            pparam_desc = Pparam_module (s, (lid, cstrs)) } ]
       }
 ;
 fun_params:
@@ -4264,6 +4316,18 @@ function_type:
   | ty = tuple_type
     %prec MINUSGREATER
       { ty }
+  | mktyp(
+      LBRACE
+      name = mkrhs(UIDENT)
+      COLON
+      mty = module_type
+      RBRACE
+      MINUSGREATER
+      codomain = function_type
+        { let (lid, cstrs, _attrs) = package_type_of_module_type mty in
+          Ptyp_functor (name, (lid, cstrs), codomain) }
+    )
+    { $1 }
   | ty = strict_function_or_labeled_tuple_type
       { ty }
 ;

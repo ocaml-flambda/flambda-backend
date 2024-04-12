@@ -132,6 +132,8 @@ and out_type =
   | Otyp_arrow of arg_label * out_arg_mode * out_type * out_ret_mode * out_type
   (* INVARIANT: the [out_ret_mode] is [Orm_not_arrow] unless the RHS [out_type]
     is [Otyp_arrow] *)
+  | Otyp_functor of out_ident
+            * (out_ident * (string * out_type) list) * out_type
   | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type

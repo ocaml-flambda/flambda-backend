@@ -448,6 +448,8 @@ and function_param =
 and function_param_kind =
   | Tparam_pat of pattern
   (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
+  | Tparam_module of pattern * package_type
+  (** [Tparam_module (i, p)] is a module argument for a dependant function. *)
   | Tparam_optional_default of pattern * expression * Jkind.sort
   (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
       default value [e], i.e. [?x:(p = e)]. If the parameter is of type
@@ -557,7 +559,13 @@ and omitted_parameter =
     mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort }
 
-and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (argument, omitted_parameter) arg_or_omitted
+
+and argument =
+  | Targ_expr of expression * Jkind.sort
+  | Targ_module of module_expr
+
+and apply_expr = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)
@@ -581,7 +589,7 @@ and class_expr_desc =
   | Tcl_fun of
       arg_label * pattern * (Ident.t * expression) list
       * class_expr * partial
-  | Tcl_apply of class_expr * (arg_label * apply_arg) list
+  | Tcl_apply of class_expr * (arg_label * apply_expr) list
   | Tcl_let of rec_flag * value_binding list *
                   (Ident.t * expression) list * class_expr
   | Tcl_constraint of
@@ -873,6 +881,7 @@ and core_type_desc =
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_functor of Ident.t loc * package_type * core_type
   | Ttyp_call_pos
       (** [Ttyp_call_pos] represents the type of the value of a Position
           argument ([lbl:[%call_pos] -> ...]). *)

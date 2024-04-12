@@ -49,6 +49,8 @@ and type_desc =
   | Tunivar of { name : string option; jkind : jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+  | Tfunctor of Ident.t
+                * (Path.t * (Longident.t * type_expr) list) * type_expr
 
 and arg_label =
   | Nolabel

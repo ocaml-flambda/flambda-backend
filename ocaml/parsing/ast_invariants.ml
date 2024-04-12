@@ -126,6 +126,7 @@ let iterator =
             List.exists
               (function
                 | { pparam_desc = Pparam_val _ } -> true
+                | { pparam_desc = Pparam_module _ } -> false
                 | { pparam_desc = Pparam_newtype _ } -> false)
               params)
         then no_val_params loc

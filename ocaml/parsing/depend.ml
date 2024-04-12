@@ -129,6 +129,7 @@ let rec add_type bv ty =
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_extension e -> handle_extension e
+  | Ptyp_functor (_, pt, t2) -> add_package_type bv pt; add_type bv t2
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
@@ -262,8 +263,11 @@ let rec add_expr bv exp =
       add_opt add_expr bv opte; add_expr (add_pattern bv p) e
   | Pexp_function pel ->
       add_cases bv pel
+  | Pexp_functor (_, pck_ty, e) ->
+      add_package_type bv pck_ty;
+      add_expr bv e
   | Pexp_apply(e, el) ->
-      add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
+      add_expr bv e; List.iter (fun (_,e) -> add_argument bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
   | Pexp_try(e, pel) -> add_expr bv e; add_cases bv pel
   | Pexp_tuple el -> List.iter (add_expr bv) el
@@ -397,6 +401,9 @@ and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
     | Pparam_val (_, opte, pat) ->
       add_opt add_expr bv opte;
       add_pattern bv pat
+    | Pparam_module (_, pack_opt) ->
+      add_package_type bv pack_opt;
+      bv
     | Pparam_newtype _ -> bv
 
 and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
@@ -449,6 +456,10 @@ and add_bindings recf bv pel =
 and add_binding_op bv bv' pbop =
   add_expr bv pbop.pbop_exp;
   add_pattern bv' pbop.pbop_pat
+
+and add_argument bv = function
+  | Parg_expr e -> add_expr bv e
+  | Parg_module me -> add_module_expr bv me
 
 and add_modtype bv mty =
   match Jane_syntax.Module_type.of_ast mty with
