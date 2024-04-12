@@ -621,6 +621,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         CAMLassert(parent_stack != NULL);
 
         domain_state->current_stack = parent_stack;
+        domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
         sp = domain_state->current_stack->sp;
         caml_free_stack(old_stack);
 
@@ -1024,6 +1025,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
           value hexn = Stack_handle_exception(old_stack);
           old_stack->sp = sp;
           domain_state->current_stack = parent_stack;
+          domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
           sp = domain_state->current_stack->sp;
           caml_free_stack(old_stack);
 
@@ -1051,6 +1053,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
 /* Stack checks */
 
     check_stacks:
+      /* CR xclerc for xclerc: the way stack checks are implemented here
+         means that maintaining `current_stack_bound` is ~useless. */
       if (sp < Stack_threshold_ptr(domain_state->current_stack)) {
         domain_state->current_stack->sp = sp;
         if (!caml_try_realloc_stack(Stack_threshold / sizeof(value))) {
@@ -1341,6 +1345,7 @@ do_resume: {
 
       domain_state->current_stack->sp = sp;
       domain_state->current_stack = Ptr_val(accu);
+      domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
       sp = domain_state->current_stack->sp;
 
       domain_state->trap_sp_off = Long_val(sp[0]);
@@ -1384,6 +1389,7 @@ do_resume: {
 
       old_stack->sp = sp;
       domain_state->current_stack = parent_stack;
+      domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
       sp = parent_stack->sp;
       Stack_parent(old_stack) = NULL;
       Field(cont, 0) = Val_ptr(old_stack);
@@ -1425,6 +1431,7 @@ do_resume: {
 
       self->sp = sp;
       domain_state->current_stack = parent;
+      domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
       sp = parent->sp;
 
       CAMLassert(Stack_parent(cont_tail) == NULL);

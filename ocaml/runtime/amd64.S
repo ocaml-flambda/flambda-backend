@@ -1019,7 +1019,7 @@ CFI_STARTPROC
     /* Load new stack pointer and set parent */
         movq    Stack_handler(%rax), %r11
         movq    %rcx, Handler_parent(%r11)
-        movq    %rax, Caml_state(current_stack)
+        movq    %rax, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
         movq    Stack_sp(%rax), %r11
     /* Load all local allocations state for the new stack */
         movq    Stack_local_sp(%rax), %r10
@@ -1061,7 +1061,7 @@ LBL(frame_runstack):
     /* restore parent stack and exn_handler into Caml_state */
         movq    Handler_parent(%r11), %r10
         movq    Stack_exception(%r10), %r11
-        movq    %r10, Caml_state(current_stack)
+        movq    %r10, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
         movq    %r11, Caml_state(exn_handler)
     /* Restore all local allocations state for the new stack */
         movq    Stack_local_sp(%r10), %r11

@@ -101,6 +101,8 @@ CAML_STATIC_ASSERT(sizeof(struct stack_info) ==
  * +------------------------+ <--- Caml_state->current_stack
  */
 
+#define Stack_threshold_offset ((Stack_threshold_words + Stack_ctx_words) * sizeof(value))
+
 /* Some ABI reserve space at the bottom of every C stack frame. */
 
 #if defined(TARGET_amd64) && (defined(_WIN32) || defined(__CYGWIN__))

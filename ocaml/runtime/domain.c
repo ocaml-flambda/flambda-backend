@@ -655,6 +655,7 @@ static void domain_create(uintnat initial_minor_heap_wsize) {
 
   domain_state->current_stack =
       caml_alloc_main_stack(stack_wsize);
+  domain_state->current_stack_bound = domain_state->current_stack + Stack_threshold_offset;
   if(domain_state->current_stack == NULL) {
     goto alloc_main_stack_failure;
   }

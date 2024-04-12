@@ -92,6 +92,7 @@ struct caml_thread_struct {
   struct caml_thread_struct * prev;
   int domain_id;      /* The id of the domain to which this thread belongs */
   struct stack_info* current_stack;      /* saved Caml_state->current_stack */
+  struct stack_info* current_stack_bound;      /* saved Caml_state->current_stack_bound */
   struct c_stack_link* c_stack;          /* saved Caml_state->c_stack */
   /* Note: we do not save Caml_state->stack_cache, because it can
      safely be shared between all threads on the same domain. */
@@ -249,6 +250,7 @@ static void save_runtime_state(void)
   caml_thread_t th = Active_thread;
   CAMLassert(th != NULL);
   th->current_stack = Caml_state->current_stack;
+  th->current_stack_bound = Caml_state->current_stack_bound;
   th->c_stack = Caml_state->c_stack;
   th->gc_regs = Caml_state->gc_regs;
   th->gc_regs_buckets = Caml_state->gc_regs_buckets;
@@ -278,6 +280,7 @@ static void restore_runtime_state(caml_thread_t th)
   CAMLassert(th != NULL);
   Active_thread = th;
   Caml_state->current_stack = th->current_stack;
+  Caml_state->current_stack_bound = th->current_stack_bound;
   Caml_state->c_stack = th->c_stack;
   Caml_state->gc_regs = th->gc_regs;
   Caml_state->gc_regs_buckets = th->gc_regs_buckets;
@@ -375,6 +378,7 @@ static caml_thread_t caml_thread_new_info(void)
     caml_stat_free(th);
     return NULL;
   }
+  th->current_stack_bound = th->current_stack + Stack_threshold_offset;
   th->c_stack = NULL;
   th->local_roots = NULL;
   th->local_arenas = NULL;
