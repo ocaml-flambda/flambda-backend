@@ -56,6 +56,7 @@ open Parsetree
 (** {1 A generic Parsetree mapper} *)
 
 type mapper = {
+  argument: mapper -> argument -> argument;
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
   modes : mapper -> modes -> modes;

@@ -2457,7 +2457,9 @@ let package_subtype env p1 fl1 p2 fl2 =
     | Tcoerce_none -> true
     | _ | exception Includemod.Error _ -> false
 
-let () = Ctype.package_subtype := package_subtype
+let () =
+  Ctype.package_subtype := package_subtype;
+  Ctype.modtype_of_package := modtype_of_package
 
 let wrap_constraint_package env mark arg mty explicit =
   let mark = if mark then Includemod.Mark_both else Includemod.Mark_neither in

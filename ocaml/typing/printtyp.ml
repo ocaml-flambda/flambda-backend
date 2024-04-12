@@ -690,6 +690,9 @@ and raw_type_desc ppf = function
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
+  | Tfunctor (name, (p, fl), ty) ->
+      fprintf ppf "@[<hov1>Tfunctor(%s,@,(%a,@,%a),@,%a)@]"
+        (Ident.name name) path p raw_lid_type_list fl raw_type ty
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -1226,6 +1229,32 @@ end = struct
     weak_var_map := m
 end
 
+let wrap_env fenv ftree arg =
+  (* We save the current value of the short-path cache *)
+  (* From keys *)
+  let env = !printing_env in
+  let old_pers = !printing_pers in
+  (* to data *)
+  let old_map = !printing_map in
+  let old_depth = !printing_depth in
+  let old_cont = !printing_cont in
+  set_printing_env (fenv env);
+  let tree = ftree arg in
+  if !Clflags.real_paths
+     || same_printing_env env then ()
+   (* our cached key is still live in the cache, and we want to keep all
+      progress made on the computation of the [printing_map] *)
+  else begin
+    (* we restore the snapshotted cache before calling set_printing_env *)
+    printing_old := env;
+    printing_pers := old_pers;
+    printing_depth := old_depth;
+    printing_cont := old_cont;
+    printing_map := old_map
+  end;
+  set_printing_env env;
+  tree
+
 let reserve_names ty =
   normalize_type ty;
   Names.add_named_vars ty
@@ -1522,13 +1551,17 @@ let rec tree_of_typexp mode alloc_mode ty =
     | Tunivar _ ->
         Otyp_var (false, Names.name_of_type Names.new_name tty)
     | Tpackage (p, fl) ->
-        let fl =
-          List.map
-            (fun (li, ty) -> (
-              String.concat "." (Longident.flatten li),
-              tree_of_typexp mode Alloc.Const.legacy ty
-            )) fl in
+        let fl = tree_of_pack_fields mode fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
+    | Tfunctor (id, (p, fl), ty) ->
+        let fenv env =
+          let mty = !Ctype.modtype_of_package env Location.none p fl in
+          Env.add_module ~arg:true id Mp_present mty env
+        in
+        let ty = wrap_env fenv (tree_of_typexp mode Alloc.Const.legacy) ty in
+        let fl = tree_of_pack_fields mode fl in
+        Otyp_functor (Oide_ident { printed_name = Ident.name id },
+                      (tree_of_path (Some Module_type) p, fl), ty)
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
   alias_nongen_row mode px ty;
@@ -1540,6 +1573,13 @@ let rec tree_of_typexp mode alloc_mode ty =
     let alias = Names.name_of_type (Names.new_var_name ~non_gen ty) px in
     Otyp_alias {non_gen;  aliased = pr_typ (); alias } end
   else pr_typ ()
+
+and tree_of_pack_fields mode fl =
+  List.map
+    (fun (li, ty) -> (
+      String.concat "." (Longident.flatten li),
+      tree_of_typexp mode Alloc.Const.legacy ty
+    )) fl
 
 (* qtvs = quantified type variables *)
 (* this silently drops any arguments that are not generic Tvar or Tunivar *)
@@ -2356,32 +2396,6 @@ let cltype_declaration id ppf cl =
 
 (* Print a module type *)
 
-let wrap_env fenv ftree arg =
-  (* We save the current value of the short-path cache *)
-  (* From keys *)
-  let env = !printing_env in
-  let old_pers = !printing_pers in
-  (* to data *)
-  let old_map = !printing_map in
-  let old_depth = !printing_depth in
-  let old_cont = !printing_cont in
-  set_printing_env (fenv env);
-  let tree = ftree arg in
-  if !Clflags.real_paths
-     || same_printing_env env then ()
-   (* our cached key is still live in the cache, and we want to keep all
-      progress made on the computation of the [printing_map] *)
-  else begin
-    (* we restore the snapshotted cache before calling set_printing_env *)
-    printing_old := env;
-    printing_pers := old_pers;
-    printing_depth := old_depth;
-    printing_cont := old_cont;
-    printing_map := old_map
-  end;
-  set_printing_env env;
-  tree
-
 let dummy =
   {
     type_params = [];
@@ -2997,6 +3011,11 @@ let explain_escape pre = function
       dprintf
         "%t@,@[The module type@;<1 2>%a@ would escape its scope@]"
         pre (Style.as_inline_code path) p
+    )
+  | Errortrace.Module p -> Some(
+      dprintf
+        "%t@,@[The module@;<1 2>%a@ would escape its scope@]"
+        pre path p
     )
   | Errortrace.Equation Errortrace.{ty = _; expanded = t} ->
       reserve_names t;

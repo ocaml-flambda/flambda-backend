@@ -236,6 +236,11 @@ let rec core_type i ppf x =
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Ptyp_functor (id, (p, fl), ty) ->
+      line i ppf "Ptyp_functor\n";
+      line i ppf "%s : %a\n" id.txt fmt_longident_loc p;
+      list i package_with ppf fl;
+      core_type i ppf ty
   )
 
 and package_with i ppf (s, t) =
@@ -306,6 +311,10 @@ and pattern i ppf x =
       payload i ppf arg
   )
 
+and argument i ppf = function
+  | Parg_expr e -> expression i ppf e
+  | Parg_module _ -> assert false (* TODO *)
+
 and expression i ppf x =
   with_location_mapping ~loc:x.pexp_loc ppf (fun () ->
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
@@ -326,7 +335,7 @@ and expression i ppf x =
   | Pexp_apply (e, l) ->
       line i ppf "Pexp_apply\n";
       expression i ppf e;
-      list i label_x_expression ppf l;
+      list i label_x_argument ppf l;
   | Pexp_match (e, l) ->
       line i ppf "Pexp_match\n";
       expression i ppf e;
@@ -475,6 +484,7 @@ and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
       arg_label (i+1) ppf l;
       option (i+1) expression ppf eo;
       pattern (i+1) ppf p
+  | Pparam_module _ -> assert false (* TODO *)
   | Pparam_newtype (ty, jkind) ->
       line i ppf "Pparam_newtype \"%s\" %a\n" ty.txt fmt_location loc;
       option (i+1)
@@ -1094,6 +1104,11 @@ and label_x_expression i ppf (l,e) =
   arg_label i ppf l;
   expression (i+1) ppf e;
 
+and label_x_argument i ppf (l,e) =
+    line i ppf "<arg>\n";
+    arg_label i ppf l;
+    argument (i+1) ppf e;
+  
 and label_x_bool_x_core_type_list i ppf x =
   match x.prf_desc with
     Rtag (l, b, ctl) ->

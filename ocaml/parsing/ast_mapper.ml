@@ -30,6 +30,7 @@ open Location
 module String = Misc.Stdlib.String
 
 type mapper = {
+  argument: mapper -> argument -> argument;
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
   modes : mapper -> modes -> modes;
@@ -226,6 +227,10 @@ module T = struct
     | Ptyp_open (mod_ident, t) ->
         open_ ~loc ~attrs (map_loc sub mod_ident) (sub.typ sub t)
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
+    | Ptyp_functor (s, (lid, l), t) ->
+        functor_ ~loc ~attrs (map_loc sub s)
+          (map_loc sub lid, List.map (map_tuple (map_loc sub) (sub.typ sub)) l)
+          (sub.typ sub t)
 
   let map_type_declaration sub
      ({ptype_name; ptype_params; ptype_cstrs;
@@ -587,6 +592,7 @@ module E = struct
       match desc with
       | Pparam_val (label, def, pat) ->
           Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
+      | Pparam_module _ -> assert false (* Will be removed *)
       | Pparam_newtype (newtype, jkind) ->
           Pparam_newtype
             ( map_loc sub newtype
@@ -690,7 +696,8 @@ module E = struct
         (map_opt (map_function_constraint sub) c)
         (map_function_body sub b)
     | Pexp_apply (e, l) ->
-        apply ~loc ~attrs (sub.expr sub e) (List.map (map_snd (sub.expr sub)) l)
+        apply ~loc ~attrs (sub.expr sub e)
+          (List.map (map_snd (sub.argument sub)) l)
     | Pexp_match (e, pel) ->
         match_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_try (e, pel) -> try_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
@@ -765,6 +772,10 @@ module E = struct
     let exp = sub.expr sub pbop_exp in
     let loc = sub.location sub pbop_loc in
     binding_op op pat exp loc
+
+  let map_argument sub = function
+    | Parg_expr e -> Exp.arg_expr (sub.expr sub e)
+    | Parg_module me -> Exp.arg_mod (sub.module_expr sub me)
 
 end
 
@@ -948,6 +959,7 @@ let default_mapper =
     pat = P.map;
     expr = E.map;
     binding_op = E.map_binding_op;
+    argument = E.map_argument;
 
     module_declaration =
       (fun this {pmd_name; pmd_type; pmd_attributes; pmd_loc} ->

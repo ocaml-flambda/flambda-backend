@@ -18,6 +18,7 @@ open Typedtree
 
 type iterator =
   {
+    argument: iterator -> argument -> unit;
     attribute: iterator -> attribute -> unit;
     attributes: iterator -> attributes -> unit;
     binding_op: iterator -> binding_op -> unit;
@@ -293,6 +294,9 @@ let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
     fp_newtypes;
   match fp_kind with
   | Tparam_pat pat -> sub.pat sub pat
+  | Tparam_module (pat, pack) ->
+      sub.pat sub pat;
+      sub.package_type sub pack
   | Tparam_optional_default (pat, default_arg, _) ->
       sub.pat sub pat;
       sub.expr sub default_arg
@@ -330,7 +334,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_apply (exp, list, _, _, _) ->
       sub.expr sub exp;
       List.iter (function
-        | (_, Arg (exp, _)) -> sub.expr sub exp
+        | (_, Arg arg) -> sub.argument sub arg
         | (_, Omitted _) -> ())
         list
   | Texp_match (exp, _, cases, _) ->
@@ -437,6 +441,11 @@ let binding_op sub {bop_loc; bop_op_name; bop_exp; _} =
   sub.location sub bop_loc;
   iter_loc sub bop_op_name;
   sub.expr sub bop_exp
+
+let argument sub = function
+  | Targ_module me -> sub.module_expr sub me
+  | Targ_expr (e, _) ->
+      sub.expr sub e
 
 let signature sub {sig_items; sig_final_env; _} =
   sub.env sub sig_final_env;
@@ -655,6 +664,9 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       iter_loc sub mod_ident;
       sub.typ sub t
   | Ttyp_call_pos -> ()
+  | Ttyp_functor (_, pack, ct) ->
+      sub.package_type sub pack;
+      sub.typ sub ct
 
 let class_structure sub {cstr_self; cstr_fields; _} =
   sub.pat sub cstr_self;
@@ -713,6 +725,7 @@ let item_declaration _sub _ = ()
 
 let default_iterator =
   {
+    argument;
     attribute;
     attributes;
     binding_op;

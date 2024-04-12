@@ -57,6 +57,7 @@ let bind_cases l =
 let bind_function_param loc fp =
   match fp.fp_kind with
   | Tparam_pat pat -> bind_variables loc pat
+  | Tparam_module (pat, _) -> bind_variables loc pat
   | Tparam_optional_default (pat, _, _) -> bind_variables loc pat
 
 let record_module_binding scope mb =
