@@ -31,12 +31,13 @@
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let is_nontail_call : Cfg.terminator -> bool = fun term_desc ->
+let is_nontail_call : Cfg.terminator -> bool =
+ fun term_desc ->
   match term_desc with
   | Call_no_return _ | Call _ -> true
-  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-  | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim _ | Specific_can_raise _ ->
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Prim _
+  | Specific_can_raise _ ->
     false
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
@@ -187,31 +188,21 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
   | to_cover ->
     let label = find_stack_check_block tree ~to_cover ~num_checks ~loop_infos in
     let block = Cfg.get_block_exn cfg label in
-    let stack_offset =
-      Cfg.first_instruction_stack_offset block
-    in
+    let stack_offset = Cfg.first_instruction_stack_offset block in
     let check : Cfg.basic Cfg.instruction =
-      (* CR mshinwell: I'm surprised there isn't a creation function for these,
-         maybe this is a good time to add one? *)
-      { desc = Stack_check { max_frame_size_bytes = max_frame_size };
-        arg = [||];
-        res = [||];
-        dbg = Debuginfo.none;
-        fdo = Fdo_info.none;
-        live = Reg.Set.empty;
-        stack_offset;
-        id = succ max_instr_id;
-        irc_work_list = Unknown_list;
-        ls_order = 0;
-        (* CR xclerc for xclerc: double check `available_before` and
-           `available_across`.
+      (* CR xclerc for xclerc: double check `available_before` and
+         `available_across`.
 
-           mshinwell: having these as None should be fine, so long as this is
-           run before the forthcoming Cfg_available_regs (which it probably
-           should be)? *)
-        available_before = None;
-        available_across = None
-      }
+         mshinwell: having these as None should be fine, so long as this is run
+         before the forthcoming Cfg_available_regs (which it probably should
+         be)?
+
+         xclerc: (keeping the comment, and the explicit values below until all
+         of that is implemented.) *)
+      Cfg.make_instruction ()
+        ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
+        ~stack_offset ~id:(succ max_instr_id) ~available_before:None
+        ~available_across:None
     in
     DLL.add_begin block.body check
 

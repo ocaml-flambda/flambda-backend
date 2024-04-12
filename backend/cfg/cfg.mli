@@ -187,3 +187,19 @@ val string_of_irc_work_list : irc_work_list -> string
 val dump_basic : Format.formatter -> basic -> unit
 
 val dump_terminator : ?sep:string -> Format.formatter -> terminator -> unit
+
+val make_instruction :
+  desc:'a ->
+  ?arg:Reg.t array ->
+  ?res:Reg.t array ->
+  ?dbg:Debuginfo.t ->
+  ?fdo:Fdo_info.t ->
+  ?live:Reg.Set.t ->
+  stack_offset:int ->
+  id:int ->
+  ?irc_work_list:irc_work_list ->
+  ?ls_order:int ->
+  ?available_before:Reg_availability_set.t option ->
+  ?available_across:Reg_availability_set.t option ->
+  unit ->
+  'a instruction
