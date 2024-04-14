@@ -639,12 +639,14 @@ type check_attribute = Builtin_attributes.check_attribute =
   | Check of { property: property;
                strict: bool;
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =

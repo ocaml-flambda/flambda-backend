@@ -1980,11 +1980,43 @@ let tree_of_value_description id decl =
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
   let qtvs = extract_qtvs [decl.val_type] in
+  let apparent_arity =
+    let rec count n typ =
+      match get_desc typ with
+      | Tarrow (_,_,typ,_) -> count (n+1) typ
+      | _ -> n
+    in
+    count 0 decl.val_type
+  in
+  let attrs =
+    match decl.val_zero_alloc with
+    | Default_check | Ignore_assert_all _ -> []
+    | Check { strict; opt; arity; _ } ->
+      [{ oattr_name =
+           String.concat ""
+             ["zero_alloc";
+              if strict then " strict" else "";
+              if opt then " opt" else "";
+              if arity = apparent_arity then "" else
+                Printf.sprintf " (arity %d)" arity;
+             ] }]
+    | Assume { strict; never_returns_normally; arity; _ } ->
+      [{ oattr_name =
+           String.concat ""
+             ["zero_alloc assume";
+              if strict then " strict" else "";
+              if never_returns_normally then " never_returns_normally" else "";
+              if arity = apparent_arity then "" else
+                Printf.sprintf " (arity %d)" arity;
+             ]
+       }]
+  in
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
       oval_prims = [];
-      oval_attributes = [] }
+      oval_attributes = attrs
+    }
   in
   let vd =
     match decl.val_kind with

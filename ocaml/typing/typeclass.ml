@@ -489,6 +489,7 @@ let enter_ancestor_met ~loc name ~sign ~meths ~cl_num ~ty ~attrs met_env =
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -504,6 +505,7 @@ let add_self_met loc id sign self_var_kind vars cl_num
   let desc =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
+      val_zero_alloc = Builtin_attributes.Default_check;
       Types.val_loc = loc;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
@@ -520,6 +522,7 @@ let add_instance_var_met loc label id sign cl_num attrs met_env =
     { val_type = ty; val_kind = kind;
       val_attributes = attrs;
       Types.val_loc = loc;
+      val_zero_alloc = Builtin_attributes.Default_check;
       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
   in
   Env.add_value id desc met_env
@@ -1416,7 +1419,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         List.fold_right
           (fun (id, modes_and_sorts) (vals, met_env) ->
              List.iter
-               (fun (loc, mode, sort) ->
+               (fun (loc, mode, sort, _) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
                   if not (Jkind.Sort.(equate sort value))
                   then
@@ -1447,6 +1450,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                {val_type = expr.exp_type;
                 val_kind = Val_ivar (Immutable, cl_num);
                 val_attributes = [];
+                val_zero_alloc = Builtin_attributes.Default_check;
                 Types.val_loc = vd.val_loc;
                 val_uid = vd.val_uid;
                }
@@ -1455,7 +1459,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              ((id', expr)
               :: vals,
               Env.add_value id' desc met_env))
-          (let_bound_idents_with_modes_and_sorts defs)
+          (let_bound_idents_with_modes_sorts_and_checks defs)
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in

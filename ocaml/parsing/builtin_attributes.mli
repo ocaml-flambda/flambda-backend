@@ -251,17 +251,21 @@ type check_attribute =
                   exceptional returns or diverging loops are ignored).
                   This definition may not be applicable to new properties. *)
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 val is_check_enabled : opt:bool -> property -> bool
 
-val get_property_attribute : Parsetree.attributes -> property -> check_attribute
+val get_property_attribute :
+  is_arity_allowed:bool -> default_arity:int -> Parsetree.attributes ->
+  property -> check_attribute
 
 val assume_zero_alloc :
   is_check_allowed:bool -> check_attribute -> Zero_alloc_utils.Assume_info.t

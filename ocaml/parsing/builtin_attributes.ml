@@ -685,12 +685,14 @@ type check_attribute =
   | Check of { property: property;
                strict: bool;
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 let is_check_enabled ~opt property =
@@ -808,32 +810,113 @@ let parse_ids_payload txt loc ~default ~empty cases payload =
       | Some r -> r
       | None -> warn ()
 
-let parse_property_attribute attr property =
+(* Looks for `(arity n)` in payload. If present, this returns `n` and an updated
+   payload with `(arity n)` removed *)
+let parse_arity payload =
+  let open Parsetree in
+  let is_arity exp =
+    match exp.pexp_desc with
+    | Pexp_apply (exp_fun, [Nolabel, exp_arg]) ->
+      begin match exp_fun.pexp_desc, exp_arg.pexp_desc with
+      | Pexp_ident {txt = Lident "arity"; _},
+        Pexp_constant (Pconst_integer (s,None)) -> Some (int_of_string s)
+      | _ -> None
+      end
+    | _ -> None
+  in
+  let rec find_arity_in_args acc args =
+    (* Scan a list of arguments for one that is the arity clause.  If found,
+       return the arity and the rest of the args. *)
+    match args with
+    | [] | ((Labelled _ | Optional _), _) :: _ ->
+      (* If the payload contains any labeled or optional args, it will be
+         rejected later, and we just leave it alone. *)
+      None
+    | (Nolabel, exp1) as arg1 :: args ->
+      begin match is_arity exp1 with
+      | Some n -> Some (n, (List.rev acc) @ args)
+      | None -> find_arity_in_args (arg1 :: acc) args
+      end
+  in
+  match payload with
+  | PStr [{pstr_desc = Pstr_eval (exp, []); pstr_loc}] ->
+    let new_payload pexp_desc =
+      let new_exp =
+        { pexp_desc; pexp_loc = exp.pexp_loc; pexp_loc_stack = [];
+          pexp_attributes = [] }
+      in
+      PStr [{pstr_desc = Pstr_eval (new_exp, []); pstr_loc}]
+    in
+    begin match is_arity exp with
+    | Some n ->
+      (* payload is (arity n) by itself *)
+      Some (n, PStr [])
+    | None ->
+      begin match exp.pexp_desc with
+      | Pexp_apply (exp, args) ->
+        begin match find_arity_in_args [] ((Nolabel, exp) :: args) with
+        | Some (n, (Nolabel, exp1) :: args) ->
+          (* payload includes (arity n) somewhere *)
+          let new_exp =
+            if List.length args = 0
+            then exp1.pexp_desc
+            else Pexp_apply (exp1, args)
+          in
+          Some (n, new_payload new_exp)
+        | Some (_, ((Labelled _ | Optional _), _) :: _) -> None
+        | Some (_, []) ->
+          Misc.fatal_error "Builtin_attributes.parse_arity: illegal application"
+        | None -> None
+        end
+      | _ -> None
+      end
+    end
+  | _ -> None
+
+let parse_property_attribute ~is_arity_allowed ~default_arity attr property =
   match attr with
   | None -> Default_check
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      let payload, arity =
+        match parse_arity payload with
+        | None -> payload, default_arity
+        | Some (user_arity, payload) ->
+          if is_arity_allowed then
+            payload, user_arity
+          else
+            (warn_payload loc txt
+               "The \"arity\" field is only supported on \"zero_alloc\" in \
+                signatures";
+             payload, default_arity)
+      in
       parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Check { property; strict = false; opt = false; loc; } )
+        ~empty:(Check { property; strict = false; opt = false; arity; loc; } )
         [
-          ["assume"],
-          Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; opt = false; loc; };
-          ["opt"], Check { property; strict = false; opt = true; loc; };
-          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
-          ["assume"; "strict"],
-          Assume { property; strict = true; never_returns_normally = false; loc; };
-          ["assume"; "never_returns_normally"],
-          Assume { property; strict = false; never_returns_normally = true; loc; };
-          ["assume"; "never_returns_normally"; "strict"],
-          Assume { property; strict = true; never_returns_normally = true; loc; };
-          ["ignore"], Ignore_assert_all property
+          (["assume"],
+           Assume { property; strict = false; never_returns_normally = false;
+                    arity; loc; });
+          (["strict"],
+           Check { property; strict = true; opt = false; arity; loc; });
+          (["opt"], Check { property; strict = false; opt = true; arity; loc; });
+          (["opt"; "strict"; ],
+           Check { property; strict = true; opt = true; arity; loc; });
+          (["assume"; "strict"],
+           Assume { property; strict = true; never_returns_normally = false;
+                    arity; loc; });
+          (["assume"; "never_returns_normally"],
+           Assume { property; strict = false; never_returns_normally = true;
+                    arity; loc; });
+          (["assume"; "never_returns_normally"; "strict"],
+           Assume { property; strict = true; never_returns_normally = true;
+                    arity; loc; });
+          (["ignore"], Ignore_assert_all property)
         ]
         payload
 
-let get_property_attribute l p =
+let get_property_attribute ~is_arity_allowed ~default_arity l p =
   let attr = find_attribute (is_property_attribute p) l in
-  let res = parse_property_attribute attr p in
+  let res = parse_property_attribute ~is_arity_allowed ~default_arity attr p in
   (match attr, res with
    | None, Default_check -> ()
    | _, Default_check -> ()
