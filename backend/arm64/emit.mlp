@@ -507,7 +507,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Itailcall_imm { func; _ }) ->
       if func.sym_name = !function_name then 1 else epilogue_size ()
     | Lop (Iextcall {alloc; stack_ofs} ) ->
-      if stack_ofs > 0 then 5
+      if Config.runtime5 && stack_ofs > 0 then 5
       else if alloc then 3
       else 5
     | Lop (Istackoffset _) -> 2
@@ -818,7 +818,7 @@ let emit_instr i =
         else
           output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
     | Lop(Iextcall {func; alloc; stack_ofs}) ->
-        if stack_ofs > 0 then begin
+        if Config.runtime5 && stack_ofs > 0 then begin
           `	mov	{emit_reg reg_stack_arg_begin}, sp\n`;
           `	add	{emit_reg reg_stack_arg_end}, sp, #{emit_int (Misc.align stack_ofs 16)}\n`;
           emit_load_symbol_addr reg_x8 func;
@@ -832,14 +832,18 @@ let emit_instr i =
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
-          `	mov	x29, sp\n`;
-          cfi_remember_state ();
-          cfi_def_cfa_register ~reg:29;
-          let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
-          `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
-             `	mov	sp, {emit_reg reg_tmp1}\n`;
+          if Config.runtime5 then begin
+            `	mov	x29, sp\n`;
+            cfi_remember_state ();
+            cfi_def_cfa_register ~reg:29;
+            let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
+            `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
+              `	mov	sp, {emit_reg reg_tmp1}\n`
+          end;
           `	bl	{emit_symbol func}\n`;
-          `	mov	sp, x29\n`;
+          if Config.runtime5 then begin
+            `	mov	sp, x29\n`;
+          end;
           cfi_restore_state ()
         end
     | Lop(Istackoffset n) ->
