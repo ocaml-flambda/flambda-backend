@@ -1,5 +1,5 @@
 (* TEST
-* runtime4
+ runtime4;
 *)
 
 open Gc.Memprof

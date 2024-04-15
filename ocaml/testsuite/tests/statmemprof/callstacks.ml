@@ -1,24 +1,24 @@
-(* TEST
-   flags = "-g -w -5"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-   * flat-float-array
-     reference = "${test_source_directory}/callstacks.flat-float-array.reference"
-   ** runtime4
-   *** flambda2
-   **** native
 
-   * flat-float-array
-     reference = "${test_source_directory}/callstacks.flat-float-array.bytecode.reference"
-   ** runtime4
-   *** flambda2
-   **** bytecode
 
-   * no-flat-float-array
-     reference = "${test_source_directory}/callstacks.no-flat-float-array.reference"
-   ** runtime4
-   *** flambda2
-   **** native
-   **** bytecode
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 *)
 
 open Gc.Memprof
@@ -106,3 +106,30 @@ let test alloc =
 
 let () =
   List.iter test allocators
+
+(* TEST
+ flags = "-g -w -5";
+ {
+   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
+   flat-float-array;
+   runtime4;
+   flambda2;
+   native;
+ }{
+   reference = "${test_source_directory}/callstacks.flat-float-array.bytecode.reference";
+   flat-float-array;
+   runtime4;
+   flambda2;
+   bytecode;
+ }{
+   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
+   no-flat-float-array;
+   runtime4;
+   flambda2;
+   {
+     native;
+   }{
+     bytecode;
+   }
+ }
+*)

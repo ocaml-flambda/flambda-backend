@@ -1,6 +1,7 @@
   (* TEST
-   flags += "-extension unique"
- * expect *)
+ flags += "-extension unique";
+ expect;
+*)
 
 (* This file is to test uniqueness_analysis.ml *)
 

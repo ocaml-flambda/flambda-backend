@@ -1,7 +1,7 @@
 (* TEST
-   modules = "stub.c"
-   * not-windows
-   ** native
+ modules = "stub.c";
+ not-windows;
+ native;
 *)
 
 type t

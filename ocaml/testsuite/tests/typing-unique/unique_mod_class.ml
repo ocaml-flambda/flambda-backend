@@ -1,6 +1,6 @@
 (* TEST
-   flags += "-extension unique"
- * expect
+ flags += "-extension unique";
+ expect;
 *)
 
 (* This file tests the interaction between a module/class and its surrounding environment *)

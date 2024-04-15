@@ -1,7 +1,7 @@
 (* TEST
-   * stack-allocation
-   ** native
- *)
+ stack-allocation;
+ native;
+*)
 
 open Printexc
 

@@ -1,6 +1,6 @@
 (* TEST
-   flags += "-extension unique"
- * expect
+ flags += "-extension unique";
+ expect;
 *)
 
 (* unique means the value is the only usage *)

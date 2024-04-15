@@ -1,7 +1,6 @@
 (* TEST
-   * skip
-
- *)
+ skip;
+*)
 
 open Effect
 open Effect.Shallow

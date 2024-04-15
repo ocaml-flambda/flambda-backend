@@ -1,7 +1,7 @@
 (* TEST
-   flags = "-I ${ocamlsrcdir}/utils"
-   include ocamlcommon
- * expect
+ flags = "-I ${ocamlsrcdir}/utils";
+ include ocamlcommon;
+ expect;
 *)
 
 let check_tag name left right =

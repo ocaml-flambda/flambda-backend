@@ -1,5 +1,6 @@
 (* TEST
- * expect *)
+ expect;
+*)
 
 type ('a, 'b) bar0 = Bar0 of 'a * 'b
 type bar = (int, string) bar0

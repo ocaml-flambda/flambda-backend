@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 type 'a pair = Pair of 'a * 'a

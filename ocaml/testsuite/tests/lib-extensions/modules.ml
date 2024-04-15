@@ -1,10 +1,13 @@
 (* TEST
-include upstream_compatible
-include stable
-include beta
-include alpha
-* bytecode
-* native
+ include upstream_compatible;
+ include stable;
+ include beta;
+ include alpha;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* Check that extension library modules exist. *)

@@ -1,5 +1,6 @@
 (* TEST
-   * expect *)
+ expect;
+*)
 
 let leak n =
   let r = local_ ref n in

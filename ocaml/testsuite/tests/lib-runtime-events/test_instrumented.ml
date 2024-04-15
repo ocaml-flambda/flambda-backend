@@ -1,11 +1,14 @@
 (* TEST
-* runtime4
-** skip
-* runtime5
-   include runtime_events
-   flags = "-runtime-variant=i"
-   ** instrumented-runtime
-   *** native
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   flags = "-runtime-variant=i";
+   runtime5;
+   instrumented-runtime;
+   native;
+ }
 *)
 
 open Runtime_events

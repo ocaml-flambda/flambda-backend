@@ -1,11 +1,11 @@
-(* TEST
-   flags = "-g"
-   * runtime4
-   ** flambda2
-   *** bytecode
-     reference = "${test_source_directory}/comballoc.byte.reference"
-   *** native
-     reference = "${test_source_directory}/comballoc.opt.reference"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
 *)
 
 [@@@ocaml.flambda_o3]
@@ -93,3 +93,16 @@ let no_callback_after_stop trigger =
 let () =
   for i = 0 to 1000 do no_callback_after_stop i done;
   Printf.printf "OK\n"
+
+(* TEST
+ flags = "-g";
+ runtime4;
+ flambda2;
+ {
+   reference = "${test_source_directory}/comballoc.byte.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/comballoc.opt.reference";
+   native;
+ }
+*)

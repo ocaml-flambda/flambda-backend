@@ -1,10 +1,10 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
- * setup-ocamlopt.byte-build-env
- ** ocamlopt.byte
- *** check-ocamlopt.byte-output
- **** run
- ***** check-program-output
+
+
+
+
 *)
 
 (* Observe a case where a function's arity is a different notion
@@ -158,3 +158,11 @@ print_endline "f (): No exception.";;
 try f () () with
 | _ -> print_endline "f () (): Exception."
 ;;
+
+(* TEST
+ setup-ocamlopt.byte-build-env;
+ ocamlopt.byte;
+ check-ocamlopt.byte-output;
+ run;
+ check-program-output;
+*)

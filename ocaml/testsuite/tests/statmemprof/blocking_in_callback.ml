@@ -1,9 +1,12 @@
 (* TEST
-* hassysthreads
-include systhreads
-** runtime4
-*** bytecode
-*** native
+ include systhreads;
+ hassysthreads;
+ runtime4;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 let cnt = ref 0

@@ -1,14 +1,13 @@
 (* TEST
-
-readonly_files = "function_a.ml function_b.ml"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "function_a.ml"
-*** ocamlc.byte
-module = "function_b.ml"
-**** script
-script = "rm -f function_a.cmi"
-***** expect
+ readonly_files = "function_a.ml function_b.ml";
+ setup-ocamlc.byte-build-env;
+ module = "function_a.ml";
+ ocamlc.byte;
+ module = "function_b.ml";
+ ocamlc.byte;
+ script = "rm -f function_a.cmi";
+ script;
+ expect;
 *)
 
 #directory "ocamlc.byte";;

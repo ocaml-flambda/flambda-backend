@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension-universe upstream_compatible"
+ flags = "-extension-universe upstream_compatible";
+ expect;
 *)
 
 (* Upstream compatible usages of immediate/immediate64 are allowed *)
