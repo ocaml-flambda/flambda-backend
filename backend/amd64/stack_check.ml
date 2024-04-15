@@ -52,6 +52,7 @@ let linear : Linear.fundecl -> Linear.fundecl =
     let frame_size =
       frame_size ~stack_offset:0 ~frame_required:fundecl.fun_frame_required
         ~num_stack_slots:fundecl.fun_num_stack_slots
+        ~contains_calls:fundecl.fun_contains_calls
     in
     let { Emitaux.max_frame_size; contains_nontail_calls } =
       Emitaux.preproc_stack_check ~fun_body:fundecl.fun_body ~frame_size
