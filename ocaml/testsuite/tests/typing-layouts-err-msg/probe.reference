@@ -1,11 +1,11 @@
-File "probe.ml", line 12, characters 6-7:
-12 |   let f () = x in
+File "probe.ml", line 13, characters 6-7:
+13 |   let f () = x in
            ^
 Warning 26 [unused-var]: unused variable f.
 
-File "probe.ml", lines 11-14, characters 20-2:
-11 | ....................[%probe "a" (
-12 |   let f () = x in
-13 |   ()
-14 | )]
+File "probe.ml", lines 12-15, characters 20-2:
+12 | ....................[%probe "a" (
+13 |   let f () = x in
+14 |   ()
+15 | )]
 Error: Variables in probe handlers must have jkind value, but x in this handler does not.
