@@ -389,9 +389,9 @@ let emit_load_symbol_addr dst s =
 let num_call_gc_points instr =
   let rec loop instr call_gc =
     match instr.desc with
-    | Lend -> totals
-    | Lop (Ialloc _) when !fastcode_flag ->
-      loop instr.next (call_gc + 1, check_bound)
+    | Lend -> call_gc
+    | Lop (Ialloc { mode = Alloc_heap; _ }) when !fastcode_flag ->
+      loop instr.next (call_gc + 1)
     | Lop (Ipoll _) ->
       loop instr.next (call_gc + 1)
     (* The following four should never be seen, since this function is run
