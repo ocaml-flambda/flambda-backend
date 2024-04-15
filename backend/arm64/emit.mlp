@@ -206,6 +206,32 @@ let emit_local_realloc lr =
   `	bl	{emit_symbol "caml_call_local_realloc"}\n`;
   `	b	{emit_label lr.lr_return_lbl}\n`
 
+(* Local stack reallocation *)
+
+type stack_realloc = {
+  sc_label : Label.t; (* Label of the reallocation code. *)
+  sc_return : Label.t; (* Label to return to after reallocation. *)
+  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
+}
+
+let stack_realloc = ref (None : stack_realloc option)
+
+let clear_stack_realloc () =
+  stack_realloc := None
+
+let emit_stack_realloc () =
+  match !stack_realloc with
+  | None -> ()
+  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } ->
+    `{emit_label sc_label}:\n`;
+    (* Pass the desired frame size on the stack, since all of the
+       argument-passing registers may be in use. *)
+    `    mov {emit_reg reg_tmp1}, #{emit_int sc_max_frame_size_in_bytes}\n`;
+    `    stp {emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
+    `    bl {emit_symbol "caml_call_realloc_stack"}\n`;
+    `    ldp {emit_reg reg_tmp1}, x30, [sp], #16\n`;
+    `    b {emit_label sc_return}\n`
+
 (* Names of various instructions *)
 
 let name_for_comparison = function
@@ -564,7 +590,7 @@ module BR = Branch_relaxation.Make (struct
       | Lambda.Raise_reraise -> 1
       | Lambda.Raise_notrace -> 4
       end
-    | Lstackcheck _ -> assert false (* not supported *)
+    | Lstackcheck _ -> 5
 
   let relax_poll ~return_label =
     Lop (Ispecific (Ifar_poll { return_label }))
@@ -1137,7 +1163,23 @@ let emit_instr i =
           `	ldr	{emit_reg reg_trap_ptr}, [sp], 16\n`;
           `	br	{emit_reg reg_tmp1}\n`
       end
-    | Lstackcheck _ -> assert false (* not supported *)
+    | Lstackcheck { max_frame_size_bytes; } ->
+      let overflow = new_label () and ret = new_label () in
+      let threshold_offset =
+        Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size
+      in
+      let f = max_frame_size_bytes + threshold_offset in
+      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_addimm reg_tmp1 reg_tmp1 f;
+      `	cmp	sp, {emit_reg reg_tmp1}\n`;
+      `	bcc	{emit_label overflow}\n`;
+      `{emit_label ret}:`;
+      stack_realloc := Some {
+        sc_label = overflow;
+        sc_return = ret;
+        sc_max_frame_size_in_bytes = max_frame_size_bytes;
+      }
 
 (* Emission of an instruction sequence *)
 
@@ -1159,6 +1201,7 @@ let fundecl fundecl =
   stack_offset := 0;
   call_gc_sites := [];
   local_realloc_sites := [];
+  clear_stack_realloc ();
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1168,50 +1211,17 @@ let fundecl fundecl =
   `	.align	3\n`;
   `	.globl	{emit_symbol fundecl.fun_name}\n`;
   emit_symbol_type emit_symbol fundecl.fun_name "function";
-  (* Dynamic stack checking *)
-  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
-  let { max_frame_size; contains_nontail_calls} =
-    preproc_stack_check
-      ~fun_body:fundecl.fun_body ~frame_size:(frame_size ()) ~trap_size:16
-  in
-  let handle_overflow, stack_check_size =
-    if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
-      let overflow = new_label () in
-      `{emit_label overflow}:\n`;
-      (* Pass the desired frame size on the stack, since all of the
-        argument-passing registers may be in use. *)
-      let s = (Config.stack_threshold + max_frame_size / 8) in
-      `    mov {emit_reg reg_tmp1}, #{emit_int s}\n`;
-      `    stp {emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
-      `    bl {emit_symbol "caml_call_realloc_stack"}\n`;
-      `    ldp {emit_reg reg_tmp1}, x30, [sp], #16\n`;
-      (* fall through function entry point *)
-      Some overflow, 5
-    end else
-      None, 0 in
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
-  begin match handle_overflow with
-    | None -> ()
-    | Some overflow ->
-      let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
-      let f = max_frame_size + threshold_offset in
-      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
-      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-      emit_addimm reg_tmp1 reg_tmp1 f;
-      `	cmp	sp, {emit_reg reg_tmp1}\n`;
-      `	bcc	{emit_label overflow}\n`
-  end;
   let num_call_gc = num_call_gc_points fundecl.fun_body in
-  let max_out_of_line_code_offset =
-    stack_check_size + max_out_of_line_code_offset ~num_call_gc
-  in
+  let max_out_of_line_code_offset = max_out_of_line_code_offset ~num_call_gc in
   BR.relax fundecl.fun_body ~max_out_of_line_code_offset;
 
   emit_all fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
+  emit_stack_realloc ();
   assert (List.length !call_gc_sites = num_call_gc);
   (match fun_end_label with
    | None -> ()
