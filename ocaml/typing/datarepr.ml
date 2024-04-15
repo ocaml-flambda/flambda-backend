@@ -103,13 +103,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let cstr_arg_jkinds : Jkind.t array array =
     match rep with
     | Variant_extensible -> assert false
-    | Variant_boxed jkinds ->
-        Array.map (function
-          | Constructor_regular jkinds -> jkinds
-          | Constructor_mixed _ ->
-              (* CR mixed blocks: *)
-              assert false)
-          jkinds
+    | Variant_boxed cstrs_and_jkinds -> Array.map snd cstrs_and_jkinds
     | Variant_unboxed -> [| [| decl.type_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in

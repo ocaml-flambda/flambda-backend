@@ -291,11 +291,11 @@ and record_representation =
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of constructor_representation array
+  | Variant_boxed of (constructor_representation * Jkind.t array) array
   | Variant_extensible
 
 and constructor_representation =
-  | Constructor_regular of Jkind.t array
+  | Constructor_regular
   | Constructor_mixed of mixed_record_shape
 
 and label_declaration =
@@ -567,22 +567,37 @@ let equal_tag t1 t2 =
   | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
   | (Ordinary _ | Extension _), _ -> false
 
-let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
-  | Variant_unboxed, Variant_unboxed ->
-      true
-  | Variant_boxed _cstrs1, Variant_boxed _cstrs2 ->
-      (* CR mixed blocks: *)
-      assert false
-      (* Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Jkind.equal) lays1 lays2 *)
-  | Variant_extensible, Variant_extensible ->
-      true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
-      false
-
 let equal_flat_element e1 e2 =
   match e1, e2 with
   | Imm, Imm | Float64, Float64 | Float, Float -> true
   | (Imm | Float64 | Float), _ -> false
+
+let equal_mixed_record_shape r1 r2 = r1 == r2 ||
+  (* Warning 9 alerts us if we add another field *)
+  let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
+  and                { value_prefix_len = l2; flat_suffix = s2 } = r2
+  in
+  l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+
+let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Constructor_regular, Constructor_regular -> true
+  | Constructor_mixed mx1, Constructor_mixed mx2 ->
+      equal_mixed_record_shape mx1 mx2
+  | (Constructor_mixed _ | Constructor_regular), _ -> false
+
+let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Variant_unboxed, Variant_unboxed ->
+      true
+  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+          equal_constructor_representation cstr1 cstr2
+          && Misc.Stdlib.Array.equal Jkind.equal jkinds1 jkinds2)
+        cstrs_and_jkinds1
+        cstrs_and_jkinds2
+  | Variant_extensible, Variant_extensible ->
+      true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+      false
 
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
@@ -595,10 +610,7 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
-  | Record_mixed { value_prefix_len = l1; flat_suffix = s1 },
-    Record_mixed { value_prefix_len = l2; flat_suffix = s2 }
-    [@warning "+9"] (* get alerted if we add another field *) ->
-      l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
+  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_record_shape mx1 mx2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
     | Record_ufloat | Record_mixed _), _ ->
       false

@@ -453,26 +453,29 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
     end
-  | Variant_boxed _jkinds ->
+  | Variant_boxed cstrs_and_jkinds ->
     let depth = depth + 1 in
     let for_one_constructor (constructor : Types.constructor_declaration)
           ~depth ~num_nodes_visited =
       let num_nodes_visited = num_nodes_visited + 1 in
       match constructor.cd_args with
       | Cstr_tuple fields ->
-        let num_nodes_visited, fields =
+        let len, fields =
           List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
-               let num_nodes_visited = num_nodes_visited + 1 in
-               (* CR layouts v5: when we add other layouts, we'll need to check
-                  here that we aren't about to call value_kind on a different
-                  sort (we can get this info from the variant representation).
-                  For now we rely on the layout check at the top of value_kind
-                  to rule out void. *)
-               value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
-            num_nodes_visited fields
+            (fun idx (ty, _) ->
+               let num_nodes_visited = num_nodes_visited + idx in
+               let field =
+                match cstrs_and_jkinds.(idx) with
+                | Constructor_regular ->
+                    value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+                | Constructor_mixed mixed_record_shape ->
+                    Types.get_mixed_record_element mixed_record_shape i
+               in
+               idx + 1, fiel
+               )
+            0 fields
         in
-        (false, num_nodes_visited), fields
+        (false, num_nodes_visited + len), fields
       | Cstr_record labels ->
         List.fold_left_map
           (fun (is_mutable, num_nodes_visited)
