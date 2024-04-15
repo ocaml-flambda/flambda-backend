@@ -1,8 +1,7 @@
 (* TEST
- flags = "-extension layouts_alpha"
-
- * runtime5
- ** expect
+ flags = "-extension layouts_alpha";
+ runtime5;
+ expect;
 *)
 
 type rec_t = { rec_t : rec_t; x1 : float# }

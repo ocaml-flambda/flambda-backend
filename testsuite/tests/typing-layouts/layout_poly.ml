@@ -1,8 +1,11 @@
 (* TEST
-   * expect
-   flags = "-extension layouts"
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   flags = "-extension layouts";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 module F = Stdlib__Float_u

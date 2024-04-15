@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * toplevel
+ flags = "-extension layouts_alpha";
+ toplevel;
 *)
 
 type ('a : value) t0 = 'a list;;

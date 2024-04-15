@@ -1,8 +1,8 @@
 (* TEST
-  flags = "-extension layouts_alpha"
-  * runtime5
-  ** expect
- *)
+ flags = "-extension layouts_alpha";
+ runtime5;
+ expect;
+*)
 
 (* Mixed float-float# blocks are always OK. *)
 type t =

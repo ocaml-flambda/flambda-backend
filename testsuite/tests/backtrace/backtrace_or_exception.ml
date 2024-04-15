@@ -1,10 +1,10 @@
-(* TEST
-   flags = "-g"
-   ocamlrunparam += ",b=1"
-   * bytecode
-     reference = "${test_source_directory}/backtrace_or_exception.reference"
-   * native
-     reference = "${test_source_directory}/backtrace_or_exception.opt.reference"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
 *)
 
 exception Exn
@@ -50,3 +50,15 @@ let _ =
   run without_reraise;
   run with_reraise;
   run trickier
+
+(* TEST
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+ {
+   reference = "${test_source_directory}/backtrace_or_exception.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/backtrace_or_exception.opt.reference";
+   native;
+ }
+*)

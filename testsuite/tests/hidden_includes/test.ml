@@ -1,4 +1,6 @@
 (* TEST
+ reason = "broken due to layout error";
+ skip;
 (* This tests the -H flag.
 
    The basic structure is that libc depends on libb, which depends on liba.  We

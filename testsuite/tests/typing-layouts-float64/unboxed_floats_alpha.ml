@@ -1,11 +1,14 @@
 (* TEST
-   * runtime5
-   ** flambda2
-   reference = "${test_source_directory}/unboxed_floats_alpha.reference"
-   *** native
-     flags = "-extension layouts_alpha"
-   *** bytecode
-     flags = "-extension layouts_alpha"
+ runtime5;
+ reference = "${test_source_directory}/unboxed_floats_alpha.reference";
+ flambda2;
+ {
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }
 *)
 
 (* This should be read as a continuation of the [unboxed_floats.ml] test.

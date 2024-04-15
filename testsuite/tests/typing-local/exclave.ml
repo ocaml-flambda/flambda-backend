@@ -1,5 +1,6 @@
 (* TEST
- * expect *)
+ expect;
+*)
 
 (* typing tests *)
 

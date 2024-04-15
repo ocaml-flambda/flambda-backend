@@ -1,11 +1,14 @@
 (* TEST
-   modules = "test_c_thread_register_cstubs.c"
-   * skip
-   reason = "CR ocaml 5 domains: re-enable this test"
-   ** hassysthreads
-   include systhreads
-   *** bytecode
-   *** native
+ modules = "test_c_thread_register_cstubs.c";
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ include systhreads;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* spins a external thread from C and register it to the OCaml runtime *)

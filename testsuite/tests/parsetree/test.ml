@@ -1,6 +1,6 @@
 (* TEST
-   include ocamlcommon
-   readonly_files = "source.ml source_jane_street.ml"
+ include ocamlcommon;
+ readonly_files = "source.ml source_jane_street.ml";
 *)
 
 (* (c) Alain Frisch / Lexifi *)

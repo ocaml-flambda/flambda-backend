@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension unique"
+ flags = "-extension unique";
+ expect;
 *)
 
 (* Since [mutable] implies [global] modality, which in turns implies [shared]

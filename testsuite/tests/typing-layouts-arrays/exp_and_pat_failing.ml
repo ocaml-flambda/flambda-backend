@@ -1,13 +1,17 @@
 (* TEST
-   readonly_files = "float_u_array.ml"
-   modules = "${readonly_files}"
-   * flambda2
-   ** expect
-     flags = "-extension comprehensions -extension layouts_alpha"
-   ** expect
-     flags = "-extension comprehensions -extension layouts_beta"
-   ** expect
-     flags = "-extension comprehensions"
+ readonly_files = "float_u_array.ml";
+ modules = "${readonly_files}";
+ flambda2;
+ {
+   flags = "-extension comprehensions -extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension comprehensions -extension layouts_beta";
+   expect;
+ }{
+   flags = "-extension comprehensions";
+   expect;
+ }
 *)
 (* Failing array comprehension tests. Delete this file and move tests
    to [exp_and_pat.ml] when the feature is implemented.*)

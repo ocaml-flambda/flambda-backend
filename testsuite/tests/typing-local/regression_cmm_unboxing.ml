@@ -1,6 +1,6 @@
 (* TEST
-   * stack-allocation
-   ** native
+ stack-allocation;
+ native;
 *)
 
 (* Regression test for a bad interaction between Cmm unboxing

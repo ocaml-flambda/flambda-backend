@@ -1,9 +1,12 @@
 (* TEST
-* hassysthreads
-include systhreads
-** runtime4
-*** bytecode
-*** native
+ include systhreads;
+ hassysthreads;
+ runtime4;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* CR ocaml 5 statmemprof: Once statmemprof is ported, remove "runtime4" stanzas

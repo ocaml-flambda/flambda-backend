@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 let poly1 (id : 'a. 'a -> 'a) = id 3, id "three"

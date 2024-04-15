@@ -1,5 +1,5 @@
 (* TEST
-   * runtime5
+ runtime5;
 *)
 
 (* Test that inputting bytes from a closed in_channel triggers an exception *)

@@ -1,5 +1,5 @@
 (* TEST
-* runtime4
+ runtime4;
 *)
 module MP = Gc.Memprof
 

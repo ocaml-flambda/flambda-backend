@@ -1,5 +1,5 @@
 (* TEST
-    include ocamlcommon
+ include ocamlcommon;
 *)
 
 let mode_to_string (m : Jane_syntax.Mode_expr.t) =

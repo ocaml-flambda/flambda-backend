@@ -1,8 +1,8 @@
 (* TEST
-   ocamlc_byte_exit_status = "2"
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
-   *** check-ocamlc.byte-output
+ ocamlc_byte_exit_status = "2";
+ setup-ocamlc.byte-build-env;
+ ocamlc.byte;
+ check-ocamlc.byte-output;
 *)
 
 (* What happens if the user tries to write one of the pieces of Jane Street

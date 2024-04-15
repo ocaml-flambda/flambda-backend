@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension unique"
+ flags = "-extension unique";
+ expect;
 *)
 
 module Hidden_string : sig
