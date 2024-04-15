@@ -1201,11 +1201,13 @@ module Common (Obj : Obj) = struct
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
-  let get_floor m = Solver.get_floor obj m
+  module Guts = struct
+    let get_floor m = Solver.get_floor obj m
 
-  let get_ceil m = Solver.get_ceil obj m
+    let get_ceil m = Solver.get_ceil obj m
 
-  let get_conservative_floor m = Solver.get_conservative_floor obj m
+    let get_conservative_floor m = Solver.get_conservative_floor obj m
+  end
 end
 [@@inline]
 
@@ -1231,8 +1233,8 @@ module Locality = struct
   let zap_to_legacy = zap_to_floor
 
   let check_const m =
-    let floor = get_floor m in
-    let ceil = get_ceil m in
+    let floor = Guts.get_floor m in
+    let ceil = Guts.get_ceil m in
     if Const.le ceil floor then Some ceil else None
 end
 
