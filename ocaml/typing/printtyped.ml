@@ -188,10 +188,8 @@ let variant_representation i ppf = let open Types in function
     line i ppf "Variant_unboxed\n"
   | Variant_boxed cstrs ->
     line i ppf "Variant_boxed %a\n"
-      (* CR mixed blocks: *)
-      (array (i+1) (fun _ ppf -> function
-         | Constructor_regular jkinds -> jkind_array (i+1) ppf jkinds
-         | Constructor_mixed _ -> assert false))
+      (array (i+1) (fun _ ppf (_cstr, jkinds) ->
+         jkind_array (i+1) ppf jkinds))
       cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 

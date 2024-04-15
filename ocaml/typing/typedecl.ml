@@ -777,11 +777,13 @@ let transl_declaration env sdecl (id, uid) =
             Variant_boxed (
               Array.map
                 (fun cstr ->
-                   Constructor_regular (
+                   let jkinds =
                      match Types.(cstr.cd_args) with
                      | Cstr_tuple args ->
                        Array.make (List.length args) any
-                     | Cstr_record _ -> [| any |]))
+                     | Cstr_record _ -> [| any |]
+                   in
+                   Constructor_regular, jkinds)
                 (Array.of_list cstrs)
             ),
             Jkind.value ~why:Boxed_variant
@@ -1386,8 +1388,8 @@ let update_decl_jkind env dpath decl =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
           let arg_jkinds =
             match cstr_shapes.(idx) with
-            | Constructor_regular arg_jkinds -> arg_jkinds
-            | Constructor_mixed _ ->
+            | Constructor_regular, arg_jkinds -> arg_jkinds
+            | Constructor_mixed _, _ ->
                 fatal_error
                   "Typedecl.update_variant_kind doesn't expect mixed \
                    constructor as input"
@@ -1396,41 +1398,37 @@ let update_decl_jkind env dpath decl =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
               cstr.Types.cd_args arg_jkinds
           in
-          let arg_reprs =
-            let arg_types =
-              match cd_args with
-              | Cstr_tuple tys_and_modes -> List.map fst tys_and_modes
-              | Cstr_record lds -> List.map (fun ld -> ld.Types.ld_type) lds
-            in
-            List.mapi
-              (fun i arg_type ->
-                 Element_repr.classify env arg_type arg_jkinds.(i), i)
-              arg_types
-          in
           let flat_suffix =
-            Element_repr.mixed_product_flat_suffix arg_reprs
-              ~on_flat_field_expected:(fun ~non_value ~boxed ->
-                  match cd_args with
-                  | Cstr_tuple args ->
-                      let non_value, _ = List.nth args non_value
-                      and boxed, _     = List.nth args boxed
-                      in
+            let arg_jkinds = Array.to_list arg_jkinds in
+            match cd_args with
+            | Cstr_tuple arg_types_and_modes ->
+                let arg_reprs =
+                  List.map2 (fun (arg_type, _mode) arg_jkind ->
+                    Element_repr.classify env arg_type arg_jkind, arg_type)
+                    arg_types_and_modes arg_jkinds
+                in
+                Element_repr.mixed_product_flat_suffix arg_reprs
+                  ~on_flat_field_expected:(fun ~non_value ~boxed ->
                       ignore boxed;
                       ignore non_value;
                       (* CR mixed blocks: *)
-                      raise (Error (cstr.Types.cd_loc, assert false))
-                  | Cstr_record args ->
-                      let non_value = List.nth args non_value
-                      and boxed     = List.nth args boxed
-                      in
-                      let violation =
-                        Flat_field_expected
-                          { non_value_lbl = non_value.ld_id;
-                            boxed_lbl = boxed.ld_id;
-                          }
-                      in
-                      raise (Error (non_value.ld_loc,
-                                    Illegal_mixed_record violation)))
+                      raise (Error (cstr.Types.cd_loc, assert false)))
+            | Cstr_record fields ->
+                let arg_reprs =
+                  List.map (fun ld ->
+                      Element_repr.classify env ld.Types.ld_type ld.ld_jkind, ld)
+                    fields
+                in
+                Element_repr.mixed_product_flat_suffix arg_reprs
+                  ~on_flat_field_expected:(fun ~non_value ~boxed ->
+                    let violation =
+                      Flat_field_expected
+                        { non_value_lbl = non_value.Types.ld_id;
+                          boxed_lbl = boxed.Types.ld_id;
+                        }
+                    in
+                    raise (Error (non_value.Types.ld_loc,
+                                  Illegal_mixed_record violation)))
           in
           let () =
             match flat_suffix with
@@ -1440,7 +1438,8 @@ let update_decl_jkind env dpath decl =
                   Array.length arg_jkinds - Array.length flat_suffix
                 in
                 cstr_shapes.(idx) <-
-                  Constructor_mixed { value_prefix_len; flat_suffix }
+                  Constructor_mixed { value_prefix_len; flat_suffix },
+                  arg_jkinds
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
