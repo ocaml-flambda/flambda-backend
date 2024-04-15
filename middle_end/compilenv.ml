@@ -57,7 +57,9 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = None }
+    ui_export_info = None;
+    ui_external_symbols = [];
+  }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -72,7 +74,14 @@ let reset compilation_unit =
   current_unit.ui_force_link <- !Clflags.link_everything;
   Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
-  current_unit.ui_export_info <- None
+  current_unit.ui_export_info <- None;
+  current_unit.ui_external_symbols <- []
+
+let record_external_symbols () =
+  current_unit.ui_external_symbols <- (List.filter_map (fun prim ->
+      if not (Primitive.native_name_is_external prim) then None
+      else begin Some (Primitive.native_name prim) end)
+      !Translmod.primitive_declarations)
 
 let current_unit_infos () =
   current_unit
@@ -103,7 +112,8 @@ let read_unit_info filename =
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_checks = Checks.of_raw uir.uir_checks;
-      ui_force_link = uir.uir_force_link
+      ui_force_link = uir.uir_force_link;
+      ui_external_symbols = uir.uir_external_symbols |> Array.to_list;
     }
     in
     (ui, crc)
@@ -251,6 +261,7 @@ let write_unit_info info filename =
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;
+    uir_external_symbols = Array.of_list info.ui_external_symbols;
   } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;

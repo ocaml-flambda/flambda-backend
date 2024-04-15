@@ -533,6 +533,7 @@ let compile_implementation unix ?toplevel ~pipeline
     (fun () ->
       Compilation_unit.Set.iter Compilenv.require_global
         program.required_globals;
+      Compilenv.record_external_symbols ();
       match pipeline with
       | Direct_to_cmm direct_to_cmm ->
         let cmm_phrases =
