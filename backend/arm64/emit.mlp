@@ -38,8 +38,8 @@ let reg_trap_ptr = phys_reg Int 23 (* x26 *)
 let reg_alloc_ptr = phys_reg Int 24 (* x27 *)
 let reg_tmp1 = phys_reg Int 26 (* x16 *)
 let reg_x8 = phys_reg Int 8 (* x8 *)
-let _reg_stack_arg_begin = phys_reg Int 17  (* x20 *)
-let _reg_stack_arg_end  = phys_reg Int 18 (* x21 *)
+let reg_stack_arg_begin = phys_reg Int 17  (* x20 *)
+let reg_stack_arg_end  = phys_reg Int 18 (* x21 *)
 
 
 (* Output a label *)
@@ -789,15 +789,14 @@ let emit_instr i =
           | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
         else
           output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
-    | Lop(Iextcall {func; alloc; stack_ofs = _}) ->
-        (* BACKPORT BEGIN *)
-        (*if stack_ofs > 0 then begin
+    | Lop(Iextcall {func; alloc; stack_ofs}) ->
+        if stack_ofs > 0 then begin
           `	mov	{emit_reg reg_stack_arg_begin}, sp\n`;
           `	add	{emit_reg reg_stack_arg_end}, sp, #{emit_int (Misc.align stack_ofs 16)}\n`;
           emit_load_symbol_addr reg_x8 func;
           `	bl	{emit_symbol "caml_c_call_stack_args"}\n`;
           `{record_frame i.live (Dbg_other i.dbg)}\n`
-        end else*) if alloc then begin
+        end else if alloc then begin
           emit_load_symbol_addr reg_x8 func;
           `	bl	{emit_symbol "caml_c_call"}\n`;
           `{record_frame i.live (Dbg_other i.dbg)}\n`
@@ -805,17 +804,16 @@ let emit_instr i =
           (* store ocaml stack in the frame pointer register
              NB: no need to store previous x29 because OCaml frames don't
              maintain frame pointer *)
-          (*`	mov	x29, sp\n`;
+          `	mov	x29, sp\n`;
           cfi_remember_state ();
           cfi_def_cfa_register ~reg:29;
           let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
           `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`;
-             `	mov	sp, {emit_reg reg_tmp1}\n`; *)
+             `	mov	sp, {emit_reg reg_tmp1}\n`;
           `	bl	{emit_symbol func}\n`;
-          (*`	mov	sp, x29\n`;
-          cfi_restore_state ()*)
+          `	mov	sp, x29\n`;
+          cfi_restore_state ()
         end
-      (* BACKPORT END *)
     | Lop(Istackoffset n) ->
         assert (n mod 16 = 0);
         emit_stack_adjustment (-n);
@@ -1169,11 +1167,10 @@ let fundecl fundecl =
   `	.globl	{emit_symbol fundecl.fun_name}\n`;
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   (* Dynamic stack checking *)
-  (* BACKPORT BEGIN *)
-  (*let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
+  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
   let { max_frame_size; contains_nontail_calls} =
     preproc_stack_check
-      ~fun_body:fundecl.fun_body ~frame_size:(frame_size env) ~trap_size:16
+      ~fun_body:fundecl.fun_body ~frame_size:(frame_size ()) ~trap_size:16
   in
   let handle_overflow, stack_check_size =
     if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
@@ -1189,12 +1186,11 @@ let fundecl fundecl =
       (* fall through function entry point *)
       Some overflow, 5
     end else
-      None, 0 in*)
+      None, 0 in
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
-  (* BACKPORT BEGIN *)
-  (*begin match handle_overflow with
+  begin match handle_overflow with
     | None -> ()
     | Some overflow ->
       let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
@@ -1204,15 +1200,10 @@ let fundecl fundecl =
       emit_addimm reg_tmp1 reg_tmp1 f;
       `	cmp	sp, {emit_reg reg_tmp1}\n`;
       `	bcc	{emit_label overflow}\n`
-  end;*)
-  (* BACKPORT END *)
+  end;
   let num_call_gc = num_call_gc_points fundecl.fun_body in
   let max_out_of_line_code_offset =
-    (* BACKPORT BEGIN *)
-    (*max_out_of_line_code_offset ~num_call_gc
-      stack_check_size +*)
-    (* BACKPORT END *)
-    max_out_of_line_code_offset ~num_call_gc
+    stack_check_size + max_out_of_line_code_offset ~num_call_gc
   in
   BR.relax fundecl.fun_body ~max_out_of_line_code_offset;
 
