@@ -588,9 +588,10 @@ let name_for_float_comparison = function
 let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
   if local then begin
     let r = i.res.(0) in
-    let domain_local_sp_offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
-    let domain_local_limit_offset = Domainstate.(idx_of_field Domain_local_limit) * 8 in
-    let domain_local_top_offset = Domainstate.(idx_of_field Domain_local_top) * 8 in
+    let module DS = Domainstate in
+    let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
+    let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
+    let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
     `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
     `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
