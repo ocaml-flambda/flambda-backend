@@ -100,15 +100,17 @@ let prologue_required = ref false
 let contains_calls = ref false
 
 let initial_stack_offset () =
-    8 * num_stack_slots.(0) +
-    8 * num_stack_slots.(1) +
-    (if !contains_calls then 8 else 0)
+  Stack_check.initial_stack_offset ~contains_calls:!contains_calls
+    ~num_stack_slots
 
 let frame_size () =
-  let sz =
-    !stack_offset +
-    initial_stack_offset ()
-  in Misc.align sz 16
+  Stack_check.frame_size
+    ~stack_offset:!stack_offset
+    ~frame_required:(frame_required
+      ~fun_contains_calls:!contains_calls
+      ~fun_num_stack_slots:num_stack_slots)
+    ~contains_calls:!contains_calls
+    ~num_stack_slots
 
 let slot_offset loc cl =
   match loc with

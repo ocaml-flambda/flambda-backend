@@ -20,11 +20,17 @@ let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
 
 let fp = Config.with_frame_pointers
 
+let initial_stack_offset ~num_stack_slots:_ ~contains_calls:_ =
+  Misc.fatal_error "Not used on amd64"
+
 (* includes return address *)
 let frame_size :
-    stack_offset:int -> frame_required:bool -> num_stack_slots:int array -> int
-    =
- fun ~stack_offset ~frame_required ~num_stack_slots ->
+    stack_offset:int ->
+    frame_required:bool ->
+    num_stack_slots:int array ->
+    contains_calls:bool ->
+    int =
+ fun ~stack_offset ~frame_required ~num_stack_slots ~contains_calls:_ ->
   if frame_required
   then (
     if num_stack_slots.(2) > 0 then Arch.assert_simd_enabled ();
