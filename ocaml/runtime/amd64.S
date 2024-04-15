@@ -136,6 +136,9 @@
 #define Stack_sp                 0
 #define Stack_exception          8
 #define Stack_handler            16
+#define Stack_local_sp           64
+#define Stack_local_top          72
+#define Stack_local_limit        80
 
 /* struct stack_handler */
 #define Handler_value(REG)       0(REG)
@@ -239,6 +242,10 @@
     /* Fill in Caml_state->current_stack->sp */            \
         movq    Caml_state(current_stack), %r10;           \
         movq    %rsp, Stack_sp(%r10);                      \
+    /* No need to update Stack_local_sp: if the runtime    \
+       needs this value, it will copy it out of            \
+       Caml_state first (see                               \
+       caml_get_local_arenas_and_update_local_sp). */      \
     /* Fill in Caml_state->c_stack */                      \
         movq    Caml_state(c_stack), %r11;                 \
         movq    %rsp, Cstack_sp(%r11);                     \
@@ -274,6 +281,10 @@
         movq    %rsp, Stack_sp(%rsi);                     \
         movq    Caml_state(exn_handler), %r12;            \
         movq    %r12, Stack_exception(%rsi);              \
+    /* Save any local allocations state from Caml_state   \
+       which the OCaml code might have changed. */        \
+        movq    Caml_state(local_sp), %r12;               \
+        movq    %r12, Stack_local_sp(%rsi);               \
     /* switch stacks */                                   \
         movq    %r10, Caml_state(current_stack);          \
         movq    Stack_sp(%r10), %rsp;                     \
@@ -281,6 +292,14 @@
     /* restore exn_handler for new stack */               \
         movq    Stack_exception(%r10), %r12;              \
         movq    %r12, Caml_state(exn_handler);            \
+    /* Restore all local allocations state, since this    \
+       is now a different stack */                        \
+        movq    Stack_local_sp(%r10), %r12;               \
+        movq    %r12, Caml_state(local_sp);               \
+        movq    Stack_local_top(%r10), %r12;              \
+        movq    %r12, Caml_state(local_top);              \
+        movq    Stack_local_limit(%r10), %r12;            \
+        movq    %r12, Caml_state(local_limit);            \
         LEAVE_FUNCTION
 
 /* Updates the oldest saved frame pointer in the target fiber.
@@ -754,6 +773,9 @@ LBL(108):
         addq    $16, %r10
     /* Update alloc ptr */
         movq    %r15, Caml_state(young_ptr)
+    /* No need to update Stack_local_sp: if the runtime needs this value, it
+       will copy it out of Caml_state first (see
+       caml_get_local_arenas_and_update_local_sp). */
     /* Return to C stack. */
         movq    Caml_state(current_stack), %r11
         movq    %r10, Stack_sp(%r11)
@@ -991,11 +1013,21 @@ CFI_STARTPROC
         movq    Caml_state(exn_handler), %r10
         movq    %rsp, Stack_sp(%rcx)
         movq    %r10, Stack_exception(%rcx)
+    /* Save local allocations state that the OCaml code might have modified */
+        movq    Caml_state(local_sp), %r10
+        movq    %r10, Stack_local_sp(%rcx)
     /* Load new stack pointer and set parent */
         movq    Stack_handler(%rax), %r11
         movq    %rcx, Handler_parent(%r11)
         movq    %rax, Caml_state(current_stack)
         movq    Stack_sp(%rax), %r11
+    /* Load all local allocations state for the new stack */
+        movq    Stack_local_sp(%rax), %r10
+        movq    %r10, Caml_state(local_sp)
+        movq    Stack_local_top(%rax), %r10
+        movq    %r10, Caml_state(local_top)
+        movq    Stack_local_limit(%rax), %r10
+        movq    %r10, Caml_state(local_limit)
     /* Create an exception handler on the target stack
        after 16byte DWARF & gc_regs block (which is unused here) */
         subq    $32, %r11
@@ -1024,11 +1056,20 @@ LBL(frame_runstack):
         leaq    32(%rsp), %r11 /* SP with exn handler popped */
         movq    Handler_value(%r11), %rbx
 1:      movq    Caml_state(current_stack), C_ARG_1 /* arg to caml_free_stack */
+    /* The old (currently the current) stack is about to be freed, so
+       there is nothing to do in terms of local allocations state. */
     /* restore parent stack and exn_handler into Caml_state */
         movq    Handler_parent(%r11), %r10
         movq    Stack_exception(%r10), %r11
         movq    %r10, Caml_state(current_stack)
         movq    %r11, Caml_state(exn_handler)
+    /* Restore all local allocations state for the new stack */
+        movq    Stack_local_sp(%r10), %r11
+        movq    %r11, Caml_state(local_sp)
+        movq    Stack_local_top(%r10), %r11
+        movq    %r11, Caml_state(local_top)
+        movq    Stack_local_limit(%r10), %r11
+        movq    %r11, Caml_state(local_limit)
     /* free old stack by switching directly to c_stack; is a no-alloc call */
         movq    Stack_sp(%r10), %r13 /* saved across C call */
         CFI_RESTORE_STATE

@@ -900,6 +900,29 @@ val atomic_compare_and_set :
 
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
 
+val perform : dbg:Debuginfo.t -> expression -> expression
+
+val run_stack :
+  dbg:Debuginfo.t ->
+  stack:expression ->
+  f:expression ->
+  arg:expression ->
+  expression
+
+val resume :
+  dbg:Debuginfo.t ->
+  stack:expression ->
+  f:expression ->
+  arg:expression ->
+  expression
+
+val reperform :
+  dbg:Debuginfo.t ->
+  eff:expression ->
+  cont:expression ->
+  last_fiber:expression ->
+  expression
+
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :

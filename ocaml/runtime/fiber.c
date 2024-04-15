@@ -177,6 +177,10 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
   stack->sp = (value*)hand;
   stack->exception_ptr = NULL;
   stack->id = id;
+  stack->local_arenas = NULL;
+  stack->local_sp = 0;
+  stack->local_top = NULL;
+  stack->local_limit = 0;
 #ifdef DEBUG
   stack->magic = 42;
 #endif
@@ -295,7 +299,7 @@ static int visit(scanning_action f, void* fdata,
 }
 
 static void scan_local_allocations(scanning_action f, void* fdata,
-                                   caml_local_arenas* loc)
+                                   caml_local_arenas* loc, uintnat local_sp)
 {
   int arena_ix;
   intnat sp;
@@ -305,7 +309,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
 
   if (loc == NULL) return;
   CAMLassert(loc->count > 0);
-  sp = loc->saved_sp;
+  sp = local_sp;
   arena_ix = loc->count - 1;
   arena = loc->arenas[arena_ix];
 #ifdef DEBUG
@@ -456,15 +460,18 @@ next_chunk:
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs,
-  struct caml_local_arenas* locals)
+  struct stack_info* stack, value* gc_regs)
 {
   while (stack != NULL) {
+    caml_local_arenas* locals = caml_get_local_arenas_and_save_local_sp(stack);
+
     scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
     f(fdata, Stack_handle_value(stack), &Stack_handle_value(stack));
     f(fdata, Stack_handle_exception(stack), &Stack_handle_exception(stack));
     f(fdata, Stack_handle_effect(stack), &Stack_handle_effect(stack));
+
+    scan_local_allocations(f, fdata, locals, stack->local_sp);
 
     stack = Stack_parent(stack);
   }
@@ -544,8 +551,7 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs,
-  struct caml_local_arenas* unused)
+  struct stack_info* stack, value* v_gc_regs)
 {
   value *low, *high, *sp;
 
@@ -578,12 +584,15 @@ CAMLexport void caml_do_local_roots (
   scanning_action f, scanning_action_flags fflags, void* fdata,
   struct caml__roots_block *local_roots,
   struct stack_info *current_stack,
-  value * v_gc_regs,
-  struct caml_local_arenas* locals)
+  value * v_gc_regs)
 {
   struct caml__roots_block *lr;
   int i, j;
   value* sp;
+#ifdef NATIVE_CODE
+  caml_local_arenas* locals =
+    caml_get_local_arenas_and_save_local_sp(current_stack);
+#endif
 
   for (lr = local_roots; lr != NULL; lr = lr->next) {
     for (i = 0; i < lr->ntables; i++){
@@ -599,11 +608,9 @@ CAMLexport void caml_do_local_roots (
       }
     }
   }
-  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs, locals);
-#ifdef NATIVE_CODE
-  scan_local_allocations(f, fdata, locals);
-#else
-  CAMLassert(locals == NULL);
+  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs);
+#ifndef NATIVE_CODE
+  CAMLassert(current_stack->local_arenas == NULL);
 #endif
 }
 
@@ -747,6 +754,12 @@ int caml_try_realloc_stack(asize_t required_space)
          stack_used * sizeof(value));
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
+
+  new_stack->local_arenas = caml_get_local_arenas_and_save_local_sp(old_stack);
+  new_stack->local_sp = old_stack->local_sp;
+  new_stack->local_top = old_stack->local_top;
+  new_stack->local_limit = old_stack->local_limit;
+
 #ifdef NATIVE_CODE
   /* There's no need to do another pass rewriting from
      Caml_state->async_exn_handler because every asynchronous exception trap
@@ -788,6 +801,8 @@ int caml_try_realloc_stack(asize_t required_space)
     }
   }
 
+  // XXX mshinwell: should free local arenas when stacks are finished with,
+  // but not at this point!
   caml_free_stack(old_stack);
   Caml_state->current_stack = new_stack;
   return 1;

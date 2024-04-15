@@ -802,7 +802,7 @@ static void verify_object(struct heap_verify_state* st, value v) {
   if (Tag_val(v) == Cont_tag) {
     struct stack_info* stk = Ptr_val(Field(v, 0));
     if (stk != NULL)
-      caml_scan_stack(verify_push, verify_scanning_flags, st, stk, 0, NULL);
+      caml_scan_stack(verify_push, verify_scanning_flags, st, stk, 0);
   } else if (Tag_val(v) < No_scan_tag) {
     int i = 0;
     if (Tag_val(v) == Closure_tag) {
@@ -899,7 +899,7 @@ static void compact_update_block(header_t* p)
   if (tag == Cont_tag) {
     value stk = Field(Val_hp(p), 0);
     if (Ptr_val(stk)) {
-      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0, NULL);
+      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0);
     }
   } else {
     uintnat offset = 0;

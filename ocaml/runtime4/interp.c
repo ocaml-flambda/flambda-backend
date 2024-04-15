@@ -1204,6 +1204,12 @@ value caml_interprete(code_t prog, asize_t prog_size)
       Restore_after_debugger;
       Restart_curr_instr;
 
+    Instruct(PERFORM):
+    Instruct(RESUME):
+    Instruct(RESUMETERM):
+    Instruct(REPERFORMTERM):
+      caml_fatal_error("Effect primitives not supported on runtime4");
+
 #ifndef THREADED_CODE
     default:
 #if _MSC_VER >= 1200
