@@ -191,9 +191,9 @@ let emit_call_gc gc =
 (* Record calls to local stack reallocation *)
 
 type local_realloc_call =
-  {  lr_lbl: label;
-     lr_return_lbl: label;
-     lr_dbg: Debuginfo.t
+  { lr_lbl: label;
+    lr_return_lbl: label;
+    lr_dbg: Debuginfo.t
   }
 
 let local_realloc_sites = ref ([] : local_realloc_call list)
@@ -598,7 +598,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
     `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
     let lbl_call = new_label () in
-    `	b.le	{emit_label lbl_call}\n`;
+    `	b.lt	{emit_label lbl_call}\n`;
     let lbl_after_alloc = new_label () in
     `{emit_label lbl_after_alloc}:\n`;
     `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
