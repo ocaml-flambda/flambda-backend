@@ -83,11 +83,7 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
-  val print_raw :
-    ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
-
-  val print :
-    ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
+  val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
 end
@@ -147,6 +143,21 @@ module type S = sig
 
     val zap_to_ceil : ('l * allowed) t -> Const.t
 
+    (* The functions to obtain the bounds are dangerous; see notes on functions
+       of same names in [solver_intf.mli] for cautions.
+
+       In addition, they are dangerous (even the non-conservative ones), because
+       the caller might obtain the floor/ceil of multiple mode variables and use
+       them in conjunction, without realizing that those bounds might have
+       constraints between them that prevent the bounds to hold in conjunction.
+
+       Therefore, those functions should be avoided. Currently they are used
+       only by merlin. *)
+    val get_conservative_floor : (l * 'r) t -> Const.t
+
+    val get_ceil : ('l * allowed) t -> Const.t
+
+    (** Returns [Some c] if the given mode has been constrained to constant [c]. *)
     val check_const : (allowed * allowed) t -> Const.t option
   end
 
@@ -388,8 +399,6 @@ module type S = sig
         with module Const := Const
          and type error := error
          and type 'd t := 'd t
-
-    val check_const : (allowed * allowed) t -> Const.Option.t
 
     val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 

@@ -628,24 +628,49 @@ module Solver_mono (C : Lattices_mono) = struct
           C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
         a mvs
 
-  let check_const : type a. a C.obj -> (a, allowed * allowed) mode -> a option =
+  let get_conservative_ceil : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
     match m with
-    | Amode a -> Some a
-    | Amodevar mv ->
-      let lower = zap_to_floor_morphvar obj mv ~commit:None in
-      if C.le obj (mupper obj mv) lower then Some lower else None
+    | Amode a -> a
+    | Amodevar mv -> mupper obj mv
+    | Amodemeet (a, mvs) ->
+      List.fold_left (fun acc mv -> C.meet obj acc (mupper obj mv)) a mvs
+    | Amodejoin (a, mvs) ->
+      List.fold_left (fun acc mv -> C.join obj acc (mupper obj mv)) a mvs
+
+  let get_conservative_floor : type a l r. a C.obj -> (a, l * r) mode -> a =
+   fun obj m ->
+    match m with
+    | Amode a -> a
+    | Amodevar mv -> mlower obj mv
+    | Amodejoin (a, mvs) ->
+      List.fold_left (fun acc mv -> C.join obj acc (mupper obj mv)) a mvs
+    | Amodemeet (a, mvs) ->
+      List.fold_left (fun acc mv -> C.meet obj acc (mlower obj mv)) a mvs
+
+  (* Due to our biased implementation, the ceil is precise. *)
+  let get_ceil = get_conservative_ceil
+
+  let get_floor : type a r. a C.obj -> (a, allowed * r) mode -> a =
+   fun obj m ->
+    match m with
+    | Amode a -> a
+    | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:None
+    | Amodejoin (a, mvs) ->
+      List.fold_left
+        (fun acc mv ->
+          C.join obj acc (zap_to_floor_morphvar obj mv ~commit:None))
+        a mvs
 
   let print :
-      type a.
-      ?verbose:bool ->
-      a C.obj ->
-      Format.formatter ->
-      (a, allowed * allowed) mode ->
-      unit =
-   fun ?(verbose = false) obj ppf m ->
-    print_raw obj ~verbose ppf
-      (match check_const obj m with None -> m | Some a -> Amode a)
+      type a l r.
+      ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
+   fun ?verbose (obj : a C.obj) ppf m ->
+    let ceil = get_conservative_ceil obj m in
+    let floor = get_conservative_floor obj m in
+    if C.le obj ceil floor
+    then C.print obj ppf ceil
+    else print_raw ?verbose obj ppf m
 
   let newvar obj = Amodevar (Amorphvar (fresh obj, C.id))
 
@@ -737,11 +762,15 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let newvar_below = S.newvar_below
 
-    let check_const = S.check_const
+    let get_ceil = S.get_ceil
+
+    let get_floor = S.get_floor
+
+    let get_conservative_ceil = S.get_conservative_ceil
+
+    let get_conservative_floor = S.get_conservative_floor
 
     let print ?(verbose = false) = S.print ~verbose
-
-    let print_raw ?(verbose = false) = S.print_raw ~verbose
 
     let via_monotone = S.apply
 
@@ -795,11 +824,15 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let newvar_below = S.newvar_above
 
-    let check_const = S.check_const
+    let get_ceil = S.get_floor
+
+    let get_floor = S.get_ceil
+
+    let get_conservative_ceil = S.get_conservative_floor
+
+    let get_conservative_floor = S.get_conservative_ceil
 
     let print ?(verbose = false) = S.print ~verbose
-
-    let print_raw ?(verbose = false) = S.print_raw ~verbose
 
     let via_monotone = S.apply
 

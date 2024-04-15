@@ -1195,15 +1195,17 @@ module Common (Obj : Obj) = struct
 
   let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
 
-  let print_raw ?verbose () ppf m = Solver.print_raw ?verbose obj ppf m
-
   let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
 
   let zap_to_floor m = with_log (Solver.zap_to_floor obj m)
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
-  let check_const m = Solver.check_const obj m
+  let get_floor m = Solver.get_floor obj m
+
+  let get_ceil m = Solver.get_ceil obj m
+
+  let get_conservative_floor m = Solver.get_conservative_floor obj m
 end
 [@@inline]
 
@@ -1227,6 +1229,11 @@ module Locality = struct
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
+
+  let check_const m =
+    let floor = get_floor m in
+    let ceil = get_ceil m in
+    if Const.le ceil floor then Some ceil else None
 end
 
 module Regionality = struct
@@ -1430,12 +1437,6 @@ module Comonadic_with_locality = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let locality = Locality.check_const (proj Areality m) in
-    let linearity = Linearity.check_const (proj Linearity m) in
-    locality, linearity
 end
 
 module Monadic = struct
@@ -1502,11 +1503,6 @@ module Monadic = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let uniqueness = Uniqueness.check_const (proj Uniqueness m) in
-    uniqueness, ()
 end
 
 type ('mo, 'como) monadic_comonadic =
@@ -1550,13 +1546,6 @@ module Value = struct
     let uniqueness, () = monadic in
     { regionality; linearity; uniqueness }
 
-  let print_raw ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
-      (Comonadic.print_raw ?verbose ())
-      comonadic
-      (Monadic.print_raw ?verbose ())
-      monadic
-
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
       (Comonadic.print ?verbose ())
@@ -1585,7 +1574,9 @@ module Value = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print_raw () ppf (of_const m)
+    let print ppf m =
+      let {monadic; comonadic} = split m in
+      Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -1919,13 +1910,6 @@ module Alloc = struct
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
 
-  let print_raw ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
-      (Comonadic.print_raw ?verbose ())
-      comonadic
-      (Monadic.print_raw ?verbose ())
-      monadic
-
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
       (Comonadic.print ?verbose ())
@@ -2069,7 +2053,9 @@ module Alloc = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print_raw () ppf (of_const m)
+    let print ppf m =
+      let {monadic; comonadic} = split m in
+      Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -2156,11 +2142,6 @@ module Alloc = struct
   let zap_to_legacy { comonadic; monadic } =
     let monadic = Monadic.zap_to_legacy monadic in
     let comonadic = Comonadic.zap_to_legacy comonadic in
-    merge { monadic; comonadic }
-
-  let check_const { comonadic; monadic } =
-    let comonadic = Comonadic.check_const comonadic in
-    let monadic = Monadic.check_const monadic in
     merge { monadic; comonadic }
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->

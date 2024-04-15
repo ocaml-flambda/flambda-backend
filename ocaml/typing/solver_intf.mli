@@ -271,24 +271,28 @@ module type Solver_polarized = sig
   (** Return the meet of the list of modes. *)
   val meet : 'a obj -> ('a, 'l * allowed) mode list -> ('a, right_only) mode
 
-  (** Checks if a mode has been constrained sufficiently to a constant. Because
-      our internal representation is conservative, further constraint is run to
-      decide the bounds. This operation is therefore expensive and requires the
-      mode to be allowed on both sides.
-      WARNING: the lattice must be finite for this to terminate.*)
-  val check_const : 'a obj -> ('a, allowed * allowed) mode -> 'a option
+  (** Returns the lower bound of the mode. Because of our conservative internal
+      representation, further constraining is needed for precise bound.
+      This operation is therefore expensive and requires the mode to be allowed
+      on the left.
+      WARNING: the lattice must be finite for this to terminate. *)
+  val get_floor : 'a obj -> ('a, allowed * 'r) mode -> 'a
 
-  (** Print a mode. Calls [check_const] for cleaner printing; caveats there
-  apply here too. *)
+  (** Returns the upper bound of the mode. Notes for [get_floor] applies. *)
+  val get_ceil : 'a obj -> ('a, 'l * allowed) mode -> 'a
+
+  (** Similar to [get_floor] but does not run the further constraining needed
+      for a precise bound. As a result, the returned bound is conservative;
+      i.e., it might be lower than the real floor. *)
+  val get_conservative_floor : 'a obj -> ('a, 'l * 'r) mode -> 'a
+
+  (** Similar to [get_ceil] but does not run the further constraining needed
+      for a precise bound. As a result, the returned bound is conservative;
+      i.e., it might be higher than the real ceil. *)
+  val get_conservative_ceil : 'a obj -> ('a, 'l * 'r) mode -> 'a
+
+  (** Printing a mode for debugging. *)
   val print :
-    ?verbose:bool ->
-    'a obj ->
-    Format.formatter ->
-    ('a, allowed * allowed) mode ->
-    unit
-
-  (** Print a mode without calling [check_const]. *)
-  val print_raw :
     ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
 
   (** Apply a monotone morphism whose source and target modes are of the
