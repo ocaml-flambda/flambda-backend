@@ -1,11 +1,11 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-flags = "-w +A-60-70"
 
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-compile_only = "true"
-*** check-ocamlc.byte-output
+
+
+
+
 
 *)
 
@@ -14,3 +14,11 @@ compile_only = "true"
 val a1 : int [@deprecated]   (* rejected *)
 val a2 : int [@@deprecated]  (* accepted *)
 
+
+(* TEST
+ flags = "-w +A-60-70";
+ setup-ocamlc.byte-build-env;
+ compile_only = "true";
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)

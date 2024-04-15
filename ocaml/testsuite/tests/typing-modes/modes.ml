@@ -1,5 +1,6 @@
 (* TEST
-   * expect *)
+ expect;
+*)
 
 (* Let bindings *)
 let local_ foo : string @@ unique = "hello"

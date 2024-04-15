@@ -1,14 +1,13 @@
 (* TEST
-
-readonly_files = "any_missing_cmi_lib.ml any_missing_cmi_lib2.ml"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "any_missing_cmi_lib2.ml"
-*** ocamlc.byte
-module = "any_missing_cmi_lib.ml"
-**** script
-script = "rm -f any_missing_cmi_lib2.cmi"
-***** expect
+ readonly_files = "any_missing_cmi_lib.ml any_missing_cmi_lib2.ml";
+ setup-ocamlc.byte-build-env;
+ module = "any_missing_cmi_lib2.ml";
+ ocamlc.byte;
+ module = "any_missing_cmi_lib.ml";
+ ocamlc.byte;
+ script = "rm -f any_missing_cmi_lib2.cmi";
+ script;
+ expect;
 *)
 
 #directory "ocamlc.byte";;

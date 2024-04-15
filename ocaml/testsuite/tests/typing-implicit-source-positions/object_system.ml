@@ -1,5 +1,5 @@
-(* TEST
-   * expect
+(* TEST_BELOW
+Fille
 *)
 
 let object_with_a_method_with_a_positional_parameter = object 
@@ -220,3 +220,7 @@ val x : lexing_position =
 val y : lexing_position =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
+
+(* TEST
+ expect;
+*)

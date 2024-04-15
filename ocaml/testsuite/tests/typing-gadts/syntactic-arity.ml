@@ -1,6 +1,6 @@
 (* TEST
-  * expect
- *)
+ expect;
+*)
 
 type nothing = |
 type (_, _) eq = Eq : ('a, 'a) eq

@@ -1,9 +1,9 @@
 (* TEST
-   include config
-   flags = "-w -55"
-   ocamlc_flags = "config.cmo"
-   ocamlopt_flags = "config.cmx"
-   * native
+ include config;
+ flags = "-w -55";
+ ocamlc_flags = "config.cmo";
+ ocamlopt_flags = "config.cmx";
+ native;
 *)
 
 (* CR-someday mshinwell: enable this for classic mode *)

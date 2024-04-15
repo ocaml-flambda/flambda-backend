@@ -1,8 +1,7 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-
-   * runtime4
-   ** expect
+ flags = "-extension layouts_alpha";
+ runtime4;
+ expect;
 *)
 
 (* Mixed blocks aren't supported in runtime 4 (yet). When they are, we can

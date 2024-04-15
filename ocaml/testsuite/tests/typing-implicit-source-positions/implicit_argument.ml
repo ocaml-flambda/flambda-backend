@@ -1,5 +1,5 @@
-(* TEST
-   * expect
+(* TEST_BELOW
+Fille
 *)
 
 let f = fun ~(call_pos:[%call_pos]) () -> call_pos
@@ -81,3 +81,7 @@ Warning 188 [unerasable-position-argument]: this position argument cannot be era
 val m : call_pos:[%call_pos] -> unit = <fun>
 |}]
 
+
+(* TEST
+ expect;
+*)

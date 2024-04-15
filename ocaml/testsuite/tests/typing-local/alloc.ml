@@ -1,13 +1,17 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/alloc.heap.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/alloc.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/alloc.heap.reference"
- *)
+ {
+   reference = "${test_source_directory}/alloc.heap.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/alloc.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/alloc.heap.reference";
+   native;
+ }
+*)
 
 (* First test to ensure that noalloc externals that locally allocate
    don't cause a crash in the middle end (originally seen on

@@ -1,6 +1,6 @@
 (* TEST
-  flags = "-extension include_functor"
-   * native
+ flags = "-extension include_functor";
+ native;
 *)
 
 (* This duplicates some of the tests from `include_functor.ml` (using just

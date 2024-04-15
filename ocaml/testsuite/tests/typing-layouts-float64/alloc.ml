@@ -1,6 +1,6 @@
 (* TEST
-   * flambda2
-   ** native
+ flambda2;
+ native;
 *)
 
 (* mshinwell: This test is now only run with flambda2, as the corresponding

@@ -1,5 +1,5 @@
-(* TEST
-   * expect
+(* TEST_BELOW
+Fille
 *)
 
 let x = [%src_pos]
@@ -26,3 +26,7 @@ let _ = f ~call_pos:[%src_pos] () ;;
 - : lexing_position =
 {pos_fname = ""; pos_lnum = 2; pos_bol = 438; pos_cnum = 458}
 |}]
+
+(* TEST
+ expect;
+*)

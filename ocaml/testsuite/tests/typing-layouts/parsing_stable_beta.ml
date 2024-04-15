@@ -1,9 +1,12 @@
 (* TEST
-   * toplevel
-   compiler_reference = "${test_source_directory}/parsing_stable.compilers.reference"
-   * toplevel
-   flags = "-extension layouts_beta"
-   compiler_reference = "${test_source_directory}/parsing_beta.compilers.reference"
+ {
+   compiler_reference = "${test_source_directory}/parsing_stable.compilers.reference";
+   toplevel;
+ }{
+   flags = "-extension layouts_beta";
+   compiler_reference = "${test_source_directory}/parsing_beta.compilers.reference";
+   toplevel;
+ }
 *)
 
 type ('a : value) t0 = 'a list;;

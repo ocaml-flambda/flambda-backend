@@ -1,13 +1,18 @@
 (* TEST
- readonly_files = "gen_u_array.ml test_gen_u_array.ml"
- modules = "${readonly_files}"
- * flambda2
- ** bytecode
- ** native
- ** bytecode
-   flags = "-extension layouts_beta"
- ** native
-   flags = "-extension layouts_beta"
+ readonly_files = "gen_u_array.ml test_gen_u_array.ml";
+ modules = "${readonly_files}";
+ flambda2;
+ {
+   bytecode;
+ }{
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }
 *)
 (* Test compilation correctness for array of unboxed int32s. General
    tests around type-checking should go to [basics.ml]. *)
