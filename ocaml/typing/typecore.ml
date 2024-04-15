@@ -3590,7 +3590,7 @@ let list_labels env ty =
 (* Collecting arguments for function applications *)
 
 type untyped_apply_arg =
-  | Known_arg of
+  | Known_earg of
       { sarg : Parsetree.expression;
         ty_arg : type_expr;
         ty_arg0 : type_expr;
@@ -3599,12 +3599,19 @@ type untyped_apply_arg =
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr;
         wrapped_in_some : bool; }
-  | Unknown_arg of
+  | Unknown_earg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
         sort_arg : Jkind.sort;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr}
+  | Module_arg of
+      {
+        sarg : module_expr;
+        commuted : bool;
+        mode_fun : Alloc.lr;
+        mode_arg : Alloc.lr
+      }
   | Eliminated_optional_arg of
       { expected_label: arg_label;
         mode_fun: Alloc.lr;
@@ -3633,7 +3640,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
     List.fold_left
       (fun (ty_ret, mode_ret, closed_args) (lbl, arg) ->
          match arg with
-         | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
+         | Arg (Unknown_earg { mode_arg; _ } | Known_earg { mode_arg; _ } | Module_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
              (ty_ret, mode_ret, closed_args)
          | Arg (Eliminated_optional_arg
@@ -3660,15 +3667,17 @@ let remaining_function_type ty_ret mode_ret rev_args =
 let check_curried_application_complete ~env ~app_loc args =
   let arg_mode_fun (_lbl, arg) =
     match arg with
-    | Arg ( Known_arg { mode_fun; _ }
-          | Unknown_arg { mode_fun; _ }
+    | Arg ( Known_earg { mode_fun; _ }
+          | Unknown_earg { mode_fun; _ }
+          | Module_arg { mode_fun; _ }
           | Eliminated_optional_arg { mode_fun; _ })
     | Omitted { mode_fun; _ } -> mode_fun
   in
   let rec loop has_commuted = function
     | [] | [_] -> ()
-    | (lbl, ( Arg ( Known_arg { mode_fun; mode_arg; _ }
-                  | Unknown_arg { mode_fun; mode_arg; _ }
+    | (lbl, ( Arg ( Known_earg { mode_fun; mode_arg; _ }
+                  | Unknown_earg { mode_fun; mode_arg; _ }
+                  | Module_arg { mode_fun; mode_arg; _ }
                   | Eliminated_optional_arg { mode_fun; mode_arg; _ })
             | Omitted { mode_fun; mode_arg; _ } as arg))
       :: ((next :: _) as rest) ->
@@ -3676,7 +3685,7 @@ let check_curried_application_complete ~env ~app_loc args =
       let has_commuted =
         has_commuted ||
         match arg with
-        | Arg (Known_arg { commuted }) -> commuted
+        | Arg (Known_earg { commuted } | Module_arg { commuted }) -> commuted
         | _ -> false
       in
       let submode m1 m2 =
@@ -3685,13 +3694,21 @@ let check_curried_application_complete ~env ~app_loc args =
         | Error e ->
           let loc, loc_kind =
             match arg with
-            | Arg (Known_arg {sarg; _} | Unknown_arg {sarg; _}) ->
+            | Arg (Known_earg {sarg; _} | Unknown_earg {sarg; _}) ->
               if has_commuted then
                 sarg.pexp_loc, `Single_arg
               else
                 Location.{ loc_start = app_loc.loc_start;
                            loc_end = sarg.pexp_loc.loc_end;
                            loc_ghost = app_loc.loc_ghost || sarg.pexp_loc.loc_ghost },
+                `Prefix
+            | Arg (Module_arg {sarg; _}) ->
+              if has_commuted then
+                sarg.mod_loc, `Single_arg
+              else
+                Location.{ loc_start = app_loc.loc_start;
+                            loc_end = sarg.mod_loc.loc_end;
+                            loc_ghost = app_loc.loc_ghost || sarg.mod_loc.loc_ghost },
                 `Prefix
             | Arg (Eliminated_optional_arg _) | Omitted _ ->
               app_loc, `Entire_apply
@@ -3713,10 +3730,68 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     let ls, tvar = list_labels env ty_fun in
     tvar || List.mem l ls
   in
+  let previous_arg_loc rev_args =
+      (* [rev_args] is the arguments typed until now, in reverse
+      order of appearance. Not all arguments have a location
+      attached (eg. an optional argument that is not passed). *)
+    (* CR ccasinghino: the above comment is confusing - these
+      arguments are in reverse order according to the function
+      type, but not according to their positions in the source
+      program.  We diverge from upstream here by not trying to
+      provide a good location in the [Eliminated_optional_arg]
+      case - maybe fix one day if it is noticeable. *)
+      rev_args
+      |> List.find_map
+          (function
+            | (_, Arg ( Known_earg { sarg; _ }
+                      | Unknown_earg { sarg; _ })) ->
+              Some sarg.pexp_loc
+            | (_, Arg (Module_arg { sarg; _ })) -> Some sarg.mod_loc
+            | (_, Arg (Eliminated_optional_arg _))
+            | (_, Omitted _) -> None)
+      |> Option.value ~default:funct.exp_loc
+  in
   let rec loop ty_fun mode_fun rev_args sargs =
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
-    | (_lbl, Parg_module _) :: _rest -> assert false (* TODO *)
+    | (lbl, Parg_module me) :: rest ->
+        let () = assert (lbl = Nolabel) in
+        let (id, (p, fl), ty_res) =
+          let ty_fun = expand_head env ty_fun in
+          match get_desc ty_fun with
+            Tfunctor (id, pl, t) -> (id, pl, t)
+          | Tvar _ ->
+              raise (Error(me.pmod_loc, env, Cannot_infer_functor_signature))
+          | _ ->
+            let ty_res = remaining_function_type ty_fun mode_fun rev_args in
+            let previous_arg_loc = previous_arg_loc rev_args in
+            raise (Error(me.pmod_loc, env, Apply_non_functor {
+              funct;
+              func_ty = expand_head env funct.exp_type;
+              res_ty = expand_head env ty_res;
+              previous_arg_loc;
+              extra_arg_loc = me.pmod_loc; }))
+        in
+        let (m, _fl') = !type_package env me p fl in
+        let rec extract_path m =
+          match m.mod_desc with
+          | Tmod_ident (p, _) -> p
+          | Tmod_apply (p1, p2, _) ->
+              Path.Papply(extract_path p1, extract_path p2)
+          | Tmod_constraint (p, _, _, _) ->
+              extract_path p
+          | _ -> raise (Error(me.pmod_loc, env, Cannot_infer_functor_path))
+        in
+        let ty_res = instance_funct ~id_in:id ~p_out:(extract_path m)
+                      ~fixed:false ty_res in
+        let arg = Module_arg {
+            sarg = m;
+            commuted = false;
+            mode_fun;
+            mode_arg = Mode.Alloc.legacy;
+        } in
+        let mode_ret = Alloc.newvar () in
+        loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
     | (lbl, Parg_expr sarg) :: rest ->
         let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
           let ty_fun = expand_head env ty_fun in
@@ -3759,26 +3834,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                 else
                   raise (Error(funct.exp_loc, env, Incoherent_label_order))
             | _ ->
-                let previous_arg_loc =
-                  (* [rev_args] is the arguments typed until now, in reverse
-                     order of appearance. Not all arguments have a location
-                     attached (eg. an optional argument that is not passed). *)
-                  (* CR ccasinghino: the above comment is confusing - these
-                     arguments are in reverse order according to the function
-                     type, but not according to their positions in the source
-                     program.  We diverge from upstream here by not trying to
-                     provide a good location in the [Eliminated_optional_arg]
-                     case - maybe fix one day if it is noticeable. *)
-                  rev_args
-                  |> List.find_map
-                       (function
-                         | (_, Arg ( Known_arg { sarg; _ }
-                                   | Unknown_arg { sarg; _ })) ->
-                           Some sarg.pexp_loc
-                         | (_, Arg (Eliminated_optional_arg _))
-                         | (_, Omitted _) -> None)
-                  |> Option.value ~default:funct.exp_loc
-                in
+                let previous_arg_loc = previous_arg_loc rev_args in
                 raise(Error(funct.exp_loc, env, Apply_non_function {
                     funct;
                     func_ty = expand_head env funct.exp_type;
@@ -3787,7 +3843,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                     extra_arg_loc = sarg.pexp_loc; }))
         in
         let arg =
-          Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+          Unknown_earg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
         in
         loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
   in
@@ -3831,7 +3887,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           if wrapped_in_some then
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
-          Arg (Known_arg
+          Arg (Known_earg
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
@@ -3910,10 +3966,14 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
          match arg with
-         | Arg (exp, marg, sort) ->
-             let open_args = (exp, marg) :: open_args in
+         | Arg (marg, Targ_expr (exp, sort)) ->
+             let open_args = (exp.exp_loc, marg) :: open_args in
              let args = (lbl, Arg (Targ_expr (exp, sort))) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
+         | Arg (marg, Targ_module me) ->
+            let open_args = (me.mod_loc, marg) :: open_args in
+            let args = (lbl, Arg (Targ_module me)) :: args in
+            (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
@@ -3922,8 +3982,8 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              in
              let new_closed_args =
                List.map
-                 (fun (exp, marg) ->
-                    submode ~loc:exp.exp_loc ~env ~reason:Other
+                 (fun (loc, marg) ->
+                    submode ~loc ~env ~reason:Other
                       marg (mode_partial_application expected_mode);
                     value_to_alloc_r2l marg)
                  open_args
@@ -5459,14 +5519,20 @@ and type_expect_
           mode, mode_default mode
       in
       (* does the function return a tvar which is too generic? *)
-      let rec ret_tvar seen ty_fun =
+      let rec ret_tvar env seen ty_fun =
         let ty = expand_head env ty_fun in
         if TypeSet.mem ty seen then false else
           match get_desc ty with
             Tarrow (_l, ty_arg, ty_fun, _com) ->
               (try enforce_current_level env ty_arg
                with Unify _ -> assert false);
-              ret_tvar (TypeSet.add ty seen) ty_fun
+              ret_tvar env (TypeSet.add ty seen) ty_fun
+          | Tfunctor (id, (p, fl), ty_fun) ->
+              List.iter (fun (_, t) ->
+                try enforce_current_level env t with Unify _ -> assert false) fl;
+              let mty = !Ctype.modtype_of_package env Location.none p fl in
+              let env = Env.add_module id Mp_present mty env in
+              ret_tvar env (TypeSet.add ty seen) ty_fun
           | Tvar _ ->
               let v = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
               let rt = get_level ty > get_level v in
@@ -5491,7 +5557,7 @@ and type_expect_
               (funct, ty)
             end
         in
-        let rt = wrap_trace_gadt_instances env (ret_tvar TypeSet.empty) ty in
+        let rt = wrap_trace_gadt_instances env (ret_tvar env TypeSet.empty) ty in
         rt, funct
       in
       let type_sfunct_args sfunct extra_args =
@@ -7820,7 +7886,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
 
 and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
-  | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
+  | Arg (Unknown_earg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
       let arg =
@@ -7830,8 +7896,12 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
           (type_option(newvar Predef.option_argument_jkind));
-      (lbl, Arg (arg, mode_arg, sort_arg))
-  | Arg (Known_arg { sarg; ty_arg; ty_arg0;
+      (lbl, Arg (mode_arg, Targ_expr (arg, sort_arg)))
+  | Arg (Module_arg { sarg; mode_arg }) ->
+      let _, mode_arg =
+        mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
+      (lbl, Arg (mode_arg, Targ_module sarg))
+  | Arg (Known_earg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
@@ -7886,15 +7956,15 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           {arg with exp_type = instance arg.exp_type}
         end
       in
-      (lbl, Arg (arg, mode_arg, sort_arg))
+      (lbl, Arg (mode_arg, Targ_expr (arg, sort_arg)))
   | Arg (Eliminated_optional_arg { ty_arg; sort_arg; expected_label; _ }) ->
       (match expected_label with
       | Optional _ ->
           let arg = type_option_none env (instance ty_arg) Location.none in
-          (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
+          (lbl, Arg (Mode.Value.legacy, Targ_expr (arg, sort_arg)))
       | Position _ ->
           let arg = src_pos (Location.ghostify funct.exp_loc) [] env in
-          (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
+          (lbl, Arg (Mode.Value.legacy, Targ_expr (arg, sort_arg)))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
 
