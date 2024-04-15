@@ -1575,7 +1575,7 @@ module Value = struct
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
     let print ppf m =
-      let {monadic; comonadic} = split m in
+      let { monadic; comonadic } = split m in
       Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
@@ -2054,7 +2054,7 @@ module Alloc = struct
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
     let print ppf m =
-      let {monadic; comonadic} = split m in
+      let { monadic; comonadic } = split m in
       Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
