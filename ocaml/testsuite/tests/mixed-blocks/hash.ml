@@ -3,15 +3,16 @@
  program = "${test_build_directory}/hash.exe"
 all_modules = "hash.ml"
 
- * setup-ocamlc.opt-build-env
- ** ocamlc.opt
- *** run
- **** check-program-output
+ * flambda2
+ ** setup-ocamlc.opt-build-env
+ *** ocamlc.opt
+ **** run
+ ***** check-program-output
    reference = "${test_source_directory}/hash.byte.reference"
- * setup-ocamlopt.opt-build-env
- ** ocamlopt.opt
- *** run
- **** check-program-output
+ ** setup-ocamlopt.opt-build-env
+ *** ocamlopt.opt
+ **** run
+ ***** check-program-output
    reference = "${test_source_directory}/hash.native.reference"
 *)
 
