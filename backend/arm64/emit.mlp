@@ -496,6 +496,7 @@ module BR = Branch_relaxation.Make (struct
         | _ -> 0
       and single = match memory_chunk with Single -> 2 | _ -> 1 in
       based + barrier + single
+    | Lop (Ialloc { mode = Alloc_local; _ }) -> 9
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop (Ipoll _) -> 3
