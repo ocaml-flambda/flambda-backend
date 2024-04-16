@@ -168,7 +168,7 @@ value compiler_float32_mod_boxed(value i, value j)
 
 value compiler_float32_compare_boxed(value i, value j)
 {
-    return compiler_float32_compare(Int32_val(i), Int32_val(j)));
+    return compiler_float32_compare(Int32_val(i), Int32_val(j));
 }
 
 value compiler_float32_equal_boxed(value i, value j)
