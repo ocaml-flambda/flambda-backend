@@ -26,6 +26,7 @@
 #include "caml/memory.h"
 #include "caml/mlvalues.h"
 #include "caml/platform.h"
+#include "caml/signals.h"
 
 /* A note about callbacks and GC.  For best performance, a callback such as
      [caml_callback_exn(value closure, value arg)]
@@ -494,8 +495,15 @@ CAMLprim value caml_with_async_exns(value body_callback)
   res = caml_callback_exn(body_callback, Val_unit);
 
   /* raised as a normal exn, even if it was asynchronous */
-  if (Is_exception_result(res))
-    caml_raise(Extract_exception(res));
+  if (Is_exception_result(res)) {
+    /* Drain the queue of pending actions. We may need to do
+       this several times if some raise */
+    do {
+      res = Extract_exception(res);
+      res = caml_process_pending_actions_with_root_exn(res);
+    } while (Is_exception_result(res));
+    caml_raise(res);
+  }
 
   return res;
 }
