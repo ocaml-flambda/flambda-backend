@@ -83,11 +83,7 @@ module type Common = sig
 
   val newvar_below : ('l * allowed) t -> ('l_ * 'r) t * bool
 
-  val print_raw :
-    ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
-
-  val print :
-    ?verbose:bool -> unit -> Format.formatter -> (allowed * allowed) t -> unit
+  val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
 end
@@ -147,7 +143,21 @@ module type S = sig
 
     val zap_to_ceil : ('l * allowed) t -> Const.t
 
-    val check_const : (allowed * allowed) t -> Const.t option
+    module Guts : sig
+      (** This module exposes some functions that allow callers to inspect modes
+      directly, which could be useful for error printing and dev tools (such as
+      merlin). Any usage of this in type checking should be pondered. *)
+
+      (** Returns [Some c] if the given mode has been constrained to constant
+          [c]. see notes on [get_floor] in [solver_intf.mli] for cautions. *)
+      val check_const : (allowed * allowed) t -> Const.t option
+
+      (** Similar to [check_const] but doesn't run the further constraining
+          needed for precise bounds. As a result, it is inexpensive and returns
+          a conservative result. I.e., it might return [None] for
+          fully-constrained modes. *)
+      val check_const_conservative : (l * 'r) t -> Const.t option
+    end
   end
 
   module Regionality : sig
@@ -388,8 +398,6 @@ module type S = sig
         with module Const := Const
          and type error := error
          and type 'd t := 'd t
-
-    val check_const : (allowed * allowed) t -> Const.Option.t
 
     val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
