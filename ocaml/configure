@@ -721,6 +721,7 @@ ocaml_libdir
 ocaml_bindir
 dune
 poll_insertion
+new_safepoints_strategy
 stack_allocation
 intel_jcc_bug_cflags
 naked_pointers_checker
@@ -941,6 +942,7 @@ enable_mmap_map_stack
 with_afl
 enable_stack_allocation
 enable_poll_insertion
+enable_old_safepoints_strategy
 with_flexdll
 with_zstd
 enable_shared
@@ -1637,7 +1639,10 @@ Optional Features:
   --enable-mmap-map-stack use mmap to allocate stacks instead of malloc
   --enable-stack-allocation
                           enable stack allocation of local values
-  --enable-poll-insertion enable insertion of poll points
+  --enable-poll-insertion enable insertion of poll points (with new strategy
+                          on x86-64 Linux)
+  --enable-old-safepoints-strategy
+                          always use the old (upstream) safepoints strategy
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-fast-install[=PKGS]
@@ -3450,6 +3455,7 @@ OCAML_VERSION_SHORT=5.1
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.build_config"
@@ -4054,6 +4060,13 @@ fi
 if test ${enable_poll_insertion+y}
 then :
   enableval=$enable_poll_insertion;
+fi
+
+
+# Check whether --enable-old-safepoints-strategy was given.
+if test ${enable_old_safepoints_strategy+y}
+then :
+  enableval=$enable_old_safepoints_strategy;
 fi
 
 
@@ -20654,14 +20667,43 @@ fi ;;
 esac
 fi
 
+# amd64 Linux uses a new safepoints strategy by default.
+# Use --enable-old-safepoints-strategy to disable it.
+new_safepoints_strategy=0
 if test x"$enable_poll_insertion" = "xyes"
 then :
   printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
 
+   case "$arch","$system" in #(
+  amd64,linux) :
+    new_safepoints_strategy=1 ;; #(
+  *) :
+     ;; #(
+  *) :
+     ;;
+esac
    poll_insertion=true
 else case e in #(
   e) poll_insertion=false ;;
 esac
+fi
+
+# New safepoints strategy is only supported for runtime5
+if test x"$enable_runtime5" != xyes
+then :
+  new_safepoints_strategy=0
+fi
+
+# Escape hatch to force old safepoints strategy
+if test x"$enable_old_safepoints_strategy" = "xyes"
+then :
+  new_safepoints_strategy=0
+fi
+
+if test x"$new_safepoints_strategy" = "x1"
+then :
+  printf "%s\n" "#define NEW_SAFEPOINTS_STRATEGY 1" >>confdefs.h
+
 fi
 
 oc_cflags="$common_cflags $internal_cflags"

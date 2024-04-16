@@ -587,6 +587,10 @@ void caml_free_signal_stack(void * signal_stack)
 static void * caml_signal_stack_0 = NULL;
 #endif
 
+#include <unistd.h>
+void* caml_safepoint_trigger_page;
+static const int safepoint_trigger_page_size = 8;
+
 void caml_init_signals(void)
 {
   /* Bound-check trap handling for Power and S390x will go here eventually. */
@@ -613,6 +617,13 @@ void caml_init_signals(void)
     }
   }
 #endif
+
+  caml_safepoint_trigger_page =
+    mmap(NULL, safepoint_trigger_page_size,
+         PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (caml_safepoint_trigger_page == MAP_FAILED) {
+    caml_fatal_error("Failed to allocate safepoint trigger page");
+  }
 }
 
 void caml_terminate_signals(void)
@@ -621,6 +632,8 @@ void caml_terminate_signals(void)
   caml_free_signal_stack(caml_signal_stack_0);
   caml_signal_stack_0 = NULL;
 #endif
+
+  munmap(caml_safepoint_trigger_page, safepoint_trigger_page_size);
 }
 
 /* Installation of a signal handler (as per [Sys.signal]) */

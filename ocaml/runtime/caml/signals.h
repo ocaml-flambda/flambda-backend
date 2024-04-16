@@ -49,6 +49,8 @@ CAMLextern int caml_check_pending_actions (void);
 
 #ifdef CAML_INTERNALS
 
+CAMLextern void* caml_safepoint_trigger_page;
+
 #ifndef NSIG
 #define NSIG 65
 #endif

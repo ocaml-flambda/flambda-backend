@@ -38,6 +38,7 @@ val cl: arg
 val ax: arg
 val rax: arg
 val rbx: arg
+val rcx: arg
 val rdx: arg
 val r10: arg
 val r11: arg

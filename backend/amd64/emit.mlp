@@ -1534,27 +1534,39 @@ let emit_instr ~first ~fallthrough i =
           lr_dbg = i.dbg;
           lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
   | Lop(Ipoll { return_label }) ->
-      I.cmp (domain_field Domainstate.Domain_young_limit) r15;
-      let gc_call_label = new_label () in
-      let lbl_after_poll = match return_label with
-                  | None -> new_label()
-                  | Some(lbl) -> lbl in
-      let lbl_frame =
-        record_frame_label i.live (Dbg_alloc [])
-      in
-      begin match return_label with
-      | None -> I.jbe (label gc_call_label)
-      | Some return_label -> I.ja (label return_label)
-      end;
-      call_gc_sites :=
-        { gc_lbl = gc_call_label;
-          gc_return_lbl = lbl_after_poll;
-          gc_dbg = i.dbg;
-          gc_frame = lbl_frame; } :: !call_gc_sites;
-      begin match return_label with
-      | None -> def_label lbl_after_poll
-      | Some _ -> I.jmp (label gc_call_label)
-      end
+      if Config.new_safepoints_strategy then (
+        (* %rcx must match amd64/proc.ml:destroyed_at_poll *)
+        I.mov (domain_field Domainstate.Domain_safepoint_trigger) rcx;
+        I.mov (mem64 DWORD 0 RCX) ecx;
+        record_frame i.live (Dbg_alloc []);
+        (* The load or store will cause a segfault when the safe points
+           trigger has been enabled by the runtime.  When the runtime code
+           returns, it will do so to this point, the instruction immediately
+           after the faulting one. *)
+        Option.iter def_label return_label
+      ) else (
+        I.cmp (domain_field Domainstate.Domain_young_limit) r15;
+        let gc_call_label = new_label () in
+        let lbl_after_poll = match return_label with
+                    | None -> new_label()
+                    | Some(lbl) -> lbl in
+        let lbl_frame =
+          record_frame_label i.live (Dbg_alloc [])
+        in
+        begin match return_label with
+        | None -> I.jbe (label gc_call_label)
+        | Some return_label -> I.ja (label return_label)
+        end;
+        call_gc_sites :=
+          { gc_lbl = gc_call_label;
+            gc_return_lbl = lbl_after_poll;
+            gc_dbg = i.dbg;
+            gc_frame = lbl_frame; } :: !call_gc_sites;
+        begin match return_label with
+        | None -> def_label lbl_after_poll
+        | Some _ -> I.jmp (label gc_call_label)
+        end
+      )
   | Lop(Iintop(Icomp cmp)) ->
       I.cmp (arg i 1) (arg i 0);
       I.set (cond cmp) al;

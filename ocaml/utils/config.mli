@@ -283,6 +283,9 @@ val stack_allocation : bool
 val poll_insertion : bool
 (** Whether to insert poll points *)
 
+val new_safepoints_strategy : bool
+(** Whether to use the new safepoints strategy *)
+
 val ar_supports_response_files: bool
 (** Whether ar supports @FILE arguments. *)
 

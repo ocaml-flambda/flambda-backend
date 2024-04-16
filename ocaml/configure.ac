@@ -243,6 +243,7 @@ AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
+AC_SUBST([new_safepoints_strategy])
 AC_SUBST([poll_insertion])
 AC_SUBST([dune])
 AC_SUBST([ocaml_bindir])
@@ -521,7 +522,11 @@ AC_ARG_ENABLE([stack-allocation],
 
 AC_ARG_ENABLE([poll-insertion],
   [AS_HELP_STRING([--enable-poll-insertion],
-    [enable insertion of poll points])])
+    [enable insertion of poll points (with new strategy on x86-64 Linux)])])
+
+AC_ARG_ENABLE([old-safepoints-strategy],
+  [AS_HELP_STRING([--enable-old-safepoints-strategy],
+    [always use the old (upstream) safepoints strategy])])
 
 AC_ARG_WITH([flexdll],
   [AS_HELP_STRING([--with-flexdll],
@@ -2394,10 +2399,27 @@ AS_IF([test x"$enable_stack_allocation" = "xno"],
     [AC_MSG_ERROR([Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'.])])])
 
+# amd64 Linux uses a new safepoints strategy by default.
+# Use --enable-old-safepoints-strategy to disable it.
+new_safepoints_strategy=0
 AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
+   AS_CASE(["$arch","$system"],
+    [amd64,linux], [new_safepoints_strategy=1],
+    [*], [])
    poll_insertion=true],
   [poll_insertion=false])
+
+# New safepoints strategy is only supported for runtime5
+AS_IF([test x"$enable_runtime5" != xyes],
+      [new_safepoints_strategy=0])
+
+# Escape hatch to force old safepoints strategy
+AS_IF([test x"$enable_old_safepoints_strategy" = "xyes"],
+  [new_safepoints_strategy=0])
+
+AS_IF([test x"$new_safepoints_strategy" = "x1"],
+  [AC_DEFINE([NEW_SAFEPOINTS_STRATEGY])])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
