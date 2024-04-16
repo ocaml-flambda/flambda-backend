@@ -3695,10 +3695,14 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
     in
     if sargs = [] then type_unknown_args () else
     let ty_fun' = expand_head env ty_fun in
+    let arg_loc = function
+      | Parg_expr e -> e.pexp_loc
+      | Parg_module m -> m.pmod_loc
+    in
     match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
     | Tarrow (ad, ty_arg, ty_ret, com),
       Tarrow (_, ty_arg0, ty_ret0, _),
-      (_, Parg_expr sarg1) :: _
+      (_, sarg1) :: _
       when is_commu_ok com ->
         let lv = get_level ty_fun' in
         let (l, mode_arg, mode_ret) = ad in
@@ -3711,7 +3715,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         in
         let sort_arg = match type_sort ~why:Function_argument env ty_arg with
           | Ok sort -> sort
-          | Error err -> raise(Error(sarg1.pexp_loc, env,
+          | Error err -> raise(Error(arg_loc sarg1, env,
                                      Function_type_not_rep(ty_arg, err)))
         in
         let name = label_name l
@@ -3790,6 +3794,87 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
                 end
         in
+        loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+    | Tfunctor (id, (p, fl), ty_ret),
+      Tfunctor (id0, _, ty_ret0),
+      (_, _) :: _ ->
+        let lv = get_level ty_fun' in
+        let mode_arg = Alloc.legacy in
+        let l = Nolabel in
+        let may_warn loc w =
+          if not !warned && !Clflags.principal && lv <> generic_level
+          then begin
+            warned := true;
+            Location.prerr_warning loc w
+          end
+        in
+        let name = label_name l
+        and optional = is_optional l
+        and omittable = is_omittable l in
+        let use_arg ~commuted me =
+          let (m, _fl') = !type_package env me p fl in
+          let rec extract_path m =
+            match m.mod_desc with
+            | Tmod_ident (p, _) -> p
+            | Tmod_apply (p1, p2, _) ->
+                Path.Papply(extract_path p1, extract_path p2)
+            | Tmod_constraint (p, _, _, _) ->
+                extract_path p
+            | _ ->
+                raise (Error(me.pmod_loc, env,
+                              Cannot_infer_functor_path))
+          in
+          let path = extract_path m in
+          let ty_ret = instance_funct ~id_in:id ~p_out:path
+                            ~fixed:false ty_ret in
+          let ty_ret0 = instance_funct ~id_in:id0 ~p_out:path
+                            ~fixed:false ty_ret0 in
+          Arg (Module_arg {
+            sarg = m;
+            mode_fun;
+            mode_arg;
+            commuted
+          }), ty_ret, ty_ret0
+        in
+        let remaining_sargs, (arg, ty_ret, ty_ret0) =
+          if ignore_labels then begin
+            (* No reordering is allowed, process arguments in order *)
+            match sargs with
+            | [] -> assert false
+            | (l', Parg_module sarg) :: remaining_sargs ->
+                if name = label_name l' || (not omittable && l' = Nolabel) then
+                  (remaining_sargs, use_arg ~commuted:false sarg)
+                else if
+                  omittable &&
+                  not (List.exists (fun (l, _) -> name = label_name l)
+                         remaining_sargs) &&
+                  List.exists (function (Nolabel, _) -> true | _ -> false)
+                    sargs
+                then
+                  assert false (* Module arg never ommitable *)
+                else
+                  raise(Error(sarg.pmod_loc, env,
+                              Apply_wrong_label(l', ty_fun', omittable)))
+            | (_, Parg_expr _) :: _ ->
+                assert false (* TODO *)
+          end else
+            (* Arguments can be commuted, try to fetch the argument
+               corresponding to the first parameter. *)
+            match extract_label name sargs with
+            | Some (l', Parg_module sarg, commuted, remaining_sargs) ->
+                if commuted then begin
+                  may_warn sarg.pmod_loc
+                    (Warnings.Not_principal "commuting this argument")
+                end;
+                if not optional && is_optional l' then
+                  Location.prerr_warning sarg.pmod_loc
+                    (Warnings.Nonoptional_label (Printtyp.string_of_label l));
+                remaining_sargs, use_arg ~commuted sarg
+            | Some (_, Parg_expr _, _, _) -> assert false (* TODO *)
+            | None ->
+                assert false (* Should raise an error *)
+        in
+        let mode_ret = Alloc.legacy in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
     | _ ->
         type_unknown_args ()
