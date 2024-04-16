@@ -956,11 +956,10 @@ let emit_instr i =
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
       fatal_error ("Probes not supported.")
     | Lop(Idls_get) ->
-      (* BACKPORT BEGIN *)
-      fatal_error ("Idls_get not supported.")
-      (*let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
-      `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`*)
-      (* BACKPORT END *)
+      if Config.runtime5 then
+        let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
+      else Misc.fatal_error "Dls is not supported in runtime4."
     | Lop (Icsel tst) ->
       let len = Array.length i.arg in
       let ifso = i.arg.(len - 2) in
