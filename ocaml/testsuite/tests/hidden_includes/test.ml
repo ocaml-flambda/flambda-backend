@@ -1,6 +1,4 @@
 (* TEST
- reason = "broken due to layout error";
- skip;
 (* This tests the -H flag.
 
    The basic structure is that libc depends on libb, which depends on liba.  We
@@ -37,11 +35,16 @@ flags = "-I liba -I libb -nocwd";
 module = "libb/b.ml";
 ocamlc.byte;
 {
-  (* Test hiding A completely *)
+  (* Test hiding A completely. You can't do much with types from it because
+     their layouts are unknown. *)
   flags = "-I libb -nocwd";
   module = "libc/c2.ml";
   setup-ocamlc.byte-build-env;
+  ocamlc_byte_exit_status = "2";
   ocamlc.byte;
+  compiler_reference =
+    "${test_source_directory}/missing_cmi_layout.ocamlc.reference";
+  check-ocamlc.byte-output;
 }
 {
   (* Test hiding A completely, but using it *)
