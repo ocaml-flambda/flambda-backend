@@ -3113,7 +3113,8 @@ let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
 
 let emit_float32_constant symb f cont =
-  emit_block symb boxedfloat32_header (Csingle f :: cont)
+  emit_block symb boxedfloat32_header
+    (Csymbol_address (global_symbol caml_float32_ops) :: Csingle f :: cont)
 
 let emit_float_constant symb f cont =
   emit_block symb float_header (Cdouble f :: cont)

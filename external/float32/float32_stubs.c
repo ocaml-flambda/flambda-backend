@@ -106,14 +106,14 @@ int32_t compiler_float32_mod(int32_t i, int32_t j)
     return int32_of_float32(fmodf(float32_of_int32(i), float32_of_int32(j)));
 }
 
-intnat compiler_float32_compare(int32_t i, int32_t j)
+value compiler_float32_compare(int32_t i, int32_t j)
 {
     /* See caml_float_compare_unboxed */
     float f = float32_of_int32(i);
     float g = float32_of_int32(j);
     intnat res =
         (intnat)(f > g) - (intnat)(f < g) + (intnat)(f == f) - (intnat)(g == g);
-    return res;
+    return Int_val(res);
 }
 
 bool compiler_float32_equal(int32_t i, int32_t j)
@@ -168,7 +168,7 @@ value compiler_float32_mod_boxed(value i, value j)
 
 value compiler_float32_compare_boxed(value i, value j)
 {
-    return Val_int(compiler_float32_compare(Int32_val(i), Int32_val(j)));
+    return compiler_float32_compare(Int32_val(i), Int32_val(j)));
 }
 
 value compiler_float32_equal_boxed(value i, value j)
