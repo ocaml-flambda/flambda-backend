@@ -138,4 +138,6 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_flags:"-zero-alloc-check opt"
     ~extra_dep:None ~exit_code:2 "test_all_opt3";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_assume_inlining";
   ()
