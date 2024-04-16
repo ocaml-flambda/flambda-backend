@@ -144,24 +144,20 @@ module type S = sig
     val zap_to_ceil : ('l * allowed) t -> Const.t
 
     module Guts : sig
-      (* The functions to obtain bounds are dangerous; see notes on functions of
-         same names in [solver_intf.mli] for cautions.
+      (** This module exposes some functions that allow callers to inspect modes
+      directly, which could be useful for error printing and dev tools (such as
+      merlin). Any usage of this in type checking should be pondered. *)
 
-         In addition, they are dangerous (even the non-conservative ones),
-         because the caller might obtain the floor/ceil of multiple mode
-         variables and use them in conjunction, without realizing that those
-         bounds might have constraints between them that prevent the bounds to
-         hold in conjunction.
+      (** Returns [Some c] if the given mode has been constrained to constant
+          [c]. see notes on [get_floor] in [solver_intf.mli] for cautions. *)
+      val check_const : (allowed * allowed) t -> Const.t option
 
-         Therefore, those functions should be avoided. Currently they are used
-         only by merlin. *)
-      val get_conservative_floor : (l * 'r) t -> Const.t
-
-      val get_ceil : ('l * allowed) t -> Const.t
+      (** Similar to [check_const] but doesn't run the further constraining
+          needed for precise bounds. As a result, it is inexpensive and returns
+          a conservative result. I.e., it might return [None] for
+          fully-constrained modes. *)
+      val check_const_conservative : (l * 'r) t -> Const.t option
     end
-
-    (** Returns [Some c] if the given mode has been constrained to constant [c]. *)
-    val check_const : (allowed * allowed) t -> Const.t option
   end
 
   module Regionality : sig
