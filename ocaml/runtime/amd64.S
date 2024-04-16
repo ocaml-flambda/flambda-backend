@@ -194,6 +194,7 @@
 
 #define CAML_CONFIG_H_NO_TYPEDEFS
 #include "../runtime/caml/config.h"
+#define Stack_threshold_offset ((Stack_threshold_words + Stack_ctx_words) * 8)
 
         .set    domain_curr_field, 0
 #define DOMAIN_STATE(c_type, name) \
@@ -1019,7 +1020,10 @@ CFI_STARTPROC
     /* Load new stack pointer and set parent */
         movq    Stack_handler(%rax), %r11
         movq    %rcx, Handler_parent(%r11)
-        movq    %rax, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
+        movq    %rax, Caml_state(current_stack)
+        addq    $(Stack_threshold_offset), %rax
+        movq    %rax, Caml_state(current_stack_bound)
+        subq    $(Stack_threshold_offset), %rax
         movq    Stack_sp(%rax), %r11
     /* Load all local allocations state for the new stack */
         movq    Stack_local_sp(%rax), %r10
@@ -1061,7 +1065,10 @@ LBL(frame_runstack):
     /* restore parent stack and exn_handler into Caml_state */
         movq    Handler_parent(%r11), %r10
         movq    Stack_exception(%r10), %r11
-        movq    %r10, Caml_state(current_stack) /* CR xclerc for xclerc: also current_stack_bound */
+        movq    %r10, Caml_state(current_stack)
+        addq    $(Stack_threshold_offset), %rax
+        movq    %rax, Caml_state(current_stack_bound)
+        subq    $(Stack_threshold_offset), %rax
         movq    %r11, Caml_state(exn_handler)
     /* Restore all local allocations state for the new stack */
         movq    Stack_local_sp(%r10), %r11
