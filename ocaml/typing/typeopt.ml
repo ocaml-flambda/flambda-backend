@@ -678,7 +678,7 @@ let classify_lazy_argument : Typedtree.expression ->
                              |`Other] =
   fun e -> match e.exp_desc with
     | Texp_constant
-        ( Const_int _ | Const_char _ | Const_string _
+        ( Const_int _ | Const_char _ | Const_string _ | Const_float32 _
         | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
     | Texp_function _
     | Texp_construct (_, {cstr_arity = 0}, _, _) ->

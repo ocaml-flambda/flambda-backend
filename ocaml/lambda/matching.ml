@@ -2869,7 +2869,7 @@ let combine_constant value_kind loc arg cst partial ctx def
           const_lambda_list
     | Const_float32 _ ->
         make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
-        (Pfloatcomp (Pfloat32, CFlt)) arg
+          (Pfloatcomp (Pfloat32, CFlt)) arg
           const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail

@@ -973,7 +973,7 @@ let rec comp_expr stack_info env exp sz cont =
         | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
       in
       comp_args stack_info env args sz cont
-  | Lprim (Pfloatcomp (Pfloat32, cmp), args, _) ->
+  | Lprim (Pfloatcomp (Pfloat32, cmp), args, _) | Lprim (Punboxed_float_comp (Pfloat32, cmp), args, _) ->
       let cont =
         match cmp with
         | CFeq -> Kccall("caml_eq_float32", 2) :: cont

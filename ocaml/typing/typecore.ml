@@ -690,6 +690,9 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
   | Pconst_float (f,None)-> Ok (Const_float f)
+  | Pconst_float (f,Some 's')
+    when Language_extension.is_enabled Small_numbers ->
+    Ok (Const_float32 f)
   | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
 
 let constant_or_raise env loc cst =
@@ -700,7 +703,9 @@ let constant_or_raise env loc cst =
 let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
   = function
   | Float (f, None) -> Ok (Const_unboxed_float f)
-  | Float (x, Some c) -> Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
+  | Float (x, Some c) ->
+    (* CR mslater: (float32) unboxed *)
+    Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
   | Integer (i, suffix) ->
     begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
@@ -9838,7 +9843,7 @@ let report_error ~loc env = function
         | Nolabel, _ | _, Nolabel -> true
         | _                       -> false
       in
-      let maybe_positional_argument_hint = 
+      let maybe_positional_argument_hint =
         match got, expected with
         | Labelled _, Position _ ->
           "\nHint: Consider explicitly annotating the label with '[%call_pos]'"
