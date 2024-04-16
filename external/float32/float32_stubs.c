@@ -116,9 +116,9 @@ value compiler_float32_compare(int32_t i, int32_t j)
     return Val_int(res);
 }
 
-bool compiler_float32_equal(int32_t i, int32_t j)
+value compiler_float32_equal(int32_t i, int32_t j)
 {
-    return float32_of_int32(i) == float32_of_int32(j);
+    return Val_bool(float32_of_int32(i) == float32_of_int32(j));
 }
 
 int32_t compiler_float32_of_float(double d)
@@ -173,7 +173,7 @@ value compiler_float32_compare_boxed(value i, value j)
 
 value compiler_float32_equal_boxed(value i, value j)
 {
-    return Val_bool(compiler_float32_equal(Int32_val(i), Int32_val(j)));
+    return compiler_float32_equal(Int32_val(i), Int32_val(j));
 }
 
 value compiler_float32_of_float_boxed(value d)
