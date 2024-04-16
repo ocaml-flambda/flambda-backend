@@ -833,10 +833,11 @@ end = struct
   let transform_call t ~next ~exn callee w ~desc dbg =
     report t next ~msg:"transform_call next" ~desc dbg;
     report t exn ~msg:"transform_call exn" ~desc dbg;
+    let v = find_callee t callee ~desc dbg w in
     let effect =
       match Metadata.assume_value dbg ~can_raise:true w with
-      | Some v -> v
-      | None -> find_callee t callee ~desc dbg w
+      | Some v' -> Value.meet v v'
+      | None -> v
     in
     transform t ~next ~exn ~effect desc dbg
 
