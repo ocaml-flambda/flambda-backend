@@ -1,5 +1,0 @@
-File "test_assume_stub.ml", line 5, characters 7-17:
-Error: Annotation check for zero_alloc failed on function Test_assume_stub.A1.foo (camlTest_assume_stub.foo_HIDE_STAMP)
-
-File "test_assume_stub.ml", line 5, characters 27-33:
-Error: called function may allocate (external call to test_stub) (test_assume_stub.ml:5,27--33;test_assume_stub.ml:3,31--59)
