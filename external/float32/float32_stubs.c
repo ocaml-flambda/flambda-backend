@@ -113,7 +113,7 @@ value compiler_float32_compare(int32_t i, int32_t j)
     float g = float32_of_int32(j);
     intnat res =
         (intnat)(f > g) - (intnat)(f < g) + (intnat)(f == f) - (intnat)(g == g);
-    return Int_val(res);
+    return Val_int(res);
 }
 
 bool compiler_float32_equal(int32_t i, int32_t j)
