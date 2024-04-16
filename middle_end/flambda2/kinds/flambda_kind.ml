@@ -588,9 +588,10 @@ module With_subkind = struct
     | Pboxedvectorval (Pvec128 _) -> boxed_vec128
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
-      match consts, non_consts with
+      match[@warning "-fragile-match"] consts, non_consts with
       | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-      | [], [(tag, fields)] when tag = Obj.double_array_tag ->
+      | [], [(tag, Constructor_regular fields)] when tag = Obj.double_array_tag
+        ->
         (* If we have [Obj.double_array_tag] here, this is always an all-float
            block, not an array. *)
         float_block ~num_fields:(List.length fields)
@@ -601,11 +602,21 @@ module With_subkind = struct
         in
         let non_consts =
           List.fold_left
-            (fun non_consts (tag, fields) ->
+            (fun non_consts (tag, constructor_shape) ->
               match Tag.Scannable.create tag with
               | Some tag ->
                 Tag.Scannable.Map.add tag
-                  (List.map (fun vk -> from_lambda_value_kind vk) fields)
+                  (match (constructor_shape : Lambda.constructor_shape) with
+                   | Constructor_regular fields ->
+                       List.map from_lambda_value_kind fields
+                   | Constructor_mixed { value_prefix; flat_suffix } ->
+                       List.map from_lambda_value_kind value_prefix @
+                       List.map
+                         (fun (x : Lambda.flat_element) ->
+                            match x with
+                            | Float64 | Float -> naked_float
+                            | Imm -> tagged_immediate)
+                         flat_suffix)
                   non_consts
               | None ->
                 Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)

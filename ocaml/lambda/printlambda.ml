@@ -124,18 +124,41 @@ let boxed_float_name = function
   | Pfloat64 -> "float"
   | Pfloat32 -> "float32"
 
-let variant_kind print_contents ppf ~consts ~non_consts =
+let constructor_shape print_value_kind ppf shape =
+  let value_fields, flat_fields  =
+    match shape with
+    | Constructor_regular fields -> fields, []
+    | Constructor_mixed { value_prefix; flat_suffix } ->
+        value_prefix, flat_suffix
+  in
+  fprintf ppf "%a%t"
+    (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+       print_value_kind)
+    value_fields
+    (fun ppf ->
+       match flat_fields with
+       | [] -> ()
+       | _ :: _ ->
+           fprintf ppf ";@%a"
+             (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@")
+              (fun ppf -> function
+                  | Imm -> fprintf ppf "[imm]"
+                  | Float -> fprintf ppf "[float]"
+                  | Float64 -> fprintf ppf "[float64]"))
+             flat_fields)
+
+let tag_and_constructor_shape print_value_kind ppf (tag, shape) =
+  fprintf ppf "@[<hov 1>[%d:@ %a]@]"
+    tag
+    (constructor_shape print_value_kind)
+    shape
+
+let variant_kind print_value_kind ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
     consts
     (Format.pp_print_list ~pp_sep:Format.pp_print_space
-      (fun ppf (tag, fields) ->
-        fprintf ppf "@[<hov 1>[%d:@ %a]@]"
-          tag
-          (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-            print_contents)
-          fields
-      ))
+      (tag_and_constructor_shape print_value_kind))
     non_consts
 
 let rec value_kind ppf = function
@@ -207,12 +230,7 @@ let field_kind ppf = function
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
       consts
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        (fun ppf (tag, fields) ->
-          fprintf ppf "@[<hov 1>[%d:@ %a]@]"
-            tag
-            (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-              value_kind') fields
-        ))
+        (tag_and_constructor_shape value_kind'))
       non_consts
 
 let alloc_kind = function

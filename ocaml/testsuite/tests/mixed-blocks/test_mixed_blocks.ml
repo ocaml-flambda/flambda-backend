@@ -24,6 +24,7 @@ module Float_u = struct
   let ( > ) x y = (compare x y) > 0
 end
 
+
 let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
 let print_int prefix x = Printf.printf "%s: %d\n" prefix x
@@ -405,3 +406,29 @@ let test4 () =
 ;;
 
 let () = test4 ()
+
+(*************************)
+(* Test 5: optimizations *)
+
+(* Test that the middle end is able to handle scenarios where
+   optimizations apply.
+*)
+
+type t5_1 = { x : int; y : float# }
+
+let construct_and_destruct_1 ~x ~y =
+  match { x; y } with
+  | { x; y } -> float_of_int x +. Float_u.to_float y
+
+type t5_2 = { x : float; y : float# }
+
+let construct_and_destruct_2 ~x ~y =
+  match { x; y } with
+  | { x; y } -> x +. Float_u.to_float y
+
+let test5 () =
+  let result1 = construct_and_destruct_1 ~x:38 ~y:#4. in
+  let result2 = construct_and_destruct_2 ~x:37. ~y:#5. in
+  Printf.printf "Test 4: result (42) = %.3f = %.3f\n" result1 result2
+;;
+
