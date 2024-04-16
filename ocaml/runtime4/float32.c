@@ -165,6 +165,7 @@ CAMLprim value caml_float32_compare(value vf, value vg)
   }
 
 CAMLprim value caml_eq_float32 DEFINE_NAN_CMP(==)
+CAMLprim value caml_neq_float32 DEFINE_NAN_CMP(!=)
 CAMLprim value caml_le_float32 DEFINE_NAN_CMP(<=)
 CAMLprim value caml_lt_float32 DEFINE_NAN_CMP(<)
 CAMLprim value caml_ge_float32 DEFINE_NAN_CMP(>=)
