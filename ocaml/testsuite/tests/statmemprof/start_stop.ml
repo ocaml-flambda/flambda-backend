@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   runtime5; *)
 
 (* Tests various valid and invalid orderings of start/stop/discard
 statmemprof calls. Doesn't test any callbacks or count any allocations,

@@ -4,9 +4,9 @@
    combined allocation, causes already-run allocation callbacks to
    be reflected by deallocation callbacks. *)
 
-exception MyExc of string
-
 module MP = Gc.Memprof
+
+external runtime5 : unit -> bool = "%runtime5"
 
 (* Similar infrastructure to stop_start_in_callback test *)
 
@@ -69,7 +69,7 @@ let raise_in_alloc () =
        (* stop profile N after N allocations *)
        if a >= p then
        (record excs (p,a,sz);
-        raise (MyExc "from allocation callback"));
+        raise Sys.Break);
        Some (p, a, sz)) in
 
   let promote minor = Some minor in
@@ -86,13 +86,15 @@ let raise_in_alloc () =
                   ignore (MP.start ~sampling_rate:1.0 tracker)) in
 
   let arr = ref [] in
+  let clos = Sys.opaque_identity (fun () ->
+    arr := (f33 42) :: (!arr)) in
 
   for i = 1 to 10 do
     start ();
     (try
-      arr := (f33 42) :: (!arr);
+      Sys.with_async_exns clos
     with
-      MyExc s -> (incr n_exc));
+      Sys.Break -> (incr n_exc));
     MP.stop();
     Gc.minor();
   done;
@@ -108,7 +110,13 @@ let raise_in_alloc () =
 
   (* Every allocation callback is either raised or deallocated *)
   assert (AllocSet.disjoint (!deallocs) (!excs));
-  assert (AllocSet.equal (AllocSet.union (!deallocs) (!excs)) (!allocs));
+  if runtime5 () then
+    assert (AllocSet.equal (AllocSet.union (!deallocs) (!excs)) (!allocs))
+  else
+    (* runtime4 only makes the following weaker guarantee when
+       allocation callbacks raise *)
+    assert (AllocSet.subset (AllocSet.union (!deallocs) (!excs)) (!allocs));
+
 
   (* Each call to f33 would allocates 7 blocks of 33 words,
      (sizes 6, 5, 4, 6, 5, 4, 3) plus the 3 words for the cons cell to
@@ -136,6 +144,7 @@ let raise_in_alloc () =
 
    *)
 
+  if runtime5 () then begin
   assert (dealloc_count = 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 8);
   assert (alloc_count = dealloc_count + !n_exc);
 
@@ -152,6 +161,7 @@ let raise_in_alloc () =
 
   assert (alloc_size = dealloc_size +
                        (6 + 5 + 4 + 6 + 5 + 4 + 3 + 3));
+  end;
   arr
 
 

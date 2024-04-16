@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   runtime5; *)
 
 (* Tests the effects of stopping and starting profiles in allocation
    callbacks, particularly in combined allocations.

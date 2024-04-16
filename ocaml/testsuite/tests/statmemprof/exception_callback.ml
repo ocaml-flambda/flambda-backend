@@ -3,8 +3,6 @@
 (* Tests that an exception in the alloc_major callback propagates
    correctly to the top level. *)
 
-exception MyExc of string
-
 module MP = Gc.Memprof
 
 let alloc_major_tracker on_alloc =
@@ -26,11 +24,13 @@ let () =
 
 let _ =
 try
+ Sys.with_async_exns (fun () ->
   let _:MP.t = MP.start ~callstack_size:10 ~sampling_rate:1.
                    (alloc_major_tracker
-                     (fun _ -> raise (MyExc "major allocation callback"))) in
+                     (fun _ -> raise Sys.Break)) in
    (ignore (Sys.opaque_identity (Array.make 500 0));
     MP.stop ())
+ )
 with
-  MyExc s -> (MP.stop();
-              Printf.printf "Exception from %s.\n" s)
+  Sys.Break -> (MP.stop();
+                Printf.printf "Exception from memprof.\n")

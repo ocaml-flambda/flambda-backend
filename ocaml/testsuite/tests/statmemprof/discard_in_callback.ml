@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   runtime5; *)
 
 (* Tests the effects of stopping and discarding the current profile
    in an allocation callback, particularly in a combined allocation.
