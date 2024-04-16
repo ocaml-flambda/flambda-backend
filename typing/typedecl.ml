@@ -2467,7 +2467,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       Same_as_ocaml_repr sort
 
 let prim_const_mode m =
-  match Mode.Locality.check_const m with
+  match Mode.Locality.Guts.check_const m with
   | Some Global -> Prim_global
   | Some Local -> Prim_local
   | None -> assert false

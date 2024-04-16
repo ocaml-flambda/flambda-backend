@@ -9488,7 +9488,7 @@ let escaping_hint (failure_reason : Value.error) submode_reason
         match get_desc ty with
         | Tarrow ((_, _, res_mode), _, res_ty, _) ->
           begin match
-            Locality.check_const (Alloc.proj (Comonadic Areality) res_mode)
+            Locality.Guts.check_const (Alloc.proj (Comonadic Areality) res_mode)
           with
           | Some Global ->
             Some (n+1, true)
