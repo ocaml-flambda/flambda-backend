@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-dshape"
-   * expect
+ flags = "-dshape";
+ expect;
 *)
 module M = struct end (* uid 0 *)
 module F(X : sig end) = M
