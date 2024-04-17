@@ -156,7 +156,7 @@ module type S = sig
           needed for precise bounds. As a result, it is inexpensive and returns
           a conservative result. I.e., it might return [None] for
           fully-constrained modes. *)
-      val check_const_conservative : (l * 'r) t -> Const.t option
+      val check_const_conservative : ('l * 'r) t -> Const.t option
     end
   end
 
