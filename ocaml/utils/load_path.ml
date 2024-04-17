@@ -74,7 +74,7 @@ module Path_cache : sig
 
   (* Same as [add] below, but will replace existing entries.
 
-     [prepend_add] is faster than [add] and intened for use in [init] and [remove_dir]:
+     [prepend_add] is faster than [add] and intended for use in [init] and [remove_dir]:
      since we are starting from an empty cache, we can avoid checking whether a unit name
      already exists in the cache simply by adding entries in reverse order. *)
   val prepend_add : Dir.t -> unit
