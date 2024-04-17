@@ -147,7 +147,6 @@ let all_coherent column =
       && c.cstr_nonconsts = c'.cstr_nonconsts
     | Constant c1, Constant c2 -> begin
         match c1, c2 with
-        | Const_float32 _, _ -> raise (Error Float32_match)
         | Const_char _, Const_char _
         | Const_int _, Const_int _
         | Const_int32 _, Const_int32 _
@@ -157,6 +156,7 @@ let all_coherent column =
         | Const_unboxed_int64 _, Const_unboxed_int64 _
         | Const_unboxed_nativeint _, Const_unboxed_nativeint _
         | Const_float _, Const_float _
+        | Const_float32 _, Const_float32 _
         | Const_unboxed_float _, Const_unboxed_float _
         | Const_string _, Const_string _ -> true
         | ( Const_char _
@@ -168,6 +168,7 @@ let all_coherent column =
           | Const_unboxed_int64 _
           | Const_unboxed_nativeint _
           | Const_float _
+          | Const_float32 _
           | Const_unboxed_float _
           | Const_string _), _ -> false
       end
@@ -274,7 +275,9 @@ let const_compare x y =
   | Const_unboxed_float f1, Const_unboxed_float f2
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
-  | Const_float32 _, _ -> raise (Error Float32_match)
+  | Const_float32 _, _ ->
+      (* CR mslater: (float32) needs access to float32 parsing *)
+      raise (Error Float32_match)
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
@@ -1105,7 +1108,9 @@ let build_other ext env =
                     | _ -> assert false)
             (function f -> Tpat_constant(Const_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
-      | Constant Const_float32 _ -> raise (Error Float32_match)
+      | Constant Const_float32 _ ->
+          (* CR mslater: (float32) needs access to float32 parsing *)
+          raise (Error Float32_match)
       | Constant Const_unboxed_float _ ->
           build_other_constant
             (function Constant(Const_unboxed_float f) -> float_of_string f
@@ -2157,9 +2162,8 @@ let inactive ~partial pat =
             true
         | Tpat_constant c -> begin
             match c with
-            | Const_float32 _ -> raise (Error Float32_match)
             | Const_string _
-            | Const_int _ | Const_char _ | Const_float _
+            | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
             | Const_unboxed_float _ | Const_int32 _ | Const_int64 _
             | Const_nativeint _ | Const_unboxed_int32 _ | Const_unboxed_int64 _
             | Const_unboxed_nativeint _

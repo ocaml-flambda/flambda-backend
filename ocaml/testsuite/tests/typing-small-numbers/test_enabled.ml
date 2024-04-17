@@ -63,6 +63,15 @@ let _ : float32 = 0xc.d5e6fp+1_24s;;
 let () =
   match 0.0s with
   | 0.0s -> ()
+;;
+[%%expect{|
+Line 1:
+Error: Matching on float32 is not supported.
+|}];;
+
+let () =
+  match 0.0s with
+  | 0.0s -> ()
   | 1.0s -> ()
   | 2.0s -> ()
 ;;
