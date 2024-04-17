@@ -293,6 +293,7 @@ module Analyser =
              let pat =
                match param.fp_kind with
                | Tparam_pat pat -> pat
+               | Tparam_module _ -> assert false (* TODO *)
                | Tparam_optional_default (pat, _, _) -> pat
             in
             tt_param_info_from_pattern

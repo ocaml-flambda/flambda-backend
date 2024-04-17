@@ -1210,7 +1210,7 @@ module N_ary_functions = struct
       Desugaring_error.raise_with_loc pexp_loc
         (Expected_fun_or_newtype arity_attribute)
 
-  (* Should only be called on [Pexp_fun] and [Pexp_newtype]. *)
+  (* Should only be called on [Pexp_fun], [Pexp_functor] and [Pexp_newtype]. *)
   let extract_fun_params =
     let open struct
       type continue_or_stop =
@@ -1288,7 +1288,7 @@ module N_ary_functions = struct
     in
     fun expr ->
       (match expr.pexp_desc with
-      | Pexp_newtype _ | Pexp_fun _ -> ()
+      | Pexp_newtype _ | Pexp_fun _ | Pexp_functor _ -> ()
       | _ -> Misc.fatal_error "called on something that isn't a newtype or fun");
       let unconsumed_attributes =
         match extract_next_fun_param expr ~jkind:None with
@@ -1320,7 +1320,7 @@ module N_ary_functions = struct
     fun expr ->
       let expr = remove_top_level_attributes expr in
       match expr.pexp_desc with
-      | Pexp_fun _ | Pexp_newtype _ -> Some (extract_fun_params expr)
+      | Pexp_fun _ | Pexp_newtype _ | Pexp_functor _ -> Some (extract_fun_params expr)
       | Pexp_function cases ->
         let n_ary =
           function_without_additional_params cases None expr.pexp_loc
