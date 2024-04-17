@@ -175,7 +175,7 @@ let iterator =
     | Pexp_new id -> simple_longident id
     | Pexp_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
-    | Pexp_fun _ | Pexp_function _ -> non_jane_syntax_function loc
+    | Pexp_fun _ | Pexp_functor _ | Pexp_function _ -> non_jane_syntax_function loc
     | _ -> ()
   in
   let extension_constructor self ec =

@@ -121,12 +121,12 @@ module type Info_retriever =
 let alert_of_attribute attr =
   let open Parsetree in
   let load_constant_string = function
-    | { pexp_desc = Pexp_constant (Pconst_string (text, _, _)); _ } -> Some text
+    | Parg_expr { pexp_desc = Pexp_constant (Pconst_string (text, _, _)); _ } -> Some text
     | _ -> None
   in
   let load_alert_name name = Longident.last name.Location.txt in
   let deprecated_payload = function
-    | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ] -> load_constant_string s
+    | PStr [ { pstr_desc = Pstr_eval (s, _); _ } ] -> load_constant_string (Parg_expr s)
     | _ -> None
   in
   let alert_payload = function
