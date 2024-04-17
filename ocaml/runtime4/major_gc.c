@@ -673,6 +673,7 @@ Caml_noinline static intnat do_some_marking
       }
       scan = Op_val(block);
       obj_end = scan + Scannable_wosize_hd(hd);
+      work -= Wosize_hd(hd) - Scannable_wosize_hd(hd);
 
       if (Tag_hd (hd) == Closure_tag) {
         uintnat env_offset = Start_env_closinfo(Closinfo_val(block));
