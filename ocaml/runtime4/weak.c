@@ -401,8 +401,7 @@ static void copy_value(value src, value dst)
   mlsize_t scan_from, scan_to;
   if (Tag_val (src) >= No_scan_tag) {
     /* Direct copy */
-    // CR mixed blocks: bsize val?
-    memcpy (Bp_val (dst), Bp_val (src), Bsize_wsize (Wosize_val(src)));
+    memcpy (Bp_val (dst), Bp_val (src), Bosize_val(src));
     return;
   }
   if (Tag_val (src) == Closure_tag) {
@@ -530,8 +529,6 @@ CAMLexport int caml_ephemeron_get_data_copy (value ar, value *data)
       caml_minor_collection ();
     } else {
       /* cases where loop is between 0 to 7 and where loop is equal to 9 */
-      // CR mixed blocks: tests for [caml_ephemeron_get_data_copy] vs.
-      // [caml_ephemeron_get_key_copy]?
       elt = caml_alloc_with_reserved (Wosize_val (v), Tag_val (v),
                                       Reserved_val (v));
       /** cf caml_ephemeron_get_key_copy */
