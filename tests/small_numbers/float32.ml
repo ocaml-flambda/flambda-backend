@@ -310,33 +310,3 @@ let () = (* Literals *)
   check 0x8p+124s 0x8p+124;
   ()
 ;;
-
-let () = (* Pattern matching *)
-  match 0.0s with
-  | 0.0s -> ()
-  | 1.0s
-  | 0.5s
-  | 1234.1234s
-  | 1e10s
-  | 1e+1s
-  | 1.12345e+12s
-  | 0x2_2p+0s
-  | 0x2p+0s
-  | 0x3p+0s
-  | 0x5p+0s
-  | 0xcp-4s
-  | 0x1p-4s
-  | 0xf.ffffffffffff8p+1020s
-  | 0x2.fffp+12s
-  | 0x1.000002p+0s
-  | 0x1.ffffp-24s
-  | 0x2._fff006p+12s
-  | 0x1.fffp+0s
-  | 0xc.d5e6fp+1_24s
-  | 0x2.6af378p-128s
-  | 0x5p-128s
-  | 0x1____p-128s
-  | 0x8p-152s
-  | 0x8p+124s
-  | _ -> assert false
-;;

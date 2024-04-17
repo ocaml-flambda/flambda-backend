@@ -93,17 +93,6 @@ Error: Unknown modifier 's' for literal 0xc.d5e6fp+1_24s
 
 let () =
   match 0.0s with
-  | 0.25s -> ()
-;;
-[%%expect{|
-Line 2, characters 8-12:
-2 |   match 0.0s with
-            ^^^^
-Error: Unknown modifier 's' for literal 0.0s
-|}];;
-
-let () =
-  match 0.0s with
   | 0.0s -> ()
   | 1.0s -> ()
   | 2.0s -> ()

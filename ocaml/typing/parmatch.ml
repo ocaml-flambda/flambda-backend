@@ -20,6 +20,10 @@ open Asttypes
 open Types
 open Typedtree
 
+type error = Float32_match
+
+exception Error of error
+
 type 'pattern parmatch_case =
   { pattern : 'pattern;
     has_guard : bool;
@@ -143,6 +147,7 @@ let all_coherent column =
       && c.cstr_nonconsts = c'.cstr_nonconsts
     | Constant c1, Constant c2 -> begin
         match c1, c2 with
+        | Const_float32 _, _ -> raise (Error Float32_match)
         | Const_char _, Const_char _
         | Const_int _, Const_int _
         | Const_int32 _, Const_int32 _
@@ -152,7 +157,6 @@ let all_coherent column =
         | Const_unboxed_int64 _, Const_unboxed_int64 _
         | Const_unboxed_nativeint _, Const_unboxed_nativeint _
         | Const_float _, Const_float _
-        | Const_float32 _, Const_float32 _
         | Const_unboxed_float _, Const_unboxed_float _
         | Const_string _, Const_string _ -> true
         | ( Const_char _
@@ -164,7 +168,6 @@ let all_coherent column =
           | Const_unboxed_int64 _
           | Const_unboxed_nativeint _
           | Const_float _
-          | Const_float32 _
           | Const_unboxed_float _
           | Const_string _), _ -> false
       end
@@ -266,27 +269,18 @@ let is_absent_pat d =
   | Patterns.Head.Variant { tag; cstr_row; _ } -> is_absent tag cstr_row
   | _ -> false
 
-(* Set by middle_end/flambda2/numbers/numeric_types.ml *)
-let float32_comparison = ref None
-
-let use_float32_comparison cmp = float32_comparison := Some cmp
-
 let const_compare x y =
   match x,y with
   | Const_unboxed_float f1, Const_unboxed_float f2
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
-  | Const_float32 f1, Const_float32 f2 ->
-      (match !float32_comparison with
-       | Some cmp -> cmp f1 f2
-       | None -> Misc.fatal_error "float32 is not supported in the upstream compiler build.")
+  | Const_float32 _, _ -> raise (Error Float32_match)
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
-    |Const_float32 _
     |Const_unboxed_float _
     |Const_int32 _
     |Const_int64 _
@@ -1111,14 +1105,7 @@ let build_other ext env =
                     | _ -> assert false)
             (function f -> Tpat_constant(Const_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
-      | Constant Const_float32 _ ->
-          (* It's okay to treat the float32 literal as a float64 because this
-             only needs to check if it's 0.0, 1.0, ... *)
-          build_other_constant
-            (function Constant(Const_float32 f) -> float_of_string f
-                    | _ -> assert false)
-            (function f -> Tpat_constant(Const_float32 (string_of_float f)))
-            0.0 (fun f -> f +. 1.0) d env
+      | Constant Const_float32 _ -> raise (Error Float32_match)
       | Constant Const_unboxed_float _ ->
           build_other_constant
             (function Constant(Const_unboxed_float f) -> float_of_string f
@@ -2170,8 +2157,9 @@ let inactive ~partial pat =
             true
         | Tpat_constant c -> begin
             match c with
+            | Const_float32 _ -> raise (Error Float32_match)
             | Const_string _
-            | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
+            | Const_int _ | Const_char _ | Const_float _
             | Const_unboxed_float _ | Const_int32 _ | Const_int64 _
             | Const_nativeint _ | Const_unboxed_int32 _ | Const_unboxed_int64 _
             | Const_unboxed_nativeint _
@@ -2471,3 +2459,11 @@ let check_ambiguous_bindings =
             ns
       in
       ignore (List.fold_left check_case [] cases)
+
+let report_error ppf = function
+  | Float32_match -> Format.pp_print_string ppf "Matching on float32 is not supported."
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

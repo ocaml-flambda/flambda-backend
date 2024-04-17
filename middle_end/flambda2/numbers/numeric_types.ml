@@ -322,10 +322,6 @@ module Float32_by_bit_pattern = Float_by_bit_pattern_gen (struct
   include Int32
   module F32 = Compiler_float32
 
-  let () =
-    Parmatch.use_float32_comparison (fun f1 f2 ->
-        F32.compare (F32.of_string f1) (F32.of_string f2))
-
   let of_string str = F32.to_bits (F32.of_string str)
 
   module IEEE_semantics = struct
