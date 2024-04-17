@@ -200,6 +200,8 @@ let rec const_int_args n args name =
   match n, args with
   | 0, [] -> []
   | n, Cconst_int (i, _) :: args -> i :: const_int_args (n - 1) args name
+  | n, Cconst_natint (i, _) :: args ->
+    Nativeint.to_int i :: const_int_args (n - 1) args name
   | _ -> Misc.fatal_errorf "Invalid int constant arguments for %s" name
 
 (* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
