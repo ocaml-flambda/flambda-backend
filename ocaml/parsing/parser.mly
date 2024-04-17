@@ -4340,18 +4340,6 @@ function_type:
   | ty = tuple_type
     %prec MINUSGREATER
       { ty }
-  | mktyp(
-      LBRACE
-      name = mkrhs(UIDENT)
-      COLON
-      mty = module_type
-      RBRACE
-      MINUSGREATER
-      codomain = function_type
-        { let (lid, cstrs, _attrs) = package_type_of_module_type mty in
-          Ptyp_functor (name, (lid, cstrs), codomain) }
-    )
-    { $1 }
   | ty = strict_function_or_labeled_tuple_type
       { ty }
 ;
@@ -4429,6 +4417,19 @@ strict_function_or_labeled_tuple_type:
     { let ty, ltys = $3 in
       mktyp ~loc:$sloc (Ptyp_tuple ((Some label, ty) :: ltys))
     }
+  | mktyp(
+      LBRACE
+      name = mkrhs(UIDENT)
+      COLON
+      mty = module_type
+      RBRACE
+      MINUSGREATER
+      codomain = function_type
+        { let (lid, cstrs, _attrs) = package_type_of_module_type mty in
+          Ptyp_functor (name, (lid, cstrs), codomain) }
+    )
+    { $1 }
+
 ;
 
 %inline strict_arg_label:

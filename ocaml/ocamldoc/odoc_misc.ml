@@ -500,6 +500,7 @@ let remove_option typ =
     | Tunivar _
     | Tpoly _
     | Tarrow _
+    | Tfunctor _
     | Ttuple _
     | Tunboxed_tuple _
     | Tobject _
