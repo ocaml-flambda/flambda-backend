@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-dshape"
-   * expect
+ flags = "-dshape";
+ expect;
 *)
 module A = struct type t end
 module B = A
