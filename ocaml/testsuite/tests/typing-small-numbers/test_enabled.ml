@@ -67,7 +67,6 @@ let () =
   | 2.0s -> ()
 ;;
 [%%expect{|
->> Fatal error: Pattern matching on float32s is not supported.
-Uncaught exception: Misc.Fatal_error
-
+Line 1:
+Error: Matching on float32 is not supported.
 |}];;
