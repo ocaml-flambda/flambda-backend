@@ -18529,6 +18529,8 @@ case $host in #(
     PTHREAD_LIBS="-l:libpthread.a -lgcc_eh" ;; #(
   *-pc-windows) :
     PTHREAD_LIBS="-l:libpthread.lib" ;; #(
+  *-apple-darwin*) :
+    PTHREAD_LIBS="-pthread" ;; #(
   *) :
 
 

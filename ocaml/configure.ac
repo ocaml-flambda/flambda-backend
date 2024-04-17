@@ -2116,6 +2116,8 @@ AS_CASE([$host],
     [PTHREAD_LIBS="-l:libpthread.a -lgcc_eh"],
   [*-pc-windows],
     [PTHREAD_LIBS="-l:libpthread.lib"],
+  [*-apple-darwin*],
+    [PTHREAD_LIBS="-pthread"],
   [AX_PTHREAD(
     [common_cflags="$common_cflags $PTHREAD_CFLAGS"
     saved_CFLAGS="$CFLAGS"

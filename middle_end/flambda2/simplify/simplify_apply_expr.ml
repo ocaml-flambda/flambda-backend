@@ -1034,14 +1034,14 @@ let simplify_apply_shared dacc apply =
   in
   dacc, callee_ty, apply, arg_types
 
-let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
+let rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id uacc
+    ~after_rebuild =
   let apply =
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id:(Some use_id)
-      (Apply.return_arity apply) apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1091,18 +1091,10 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
     record_free_names_of_apply_as_used dacc ~use_id:(Some use_id)
       ~exn_cont_use_id apply
   in
-  down_to_up dacc ~rebuild:(rebuild_method_call apply ~use_id ~exn_cont_use_id)
-
-let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
-    ~after_rebuild =
-  let apply =
-    Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
-      apply
-  in
-  let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id return_arity apply
-  in
-  after_rebuild expr uacc
+  down_to_up dacc
+    ~rebuild:
+      (rebuild_non_ocaml_function_call apply ~use_id:(Some use_id)
+         ~exn_cont_use_id)
 
 let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
     =
@@ -1170,13 +1162,61 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
       record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
     in
     down_to_up dacc
-      ~rebuild:(rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity)
+      ~rebuild:(rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id)
   | Invalid ->
     let rebuild uacc ~after_rebuild =
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
       EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
     in
     down_to_up dacc ~rebuild
+
+let simplify_effect_op dacc apply (op : Call_kind.Effect.t) ~down_to_up =
+  fail_if_probe apply;
+  let denv = DA.denv dacc in
+  let op =
+    let module E = Call_kind.Effect in
+    let[@inline] simplify_simple simple =
+      S.simplify_simple dacc simple ~min_name_mode:NM.normal |> T.get_alias_exn
+    in
+    match op with
+    | Perform { eff } -> E.perform ~eff:(simplify_simple eff)
+    | Reperform { eff; cont; last_fiber } ->
+      E.reperform ~eff:(simplify_simple eff) ~cont:(simplify_simple cont)
+        ~last_fiber:(simplify_simple last_fiber)
+    | Run_stack { stack; f; arg } ->
+      E.run_stack ~stack:(simplify_simple stack) ~f:(simplify_simple f)
+        ~arg:(simplify_simple arg)
+    | Resume { stack; f; arg } ->
+      E.resume ~stack:(simplify_simple stack) ~f:(simplify_simple f)
+        ~arg:(simplify_simple arg)
+  in
+  let apply = Apply.with_call_kind apply (Call_kind.effect op) in
+  let dacc, use_id =
+    match Apply.continuation apply with
+    | Never_returns -> dacc, None
+    | Return continuation ->
+      let dacc, use_id =
+        DA.record_continuation_use dacc continuation
+          (Non_inlinable { escaping = true })
+          ~env_at_use:denv
+          ~arg_types:(T.unknown_types_from_arity (Apply.return_arity apply))
+      in
+      dacc, Some use_id
+  in
+  let dacc, exn_cont_use_id =
+    DA.record_continuation_use dacc
+      (Exn_continuation.exn_handler (Apply.exn_continuation apply))
+      (Non_inlinable { escaping = true })
+      ~env_at_use:(DA.denv dacc)
+      ~arg_types:
+        (T.unknown_types_from_arity
+           (Exn_continuation.arity (Apply.exn_continuation apply)))
+  in
+  let dacc =
+    record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
+  in
+  down_to_up dacc
+    ~rebuild:(rebuild_non_ocaml_function_call apply ~use_id ~exn_cont_use_id)
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in
@@ -1207,3 +1247,4 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
         Misc.fatal_errorf "No callee provided for C call:@ %a" Apply.print apply
     in
     simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up
+  | Effect op -> simplify_effect_op dacc apply op ~down_to_up

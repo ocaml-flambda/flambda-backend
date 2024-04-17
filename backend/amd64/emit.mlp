@@ -102,11 +102,14 @@ let prologue_required = ref false
 
 let frame_required = ref false
 
+let contains_calls = ref false
+
 let frame_size () =
   Stack_check.frame_size
     ~stack_offset:!stack_offset
     ~frame_required:!frame_required
     ~num_stack_slots
+    ~contains_calls:!contains_calls
 
 let slot_offset loc cl =
   match loc with
@@ -1844,6 +1847,7 @@ let fundecl fundecl =
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
+  contains_calls := fundecl.fun_contains_calls;
   stack_offset := 0;
   call_gc_sites := [];
   local_realloc_sites := [];

@@ -7,6 +7,7 @@
                 "*.mlp": "ocaml",
                 "smmintrin.h": "c",
                 "tmmintrin.h": "c",
-                "pmmintrin.h": "c"
+                "pmmintrin.h": "c",
+                "*.tbl": "c"
         }
 }

@@ -106,10 +106,17 @@ CAMLno_asan void caml_raise_async(value v)
 
   CAMLassert(!Is_exception_result(v));
 
-  if (Stack_parent(Caml_state->current_stack) != NULL) {
-    /* CR ocaml 5 effects: implement async exns + effects */
-    caml_fatal_error("Effects not supported in conjunction with async exns");
-  }
+  /* Free stacks until we get back to the stack on which the async exn
+     handler lives.  (Note that we cannot cross a C stack chunk, since
+     installation of such a chunk via the callback mechanism always involves
+     the installation of an async exn handler.) */
+  caml_unwind_stacks_until_exception_handler (
+    Caml_state->async_exn_handler);
+
+  /* Restore all local allocations state for the new stack */
+  Caml_state->local_sp = Caml_state->current_stack->local_sp;
+  Caml_state->local_top = Caml_state->current_stack->local_top;
+  Caml_state->local_limit = Caml_state->current_stack->local_limit;
 
   /* Do not run callbacks here: we are already raising an async exn,
      so no need to check for another one, and avoiding polling here

@@ -1,6 +1,5 @@
 (* TEST
- reason = "CR ocaml 5 effects: re-enable this test";
- skip;
+ runtime5;
 *)
 
 open Effect

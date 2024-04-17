@@ -274,9 +274,11 @@ value caml_interprete(code_t prog, asize_t prog_size)
   value resume_fn, resume_arg;
   caml_domain_state* domain_state = Caml_state;
   struct caml_exception_context exception_ctx =
-    { &raise_buf, domain_state->local_roots, &raise_exn_bucket};
+    { &raise_buf, domain_state->local_roots, &raise_exn_bucket,
+      domain_state->current_stack };
   struct caml_exception_context exception_ctx_async =
-    { &raise_async_buf, domain_state->local_roots, &raise_async_exn_bucket};
+    { &raise_async_buf, domain_state->local_roots, &raise_async_exn_bucket,
+      domain_state->current_stack };
 #ifndef THREADED_CODE
   opcode_t curr_instr;
 #endif
@@ -339,6 +341,10 @@ value caml_interprete(code_t prog, asize_t prog_size)
   domain_state->external_raise = &exception_ctx;
 
   if (sigsetjmp(raise_async_buf.buf, 0)) {
+    /* When we get to this point, domain-state->current_stack will already
+       be set correctly for this async exception handling code.
+       (See fail_byt.c:caml_raise_async) */
+
     /* no non-volatile local variables read here */
     sp = domain_state->current_stack->sp;
     accu = raise_async_exn_bucket;
@@ -358,11 +364,6 @@ value caml_interprete(code_t prog, asize_t prog_size)
        then [trap_sp_off] will correctly be pointing at the most recent prior
        trap. */
     domain_state->trap_sp_off = 1;
-
-    /* Effects not supported yet in conjunction with async exns
-       (see caml_raise_async) */
-    if (Stack_parent(domain_state->current_stack) != NULL)
-      caml_fatal_error("Effects not supported in conjunction with async exns");
 
     domain_state->external_raise = initial_external_raise;
     domain_state->external_raise_async = initial_external_raise_async;

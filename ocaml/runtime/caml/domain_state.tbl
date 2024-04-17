@@ -40,8 +40,9 @@ DOMAIN_STATE(void*, exn_handler)
 DOMAIN_STATE(char*, async_exn_handler)
 /* Async exception pointer that points into the current stack */
 
-/* Local allocations */
-DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
+/* Local allocations
+   These are kept directly in here to avoid a second indirection on the
+   fast path of a local allocation inline in OCaml code. */
 DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)

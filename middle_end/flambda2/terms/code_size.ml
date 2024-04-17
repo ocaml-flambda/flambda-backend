@@ -436,7 +436,11 @@ let apply apply =
   | C_call { needs_caml_c_call = false; _ } ->
     does_not_need_caml_c_call_extcall_size
   | Method _ -> 8
-(* from flambda/inlining_cost.ml *)
+  (* from flambda/inlining_cost.ml *)
+  | Effect _ ->
+    (* Even though the effect operations aren't written in OCaml, they are
+       called like OCaml functions. *)
+    direct_call_size
 
 let apply_cont apply_cont =
   let size =

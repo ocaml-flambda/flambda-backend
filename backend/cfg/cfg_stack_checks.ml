@@ -85,6 +85,7 @@ let build_cfg_info : Cfg.t -> cfg_info =
   let frame_size =
     Stack_check.frame_size ~stack_offset:0 ~frame_required
       ~num_stack_slots:cfg.fun_num_stack_slots
+      ~contains_calls:cfg.fun_contains_calls
   in
   let init =
     { max_frame_size = 0;
