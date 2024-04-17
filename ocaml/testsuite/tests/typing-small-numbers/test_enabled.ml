@@ -60,9 +60,18 @@ let _ : float32 = 0xc.d5e6fp+1_24s;;
 - : float32 = <abstr>
 |}];;
 
+(* A (trivial) match with no float32 cases is allowed. *)
+let () =
+  match 0.0s with
+  | _ -> ()
+;;
+[%%expect{|
+|}];;
+
 let () =
   match 0.0s with
   | 0.0s -> ()
+  | _ -> ()
 ;;
 [%%expect{|
 Line 1:
@@ -73,7 +82,16 @@ let () =
   match 0.0s with
   | 0.0s -> ()
   | 1.0s -> ()
-  | 2.0s -> ()
+  | _ -> ()
+;;
+[%%expect{|
+Line 1:
+Error: Matching on float32 is not supported.
+|}];;
+
+let () =
+  match 0.0s with
+  | 0.0s -> ()
 ;;
 [%%expect{|
 Line 1:

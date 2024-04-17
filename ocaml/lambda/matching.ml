@@ -2868,9 +2868,8 @@ let combine_constant value_kind loc arg cst partial ctx def
           (Pfloatcomp (Pfloat64, CFlt)) arg
           const_lambda_list
     | Const_float32 _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
-          (Pfloatcomp (Pfloat32, CFlt)) arg
-          const_lambda_list
+        (* CR mslater: (float32) pattern matching *)
+        Parmatch.raise_matched_float32 ()
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
           (Punboxed_float_comp (Pfloat64, CFneq))

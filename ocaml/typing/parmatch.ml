@@ -24,6 +24,8 @@ type error = Float32_match
 
 exception Error of error
 
+let raise_matched_float32 () = raise (Error Float32_match)
+
 type 'pattern parmatch_case =
   { pattern : 'pattern;
     has_guard : bool;
@@ -276,8 +278,8 @@ let const_compare x y =
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
   | Const_float32 _, _ ->
-      (* CR mslater: (float32) needs access to float32 parsing *)
-      raise (Error Float32_match)
+      (* CR mslater: (float32) pattern matching (needs float32 lib) *)
+      raise_matched_float32 ()
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
@@ -1109,8 +1111,8 @@ let build_other ext env =
             (function f -> Tpat_constant(Const_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
       | Constant Const_float32 _ ->
-          (* CR mslater: (float32) needs access to float32 parsing *)
-          raise (Error Float32_match)
+          (* CR mslater: (float32) pattern matching (needs float32 lib) *)
+          raise_matched_float32 ()
       | Constant Const_unboxed_float _ ->
           build_other_constant
             (function Constant(Const_unboxed_float f) -> float_of_string f
