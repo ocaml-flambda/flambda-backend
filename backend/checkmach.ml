@@ -77,6 +77,21 @@ module Witness = struct
     Format.fprintf ppf "%a {%a}@," print_kind kind Debuginfo.print_compact dbg
 end
 
+(* CR gyorsh: avoid duplicating somehwat tricky logic. is there a nicer way
+   way? *)
+let take_first_n (t : 't) n ~(fold : ('elt -> 'a -> 'a) -> 't -> 'a -> 'a)
+    ~remove ~cardinal =
+  let len = cardinal t in
+  if len <= n
+  then t
+  else
+    (* [0 < n < len <= n+n] so removing instead of constructing a new set is
+       faster and would prefer witnesses at the function start. *)
+    fst
+      (fold
+         (fun w (acc, c) -> if c > 0 then acc, c - 1 else remove w acc, c)
+         t (t, n))
+
 module Witnesses : sig
   type t
 
@@ -110,10 +125,19 @@ module Witnesses : sig
 end = struct
   include Set.Make (Witness)
 
-  (* CR gyorsh: consider using Flambda_backend_flags.checkmach_details_cutoff to
-     limit the size of this set. The downside is that it won't get tested as
-     much. Only keep witnesses for functions that need checking. *)
-  let join = union
+  let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
+
+  let cutoff t ~n = take_first_n t n ~fold ~remove ~cardinal
+
+  let join t1 t2 =
+    let res = union t1 t2 in
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> res
+    | No_details ->
+      if not (is_empty res)
+      then Misc.fatal_errorf "expected no witnesses got %a" print res;
+      res
+    | At_most n -> cutoff res ~n
 
   let meet = inter
 
@@ -122,8 +146,6 @@ end = struct
   let create kind dbg = singleton (Witness.create dbg kind)
 
   let iter t ~f = iter f t
-
-  let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
 
   type components =
     { nor : t;
