@@ -311,10 +311,6 @@ and pattern i ppf x =
       payload i ppf arg
   )
 
-and argument i ppf = function
-  | Parg_expr e -> expression i ppf e
-  | Parg_module _ -> assert false (* TODO *)
-
 and expression i ppf x =
   with_location_mapping ~loc:x.pexp_loc ppf (fun () ->
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
@@ -1104,10 +1100,16 @@ and label_x_expression i ppf (l,e) =
   arg_label i ppf l;
   expression (i+1) ppf e;
 
-and label_x_argument i ppf (l,e) =
-    line i ppf "<arg>\n";
-    arg_label i ppf l;
-    argument (i+1) ppf e;
+and label_x_argument i ppf (l,a) =
+  line i ppf "<arg>\n";
+  arg_label i ppf l;
+  argument (i+1) ppf a;
+
+and argument i ppf = function
+  | Parg_expr e -> expression i ppf e
+  | Parg_module m ->
+      line i ppf "<marg\n>";
+      module_expr (i+1) ppf m
   
 and label_x_bool_x_core_type_list i ppf x =
   match x.prf_desc with
