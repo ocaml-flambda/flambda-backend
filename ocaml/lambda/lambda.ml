@@ -358,7 +358,7 @@ and mixed_block_shape = Types.mixed_record_shape =
   }
 
 and constructor_shape =
-  | Constructor_regular of value_kind list
+  | Constructor_uniform of value_kind list
   | Constructor_mixed of
       { value_prefix : value_kind list;
         flat_suffix : flat_element list;
@@ -503,7 +503,7 @@ let rec equal_value_kind x y =
 
 and equal_constructor_shape x y =
   match x, y with
-  | Constructor_regular fields1, Constructor_regular fields2 ->
+  | Constructor_uniform fields1, Constructor_uniform fields2 ->
       List.length fields1 = List.length fields2
       && List.for_all2 equal_value_kind fields1 fields2
   | Constructor_mixed { value_prefix = p1; flat_suffix = s1 },
@@ -512,7 +512,7 @@ and equal_constructor_shape x y =
       && List.for_all2 equal_value_kind p1 p2
       && List.length s1 = List.length s2
       && List.for_all2 equal_flat_element s1 s2
-  | (Constructor_regular _ | Constructor_mixed _), _ -> false
+  | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -833,7 +833,7 @@ let layout_array kind = Pvalue (Parrayval kind)
 let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ;
-                     non_consts = [0, Constructor_regular [Pgenval; Pgenval]] })
+                     non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval

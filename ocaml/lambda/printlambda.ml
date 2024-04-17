@@ -127,7 +127,7 @@ let boxed_float_name = function
 let constructor_shape print_value_kind ppf shape =
   let value_fields, flat_fields  =
     match shape with
-    | Constructor_regular fields -> fields, []
+    | Constructor_uniform fields -> fields, []
     | Constructor_mixed { value_prefix; flat_suffix } ->
         value_prefix, flat_suffix
   in

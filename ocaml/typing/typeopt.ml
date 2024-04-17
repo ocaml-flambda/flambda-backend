@@ -431,7 +431,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             num_nodes_visited labeled_fields
         in
         num_nodes_visited,
-        Pvariant { consts = []; non_consts = [0, Constructor_regular fields] })
+        Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] })
   | Tvariant row ->
     num_nodes_visited,
     if Ctype.tvariant_not_immediate row then Pgenval else Pintval
@@ -513,7 +513,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
                     next_const + 1, consts, next_tag, non_consts)
             else
               let non_consts =
-                (next_tag, Constructor_regular fields) :: non_consts
+                (next_tag, Constructor_uniform fields) :: non_consts
               in
               Some (num_nodes_visited,
                     next_const, consts, next_tag + 1, non_consts))
@@ -583,7 +583,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                     num_nodes_visited, field)
                   num_nodes_visited labels
               in
-              num_nodes_visited, Constructor_regular fields
+              num_nodes_visited, Constructor_uniform fields
           | Record_mixed { value_prefix_len; flat_suffix } ->
               let labels_value_prefix, _ =
                 Misc.Stdlib.List.split_at value_prefix_len labels

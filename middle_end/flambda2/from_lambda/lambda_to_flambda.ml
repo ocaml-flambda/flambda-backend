@@ -1510,14 +1510,14 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       Function_decl.unboxing_kind option =
     match[@warning "-fragile-match"] layout with
     | Pvalue (Pvariant { consts = [];
-                         non_consts = [(0, Constructor_regular field_kinds)] })
+                         non_consts = [(0, Constructor_uniform field_kinds)] })
       ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
     | Pvalue (Pvariant { consts = [];
-                         non_consts = [(tag, Constructor_regular field_kinds)];
+                         non_consts = [(tag, Constructor_uniform field_kinds)];
                        })
       when tag = Obj.double_array_tag ->
       assert (

@@ -591,7 +591,7 @@ module With_subkind = struct
       let all_uniform_non_consts =
         List.map (fun (tag, (shape : Lambda.constructor_shape)) ->
             match shape with
-            | Constructor_regular shape -> Some (tag, shape)
+            | Constructor_uniform shape -> Some (tag, shape)
             | Constructor_mixed _ -> None)
           non_consts
         |> Misc.Stdlib.List.some_if_all_elements_are_some

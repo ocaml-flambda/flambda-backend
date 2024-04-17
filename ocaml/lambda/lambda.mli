@@ -366,7 +366,7 @@ and mixed_block_shape =
   }
 
 and constructor_shape =
-  | Constructor_regular of value_kind list
+  | Constructor_uniform of value_kind list
   | Constructor_mixed of
       { value_prefix : value_kind list;
         flat_suffix : flat_element list;
