@@ -578,6 +578,7 @@ let extension_constructor' copy_scope s ext =
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
+    ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =
       Option.map (typexp copy_scope s ext.ext_loc) ext.ext_ret_type;

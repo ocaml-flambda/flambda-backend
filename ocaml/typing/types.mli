@@ -554,9 +554,9 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
-(* A mixed record contains a prefix of values followed by a non-empty suffix of
-   "flat" elements. Intuitively, a flat element is one that need not be scanned
-   by the garbage collector.
+(* A mixed record contains a possibly-empty prefix of values followed by a
+   non-empty suffix of "flat" elements. Intuitively, a flat element is one that
+   need not be scanned by the garbage collector.
 *)
 and flat_element = Imm | Float | Float64
 and mixed_record_shape =
@@ -594,8 +594,11 @@ and variant_representation =
   | Variant_extensible
 
 and constructor_representation =
-  | Constructor_regular
-  (* A constant constructor or a constructor all of whose fields are values. *)
+  | Constructor_uniform_value
+  (* A constant constructor or a constructor all of whose fields are values.
+     This is named 'uniform_value' to distinguish from the 'Constructor_uniform'
+     of [lambda.mli], which can also represent all-flat-float records.
+  *)
   | Constructor_mixed of mixed_record_shape
   (* A constructor that has some non-value fields. *)
 
@@ -636,6 +639,7 @@ type extension_constructor =
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
     ext_arg_jkinds: Jkind.t array;
+    ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -802,6 +806,7 @@ type constructor_description =
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)

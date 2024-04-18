@@ -347,8 +347,6 @@ module Sort = struct
 
   let for_record = value
 
-  let for_constructor_arg = value
-
   let for_object = value
 
   let for_lazy_body = value
