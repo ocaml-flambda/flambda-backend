@@ -69,6 +69,8 @@ type texp_function_cases_identifier = {
   last_arg_sort : Jkind.Sort.t;
   last_arg_exp_extra : exp_extra option;
   last_arg_attributes : attributes;
+  env : Env.t;
+  ret_type : Types.type_expr;
 }
 
 type texp_function_body =
@@ -99,6 +101,8 @@ let texp_function_cases_identifier_defaults =
     last_arg_sort = Jkind.Sort.value;
     last_arg_exp_extra = None;
     last_arg_attributes = [];
+    env = Env.empty;
+    ret_type = Ctype.newvar (Jkind.any ~why:Dummy_jkind);
   }
 
 let texp_function_param_identifier_defaults =
@@ -153,12 +157,14 @@ let mkTexp_function ?(id = texp_function_defaults)
         (match body with
         | Function_body expr -> Tfunction_body expr
         | Function_cases
-            { cases; param; partial; function_cases_identifier = id } ->
+            { cases; param; partial; function_cases_identifier = id; } ->
             Tfunction_cases
               {
                 fc_cases = cases;
                 fc_param = param;
                 fc_partial = partial;
+                fc_env = id.env;
+                fc_ret_type = id.ret_type;
                 fc_arg_mode = id.last_arg_mode;
                 fc_arg_sort = id.last_arg_sort;
                 fc_exp_extra = id.last_arg_exp_extra;
@@ -263,6 +269,8 @@ let view_texp (e : expression_desc) =
                     last_arg_sort = cases.fc_arg_sort;
                     last_arg_exp_extra = cases.fc_exp_extra;
                     last_arg_attributes = cases.fc_attributes;
+                    env = cases.fc_env;
+                    ret_type = cases.fc_ret_type;
                   };
               }
       in
