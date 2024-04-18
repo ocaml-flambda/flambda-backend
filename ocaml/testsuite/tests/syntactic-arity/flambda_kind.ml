@@ -3,6 +3,8 @@
    native;
 *)
 
+(* This is a regression test, see PR #2471 in ocaml-flambda/flambda-backend *)
+
 [@@@ocaml.flambda_o3]
 
 type _ value =
