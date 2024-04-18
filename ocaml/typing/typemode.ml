@@ -13,7 +13,7 @@ let transl_mode_annots modes =
   let rec loop (acc : Alloc.Const.Option.t) = function
     | [] -> acc
     | m :: rest ->
-      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
+      let { txt = Asttypes.Mode txt; loc } = m in
       Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
       let acc : Alloc.Const.Option.t =
         match txt with

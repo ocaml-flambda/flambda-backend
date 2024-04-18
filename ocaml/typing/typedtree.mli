@@ -217,8 +217,6 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
-        (** local_ E *)
 
 (* CR modes: Consider fusing [Texp_mode_coerce] and [Texp_constraint] when
    the syntax changes.

@@ -93,7 +93,7 @@ type mapper = {
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
 
-  modes : mapper -> Jane_syntax.Mode_expr.t -> Jane_syntax.Mode_expr.t;
+  modes : mapper -> Asttypes.mode list -> Asttypes.mode list;
 }
 
 let map_fst f (x, y) = (f x, y)

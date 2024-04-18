@@ -31,7 +31,6 @@ open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
 module N_ary = Jane_syntax.N_ary_functions
-module Mode = Jane_syntax.Mode_expr
 
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
