@@ -3863,6 +3863,27 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
       | Parg_expr e -> e.pexp_loc
       | Parg_module m -> m.pmod_loc
     in
+    let previous_arg_loc rev_args =
+        (* [rev_args] is the arguments typed until now, in reverse
+        order of appearance. Not all arguments have a location
+        attached (eg. an optional argument that is not passed). *)
+      (* CR ccasinghino: the above comment is confusing - these
+        arguments are in reverse order according to the function
+        type, but not according to their positions in the source
+        program.  We diverge from upstream here by not trying to
+        provide a good location in the [Eliminated_optional_arg]
+        case - maybe fix one day if it is noticeable. *)
+        rev_args
+        |> List.find_map
+            (function
+              | (_, Arg ( Known_earg { sarg; _ }
+                        | Unknown_earg { sarg; _ })) ->
+                Some sarg.pexp_loc
+              | (_, Arg (Module_arg { sarg; _ })) -> Some sarg.mod_loc
+              | (_, Arg (Eliminated_optional_arg _))
+              | (_, Omitted _) -> None)
+        |> Option.value ~default:funct.exp_loc
+    in
     match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
     | Tarrow (ad, ty_arg, ty_ret, com),
       Tarrow (_, ty_arg0, ty_ret0, _),
@@ -3946,7 +3967,15 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                       sarg.pexp_loc
                       (Warnings.Nonoptional_label label));
                 remaining_sargs, use_arg ~commuted sarg l'
-            | Some (_, Parg_module _, _, _) -> assert false (* TODO *)
+            | Some (_, (Parg_module m as arg), _, _) ->
+              let previous_arg_loc = previous_arg_loc rev_args in
+              raise(Error(funct.exp_loc, env, Invalid_argument {
+                  funct;
+                  func_ty = expand_head env funct.exp_type;
+                  res_ty = expand_head env ty_fun';
+                  previous_arg_loc;
+                  extra_arg_loc = m.pmod_loc;
+                  arg; }))
             | None ->
                 sargs,
                 if omittable && List.mem_assoc Nolabel sargs then
@@ -4020,8 +4049,15 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                 else
                   raise(Error(sarg.pmod_loc, env,
                               Apply_wrong_label(l', ty_fun', omittable)))
-            | (_, Parg_expr _) :: _ ->
-                assert false (* TODO *)
+            | (_, (Parg_expr exp as arg)) :: _ ->
+                let previous_arg_loc = previous_arg_loc rev_args in
+                raise(Error(funct.exp_loc, env, Invalid_argument {
+                    funct;
+                    func_ty = expand_head env funct.exp_type;
+                    res_ty = expand_head env ty_fun';
+                    previous_arg_loc;
+                    extra_arg_loc = exp.pexp_loc;
+                    arg; }))
           end else
             (* Arguments can be commuted, try to fetch the argument
                corresponding to the first parameter. *)
@@ -4035,9 +4071,19 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   Location.prerr_warning sarg.pmod_loc
                     (Warnings.Nonoptional_label (Printtyp.string_of_label l));
                 remaining_sargs, use_arg ~commuted sarg
-            | Some (_, Parg_expr _, _, _) -> assert false (* TODO *)
+            | Some (_, (Parg_expr exp as arg), _, _) ->
+                let previous_arg_loc = previous_arg_loc rev_args in
+                raise(Error(funct.exp_loc, env, Invalid_argument {
+                    funct;
+                    func_ty = expand_head env funct.exp_type;
+                    res_ty = expand_head env ty_fun';
+                    previous_arg_loc;
+                    extra_arg_loc = exp.pexp_loc;
+                    arg; }))
             | None ->
-                assert false (* Should raise an error *)
+                let ty_res = remaining_function_type ty_fun mode_fun rev_args in
+                raise(Error(funct.exp_loc, env,
+                                Cannot_commute_label ty_res))
         in
         let mode_ret = Alloc.legacy in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs

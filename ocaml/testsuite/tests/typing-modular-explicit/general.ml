@@ -41,15 +41,15 @@ val test_lambda : Int.t -> Int.t = <fun>
 let alpha_equiv (f : {A : Add} -> A.t -> A.t) : {T : Add} -> T.t -> T.t = f
 
 [%%expect{|
-val alpha_equiv : ({A : Add} -> A.t -> A.t) -> {T : Add} -> T.t -> T.t =
+val alpha_equiv : ({A : Add} -> A.t -> A.t) -> ({T : Add} -> T.t -> T.t) =
   <fun>
 |}]
 
 let apply_weird {M : Typ} (f : {M : Typ} -> _) (x : M.t) : M.t = f {M} x
 
 [%%expect{|
-val apply_weird : {M : Typ} -> ({M : Typ} -> M/2.t -> M/2.t) -> M.t -> M.t =
-  <fun>
+val apply_weird :
+  {M/1 : Typ} -> ({M/2 : Typ} -> M/1.t -> M/1.t) -> M/1.t -> M/1.t = <fun>
 |}]
 
 (* Invalid arguments *)
@@ -57,7 +57,7 @@ val apply_weird : {M : Typ} -> ({M : Typ} -> M/2.t -> M/2.t) -> M.t -> M.t =
 let f x {M : Typ} (y : M.t) = (x, y)
 
 [%%expect{|
-val f : 'a -> {M : Typ} -> M.t -> 'a * M.t = <fun>
+val f : 'a -> ({M : Typ} -> M.t -> 'a * M.t) = <fun>
 |}]
 
 let invalid_arg1 = f {Int}
@@ -66,7 +66,7 @@ let invalid_arg1 = f {Int}
 Line 1, characters 19-20:
 1 | let invalid_arg1 = f {Int}
                        ^
-Error: This expression has type "'a -> {M : Typ} -> M.t -> 'a * M.t"
+Error: This expression has type 'a -> ({M : Typ} -> M.t -> 'a * M.t)
        But was applied to a module.
 |}]
 
@@ -76,7 +76,7 @@ let invalid_arg2 = f 3 4 {Int}
 Line 1, characters 19-20:
 1 | let invalid_arg2 = f 3 4 {Int}
                        ^
-Error: This expression has type "'a -> {M : Typ} -> M.t -> 'a * M.t"
+Error: This expression has type 'a -> ({M : Typ} -> M.t -> 'a * M.t)
        But was applied to an expression.
 |}]
 
@@ -95,14 +95,14 @@ let apply_labelled_fail = labelled ~y:3
 Line 1, characters 26-34:
 1 | let apply_labelled_fail = labelled ~y:3
                               ^^^^^^^^
-Error: This expression has type "y:M.t -> M.t"
+Error: This expression has type {M : Typ} -> y:M.t -> M.t
        Received an expression argument. However, module arguments cannot be omitted.
 |}]
 
 let apply_opt (f : ?opt:int -> {M : Typ} -> M.t) = f {Int}
 
 [%%expect{|
-val apply_opt : (?opt:int -> {M : Typ} -> M.t) -> Int.t = <fun>
+val apply_opt : (?opt:int -> ({M : Typ} -> M.t)) -> Int.t = <fun>
 |}]
 
 (* let f_labelled_marg ~{M : Typ} ~{N : Typ} (x : M.t) (y : N.t) = (y, x)
@@ -143,7 +143,7 @@ val map : {M : Map} -> ('a -> 'b) -> 'a M.t -> 'b M.t = <fun>
 let s_list = map {List} string_of_int [3; 1; 4]
 
 [%%expect{|
-val s_list : string List.t = ["3"; "1"; "4"]
+val s_list : string List.t = List.(::) ("3", ["1"; "4"])
 |}]
 
 let s_list : string list = s_list
@@ -167,7 +167,7 @@ module MapCombin :
       val map : ('a -> 'b) -> 'a M1.t M2.t -> 'b M1.t M2.t
     end
 val s_list_array : string MapCombin(List)(Array).t =
-  [|["3"; "2"]; ["2"]; []|]
+  [|List.(::) ("3", ["2"]); List.(::) ("2", []); List.[]|]
 |}]
 
 
@@ -240,10 +240,10 @@ let try_coerce (f : {A : Add} -> A.t -> A.t) : {T : Typ} -> T.t -> T.t = f
 Line 1, characters 73-74:
 1 | let try_coerce (f : {A : Add} -> A.t -> A.t) : {T : Typ} -> T.t -> T.t = f
                                                                              ^
-Error: This expression has type "{A : Add} -> A.t -> A.t"
-       but an expression was expected of type "{T : Typ} -> T.t -> T.t"
-       The two module argument types differ by their runtime size.
+Error: This expression has type {A : Add} -> A.t -> A.t
+       but an expression was expected of type {T : Typ} -> T.t -> T.t
 |}]
+       (* The two module argument types differ by their runtime size. *)
 
 
 (* Here the coercion requires computation and should? be forbidden *)
@@ -253,13 +253,13 @@ let try_coerce2 (f : {A : AddSub} -> A.t -> A.t) = (f :> ({T : SubAdd} -> T.t ->
 Line 1, characters 51-86:
 1 | let try_coerce2 (f : {A : AddSub} -> A.t -> A.t) = (f :> ({T : SubAdd} -> T.t -> T.t))
                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "{A : AddSub} -> A.t -> A.t" is not a subtype of
-         "{T : SubAdd} -> T.t -> T.t"
-       The two module argument types do not share
-       the same positions for runtime components.
-       For example, the value "add" occurs at the expected position of
-       the value "sub".
+Error: Type {A : AddSub} -> A.t -> A.t is not a subtype of
+         {T : SubAdd} -> T.t -> T.t
 |}]
+       (* The two module argument types do not share
+       the same positions for runtime components.
+       For example, the value add occurs at the expected position of
+       the value sub. *)
 
 
 (* Here the coercion does not require any computation and thus could be allowed *)
@@ -269,10 +269,10 @@ let try_coerce3 (f : {A : Add} -> A.t -> A.t) = (f :> {T : Typ} -> T.t -> T.t)
 Line 1, characters 48-78:
 1 | let try_coerce3 (f : {A : Add} -> A.t -> A.t) = (f :> {T : Typ} -> T.t -> T.t)
                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "{A : Add} -> A.t -> A.t" is not a subtype of
-         "{T : Typ} -> T.t -> T.t"
-       The two module argument types differ by their runtime size.
+Error: Type {A : Add} -> A.t -> A.t is not a subtype of
+         {T : Typ} -> T.t -> T.t
 |}]
+         (* The two module argument types differ by their runtime size. *)
 
 module type Add2 = sig
   type a
@@ -304,11 +304,13 @@ let try_coerce4 (f : {A : Add2} -> A.t -> A.t) : {A : Add} -> A.t -> A.t = f
 Line 1, characters 75-76:
 1 | let try_coerce4 (f : {A : Add2} -> A.t -> A.t) : {A : Add} -> A.t -> A.t = f
                                                                                ^
-Error: This expression has type "{A : Add2} -> A.t -> A.t"
-       but an expression was expected of type "{A : Add} -> A.t -> A.t"
-       Modules do not match: Add is not included in Add2
-       The type "a" is required but not provided
+Error: This expression has type {A/1 : Add2} -> A/1.t -> A/1.t
+       but an expression was expected of type {A/2 : Add} -> A/2.t -> A/2.t
+       File "_none_", line 1:
+         Definition of module A/2
 |}]
+       (* Modules do not match: Add is not included in Add2
+       The type a is required but not provided *)
 
 let coerce5 (f : {A : Add2} -> A.t -> A.t) = (f :> {A : Add} -> A.t -> A.t)
 
@@ -316,10 +318,13 @@ let try_coerce6 (f : {A : Add2} -> A.t -> A.t) : {A : Add3} -> A.t -> A.t = f
 let try_coerce7 (f : {A : Add2} -> A.t -> A.t) : {A : Add4} -> A.t -> A.t = f
 
 [%%expect{|
-val coerce5 : ({A : Add2} -> A.t -> A.t) -> {A : Add} -> A.t -> A.t = <fun>
-val try_coerce6 : ({A : Add2} -> A.t -> A.t) -> {A : Add3} -> A.t -> A.t =
+val coerce5 :
+  ({A/1 : Add2} -> A/1.t -> A/1.t) -> ({A/2 : Add} -> A/2.t -> A/2.t) = <fun>
+val try_coerce6 :
+  ({A/1 : Add2} -> A/1.t -> A/1.t) -> ({A/2 : Add3} -> A/2.t -> A/2.t) =
   <fun>
-val try_coerce7 : ({A : Add2} -> A.t -> A.t) -> {A : Add4} -> A.t -> A.t =
+val try_coerce7 :
+  ({A/1 : Add2} -> A/1.t -> A/1.t) -> ({A/2 : Add4} -> A/2.t -> A/2.t) =
   <fun>
 |}]
 
@@ -343,8 +348,8 @@ let apply_with_annot f {T : Typ} (x : T.t) : T.t =
 let merge_no_mod (type a) (x : a) (y : a) = x
 
 [%%expect{|
-val apply_with_annot : ({T : Typ} -> T.t -> T.t) -> {T : Typ} -> T.t -> T.t =
-  <fun>
+val apply_with_annot :
+  ({T/1 : Typ} -> T/1.t -> T/1.t) -> ({T/2 : Typ} -> T/2.t -> T/2.t) = <fun>
 val merge_no_mod : 'a -> 'a -> 'a = <fun>
 |}]
 
@@ -368,8 +373,8 @@ let apply_small_annot2 (f : {T : Typ} -> T.t -> T.t) g {T : Typ} x =
 
 [%%expect{|
 val apply_small_annot2 :
-  ({T : Typ} -> T.t -> T.t) ->
-  ({T : Typ} -> T.t -> T.t) -> {T : Typ} -> T.t -> T.t = <fun>
+  ({T/1 : Typ} -> T/1.t -> T/1.t) ->
+  ({T/1 : Typ} -> T/1.t -> T/1.t) -> ({T/2 : Typ} -> T/2.t -> T/2.t) = <fun>
 |}]
 
 
@@ -410,9 +415,9 @@ val r : '_weak1 option ref = {contents = None}
 Line 6, characters 12-13:
 6 |   r := Some x
                 ^
-Error: This expression has type "T.t" but an expression was expected of type
-         "'weak1"
-       The type constructor "T.t" would escape its scope
+Error: This expression has type T.t but an expression was expected of type
+         'weak1
+       The type constructor T.t would escape its scope
 |}]
 
 
@@ -422,8 +427,8 @@ let f x {A : Add} (y : A.t) = A.add x y
 Line 1, characters 36-37:
 1 | let f x {A : Add} (y : A.t) = A.add x y
                                         ^
-Error: This expression has type "'a" but an expression was expected of type "A.t"
-       The type constructor "A.t" would escape its scope
+Error: This expression has type 'a but an expression was expected of type A.t
+       The type constructor A.t would escape its scope
 |}]
 
 let f (x : {T : Typ} -> _) : {T : Typ} -> T.t = x
@@ -432,9 +437,11 @@ let f (x : {T : Typ} -> _) : {T : Typ} -> T.t = x
 Line 1, characters 48-49:
 1 | let f (x : {T : Typ} -> _) : {T : Typ} -> T.t = x
                                                     ^
-Error: This expression has type "{T : Typ} -> 'a"
-       but an expression was expected of type "{T : Typ} -> T.t"
-       The module "T" would escape its scope
+Error: This expression has type {T/1 : Typ} -> 'a
+       but an expression was expected of type {T/2 : Typ} -> T/2.t
+       The module T would escape its scope
+       File "_none_", line 1:
+         Definition of module T/2
 |}]
 
 
@@ -568,8 +575,8 @@ let rec m = map {List} (fun x -> x) [3]
 and g = 3 :: m
 
 [%%expect{|
-val m : int List.t = [3]
-val m : int List.t = [3]
+val m : int List.t = List.(::) (3, [])
+val m : int List.t = List.(::) (3, [])
 val g : int list = [3; 3]
 |}]
 
