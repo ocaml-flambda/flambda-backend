@@ -43,3 +43,7 @@ val print_bigarray :
 val check_attribute : formatter -> check_attribute -> unit
 val alloc_mode : formatter -> alloc_mode -> unit
 val array_kind : array_kind -> string
+
+val tag_and_constructor_shape :
+  (formatter -> value_kind -> unit) ->
+  formatter -> int * constructor_shape -> unit
