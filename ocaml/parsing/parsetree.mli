@@ -87,13 +87,13 @@ and core_type =
 and core_type_desc =
   | Ptyp_any  (** [_] *)
   | Ptyp_var of string  (** A type variable such as ['a] *)
-  | Ptyp_arrow of arg_label * core_type * core_type
-      (** [Ptyp_arrow(lbl, T1, T2)] represents:
-            - [T1 -> T2]    when [lbl] is
+  | Ptyp_arrow of arg_label * core_type * core_type * mode list * mode list
+      (** [Ptyp_arrow(lbl, T1, T2, M1, M2)] represents:
+            - [T1 @ M1 -> T2 @ M2]    when [lbl] is
                                      {{!arg_label.Nolabel}[Nolabel]},
-            - [~l:T1 -> T2] when [lbl] is
+            - [~l:(T1 @ M1) -> (T2 @ M2)] when [lbl] is
                                      {{!arg_label.Labelled}[Labelled]},
-            - [?l:T1 -> T2] when [lbl] is
+            - [?l:(T1 @ M1) -> (T2 @ M2)] when [lbl] is
                                      {{!arg_label.Optional}[Optional]}.
          *)
   | Ptyp_tuple of core_type list
@@ -269,7 +269,11 @@ and pattern_desc =
          *)
   | Ppat_array of pattern list  (** Pattern [[| P1; ...; Pn |]] *)
   | Ppat_or of pattern * pattern  (** Pattern [P1 | P2] *)
-  | Ppat_constraint of pattern * core_type  (** Pattern [(P : T)] *)
+  | Ppat_constraint of pattern * core_type option * mode list
+      (** [Ppat_constraint(tyopt, modes)] represents:
+          - [(P : ty @@ modes)] when [tyopt] is [Some ty]
+          - [(P @ modes)] when [tyopt] is [None]
+         *)
   | Ppat_type of Longident.t loc  (** Pattern [#tconst] *)
   | Ppat_lazy of pattern  (** Pattern [lazy P] *)
   | Ppat_unpack of string option loc
@@ -395,7 +399,11 @@ and expression_desc =
             - [for i = E1 downto E2 do E3 done]
                  when [direction] is {{!Asttypes.direction_flag.Downto}[Downto]}
          *)
-  | Pexp_constraint of expression * core_type  (** [(E : T)] *)
+  | Pexp_constraint of expression * core_type option * mode list
+      (** [Pexp_constraint(tyopt, modes)] represents:
+          - [(E : ty @@ modes)] when [tyopt] is [Some ty]
+          - [(E : _ @@ modes)] when [tyopt] is [None]
+         *)
   | Pexp_coerce of expression * core_type option * core_type
       (** [Pexp_coerce(E, from, T)] represents
             - [(E :> T)]      when [from] is [None],
@@ -468,6 +476,7 @@ and value_description =
     {
      pval_name: string loc;
      pval_type: core_type;
+     pval_modes: mode list;
      pval_prim: string list;
      pval_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pval_loc: Location.t;
@@ -1056,6 +1065,7 @@ and value_binding =
     pvb_pat: pattern;
     pvb_expr: expression;
     pvb_constraint: value_constraint option;
+    pvb_modes: mode list;
     pvb_attributes: attributes;
     pvb_loc: Location.t;
   }(** [let pat : type_constraint = exp] *)
