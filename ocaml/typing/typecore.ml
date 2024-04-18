@@ -7465,6 +7465,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               body =
                 Tfunction_cases
                   { fc_cases = cases; fc_partial = Total; fc_param = param;
+                    fc_env = env; fc_ret_type = ty_res;
                     fc_loc = cases_loc; fc_exp_extra = None;
                     fc_attributes = []; fc_arg_mode = Alloc.disallow_right marg;
                     fc_arg_sort = arg_sort;
@@ -8205,6 +8206,8 @@ and type_function_cases_expect
         fc_param = param;
         fc_loc = loc;
         fc_exp_extra = None;
+        fc_env = env;
+        fc_ret_type = ty_ret;
         fc_attributes = [];
         fc_arg_mode = Alloc.disallow_right arg_mode;
         fc_arg_sort = arg_sort;

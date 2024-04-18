@@ -1288,8 +1288,15 @@ and transl_apply ~scopes
    [trans_curried_function]).
 *)
 and transl_function_without_attributes
-    ~scopes ~return_sort ~return_layout ~return_mode ~mode ~region loc repr
-    params body =
+    ~scopes ~return_sort ~return_mode ~mode ~region loc repr params body =
+  let return_layout =
+    match body with
+    | Tfunction_body exp ->
+        layout_exp return_sort exp
+    | Tfunction_cases cases ->
+        layout cases.fc_env cases.fc_loc return_sort cases.fc_ret_type
+
+  in
   match
     transl_tupled_function ~scopes loc params body
       ~return_sort ~return_mode ~return_layout ~mode ~region
@@ -1557,9 +1564,6 @@ and transl_function ~in_new_scope ~scopes e params body
         region = sregion;
       }
   in
-  let return_layout =
-    function_return_layout e.exp_env e.exp_loc return_sort e.exp_type
-  in
   (* [ret_mode] may differ from [sreturn_mode] if:
        - [e] is a method. (See [fuse_method_arity].)
        - [e] is a function whose arity exceeds [Lambda.max_arity].
@@ -1569,7 +1573,7 @@ and transl_function ~in_new_scope ~scopes e params body
     event_function ~scopes e
       (function repr ->
          transl_function_without_attributes
-           ~mode ~return_sort ~return_layout ~return_mode
+           ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
   in
   let attr =
@@ -2009,7 +2013,6 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       (transl_exp ~scopes let_.bop_exp_sort let_.bop_exp) ands
   in
   let func =
-    let return_layout = layout_exp case_sort case.c_rhs in
     let return_mode = alloc_heap (* XXX fixme: use result of is_function_type *) in
     let (kind, params, return, _region, ret_mode), body =
       event_function ~scopes case.c_rhs
@@ -2017,13 +2020,14 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
            let loc = case.c_rhs.exp_loc in
            let ghost_loc = { loc with loc_ghost = true } in
            transl_function_without_attributes ~scopes ~region:true
-             ~return_sort:case_sort ~return_layout ~mode:alloc_heap ~return_mode
+             ~return_sort:case_sort ~mode:alloc_heap ~return_mode
              loc repr []
              (Tfunction_cases
                 { fc_cases = [case]; fc_param = param; fc_partial = partial;
                   fc_loc = ghost_loc; fc_exp_extra = None; fc_attributes = [];
                   fc_arg_mode = Mode.Alloc.disallow_right Mode.Alloc.legacy;
-                  fc_arg_sort = param_sort;
+                  fc_arg_sort = param_sort; fc_env = env;
+                  fc_ret_type = case.c_rhs.exp_type;
                 }))
     in
     let attr = function_attribute_disallowing_arity_fusion in
