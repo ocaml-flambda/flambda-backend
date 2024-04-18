@@ -295,7 +295,7 @@ and variant_representation =
   | Variant_extensible
 
 and constructor_representation =
-  | Constructor_regular
+  | Constructor_uniform_value
   | Constructor_mixed of mixed_record_shape
 
 and label_declaration =
@@ -329,6 +329,7 @@ type extension_constructor =
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
     ext_arg_jkinds: Jkind.t array;
+    ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
@@ -546,6 +547,7 @@ type constructor_description =
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
@@ -577,10 +579,10 @@ let equal_mixed_record_shape r1 r2 = r1 == r2 ||
   l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
 
 let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
-  | Constructor_regular, Constructor_regular -> true
+  | Constructor_uniform_value, Constructor_uniform_value -> true
   | Constructor_mixed mx1, Constructor_mixed mx2 ->
       equal_mixed_record_shape mx1 mx2
-  | (Constructor_mixed _ | Constructor_regular), _ -> false
+  | (Constructor_mixed _ | Constructor_uniform_value), _ -> false
 
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->

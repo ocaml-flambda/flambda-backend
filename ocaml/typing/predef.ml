@@ -273,11 +273,20 @@ let build_initial_env add_type add_extension empty_env =
     add_type type_ident decl env
   in
   let add_extension id args jkinds =
+    Array.iter (fun jkind ->
+        match Jkind.get jkind with
+        | Const Value -> ()
+        | _ ->
+            Misc.fatal_error
+              "sanity check failed: non-value jkind in predef extension \
+               constructor; should this have Constructor_mixed shape?")
+      jkinds;
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
         ext_args = Cstr_tuple (List.map (fun x -> (x, Global_flag.Unrestricted)) args);
         ext_arg_jkinds = jkinds;
+        ext_shape = Constructor_uniform_value;
         ext_constant = args = [];
         ext_ret_type = None;
         ext_private = Asttypes.Public;
@@ -300,8 +309,8 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []]
-                [| Constructor_regular, [| |];
-                   Constructor_regular, [| |] |])
+                [| Constructor_uniform_value, [| |];
+                   Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Immediate
@@ -325,8 +334,8 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| Constructor_regular, [| |];
-              Constructor_regular,
+           [| Constructor_uniform_value, [| |];
+              Constructor_uniform_value,
                 [| list_argument_jkind;
                    Jkind.value ~why:Boxed_variant;
                 |];
@@ -338,8 +347,8 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| Constructor_regular, [| |];
-              Constructor_regular, [| option_argument_jkind |];
+           [| Constructor_uniform_value, [| |];
+              Constructor_uniform_value, [| option_argument_jkind |];
            |])
        ~jkind:(Jkind.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
@@ -385,7 +394,9 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind_annotation:Bits64
   |> add_type ident_bytes
   |> add_type ident_unit
-       ~kind:(variant [cstr ident_void []] [| Constructor_regular, [| |] |])
+       ~kind:(variant
+                [cstr ident_void []]
+                [| Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure

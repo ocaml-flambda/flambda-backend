@@ -52,6 +52,10 @@ type mixed_record_violation =
       { boxed_lbl : Ident.t;
         non_value_lbl : Ident.t;
       }
+  | Flat_constructor_arg_expected of
+      { boxed_arg : type_expr;
+        non_value_arg : type_expr;
+      }
   | Insufficient_level of
       { required_layouts_level : Language_extension.maturity }
 
@@ -783,7 +787,7 @@ let transl_declaration env sdecl (id, uid) =
                        Array.make (List.length args) any
                      | Cstr_record _ -> [| any |]
                    in
-                   Constructor_regular, jkinds)
+                   Constructor_uniform_value, jkinds)
                 (Array.of_list cstrs)
             ),
             Jkind.value ~why:Boxed_variant
@@ -1242,6 +1246,53 @@ let assert_mixed_record_support =
                   (Value_prefix_too_long
                      { value_prefix_len; max_value_prefix_len })))
 
+let update_constructor_representation
+    env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
+  =
+  let flat_suffix =
+    let arg_jkinds = Array.to_list arg_jkinds in
+    match cd_args with
+    | Cstr_tuple arg_types_and_modes ->
+        let arg_reprs =
+          List.map2 (fun (arg_type, _mode) arg_jkind ->
+            Element_repr.classify env arg_type arg_jkind, arg_type)
+            arg_types_and_modes arg_jkinds
+        in
+        Element_repr.mixed_product_flat_suffix arg_reprs
+          ~on_flat_field_expected:(fun ~non_value ~boxed ->
+              let violation =
+                Flat_constructor_arg_expected
+                  { non_value_arg = non_value;
+                    boxed_arg = boxed;
+                  }
+              in
+              raise (Error (loc, Illegal_mixed_record violation)))
+    | Cstr_record fields ->
+        let arg_reprs =
+          List.map (fun ld ->
+              Element_repr.classify env ld.Types.ld_type ld.ld_jkind, ld)
+            fields
+        in
+        Element_repr.mixed_product_flat_suffix arg_reprs
+          ~on_flat_field_expected:(fun ~non_value ~boxed ->
+            let violation =
+              Flat_field_expected
+                { non_value_lbl = non_value.Types.ld_id;
+                  boxed_lbl = boxed.Types.ld_id;
+                }
+            in
+            raise (Error (non_value.Types.ld_loc,
+                          Illegal_mixed_record violation)))
+  in
+  match flat_suffix with
+  | None -> Constructor_uniform_value
+  | Some flat_suffix ->
+      let value_prefix_len =
+        Array.length arg_jkinds - Array.length flat_suffix
+      in
+      Constructor_mixed { value_prefix_len; flat_suffix }
+
+
 (* This function updates jkind stored in kinds with more accurate jkinds.
    It is called after the circularity checks and the delayed jkind checks
    have happened, so we can fully compute jkinds of types.
@@ -1388,7 +1439,7 @@ let update_decl_jkind env dpath decl =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
           let arg_jkinds =
             match cstr_shapes.(idx) with
-            | Constructor_regular, arg_jkinds -> arg_jkinds
+            | Constructor_uniform_value, arg_jkinds -> arg_jkinds
             | Constructor_mixed _, _ ->
                 fatal_error
                   "Typedecl.update_variant_kind doesn't expect mixed \
@@ -1398,48 +1449,14 @@ let update_decl_jkind env dpath decl =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
               cstr.Types.cd_args arg_jkinds
           in
-          let flat_suffix =
-            let arg_jkinds = Array.to_list arg_jkinds in
-            match cd_args with
-            | Cstr_tuple arg_types_and_modes ->
-                let arg_reprs =
-                  List.map2 (fun (arg_type, _mode) arg_jkind ->
-                    Element_repr.classify env arg_type arg_jkind, arg_type)
-                    arg_types_and_modes arg_jkinds
-                in
-                Element_repr.mixed_product_flat_suffix arg_reprs
-                  ~on_flat_field_expected:(fun ~non_value ~boxed ->
-                      ignore boxed;
-                      ignore non_value;
-                      (* CR mixed blocks: *)
-                      raise (Error (cstr.Types.cd_loc, assert false)))
-            | Cstr_record fields ->
-                let arg_reprs =
-                  List.map (fun ld ->
-                      Element_repr.classify env ld.Types.ld_type ld.ld_jkind, ld)
-                    fields
-                in
-                Element_repr.mixed_product_flat_suffix arg_reprs
-                  ~on_flat_field_expected:(fun ~non_value ~boxed ->
-                    let violation =
-                      Flat_field_expected
-                        { non_value_lbl = non_value.Types.ld_id;
-                          boxed_lbl = boxed.Types.ld_id;
-                        }
-                    in
-                    raise (Error (non_value.Types.ld_loc,
-                                  Illegal_mixed_record violation)))
+          let cstr_repr =
+            update_constructor_representation env cd_args arg_jkinds
+              ~loc:cstr.Types.cd_loc
           in
           let () =
-            match flat_suffix with
-            | None -> ()
-            | Some flat_suffix ->
-                let value_prefix_len =
-                  Array.length arg_jkinds - Array.length flat_suffix
-                in
-                cstr_shapes.(idx) <-
-                  Constructor_mixed { value_prefix_len; flat_suffix },
-                  arg_jkinds
+            match cstr_repr with
+            | Constructor_uniform_value -> ()
+            | Constructor_mixed _ -> cstr_shapes.(idx) <- cstr_repr, arg_jkinds
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
@@ -2110,7 +2127,10 @@ let transl_extension_constructor_decl
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
-  args, jkinds, constant, ret_type,
+  let constructor_shape =
+    update_constructor_representation env args jkinds ~loc
+  in
+  args, jkinds, constructor_shape, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
 
 let transl_extension_constructor_jst env type_path _type_params
@@ -2124,7 +2144,7 @@ let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
-  let args, arg_jkinds, constant, ret_type, kind =
+  let args, arg_jkinds, shape, constant, ret_type, kind =
     match Jane_syntax.Extension_constructor.of_ast sext with
     | Some (jext, attrs) ->
       transl_extension_constructor_jst
@@ -2220,7 +2240,8 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               Types.Cstr_record lbls
         in
-        args, cdescr.cstr_arg_jkinds, cdescr.cstr_constant, ret_type,
+        args, cdescr.cstr_arg_jkinds, cdescr.cstr_shape,
+        cdescr.cstr_constant, ret_type,
         Text_rebind(path, lid)
   in
   let ext =
@@ -2228,6 +2249,7 @@ let transl_extension_constructor ~scope env type_path type_params
       ext_type_params = typext_params;
       ext_args = args;
       ext_arg_jkinds = arg_jkinds;
+      ext_shape = shape;
       ext_constant = constant;
       ext_ret_type = ret_type;
       ext_private = priv;
@@ -3449,10 +3471,16 @@ let report_error ppf = function
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
-            "@[Expected all flat fields after non-value field, %s,@]@,\
+            "@[Expected all flat fields after non-value field, %s,@]@, \
             \ @[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
+      | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
+          fprintf ppf
+            "@[Expected all flat constructor arguments after non-value \
+             argument, %a,@]@,@[but found boxed argument, %a.@]"
+            Printtyp.type_expr non_value_arg
+            Printtyp.type_expr boxed_arg
       | Runtime_support_not_enabled ->
           fprintf ppf
             "@[This OCaml runtime doesn't support mixed records.@]"

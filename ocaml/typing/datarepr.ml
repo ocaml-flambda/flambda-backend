@@ -100,21 +100,21 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
-  let cstr_arg_jkinds : Jkind.t array array =
+  let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
-    | Variant_boxed cstrs_and_jkinds -> Array.map snd cstrs_and_jkinds
-    | Variant_unboxed -> [| [| decl.type_jkind |] |]
+    | Variant_boxed x -> x
+    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun jkinds ->
+      (fun (_, jkinds) ->
          let all_void = all_void jkinds in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
-      cstr_arg_jkinds
+      cstr_shapes_and_arg_jkinds
   in
   let describe_constructor (src_index, const_tag, nonconst_tag, acc)
         {cd_id; cd_args; cd_res; cd_loc; cd_attributes; cd_uid} =
@@ -124,7 +124,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_arg_jkinds = cstr_arg_jkinds.(src_index) in
+    let cstr_shape, cstr_arg_jkinds = cstr_shapes_and_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -147,6 +147,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
+        cstr_shape = cstr_shape;
         cstr_constant;
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
@@ -182,6 +183,7 @@ let extension_descr ~current_unit path_ext ext =
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;
+      cstr_shape = ext.ext_shape;
       cstr_constant = ext.ext_constant;
       cstr_consts = -1;
       cstr_nonconsts = -1;

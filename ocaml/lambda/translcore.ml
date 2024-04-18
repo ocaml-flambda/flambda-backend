@@ -475,7 +475,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                return_layout)
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
-        transl_list_with_shape ~scopes
+        transl_value_list_with_shape ~scopes
           (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
       in
       begin try
@@ -487,17 +487,23 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               (of_location ~scopes e.exp_loc))
       end
   | Texp_construct(_, cstr, args, alloc_mode) ->
-      let ll, shape =
-        transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Jkind.Sort.for_constructor_arg)) args)
+      let args_with_sorts =
+        List.mapi (fun i e ->
+            let sort = Jkind.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
+            e, sort)
+          args
+      in
+      let ll =
+        List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
       in
       if cstr.cstr_inlined <> None then begin match ll with
         | [x] -> x
         | _ -> assert false
       end else begin match cstr.cstr_tag, cstr.cstr_repr with
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
+          assert (args_with_sorts = []);
           (* CR layouts v5: This could have void args, but for now we've ruled
-             that out with the jkind check in transl_list_with_shape *)
+             that out by checking that the sort list is empty *)
           Lconst(const_int runtime_tag)
       | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
@@ -505,23 +511,52 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           begin try
             Lconst(Const_block(runtime_tag, List.map extract_constant ll))
           with Not_constant ->
-            Lprim(Pmakeblock(runtime_tag, Immutable, Some shape,
-                             transl_alloc_mode_r (Option.get alloc_mode)),
-                  ll,
-                  of_location ~scopes e.exp_loc)
+            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let makeblock =
+              match cstr.cstr_shape with
+              | Constructor_uniform_value ->
+                  let shape =
+                    List.map (fun (e, sort) ->
+                        Lambda.must_be_value (layout_exp sort e))
+                      args_with_sorts
+                  in
+                  Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
+              | Constructor_mixed shape ->
+                  (* CR mixed blocks: runtime_tag *)
+                  let shape = Lambda.transl_mixed_record_shape shape in
+                  Pmakemixedblock(Immutable, shape, alloc_mode)
+            in
+            Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
           end
       | Extension (path, _), Variant_extensible ->
           let lam = transl_extension_path
                       (of_location ~scopes e.exp_loc) e.exp_env path in
           if cstr.cstr_constant
-          then
+          then (
+            assert (args_with_sorts = []);
             (* CR layouts v5: This could have void args, but for now we've ruled
-               that out with the jkind check in transl_list_with_shape. *)
-            lam
+               that out by checking that the sort list is empty *)
+            lam)
           else
-            Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_alloc_mode_r (Option.get alloc_mode)),
-                  lam :: ll, of_location ~scopes e.exp_loc)
+            let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
+            let makeblock =
+              match cstr.cstr_shape with
+              | Constructor_uniform_value ->
+                  let shape =
+                    List.map (fun (e, sort) ->
+                        Lambda.must_be_value (layout_exp sort e))
+                      args_with_sorts
+                  in
+                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                            alloc_mode)
+              | Constructor_mixed shape ->
+                  let shape = Lambda.transl_mixed_record_shape shape in
+                  let shape =
+                    { shape with value_prefix_len = shape.value_prefix_len + 1 }
+                  in
+                  Pmakemixedblock(Immutable, shape, alloc_mode)
+            in
+            Lprim (makeblock, lam :: ll, of_location ~scopes e.exp_loc)
       | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
@@ -1104,7 +1139,7 @@ and transl_list_with_layout ~scopes expr_list =
     expr_list
 
 (* Will raise if a list element has a non-value layout. *)
-and transl_list_with_shape ~scopes expr_list =
+and transl_value_list_with_shape ~scopes expr_list =
   let transl_with_shape (e, sort) =
     let shape = Lambda.must_be_value (layout_exp sort e) in
     transl_exp ~scopes sort e, shape
