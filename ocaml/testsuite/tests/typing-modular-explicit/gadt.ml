@@ -43,9 +43,9 @@ type _ t2 =
 [%%expect{|
 type _ t2 =
     A : (int -> int) t2
-  | B : ({M : T} -> M.t -> M.t) t2
-  | C : ({M : T2} -> M.t -> M.t) t2
-  | D : ({M : Add} -> M.t -> M.t) t2
+  | B : ({M/1 : T} -> M/1.t -> M/1.t) t2
+  | C : ({M/2 : T2} -> M/2.t -> M/2.t) t2
+  | D : ({M/3 : Add} -> M/3.t -> M/3.t) t2
 |}]
 
 (* matching specification *)
@@ -63,8 +63,8 @@ val f : 'a -> 'a t2 -> int = <fun>
 Line 3, characters 12-15:
 3 |   | A, f -> f 1
                 ^^^
-Error: This expression has type "int" but an expression was expected of type "'a"
-       This instance of "int" is ambiguous:
+Error: This expression has type int but an expression was expected of type 'a
+       This instance of int is ambiguous:
        it would escape the scope of its equation
 |}]
 
@@ -80,8 +80,8 @@ let f (type a) (x : a) (el : ({N : T} -> a) t2) =
 Line 3, characters 4-5:
 3 |   | B, f -> f
         ^
-Error: This pattern matches values of type "({M : T} -> M.t -> M.t) t2"
+Error: This pattern matches values of type ({M : T} -> M.t -> M.t) t2
        but a pattern was expected which matches values of type
-         "({N : T} -> a) t2"
-       The module "M" would escape its scope
+         ({N : T} -> a) t2
+       The module M would escape its scope
 |}]
