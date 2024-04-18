@@ -589,7 +589,8 @@ module With_subkind = struct
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
       let all_uniform_non_consts =
-        List.map (fun (tag, (shape : Lambda.constructor_shape)) ->
+        List.map
+          (fun (tag, (shape : Lambda.constructor_shape)) ->
             match shape with
             | Constructor_uniform shape -> Some (tag, shape)
             | Constructor_mixed _ -> None)
@@ -598,17 +599,15 @@ module With_subkind = struct
       in
       match all_uniform_non_consts with
       | None ->
-          (* CR mixed blocks v2: have a better representation of mixed blocks
-             in the flambda2 middle end so that they can be optimized more.
-          *)
-          any_value
+        (* CR mixed blocks v2: have a better representation of mixed blocks in
+           the flambda2 middle end so that they can be optimized more. *)
+        any_value
       | Some non_consts -> (
         match consts, non_consts with
         | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-        | [], [(tag, fields)] when tag = Obj.double_array_tag
-          ->
+        | [], [(tag, fields)] when tag = Obj.double_array_tag ->
           (* If we have [Obj.double_array_tag] here, this is always an all-float
-            block, not an array. *)
+             block, not an array. *)
           float_block ~num_fields:(List.length fields)
         | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
           let consts =
