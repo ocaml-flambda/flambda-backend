@@ -67,16 +67,14 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
+#if NATIVE_CODE
 CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
                                    mlsize_t scannable_prefix) {
-#if NATIVE_CODE
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize(scannable_prefix);
   return caml_alloc_with_reserved (wosize, tag, reserved);
-#else
-  caml_fatal_error("caml_alloc_mixed is not supported by bytecode");
-#endif
 }
+#endif // NATIVE_CODE
 
 CAMLexport value caml_alloc_small_with_reserved (mlsize_t wosize, tag_t tag,
                                                  reserved_t reserved)
