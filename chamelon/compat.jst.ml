@@ -234,6 +234,7 @@ let view_texp (e : expression_desc) =
               match param.fp_kind with
               | Tparam_optional_default (pattern, optional_default, _) ->
                   (pattern, Some optional_default)
+              | Tparam_module (pattern, _) -> (pattern, None)
               | Tparam_pat pattern -> (pattern, None)
             in
             {
@@ -350,16 +351,18 @@ let view_tstr (si : structure_item_desc) =
 
 type arg_identifier = Jkind.sort
 
-let mkArg ?id:(sort = Jkind.Sort.value) e = Arg (e, sort)
+let mkExpArg ?id:(sort = Jkind.Sort.value) e = Arg (Targ_expr (e, sort))
+
+let mkArg a = Arg a
 
 let map_arg_or_omitted f arg =
-  match arg with Arg (e, sort) -> Arg (f e, sort) | Omitted o -> Omitted o
+  match arg with Arg a -> Arg (f a) | Omitted o -> Omitted o
 
 let fold_arg_or_omitted f init arg =
-  match arg with Arg (e, sort) -> f init (e, sort) | Omitted _ -> init
+  match arg with Arg a -> f init a | Omitted _ -> init
 
 let option_of_arg_or_omitted arg =
-  match arg with Arg (e, sort) -> Some (e, sort) | Omitted _ -> None
+  match arg with Arg a -> Some a | Omitted _ -> None
 
 let mk_constructor_description cstr_name =
   {
