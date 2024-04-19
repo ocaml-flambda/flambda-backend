@@ -361,8 +361,8 @@ CAMLprim value caml_alloc_dummy_float (value size)
 CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
 {
   mlsize_t wosize = Long_val(size);
-  mlsize_t scannable_wosize = Long_val(scannable_size);
 #ifdef NATIVE_CODE
+  mlsize_t scannable_wosize = Long_val(scannable_size);
   /* The below code runs for bytecode and native code, and critically assumes
      that a double record field can be stored in one word. That's true both for
      32-bit and 64-bit bytecode (as a double record field in a mixed record is
@@ -373,9 +373,9 @@ CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize(scannable_wosize);
 #else
-  /* [scannable_wosize] can't be used meaningfully in bytecode */
-  (void)scannable_wosize;
-  CAMLassert(scannable_wosize == -1);
+  /* [scannable_size] can't be used meaningfully in bytecode */
+  (void)scannable_size;
+  CAMLassert(scannable_size == Val_int(-1));
   reserved_t reserved = Faux_mixed_block_sentinel;
 #endif // NATIVE_CODE
   return caml_alloc_with_reserved (wosize, 0, reserved);

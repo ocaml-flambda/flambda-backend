@@ -814,8 +814,9 @@ let rec comp_expr stack_info env exp sz cont =
                  this sentinel -1 value.
               *)
               Kconst(Const_base(Const_int (-1))) ::
+              Kpush ::
               Kconst(Const_base(Const_int blocksize)) ::
-              Kccall("caml_alloc_dummy_mixed", 1) :: Kpush ::
+              Kccall("caml_alloc_dummy_mixed", 2) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_block blocksize) :: rem ->
               Kconst(Const_base(Const_int blocksize)) ::
