@@ -2868,8 +2868,8 @@ let combine_constant value_kind loc arg cst partial ctx def
           (Pfloatcomp (Pfloat64, CFlt)) arg
           const_lambda_list
     | Const_float32 _ ->
-        (* CR mslater: (float32) pattern matching *)
-        Parmatch.raise_matched_float32 ()
+        (* Should be caught in do_compile_matching. *)
+        Misc.fatal_error "Found unexpected float32 literal pattern."
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
           (Punboxed_float_comp (Pfloat64, CFneq))
@@ -3543,6 +3543,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
+      | Constant (Const_float32 _) -> Parmatch.raise_matched_float32 ()
       | Constant cst ->
           compile_test
             (compile_match ~scopes value_kind repr partial)

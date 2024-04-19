@@ -75,7 +75,7 @@ let () =
 ;;
 [%%expect{|
 Line 1:
-Error: Matching on float32 is not supported.
+Error: float32 literal patterns are not supported.
 |}];;
 
 let () =
@@ -86,7 +86,7 @@ let () =
 ;;
 [%%expect{|
 Line 1:
-Error: Matching on float32 is not supported.
+Error: float32 literal patterns are not supported.
 |}];;
 
 let () =
@@ -95,5 +95,5 @@ let () =
 ;;
 [%%expect{|
 Line 1:
-Error: Matching on float32 is not supported.
+Error: float32 literal patterns are not supported.
 |}];;

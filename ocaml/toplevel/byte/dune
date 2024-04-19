@@ -25,7 +25,7 @@
 (rule
  (targets bytetop)
  ; This should be generated from the stdlib modules files
- (action (run %{ocaml_where}/../../bin/ocamlrun -I ../../../external/float32 %{exe:../expunge.bc} %{dep:../topstart.bc} %{targets}
+ (action (run %{ocaml_where}/../../bin/ocamlrun %{exe:../expunge.bc} %{dep:../topstart.bc} %{targets}
                     stdlib__Arg
                     stdlib__Array
                     stdlib__ArrayLabels
