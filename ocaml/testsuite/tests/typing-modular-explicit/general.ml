@@ -594,3 +594,24 @@ let rec m = (fun {T : Typ} (x : T.t) -> x) {Int} 3
 [%%expect{|
 val m : Int.t = 3
 |}]
+
+(** Typing is impacted by typing order *)
+
+let id' (f : {T : Typ} -> T.t -> T.t) = f
+
+let typing_order1 f = (f {Int} 3, id' f)
+
+[%%expect{|
+val id' : ({T : Typ} -> T.t -> T.t) -> ({T : Typ} -> T.t -> T.t) = <fun>
+Line 5, characters 26-29:
+5 | let typing_order1 f = (f {Int} 3, id' f)
+                              ^^^
+Error: Cannot infer signature of functor.
+|}]
+
+let typing_order2 f = (id' f, f {Int} 3)
+
+[%%expect{|
+val typing_order2 :
+  ({T : Typ} -> T.t -> T.t) -> ({T : Typ} -> T.t -> T.t) * Int.t = <fun>
+|}]
