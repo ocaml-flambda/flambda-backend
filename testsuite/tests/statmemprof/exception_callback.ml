@@ -1,29 +1,36 @@
-(* TEST
- exit_status = "2";
- runtime4;
-*)
+(* TEST *)
 
-open Gc.Memprof
+(* Tests that an exception in the alloc_major callback propagates
+   correctly to the top level. *)
 
-let alloc_tracker on_alloc =
-  { null_tracker with
-    alloc_minor = (fun info -> on_alloc info; None);
+module MP = Gc.Memprof
+
+let alloc_major_tracker on_alloc =
+  { MP.null_tracker with
     alloc_major = (fun info -> on_alloc info; None);
   }
 
-(* We don't want to print the backtrace. We just want to make sure the
-   exception is printed.
-   This also makes sure [Printexc] is loaded, otherwise we don't use
-   its uncaught exception handler. *)
-let _ = Printexc.record_backtrace false
+(* Run without exception, as the null test *)
 
 let () =
-  start ~callstack_size:10 ~sampling_rate:1.
-    (alloc_tracker (fun _ -> stop ()));
-  ignore (Sys.opaque_identity (Array.make 200 0))
+  ignore (MP.start ~callstack_size:10 ~sampling_rate:1.
+                   (alloc_major_tracker (fun _ -> ())));
+  ignore (Sys.opaque_identity (Array.make 500 0));
+  MP.stop();
+  print_endline "Run without exception."
+
+
+(* Run with an exception *)
 
 let _ =
-  start ~callstack_size:10 ~sampling_rate:1.
-    (alloc_tracker (fun _ -> failwith "callback failed"));
-  ignore (Sys.opaque_identity (Array.make 200 0));
-  stop ()
+try
+ Sys.with_async_exns (fun () ->
+  let _:MP.t = MP.start ~callstack_size:10 ~sampling_rate:1.
+                   (alloc_major_tracker
+                     (fun _ -> raise Sys.Break)) in
+   (ignore (Sys.opaque_identity (Array.make 500 0));
+    MP.stop ())
+ )
+with
+  Sys.Break -> (MP.stop();
+                Printf.printf "Exception from memprof.\n")
