@@ -80,14 +80,12 @@ let minimize should_remove map cur_name =
                             (List.fold_left
                                (fun l (a, e) ->
                                  fold_arg_or_omitted
-                                   (fun l -> function
-                                    | Targ_expr (e1, _) as arg ->
-                                      if
-                                        Reduceexpr.is_simplified e1
-                                        && should_remove ()
-                                      then l
-                                      else (a, mkArg arg) :: l
-                                    | arg -> (a, mkArg arg) :: l)
+                                   (fun l (e1, id) ->
+                                     if
+                                       Reduceexpr.is_simplified e1
+                                       && should_remove ()
+                                     then l
+                                     else (a, mkArg ~id e1) :: l)
                                    l e)
                                [] ael) );
                   }
@@ -101,15 +99,13 @@ let minimize should_remove map cur_name =
                             (List.fold_left
                                (fun l (a, e) ->
                                  fold_arg_or_omitted
-                                   (fun l -> function
-                                    | Targ_expr (e1, id) ->
-                                      if is_sequence e1 then
-                                        let rdm =
-                                          remove_dummy_mapper should_remove
-                                        in
-                                        (a, mkExpArg ~id (rdm.expr rdm e1)) :: l
-                                      else l
-                                    | arg -> (a, mkArg arg) :: l)
+                                   (fun l (e1, id) ->
+                                     if is_sequence e1 then
+                                       let rdm =
+                                         remove_dummy_mapper should_remove
+                                       in
+                                       (a, mkArg ~id (rdm.expr rdm e1)) :: l
+                                     else l)
                                    l e)
                                [] ael) );
                   }

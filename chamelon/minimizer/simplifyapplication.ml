@@ -18,7 +18,7 @@ let simplify_app_mapper should_remove =
                   let _, arg = List.hd ea_l in
                   let f_as_cases = Function_compat.function_to_cases_view f in
                   match option_of_arg_or_omitted arg with
-                  | Some (Targ_expr (arg, _)) when should_remove () ->
+                  | Some (arg, _) when should_remove () ->
                       {
                         e with
                         exp_desc =

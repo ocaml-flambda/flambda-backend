@@ -23,7 +23,7 @@ let remove_double_ignore =
             if is_ignore f && List.length ae_l = 1 then
               let _, arg = List.hd ae_l in
               match option_of_arg_or_omitted arg with
-              | Some (Targ_expr (e1, _)) -> (
+              | Some (e1, _) -> (
                   match view_texp e1.exp_desc with
                   | Texp_apply (f2, ae_l2, id) ->
                       if is_ignore f2 then
@@ -65,9 +65,9 @@ let seq_function_mapper should_remove =
                       (List.fold_left
                          (fun l (_, eo) ->
                            fold_arg_or_omitted
-                             (fun l a ->
+                             (fun l (e, id) ->
                                mkTexp_apply
-                                 (Dummy.ignore, [ (Nolabel, mkArg a) ])
+                                 (Dummy.ignore, [ (Nolabel, mkArg ~id e) ])
                                :: l)
                              l eo)
                          [] ae_l);
