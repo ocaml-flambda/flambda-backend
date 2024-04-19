@@ -418,6 +418,29 @@ FUNCTION(caml_allocN)
         CFI_ENDPROC
         END_FUNCTION(caml_allocN)
 
+/* Reallocate the locals stack.  This is like caml_call_gc, above. */
+FUNCTION(caml_call_local_realloc)
+        CFI_STARTPROC
+L(caml_call_local_realloc):
+    /* Save return address and frame pointer */
+        CFI_OFFSET(29, -16)
+        CFI_OFFSET(30, -8)
+        stp     x29, x30, [sp, -16]!
+        CFI_ADJUST(16)
+        add     x29, sp, #0
+    /* Store all registers (including ALLOC_PTR & TRAP_PTR) */
+        SAVE_ALL_REGS
+        SWITCH_OCAML_TO_C
+    /* Call the runtime to reallocate the local stack */
+        bl      G(caml_local_realloc)
+        SWITCH_C_TO_OCAML
+        RESTORE_ALL_REGS
+    /* Free stack space and return to caller */
+        ldp     x29, x30, [sp], 16
+        ret
+        CFI_ENDPROC
+        END_FUNCTION(caml_call_gc)
+
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
 
