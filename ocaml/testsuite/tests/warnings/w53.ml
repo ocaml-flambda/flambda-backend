@@ -536,7 +536,6 @@ module TestZeroAllocStruct = struct
     let x = 42 in
     fun z -> z + x
 end
-<<<<<<< HEAD
 (* TEST
  flags = "-w +A-60-70";
  setup-ocamlc.byte-build-env;
@@ -544,5 +543,3 @@ end
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
-=======
->>>>>>> fb471efa (Parse `zero_alloc` attributes into the typed tree (#2400))
