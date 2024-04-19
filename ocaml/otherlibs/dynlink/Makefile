@@ -132,10 +132,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
-<<<<<<< HEAD
   typing/shape_reduce.ml \
-=======
->>>>>>> fb471efa (Parse `zero_alloc` attributes into the typed tree (#2400))
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \
