@@ -223,18 +223,18 @@ let rec const_int64_args n args name =
 let int64_of_int8 i =
   (* CR mslater: (SIMD) replace once we have unboxed int8 *)
   if i < 0 || i > 0xff
-  then bad_immediate "Int8 constant not in range [0x0,0xff]: %016x" i;
+  then bad_immediate "Int8 constant not in range [0x0,0xff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int16 i =
   (* CR mslater: (SIMD) replace once we have unboxed int16 *)
   if i < 0 || i > 0xffff
-  then bad_immediate "Int16 constant not in range [0x0,0xffff]: %016x" i;
+  then bad_immediate "Int16 constant not in range [0x0,0xffff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int32 i =
   if i < Int32.to_int Int32.min_int || i > Int32.to_int Int32.max_int
-  then bad_immediate "Int32 constant not in range [0x0,0xffffffff]: %016x" i;
+  then bad_immediate "Int32 constant not in range [0x0,0xffffffff]: 0x%016x" i;
   Int64.of_int i |> Int64.logand 0xffffffffL
 
 let int64_of_float32 f =
