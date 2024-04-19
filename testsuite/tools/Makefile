@@ -33,7 +33,7 @@ expect_PROG=$(expect_MAIN)$(EXE)
 expect_DIRS = parsing utils driver typing toplevel
 expect_OCAMLFLAGS = $(addprefix -I $(ROOTDIR)/,$(expect_DIRS))
 expect_LIBS := $(addprefix $(COMPILERLIBSDIR)/,\
-  	ocamlcommon ocamlbytecomp ocamltoplevel)
+  ocamlcommon ocamlbytecomp ocamltoplevel)
 
 codegen_PROG = codegen$(EXE)
 codegen_DIRS = parsing utils typing middle_end bytecomp lambda asmcomp
