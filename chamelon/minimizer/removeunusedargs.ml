@@ -24,7 +24,7 @@ let rec fun_wrapper arg_list acc_id depth path_fun n =
           (fun arg_lab id ->
             incr n;
             ( arg_lab,
-              mkArg
+              mkExpArg
                 (exp_desc_to_exp
                    (mkTexp_ident
                       ( Pident id,
@@ -101,13 +101,13 @@ let replace_mapper id to_replace label =
                              ->
                                if s1 = s2 then
                                  ( Nolabel,
-                                   map_arg_or_omitted (mapper.expr mapper) e )
+                                   map_arg_or_omitted (mapper.argument mapper) e )
                                  :: l
                                else
-                                 (a, map_arg_or_omitted (mapper.expr mapper) e)
+                                 (a, map_arg_or_omitted (mapper.argument mapper) e)
                                  :: l
                            | _ ->
-                               (a, map_arg_or_omitted (mapper.expr mapper) e)
+                               (a, map_arg_or_omitted (mapper.argument mapper) e)
                                :: l)
                          [] ae_l) );
             }

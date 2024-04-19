@@ -210,12 +210,12 @@ let dummy2 = exp_desc_to_exp dummy2_desc
 let apply_dummy1 =
   exp_desc_to_exp
     (mkTexp_apply
-       (dummy1, [ (Nolabel, mkArg (exp_desc_to_exp (mkTexp_tuple []))) ]))
+       (dummy1, [ (Nolabel, mkExpArg (exp_desc_to_exp (mkTexp_tuple []))) ]))
 
 let apply_dummy2 =
   exp_desc_to_exp
     (mkTexp_apply
-       (dummy2, [ (Nolabel, mkArg (exp_desc_to_exp (mkTexp_tuple []))) ]))
+       (dummy2, [ (Nolabel, mkExpArg (exp_desc_to_exp (mkTexp_tuple []))) ]))
 
 (* external __ignore__ : _ = "%ignore"*)
 
