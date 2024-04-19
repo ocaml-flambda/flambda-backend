@@ -603,10 +603,10 @@ let parse_attribute_with_ident_payload attr ~name ~f =
 let zero_alloc_attribute (attr : Parsetree.attribute)  =
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_default
-      | "check_opt" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_opt_only
-      | "check_all" -> Clflags.zero_alloc_check := Clflags.Annotations.Check_all
-      | "check_none" -> Clflags.zero_alloc_check := Clflags.Annotations.No_check
+      | "check" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_default
+      | "check_opt" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_opt_only
+      | "check_all" -> Clflags.zero_alloc_check := Zero_alloc_annotations.Check_all
+      | "check_none" -> Clflags.zero_alloc_check := Zero_alloc_annotations.No_check
       | "all" ->
         Clflags.zero_alloc_check_assert_all := true
       | _ ->
