@@ -184,11 +184,7 @@ let rec push_dummies n k = match n with
 type rhs_kind =
   | RHS_block of int
   | RHS_faux_mixedblock of int
-  (* A "faux" mixed block is not actually represented as a mixed block at
-     runtime. It just has the top header byte sent to a sentinel value so
-     bytecode knows that the block can't be marshaled to native code, where
-     mixed records are represented as true mixed blocks.
-  *)
+  (* See [instruct.ml] for what the "faux" means.  *)
   | RHS_infix of { blocksize : int; offset : int }
   | RHS_floatblock of int
   | RHS_nonrec
@@ -813,6 +809,10 @@ let rec comp_expr stack_info env exp sz cont =
               Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_faux_mixedblock blocksize) :: rem ->
+              (* The -1 argument is unused by [caml_alloc_dummy_mixed]
+                 in bytecode, except to check that it's been set to
+                 this sentinel -1 value.
+              *)
               Kconst(Const_base(Const_int (-1))) ::
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy_mixed", 1) :: Kpush ::
