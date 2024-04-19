@@ -188,6 +188,22 @@ let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
   `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
 
+(* Record calls to local stack reallocation *)
+
+type local_realloc_call =
+  { lr_lbl: label;
+    lr_return_lbl: label;
+    lr_dbg: Debuginfo.t
+  }
+
+let local_realloc_sites = ref ([] : local_realloc_call list)
+
+let emit_local_realloc lr =
+  `{emit_label lr.lr_lbl}:\n`;
+  `	{emit_debug_info lr.lr_dbg}\n`;
+  `	bl	{emit_symbol "caml_call_local_realloc"}\n`;
+  `	b	{emit_label lr.lr_return_lbl}\n`
+
 (* Names of various instructions *)
 
 let name_for_comparison = function
@@ -374,7 +390,7 @@ let num_call_gc_points instr =
   let rec loop instr call_gc =
     match instr.desc with
     | Lend -> call_gc
-    | Lop (Ialloc _) when !fastcode_flag ->
+    | Lop (Ialloc { mode = Alloc_heap; _ }) when !fastcode_flag ->
       loop instr.next (call_gc + 1)
     | Lop (Ipoll _) ->
       loop instr.next (call_gc + 1)
@@ -480,6 +496,7 @@ module BR = Branch_relaxation.Make (struct
         | _ -> 0
       and single = match memory_chunk with Single -> 2 | _ -> 1 in
       based + barrier + single
+    | Lop (Ialloc { mode = Alloc_local; _ }) -> 9
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop (Ipoll _) -> 3
@@ -491,8 +508,7 @@ module BR = Branch_relaxation.Make (struct
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
     | Lop (Icsel _) -> 4
-    | Lop (Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+    | Lop (Ibeginregion | Iendregion) -> 1
     | Lop (Iintop (Icomp _)) -> 2
     | Lop (Ifloatop (Icompf _)) -> 2
     | Lop (Iintop_imm (Icomp _, _)) -> 2
@@ -569,44 +585,68 @@ let name_for_float_comparison = function
 
 (* Output the assembly code for allocation. *)
 
-let assembly_code_for_allocation i ~n ~far ~dbginfo =
-  let lbl_frame =
-    record_frame_label i.live (Dbg_alloc dbginfo)
-  in
-  if !fastcode_flag then begin
-    let lbl_after_alloc = new_label() in
-    let lbl_call_gc = new_label() in
-    (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
-       so it is reasonable to assume n < 0x1_000.  This makes
-       the generated code simpler. *)
-    assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
-    let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
-    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
-    `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
-    `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
-    if not far then begin
-      `	b.lo	{emit_label lbl_call_gc}\n`
-    end else begin
-      let lbl = new_label () in
-      `	b.cs	{emit_label lbl}\n`;
-      `	b	{emit_label lbl_call_gc}\n`;
-      `{emit_label lbl}:\n`
-    end;
-    `{emit_label lbl_after_alloc}:`;
-    `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
-    call_gc_sites :=
-      { gc_lbl = lbl_call_gc;
-        gc_return_lbl = lbl_after_alloc;
-        gc_frame_lbl = lbl_frame } :: !call_gc_sites
+let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
+  if local then begin
+    let r = i.res.(0) in
+    let module DS = Domainstate in
+    let domain_local_sp_offset = DS.(idx_of_field Domain_local_sp) * 8 in
+    let domain_local_limit_offset = DS.(idx_of_field Domain_local_limit) * 8 in
+    let domain_local_top_offset = DS.(idx_of_field Domain_local_top) * 8 in
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_limit_offset}]\n`;
+    `	ldr	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	sub	{emit_reg r}, {emit_reg r}, #{emit_int n}\n`;
+    `	str	{emit_reg r}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_sp_offset}]\n`;
+    `	cmp	{emit_reg r}, {emit_reg reg_tmp1}\n`;
+    let lbl_call = new_label () in
+    `	b.lt	{emit_label lbl_call}\n`;
+    let lbl_after_alloc = new_label () in
+    `{emit_label lbl_after_alloc}:\n`;
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int domain_local_top_offset}]\n`;
+    `	add	{emit_reg r}, {emit_reg r}, {emit_reg reg_tmp1}\n`;
+    `	add	{emit_reg r}, {emit_reg r}, #{emit_int 8}\n`;
+    local_realloc_sites :=
+      { lr_lbl = lbl_call;
+        lr_dbg = i.dbg;
+        lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
   end else begin
-    begin match n with
-    | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
-    | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
-    | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
-    | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
-            `	bl	{emit_symbol "caml_allocN"}\n`
-    end;
-    `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    let lbl_frame =
+      record_frame_label i.live (Dbg_alloc dbginfo)
+    in
+    if !fastcode_flag then begin
+      let lbl_after_alloc = new_label() in
+      let lbl_call_gc = new_label() in
+      (* n is at most Max_young_whsize * 8, i.e. currently 0x808,
+         so it is reasonable to assume n < 0x1_000.  This makes
+         the generated code simpler. *)
+      assert (16 <= n && n < 0x1_000 && n land 0x7 = 0);
+      let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      `	sub	{emit_reg reg_alloc_ptr}, {emit_reg reg_alloc_ptr}, #{emit_int n}\n`;
+      `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+      if not far then begin
+        `	b.lo	{emit_label lbl_call_gc}\n`
+      end else begin
+        let lbl = new_label () in
+        `	b.cs	{emit_label lbl}\n`;
+        `	b	{emit_label lbl_call_gc}\n`;
+        `{emit_label lbl}:\n`
+      end;
+      `{emit_label lbl_after_alloc}:`;
+      `	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`;
+      call_gc_sites :=
+        { gc_lbl = lbl_call_gc;
+          gc_return_lbl = lbl_after_alloc;
+          gc_frame_lbl = lbl_frame } :: !call_gc_sites
+    end else begin
+      begin match n with
+      | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
+      | 24 -> `	bl	{emit_symbol "caml_alloc2"}\n`
+      | 32 -> `	bl	{emit_symbol "caml_alloc3"}\n`
+      | _  -> emit_intconst reg_x8 (Nativeint.of_int n);
+              `	bl	{emit_symbol "caml_allocN"}\n`
+      end;
+      `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
+    end
   end
 
 let assembly_code_for_poll i ~far ~return_label =
@@ -851,11 +891,17 @@ let emit_instr i =
             fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
-        assembly_code_for_allocation i ~n ~far:false ~dbginfo
+        assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
-        assembly_code_for_allocation i ~n ~far:true ~dbginfo
-    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+        assembly_code_for_allocation i ~n ~local:false ~far:true ~dbginfo
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_local }) ->
+        assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
+    | Lop(Ibeginregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+    | Lop(Iendregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Ipoll { return_label }) ->
         assembly_code_for_poll i ~far:false ~return_label
     | Lop(Ispecific (Ifar_poll { return_label })) ->
@@ -1112,6 +1158,7 @@ let fundecl fundecl =
   float_literals := [];
   stack_offset := 0;
   call_gc_sites := [];
+  local_realloc_sites := [];
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1171,6 +1218,7 @@ let fundecl fundecl =
 
   emit_all fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
+  List.iter emit_local_realloc !local_realloc_sites;
   assert (List.length !call_gc_sites = num_call_gc);
   (match fun_end_label with
    | None -> ()

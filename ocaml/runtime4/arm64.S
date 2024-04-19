@@ -280,6 +280,91 @@ FUNCTION(caml_allocN)
         CFI_ENDPROC
         END_FUNCTION(caml_allocN)
 
+FUNCTION(caml_call_local_realloc)
+L(caml_call_local_realloc):
+        CFI_STARTPROC
+    /* Set up stack space, saving return address and frame pointer */
+    /* Store return address and frame pointer */
+    /* (2 RA/GP, 24 allocatable int regs, 24 caller-saved float regs) * 8 */
+        CFI_OFFSET(29,-400)
+        CFI_OFFSET(30,-392)
+        stp     x29, x30, [sp,-400]! /* pre-indexing stp */
+        CFI_ADJUST(400)
+        add     x29, sp, #0
+
+    /* Save allocatable integer registers on the stack, using order in proc.ml */
+        stp     x0, x1, [sp, 16]
+        stp     x2, x3, [sp, 32]
+        stp     x4, x5, [sp, 48]
+        stp     x6, x7, [sp, 64]
+        stp     x8, x9, [sp, 80]
+        stp     x10, x11, [sp, 96]
+        stp     x12, x13, [sp, 112]
+        stp     x14, x15, [sp, 128]
+        stp     x19, x20, [sp, 144]
+        stp     x21, x22, [sp, 160]
+        stp     x23, x24, [sp, 176]
+        str     x25, [sp, 192]
+
+    /* Save caller saved floating-point registers on the stack */
+        stp     d0, d1, [sp, 208]
+        stp     d2, d3, [sp, 224]
+        stp     d4, d5, [sp, 240]
+        stp     d6, d7, [sp, 256]
+        stp     d16, d17, [sp, 272]
+        stp     d18, d19, [sp, 288]
+        stp     d20, d21, [sp, 304]
+        stp     d22, d23, [sp, 320]
+        stp     d24, d25, [sp, 336]
+        stp     d26, d27, [sp, 352]
+        stp     d28, d29, [sp, 368]
+        stp     d30, d31, [sp, 384]
+
+    /* Store pointer to saved integer registers in Caml_state->gc_regs */
+        add     TMP, sp, #16
+        str     TMP, Caml_state(gc_regs)
+
+    /* Save current allocation pointer for debugging purposes */
+        str     ALLOC_PTR, Caml_state(young_ptr)
+
+    /* Call the realloc function */
+        bl      G(caml_local_realloc)
+
+    /* Restore registers */
+        ldp     x0, x1, [sp, 16]
+        ldp     x2, x3, [sp, 32]
+        ldp     x4, x5, [sp, 48]
+        ldp     x6, x7, [sp, 64]
+        ldp     x8, x9, [sp, 80]
+        ldp     x10, x11, [sp, 96]
+        ldp     x12, x13, [sp, 112]
+        ldp     x14, x15, [sp, 128]
+        ldp     x19, x20, [sp, 144]
+        ldp     x21, x22, [sp, 160]
+        ldp     x23, x24, [sp, 176]
+        ldr     x25, [sp, 192]
+        ldp     d0, d1, [sp, 208]
+        ldp     d2, d3, [sp, 224]
+        ldp     d4, d5, [sp, 240]
+        ldp     d6, d7, [sp, 256]
+        ldp     d16, d17, [sp, 272]
+        ldp     d18, d19, [sp, 288]
+        ldp     d20, d21, [sp, 304]
+        ldp     d22, d23, [sp, 320]
+        ldp     d24, d25, [sp, 336]
+        ldp     d26, d27, [sp, 352]
+        ldp     d28, d29, [sp, 368]
+        ldp     d30, d31, [sp, 384]
+
+    /* Reload new allocation pointer */
+        ldr     ALLOC_PTR, Caml_state(young_ptr)
+
+    /* Free stack space and return to caller */
+        ldp     x29, x30, [sp], 400
+        ret
+        CFI_ENDPROC
+        END_FUNCTION(caml_call_local_realloc)
+
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
 
