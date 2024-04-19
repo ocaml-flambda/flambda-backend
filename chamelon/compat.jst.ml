@@ -157,7 +157,7 @@ let mkTexp_function ?(id = texp_function_defaults)
         (match body with
         | Function_body expr -> Tfunction_body expr
         | Function_cases
-            { cases; param; partial; function_cases_identifier = id; } ->
+            { cases; param; partial; function_cases_identifier = id } ->
             Tfunction_cases
               {
                 fc_cases = cases;
