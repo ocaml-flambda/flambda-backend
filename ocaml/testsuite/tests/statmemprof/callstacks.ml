@@ -1,27 +1,15 @@
-(* TEST_BELOW
-(* Blank lines added here to preserve locations. *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(* TEST
+ flags = "-g";
+ {
+   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
+   flat-float-array;
+ }{
+   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
+   no-flat-float-array;
+ }
 *)
 
-open Gc.Memprof
+module MP = Gc.Memprof
 
 let alloc_list_literal () =
   ignore (Sys.opaque_identity [Sys.opaque_identity 1])
@@ -87,8 +75,8 @@ let allocators =
 let test alloc =
   Printf.printf "-----------\n%!";
   let callstack = ref None in
-  start ~callstack_size:10 ~sampling_rate:1.
-    { null_tracker with
+  let _:MP.t = MP.start ~callstack_size:10 ~sampling_rate:1.
+    { MP.null_tracker with
       alloc_minor = (fun info ->
          callstack := Some info.callstack;
          None
@@ -97,39 +85,13 @@ let test alloc =
          callstack := Some info.callstack;
          None
       );
-    };
+    }
+  in
   alloc ();
-  stop ();
+  MP.stop ();
   match !callstack with
   | None -> Printf.printf "No callstack\n%!";
   | Some cs -> Printexc.print_raw_backtrace stdout cs
 
 let () =
   List.iter test allocators
-
-(* TEST
- flags = "-g -w -5";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
-   runtime4;
-   flambda2;
-   native;
- }{
-   reference = "${test_source_directory}/callstacks.flat-float-array.bytecode.reference";
-   flat-float-array;
-   runtime4;
-   flambda2;
-   bytecode;
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
-   runtime4;
-   flambda2;
-   {
-     native;
-   }{
-     bytecode;
-   }
- }
-*)
