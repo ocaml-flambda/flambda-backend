@@ -153,15 +153,16 @@ type matched_structure_item_desc =
 
 val view_tstr : structure_item_desc -> matched_structure_item_desc
 
-type arg_identifier
+type arg_identifier = Jkind.sort
 
-val mkArg : ?id:arg_identifier -> expression -> apply_arg
-val map_arg_or_omitted : (expression -> expression) -> apply_arg -> apply_arg
+val mkExpArg : ?id:arg_identifier -> expression -> apply_arg
+val mkArg : argument -> apply_arg
+val map_arg_or_omitted : (argument -> argument) -> apply_arg -> apply_arg
 
 val fold_arg_or_omitted :
-  ('a -> expression * arg_identifier -> 'a) -> 'a -> apply_arg -> 'a
+  ('a -> argument -> 'a) -> 'a -> apply_arg -> 'a
 
-val option_of_arg_or_omitted : apply_arg -> (expression * arg_identifier) option
+val option_of_arg_or_omitted : apply_arg -> argument option
 val mk_constructor_description : string -> constructor_description
 
 val mk_value_binding :
