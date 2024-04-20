@@ -1998,7 +1998,7 @@ let tree_of_value_description id decl =
               if strict then " strict" else "";
               if opt then " opt" else "";
               if arity = apparent_arity then "" else
-                Printf.sprintf " (arity %d)" arity;
+                Printf.sprintf " arity %d" arity;
              ] }]
     | Assume { strict; never_returns_normally; arity; _ } ->
       [{ oattr_name =
@@ -2007,7 +2007,7 @@ let tree_of_value_description id decl =
               if strict then " strict" else "";
               if never_returns_normally then " never_returns_normally" else "";
               if arity = apparent_arity then "" else
-                Printf.sprintf " (arity %d)" arity;
+                Printf.sprintf " arity %d" arity;
              ]
        }]
   in

@@ -468,7 +468,8 @@ Line 2, characters 2-26:
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can add "(arity n)" to specify the arity of an alias.
+       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       of an alias.
 |}]
 
 module type S4_2 = sig
@@ -481,7 +482,8 @@ Line 3, characters 2-24:
       ^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can add "(arity n)" to specify the arity of an alias.
+       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       of an alias.
 |}]
 
 module type S4_3 = sig
@@ -495,7 +497,8 @@ Line 4, characters 2-24:
       ^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can add "(arity n)" to specify the arity of an alias.
+       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       of an alias.
 |}]
 
 (********************************************)
@@ -531,11 +534,11 @@ Lines 17-19, characters 21-3:
 19 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int [@@zero_alloc (arity 1)] end
+         sig val f : int -> int -> int [@@zero_alloc arity 1] end
        is not included in
          S5_1
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc (arity 1)]
+         val f : int -> int -> int [@@zero_alloc arity 1]
        is not included in
          val f : int -> int -> int [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -553,18 +556,19 @@ Line 2, characters 2-34:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can add "(arity n)" to specify the arity of an alias.
+       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       of an alias.
 |}]
 
 module type S5_3 = sig
-  val[@zero_alloc (arity 2)] f : t5_two_args
+  val[@zero_alloc arity 2] f : t5_two_args
 end
 
 module M5_4 : S5_3 = struct
   let[@zero_alloc] f x y = x + y
 end
 [%%expect{|
-module type S5_3 = sig val f : t5_two_args [@@zero_alloc (arity 2)] end
+module type S5_3 = sig val f : t5_two_args [@@zero_alloc arity 2] end
 module M5_4 : S5_3
 |}]
 
@@ -578,13 +582,13 @@ Lines 1-3, characters 21-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int [@@zero_alloc (arity 1)] end
+         sig val f : int -> int -> int [@@zero_alloc arity 1] end
        is not included in
          S5_3
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc (arity 1)]
+         val f : int -> int -> int [@@zero_alloc arity 1]
        is not included in
-         val f : t5_two_args [@@zero_alloc (arity 2)]
+         val f : t5_two_args [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
        When using "zero_alloc" in a signature, the syntactic arity of
        the implementation must match the function type in the interface.
@@ -592,14 +596,14 @@ Error: Signature mismatch:
 |}]
 
 module type S5_4 = sig
-  val[@zero_alloc (arity 1)] f : t5_two_args
+  val[@zero_alloc arity 1] f : t5_two_args
 end
 
 module M5_6 : S5_4 = struct
   let[@zero_alloc] f x y = x + y
 end
 [%%expect{|
-module type S5_4 = sig val f : t5_two_args [@@zero_alloc (arity 1)] end
+module type S5_4 = sig val f : t5_two_args [@@zero_alloc arity 1] end
 Lines 5-7, characters 21-3:
 5 | .....................struct
 6 |   let[@zero_alloc] f x y = x + y
@@ -612,7 +616,7 @@ Error: Signature mismatch:
        Values do not match:
          val f : int -> int -> int [@@zero_alloc]
        is not included in
-         val f : t5_two_args [@@zero_alloc (arity 1)]
+         val f : t5_two_args [@@zero_alloc arity 1]
        zero_alloc arity mismatch:
        When using "zero_alloc" in a signature, the syntactic arity of
        the implementation must match the function type in the interface.
@@ -680,7 +684,7 @@ Error: Signature mismatch:
 (* Test 7: A practicalish example of a non-obvious zero_alloc arity *)
 
 module type S7 = sig
-  val[@zero_alloc (arity 2)] f : int -> int -> int -> int*int
+  val[@zero_alloc arity 2] f : int -> int -> int -> int*int
 end
 
 (* The expected behavior from the backend analysis for the two funtions below
@@ -698,7 +702,7 @@ end
 
 [%%expect{|
 module type S7 =
-  sig val f : int -> int -> int -> int * int [@@zero_alloc (arity 2)] end
+  sig val f : int -> int -> int -> int * int [@@zero_alloc arity 2] end
 module M7_1 : S7
 Lines 13-16, characters 19-3:
 13 | ...................struct
@@ -713,7 +717,7 @@ Error: Signature mismatch:
        Values do not match:
          val f : int -> int -> int -> int * int [@@zero_alloc]
        is not included in
-         val f : int -> int -> int -> int * int [@@zero_alloc (arity 2)]
+         val f : int -> int -> int -> int * int [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
        When using "zero_alloc" in a signature, the syntactic arity of
        the implementation must match the function type in the interface.
@@ -721,55 +725,55 @@ Error: Signature mismatch:
 |}]
 
 (*************************************)
-(* Test 8: Parsing "(arity n)" works *)
+(* Test 8: Parsing "arity n" works *)
 
 
 module type S8_1 = sig
-  val[@zero_alloc (arity 42)] f : int -> int
+  val[@zero_alloc arity 42] f : int -> int
 end
 
 module type S8_2 = sig
-  val[@zero_alloc (arity 42) opt] f : int -> int
+  val[@zero_alloc arity 42 opt] f : int -> int
 end
 
 module type S8_3 = sig
-  val[@zero_alloc opt (arity 42)] f : int -> int
+  val[@zero_alloc opt arity 42] f : int -> int
 end
 
 module type S8_4 = sig
-  val[@zero_alloc (arity 42) opt strict] f : int -> int
+  val[@zero_alloc arity 42 opt strict] f : int -> int
 end
 
 module type S8_5 = sig
-  val[@zero_alloc opt (arity 42) strict] f : int -> int
+  val[@zero_alloc opt arity 42 strict] f : int -> int
 end
 
 module type S8_6 = sig
-  val[@zero_alloc opt strict (arity 42)] f : int -> int
+  val[@zero_alloc opt strict arity 42] f : int -> int
 end
 
 [%%expect{|
-module type S8_1 = sig val f : int -> int [@@zero_alloc (arity 42)] end
-module type S8_2 = sig val f : int -> int [@@zero_alloc opt (arity 42)] end
-module type S8_3 = sig val f : int -> int [@@zero_alloc opt (arity 42)] end
+module type S8_1 = sig val f : int -> int [@@zero_alloc arity 42] end
+module type S8_2 = sig val f : int -> int [@@zero_alloc opt arity 42] end
+module type S8_3 = sig val f : int -> int [@@zero_alloc opt arity 42] end
 module type S8_4 =
-  sig val f : int -> int [@@zero_alloc strict opt (arity 42)] end
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
 module type S8_5 =
-  sig val f : int -> int [@@zero_alloc strict opt (arity 42)] end
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
 module type S8_6 =
-  sig val f : int -> int [@@zero_alloc strict opt (arity 42)] end
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
 |}]
 
-(****************************************************)
-(* Test 9: (arity n) in structures gives warning 47 *)
+(**************************************************)
+(* Test 9: arity n in structures gives warning 47 *)
 
 module M9_1 = struct
-  let[@zero_alloc (arity 2)] f x y = x + y
+  let[@zero_alloc arity 2] f x y = x + y
 end
 
 [%%expect{|
 Line 2, characters 7-17:
-2 |   let[@zero_alloc (arity 2)] f x y = x + y
+2 |   let[@zero_alloc arity 2] f x y = x + y
            ^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
@@ -778,11 +782,11 @@ module M9_1 : sig val f : int -> int -> int [@@zero_alloc] end
 |}]
 
 module M9_2 = struct
-  let[@zero_alloc (arity 2)] f = fun x y -> x + y
+  let[@zero_alloc arity 2] f = fun x y -> x + y
 end
 [%%expect{|
 Line 2, characters 7-17:
-2 |   let[@zero_alloc (arity 2)] f = fun x y -> x + y
+2 |   let[@zero_alloc arity 2] f = fun x y -> x + y
            ^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
@@ -791,11 +795,11 @@ module M9_2 : sig val f : int -> int -> int [@@zero_alloc] end
 |}]
 
 module M9_3 = struct
-  let f = fun[@zero_alloc (arity 2)]  x y -> x + y
+  let f = fun[@zero_alloc arity 2]  x y -> x + y
 end
 [%%expect{|
 Line 2, characters 15-25:
-2 |   let f = fun[@zero_alloc (arity 2)]  x y -> x + y
+2 |   let f = fun[@zero_alloc arity 2]  x y -> x + y
                    ^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
@@ -806,13 +810,13 @@ module M9_3 : sig val f : int -> int -> int [@@zero_alloc] end
 module M9_4 = struct
   let f x =
     if x = 42 then
-      fun[@zero_alloc (arity 1)] y -> y
+      fun[@zero_alloc arity 1] y -> y
     else
       fun y -> y + 1
 end
 [%%expect{|
 Line 4, characters 11-21:
-4 |       fun[@zero_alloc (arity 1)] y -> y
+4 |       fun[@zero_alloc arity 1] y -> y
                ^^^^^^^^^^
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures

@@ -3498,7 +3498,8 @@ let report_error ppf = function
     fprintf ppf
       "@[In signatures, zero_alloc is only supported on function declarations.\
          @ Found no arrows in this declaration's type.\
-         @ Hint: You can add \"(arity n)\" to specify the arity of an alias.@]"
+         @ Hint: You can write \"[@zero_alloc arity n]\" to specify the arity\
+         @ of an alias.@]"
 
 
 let () =

@@ -810,32 +810,29 @@ let parse_ids_payload txt loc ~default ~empty cases payload =
       | Some r -> r
       | None -> warn ()
 
-(* Looks for `(arity n)` in payload. If present, this returns `n` and an updated
-   payload with `(arity n)` removed *)
+(* Looks for `arity n` in payload. If present, this returns `n` and an updated
+   payload with `arity n` removed *)
 let parse_arity payload =
   let open Parsetree in
-  let is_arity exp =
-    match exp.pexp_desc with
-    | Pexp_apply (exp_fun, [Nolabel, exp_arg]) ->
-      begin match exp_fun.pexp_desc, exp_arg.pexp_desc with
-      | Pexp_ident {txt = Lident "arity"; _},
-        Pexp_constant (Pconst_integer (s,None)) -> Some (int_of_string s)
-      | _ -> None
-      end
-    | _ -> None
+  let is_arity e1 e2 =
+    match e1.pexp_desc, e2.pexp_desc with
+    | Pexp_ident {txt = Lident "arity"; _},
+      Pexp_constant (Pconst_integer (s,None)) -> Some (int_of_string s)
+    | _, _ -> None
   in
   let rec find_arity_in_args acc args =
-    (* Scan a list of arguments for one that is the arity clause.  If found,
+    (* Scan a list of arguments for two that are the arity clause.  If found,
        return the arity and the rest of the args. *)
     match args with
-    | [] | ((Labelled _ | Optional _), _) :: _ ->
+    | [] | [_] | ((Labelled _ | Optional _), _) :: _
+    | _ :: ((Labelled _ | Optional _), _) :: _ ->
       (* If the payload contains any labeled or optional args, it will be
          rejected later, and we just leave it alone. *)
       None
-    | (Nolabel, exp1) as arg1 :: args ->
-      begin match is_arity exp1 with
+    | (Nolabel, exp1) as arg1 :: (((Nolabel, exp2) :: args) as args') ->
+      begin match is_arity exp1 exp2 with
       | Some n -> Some (n, (List.rev acc) @ args)
-      | None -> find_arity_in_args (arg1 :: acc) args
+      | None -> find_arity_in_args (arg1 :: acc) args'
       end
   in
   match payload with
@@ -847,29 +844,21 @@ let parse_arity payload =
       in
       PStr [{pstr_desc = Pstr_eval (new_exp, []); pstr_loc}]
     in
-    begin match is_arity exp with
-    | Some n ->
-      (* payload is (arity n) by itself *)
-      Some (n, PStr [])
-    | None ->
-      begin match exp.pexp_desc with
-      | Pexp_apply (exp, args) ->
-        begin match find_arity_in_args [] ((Nolabel, exp) :: args) with
-        | Some (n, (Nolabel, exp1) :: args) ->
-          (* payload includes (arity n) somewhere *)
-          let new_exp =
-            if List.length args = 0
-            then exp1.pexp_desc
-            else Pexp_apply (exp1, args)
-          in
+    begin match exp.pexp_desc with
+    | Pexp_apply (exp, args) ->
+      begin match find_arity_in_args [] ((Nolabel, exp) :: args) with
+      | None -> None
+      | Some (n, payload) ->
+        match payload with
+        | [] -> Some (n, PStr [])
+        | [(Nolabel, exp)] -> Some (n, new_payload exp.pexp_desc)
+        | (Nolabel, exp) :: exps ->
+          let new_exp = Pexp_apply (exp, exps) in
           Some (n, new_payload new_exp)
-        | Some (_, ((Labelled _ | Optional _), _) :: _) -> None
-        | Some (_, []) ->
-          Misc.fatal_error "Builtin_attributes.parse_arity: illegal application"
-        | None -> None
-        end
-      | _ -> None
+        | _ ->
+          Misc.fatal_error "Builtin_attributes.parse_arity: bad application"
       end
+    | _ -> None
     end
   | _ -> None
 
