@@ -884,9 +884,10 @@ let check_construct_mutability mutability (argument_mode : expected_mode) =
       let m0 = mutable_mode m0 in
       match Value.submode m0 argument_mode.mode with
       | Ok () -> ()
-      | Error _ -> Misc.fatal_error
-        "mutable defaults to Comonadic.legacy, \
-        which is min, so this call cannot fail."
+      | Error _ ->
+          Misc.fatal_error
+            "mutable defaults to Comonadic.legacy, \
+            which is min, so this call cannot fail."
 
 (* Typing of patterns *)
 
