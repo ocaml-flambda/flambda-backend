@@ -871,3 +871,100 @@ The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_fun_2 : sig val f : int -> int -> int end
 |}]
+
+(*********************************)
+(* Test 10: module type of works *)
+
+module M_base_for_mto = struct
+  let[@zero_alloc] f x = x+1
+end
+
+module type S_base_mto = module type of M_base_for_mto
+
+module M_mto_base_good : S_base_mto = struct
+  let[@zero_alloc] f x = x + 2
+end
+
+module M_mto_base_bad : S_base_mto = struct
+  let f x = x + 3
+end
+
+[%%expect{|
+module M_base_for_mto : sig val f : int -> int [@@zero_alloc] end
+module type S_base_mto = sig val f : int -> int [@@zero_alloc] end
+module M_mto_base_good : S_base_mto
+Lines 11-13, characters 37-3:
+11 | .....................................struct
+12 |   let f x = x + 3
+13 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : int -> int end
+       is not included in
+         S_base_mto
+       Values do not match:
+         val f : int -> int
+       is not included in
+         val f : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
+|}]
+
+module M_strict_for_mto = struct
+  let[@zero_alloc strict] f x = x+1
+end
+
+module type S_strict_mto = module type of M_strict_for_mto
+
+module M_mto_strict_good : S_strict_mto = struct
+  let[@zero_alloc strict] f x = x + 2
+end
+
+module M_mto_strict_bad : S_strict_mto = struct
+  let[@zero_alloc] f x = x + 3
+end
+
+[%%expect{|
+module M_strict_for_mto : sig val f : int -> int [@@zero_alloc strict] end
+module type S_strict_mto = sig val f : int -> int [@@zero_alloc strict] end
+module M_mto_strict_good : S_strict_mto
+Lines 11-13, characters 41-3:
+11 | .........................................struct
+12 |   let[@zero_alloc] f x = x + 3
+13 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : int -> int [@@zero_alloc] end
+       is not included in
+         S_strict_mto
+       Values do not match:
+         val f : int -> int [@@zero_alloc]
+       is not included in
+         val f : int -> int [@@zero_alloc strict]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+(* You can't sneakily get never_returns_normally or assume in a signature with
+   module type of, but nice try.  These tests rely on the fact that the
+   printer would show that information, but indeed it would (see printtyp).
+
+   (At the moment the backend doesn't allow for checking never_return_normally,
+   but it wouldn't be hard to add, and then we could revisit this). *)
+module M_assume_for_mto = struct
+  let[@zero_alloc assume] f x = (x+1,x+2)
+end
+
+module type S_no_assume = module type of M_assume_for_mto
+
+module M_nrn_for_mto = struct
+  let[@zero_alloc assume never_returns_normally] f x = (x+1,x+2)
+end
+
+module type S_no_nrn = module type of M_nrn_for_mto
+
+[%%expect{|
+module M_assume_for_mto : sig val f : int -> int * int [@@zero_alloc] end
+module type S_no_assume = sig val f : int -> int * int [@@zero_alloc] end
+module M_nrn_for_mto : sig val f : int -> int * int [@@zero_alloc] end
+module type S_no_nrn = sig val f : int -> int * int [@@zero_alloc] end
+|}]
