@@ -36,7 +36,7 @@ type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
-  | Zero_alloc
+  | Zero_alloc of { missing_entirely : bool }
   | Zero_alloc_arity of int * int
 
 exception Dont_match of value_mismatch

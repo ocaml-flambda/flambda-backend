@@ -223,7 +223,8 @@ Error: Signature mismatch:
          val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_opt : S_bad_inc_base = struct
@@ -244,7 +245,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module type S_bad_inc_opt = sig
@@ -270,7 +271,8 @@ Error: Signature mismatch:
          val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc opt]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module type S_bad_inc_strict = sig
@@ -296,7 +298,8 @@ Error: Signature mismatch:
          val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_assume : S_bad_inc_strict = struct
@@ -317,7 +320,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module M_opt : S_bad_inc_strict = struct
@@ -338,7 +341,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module M_strict_opt : S_bad_inc_strict = struct
@@ -359,7 +362,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc strict opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module M_assume_nrn : S_bad_inc_strict = struct
@@ -380,7 +383,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module type S_strict_opt = sig
@@ -406,7 +409,8 @@ Error: Signature mismatch:
          val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_assume : S_strict_opt = struct
@@ -427,7 +431,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module M_opt : S_strict_opt = struct
@@ -448,7 +452,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 module M_assume_nrn : S_strict_opt = struct
@@ -469,7 +473,7 @@ Error: Signature mismatch:
          val f : 'a -> 'a [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
-       The former provides a weaker "zero_alloc" guarantee than the latter
+       The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
 (**********************************************************)

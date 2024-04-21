@@ -42,7 +42,7 @@ type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
-  | Zero_alloc
+  | Zero_alloc of { missing_entirely : bool }
   | Zero_alloc_arity of int * int
 
 exception Dont_match of value_mismatch
@@ -123,12 +123,18 @@ let zero_alloc za1 za2 =
   let v1 = abstract_value za1 in
   let v2 = abstract_value za2 in
   if not (ZA.Assume_info.Value.lessequal v1 v2) then
-    raise (Dont_match Zero_alloc);
+    begin let missing_entirely =
+        match za1 with
+        | Default_check -> true
+        | Ignore_assert_all _ | Check _ | Assume _ -> false
+      in
+      raise (Dont_match (Zero_alloc {missing_entirely}))
+    end;
   (* opt check *)
   begin match za1, za2 with
   | Check { opt = opt1; _ }, Check { opt = opt2; _ } ->
     if opt1 && not opt2 then
-      raise (Dont_match Zero_alloc)
+      raise (Dont_match (Zero_alloc {missing_entirely = false}))
   | (Check _ | Default_check | Assume _ | Ignore_assert_all _), _ -> ()
   end;
   (* arity check *)
@@ -366,8 +372,10 @@ let report_value_mismatch first second env ppf err =
       Printtyp.report_moregen_error ppf Type_scheme env trace
         (fun ppf -> Format.fprintf ppf "The type")
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
-  | Zero_alloc ->
-    pr "The former provides a weaker \"zero_alloc\" guarantee than the latter"
+  | Zero_alloc { missing_entirely } ->
+    pr "The former provides a weaker \"zero_alloc\" guarantee than the latter.";
+    if missing_entirely then
+      pr "@ Hint: Add a \"zero_alloc\" attribute to the implementation."
   | Zero_alloc_arity (n1, n2) ->
     pr "zero_alloc arity mismatch:@ \
         When using \"zero_alloc\" in a signature, the syntactic arity of@ \
