@@ -460,6 +460,11 @@ let mode_default mode =
 
 let mode_legacy = mode_default Value.legacy
 
+let mode_modality modality expected_mode =
+  expected_mode.mode
+  |> modality_box_right modality
+  |> mode_default
+
 (* used when entering a function;
 mode is the mode of the function region *)
 let mode_return mode =
@@ -861,55 +866,28 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   | Ok () -> ()
   | Error e -> error (Right_le_left, e))
 
-(** Takes the mutability and modalities on a record field, and [m] which is a
-    left mode on the record being accessed, returns the left mode of the
-    projected field. *)
-let project_field mutability modalities (m : (allowed * _) Value.t) =
-  ignore mutability;
-  modality_unbox_left modalities m
-
-(** Takes [m0] which is the parameter on mutable, and [m] which is a right mode
-    on the record being constructed, returns the right mode for the mutable
-    field used for construction. *)
-let construct_mutable m0 m =
+(** Given the parameter [m0] on mutable, return the mode of future writes. *)
+let mutable_mode m0 =
   let m0 =
     Alloc.Const.merge
       {comonadic = m0;
        monadic = Alloc.Monadic.Const.min}
   in
-  let m0 = Const.alloc_as_value m0 in
-  (* We require [join m0 ret <= m], which is equivalent to [m0 <= m] and [ret <=
-    m].  *)
-  (match Value.submode (Value.of_const m0) m with
-  | Ok () -> ()
-  | Error _ -> Misc.fatal_error
-      "mutable defaults to Comonadic.legacy, \
-      which is min, so this call cannot fail."
-  );
-  m |> Value.disallow_left
+  m0 |> Const.alloc_as_value |> Value.of_const
 
-(** Takes [m0] which is the parameter on mutable, returns the right mode for the
-    new value of the mutable field. *)
-let mutate_mutable m0 =
-  let m0 =
-    Alloc.Const.merge
-      {comonadic = m0;
-       monadic = Alloc.Monadic.Const.min}
-  in
-  let m0 = Const.alloc_as_value m0 in
-  m0 |> Value.of_const |> Value.disallow_left
-
-(** Takes the mutability and modalities on the field, and expected mode of the
-    record (adjusted for allocation), returns the expected mode for the field.
-    *)
-let construct_field mutability modalities (argument_mode : expected_mode) =
-  let mode =
-    match mutability with
-    | Immutable -> argument_mode.mode
-    | Mutable m0 -> construct_mutable m0 argument_mode.mode
-  in
-  let mode = modality_box_right modalities mode in
-  mode_default mode
+(** Takes the mutability on a field, and expected mode of the record (adjusted
+    for allocation), check that the construction would be allowed. *)
+let check_construct_mutability mutability (argument_mode : expected_mode) =
+  match mutability with
+  | Immutable -> ()
+  | Mutable m0 ->
+      let m0 = mutable_mode m0 in
+      match Value.submode m0 argument_mode.mode with
+      | Ok () -> ()
+      | Error _ ->
+          Misc.fatal_error
+            "mutable defaults to Comonadic.legacy, \
+            which is min, so this call cannot fail."
 
 (* Typing of patterns *)
 
@@ -2414,7 +2392,7 @@ and type_pat_aux
       (* CR zqian: decouple mutable and global modality *)
       if Types.is_mutable mutability then Global else Unrestricted
     in
-    let alloc_mode = project_field mutability modalities alloc_mode.mode in
+    let alloc_mode = modality_unbox_left modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2657,7 +2635,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = project_field Immutable gf alloc_mode.mode in
+             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2700,7 +2678,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let mode = project_field label.lbl_mut label.lbl_global alloc_mode.mode in
+        let mode = modality_unbox_left label.lbl_global alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -5594,7 +5572,8 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        let argument_mode = construct_field label.lbl_mut label.lbl_global argument_mode in
+        check_construct_mutability label.lbl_mut argument_mode;
+        let argument_mode = mode_modality label.lbl_global argument_mode in
         type_label_exp true env argument_mode loc ty_record x
       in
       let lbl_exp_list = List.map type_label_exp lbl_a_list in
@@ -5655,8 +5634,11 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = project_field lbl.lbl_mut lbl.lbl_global mode in
-                  let argument_mode = construct_field lbl.lbl_mut lbl.lbl_global argument_mode in
+                  let mode = modality_unbox_left lbl.lbl_global mode in
+                  check_construct_mutability lbl.lbl_mut argument_mode;
+                  let argument_mode =
+                    mode_modality lbl.lbl_global argument_mode
+                  in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -5702,7 +5684,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = project_field label.lbl_mut label.lbl_global rmode in
+      let mode = modality_unbox_left label.lbl_global rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5745,10 +5727,9 @@ and type_expect_
       let (label_loc, label, newval) =
         match label.lbl_mut with
         | Mutable m0 ->
-          let mode = mutate_mutable m0 in
-          let mode = modality_box_right label.lbl_global mode in
-          type_label_exp false env (mode_default mode) loc
-            ty_record (lid, label, snewval)
+          let mode = mutable_mode m0 |> mode_default in
+          let mode = mode_modality label.lbl_global mode in
+          type_label_exp false env mode loc ty_record (lid, label, snewval)
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
       in
@@ -7816,7 +7797,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let args =
     List.map2
       (fun e ((ty, gf),t0) ->
-         let argument_mode = construct_field Immutable gf argument_mode in
+         let argument_mode = mode_modality gf argument_mode in
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
@@ -8702,7 +8683,8 @@ and type_generic_array
     else
       Predef.type_iarray, Global_flag.Unrestricted
   in
-  let argument_mode = construct_field mutability modalities argument_mode in
+  check_construct_mutability mutability argument_mode;
+  let argument_mode = mode_modality modalities argument_mode in
   let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
