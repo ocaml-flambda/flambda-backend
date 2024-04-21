@@ -302,6 +302,26 @@ Error: Signature mismatch:
        Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
+module M_base : S_bad_inc_strict = struct
+  let[@zero_alloc] f x = x
+end
+[%%expect{|
+Lines 1-3, characters 35-3:
+1 | ...................................struct
+2 |   let[@zero_alloc] f x = x
+3 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a [@@zero_alloc] end
+       is not included in
+         S_bad_inc_strict
+       Values do not match:
+         val f : 'a -> 'a [@@zero_alloc]
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc strict]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
 module M_assume : S_bad_inc_strict = struct
   let[@zero_alloc assume] f x = x
 end
