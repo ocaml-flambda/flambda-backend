@@ -69,17 +69,18 @@ end = struct
     { path; files = Array.to_list (readdir_compat path) |> List.map (fun base -> base, Filename.concat path base); hidden }
 
   let read_libloc_file path =
-    let fd = open_in path in
-    let rec loop acc =
-      try
-        let line = input_line fd in
-        let (fn, path) = Misc.Stdlib.String.split_first_exn ~split_on:' ' line in
-        loop ((fn, path) :: acc)
-      with End_of_file -> acc
-    in
-    let result = loop [] in
-    close_in fd;
-    result
+    let ic = open_in path in
+    Misc.try_finally
+      (fun () ->
+        let rec loop acc =
+          try
+            let line = input_line ic in
+            let (fn, path) = Misc.Stdlib.String.split_first_exn ~split_on:' ' line in
+            loop ((fn, path) :: acc)
+          with End_of_file -> acc
+        in
+        loop [])
+      ~always:(fun () -> close_in ic)
 
   let create_libloc ~hidden ~libloc libname =
     let libloc_lib_path = Filename.concat libloc libname in
