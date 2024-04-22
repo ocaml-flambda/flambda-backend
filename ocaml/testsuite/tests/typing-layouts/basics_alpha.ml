@@ -280,6 +280,19 @@ Error: This expression has type string but an expression was expected of type
          of the definition of id_for_imms at line 1, characters 16-35.
 |}]
 
+type ('a : non_null_value) non_null_id = 'a
+
+type my_non_null = t_non_null_value non_null_id
+
+let id_for_non_nulls (x : 'a non_null_id) = x;;
+[%%expect{|
+type ('a : non_null_value) non_null_id = 'a
+type my_non_null = t_non_null_value non_null_id
+val id_for_non_nulls :
+  ('a : non_null_value). 'a non_null_id -> 'a non_null_id = <fun>
+|}]
+
+
 (************************************)
 (* Test 4: parameters and recursion *)
 type ('a : immediate) t4
@@ -355,6 +368,28 @@ and ('a : any) t4;;
 [%%expect{|
 type s4 = string t4
 and ('a : any) t4
+|}];;
+
+(* CR layouts v3: all default value types except for ['a Or_null.t]
+   should have layout [non_null_value], but it's not implemented yet. *)
+type s4 = string t4
+and ('a : non_null_value) t4;;
+[%%expect{|
+Line 1, characters 10-16:
+1 | type s4 = string t4
+              ^^^^^^
+Error: This type string should be an instance of type ('a : non_null_value)
+       The layout of string is value, because
+         it is the primitive value type string.
+       But the layout of string must be a sublayout of non_null_value, because
+         of the annotation on 'a in the declaration of the type t4.
+|}];;
+
+type s4 = t_non_null_value t4
+and ('a : non_null_value) t4;;
+[%%expect{|
+type s4 = t_non_null_value t4
+and ('a : non_null_value) t4
 |}];;
 
 (************************************************************)
@@ -598,6 +633,16 @@ Error: Polymorphic variant constructor argument types must have layout value.
          it's the type of the field of a polymorphic variant.
 |}]
 
+module M8_6 = struct
+  type foo = [ `Foo of int | `Baz of t_non_null_value | `Bar of string ];;
+end;;
+[%%expect{|
+module M8_6 :
+  sig
+    type foo = [ `Bar of string | `Baz of t_non_null_value | `Foo of int ]
+  end
+|}]
+
 (************************************************)
 (* Test 9: Tuples only work on values (for now) *)
 
@@ -730,6 +775,13 @@ Error: This expression has type t_void but an expression was expected of type
        But the layout of t_void must be a sublayout of value, because
          it's the type of a tuple element.
 |}];;
+
+module M9_10 = struct
+  type foo = int * t_non_null_value * string;;
+end;;
+[%%expect {|
+module M9_10 : sig type foo = int * t_non_null_value * string end
+|}]
 
 (*************************************************)
 (* Test 10: jkinds are checked by "more general" *)

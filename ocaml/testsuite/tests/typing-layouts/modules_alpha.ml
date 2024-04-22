@@ -7,7 +7,8 @@ type t_any   : any
 type t_value : value
 type t_imm   : immediate
 type t_imm64 : immediate64
-type t_void  : void;;
+type t_void  : void
+type t_non_null_value : non_null_value;;
 
 (*********************************************************)
 (* Test 1: Simple with type constraints respect jkinds. *)
@@ -25,6 +26,7 @@ type t_value : value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_void : void
+type t_non_null_value : non_null_value
 module type S1 = sig type ('a : void) t type s end
 type ('a : void) t1
 module type S1' = sig type ('a : void) t = t_void t1 type s = t_void t1 end
@@ -38,7 +40,7 @@ Line 1, characters 32-34:
 Error: The type constraints are not consistent.
        Type ('a : value) is not compatible with type ('b : void)
        The layout of 'a is void, because
-         of the definition of t at line 10, characters 2-20.
+         of the definition of t at line 11, characters 2-20.
        But the layout of 'a must overlap with value, because
          the type argument of list has layout value.
 |}];;
@@ -52,7 +54,7 @@ Line 1, characters 27-42:
 Error: The layout of type t_void is void, because
          of the definition of t_void at line 5, characters 0-19.
        But the layout of type t_void must be a sublayout of value, because
-         of the definition of s at line 11, characters 2-8.
+         of the definition of s at line 12, characters 2-8.
 |}]
 
 module type S1_2 = sig
