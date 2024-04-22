@@ -229,7 +229,7 @@ Error: This function when partially applied returns a value which is nonportable
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> "hello"
-(* CR layout: arrows should cross contention. *)
+(* CR layouts v2.8: arrows should cross contention. *)
 [%%expect{|
 Line 1, characters 4-112:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> "hello"
