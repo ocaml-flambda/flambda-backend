@@ -401,8 +401,6 @@ FUNCTION(caml_start_program)
 /* Address of OCaml code to call is in TMP2 */
 /* Arguments to the OCaml code are in x0...x7 */
 
-/* CR mshinwell: asynchronous exceptions are not yet implemented here */
-
 L(jump_to_caml):
     /* Set up stack frame and save callee-save registers */
         CFI_OFFSET(29, -160)
@@ -425,15 +423,19 @@ L(jump_to_caml):
         ldr     x8, Caml_state(bottom_of_stack)
         ldr     x9, Caml_state(last_return_address)
         ldr     x10, Caml_state(gc_regs)
+        ldr     x11, Caml_state(async_exception_pointer)
         stp     x8, x9, [sp, -32]!     /* 16-byte alignment */
         CFI_ADJUST(32)
         str     x10, [sp, 16]
+        str     x11, [sp, 24]
     /* Setup a trap frame to catch exceptions escaping the OCaml code */
         ldr     x8, Caml_state(exn_handler)
         adr     x9, L(trap_handler)
         stp     x8, x9, [sp, -16]!
         CFI_ADJUST(16)
         add     TRAP_PTR, sp, #0
+    /* Store the async exception pointer */
+        str     TRAP_PTR, Caml_state(async_exception_pointer)
     /* Reload allocation pointer */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Call the OCaml code */
@@ -445,12 +447,14 @@ L(caml_retaddr):
         str     x8, Caml_state(exn_handler)
     /* Pop the callback link, restoring the global variables */
 L(return_result):
+        ldr     x11, [sp, 24]
         ldr     x10, [sp, 16]
         ldp     x8, x9, [sp], 32
         CFI_ADJUST(-32)
         str     x8, Caml_state(bottom_of_stack)
         str     x9, Caml_state(last_return_address)
         str     x10, Caml_state(gc_regs)
+        str     x11, Caml_state(async_exception_pointer)
     /* Update allocation pointer */
         str     ALLOC_PTR, Caml_state(young_ptr)
     /* Reload callee-save registers and return address */
@@ -556,9 +560,10 @@ FUNCTION(caml_raise_exception)
 FUNCTION(caml_stack_overflow)
     /* Load the exception bucket */
         ADDRGLOBAL(x0, caml_exn_Stack_overflow)
-    /* Cut stack at current trap handler */
-        mov     sp, TRAP_PTR
-    /* Pop previous handler and jump to it */
+    /* Cut stack at current async exn trap handler */
+        ldr     TMP, Caml_state(async_exception_pointer)
+        mov     sp, TMP
+    /* Pop handler and jump to it */
         ldr     TMP, [sp, 8]
         ldr     TRAP_PTR, [sp], 16
         br      TMP
