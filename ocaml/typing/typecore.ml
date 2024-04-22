@@ -106,6 +106,10 @@ type submode_reason =
   | Application of type_expr
   | Other
 
+type contention_context =
+  | Read_mutable
+  | Write_mutable
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -216,6 +220,7 @@ type error =
   | Submode_failed of
       Value.error * submode_reason *
       Env.closure_context option *
+      contention_context option *
       Env.shared_context option
   | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
@@ -340,9 +345,15 @@ type position_in_region =
      (for tail call escape detection) *)
   | RTail of Regionality.r * position_in_function
 
+(* CR mode-hint: unify the mode error hinting. *)
 type expected_mode =
   { position : position_in_region;
+
     closure_context : Env.closure_context option;
+    (** Explains why regionality axis of [mode] is low. *)
+
+    contention_context : contention_context option;
+    (** Explains why contention axis of [mode] is low. *)
 
     mode : Value.r;
     (** The upper bound, hence r (right) *)
@@ -440,6 +451,7 @@ let apply_modality
 let mode_default mode =
   { position = RNontail;
     closure_context = None;
+    contention_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
     tuple_modes = [] }
@@ -567,8 +579,10 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   | Ok () -> ()
   | Error failure_reason ->
       let closure_context = expected_mode.closure_context in
+      let contention_context = expected_mode.contention_context in
       let error =
-        Submode_failed(failure_reason, reason, closure_context, shared_context)
+        Submode_failed(failure_reason, reason, closure_context,
+          contention_context, shared_context)
       in
       raise (Error(loc, env, error))
 
@@ -882,16 +896,22 @@ let check_construct_mutability ~loc ~env mutability argument_mode =
       submode ~loc ~env m0 argument_mode
 
 let mode_project_mutable =
-  Contention.Const.Uncontended
-  |> Contention.of_const
-  |> Value.max_with (Monadic Contention)
-  |> mode_default
+  let mode =
+    Contention.Const.Uncontended
+    |> Contention.of_const
+    |> Value.max_with (Monadic Contention)
+  in
+  { (mode_default mode) with
+    contention_context = Some Read_mutable }
 
 let mode_mutate_mutable =
-  Contention.Const.Uncontended
-  |> Contention.of_const
-  |> Value.max_with (Monadic Contention)
-  |> mode_default
+  let mode =
+    Contention.Const.Uncontended
+    |> Contention.of_const
+    |> Value.max_with (Monadic Contention)
+  in
+  { (mode_default mode) with
+    contention_context = Some Write_mutable }
 
 let check_project_mutability ~loc ~env mutability mode =
   if Types.is_mutable mutability then
@@ -4721,13 +4741,13 @@ let unique_use ~loc ~env mode_l mode_r  =
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
-        raise (Error(loc, env, Submode_failed(e, Other, None, None)))
+        raise (Error(loc, env, Submode_failed(e, Other, None, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
-        raise (Error (loc, env, Submode_failed(e, Other, None, None)))
+        raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.shared,
      Linearity.disallow_right Linearity.many)
@@ -9585,6 +9605,18 @@ let sharedness_hint _fail_reason submode_reason context =
   match submode_reason with
   | Application _ | Other -> []
 
+let contention_hint _fail_reason _submode_reason context =
+  match context with
+  | Some Read_mutable ->
+      [Location.msg
+        "@[Hint: In order to read from the mutable fields,@ \
+        this record needs to be uncontended.@]"]
+  | Some Write_mutable ->
+      [Location.msg
+        "@[Hint: In order to write into the mutable fields,@ \
+        this record needs to be uncontended.@]"]
+  | None -> []
+
 let report_type_expected_explanation_opt expl ppf =
   match expl with
   | None -> ()
@@ -10139,7 +10171,8 @@ let report_error ~loc env = function
         "This expression has type %a@ \
          which is not a record type."
         Printtyp.type_expr ty
-  | Submode_failed(fail_reason, submode_reason, closure_context, shared_context)
+  | Submode_failed(fail_reason, submode_reason, closure_context,
+      contention_context, shared_context)
      ->
       let sub =
         match fail_reason with
@@ -10147,8 +10180,9 @@ let report_error ~loc env = function
           sharedness_hint fail_reason submode_reason shared_context
         | Error (Comonadic Areality, _) ->
           escaping_hint fail_reason submode_reason closure_context
-        | Error (Comonadic Portability, _ )
-        | Error (Monadic Contention, _ ) -> []
+        | Error (Monadic Contention, _ ) ->
+          contention_hint fail_reason submode_reason contention_context
+        | Error (Comonadic Portability, _ ) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with
