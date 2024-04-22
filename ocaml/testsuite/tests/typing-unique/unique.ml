@@ -141,7 +141,7 @@ let f () =
 Line 4, characters 12-13:
 4 |     unique_ k
                 ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -157,7 +157,7 @@ let f =
 Line 5, characters 14-15:
 5 |     let _ = g a in ()
                   ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -215,7 +215,7 @@ let once_ foo = "foo"
 Line 1, characters 4-21:
 1 | let once_ foo = "foo"
         ^^^^^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 (* the following is fine - we relax many to once *)
@@ -237,7 +237,7 @@ let foo y = unique_ x
 Line 1, characters 20-21:
 1 | let foo y = unique_ x
                         ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 
@@ -303,7 +303,7 @@ let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
 Line 1, characters 60-63:
 1 | let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
                                                                 ^^^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
@@ -311,7 +311,7 @@ let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
 Line 1, characters 54-67:
 1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
                                                           ^^^^^^^^^^^^^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
@@ -357,7 +357,7 @@ let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
 Line 2, characters 58-59:
 2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
                                                               ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let inf4 (b : bool) (y : float) (unique_ x : float) =
@@ -467,7 +467,7 @@ let curry =
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let curry =
@@ -477,7 +477,7 @@ let curry =
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let curry =
@@ -557,8 +557,8 @@ let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
 Line 1, characters 51-66:
 1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
                                                        ^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a once value,
-       but expected to be many.
+Error: This function when partially applied returns a value at once,
+       but expected to be at many.
 |}]
 
 let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
@@ -566,8 +566,8 @@ let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
 Line 1, characters 51-80:
 1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a once value,
-       but expected to be many.
+Error: This function when partially applied returns a value at once,
+       but expected to be at many.
 |}]
 
 (* For nested functions, inner functions are not constrained *)

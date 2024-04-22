@@ -9462,17 +9462,19 @@ let escaping_hint (failure_reason : Value.error) submode_reason
          global, then exclave_ won't solve the problem. *)
       [ Location.msg
           "@[Hint: Cannot return a local value without an@ \
-           \"exclave_\" annotation@]" ]
+           \"exclave_\" annotation.@]" ]
     | _, Return -> []
     | _, Tailcall_argument ->
       [ Location.msg
-          "@[Hint: This argument cannot be local, because it is an argument in a tail call@]" ]
+          "@[Hint: This argument cannot be local,@ \
+           because it is an argument in a tail call.@]" ]
     | _, Tailcall_function ->
       [ Location.msg
-          "@[Hint: This function cannot be local, because it is the function in a tail call@]" ]
+          "@[Hint: This function cannot be local,@ \
+           because it is the function in a tail call.@]" ]
     | _, Partial_application ->
       [ Location.msg
-          "@[Hint: It is captured by a partial application@]" ]
+          "@[Hint: It is captured by a partial application.@]" ]
     end
   | _, _ -> []
   end
@@ -10121,16 +10123,13 @@ let report_error ~loc env = function
         | Error (Comonadic Areality, _) ->
           escaping_hint fail_reason submode_reason closure_context
       in
-      Location.errorf ~loc ~sub "%t" begin
+      Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with
         | Error (Comonadic Areality, _) ->
-            Format.dprintf "This value escapes its region"
-        | Error (Monadic Uniqueness, {left; right}) ->
-            Format.dprintf "Found a %a value where a %a value was expected"
-              Uniqueness.Const.print left Uniqueness.Const.print right
-        | Error (Comonadic Linearity, {left; right}) ->
-            Format.dprintf "Found a %a value where a %a value was expected"
-              Linearity.Const.print left Linearity.Const.print right
+            Format.dprintf "This value escapes its region."
+        | Error (ax, {left; right}) ->
+            Format.dprintf "This value is %a but expected to be %a."
+              (Value.Const.print_axis ax) left (Value.Const.print_axis ax) right
         end
   | Local_application_complete (lbl, loc_kind) ->
       let sub =
@@ -10155,35 +10154,29 @@ let report_error ~loc env = function
       Location.errorf ~loc ~sub
         "@[This application is complete, but surplus arguments were provided afterwards.@ \
          When passing or calling a local value, extra arguments are passed in a separate application.@]"
-  | Param_mode_mismatch (s, mkind) ->
-      let print_error f (step, {Solver.left; Solver.right}) =
-        let actual, expected =
-          match (step : equate_step) with
-          | Left_le_right -> left, right
-          | Right_le_left -> right, left
-        in
-        Location.errorf ~loc
-          "@[This function takes a %a parameter,@ \
-           but was expected to take a %a parameter.@]"
-          f actual f expected
-      in begin
-      match mkind with
-      | Error (Comonadic Areality, e) ->
-          print_error Locality.Const.print (s, e)
-      | Error (Monadic Uniqueness, e) ->
-          print_error Uniqueness.Const.print (s, e)
-      | Error (Comonadic Linearity, e) ->
-          print_error Linearity.Const.print (s, e)
-      end
+  | Param_mode_mismatch (s, Error (ax, {left; right})) ->
+      let actual, expected =
+        match s with
+        | Left_le_right -> left, right
+        | Right_le_left -> right, left
+      in
+      Location.errorf ~loc
+        "@[This function takes a parameter at %a,@ \
+        but was expected to take a parameter at %a.@]"
+        (Alloc.Const.print_axis ax) actual (Alloc.Const.print_axis ax) expected
   | Uncurried_function_escapes e -> begin
       match e with
       | Error (Comonadic Areality, _) ->
-          Location.errorf ~loc "This function or one of its parameters escape their region @ \
-          when it is partially applied."
+          Location.errorf ~loc
+            "This function or one of its parameters escape their region@ \
+            when it is partially applied."
       | Error (Monadic Uniqueness, _) -> assert false
       | Error (Comonadic Linearity, {left; right}) ->
-          Location.errorf ~loc "This function when partially applied returns a %a value,@ \
-          but expected to be %a." Linearity.Const.print left Linearity.Const.print right
+          Location.errorf ~loc
+            "This function when partially applied returns a value at %a,@ \
+              but expected to be at %a."
+            Linearity.Const.print left
+            Linearity.Const.print right
     end
   | Local_return_annotation_mismatch _ ->
       Location.errorf ~loc
@@ -10197,7 +10190,7 @@ let report_error ~loc env = function
          | `Not_a_tailcall -> "is not on a tail call")
   | Exclave_in_nontail_position ->
       Location.errorf ~loc
-        "Exclave expression should only be in tail position of the current region"
+        "Exclave expression should only be in tail position of the current region."
   | Exclave_returns_not_local ->
       Location.errorf ~loc
         "This expression was expected to be not local, but is an exclave expression,@ \
@@ -10207,11 +10200,11 @@ let report_error ~loc env = function
         "Optional parameters cannot be polymorphic"
   | Function_returns_local ->
       Location.errorf ~loc
-        "This function is local-returning, but was expected otherwise"
+        "This function is local-returning, but was expected otherwise."
   | Tail_call_local_returning ->
       Location.errorf ~loc
-        "@[This application is local-returning, but is at the tail @ \
-          position of a function that is not local-returning@]"
+        "@[This application is local-returning, but is at the tail@ \
+          position of a function that is not local-returning.@]"
   | Unboxed_int_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed int literals aren't supported yet.@]"
