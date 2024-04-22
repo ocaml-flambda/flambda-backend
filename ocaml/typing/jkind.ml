@@ -759,12 +759,7 @@ module Jkind_desc = struct
       externality_upper_bound = External
     }
 
-  let non_null_value =
-    {
-      layout = Layout.Non_null_value;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = External
-    }
+  let non_null_value = { value with layout = Non_null_value }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =

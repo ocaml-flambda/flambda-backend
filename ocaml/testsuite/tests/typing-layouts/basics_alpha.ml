@@ -144,10 +144,17 @@ Error: This pattern matches values of type t_any
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
+
+  val f3 : t_non_null_value -> t_non_null_value
 end;;
 
 [%%expect{|
-module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
+module type S =
+  sig
+    val f1 : t_value -> t_value
+    val f2 : t_imm -> t_imm64
+    val f3 : t_non_null_value -> t_non_null_value
+  end
 |}];;
 
 module type S2 = sig
@@ -431,9 +438,11 @@ Error: Non-value layout void detected in [Typeopt.layout] as sort for type
 (* Test 6: explicitly polymorphic types *)
 type ('a : immediate) t6_imm = T6imm of 'a
 type ('a : value) t6_val = T6val of 'a;;
+type ('a : non_null_value) t6_nonnull = T6nonnull of 'a;;
 [%%expect{|
 type ('a : immediate) t6_imm = T6imm of 'a
 type 'a t6_val = T6val of 'a
+type ('a : non_null_value) t6_nonnull = T6nonnull of 'a
 |}];;
 
 let ignore_val6 : 'a . 'a -> unit =
@@ -455,6 +464,12 @@ Error: This definition has type 'b -> unit which is less general than
        But the layout of 'a must be a sublayout of immediate, because
          of the definition of t6_imm at line 1, characters 0-42.
 |}];;
+
+let ignore_nonnull6 : 'a . 'a -> unit =
+  fun a -> let _ = T6nonnull a in ();;
+[%%expect{|
+val ignore_nonnull6 : 'a -> unit = <fun>
+|}]
 
 let o6 = object
   method ignore_imm6 : 'a . 'a -> unit =
