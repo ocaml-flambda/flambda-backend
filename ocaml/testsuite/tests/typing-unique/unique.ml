@@ -557,8 +557,8 @@ let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
 Line 1, characters 51-66:
 1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
                                                        ^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value at once,
-       but expected to be at many.
+Error: This function when partially applied returns a value which is once,
+       but expected to be many.
 |}]
 
 let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
@@ -566,8 +566,8 @@ let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
 Line 1, characters 51-80:
 1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value at once,
-       but expected to be at many.
+Error: This function when partially applied returns a value which is once,
+       but expected to be many.
 |}]
 
 (* For nested functions, inner functions are not constrained *)

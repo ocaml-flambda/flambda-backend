@@ -1483,8 +1483,8 @@ let foo : 'a -> unit = fun (local_ x) -> ()
 Line 1, characters 23-43:
 1 | let foo : 'a -> unit = fun (local_ x) -> ()
                            ^^^^^^^^^^^^^^^^^^^^
-Error: This function takes a parameter at local,
-       but was expected to take a parameter at global.
+Error: This function takes a parameter which is local,
+       but was expected to take a parameter which is global.
 |}]
 
 (* Return mode must be greater than the type *)

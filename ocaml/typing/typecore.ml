@@ -10161,8 +10161,8 @@ let report_error ~loc env = function
         | Right_le_left -> right, left
       in
       Location.errorf ~loc
-        "@[This function takes a parameter at %a,@ \
-        but was expected to take a parameter at %a.@]"
+        "@[This function takes a parameter which is %a,@ \
+        but was expected to take a parameter which is %a.@]"
         (Alloc.Const.print_axis ax) actual (Alloc.Const.print_axis ax) expected
   | Uncurried_function_escapes e -> begin
       match e with
@@ -10173,8 +10173,8 @@ let report_error ~loc env = function
       | Error (Monadic Uniqueness, _) -> assert false
       | Error (Comonadic Linearity, {left; right}) ->
           Location.errorf ~loc
-            "This function when partially applied returns a value at %a,@ \
-              but expected to be at %a."
+            "This function when partially applied returns a value which is %a,@ \
+              but expected to be %a."
             Linearity.Const.print left
             Linearity.Const.print right
     end
