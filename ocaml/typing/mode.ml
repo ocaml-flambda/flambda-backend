@@ -35,6 +35,8 @@ module Global_flag = struct
     | Global, Unrestricted -> -1
     | Unrestricted, Global -> 1
     | Global, Global | Unrestricted, Unrestricted -> 0
+
+  let unrestricted_with_loc = Location.mkloc Unrestricted Location.none
 end
 
 module type BiHeyting = sig

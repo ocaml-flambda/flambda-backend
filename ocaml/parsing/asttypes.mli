@@ -73,4 +73,7 @@ type injectivity =
   | Injective
   | NoInjectivity
 
-type mode = | Mode of string
+type mode = | Mode of string [@@unboxed]
+
+type modality = | Modality of string [@@unboxed]
+

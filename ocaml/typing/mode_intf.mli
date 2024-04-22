@@ -95,6 +95,8 @@ module type S = sig
       | Unrestricted
 
     val compare : t -> t -> int
+
+    val unrestricted_with_loc : t Location.loc
   end
 
   type changes

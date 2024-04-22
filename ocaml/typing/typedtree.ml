@@ -125,7 +125,6 @@ and exp_extra =
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -681,7 +680,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: mutability;
-     ld_global: Global_flag.t;
+     ld_global: Global_flag.t loc;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -699,8 +698,15 @@ and constructor_declaration =
      cd_attributes: attribute list;
     }
 
+and constructor_argument =
+  {
+    ca_global: Global_flag.t loc;
+    ca_type: core_type;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (core_type * Global_flag.t) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 and type_extension =

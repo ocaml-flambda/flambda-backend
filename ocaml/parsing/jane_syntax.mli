@@ -170,7 +170,7 @@ module N_ary_functions : sig
       [let local_ f x : int -> int = ...].
   *)
   type function_constraint =
-    { mode_annotations : Asttypes.mode list;
+    { mode_annotations : Asttypes.mode Location.loc list;
       type_constraint : type_constraint
     }
 
@@ -189,7 +189,7 @@ module N_ary_functions : sig
       have non-empty [params] or a [Pfunction_cases _] body.
   *)
   type expression =
-    function_param list * type_constraint option * function_body
+    function_param list * function_constraint option * function_body
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end

@@ -785,7 +785,7 @@ let extract_label_names env ty =
 
 let has_poly_constraint spat =
   match spat.ppat_desc with
-  | Ppat_constraint(_, styp) -> begin
+  | Ppat_constraint(_, Some styp, _) -> begin
       match styp.ptyp_desc with
       | Ptyp_poly _ -> true
       | _ -> false
@@ -830,23 +830,13 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
    [Pexp_constraint] node. Use this function to detect
    and remove these inserted attributes.
 *)
-let alloc_mode_from_pexp_constraint_typ_attrs styp =
-  let modes, ptyp_attributes =
-    Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes
+let mode_annots_from_pat pat =
+  let modes =
+    match pat.ppat_desc with
+    | Ppat_constraint (_, _, m) -> m
+    | _ -> []
   in
-  Typemode.transl_alloc_mode modes, { styp with ptyp_attributes }
-
-let alloc_mode_from_ppat_constraint_typ_attrs styp =
-  let modes, ptyp_attributes =
-    Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes
-  in
-  Typemode.transl_alloc_mode modes, { styp with ptyp_attributes }
-
-let mode_annots_from_pat_attrs pat =
-  let modes, ppat_attributes =
-    Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes
-  in
-  Typemode.transl_mode_annots modes, {pat with ppat_attributes}
+  Typemode.transl_mode_annots modes
 
 let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   let error axis =
@@ -1296,7 +1286,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
           instance_constructor Keep_existentials_flexible cstr
         in
         List.iter2
-          (fun (p,ty) (arg, _) ->
+          (fun (p,ty) {Types.ca_type=arg; _} ->
              unify_pat ~refine env {p with pat_type = ty} arg)
           (List.combine pl tyl) ty_args;
         ty_res
@@ -1543,7 +1533,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
                 (Make_existentials_abstract { env; scope = expansion_scope })
                 constr
             in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global.txt) ty_args)
+            in
             ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
@@ -1558,7 +1551,10 @@ let solve_Ppat_construct ~refine tps env loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty, ty_args_gf = List.split ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global.txt) ty_args)
+            in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps env name_list sty ty_args_ty
                 ty_ex
@@ -2290,7 +2286,7 @@ let rec has_literal_pattern p =
   | Ppat_exception p
   | Ppat_variant (_, Some p)
   | Ppat_construct (_, Some (_, p))
-  | Ppat_constraint (p, _)
+  | Ppat_constraint (p, _, _)
   | Ppat_alias (p, _)
   | Ppat_lazy p
   | Ppat_open (_, p) ->
@@ -2700,7 +2696,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let mode = project_field label.lbl_mut label.lbl_global alloc_mode.mode in
+        let mode = project_field label.lbl_mut label.lbl_global.txt alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -2789,10 +2785,10 @@ and type_pat_aux
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
         pat_env = !env }
-  | Ppat_constraint(sp_constrained, sty) ->
+  | Ppat_constraint(sp_constrained, sty, ms) ->
       (* Pretend separate = true *)
       let cty, ty, expected_ty' =
-        let type_modes, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
+        let type_modes = transl_alloc_mode ms in
         solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
       in
       let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
@@ -4101,8 +4097,8 @@ let type_pattern_approx env spat ty_expected =
   | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
-      let arg_type_mode, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
+  | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty), m) ->
+      let arg_type_mode = Typemode.transl_alloc_mode m in
       let ty_pat =
         Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in
@@ -4141,7 +4137,7 @@ let type_approx_fun_one_param
     match spato with
     | None -> None, false
     | Some spat ->
-        let mode_annots, spat = mode_annots_from_pat_attrs spat in
+        let mode_annots = mode_annots_from_pat spat in
         let has_poly = has_poly_constraint spat in
         if has_poly && is_optional label then
           raise(Error(spat.ppat_loc, env, Optional_poly_param));
@@ -5594,7 +5590,7 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp ((_, label, _) as x) =
-        let argument_mode = construct_field label.lbl_mut label.lbl_global argument_mode in
+        let argument_mode = construct_field label.lbl_mut label.lbl_global.txt argument_mode in
         type_label_exp true env argument_mode loc ty_record x
       in
       let lbl_exp_list = List.map type_label_exp lbl_a_list in
@@ -5655,8 +5651,8 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = project_field lbl.lbl_mut lbl.lbl_global mode in
-                  let argument_mode = construct_field lbl.lbl_mut lbl.lbl_global argument_mode in
+                  let mode = project_field lbl.lbl_mut lbl.lbl_global.txt mode in
+                  let argument_mode = construct_field lbl.lbl_mut lbl.lbl_global.txt argument_mode in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -5702,7 +5698,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = project_field label.lbl_mut label.lbl_global rmode in
+      let mode = project_field label.lbl_mut label.lbl_global.txt rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5746,7 +5742,7 @@ and type_expect_
         match label.lbl_mut with
         | Mutable m0 ->
           let mode = mutate_mutable m0 in
-          let mode = modality_box_right label.lbl_global mode in
+          let mode = modality_box_right label.lbl_global.txt mode in
           type_label_exp false env (mode_default mode) loc
             ty_record (lid, label, snewval)
         | Immutable ->
@@ -5862,8 +5858,7 @@ and type_expect_
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
-  | Pexp_constraint (sarg, sty) ->
-      let type_mode, sty = alloc_mode_from_pexp_constraint_typ_attrs sty in
+  | Pexp_constraint (sarg, sty, modes) ->
       let (ty, exp_extra) =
         type_constraint env sty type_mode
       in
@@ -6666,7 +6661,7 @@ and type_function
       let typed_arg_label, pat =
         Typetexp.transl_label_from_pat arg_label pat
       in
-      let mode_annots, pat = mode_annots_from_pat_attrs pat in
+      let mode_annots = mode_annots_from_pat pat in
       let has_poly = has_poly_constraint pat in
       if has_poly && is_optional_parsetree arg_label then
         raise(Error(pat.ppat_loc, env, Optional_poly_param));
@@ -7783,10 +7778,10 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     end
       ~post:(fun (ty_args, ty_res, _) ->
         generalize_structure ty_res;
-        List.iter (fun (ty, _) -> generalize_structure ty) ty_args)
+        List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args0, ty_res =
-    match instance_list (ty_res :: (List.map fst ty_args)) with
+    match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
     | _ -> assert false
   in
@@ -7815,9 +7810,9 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let args =
     List.map2
-      (fun e ((ty, gf),t0) ->
-         let argument_mode = construct_field Immutable gf argument_mode in
-         type_argument ~recarg env argument_mode e ty t0)
+      (fun e (ca,t0) ->
+         let argument_mode = construct_field Immutable ca.Types.ca_global.txt argument_mode in
+         type_argument ~recarg env argument_mode e ca.Types.ca_type t0)
       sargs (List.combine ty_args ty_args0)
   in
   if constr.cstr_private = Private then

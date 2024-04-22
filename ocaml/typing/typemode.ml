@@ -1,6 +1,6 @@
+open Asttypes
 open Location
 open Mode
-open Jane_syntax
 
 type error =
   | Duplicated_mode : ('a, 'b) Axis.t -> error
@@ -13,8 +13,7 @@ let transl_mode_annots modes =
   let rec loop (acc : Alloc.Const.Option.t) = function
     | [] -> acc
     | m :: rest ->
-      let { txt = Asttypes.Mode txt; loc } = m in
-      Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
+      let { txt = Mode txt; loc } = m in
       let acc : Alloc.Const.Option.t =
         match txt with
         (* CR zqian: We should interpret other mode names (global, shared, once)
@@ -31,38 +30,34 @@ let transl_mode_annots modes =
           match acc.linearity with
           | None -> { acc with linearity = Some Once }
           | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
-        | "global" ->
-          (* CR zqian: global modality might leak to here by ppxes.
-             This is a dirty fix that needs to be fixed ASAP. *)
-          acc
         | s -> raise (Error (loc, Unrecognized_mode s))
       in
       loop acc rest
   in
-  loop Alloc.Const.Option.none modes.txt
+  loop Alloc.Const.Option.none modes
 
-let transl_global_flags gfs =
-  let rec loop (acc : Global_flag.t) = function
+let transl_global_flags modalities =
+  let rec loop (acc : Global_flag.t Location.loc) = function
     | [] -> acc
     | m :: rest ->
-      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
-      let acc : Global_flag.t =
+      let ({ txt; loc }) = (m : Asttypes.modality Location.loc) in
+      let acc : Global_flag.t Location.loc =
+        let (Modality txt) = txt in
         match txt with
         | "global" -> (
-          Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
-          match acc with
-          | Unrestricted -> Global
+          match acc.txt with
+          | Unrestricted -> { txt = Global; loc }
           (* Duplicated modality is not an error, just silly and thus a warning.
              As we introduce more modalities, it might be in general difficult
              to detect all redundant modalities, but we should do our best. *)
           | Global ->
             Location.prerr_warning loc (Warnings.Redundant_modality txt);
-            Global)
+            acc)
         | s -> raise (Error (loc, Unrecognized_modality s))
       in
       loop acc rest
   in
-  loop Unrestricted gfs.txt
+  loop Global_flag.unrestricted_with_loc modalities
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in

@@ -394,14 +394,6 @@ and expression_extra i ppf x attrs =
   | Texp_newtype (s, lay) ->
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
       attributes i ppf attrs;
-  | Texp_mode_coerce modes ->
-      let modes = (modes :> string Location.loc list Location.loc) in
-      line i ppf "Texp_mode_coerce %s\n"
-        (String.concat ","
-          (List.map
-            (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
-            modes.txt));
-      attributes i ppf attrs;
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
   = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
@@ -1072,7 +1064,7 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
 
-and field_decl i ppf (ty, _) =
+and field_decl i ppf {ca_type=ty; ca_loc=_; ca_global=_} =
   core_type (i+1) ppf ty
 
 and longident_x_pattern i ppf (li, _, p) =

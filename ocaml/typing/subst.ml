@@ -408,16 +408,23 @@ let label_declaration copy_scope s l =
     ld_uid = l.ld_uid;
   }
 
-let constructor_arguments copy_scope s loc = function
+let constructor_argument copy_scope s ca =
+  {
+    ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
+    ca_loc = loc s ca.ca_loc;
+    ca_global = ca.ca_global;
+  }
+
+let constructor_arguments copy_scope s = function
   | Cstr_tuple l ->
-      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s loc ty, gf)) l)
+      Cstr_tuple (List.map (constructor_argument copy_scope s) l)
   | Cstr_record l ->
       Cstr_record (List.map (label_declaration copy_scope s) l)
 
 let constructor_declaration copy_scope s c =
   {
     cd_id = c.cd_id;
-    cd_args = constructor_arguments copy_scope s c.cd_loc c.cd_args;
+    cd_args = constructor_arguments copy_scope s c.cd_args;
     cd_res = Option.map (typexp copy_scope s c.cd_loc) c.cd_res;
     cd_loc = loc s c.cd_loc;
     cd_attributes = attrs s c.cd_attributes;
@@ -567,7 +574,7 @@ let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
-    ext_args = constructor_arguments copy_scope s ext.ext_loc ext.ext_args;
+    ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds

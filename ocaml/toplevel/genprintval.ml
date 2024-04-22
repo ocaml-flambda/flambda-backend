@@ -681,7 +681,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       with Ctype.Cannot_apply -> abstract_type
 
     and instantiate_types env type_params ty_list args =
-      List.map (fun (ty, _) -> instantiate_type env type_params ty_list ty) args
+      List.map (fun {ca_type=ty; _} -> instantiate_type env type_params ty_list ty) args
 
     and find_printer depth env ty =
       let rec find = function

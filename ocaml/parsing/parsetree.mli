@@ -87,7 +87,7 @@ and core_type =
 and core_type_desc =
   | Ptyp_any  (** [_] *)
   | Ptyp_var of string  (** A type variable such as ['a] *)
-  | Ptyp_arrow of arg_label * core_type * core_type * mode loc list * mode list
+  | Ptyp_arrow of arg_label * core_type * core_type * mode loc list * mode loc list
       (** [Ptyp_arrow(lbl, T1, T2, M1, M2)] represents:
             - [T1 @ M1 -> T2 @ M2]    when [lbl] is
                                      {{!arg_label.Nolabel}[Nolabel]},
@@ -535,6 +535,7 @@ and label_declaration =
     {
      pld_name: string loc;
      pld_mutable: mutable_flag;
+     pld_modalities: modality loc list;
      pld_type: core_type;
      pld_loc: Location.t;
      pld_attributes: attributes;  (** [l : T [\@id1] [\@id2]] *)
@@ -560,8 +561,15 @@ and constructor_declaration =
      pcd_attributes: attributes;  (** [C of ... [\@id1] [\@id2]] *)
     }
 
+and constructor_argument =
+  {
+    pca_modalities: modality loc list;
+    pca_type: core_type;
+    pca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Pcstr_tuple of core_type list
+  | Pcstr_tuple of constructor_argument list
   | Pcstr_record of label_declaration list
       (** Values of type {!constructor_declaration}
     represents the constructor arguments of:

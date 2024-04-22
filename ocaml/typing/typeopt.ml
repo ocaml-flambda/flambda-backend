@@ -447,7 +447,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
       match cstrs with
-      | [{cd_args=Cstr_tuple [ty,_]}]
+      | [{cd_args=Cstr_tuple [{ca_type=ty}]}]
       | [{cd_args=Cstr_record [{ld_type=ty}]}] ->
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
@@ -461,7 +461,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       | Cstr_tuple fields ->
         let num_nodes_visited, fields =
           List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
+            (fun num_nodes_visited {Types.ca_type=ty; _} ->
                let num_nodes_visited = num_nodes_visited + 1 in
                (* CR layouts v5: when we add other layouts, we'll need to check
                   here that we aren't about to call value_kind on a different

@@ -135,6 +135,11 @@ let typevars ppf vs =
     (* Don't use Pprintast.tyvar, as that causes a dependency cycle with
        Jane_syntax, which depends on this module for debugging. *)
 
+let modes i ppf modes =
+  list i string_loc ppf (
+    List.map (Location.map (fun (Mode x) -> x)) modes
+  )
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
   attributes i ppf x.ptyp_attributes;
@@ -142,11 +147,13 @@ let rec core_type i ppf x =
   match x.ptyp_desc with
   | Ptyp_any -> line i ppf "Ptyp_any\n";
   | Ptyp_var (s) -> line i ppf "Ptyp_var %s\n" s;
-  | Ptyp_arrow (l, ct1, ct2) ->
+  | Ptyp_arrow (l, ct1, ct2, m1, m2) ->
       line i ppf "Ptyp_arrow\n";
       arg_label i ppf l;
       core_type i ppf ct1;
       core_type i ppf ct2;
+      modes i ppf m1;
+      modes i ppf m2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
       list i core_type ppf l;
@@ -229,10 +236,11 @@ and pattern i ppf x =
   | Ppat_lazy p ->
       line i ppf "Ppat_lazy\n";
       pattern i ppf p;
-  | Ppat_constraint (p, ct) ->
+  | Ppat_constraint (p, ct, m) ->
       line i ppf "Ppat_constraint\n";
       pattern i ppf p;
-      core_type i ppf ct;
+      option i core_type ppf ct;
+      modes i ppf m;
   | Ppat_type (li) ->
       line i ppf "Ppat_type\n";
       longident_loc i ppf li
@@ -324,10 +332,11 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       expression i ppf e3;
-  | Pexp_constraint (e, ct) ->
+  | Pexp_constraint (e, ct, m) ->
       line i ppf "Pexp_constraint\n";
       expression i ppf e;
       core_type i ppf ct;
+      modes i ppf m;
   | Pexp_coerce (e, cto1, cto2) ->
       line i ppf "Pexp_coerce\n";
       expression i ppf e;
@@ -884,8 +893,15 @@ and constructor_decl i ppf
   constructor_arguments (i+1) ppf pcd_args;
   option (i+1) core_type ppf pcd_res
 
+and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
+  line i ppf "%a\n" fmt_location pca_loc;
+  list (i+1) string_loc ppf (
+    List.map (Location.map (fun (Modality x) -> x)) pca_modalities
+  );
+  core_type (i+1) ppf pca_type
+
 and constructor_arguments i ppf = function
-  | Pcstr_tuple l -> list i core_type ppf l
+  | Pcstr_tuple l -> list i constructor_argument ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
 and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=

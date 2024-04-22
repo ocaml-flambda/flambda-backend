@@ -157,7 +157,7 @@ let add_opt add_fn bv = function
   | Some x -> add_fn bv x
 
 let add_constructor_arguments bv = function
-  | Pcstr_tuple l -> List.iter (add_type bv) l
+  | Pcstr_tuple l -> List.iter (fun a -> add_type bv a.pca_type) l
   | Pcstr_record l -> List.iter (fun l -> add_type bv l.pld_type) l
 
 let add_constructor_decl bv pcd =
@@ -228,7 +228,9 @@ let rec add_pattern bv pat =
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
   | Ppat_array pl -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
-  | Ppat_constraint(p, ty) -> add_pattern bv p; add_type bv ty
+  | Ppat_constraint(p, ty, _) ->
+      add_pattern bv p;
+      Option.iter (fun ty -> add_type bv ty) ty;
   | Ppat_variant(_, op) -> add_opt add_pattern bv op
   | Ppat_type li -> add bv li
   | Ppat_lazy p -> add_pattern bv p
@@ -286,7 +288,7 @@ let rec add_expr bv exp =
       add_expr bv e1;
       add_opt add_type bv oty2;
       add_type bv ty3
-  | Pexp_constraint(e1, ty2) ->
+  | Pexp_constraint(e1, ty2, _) ->
       add_expr bv e1;
       add_type bv ty2
   | Pexp_send(e, _m) -> add_expr bv e
@@ -332,11 +334,6 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_layout x -> add_layout_expr bv x
   | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
   | Jexp_tuple x -> add_labeled_tuple_expr bv x
-  | Jexp_modes x -> add_modes_expr bv x
-
-and add_modes_expr bv : Jane_syntax.Modes.expression -> _ =
-  function
-  | Coerce (_modes, exp) -> add_expr bv exp
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function

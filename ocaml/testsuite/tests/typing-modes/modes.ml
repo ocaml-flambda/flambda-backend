@@ -334,7 +334,7 @@ val foo : unit -> unit = <fun>
 |}]
 
 (* modalities on value descriptions are parsed and not type checked yet. *)
-module type S = sig 
+module type S = sig
   val x : string -> string @ local @@ foo bar
 end
 [%%expect{|

@@ -29,6 +29,7 @@ module String = Misc.Stdlib.String
 type mapper = {
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
+  modes : mapper -> Asttypes.mode loc list -> Asttypes.mode loc list;
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
@@ -92,8 +93,6 @@ type mapper = {
   structure_item_jane_syntax: mapper ->
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
-
-  modes : mapper -> Asttypes.mode list -> Asttypes.mode list;
 }
 
 let map_fst f (x, y) = (f x, y)
@@ -105,17 +104,6 @@ let map_opt f = function None -> None | Some x -> Some (f x)
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
 let map_loc_txt sub f {loc; txt} =
   {loc = sub.location sub loc; txt = f sub txt}
-
-let map_mode_and_attributes sub attrs =
-  let open Jane_syntax.Mode_expr in
-  let modes, attrs = maybe_of_attrs attrs in
-  let mode_attr =
-    match modes with
-    | Some modes ->
-      Option.to_list (sub.modes sub modes |> attr_of)
-    | None -> []
-  in
-  mode_attr @ sub.attributes sub attrs
 
 module C = struct
   (* Constants *)
@@ -200,17 +188,16 @@ module T = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
-        let attrs = map_mode_and_attributes sub attrs in
+        let attrs = sub.attributes sub attrs in
         let jtyp = sub.typ_jane_syntax sub jtyp in
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
-    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
-    | Ptyp_arrow (lab, t1, t2) ->
-        arrow ~loc ~attrs lab (sub.typ sub t1) (sub.typ sub t2)
+    | Ptyp_arrow (lab, t1, t2, m1, m2) ->
+        arrow ~loc ~attrs lab (sub.typ sub t1) (sub.typ sub t2) (sub.modes sub m1) (sub.modes sub m2)
     | Ptyp_tuple tyl -> tuple ~loc ~attrs (List.map (sub.typ sub) tyl)
     | Ptyp_constr (lid, tl) ->
         constr ~loc ~attrs (map_loc sub lid) (List.map (sub.typ sub) tl)
@@ -263,8 +250,14 @@ module T = struct
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
+  let map_constructor_argument sub x =
+    let pca_type = sub.typ sub x.pca_type in
+    let pca_loc = sub.location sub x.pca_loc in
+    let pca_modalities = List.map (map_loc sub) x.pca_modalities in
+    { pca_type; pca_loc; pca_modalities }
+
   let map_constructor_arguments sub = function
-    | Pcstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
+    | Pcstr_tuple l -> Pcstr_tuple (List.map (map_constructor_argument sub) l)
     | Pcstr_record l ->
         Pcstr_record (List.map (sub.label_declaration sub) l)
 
@@ -548,7 +541,6 @@ module E = struct
   module L = Jane_syntax.Layouts
   module N_ary = Jane_syntax.N_ary_functions
   module LT = Jane_syntax.Labeled_tuples
-  module Modes = Jane_syntax.Modes
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -642,10 +634,6 @@ module E = struct
     (* CR labeled tuples: Eventually mappers may want to see the labels. *)
     | el -> List.map (map_snd (sub.expr sub)) el
 
-  let map_modes_exp sub : Modes.expression -> Modes.expression = function
-    | Coerce (modes, exp) ->
-        Coerce (sub.modes sub modes, sub.expr sub exp)
-
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
@@ -653,7 +641,6 @@ module E = struct
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
     | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
     | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
-    | Jexp_modes mode_exp -> Jexp_modes (map_modes_exp sub mode_exp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -711,8 +698,8 @@ module E = struct
     | Pexp_coerce (e, t1, t2) ->
         coerce ~loc ~attrs (sub.expr sub e) (map_opt (sub.typ sub) t1)
           (sub.typ sub t2)
-    | Pexp_constraint (e, t) ->
-        constraint_ ~loc ~attrs (sub.expr sub e) (sub.typ sub t)
+    | Pexp_constraint (e, t, m) ->
+        constraint_ ~loc ~attrs (sub.expr sub e) (sub.typ sub t) (sub.modes sub m)
     | Pexp_send (e, s) ->
         send ~loc ~attrs (sub.expr sub e) (map_loc sub s)
     | Pexp_new lid -> new_ ~loc ~attrs (map_loc sub lid)
@@ -786,13 +773,12 @@ module P = struct
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
+    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
-        let attrs = map_mode_and_attributes sub attrs in
         Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
-    let attrs = map_mode_and_attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -812,8 +798,8 @@ module P = struct
                (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
     | Ppat_array pl -> array ~loc ~attrs (List.map (sub.pat sub) pl)
     | Ppat_or (p1, p2) -> or_ ~loc ~attrs (sub.pat sub p1) (sub.pat sub p2)
-    | Ppat_constraint (p, t) ->
-        constraint_ ~loc ~attrs (sub.pat sub p) (sub.typ sub t)
+    | Ppat_constraint (p, t, m) ->
+        constraint_ ~loc ~attrs (sub.pat sub p) (Option.map (sub.typ sub) t) (sub.modes sub m)
     | Ppat_type s -> type_ ~loc ~attrs (map_loc sub s)
     | Ppat_lazy p -> lazy_ ~loc ~attrs (sub.pat sub p)
     | Ppat_unpack s -> unpack ~loc ~attrs (map_loc sub s)
@@ -1046,11 +1032,12 @@ let default_mapper =
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_attributes} ->
+      (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_modalities; pld_attributes} ->
          Type.field
            (map_loc this pld_name)
            (this.typ this pld_type)
            ~mut:pld_mutable
+           ~modalities:(List.map (map_loc this) pld_modalities)
            ~loc:(this.location this pld_loc)
            ~attrs:(this.attributes this pld_attributes)
       );
@@ -1098,15 +1085,7 @@ let default_mapper =
     typ_jane_syntax = T.map_jst;
 
     modes = (fun this m ->
-      let open Jane_syntax.Mode_expr in
-      let map_const sub : Const.t -> Const.t =
-        fun m ->
-          let {txt; loc} =
-            map_loc sub (m : Const.t :> _ Location.loc)
-          in
-          Const.mk txt loc
-      in
-      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
+      List.map (map_loc this) m);
   }
 
 let extension_of_error {kind; main; sub} =
