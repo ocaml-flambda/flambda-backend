@@ -468,7 +468,15 @@ Error: This definition has type 'b -> unit which is less general than
 let ignore_nonnull6 : 'a . 'a -> unit =
   fun a -> let _ = T6nonnull a in ();;
 [%%expect{|
-val ignore_nonnull6 : 'a -> unit = <fun>
+Line 2, characters 2-36:
+2 |   fun a -> let _ = T6nonnull a in ();;
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This definition has type 'b -> unit which is less general than
+         'a. 'a -> unit
+       The layout of 'a is value, because
+         it is or unifies with an unannotated universal variable.
+       But the layout of 'a must be a sublayout of non_null_value, because
+         of the definition of t6_nonnull at line 3, characters 0-55.
 |}]
 
 let o6 = object

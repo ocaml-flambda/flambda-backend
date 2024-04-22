@@ -434,7 +434,8 @@ module Layout = struct
     | Any, _ -> Not_le
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
     | Non_null_value, Non_null_value -> Equal
-    | Non_null_value, Sort s -> if Sort.equate s (Const Value) then Less else Not_le
+    | Non_null_value, Sort s ->
+      if Sort.equate s (Const Value) then Less else Not_le
     | Sort _, Non_null_value -> Not_le
 
   let intersection t1 t2 =
@@ -443,8 +444,8 @@ module Layout = struct
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
     | Non_null_value, Non_null_value -> Some Non_null_value
-    | (Sort s, Non_null_value) | (Non_null_value, Sort s) -> if Sort.equate s (Const Value)
-      then Some (Sort s) else None
+    | (Sort s, Non_null_value) | (Non_null_value, Sort s) ->
+      if Sort.equate s (Const Value) then Some Non_null_value else None
 
   let of_new_sort_var () =
     let sort = Sort.new_var () in
