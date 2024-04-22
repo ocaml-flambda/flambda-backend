@@ -9,6 +9,7 @@ type t_imm   : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void  : void
+type t_non_null_value : non_null_value
 
 type void_variant = VV of t_void
 type void_record = {vr_void : t_void; vr_int : int}
@@ -21,6 +22,7 @@ type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
 type t_void : void
+type t_non_null_value : non_null_value
 type void_variant = VV of t_void
 type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
