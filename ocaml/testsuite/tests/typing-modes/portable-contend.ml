@@ -29,6 +29,21 @@ Error: This value is contended but expected to be uncontended.
   this record needs to be uncontended.
 |}]
 
+let foo (r @ contended) = {r with a = "hello"}
+[%%expect{|
+val foo : r @ contended -> r @ contended = <fun>
+|}]
+
+let foo (r @ contended) = {r with b = "hello"}
+[%%expect{|
+Line 1, characters 27-28:
+1 | let foo (r @ contended) = {r with b = "hello"}
+                               ^
+Error: This value is contended but expected to be uncontended.
+  Hint: In order to read from the mutable fields,
+  this record needs to be uncontended.
+|}]
+
 (* reading immutable field from contended record is fine *)
 let foo (r @ contended) = r.b
 [%%expect{|
@@ -250,7 +265,5 @@ Line 3, characters 37-38:
                                          ^
 Error: This value is contended but expected to be uncontended.
 |}]
-
-
 
 (* CR zqian: add portable/uncontended modality and test. *)
