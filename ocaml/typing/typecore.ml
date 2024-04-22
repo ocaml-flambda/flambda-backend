@@ -5041,7 +5041,7 @@ let add_check_attribute expr attributes =
   | Texp_function fn ->
     let default_arity = function_arity fn.params fn.body in
     let za =
-      get_property_attribute ~is_arity_allowed:false ~default_arity attributes
+      get_property_attribute ~in_signature:false ~default_arity attributes
         Zero_alloc
     in
     begin match za with
@@ -5388,7 +5388,7 @@ and type_expect_
       let assume_zero_alloc =
         let default_arity = List.length args in
         let zero_alloc =
-          Builtin_attributes.get_property_attribute ~is_arity_allowed:false
+          Builtin_attributes.get_property_attribute ~in_signature:false
             ~default_arity sfunct.pexp_attributes Zero_alloc
         in
         Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
@@ -8865,7 +8865,7 @@ and type_n_ary_function
               (filter_ty_ret_exn ret_ty Nolabel ~force_tpoly:true : type_expr)
     end;
     let zero_alloc =
-      Builtin_attributes.get_property_attribute ~is_arity_allowed:false
+      Builtin_attributes.get_property_attribute ~in_signature:false
         ~default_arity:syntactic_arity attributes Zero_alloc
     in
     re

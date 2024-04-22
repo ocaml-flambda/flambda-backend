@@ -903,9 +903,12 @@ let parse_property_attribute ~is_arity_allowed ~default_arity attr property =
         ]
         payload
 
-let get_property_attribute ~is_arity_allowed ~default_arity l p =
+let get_property_attribute ~in_signature ~default_arity l p =
   let attr = find_attribute (is_property_attribute p) l in
-  let res = parse_property_attribute ~is_arity_allowed ~default_arity attr p in
+  let res =
+    parse_property_attribute ~is_arity_allowed:in_signature ~default_arity attr
+      p
+  in
   (match attr, res with
    | None, Default_check -> ()
    | _, Default_check -> ()
@@ -913,10 +916,10 @@ let get_property_attribute ~is_arity_allowed ~default_arity l p =
    | Some _, Ignore_assert_all _ -> ()
    | Some _, Assume _ -> ()
    | Some attr, Check { opt; _ } ->
-     if is_check_enabled ~opt p && !Clflags.native_code then
-       (* The warning for unchecked functions will not trigger if the check is requested
-          through the [@@@zero_alloc all] top-level annotation rather than through the
-          function annotation [@zero_alloc]. *)
+     if not in_signature && is_check_enabled ~opt p && !Clflags.native_code then
+       (* The warning for unchecked functions will not trigger if the check is
+          requested through the [@@@zero_alloc all] top-level annotation rather
+          than through the function annotation [@zero_alloc]. *)
        register_property attr.attr_name);
    res
 

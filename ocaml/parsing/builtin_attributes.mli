@@ -263,8 +263,11 @@ type check_attribute =
 
 val is_check_enabled : opt:bool -> property -> bool
 
+(* Gets a zero_alloc attribute.  [~in_signature] controls both whether the
+   "arity n" field is allowed, and whether we track this attribute for
+   warning 199. *)
 val get_property_attribute :
-  is_arity_allowed:bool -> default_arity:int -> Parsetree.attributes ->
+  in_signature:bool -> default_arity:int -> Parsetree.attributes ->
   property -> check_attribute
 
 val assume_zero_alloc :

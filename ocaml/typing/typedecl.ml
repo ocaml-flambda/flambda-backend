@@ -2679,7 +2679,7 @@ let transl_value_decl env loc valdecl =
         count_arrows 0 ty
       in
       let zero_alloc =
-        Builtin_attributes.get_property_attribute ~is_arity_allowed:true
+        Builtin_attributes.get_property_attribute ~in_signature:true
           ~default_arity valdecl.pval_attributes Zero_alloc
       in
       begin match zero_alloc with
