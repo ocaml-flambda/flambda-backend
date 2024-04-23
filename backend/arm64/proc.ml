@@ -394,8 +394,18 @@ let max_register_pressure = function
 
 (* Layout of the stack *)
 
-let initial_stack_offset = 0
+let initial_stack_offset ~num_stack_slots ~contains_calls =
+  (8 * num_stack_slots.(0))
+  + (8 * num_stack_slots.(1))
+  + if contains_calls then 8 else 0
+
 let trap_frame_size_in_bytes = 16
+
+let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
+  let sz =
+    stack_offset + initial_stack_offset ~num_stack_slots ~contains_calls
+  in
+  Misc.align sz 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fun_contains_calls
@@ -405,17 +415,36 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
 
-let frame_size ~stack_offset:_ ~fun_contains_calls:_ ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
-
 type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
 [@@ocaml.warning "-37"]
 
-let slot_offset _loc ~stack_class:_ ~stack_offset:_ ~fun_contains_calls:_
-      ~fun_num_stack_slots:_ =
-  Misc.fatal_error "Full DWARF support for arm64 not yet implemented"
+let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
+      ~fun_contains_calls ~fun_num_stack_slots =
+  match loc with
+    Incoming n ->
+      assert (n >= 0);
+      let frame_size =
+        frame_size ~stack_offset ~contains_calls:fun_contains_calls
+          ~num_stack_slots:fun_num_stack_slots
+      in
+      Bytes_relative_to_stack_pointer (frame_size + n)
+  | Local n ->
+      let offset =
+        stack_offset +
+        (match stack_class with
+        | 0 -> n * 8
+        | 1 -> fun_num_stack_slots.(0) * 8 + n * 8
+        | _ -> Misc.fatal_errorf "Unknown stack class %d" stack_class)
+      in
+      Bytes_relative_to_stack_pointer offset
+  | Outgoing n ->
+      assert (n >= 0);
+      Bytes_relative_to_stack_pointer n
+  | Domainstate n ->
+      Bytes_relative_to_domainstate_pointer (
+        n + Domainstate.(idx_of_field Domain_extra_params) * 8)
 
 (* Calling the assembler *)
 

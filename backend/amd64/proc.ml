@@ -651,7 +651,11 @@ let max_register_pressure =
 
 (* Layout of the stack frame *)
 
-let initial_stack_offset = 0
+let initial_stack_offset ~num_stack_slots ~contains_calls =
+  (8 * num_stack_slots.(0))
+  + (8 * num_stack_slots.(1))
+  + if contains_calls then 8 else 0
+
 let trap_frame_size_in_bytes = 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
@@ -663,17 +667,17 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
 
-(* CR mshinwell: use [frame_size] and [slot_offset] in [Emit] *)
-
 (* returned size includes return address *)
-let frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots =
-  if frame_required ~fun_contains_calls ~fun_num_stack_slots then begin
+let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
+  if frame_required ~fun_contains_calls:contains_calls
+     ~fun_num_stack_slots:num_stack_slots
+  then begin
     let sz =
       (stack_offset
        + 8
-       + 8 * fun_num_stack_slots.(0)
-       + 8 * fun_num_stack_slots.(1)
-       + 16 * fun_num_stack_slots.(2)
+       + 8 * num_stack_slots.(0)
+       + 8 * num_stack_slots.(1)
+       + 16 * num_stack_slots.(2)
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -683,22 +687,29 @@ type slot_offset =
   | Bytes_relative_to_stack_pointer of int
   | Bytes_relative_to_domainstate_pointer of int
 
+(* CR mshinwell: standardise everywhere on e.g. [contains_calls] instead
+   of [fun_contains_calls] *)
+
 let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
       ~fun_num_stack_slots =
   match loc with
   | Incoming n ->
       Bytes_relative_to_stack_pointer (
-        frame_size ~stack_offset ~fun_contains_calls ~fun_num_stack_slots
+        frame_size ~stack_offset ~contains_calls:fun_contains_calls
+          ~num_stack_slots:fun_num_stack_slots
         + n)
   | Local n ->
+      if fun_num_stack_slots.(2) > 0 || stack_class >= 2
+      then assert_simd_enabled ();
       Bytes_relative_to_stack_pointer (
-        (stack_offset +
+        stack_offset +
+          (* Preserves original ordering (int -> float) *)
           match stack_class with
           | 2 -> n * 16
           | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-          | 1 ->
-              fun_num_stack_slots.(2) * 16 + fun_num_stack_slots.(0) * 8 + n * 8
-          | n -> Misc.fatal_errorf "Invalid register class %d" n))
+          | 1 -> fun_num_stack_slots.(2) * 16
+                 + fun_num_stack_slots.(0) * 8 + n * 8
+          | _ -> Misc.fatal_errorf "Unknown register class %d" stack_class)
   | Outgoing n -> Bytes_relative_to_stack_pointer n
   | Domainstate n ->
       Bytes_relative_to_domainstate_pointer (
