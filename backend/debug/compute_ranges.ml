@@ -120,6 +120,17 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
 
     let fold t ~init ~f = List.fold_left f init t.subranges
 
+    type get_singleton =
+      | No_ranges
+      | One_subrange of Subrange.t
+      | More_than_one_subrange
+
+    let get_singleton t =
+      match t.subranges with
+      | [] -> No_ranges
+      | [subrange] -> One_subrange subrange
+      | _ :: _ :: _ -> More_than_one_subrange
+
     let no_subranges t = match t.subranges with [] -> true | _ -> false
 
     let rewrite_labels_and_remove_empty_subranges t ~env =
@@ -272,6 +283,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
          keeping things fast---but we still populate ranges for all parent
          blocks, thus avoiding any post-processing, by using [K.all_parents]
          here. *)
+      (* CR mshinwell: this seems to be broken (e.g. removing parents when it shouldn't
+         be) *)
       KS.fold
         (fun key result ->
           List.fold_left
