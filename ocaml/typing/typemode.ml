@@ -58,7 +58,7 @@ let transl_global_flags modalities =
       in
       loop acc rest
   in
-  loop Global_flag.unrestricted_with_loc modalities
+  loop { txt = Unrestricted; loc = Location.none } modalities
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in

@@ -1,8 +1,11 @@
 (* TEST
-flags = "-extension-universe stable"
-include stable
-* bytecode
-* native
+ flags = "-extension-universe stable";
+ include stable;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 open Stable

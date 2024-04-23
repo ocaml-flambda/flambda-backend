@@ -1,10 +1,13 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
-** hasunix
-include unix
-*** native
-*** bytecode
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ include unix;
+ hasunix;
+ {
+   native;
+ }{
+   bytecode;
+ }
 *)
 
 type 'a tree = Empty | Node of 'a tree * 'a tree

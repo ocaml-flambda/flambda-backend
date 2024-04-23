@@ -1,17 +1,24 @@
 (* TEST
-   modules = "stubs.c"
-   * flambda2
-   reference = "${test_source_directory}/c_api.reference"
-   ** native
-   ** bytecode
-   ** native
-     flags = "-extension layouts_alpha"
-   ** bytecode
-     flags = "-extension layouts_alpha"
-   ** native
-     flags = "-extension layouts_beta"
-   ** bytecode
-     flags = "-extension layouts_beta"
+ modules = "stubs.c";
+ reference = "${test_source_directory}/c_api.reference";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 
 (* mshinwell: This test is now only run with flambda2, as the corresponding

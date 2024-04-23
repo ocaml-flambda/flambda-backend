@@ -1,0 +1,2 @@
+File "i16_range.ml", line 1:
+Error: Int16 constant not in range [0x0,0xffff]: 0x0000000000010000

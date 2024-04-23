@@ -1,7 +1,7 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 effects: re-enable this test"
- *)
+ reason = "CR ocaml 5 effects: re-enable this test";
+ skip;
+*)
 
 open Effect
 open Effect.Deep

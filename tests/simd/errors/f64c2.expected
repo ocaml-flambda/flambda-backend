@@ -1,0 +1,2 @@
+File "f64c2.ml", line 1:
+Error: Did not find constant float arguments for caml_float64x2_const2

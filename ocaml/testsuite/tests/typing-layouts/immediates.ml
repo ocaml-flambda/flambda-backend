@@ -1,22 +1,22 @@
-(* TEST
-   reference = "${test_source_directory}/immediates.reference"
-   * flambda2
-   ** native
-   ** bytecode
-   ** native
-     flags = "-extension layouts_alpha"
-   ** bytecode
-     flags = "-extension layouts_alpha"
-   ** native
-     flags = "-extension layouts_beta"
-   ** bytecode
-     flags = "-extension layouts_beta"
-   ** setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-   *** ocamlc.byte
-     flags = "-extension-universe no_extensions"
-     compiler_reference = "${test_source_directory}/immediates_disabled.compilers.reference"
-   **** check-ocamlc.byte-output
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 *)
@@ -97,3 +97,32 @@ let[@inline never] test2 x =
 ;;
 
 let () = test2 123_456_789_000
+
+(* TEST
+ reference = "${test_source_directory}/immediates.reference";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }{
+   ocamlc_byte_exit_status = "2";
+   setup-ocamlc.byte-build-env;
+   flags = "-extension-universe no_extensions";
+   compiler_reference = "${test_source_directory}/immediates_disabled.compilers.reference";
+   ocamlc.byte;
+   check-ocamlc.byte-output;
+ }
+*)

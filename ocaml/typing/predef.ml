@@ -17,7 +17,6 @@
 
 open Path
 open Types
-open Mode
 open Btype
 
 let builtin_idents = ref []
@@ -280,7 +279,7 @@ let build_initial_env add_type add_extension empty_env =
                                  (fun x ->
                                     {
                                       ca_type=x;
-                                      ca_global=Global_flag.unrestricted_with_loc;
+                                      ca_global=Unrestricted;
                                       ca_loc=Location.none
                                     }
                                  )
@@ -298,7 +297,7 @@ let build_initial_env add_type add_extension empty_env =
   in
   let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds) in
   let unrestricted tvar =
-    {ca_type=tvar; ca_global=Global_flag.unrestricted_with_loc; ca_loc=Location.none}
+    {ca_type=tvar; ca_global=Unrestricted; ca_loc=Location.none}
   in
   empty_env
   (* Predefined types *)
@@ -357,7 +356,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
-               ld_global=Global_flag.unrestricted_with_loc;
+               ld_global=Unrestricted;
                ld_type=field_type;
                ld_jkind=jkind;
                ld_loc=Location.none;

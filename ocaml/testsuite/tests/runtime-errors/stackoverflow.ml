@@ -1,11 +1,11 @@
-(* TEST
-   flags = "-w -a"
-   ocamlrunparam += "l=100000"
-   * flambda
-   ** bytecode
-      reference = "${test_source_directory}/stackoverflow.byte.reference"
-   ** native
-      reference = "${test_source_directory}/stackoverflow.opt.reference"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
 *)
 
 let rec f x =
@@ -47,3 +47,16 @@ let _ =
     print_endline backtrace
  end;
  print_string "!p = "; print_int !p; print_newline ()
+
+(* TEST
+ flags = "-w -a";
+ ocamlrunparam += "l=100000";
+ flambda;
+ {
+   reference = "${test_source_directory}/stackoverflow.byte.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/stackoverflow.opt.reference";
+   native;
+ }
+*)

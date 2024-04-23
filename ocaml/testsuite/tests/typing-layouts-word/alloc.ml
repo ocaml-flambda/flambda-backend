@@ -1,6 +1,6 @@
 (* TEST
-   * flambda2
-   ** native
+ flambda2;
+ native;
 *)
 
 (* A test comparing allocations when using unboxed [nativeint#]es to allocations

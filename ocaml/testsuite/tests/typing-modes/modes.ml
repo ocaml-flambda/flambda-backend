@@ -1,5 +1,6 @@
 (* TEST
-   * expect *)
+ expect;
+*)
 
 (* Let bindings *)
 let local_ foo : string @@ unique = "hello"
@@ -7,7 +8,7 @@ let local_ foo : string @@ unique = "hello"
 Line 1, characters 4-43:
 1 | let local_ foo : string @@ unique = "hello"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let local_ foo @ unique = "hello"
@@ -15,7 +16,7 @@ let local_ foo @ unique = "hello"
 Line 1, characters 4-33:
 1 | let local_ foo @ unique = "hello"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
@@ -23,7 +24,7 @@ let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
 Line 1, characters 4-52:
 1 | let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let foo : type a. a -> a @@ unique = fun x -> x
@@ -36,7 +37,7 @@ let (x, y) @ local unique = "hello", "world"
 Line 1, characters 4-44:
 1 | let (x, y) @ local unique = "hello", "world"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let (x, y) : _ @@ local unique = "hello", "world"
@@ -44,7 +45,7 @@ let (x, y) : _ @@ local unique = "hello", "world"
 Line 1, characters 4-49:
 1 | let (x, y) : _ @@ local unique = "hello", "world"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let foo @ foo = "hello"
@@ -75,7 +76,7 @@ let foo = ("hello" : _ @@ local)
 Line 1, characters 10-32:
 1 | let foo = ("hello" : _ @@ local)
               ^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 (* this is not mode annotation *)

@@ -1,7 +1,7 @@
 (* TEST
-   modules = "is_in_static_data.c"
-   * naked_pointers
-   ** native
+ modules = "is_in_static_data.c";
+ naked_pointers;
+ native;
 *)
 
 (* Data that should be statically allocated by the compiler (all versions) *)

@@ -1,10 +1,8 @@
 (* TEST
- * setup-ocamlopt.byte-build-env
- ** ocamlopt.byte
- *** run
- **** check-program-output
-
-
+ setup-ocamlopt.byte-build-env;
+ ocamlopt.byte;
+ run;
+ check-program-output;
 *)
 
 type a = { mutable a : int }

@@ -80,6 +80,7 @@
     ident
     path
     shape
+    shape_reduce
     solver_intf
     solver
     mode_intf
@@ -182,6 +183,7 @@
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/solver.ml)
+(copy_files ../../typing/shape_reduce.ml)
 (copy_files ../../typing/mode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
@@ -247,6 +249,7 @@
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/solver.mli)
+(copy_files ../../typing/shape_reduce.mli)
 (copy_files ../../typing/mode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)

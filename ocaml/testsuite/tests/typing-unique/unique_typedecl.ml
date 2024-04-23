@@ -1,6 +1,7 @@
 (* TEST
-flags += "-extension unique"
-* expect *)
+ flags += "-extension unique";
+ expect;
+*)
 
 (* This file tests how unique_ and once_ are interpreated in signatures
    especially when currying is involved *)

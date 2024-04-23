@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 
 (* tests that we correctly empty the shared pool's freelist. This requires a
     bunch of garbage to be generated, a major cycle and two compactions to

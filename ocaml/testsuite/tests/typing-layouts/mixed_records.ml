@@ -1,7 +1,7 @@
 (* TEST
-  * runtime5
-  ** expect
- *)
+ runtime5;
+ expect;
+*)
 
 (* Mixed float-float# blocks are always OK. *)
 type t =

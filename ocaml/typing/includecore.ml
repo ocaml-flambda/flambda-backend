@@ -565,7 +565,7 @@ module Record_diffing = struct
         begin match mut with
         | Some mut -> Some (Mutability mut)
         | None ->
-          match compare_global_flags ld1.ld_global.txt ld2.ld_global.txt with
+          match compare_global_flags ld1.ld_global ld2.ld_global with
           | None ->
             let tl1 = params1 @ [ld1.ld_type] in
             let tl2 = params2 @ [ld2.ld_type] in
@@ -725,7 +725,7 @@ module Variant_diffing = struct
         if List.length arg1 <> List.length arg2 then
           Some (Arity : constructor_mismatch)
         else begin
-          let map_arg = List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global.txt) in
+          let map_arg = List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global) in
           let arg1_tys, arg1_gfs = List.split (map_arg arg1)
           and arg2_tys, arg2_gfs = List.split (map_arg arg2)
           in

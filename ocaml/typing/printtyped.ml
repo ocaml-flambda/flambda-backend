@@ -367,7 +367,7 @@ and function_body i ppf (body : function_body) =
       expression (i+1) ppf e
   | Tfunction_cases
       { fc_cases; fc_loc; fc_exp_extra; fc_attributes; fc_arg_mode;
-        fc_arg_sort; fc_param = _; fc_partial = _; }
+        fc_arg_sort; fc_param = _; fc_partial = _; fc_env = _; fc_ret_type = _ }
     ->
       line i ppf "Tfunction_cases %a\n" fmt_location fc_loc;
       alloc_mode i ppf fc_arg_mode;
@@ -404,16 +404,16 @@ and expression_extra i ppf x attrs =
       attributes i ppf attrs;
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
-  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print_raw ()) m
+  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 
 and locality_mode i ppf m =
   line i ppf "locality_mode %a\n"
-    (Mode.Locality.print_raw ()) m
+    (Mode.Locality.print ()) m
 
 and value_mode i ppf m =
-  line i ppf "value_mode %a\n" (Mode.Value.print_raw ()) m
+  line i ppf "value_mode %a\n" (Mode.Value.print ()) m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;

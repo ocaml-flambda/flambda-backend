@@ -1,9 +1,9 @@
 (* TEST
- flags = "-w +A-70"
- * setup-ocamlopt.byte-build-env
- ** ocamlopt.byte
- *** run
- **** check-program-output
+ flags = "-w +A-70";
+ setup-ocamlopt.byte-build-env;
+ ocamlopt.byte;
+ run;
+ check-program-output;
 *)
 
 (* Check that the runtime arity of a function (i.e., its 'fast path' for

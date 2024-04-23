@@ -1,10 +1,13 @@
 (* TEST
-  modules="opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml"
-  * skip
-  reason = "CR ocaml 5 domains: re-enable this test"
-  ** not-bsd
-  *** bytecode
-  *** native
+ modules = "opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml";
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ not-bsd;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* Memory model test:
