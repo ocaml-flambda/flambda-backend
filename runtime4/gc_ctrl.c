@@ -409,7 +409,7 @@ static intnat norm_minsize (intnat s)
   if (s > Minor_heap_max) s = Minor_heap_max;
   /* PR#9128 : Make sure the minor heap occupies an integral number of
      pages, so that no page contains both bytecode and OCaml
-     values. This would confuse, e.g., caml_hash. */
+     values. This would confuse, e.g., caml_hash_exn. */
   s = (s + page_wsize - 1) / page_wsize * page_wsize;
   return s;
 }
