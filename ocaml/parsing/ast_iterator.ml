@@ -655,11 +655,12 @@ module P = struct
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
         sub.pat_jane_syntax sub jpat
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
@@ -787,16 +788,12 @@ let default_iterator =
     type_exception = T.iter_type_exception;
     extension_constructor = T.iter_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim = _; pval_loc;
+      (fun this {pval_name; pval_type; pval_prim = _; pval_loc; pval_modes;
                  pval_attributes} ->
-        let modes, ptyp_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pval_type.ptyp_attributes
-        in
-        Option.iter (this.modes this) modes;
-        let pval_type = {pval_type with ptyp_attributes} in
         iter_loc this pval_name;
         this.typ this pval_type;
         this.location this pval_loc;
+        this.modes this pval_modes;
         this.attributes this pval_attributes;
       );
 
@@ -868,7 +865,7 @@ let default_iterator =
 
 
     value_binding =
-      (fun this ({pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint; pvb_modes} as pvb) ->
+      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint; pvb_modes} ->
          this.modes this pvb_modes;
          this.pat this pvb_pat;
          this.expr this pvb_expr;

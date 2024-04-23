@@ -355,8 +355,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
     | { pat_extra= (Tpat_constraint ct, _, _attrs) :: rem; _ } ->
+        (* CR cgunn: recover mode constraint info here *)
         Ppat_constraint (sub.pat sub { pat with pat_extra=rem },
-                         sub.typ sub ct)
+                         Some (sub.typ sub ct), [])
     | _ ->
     match pat.pat_desc with
       Tpat_any -> Ppat_any
@@ -408,7 +409,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Ppat_construct (map_loc sub lid,
           match tyo, arg with
           | Some (vl, ty), Some arg ->
-              Some (vl, Pat.mk ~loc (Ppat_constraint (arg, ty)))
+              (* CR cgunn: recover mode constraint info here *)
+              Some (vl, Pat.mk ~loc (Ppat_constraint (arg, Some ty, [])))
           | None, Some arg -> Some ([], arg)
           | _, None -> None)
     | Tpat_variant (label, pato, _) ->
@@ -453,17 +455,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
     | Texp_constraint cty ->
-        Pexp_constraint (sexp, sub.typ sub cty)
+        (* CR cgunn: recover mode constraint info here *)
+        Pexp_constraint (sexp, sub.typ sub cty, [])
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)
     | Texp_newtype (s, Some (_, jkind)) ->
         Jane_syntax.Layouts.expr_of ~loc
           (Lexp_newtype(add_loc s, jkind, sexp))
-        |> add_jane_syntax_attributes
-    | Texp_mode_coerce modes ->
-        Jane_syntax.Modes.expr_of ~loc
-          (Coerce (modes, sexp))
         |> add_jane_syntax_attributes
   in
   Exp.mk ~loc ~attrs:!attrs desc
@@ -566,12 +565,12 @@ let expression sub exp =
                       (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
                 | Some (Texp_constraint ty) ->
                     Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_poly _ | Texp_newtype _ | Texp_mode_coerce _)
+                | Some (Texp_poly _ | Texp_newtype _)
                 | None -> None
               in
               let constraint_ =
                 Option.map
-                  (fun x -> { mode_annotations = Jane_syntax.Mode_expr.empty;
+                  (fun x -> { mode_annotations = [];
                               type_constraint = x })
                   constraint_
               in
@@ -1042,7 +1041,8 @@ let core_type sub ct =
           (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (arg_label, ct1, ct2) ->
-        Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2)
+        (* CR cgunn: recover mode annotation here *)
+        Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
     | Ttyp_tuple list ->
         Jane_syntax.Labeled_tuples.typ_of ~loc
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)

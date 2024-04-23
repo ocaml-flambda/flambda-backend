@@ -151,6 +151,11 @@ let arg_label i ppf = function
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
+let modes i ppf modes =
+  list i string_loc ppf (
+    List.map (Location.map (fun (Mode x) -> x)) modes
+  )
+
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
@@ -159,11 +164,13 @@ let rec core_type i ppf x =
   match x.ptyp_desc with
   | Ptyp_any -> line i ppf "Ptyp_any\n";
   | Ptyp_var (s) -> line i ppf "Ptyp_var %s\n" s;
-  | Ptyp_arrow (l, ct1, ct2) ->
+  | Ptyp_arrow (l, ct1, ct2, m1, m2) ->
       line i ppf "Ptyp_arrow\n";
       arg_label i ppf l;
       core_type i ppf ct1;
       core_type i ppf ct2;
+      modes i ppf m1;
+      modes i ppf m2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
       list i core_type ppf l;
@@ -252,10 +259,11 @@ and pattern i ppf x =
   | Ppat_lazy p ->
       line i ppf "Ppat_lazy\n";
       pattern i ppf p;
-  | Ppat_constraint (p, ct) ->
+  | Ppat_constraint (p, ct, m) ->
       line i ppf "Ppat_constraint\n";
       pattern i ppf p;
-      core_type i ppf ct;
+      option i core_type ppf ct;
+      modes i ppf m;
   | Ppat_type (li) ->
       line i ppf "Ppat_type\n";
       longident_loc i ppf li
@@ -349,10 +357,11 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       expression i ppf e3;
-  | Pexp_constraint (e, ct) ->
+  | Pexp_constraint (e, ct, m) ->
       line i ppf "Pexp_constraint\n";
       expression i ppf e;
       core_type i ppf ct;
+      modes i ppf m;
   | Pexp_coerce (e, cto1, cto2) ->
       line i ppf "Pexp_coerce\n";
       expression i ppf e;
@@ -417,7 +426,8 @@ and value_description i ppf x =
        x.pval_name fmt_location x.pval_loc;
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
-  list (i+1) string ppf x.pval_prim
+  list (i+1) string ppf x.pval_prim;
+  modes (i+1) ppf x.pval_modes;
   )
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
@@ -971,7 +981,8 @@ and value_binding i ppf x =
   line i ppf "<def>\n";
   attributes (i+1) ppf x.pvb_attributes;
   pattern (i+1) ppf x.pvb_pat;
-  expression (i+1) ppf x.pvb_expr
+  expression (i+1) ppf x.pvb_expr;
+  modes (i+1) ppf x.pvb_modes
 
 and binding_op i ppf x =
   with_location_mapping ~loc:x.pbop_loc ppf (fun () ->

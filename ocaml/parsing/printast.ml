@@ -399,7 +399,8 @@ and value_description i ppf x =
        x.pval_name fmt_location x.pval_loc;
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
-  list (i+1) string ppf x.pval_prim
+  list (i+1) string ppf x.pval_prim;
+  modes (i+1) ppf x.pval_modes
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
 
@@ -929,7 +930,8 @@ and value_binding i ppf x =
   attributes (i+1) ppf x.pvb_attributes;
   pattern (i+1) ppf x.pvb_pat;
   Option.iter (value_constraint (i+1) ppf) x.pvb_constraint;
-  expression (i+1) ppf x.pvb_expr
+  expression (i+1) ppf x.pvb_expr;
+  modes (i+1) ppf x.pvb_modes
 
 and value_constraint i ppf x =
   let pp_sep ppf () = Format.fprintf ppf "@ "; in

@@ -1066,21 +1066,18 @@ module N_ary_functions = struct
           let possibly_constrained_body =
             match constraint_ with
             | None -> body
-            | Some { mode_annotations; type_constraint } -> (
+            | Some { mode_annotations; type_constraint } ->
               let constrained_body =
                 (* We can't call [Location.ghostify] here, as we need this file
                    to build with the upstream compiler; see Note [Buildable with
                    upstream] in jane_syntax.mli for details. *)
                 let loc = { body.pexp_loc with loc_ghost = true } in
                 match type_constraint with
-                | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc mode_annotations
+                | Pconstraint ty ->
+                  Ast_helper.Exp.constraint_ body ty ~loc mode_annotations
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
               in
-              match mode_annotations with
-              | _ :: _ ->
-                n_ary_function_expr (Mode_constraint mode_annotations)
-                  constrained_body
-              | [] -> constrained_body)
+              constrained_body
           in
           match params with
           | [] -> possibly_constrained_body
@@ -1759,7 +1756,6 @@ module Expression = struct
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
     | Jexp_tuple of Labeled_tuples.expression
-    | Jexp_modes of Modes.expression
 
   let of_ast_internal (feat : Feature.t) expr =
     match feat with
@@ -1779,9 +1775,6 @@ module Expression = struct
     | Language_extension Labeled_tuples ->
       let expr, attrs = Labeled_tuples.of_expr expr in
       Some (Jexp_tuple expr, attrs)
-    | Language_extension Mode ->
-      let expr, attrs = Modes.of_expr expr in
-      Some (Jexp_modes expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
@@ -1794,7 +1787,6 @@ module Expression = struct
       | Jexp_layout x -> Layouts.expr_of ~loc x
       | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
       | Jexp_tuple x -> Labeled_tuples.expr_of ~loc x
-      | Jexp_modes x -> Modes.expr_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
