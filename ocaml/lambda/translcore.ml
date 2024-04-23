@@ -1293,14 +1293,9 @@ and transl_function_without_attributes
     match body with
     | Tfunction_body exp ->
         layout_exp return_sort exp
-    | Tfunction_cases { fc_cases = { c_rhs; _ } :: _ } ->
-        layout_exp return_sort c_rhs
-    | Tfunction_cases { fc_cases = [] } ->
-        (* ppxes can generate empty function cases, which compiles to
-           a function that always raises Match_failure. We try less
-           hard to calculate a detailed layout that the middle-end can
-           use for optimizations. *)
-        layout_of_sort loc return_sort
+    | Tfunction_cases cases ->
+        layout cases.fc_env cases.fc_loc return_sort cases.fc_ret_type
+
   in
   match
     transl_tupled_function ~scopes loc params body
@@ -2031,7 +2026,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
                 { fc_cases = [case]; fc_param = param; fc_partial = partial;
                   fc_loc = ghost_loc; fc_exp_extra = None; fc_attributes = [];
                   fc_arg_mode = Mode.Alloc.disallow_right Mode.Alloc.legacy;
-                  fc_arg_sort = param_sort;
+                  fc_arg_sort = param_sort; fc_env = env;
+                  fc_ret_type = case.c_rhs.exp_type;
                 }))
     in
     let attr = function_attribute_disallowing_arity_fusion in
