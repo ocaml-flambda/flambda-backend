@@ -1342,7 +1342,9 @@ module Comonadic_with_regionality = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   let meet_const c m =
     Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
@@ -1405,7 +1407,9 @@ module Comonadic_with_locality = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   let meet_const c m =
     Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
@@ -1471,7 +1475,9 @@ module Monadic = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   (* The monadic fragment is inverted. Most of the inversion logic is taken care
      by [Solver_polarized], but some remain, such as the [Min_with] below which
@@ -1541,6 +1547,10 @@ module Value = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+  let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
+    | Monadic ax -> Monadic.proj_obj ax
+    | Comonadic ax -> Comonadic.proj_obj ax
+
   type ('a, 'b, 'c) modes =
     { regionality : 'a;
       linearity : 'b;
@@ -1605,6 +1615,11 @@ module Value = struct
       let monadic = Monadic.join m0.monadic m1.monadic in
       let comonadic = Comonadic.join m0.comonadic m1.comonadic in
       merge { monadic; comonadic }
+
+    let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
+     fun ax ppf a ->
+      let obj = proj_obj ax in
+      C.print obj ppf a
   end
 
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
@@ -1836,6 +1851,10 @@ module Alloc = struct
     | Comonadic :
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+
+  let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
+    | Monadic ax -> Monadic.proj_obj ax
+    | Comonadic ax -> Comonadic.proj_obj ax
 
   type ('a, 'b, 'c) modes =
     { locality : 'a;
@@ -2127,6 +2146,11 @@ module Alloc = struct
       let { comonadic; _ } = split m in
       let monadic = Monadic.min in
       merge { comonadic; monadic }
+
+    let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
+     fun ax ppf a ->
+      let obj = proj_obj ax in
+      C.print obj ppf a
 
     let split = split
 
