@@ -116,7 +116,7 @@ static void check_block (header_t *hp)
     /* For closures, skip to the start of the scannable environment */
     if (tag == Closure_tag) start = Start_env_closinfo(Closinfo_val(v));
     else start = 0;
-    for (i = start; i < Wosize_hp (hp); i++){
+    for (i = start; i < Scannable_wosize_hd (Hd_hp (hp)); i++){
       f = Field (v, i);
       if (Is_block (f) && Is_in_heap (f)){
         check_head (f);

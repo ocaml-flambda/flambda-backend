@@ -1,6 +1,6 @@
 (* TEST
  flags = "-extension layouts_alpha";
- runtime5;
+ flambda2;
  {
    native;
  }{

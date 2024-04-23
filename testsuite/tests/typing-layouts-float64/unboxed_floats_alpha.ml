@@ -1,5 +1,4 @@
 (* TEST
- runtime5;
  reference = "${test_source_directory}/unboxed_floats_alpha.reference";
  flambda2;
  {
