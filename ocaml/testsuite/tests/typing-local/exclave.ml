@@ -62,7 +62,7 @@ let foo x =
 Line 5, characters 8-9:
 5 |     ref y
             ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 (* following we check error detection *)
@@ -84,7 +84,7 @@ let foo x =
 Line 3, characters 10-25:
 3 |   let z = exclave_ Some y in
               ^^^^^^^^^^^^^^^
-Error: Exclave expression should only be in tail position of the current region
+Error: Exclave expression should only be in tail position of the current region.
 |}]
 
 (* following we test WHILE loop *)
@@ -108,7 +108,7 @@ let foo () =
 Line 3, characters 4-17:
 3 |     (exclave_ ());
         ^^^^^^^^^^^^^
-Error: Exclave expression should only be in tail position of the current region
+Error: Exclave expression should only be in tail position of the current region.
 |}]
 
 (* following we test FOR loop *)
@@ -129,7 +129,7 @@ let foo () =
 Line 3, characters 4-17:
 3 |     (exclave_ ());
         ^^^^^^^^^^^^^
-Error: Exclave expression should only be in tail position of the current region
+Error: Exclave expression should only be in tail position of the current region.
 |}]
 
 type t = { x : int option }
@@ -162,7 +162,7 @@ type data = { mutable a : string; }
 Line 6, characters 9-10:
 6 |   x.a <- z;
              ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let foo x =
