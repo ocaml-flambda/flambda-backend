@@ -53,6 +53,9 @@ val absolute_address : ?comment:string -> Targetint.t -> t
 
 val code_address_from_label : ?comment:string -> Asm_label.t -> t
 
+val code_address_from_label_plus_offset :
+  ?comment:string -> Asm_label.t -> offset_in_bytes:Targetint.t -> t
+
 val code_address_from_symbol : ?comment:string -> Asm_symbol.t -> t
 
 (* CR mshinwell: This doesn't form a code address. *)
@@ -104,6 +107,15 @@ val distance_between_labels_32_bit :
 
 val distance_between_labels_64_bit :
   ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> t
+
+val distance_between_labels_64_bit_with_offsets :
+  ?comment:string ->
+  upper:Asm_label.t ->
+  upper_offset:Targetint.t ->
+  lower:Asm_label.t ->
+  lower_offset:Targetint.t ->
+  unit ->
+  t
 
 val append_to_comment : t -> string -> t
 
