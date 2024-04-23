@@ -506,18 +506,12 @@ module Lattices_mono = struct
     | Id : ('a, 'a, 'd) morph  (** identity morphism *)
     | Meet_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Meet the input with the parameter *)
-    | Restrict_below : 'a -> ('a, 'a, 'l * disallowed) morph
-        (** [Restrict_below c] is identity for input lower than [c], and
-        undefined otherwise. This is the partial left joint of [Meet_with]. *)
     | Imply : 'a -> ('a, 'a, disallowed * 'd) morph
         (** The right adjoint of [Meet_with] *)
     | Join_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Join the input with the parameter *)
     | Subtract : 'a -> ('a, 'a, 'd * disallowed) morph
         (** The left adjoint of [Join_with] *)
-    | Restrict_above : 'a -> ('a, 'a, disallowed * 'r) morph
-        (** [Restrict_above c] is identity for input higher than [c], and
-        undefined otherwise. It is the partial right adjoint of [Join_with] *)
     | Proj : 't obj * ('t, 'r_) Axis.t -> ('t, 'r_, 'l * 'r) morph
         (** Project from a product to an axis *)
     | Max_with : ('t, 'r_) Axis.t -> ('r_, 't, disallowed * 'r) morph
@@ -563,7 +557,6 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Min_with ax -> Min_with ax
       | Meet_with c -> Meet_with c
-      | Restrict_below c -> Restrict_below c
       | Join_with c -> Join_with c
       | Subtract c -> Subtract c
       | Compose (f, g) ->
@@ -587,7 +580,6 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Max_with ax -> Max_with ax
       | Join_with c -> Join_with c
-      | Restrict_above c -> Restrict_above c
       | Meet_with c -> Meet_with c
       | Imply c -> Imply c
       | Compose (f, g) ->
@@ -612,10 +604,8 @@ module Lattices_mono = struct
       | Min_with ax -> Min_with ax
       | Max_with ax -> Max_with ax
       | Join_with c -> Join_with c
-      | Restrict_above c -> Restrict_above c
       | Subtract c -> Subtract c
       | Meet_with c -> Meet_with c
-      | Restrict_below c -> Restrict_below c
       | Imply c -> Imply c
       | Compose (f, g) ->
         let f = disallow_left f in
@@ -641,10 +631,8 @@ module Lattices_mono = struct
       | Min_with ax -> Min_with ax
       | Max_with ax -> Max_with ax
       | Join_with c -> Join_with c
-      | Restrict_above c -> Restrict_above c
       | Subtract c -> Subtract c
       | Meet_with c -> Meet_with c
-      | Restrict_below c -> Restrict_below c
       | Imply c -> Imply c
       | Compose (f, g) ->
         let f = disallow_right f in
@@ -692,9 +680,7 @@ module Lattices_mono = struct
     | Max_with ax -> proj_obj ax dst
     | Min_with ax -> proj_obj ax dst
     | Join_with _ -> dst
-    | Restrict_above _ -> dst
     | Meet_with _ -> dst
-    | Restrict_below _ -> dst
     | Imply _ -> dst
     | Subtract _ -> dst
     | Compose (f, g) ->
@@ -742,11 +728,7 @@ module Lattices_mono = struct
            not requird to be complete: i.e., it's allowed to return [None] when
            it should return [Some]. It would cause duplication but not error. *)
         if c0 = c1 then Some Refl else None
-      | Restrict_below c0, Restrict_below c1 ->
-        if c0 = c1 then Some Refl else None
       | Join_with c0, Join_with c1 -> if c0 = c1 then Some Refl else None
-      | Restrict_above c0, Restrict_above c1 ->
-        if c0 = c1 then Some Refl else None
       | Imply c0, Imply c1 -> if c0 = c1 then Some Refl else None
       | Subtract c0, Subtract c1 -> if c0 = c1 then Some Refl else None
       | Monadic_to_comonadic_min, Monadic_to_comonadic_min -> Some Refl
@@ -765,8 +747,7 @@ module Lattices_mono = struct
           match equal g0 g1 with None -> None | Some Refl -> Some Refl))
       | Map_comonadic f, Map_comonadic g -> (
         match equal f g with Some Refl -> Some Refl | None -> None)
-      | ( ( Id | Proj _ | Max_with _ | Min_with _ | Meet_with _
-          | Restrict_below _ | Join_with _ | Restrict_above _
+      | ( ( Id | Proj _ | Max_with _ | Min_with _ | Meet_with _ | Join_with _
           | Monadic_to_comonadic_min | Comonadic_to_monadic _
           | Monadic_to_comonadic_max | Local_to_regional
           | Locality_as_regionality | Global_to_regional | Regional_to_local
@@ -783,9 +764,7 @@ module Lattices_mono = struct
    fun dst ppf -> function
     | Id -> Format.fprintf ppf "id"
     | Join_with c -> Format.fprintf ppf "join_%a" (print dst) c
-    | Restrict_above c -> Format.fprintf ppf "restrict_above_%a" (print dst) c
     | Meet_with c -> Format.fprintf ppf "meet_%a" (print dst) c
-    | Restrict_below c -> Format.fprintf ppf "restrict_below_%a" (print dst) c
     | Imply c -> Format.fprintf ppf "imply_%a" (print dst) c
     | Subtract c -> Format.fprintf ppf "subtract_%a" (print dst) c
     | Proj (_, ax) -> Format.fprintf ppf "proj_%a" Axis.print ax
@@ -842,14 +821,6 @@ module Lattices_mono = struct
 
   let max_with dst ax a = Axis.update ax a (max dst)
 
-  let restrict_below obj c a =
-    assert (le obj a c);
-    a
-
-  let restrict_above obj c a =
-    assert (le obj c a);
-    a
-
   let monadic_to_comonadic_min :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
    fun obj (uniqueness, ()) ->
@@ -884,9 +855,7 @@ module Lattices_mono = struct
     | Max_with ax -> max_with dst ax a
     | Min_with ax -> min_with dst ax a
     | Meet_with c -> meet dst c a
-    | Restrict_below c -> restrict_below dst c a
     | Join_with c -> join dst c a
-    | Restrict_above c -> restrict_above dst c a
     | Imply c -> imply dst c a
     | Subtract c -> subtract dst c a
     | Monadic_to_comonadic_min -> monadic_to_comonadic_min dst a
@@ -921,10 +890,6 @@ module Lattices_mono = struct
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
-    | Restrict_below _, m -> Some m
-    | m, Restrict_below _ -> Some m
-    | Restrict_above _, m -> Some m
-    | m, Restrict_above _ -> Some m
     | Meet_with c0, Meet_with c1 -> Some (Meet_with (meet dst c0 c1))
     | Join_with c0, Join_with c1 -> Some (Join_with (join dst c0 c1))
     | Imply c0, Imply c1 -> Some (Imply (meet dst c0 c1))
@@ -1084,8 +1049,7 @@ module Lattices_mono = struct
       let g' = left_adjoint mid g in
       Compose (g', f')
     | Join_with c -> Subtract c
-    | Restrict_above c -> Join_with c
-    | Meet_with c -> Restrict_below c
+    | Meet_with _ -> Id
     | Imply c -> Meet_with c
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_min
     | Monadic_to_comonadic_max -> Comonadic_to_monadic dst
@@ -1112,9 +1076,8 @@ module Lattices_mono = struct
       let g' = right_adjoint mid g in
       Compose (g', f')
     | Meet_with c -> Imply c
-    | Restrict_below c -> Meet_with c
     | Subtract c -> Join_with c
-    | Join_with c -> Restrict_above c
+    | Join_with _ -> Id
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_max
     | Monadic_to_comonadic_min -> Comonadic_to_monadic dst
     | Local_to_regional -> Regional_to_local
