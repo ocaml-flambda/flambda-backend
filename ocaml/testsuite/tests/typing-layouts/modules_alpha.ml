@@ -97,6 +97,37 @@ Error: Signature mismatch:
        because their layouts are different.
 |}]
 
+module type S1_3 = sig
+  type ('a : non_null_value) t
+  type s
+  type u : non_null_value
+end;;
+[%%expect {|
+module type S1_3 =
+  sig type ('a : non_null_value) t type s type u : non_null_value end
+|}]
+
+module type S1_3' = S1_3 with type 'a t = 'a list and type s = t_non_null_value;;
+[%%expect {|
+module type S1_3' =
+  sig
+    type ('a : non_null_value) t = 'a list
+    type s = t_non_null_value
+    type u : non_null_value
+  end
+|}];;
+
+module type S1_3'' = S1_3 with type u = t_value;;
+[%%expect {|
+Line 1, characters 31-47:
+1 | module type S1_3'' = S1_3 with type u = t_value;;
+                                   ^^^^^^^^^^^^^^^^
+Error: The layout of type t_value is value, because
+         of the definition of t_value at line 2, characters 0-20.
+       But the layout of type t_value must be a sublayout of non_null_value, because
+         of the definition of u at line 4, characters 2-25.
+|}];;
+
 (************************************************************************)
 (* Test 2: with type constraints for fixed types (the complicated case of
    Type_mod.merge_constraint) *)
@@ -552,6 +583,16 @@ Line 2, characters 2-34:
 2 |   val f : ('a : float64). 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Module M defines a function whose first argument is not a value, f .
+|}]
+
+module type S = sig
+  val f : ('a : non_null_value). 'a -> 'a
+end
+
+module rec M : S = M;;
+[%%expect{|
+module type S = sig val f : ('a : non_null_value). 'a -> 'a end
+module rec M : S
 |}]
 
 (*******************************)

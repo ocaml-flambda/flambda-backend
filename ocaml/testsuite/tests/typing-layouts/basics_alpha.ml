@@ -958,6 +958,21 @@ Error: The type constraints are not consistent.
          it's the type of an object field.
 |}];;
 
+module M11_7 = struct
+  type ('a : non_null_value) t = { x : int; v : 'a }
+  type t' = < m : t_non_null_value >
+
+  let f t = t.v # foo
+end;;
+[%%expect{|
+module M11_7 :
+  sig
+    type ('a : non_null_value) t = { x : int; v : 'a; }
+    type t' = < m : t_non_null_value >
+    val f : < foo : 'a; .. > t -> 'a
+  end
+|}]
+
 (*******************************************************************)
 (* Test 12: class parameters and bound vars must have jkind value *)
 
@@ -1088,6 +1103,18 @@ Error: Variables bound in a class must have layout value.
          it's the type of an instance variable.
 |}];;
 
+module M12_8 = struct
+  class virtual foobar = object
+    val virtual xyz : t_non_null_value
+  end
+end;;
+[%%expect{|
+module M12_8 :
+  sig
+    class virtual foobar : object val virtual xyz : t_non_null_value end
+  end
+|}]
+
 (*************************************************************************)
 (* Test 13: built-in type constructors and support for non-value layouts *)
 
@@ -1132,6 +1159,18 @@ Error: This expression has type ('a : value)
          it's the type of a lazy expression.
 |}];;
 
+type t13 = t_non_null_value Lazy.t
+let x13 (x : t_non_null_value) = lazy x;;
+let y13 x : t_non_null_value =
+  match x with
+  | lazy x -> x
+;;
+[%%expect{|
+type t13 = t_non_null_value Lazy.t
+val x13 : t_non_null_value -> t_non_null_value lazy_t = <fun>
+val y13 : t_non_null_value lazy_t -> t_non_null_value = <fun>
+|}]
+
 (* option *)
 (* CR layouts v5: allow this *)
 type t13 = t_void option;;
@@ -1174,6 +1213,19 @@ Error: This expression has type ('a : value)
        But the layout of t_void must be a sublayout of value, because
          the type argument of option has layout value.
 |}];;
+
+type t13 = t_non_null_value option
+let x13 (x : t_non_null_value) = Some x;;
+let y13 x : t_non_null_value =
+  match x with
+  | Some x -> x
+  | None -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value option
+val x13 : t_non_null_value -> t_non_null_value option = <fun>
+val y13 : t_non_null_value option -> t_non_null_value = <fun>
+|}]
 
 (* list *)
 (* CR layouts: should work after relaxing the mixed block restriction. *)
@@ -1218,6 +1270,20 @@ Error: This expression has type ('a : value)
          the type argument of list has layout value.
 |}];;
 
+
+type t13 = t_non_null_value list
+let x13 (x : t_non_null_value) = [x];;
+let y13 x : t_non_null_value =
+  match x with
+  | [x] -> x
+  | _ -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value list
+val x13 : t_non_null_value -> t_non_null_value list = <fun>
+val y13 : t_non_null_value list -> t_non_null_value = <fun>
+|}]
+
 (* array *)
 (* CR layouts v4: should work *)
 type t13 = t_void array;;
@@ -1249,6 +1315,20 @@ Error: Non-value detected in [value_kind].
        But the layout of t_void must be a sublayout of value, because
          it has to be value for the V1 safety check.
 |}];;
+
+type t13 = t_non_null_value array
+let x13 (x : t_non_null_value) = [|x|];;
+let y13 x : t_non_null_value =
+  match x with
+  | [|x|] -> x
+  | _ -> assert false
+;;
+[%%expect{|
+type t13 = t_non_null_value array
+val x13 : t_non_null_value -> t_non_null_value array = <fun>
+val y13 : t_non_null_value array -> t_non_null_value = <fun>
+|}]
+
 
 (****************************************************************************)
 (* Test 14: Examples motivating the trick with the manifest in [enter_type] *)
