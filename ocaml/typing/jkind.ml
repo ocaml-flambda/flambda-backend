@@ -405,7 +405,7 @@ module Layout = struct
       | Non_null_value, Non_null_value -> Equal
       | Non_null_value, Sort Value -> Less
       | (Any | Sort _), Non_null_value -> Not_le
-      | (Any | Sort _| Non_null_value), Sort _ -> Not_le
+      | (Any | Sort _ | Non_null_value), Sort _ -> Not_le
   end
 
   type t =
@@ -444,7 +444,7 @@ module Layout = struct
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
     | Non_null_value, Non_null_value -> Some Non_null_value
-    | (Sort s, Non_null_value) | (Non_null_value, Sort s) ->
+    | Sort s, Non_null_value | Non_null_value, Sort s ->
       if Sort.equate s (Const Value) then Some Non_null_value else None
 
   let of_new_sort_var () =
@@ -766,7 +766,9 @@ module Jkind_desc = struct
   let get { layout; modes_upper_bounds; externality_upper_bound } : Desc.t =
     match layout with
     | Any -> Const { layout = Any; modes_upper_bounds; externality_upper_bound }
-    | Non_null_value -> Const { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
+    | Non_null_value ->
+      Const
+        { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
     | Sort s -> (
       match Sort.get s with
       | Const s ->
@@ -1109,7 +1111,8 @@ let get_default_value
     Const.t =
   match layout with
   | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
-  | Non_null_value ->  { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
+  | Non_null_value ->
+    { layout = Non_null_value; modes_upper_bounds; externality_upper_bound }
   | Sort s ->
     { layout = Sort (Sort.get_default_value s);
       modes_upper_bounds;
