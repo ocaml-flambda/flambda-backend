@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 (* A bug in typecore leading to extra expansion led this to be rejected. *)

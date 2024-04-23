@@ -1,6 +1,6 @@
 (* TEST
-  * expect
- *)
+ expect;
+*)
 
 (* Mixed float-float# blocks are always OK. *)
 type t =

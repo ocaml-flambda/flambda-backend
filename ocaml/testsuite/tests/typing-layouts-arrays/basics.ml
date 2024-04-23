@@ -1,10 +1,14 @@
 (* TEST
-   * flambda2
-   ** expect
-     flags = "-extension layouts_alpha"
-   ** expect
-     flags = "-extension layouts_beta"
-   ** expect
+ flambda2;
+ {
+   flags = "-extension layouts_alpha";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }{
+   expect;
+ }
 *)
 (* Tests around type-checking arrays of unboxed types. Tests around
    compilation correctness should go somewhere else. *)

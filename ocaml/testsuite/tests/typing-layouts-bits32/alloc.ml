@@ -1,6 +1,6 @@
 (* TEST
-   * flambda2
-   ** native
+ flambda2;
+ native;
 *)
 
 (* A test comparing allocations when using unboxed [int32#]es to allocations

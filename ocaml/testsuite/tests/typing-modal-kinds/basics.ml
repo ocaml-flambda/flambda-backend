@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension unique"
+ flags = "-extension unique";
+ expect;
 *)
 
 module Hidden_string : sig
@@ -83,7 +83,7 @@ let string_escape = let local_ x : string = "hello" in x
 Line 1, characters 55-56:
 1 | let string_escape = let local_ x : string = "hello" in x
                                                            ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let int_escape = let local_ x : int = 5 in x
@@ -98,7 +98,7 @@ let string_list_escape = let local_ x : string list = ["hi";"bye"] in x
 Line 1, characters 70-71:
 1 | let string_list_escape = let local_ x : string list = ["hi";"bye"] in x
                                                                           ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let int_list_escape = let local_ x : int list = [4;5] in x
@@ -107,7 +107,7 @@ let int_list_escape = let local_ x : int list = [4;5] in x
 Line 1, characters 57-58:
 1 | let int_list_escape = let local_ x : int list = [4;5] in x
                                                              ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_string_escape =
@@ -117,7 +117,7 @@ let hidden_string_escape =
 Line 2, characters 65-66:
 2 |   let local_ x : Hidden_string.t = Hidden_string.hide "hello" in x
                                                                      ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_int_escape =
@@ -136,7 +136,7 @@ let hidden_string_list_escape =
 Line 4, characters 5-6:
 4 |   in x
          ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_int_list_escape =
@@ -148,7 +148,7 @@ let hidden_int_list_escape =
 Line 4, characters 5-6:
 4 |   in x
          ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let float_escape = let local_ x : float = 3.14 in x
@@ -157,7 +157,7 @@ let float_escape = let local_ x : float = 3.14 in x
 Line 1, characters 50-51:
 1 | let float_escape = let local_ x : float = 3.14 in x
                                                       ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let float_u_escape () = let local_ x : float# = #3.14 in x
@@ -180,7 +180,7 @@ let float_u_record_escape =
 Line 2, characters 63-64:
 2 |   let local_ x : float_u_record = { x = #3.14; y = #2.718 } in x
                                                                    ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let float_u_record_list_escape =
@@ -190,7 +190,7 @@ let float_u_record_list_escape =
 Line 2, characters 45-46:
 2 |   let local_ x : float_u_record list = [] in x
                                                  ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 type r = {x : float; y : float}
@@ -211,7 +211,7 @@ let function_escape = let local_ x : int -> int = fun y -> y in x
 Line 1, characters 64-65:
 1 | let function_escape = let local_ x : int -> int = fun y -> y in x
                                                                     ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let function_list_escape =
@@ -221,7 +221,7 @@ let function_list_escape =
 Line 2, characters 71-72:
 2 |   let local_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in x
                                                                            ^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
@@ -231,7 +231,7 @@ let string_duplicate = let once_ x : string = "hello" in Fun.id x
 Line 1, characters 64-65:
 1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
                                                                     ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
@@ -247,7 +247,7 @@ let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 Line 1, characters 79-80:
 1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
                                                                                    ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
@@ -257,7 +257,7 @@ let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 Line 1, characters 66-67:
 1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
                                                                       ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_string_duplicate =
@@ -267,7 +267,7 @@ let hidden_string_duplicate =
 Line 2, characters 71-72:
 2 |   let once_ x : Hidden_string.t = Hidden_string.hide "hello" in Fun.id x
                                                                            ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_int_duplicate =
@@ -286,7 +286,7 @@ let hidden_string_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let hidden_int_list_duplicate =
@@ -299,7 +299,7 @@ let hidden_int_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
@@ -309,7 +309,7 @@ let float_duplicate = let once_ x : float = 3.14 in Fun.id x
 Line 1, characters 59-60:
 1 | let float_duplicate = let once_ x : float = 3.14 in Fun.id x
                                                                ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
@@ -333,7 +333,7 @@ let float_u_record_duplicate =
 Line 2, characters 69-70:
 2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
                                                                          ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let float_u_record_list_duplicate =
@@ -344,7 +344,7 @@ let float_u_record_list_duplicate =
 Line 2, characters 51-52:
 2 |   let once_ x : float_u_record list = [] in Fun.id x
                                                        ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -353,7 +353,7 @@ let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
 Line 1, characters 73-74:
 1 | let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
                                                                              ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let function_list_duplicate =
@@ -363,7 +363,7 @@ let function_list_duplicate =
 Line 2, characters 77-78:
 2 |   let once_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in Fun.id x
                                                                                  ^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let unique (unique_ x) = x
@@ -434,7 +434,7 @@ let hidden_string_unshare =
 Line 2, characters 75-76:
 2 |   let x : Hidden_string.t = Hidden_string.hide "hello" in ignore x; unique x
                                                                                ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let hidden_int_unshare =
@@ -461,7 +461,7 @@ let hidden_string_list_unshare =
 Line 4, characters 22-23:
 4 |   in ignore x; unique x
                           ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let hidden_int_list_unshare =
@@ -520,7 +520,7 @@ val imm_escape : unit -> int = <fun>
 Line 1, characters 33-44:
 1 | let imm_escape () = Immediate.id (local_ 42) [@nontail]
                                      ^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let hidden_float_u_unshare () =
@@ -603,5 +603,5 @@ let foo : (string -> string) -> (string -> string) @ unique
 Line 2, characters 13-14:
 2 |   = fun f -> f
                  ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]

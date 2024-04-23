@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 type t_any   : any
@@ -376,9 +376,9 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-Line 4, characters 15-22:
+Lines 3-4, characters 33-22:
+3 | .................................function
 4 |   | Void5 x -> Void5 x
-                   ^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of 'a is void, because

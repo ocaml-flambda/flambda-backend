@@ -1,9 +1,7 @@
 (* TEST
-   flags = "-I ${ocamlsrcdir}/typing \
-    -I ${ocamlsrcdir}/parsing \
-    -I ${ocamlsrcdir}/utils"
-   include ocamlcommon
-   * expect
+ flags = "-I ${ocamlsrcdir}/typing -I ${ocamlsrcdir}/parsing -I ${ocamlsrcdir}/utils";
+ include ocamlcommon;
+ expect;
 *)
 
 let run s =

@@ -1,8 +1,11 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 effects: re-enable this test"
-** bytecode
-** native
+ reason = "CR ocaml 5 effects: re-enable this test";
+ skip;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 open Effect

@@ -1,19 +1,21 @@
 (* TEST
- flags = "-extension layouts_alpha"
- program = "${test_build_directory}/hash.exe"
-all_modules = "hash.ml"
-
- * flambda2
- ** setup-ocamlc.opt-build-env
- *** ocamlc.opt
- **** run
- ***** check-program-output
-   reference = "${test_source_directory}/hash.byte.reference"
- ** setup-ocamlopt.opt-build-env
- *** ocamlopt.opt
- **** run
- ***** check-program-output
-   reference = "${test_source_directory}/hash.native.reference"
+ flags = "-extension layouts_alpha";
+ program = "${test_build_directory}/hash.exe";
+ all_modules = "hash.ml";
+ flambda2;
+ {
+   setup-ocamlc.opt-build-env;
+   ocamlc.opt;
+   run;
+   reference = "${test_source_directory}/hash.byte.reference";
+   check-program-output;
+ }{
+   setup-ocamlopt.opt-build-env;
+   ocamlopt.opt;
+   run;
+   reference = "${test_source_directory}/hash.native.reference";
+   check-program-output;
+ }
 *)
 
 (* Currently bytecode/native hashes of mixed records are different.
@@ -40,7 +42,7 @@ let () =
   |> printf "\t{ x : float; y : float# } = %d\n"
 
 
-let () = 
+let () =
   let open struct
     type t =
       { x : float#;

@@ -50,7 +50,9 @@
 (rule
  (alias runtest)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic.out)

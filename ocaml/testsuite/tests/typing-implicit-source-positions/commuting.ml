@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 let pos_a : lexing_position = {Lexing.dummy_pos with pos_fname = "a"};;

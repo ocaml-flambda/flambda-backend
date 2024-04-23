@@ -1,26 +1,36 @@
 (* TEST
-   * flambda2
-   reference = "${test_source_directory}/unboxed_floats.reference"
-   ** native
-   ** bytecode
-   ** native
-     flags = "-extension layouts_alpha"
-   ** bytecode
-     flags = "-extension layouts_alpha"
-   ** native
-     flags = "-extension layouts_beta"
-   ** bytecode
-     flags = "-extension layouts_beta"
-   ** native
-     flags = "-extension-universe upstream_compatible"
-   ** bytecode
-     flags = "-extension-universe upstream_compatible"
-   ** setup-ocamlc.byte-build-env
-     ocamlc_byte_exit_status = "2"
-   *** ocamlc.byte
-     flags = "-extension-universe no_extensions"
-     compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference"
-   **** check-ocamlc.byte-output
+ reference = "${test_source_directory}/unboxed_floats.reference";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }{
+   flags = "-extension-universe upstream_compatible";
+   native;
+ }{
+   flags = "-extension-universe upstream_compatible";
+   bytecode;
+ }{
+   ocamlc_byte_exit_status = "2";
+   setup-ocamlc.byte-build-env;
+   flags = "-extension-universe no_extensions";
+   compiler_reference = "${test_source_directory}/unboxed_floats_disabled.compilers.reference";
+   ocamlc.byte;
+   check-ocamlc.byte-output;
+ }
 *)
 
 (* CR layouts v2.6: Layouts should be erasable and we can remove the

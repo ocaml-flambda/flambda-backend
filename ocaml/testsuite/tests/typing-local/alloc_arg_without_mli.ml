@@ -1,12 +1,10 @@
 (* TEST
-
-readonly_files = "alloc_arg_with_mli.ml"
-
-* stack-allocation
-** native
-compile_only = "false"
-flags = "-o ${test_build_directory}/alloc_arg_without_mli.opt"
-module = "alloc_arg_with_mli.ml"
+ readonly_files = "alloc_arg_with_mli.ml";
+ stack-allocation;
+ compile_only = "false";
+ flags = "-o ${test_build_directory}/alloc_arg_without_mli.opt";
+ module = "alloc_arg_with_mli.ml";
+ native;
 *)
 
 (* Check whether functions that *could* take their argument

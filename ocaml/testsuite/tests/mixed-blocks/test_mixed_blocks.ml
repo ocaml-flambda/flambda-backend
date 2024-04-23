@@ -1,10 +1,13 @@
 (* TEST
-   * flambda2
-   reference = "${test_source_directory}/test_mixed_blocks.reference"
-   ** native
-     flags = "-extension layouts_alpha"
-   ** bytecode
-     flags = "-extension layouts_alpha"
+ reference = "${test_source_directory}/test_mixed_blocks.reference";
+ flambda2;
+ {
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }
 *)
 
 (*****************************************)

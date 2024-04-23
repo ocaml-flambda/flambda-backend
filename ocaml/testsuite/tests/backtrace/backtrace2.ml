@@ -1,8 +1,8 @@
-(* TEST
-   * skip
-   reason = "Backtraces are broken by the use of reraise"
-   flags = "-g"
-   ocamlrunparam += ",b=1"
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
 *)
 
 (* A test for stack backtraces *)
@@ -78,3 +78,10 @@ let _ =
   run test_lazy  [| () |];
   run test_lazy  [| () |];
   ()
+
+(* TEST
+ reason = "Backtraces are broken by the use of reraise";
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+ skip;
+*)

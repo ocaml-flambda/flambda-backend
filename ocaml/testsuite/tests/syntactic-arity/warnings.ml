@@ -1,5 +1,5 @@
 (* TEST
- * expect
+ expect;
 *)
 
 (* Locations of type errors when there is an error

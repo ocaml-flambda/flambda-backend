@@ -1,7 +1,7 @@
 (* TEST
-   * flambda2
-   ** expect
-     flags = "-extension layouts_alpha"
+ flambda2;
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 (* This test is almost entirely a copy of [basics.ml], except

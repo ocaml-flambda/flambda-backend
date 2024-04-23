@@ -1,7 +1,7 @@
 (* TEST
-  flags = "-extension layouts_alpha"
-  * expect
- *)
+ flags = "-extension layouts_alpha";
+ expect;
+*)
 
 (* Mixed float-float# blocks are always OK. *)
 type t =

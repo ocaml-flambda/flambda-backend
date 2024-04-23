@@ -1,5 +1,5 @@
 (* TEST
-   * runtime5
+ runtime5;
 *)
 
 (* Check the numbers drawn from a known state against the numbers
