@@ -2,7 +2,7 @@
  flags = "-extension layouts_alpha";
  program = "${test_build_directory}/hash.exe";
  all_modules = "hash.ml";
- runtime5;
+ flambda2;
  {
    setup-ocamlc.opt-build-env;
    ocamlc.opt;
@@ -42,7 +42,7 @@ let () =
   |> printf "\t{ x : float; y : float# } = %d\n"
 
 
-let () = 
+let () =
   let open struct
     type t =
       { x : float#;

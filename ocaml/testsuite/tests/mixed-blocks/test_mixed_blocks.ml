@@ -1,5 +1,4 @@
 (* TEST
- runtime5;
  reference = "${test_source_directory}/test_mixed_blocks.reference";
  flambda2;
  {

@@ -216,17 +216,24 @@ void caml_oldify_one (value v, value *p)
         value field0;
 
         sz = Wosize_hd (hd);
+        mlsize_t scannable_sz = Scannable_wosize_hd(hd);
         result = caml_alloc_shr_for_minor_gc (sz, tag, hd);
         *p = result;
+        /* Copy the non-scannable suffix of fields */
+        for (i = scannable_sz; i < sz; i++) {
+          Field(result, i) = Field(v, i);
+        }
         field0 = Field (v, 0);
         Hd_val (v) = 0;            /* Set forward flag */
         Field (v, 0) = result;     /*  and forward pointer. */
-        if (sz > 1){
+        if (scannable_sz == 0) {
+          return;
+        } else if (scannable_sz > 1){
           Field (result, 0) = field0;
           Field (result, 1) = oldify_todo_list;    /* Add this block */
           oldify_todo_list = v;                    /*  to the "to do" list. */
         }else{
-          CAMLassert (sz == 1);
+          CAMLassert (scannable_sz == 1);
           p = &Field (result, 0);
           v = field0;
           goto tail_call;
@@ -319,11 +326,21 @@ void caml_oldify_mopup (void)
     new_v = Field (v, 0);                /* Follow forward pointer. */
     oldify_todo_list = Field (new_v, 1); /* Remove from list. */
 
+    mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
+
+    /* [v] was only added to the [todo_list] if its [scannable_wosize > 1].
+       - It needs to be greater than 0 because we oldify the first field.
+       - It needs to be greater than 1 so the below loop runs at least once,
+       overwriting Field(new_v, 1) which [oldify_one] used as temporary
+       storage of the next value of [todo_list].
+    */
+    CAMLassert (scannable_wosize > 1);
+
     f = Field (new_v, 0);
     if (Is_block (f) && Is_young (f)){
       caml_oldify_one (f, &Field (new_v, 0));
     }
-    for (i = 1; i < Wosize_val (new_v); i++){
+    for (i = 1; i < scannable_wosize; i++){
       f = Field (v, i);
       if (Is_block (f) && Is_young (f)){
         caml_oldify_one (f, &Field (new_v, i));
@@ -332,6 +349,8 @@ void caml_oldify_mopup (void)
       }
     }
   }
+
+  // The non-scannable suffix is already copied in [oldify_one].
 
   /* Oldify the data in the minor heap of alive ephemeron
      During minor collection keys outside the minor heap are considered alive */

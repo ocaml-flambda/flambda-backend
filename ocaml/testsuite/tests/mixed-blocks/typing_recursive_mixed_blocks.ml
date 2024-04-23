@@ -1,6 +1,5 @@
 (* TEST
  flags = "-extension layouts_alpha";
- runtime5;
  expect;
 *)
 
