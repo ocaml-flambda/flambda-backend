@@ -301,11 +301,12 @@ let function_body sub body =
   match body with
   | Tfunction_body body ->
       sub.expr sub body
-  | Tfunction_cases { fc_cases; fc_exp_extra; fc_loc; fc_attributes } ->
+  | Tfunction_cases { fc_cases; fc_exp_extra; fc_loc; fc_attributes; fc_env } ->
       List.iter (sub.case sub) fc_cases;
       Option.iter (extra sub) fc_exp_extra;
       sub.location sub fc_loc;
-      sub.attributes sub fc_attributes
+      sub.attributes sub fc_attributes;
+      sub.env sub fc_env
 
 let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   let extra x = extra sub x in

@@ -376,15 +376,16 @@ let function_body sub body =
       Tfunction_body (sub.expr sub body)
   | Tfunction_cases
       { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-        fc_arg_mode; fc_arg_sort; }
+        fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
     ->
       let fc_loc = sub.location sub fc_loc in
       let fc_attributes = sub.attributes sub fc_attributes in
       let fc_cases = List.map (sub.case sub) fc_cases in
       let fc_exp_extra = Option.map (extra sub) fc_exp_extra in
+      let fc_env = sub.env sub fc_env in
       Tfunction_cases
         { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-          fc_arg_mode; fc_arg_sort; }
+          fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
 
 let expr sub x =
   let extra x = extra sub x in

@@ -402,7 +402,7 @@ let transl_labels ~new_var_jkind env univars closed lbls =
          let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_global = ld.ld_global;
+          ld_global = ld.ld_global.txt;
           ld_jkind = Jkind.any ~why:Dummy_jkind;
             (* Updated by [update_label_jkinds] *)
           ld_type = ty;
@@ -425,7 +425,7 @@ let transl_constructor_arguments ~new_var_jkind env univars closed = function
       let flds' = List.map
                     (fun ca ->
                        {
-                         Types.ca_global = ca.ca_global;
+                         Types.ca_global = ca.ca_global.txt;
                          ca_loc = ca.ca_loc;
                          ca_type = ca.ca_type.ctyp_type;
                        }

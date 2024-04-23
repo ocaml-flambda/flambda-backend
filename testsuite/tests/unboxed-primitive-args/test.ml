@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "common.mli common.ml test_common.c test_common.h";
  flambda2;
+ arch_amd64;
  setup-ocamlopt.opt-build-env;
  test_file = "${test_source_directory}/gen_test.ml";
  ocaml_script_as_argument = "true";

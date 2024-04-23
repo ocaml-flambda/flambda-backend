@@ -463,8 +463,13 @@ and function_body =
 
 and function_cases =
   { fc_cases: value case list;
+    fc_env : Env.t;
+    (** [fc_env] contains entries from all parameters except
+        for the last one being matched by the cases.
+    *)
     fc_arg_mode: Mode.Alloc.l;
     fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
     fc_loc: Location.t;
