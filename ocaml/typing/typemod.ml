@@ -2815,7 +2815,14 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 match[@warning "+9"] id_info with
                 | [(_, _, _, (Default_check | Ignore_assert_all _))] ->
                   Default_check
-                | [(_, _, _, (Check _ as zero_alloc))] -> zero_alloc
+                | [(_, _, _, (Check c as zero_alloc))] when not c.opt ->
+                  zero_alloc
+                | [(_, _, _, (Check _))] ->
+                  (* CR ccasinghino: We'd like to opt in signatures, but for now
+                     we don't, and must make sure you can't get it in a
+                     signature by writing it in a structure and using module
+                     type of. *)
+                  Default_check
                 | [(_, _, _, Assume { property; strict; arity; loc;
                                       never_returns_normally = _ })] ->
                   Check { strict; property; arity; loc; opt = false }

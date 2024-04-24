@@ -237,7 +237,7 @@ Error: Signature mismatch:
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute to the implementation.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_opt : S_bad_inc_base = struct
@@ -251,14 +251,15 @@ Lines 1-3, characters 32-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc opt] end
+         sig val f : 'a -> 'a end
        is not included in
          S_bad_inc_base
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc opt]
+         val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 (* CR ccasinghino: The below should work once we allow opt in signatures. *)
@@ -313,7 +314,7 @@ Error: Signature mismatch:
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute to the implementation.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_base : S_bad_inc_strict = struct
@@ -368,14 +369,15 @@ Lines 1-3, characters 34-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc opt] end
+         sig val f : 'a -> 'a end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc opt]
+         val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_strict_opt : S_bad_inc_strict = struct
@@ -389,14 +391,15 @@ Lines 1-3, characters 41-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc strict opt] end
+         sig val f : 'a -> 'a end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc strict opt]
+         val f : 'a -> 'a
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_assume_nrn : S_bad_inc_strict = struct
@@ -939,7 +942,7 @@ Error: Signature mismatch:
        is not included in
          val f : int -> int [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute to the implementation.
+       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_strict_for_mto = struct

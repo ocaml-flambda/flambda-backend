@@ -375,7 +375,8 @@ let report_value_mismatch first second env ppf err =
   | Zero_alloc { missing_entirely } ->
     pr "The former provides a weaker \"zero_alloc\" guarantee than the latter.";
     if missing_entirely then
-      pr "@ Hint: Add a \"zero_alloc\" attribute to the implementation."
+      pr "@ Hint: Add a \"zero_alloc\" attribute (without opt) to the \
+          implementation."
   | Zero_alloc_arity (n1, n2) ->
     pr "zero_alloc arity mismatch:@ \
         When using \"zero_alloc\" in a signature, the syntactic arity of@ \
