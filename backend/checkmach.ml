@@ -202,9 +202,6 @@ module V : sig
   (** order of the abstract domain  *)
   val lessequal : t -> t -> bool
 
-  (** [equal] is structural equality on terms,
-      not the order of the abstract domain. *)
-
   val join : t -> t -> t
 
   val meet : t -> t -> t
@@ -231,6 +228,8 @@ module V : sig
 
   val top : Witnesses.t -> t
 
+  (** [compare] is structural on terms (for the use of [V.t] as a key in sets and maps),
+      whereas [lessequal] is the order of the abstract domain (for fixed point checks). *)
   val compare : t -> t -> int
 
   val match_with :
