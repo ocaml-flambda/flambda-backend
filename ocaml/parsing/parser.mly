@@ -2572,21 +2572,21 @@ seq_expr:
 ;
 
 labeled_simple_pattern:
-    QUESTION LPAREN modes0=optional_legacy_modes x=label_let_pattern opt_default RPAREN
+    QUESTION LPAREN modes0=optional_mode_expr_legacy x=label_let_pattern opt_default RPAREN
       { let lbl, pat, cty, modes = x in
         (Optional lbl, $5,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
       }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
-  | OPTLABEL LPAREN modes0=optional_legacy_modes x=let_pattern opt_default RPAREN
+  | OPTLABEL LPAREN modes0=optional_mode_expr_legacy x=let_pattern opt_default RPAREN
       { let pat, cty, modes = x in
         (Optional $1, $5,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
       }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
-  | TILDE LPAREN modes0=optional_legacy_modes x=label_let_pattern RPAREN
+  | TILDE LPAREN modes0=optional_mode_expr_legacy x=label_let_pattern RPAREN
       { let lbl, pat, cty, modes = x in
         (Labelled lbl, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
@@ -2595,13 +2595,13 @@ labeled_simple_pattern:
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
-  | LABEL LPAREN modes=legacy_modes pat=pattern RPAREN
+  | LABEL LPAREN modes=mode_expr_legacy pat=pattern RPAREN
       { (Labelled $1, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty:None ~modes)
       }
   | simple_pattern
       { (Nolabel, None, $1) }
-  | LPAREN modes0=legacy_modes x=let_pattern RPAREN
+  | LPAREN modes0=mode_expr_legacy x=let_pattern RPAREN
       { let pat, cty, modes = x in
         (Nolabel, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
@@ -2611,7 +2611,7 @@ labeled_simple_pattern:
       (Labelled $1, None,
        mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes)
     }
-  | LABEL LPAREN modes0=legacy_modes x=poly_pattern RPAREN
+  | LABEL LPAREN modes0=mode_expr_legacy x=poly_pattern RPAREN
       { let pat, cty, modes = x in
         (Labelled $1, None,
          mkpat_with_modes ~loc:$sloc ~pat ~cty ~modes:(modes0 @ modes))
@@ -2662,7 +2662,7 @@ let_pattern:
       {
         pat, None, modes
       }
-  | pat=pattern COLON cty=core_type modes=optional_at_mode_expr
+  | pat=pattern COLON cty=core_type modes=optional_atat_mode_expr
       {
         pat, Some cty, modes
       }
@@ -2746,6 +2746,8 @@ fun_expr:
   | UNDERSCORE
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
+  | mode=mode_legacy exp=seq_expr
+     { mkexp ~loc:$sloc (Pexp_constraint (exp, Typ.mk ~loc:(ghost_loc $sloc) Ptyp_any, [mode])) }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -3048,7 +3050,7 @@ labeled_simple_expr:
 let_binding_body_no_punning:
     let_ident strict_binding
       { ($1, $2, None, []) }
-  | modes0 = optional_legacy_modes let_ident constraint_ EQUAL seq_expr
+  | modes0 = optional_mode_expr_legacy let_ident constraint_ EQUAL seq_expr
       (* CR zqian: modes are duplicated, and one of them needs to be made ghost
          to make internal tools happy. We should try to avoid that. *)
       { let v = $2 in (* PR#7344 *)
@@ -3063,7 +3065,7 @@ let_binding_body_no_punning:
         let modes = modes0 @ modes1 in
         (v, $5, t, modes)
       }
-  | modes0 = optional_legacy_modes let_ident COLON poly(core_type) modes1 = optional_atat_mode_expr EQUAL seq_expr
+  | modes0 = optional_mode_expr_legacy let_ident COLON poly(core_type) modes1 = optional_atat_mode_expr EQUAL seq_expr
       { let bound_vars, inner_type = $4 in
         let ltyp = Jane_syntax.Layouts.Ltyp_poly { bound_vars; inner_type } in
         let typ_loc = Location.ghostify (make_loc $loc($4)) in
@@ -3105,7 +3107,7 @@ let_binding_body_no_punning:
         let pvc, modes = $2 in
         ($1, $4, pvc, modes)
       }
-  | modes=legacy_modes let_ident strict_binding_modes
+  | modes=mode_expr_legacy let_ident strict_binding_modes
       {
         ($2, $3 modes, None, modes)
       }
@@ -4321,13 +4323,13 @@ strict_function_or_labeled_tuple_type:
        { mkloc (Mode "once") (make_loc $sloc) }
 ;
 
-%inline legacy_modes:
+%inline mode_expr_legacy:
    | mode_legacy+ { $1 }
 ;
 
-%inline optional_legacy_modes:
+%inline optional_mode_expr_legacy:
    | { [] }
-   | legacy_modes {$1}
+   | mode_expr_legacy {$1}
 ;
 
 /* New mode annotation, introduced by AT or ATAT */
@@ -4350,7 +4352,7 @@ at_mode_expr:
 ;
 
 %inline with_optional_mode_expr(ty):
-  | m0=optional_legacy_modes ty=ty m1=optional_at_mode_expr {
+  | m0=optional_mode_expr_legacy ty=ty m1=optional_at_mode_expr {
     let m = m0 @ m1 in
     (ty, $loc(ty)), m
   }

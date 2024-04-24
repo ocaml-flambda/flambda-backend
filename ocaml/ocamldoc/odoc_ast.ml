@@ -1039,7 +1039,7 @@ module Analyser =
             | Parsetree.Ppat_any -> None
             | Parsetree.Ppat_var name -> Some name
             | Parsetree.Ppat_tuple _ -> None (* FIXME when we will handle tuples *)
-            | Parsetree.Ppat_constraint (pat, _) -> iter_pat pat.Parsetree.ppat_desc
+            | Parsetree.Ppat_constraint (pat, _, _) -> iter_pat pat.Parsetree.ppat_desc
             | _ -> None
           in
           let rec iter ?(first=false) last_pos acc_env acc p_e_list =
