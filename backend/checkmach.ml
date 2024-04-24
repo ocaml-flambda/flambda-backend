@@ -523,13 +523,16 @@ end = struct
     exception Widen
 
     let maybe_widen t =
-      (* CR-soon gyorsh: Implement widening to Top instead of error. *)
-      if M.cardinal t > 1000
-      then
-        Misc.fatal_errorf
-          "Join with %d paths is too big, use -disable-precise-checkmach"
-          (M.cardinal t)
-      else t
+      match !Flambda_backend_flags.checkmach_join with
+      | Keep_all -> t
+      | Widen n -> if M.cardinal t > n then raise Widen else t
+      | Error n ->
+        if M.cardinal t > n
+        then
+          Misc.fatal_errorf
+            "Join with %d paths is too big, use -disable-precise-checkmach"
+            (M.cardinal t)
+        else t
 
     let empty = M.empty
 
@@ -729,15 +732,16 @@ end = struct
 
     val add_tr : t -> Transform.t -> t
 
-    val flatten : t -> t -> t
+    val flatten : t -> t -> unit -> t
 
-    val distribute_transform_over_join : t -> Transform.t -> t
+    val distribute_transform_over_join : t -> Transform.t -> unit -> t
 
-    val distribute_transform_var_over_join : t -> Var.t -> Witnesses.t -> t
+    val distribute_transform_var_over_join :
+      t -> Var.t -> Witnesses.t -> unit -> t
 
-    val distribute_transform_top_over_join : t -> Witnesses.t -> t
+    val distribute_transform_top_over_join : t -> Witnesses.t -> unit -> t
 
-    val distribute_transform_over_joins : t -> t -> t
+    val distribute_transform_over_joins : t -> t -> unit -> t
 
     val get_top : t -> Witnesses.t option
 
@@ -847,7 +851,7 @@ end = struct
       | Args_with_top { w; args } ->
         args_with_top w (Args.add_var args var witnesses)
 
-    let flatten t1 t2 =
+    let flatten t1 t2 () =
       match t1, t2 with
       | Args a1, Args a2 -> Args (Args.join a1 a2)
       | Args_with_safe a1, Args_with_safe a2 -> Args_with_safe (Args.join a1 a2)
@@ -860,7 +864,7 @@ end = struct
       | Args args1, Args_with_safe args2 | Args_with_safe args1, Args args2 ->
         Args_with_safe (Args.join args1 args2)
 
-    let distribute_transform_over_join t tr =
+    let distribute_transform_over_join t tr () =
       match t with
       | Args_with_safe args ->
         let args = Args.(add_tr (transform args tr) tr) in
@@ -871,7 +875,7 @@ end = struct
         Args args
       | Args args -> Args (Args.transform args tr)
 
-    let distribute_transform_var_over_join t var witnesses =
+    let distribute_transform_var_over_join t var witnesses () =
       match t with
       | Args_with_safe args ->
         let args =
@@ -884,7 +888,7 @@ end = struct
         Args args
       | Args args -> Args (Args.transform_var args var witnesses)
 
-    let distribute_transform_top_over_join t w =
+    let distribute_transform_top_over_join t w () =
       match t with
       | Args_with_safe args ->
         let args = Args.transform_top args w in
@@ -894,7 +898,7 @@ end = struct
         args_with_top (Witnesses.join w' w) args
       | Args args -> Args (Args.transform_top args w)
 
-    let distribute_transform_over_joins t1 t2 =
+    let distribute_transform_over_joins t1 t2 () =
       match t1, t2 with
       | Args a1, Args a2 -> Args (Args.transform_join a1 a2)
       | Args_with_safe a1, Args_with_safe a2 ->
@@ -1066,6 +1070,9 @@ end = struct
      Someday it can be optimized using hash consing and bdd-like
      representation. *)
 
+  let bounded_join f =
+    try Join (f ()) with Transforms.Widen -> Top Witnesses.empty
+
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
     match t1, t2 with
@@ -1116,7 +1123,7 @@ end = struct
     | Var { var; witnesses }, Join j | Join j, Var { var; witnesses } ->
       Join (Join.add_var j var witnesses)
     | Join j, Transform tr | Transform tr, Join j -> Join (Join.add_tr j tr)
-    | Join j1, Join j2 -> Join (Join.flatten j1 j2)
+    | Join j1, Join j2 -> bounded_join (Join.flatten j1 j2)
 
   (* CR gyorsh: Handling of constant cases here is an optimization, instead of
      going directly to [join]. *)
@@ -1169,14 +1176,15 @@ end = struct
       else Transform (Transform.vars ~var1 ~w1 ~var2 ~w2)
     | Transform tr1, Transform tr2 -> Transform (Transform.flatten tr1 tr2)
     | Transform tr, Join j | Join j, Transform tr ->
-      Join (Join.distribute_transform_over_join j tr)
+      bounded_join (Join.distribute_transform_over_join j tr)
     | (Top w as top), Join j | Join j, (Top w as top) ->
       if Join.has_safe j && not (Join.has_witnesses j)
       then top
-      else Join (Join.distribute_transform_top_over_join j w)
+      else bounded_join (Join.distribute_transform_top_over_join j w)
     | Var { var; witnesses }, Join j | Join j, Var { var; witnesses } ->
-      Join (Join.distribute_transform_var_over_join j var witnesses)
-    | Join j1, Join j2 -> Join (Join.distribute_transform_over_joins j1 j2)
+      bounded_join (Join.distribute_transform_var_over_join j var witnesses)
+    | Join j1, Join j2 ->
+      bounded_join (Join.distribute_transform_over_joins j1 j2)
 
   (* CR-soon xclerc for gyorsh: It may be valuable to gather the elements about
      the "constructors" (e.g. join, transform above) in one place, with the
