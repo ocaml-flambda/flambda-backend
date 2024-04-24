@@ -940,7 +940,7 @@ end = struct
     | (Top w as top), Transform tr | Transform tr, (Top w as top) ->
       (* [has_witnesses]: Don't simplify (join Top x) to x if there are any
          witnesses in x. This makes the analysis more expensive because symbolic
-         summaries cannot be simiplified as much. Finding out if there are
+         summaries cannot be simplified as much. Finding out if there are
          witnesses is also expensive (traverse the entire term). Someday, we can
          make it cheap by passing [keep_witnesses] to all operations. Only
          functions that need to be checked against a user-provided annotation at
@@ -981,7 +981,7 @@ end = struct
      t')
 
      The implementation is an optimized version of the above definition that
-     "inlines" and "specializes" join: efficently handle definitive cases and
+     "inlines" and "specializes" join: efficiently handle definitive cases and
      preserve normal form of unresolved.
 
      Soundness (intuitively): If a return is unreachable from the program
