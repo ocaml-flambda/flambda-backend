@@ -263,10 +263,13 @@ module T = struct
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
+  let map_modalities sub modalities =
+    List.map (map_loc sub) modalities
+
   let map_constructor_argument sub x =
     let pca_type = sub.typ sub x.pca_type in
     let pca_loc = sub.location sub x.pca_loc in
-    let pca_modalities = List.map (map_loc sub) x.pca_modalities in
+    let pca_modalities = map_modalities sub x.pca_modalities in
     { pca_type; pca_loc; pca_modalities }
 
   let map_constructor_arguments sub = function
@@ -1057,7 +1060,7 @@ let default_mapper =
            (map_loc this pld_name)
            (this.typ this pld_type)
            ~mut:pld_mutable
-           ~modalities:(List.map (map_loc this) pld_modalities)
+           ~modalities:(T.map_modalities this pld_modalities)
            ~loc:(this.location this pld_loc)
            ~attrs:(this.attributes this pld_attributes)
       );

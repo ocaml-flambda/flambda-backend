@@ -123,6 +123,7 @@
                         attribute "foo"
                           []
                         Immutable
+                        []
                         "l" (attributes.ml[26,344+4]..[26,344+5])                        core_type (attributes.ml[26,344+9]..[26,344+10])
                           attribute "foo"
                             []

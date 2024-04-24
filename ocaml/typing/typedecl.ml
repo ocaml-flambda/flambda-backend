@@ -422,15 +422,16 @@ let transl_constructor_arguments ~new_var_jkind env univars closed = function
         {ca_global = gf; ca_type = cty; ca_loc = arg.pca_loc}
       in
       let flds = List.map mk l in
-      let flds' = List.map
-                    (fun ca ->
-                       {
-                         Types.ca_global = ca.ca_global.txt;
-                         ca_loc = ca.ca_loc;
-                         ca_type = ca.ca_type.ctyp_type;
-                       }
-                    )
-                    flds in
+      let flds' =
+        List.map
+          (fun ca ->
+              {
+                Types.ca_global = ca.ca_global.txt;
+                ca_loc = ca.ca_loc;
+                ca_type = ca.ca_type.ctyp_type;
+              })
+          flds
+      in
       Types.Cstr_tuple flds',
       Cstr_tuple flds
   | Pcstr_record l ->
