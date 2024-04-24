@@ -163,6 +163,7 @@ type error =
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
   | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
   | Zero_alloc_attr_bad_arity
+  | Zero_alloc_attr_opt
 
 exception Error of Location.t * error
 

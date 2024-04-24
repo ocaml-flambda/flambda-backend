@@ -119,6 +119,7 @@ type error =
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
   | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
   | Zero_alloc_attr_bad_arity
+  | Zero_alloc_attr_opt
 
 open Typedtree
 
@@ -2686,7 +2687,11 @@ let transl_value_decl env loc valdecl =
       | Default_check -> ()
       | Check za ->
         if za.arity = 0 then
-          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_arity))
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_arity));
+        if za.opt then
+          (* CR ccasinghino: It would be nice to support opt, but it's not
+             obvious what its meaning should be. *)
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_opt));
       | Assume _ | Ignore_assert_all _ ->
         raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       end;
@@ -3500,7 +3505,8 @@ let report_error ppf = function
          @ Found no arrows in this declaration's type.\
          @ Hint: You can write \"[@zero_alloc arity n]\" to specify the arity\
          @ of an alias.@]"
-
+  | Zero_alloc_attr_opt ->
+    fprintf ppf "@[\"zero_alloc opt\" is not supported in signatures.@]"
 
 let () =
   Location.register_error_of_exn
