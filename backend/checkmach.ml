@@ -168,6 +168,8 @@ module Var : sig
   val equal : t -> t -> bool
 
   module Map : Map.S with type key = t
+
+  module Set : Set.S with type elt = t
 end = struct
   module T = struct
     type t =
@@ -182,6 +184,7 @@ end = struct
 
   include T
   module Map = Map.Make (T)
+  module Set = Set.Make (T)
 
   let equal t1 t2 = compare t1 t2 = 0
 
@@ -253,6 +256,7 @@ end = struct
   let meet _ _ =
     Misc.fatal_error "Meet is not implemented and shouldn't be needed."
 
+  (** Variables with witnesses *)
   module Vars : sig
     type t
 
@@ -262,6 +266,8 @@ end = struct
 
     (** [same_vars] compares variables ignoring witnesses *)
     val same_vars : t -> t -> bool
+
+    val get_vars : t -> Var.Set.t
 
     val join : t -> t -> t
 
@@ -289,6 +295,8 @@ end = struct
     let compare t1 t2 = Var.Map.compare Witnesses.compare t1 t2
 
     let same_vars = Var.Map.equal (fun _ _ -> (* ignore witnesses *) true)
+
+    let get_vars t = t |> Var.Map.to_seq |> Seq.map fst |> Var.Set.of_seq
 
     let has_witnesses vars =
       Var.Map.exists (fun _ w -> not (Witnesses.is_empty w)) vars
@@ -340,40 +348,33 @@ end = struct
 
     (** [same_vars] compares variables ignoring witnesses *)
     val same_vars : t -> t -> bool
-
-    module Set : Set.S with type elt = t
   end = struct
-    module T = struct
-      type t =
-        | Args of Vars.t
-        | Args_with_top of
-            { w : Witnesses.t;
-              vars : Vars.t
-            }
+    type t =
+      | Args of Vars.t
+      | Args_with_top of
+          { w : Witnesses.t;
+            vars : Vars.t
+          }
 
-      (* The binary "transform" is commutative and associative, so a nested
-         "transform" can be flattened in the normal form. The arguments are
-         represented as a set of variables and optionally top. if top is absent,
-         [vars] must contain at least two elements. if top is present, [vars]
-         must have at least one element. This is enforced by the available
-         constructors.
+    (* The binary "transform" is commutative and associative, so a nested
+       "transform" can be flattened in the normal form. The arguments are
+       represented as a set of variables and optionally top. if top is absent,
+       [vars] must contain at least two elements. if top is present, [vars] must
+       have at least one element. This is enforced by the available
+       constructors.
 
-         We never need to represent other constants because these cases can be
-         simplified to either a constant or a variable. *)
+       We never need to represent other constants because these cases can be
+       simplified to either a constant or a variable. *)
 
-      let compare t1 t2 =
-        match t1, t2 with
-        | Args a1, Args a2 -> Vars.compare a1 a2
-        | Args _, Args_with_top _ -> -1
-        | Args_with_top _, Args _ -> 1
-        | ( Args_with_top { w = w1; vars = vars1 },
-            Args_with_top { w = w2; vars = vars2 } ) ->
-          let c = Vars.compare vars1 vars2 in
-          if c <> 0 then c else Witnesses.compare w1 w2
-    end
-
-    include T
-    module Set = Set.Make (T)
+    let compare t1 t2 =
+      match t1, t2 with
+      | Args a1, Args a2 -> Vars.compare a1 a2
+      | Args _, Args_with_top _ -> -1
+      | Args_with_top _, Args _ -> 1
+      | ( Args_with_top { w = w1; vars = vars1 },
+          Args_with_top { w = w2; vars = vars2 } ) ->
+        let c = Vars.compare vars1 vars2 in
+        if c <> 0 then c else Witnesses.compare w1 w2
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -439,6 +440,73 @@ end = struct
           (Vars.print ~witnesses) vars
   end
 
+  module Transforms : sig
+    type t
+
+    val join : t -> t -> t
+
+    val empty : t
+
+    val add : Transform.t -> t -> t
+
+    val compare : t -> t -> int
+
+    val iter : (Transform.t -> unit) -> t -> unit
+
+    val map : (Transform.t -> Transform.t) -> t -> t
+
+    val fold : (Transform.t -> 'a -> 'a) -> t -> 'a -> 'a
+
+    val exists : (Transform.t -> bool) -> t -> bool
+
+    exception Widen
+  end = struct
+    (* Join of two Transform with the same set of vars: merged both sets of Vars
+       into one Transform in normal form, without loss of precision or
+       witnesses, even if one Transform has "Top" and the other does not.
+
+       Naive implementation: map with key of type [Var.Set.t] to data of type
+       [Transform.t] *)
+    module M = Map.Make (Var.Set)
+
+    type t = Transform.t M.t
+
+    exception Widen
+
+    let maybe_widen t =
+      (* CR-soon gyorsh: Implement widening to Top instead of error. *)
+      if M.cardinal t > 1000
+      then
+        Misc.fatal_errorf
+          "Join with %d paths is too big, use -disable-precise-checkmach"
+          (M.cardinal t)
+      else t
+
+    let empty = M.empty
+
+    let get_key tr = tr |> Transform.get_vars |> Vars.get_vars
+
+    let add tr t =
+      let res = M.add (get_key tr) tr t in
+      maybe_widen res
+
+    let compare = M.compare Transform.compare
+
+    let iter f t = M.iter (fun _key tr -> f tr) t
+
+    let fold f t init = M.fold (fun _key tr acc -> f tr acc) t init
+
+    let exists f t = M.exists (fun _key tr -> f tr) t
+
+    let join t1 t2 =
+      let res =
+        M.union (fun _var tr1 tr2 -> Some (Transform.flatten tr1 tr2)) t1 t2
+      in
+      maybe_widen res
+
+    let map f t = M.fold (fun _key tr acc -> add (f tr) acc) t M.empty
+  end
+
   (* CR-someday gyorsh: treatment of vars and top is duplicated between Args and
      Transform, is there a nice way to factor it out?
 
@@ -459,7 +527,7 @@ end = struct
 
     val join : t -> t -> t
 
-    val get : t -> Vars.t * Transform.Set.t
+    val get : t -> Vars.t * Transforms.t
 
     (** [transform t tr] replace each element x of [t] with "transform x tr" *)
     val transform : t -> Transform.t -> t
@@ -484,16 +552,16 @@ end = struct
   end = struct
     type t =
       { vars : Vars.t;
-        trs : Transform.Set.t
+        trs : Transforms.t
       }
 
-    let empty = { vars = Vars.empty; trs = Transform.Set.empty }
+    let empty = { vars = Vars.empty; trs = Transforms.empty }
 
     let get { vars; trs } = vars, trs
 
     let print ~witnesses ppf { vars; trs } =
       let pp_trs ppf trs =
-        Transform.Set.iter (Transform.print ~witnesses ppf) trs
+        Transforms.iter (Transform.print ~witnesses ppf) trs
       in
       Format.fprintf ppf "vars=(%a)@.transforms=(%a)@," (Vars.print ~witnesses)
         vars pp_trs trs
@@ -504,7 +572,7 @@ end = struct
       if vars == t.vars then t else { t with vars }
 
     let add_tr t tr =
-      let trs = Transform.Set.add tr t.trs in
+      let trs = Transforms.add tr t.trs in
       if trs == t.trs then t else { t with trs }
 
     let join ({ vars = v1; trs = trs1 } as t) ({ vars = v2; trs = trs2 } as t')
@@ -514,31 +582,28 @@ end = struct
         Format.fprintf Format.std_formatter "join@.%a@. %a@."
           (print ~witnesses:true) t (print ~witnesses:true) t';
       let vars = Vars.join v1 v2 in
-      let trs = Transform.Set.union trs1 trs2 in
+      let trs = Transforms.join trs1 trs2 in
       { vars; trs }
 
     let transform { vars; trs } tr =
       let from_vars =
         (* add each x from [vars] to [tr] *)
         Vars.fold
-          ~f:(fun var w acc ->
-            Transform.Set.add (Transform.add_var tr var w) acc)
-          vars ~init:Transform.Set.empty
+          ~f:(fun var w acc -> Transforms.add (Transform.add_var tr var w) acc)
+          vars ~init:Transforms.empty
       in
-      let from_trs =
-        Transform.Set.map (fun tr' -> Transform.flatten tr tr') trs
-      in
-      { vars = Vars.empty; trs = Transform.Set.union from_vars from_trs }
+      let from_trs = Transforms.map (fun tr' -> Transform.flatten tr tr') trs in
+      { vars = Vars.empty; trs = Transforms.join from_vars from_trs }
 
     let transform_top { vars; trs } w =
       let from_vars =
         Vars.fold
           ~f:(fun var var_witnesses acc ->
-            Transform.Set.add (Transform.var_with_top var ~var_witnesses w) acc)
-          vars ~init:Transform.Set.empty
+            Transforms.add (Transform.var_with_top var ~var_witnesses w) acc)
+          vars ~init:Transforms.empty
       in
-      let from_trs = Transform.Set.map (fun tr -> Transform.add_top tr w) trs in
-      { vars = Vars.empty; trs = Transform.Set.union from_vars from_trs }
+      let from_trs = Transforms.map (fun tr -> Transform.add_top tr w) trs in
+      { vars = Vars.empty; trs = Transforms.join from_vars from_trs }
 
     let transform_var { vars; trs } var witnesses =
       let acc =
@@ -552,9 +617,9 @@ end = struct
           vars ~init:empty
       in
       let from_trs =
-        Transform.Set.map (fun tr -> Transform.add_var tr var witnesses) trs
+        Transforms.map (fun tr -> Transform.add_var tr var witnesses) trs
       in
-      { acc with trs = Transform.Set.union from_trs acc.trs }
+      { acc with trs = Transforms.join from_trs acc.trs }
 
     let transform_join t ({ vars; trs } as t') =
       if debug
@@ -565,20 +630,19 @@ end = struct
         Vars.fold vars ~init:empty ~f:(fun var witnesses acc ->
             join acc (transform_var t var witnesses))
       in
-      Transform.Set.fold (fun tr acc -> join acc (transform t tr)) trs acc
+      Transforms.fold (fun tr acc -> join acc (transform t tr)) trs acc
 
     let has_witnesses { vars; trs } =
-      Vars.has_witnesses vars
-      || Transform.Set.exists Transform.has_witnesses trs
+      Vars.has_witnesses vars || Transforms.exists Transform.has_witnesses trs
 
     let replace_witnesses { vars; trs } w =
       { vars = Vars.replace_witnesses vars w;
-        trs = Transform.Set.map (fun tr -> Transform.replace_witnesses tr w) trs
+        trs = Transforms.map (fun tr -> Transform.replace_witnesses tr w) trs
       }
 
     let compare { vars = vars1; trs = trs1 } { vars = vars2; trs = trs2 } =
       let c = Vars.compare vars1 vars2 in
-      if c <> 0 then c else Transform.Set.compare trs1 trs2
+      if c <> 0 then c else Transforms.compare trs1 trs2
   end
 
   (** normal form of join *)
@@ -621,7 +685,7 @@ end = struct
 
     val has_safe : t -> bool
 
-    val get : t -> Vars.t * Transform.Set.t
+    val get : t -> Vars.t * Transforms.t
 
     val print : witnesses:bool -> Format.formatter -> t -> unit
 
@@ -1076,7 +1140,7 @@ end = struct
             join v acc)
           ~init vars
       in
-      Transform.Set.fold
+      Transforms.fold
         (fun tr acc ->
           let t = Transform tr in
           join (apply t ~env) acc)
