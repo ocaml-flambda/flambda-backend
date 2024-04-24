@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+   expect;
 *)
 
 (* This tests the typing behavior of `[@zero_alloc]` annotation in signatures.
