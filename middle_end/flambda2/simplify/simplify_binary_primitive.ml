@@ -23,7 +23,7 @@ type 'a binary_arith_outcome_for_one_side_only =
   | Exactly of 'a
   | The_other_side
   | Negation_of_the_other_side
-  | Float_negation_of_the_other_side
+  | Float_negation_of_the_other_side of Flambda_primitive.float_bitwidth
   | Cannot_simplify
   | Invalid
 
@@ -201,10 +201,8 @@ end = struct
                   Unary (Int_arith (standard_int_kind, Neg), other_side)
                 in
                 Some (PR.Set.add (Prim prim) possible_results)
-              | Float_negation_of_the_other_side ->
-                let prim : P.t =
-                  Unary (Float_arith (Float64, Neg), other_side)
-                in
+              | Float_negation_of_the_other_side width ->
+                let prim : P.t = Unary (Float_arith (width, Neg), other_side) in
                 Some (PR.Set.add (Prim prim) possible_results)
               | Cannot_simplify -> None
               | Invalid -> Some possible_results))
@@ -673,7 +671,7 @@ end = struct
         [@z3 check_float_binary_neutral `Mul 1.0 `Left]
       else if F.equal this_side F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side Float64
         [@z3 check_float_binary_opposite `Mul (-1.0) `Left]
         [@z3 check_float_binary_opposite `Mul (-1.0) `Right]
       else Cannot_simplify
@@ -689,7 +687,7 @@ end = struct
       then The_other_side [@z3 check_float_binary_neutral `Div 1.0 `Right]
       else if F.equal rhs F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side Float64
         [@z3 check_float_binary_opposite `Div (-1.0) `Right]
       else Cannot_simplify
 
@@ -764,7 +762,7 @@ end = struct
         [@z3 check_float32_binary_neutral `Mul 1.0 `Left]
       else if F.equal this_side F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side Float32
         [@z3 check_float32_binary_opposite `Mul (-1.0) `Left]
         [@z3 check_float32_binary_opposite `Mul (-1.0) `Right]
       else Cannot_simplify
@@ -780,7 +778,7 @@ end = struct
       then The_other_side [@z3 check_float32_binary_neutral `Div 1.0 `Right]
       else if F.equal rhs F.minus_one
       then
-        Float_negation_of_the_other_side
+        Float_negation_of_the_other_side Float32
         [@z3 check_float32_binary_opposite `Div (-1.0) `Right]
       else Cannot_simplify
 
