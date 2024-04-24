@@ -240,7 +240,7 @@ module V : sig
     t ->
     'a
 end = struct
-  (** Map of variables to witnesess, used as a helper for the normal forms below. *)
+  (** Map of variables to witnesses, used as a helper for the normal forms below. *)
 
   let pp_w ~witnesses ppf w =
     if witnesses then Format.fprintf ppf "@, (%a)" Witnesses.print w else ()
