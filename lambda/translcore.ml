@@ -1344,7 +1344,8 @@ and transl_tupled_function
             cases in
         let kinds =
           match arg_layout with
-          | Pvalue (Pvariant { consts = []; non_consts = [0, kinds] }) ->
+          | Pvalue (Pvariant { consts = [];
+                               non_consts = [0, Constructor_uniform kinds] }) ->
               (* CR layouts v5: to change when we have non-value tuple
                  elements. *)
               List.map (fun vk -> Pvalue vk) kinds

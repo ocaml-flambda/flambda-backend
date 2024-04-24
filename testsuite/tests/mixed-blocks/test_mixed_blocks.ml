@@ -1,5 +1,4 @@
 (* TEST
- reference = "${test_source_directory}/test_mixed_blocks.reference";
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -405,3 +404,51 @@ let test4 () =
 ;;
 
 let () = test4 ()
+
+(*************************)
+(* Test 5: optimizations *)
+
+(* Test that the middle end is able to handle scenarios where
+   optimizations apply. This doesn't give us assurance that
+   the optimizations actually apply here -- just that the middle-end
+   doesn't fall over.
+*)
+
+type t5_1 = { x : int; y : float# }
+
+let construct_and_destruct_1_1 ~x ~y =
+  match { x; y } with
+  | { x; y } -> float_of_int x +. Float_u.to_float y
+
+let construct_and_destruct_1_2 b ~x ~y =
+  let { x; y } =
+    match b with
+    | true -> { x; y }
+    | false -> { x = x + 1; y }
+  in
+  float_of_int x +. Float_u.to_float y
+
+type t5_2 = { x : float; y : float# }
+
+let construct_and_destruct_2_1 ~x ~y =
+  match { x; y } with
+  | { x; y } -> x +. Float_u.to_float y
+
+let construct_and_destruct_2_2 b ~x ~y =
+  let { x; y } =
+    match b with
+    | true -> { x; y }
+    | false -> { x = x +. 1.; y }
+  in
+  x +. Float_u.to_float y
+
+let test5 () =
+  let result1_1 = construct_and_destruct_1_1 ~x:38 ~y:#4. in
+  let result1_2 = construct_and_destruct_1_2 true ~x:38 ~y:#4. in
+  let result2_1 = construct_and_destruct_2_1 ~x:37. ~y:#5. in
+  let result2_2 = construct_and_destruct_2_2 false ~x:36. ~y:#5. in
+  Printf.printf "Test 5: result (42) = %.3f = %.3f = %.3f = %.3f\n"
+    result1_1 result1_2 result2_1 result2_2
+;;
+
+let () = test5 ()
