@@ -308,7 +308,9 @@ end = struct
       Var.Map.iter (fun var w -> pp_var ~witnesses ppf var w) t
   end
 
-  (** Normal form of Transform *)
+  (** Normal form of Transform.
+      [Transform] represents an abstract transformer of a primitive
+      such as a function call. *)
   module Transform : sig
     type t
 
