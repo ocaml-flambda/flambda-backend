@@ -17,6 +17,7 @@
 
 LIBNAME=upstream_compatible
 CAMLOBJS=upstream_compatible.cmo
+EXTRACAMLFLAGS=-extension-universe upstream_compatible
 
 include ../Makefile.otherlibs.common
 

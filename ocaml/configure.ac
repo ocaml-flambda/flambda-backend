@@ -672,7 +672,7 @@ AC_CONFIG_FILES([otherlibs/upstream_compatible/META])
 AC_CONFIG_FILES([otherlibs/stable/META])
 AC_CONFIG_FILES([otherlibs/beta/META])
 AC_CONFIG_FILES([otherlibs/alpha/META])
-otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
+otherlibraries="$otherlibraries upstream_compatible"
 
 AS_IF(
   [test x"$enable_runtime5" = x"yes"],

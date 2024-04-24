@@ -1,5 +1,0 @@
-stable.cmo : \
-    stable.cmi
-stable.cmx : \
-    stable.cmi
-stable.cmi :
