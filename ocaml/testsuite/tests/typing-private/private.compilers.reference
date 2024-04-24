@@ -75,10 +75,7 @@ Line 3, characters 2-51:
 3 |   struct type t = int let f (x : int) = (x : t) end;; (* must fail *)
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
-       Modules do not match:
-         sig type t = int val f : int -> t end
-       is not included in
-         sig type t = private Foobar.t val f : int -> t end
+       ...
        Type declarations do not match:
          type t = int
        is not included in

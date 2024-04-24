@@ -84,6 +84,10 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 
 (* Lookup by paths *)
 
+val find_value_without_locks: Ident.t -> t ->
+  Subst.Lazy.value_description * Mode.Value.l
+(** Find a value by an [Ident.t]. Raises if encounters any locks. *)
+
 val find_value: Path.t -> t -> Subst.Lazy.value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions

@@ -9,13 +9,13 @@ val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
 val transl_modalities :
   has_mutable_implied_modalities:bool ->
   Parsetree.modality Location.loc list ->
-  Mode.Modality.Value.t
+  Mode.Modality.Value.user
 
 val untransl_modalities :
   loc:Location.t ->
-  Mode.Modality.Value.t ->
+  Mode.Modality.Value.user ->
   Parsetree.modality Location.loc list
 
 val is_mutable_implied_modality : Mode.Modality.t -> bool
 
-val mutable_implied_modalities : Mode.Modality.Value.t
+val mutable_implied_modalities : Mode.Modality.Value.user

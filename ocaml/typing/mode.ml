@@ -1521,6 +1521,10 @@ module Comonadic_with (Areality : Areality) = struct
       C.max obj
 
     let max_with ax c = Axis.update ax c (C.max obj)
+
+    let print_axis ax ppf a =
+      let obj = proj_obj ax in
+      C.print obj ppf a
   end
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
@@ -1637,6 +1641,8 @@ module Monadic = struct
   let meet_with ax c m = meet_const (C.min_with Obj.obj ax c) m
 
   let imply c m = Solver.via_monotone obj (Subtract c) (Solver.disallow_left m)
+
+  let subtract c m = Solver.via_monotone obj (Imply c) (Solver.disallow_right m)
 
   let zap_to_legacy m =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2142,6 +2148,10 @@ let value_to_alloc_r2l m =
   { comonadic; monadic }
 
 module Modality = struct
+  type _internal = private Internal
+
+  type _user = private User
+
   type ('m, 'a) raw =
     | Meet_with : 'a -> (('a, 'l * 'r) mode_comonadic, 'a) raw
     | Join_with : 'a -> (('a, 'l * 'r) mode_monadic, 'a) raw
@@ -2163,14 +2173,33 @@ module Modality = struct
     module Mode = Value.Monadic
     module Const = Mode.Const
 
-    type t = Join_const : Const.t -> t
+    type 'd t =
+      | Join_const : Const.t -> 'd t
+      | Diff : Mode.lr * Mode.l -> _internal t
+      | Undefined : _internal t
+
+    type user = _user t
+
+    type internal = _internal t
+
+    let user_or_internal : type d. d t -> (user, internal) Either.t = function
+      | Join_const _ as m -> Left m
+      | Diff _ as m -> Right m
+      | Undefined as m -> Right m
+
+    let internalize : type d. d t -> internal = function
+      | Join_const _ as t -> t
+      | Diff _ as t -> t
+      | Undefined as t -> t
 
     type 'a axis = (Const.t, 'a) Axis.t
 
     type error =
       | Error : 'a axis * (('a, _) mode_monadic, 'a) raw Solver.error -> error
 
-    let sub_log left right ~log:_ : (unit, error) Result.t =
+    let sub_any_user_log :
+        type d d'. d t -> d' t -> log:_ -> (unit, error) Result.t =
+     fun left right ~log ->
       match left, right with
       | Join_const c0, Join_const c1 ->
         if Const.le c0 c1
@@ -2180,41 +2209,119 @@ module Modality = struct
             Mode.axis_of_error { left = c0; right = c1 }
           in
           Error (Error (ax, { left = Join_with left; right = Join_with right }))
+      | Diff (mm, m), Join_const c -> (
+        (* Check that for any x >= mm, join(x, m) <= join(x, c).
+           By definition of join, equivalent to check m <= join(x, c)
+           Since x >= mm, equivalent to check m <= join(mm, c). *)
+        match Mode.submode_log m (Mode.join_const c mm) ~log with
+        | Ok () -> Ok ()
+        | Error (Error (ax, { left; _ })) ->
+          Error
+            (Error
+               ( ax,
+                 { left = Join_with left; right = Join_with (Axis.proj ax c) }
+               )))
+      | Diff _, Diff _ ->
+        (* [m1] is a left mode so there is no good way to check.
+           However, this branch is only hit by [wrap_constraint_with_shape],
+           in which case LHS and RHS should be physically equal. *)
+        assert (left == right);
+        Ok ()
+      | Join_const _, Diff _ -> assert false
+      | Undefined, _ | _, Undefined ->
+        Misc.fatal_error "undefined modality should not be inspected."
+
+    let sub_log = sub_any_user_log
 
     let id = Join_const Const.min
 
-    let cons : type a l r. a axis -> ((a, l * r) mode_monadic, a) raw -> t -> t
-        =
+    let cons :
+        type a l r. a axis -> ((a, l * r) mode_monadic, a) raw -> user -> user =
      fun ax a t ->
       match a, t with
       | Join_with c0, Join_const c ->
         Join_const (Const.join (Const.min_with ax c0) c)
       | Meet_with _, Join_const _ -> assert false
 
-    let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
+    let apply_user : type l r. user -> (l * r) Mode.t -> (l * r) Mode.t =
      fun t x -> match t with Join_const c -> Mode.join_const c x
 
-    let to_list = function
+    let apply_left : type d r. d t -> (allowed * r) Mode.t -> Mode.l =
+     fun t x ->
+      match t with
+      | Join_const c -> Mode.join_const c x |> Mode.disallow_right
+      | Undefined -> assert false
+      | Diff (_, m) -> Mode.join [m; Mode.disallow_right x]
+
+    let to_list : user -> _ = function
       | Join_const c ->
         [ (let ax : _ Axis.t = Uniqueness in
+           Atom (Monadic ax, Join_with (Axis.proj ax c)));
+          (let ax : _ Axis.t = Contention in
            Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
 
-    let print ppf = function
+    let print : type d. _ -> d t -> unit =
+     fun ppf -> function
       | Join_const c -> Format.fprintf ppf "join_const(%a)" Const.print c
+      | Undefined -> Format.fprintf ppf "undefined"
+      | Diff _ -> Format.fprintf ppf "diff"
+
+    let cross mm m =
+      (* We will be producing [join x m] for any [x >= mm].
+         We want to find the minimal [m'] such that [join x m <= join x m'] for any [x >= mm].
+         Or equivalently [m <= join x m'] for any [x >= mm].
+         Suffices if [m <= join mm m'].
+         Suffices if [m <= join mm.lower m'].
+         or [subtract mm.lower m <= m'].
+      *)
+      let mc = Mode.Guts.get_floor mm in
+      Mode.subtract mc m
+
+    let zap_to_id : type d. d t -> user = function
+      | Join_const _ as t -> t
+      | Undefined -> assert false
+      | Diff (mm, m) ->
+        let m' = cross mm m in
+        let c = Mode.zap_to_floor m' in
+        Join_const c
+
+    let zap_assert : type d. d t -> user =
+     fun m ->
+      match user_or_internal m with
+      | Left user -> user
+      | Right _ -> assert false
+
+    let infer : Mode.lr -> Mode.l -> internal = fun mm m -> Diff (mm, m)
+
+    let max = Join_const Const.max
   end
 
   module Comonadic = struct
     module Mode = Value.Comonadic
     module Const = Mode.Const
 
-    type t = Meet_const : Const.t -> t
+    type 'd t =
+      | Meet_const : Const.t -> 'd t
+      | Undefined : _internal t
+      | Exactly : Mode.lr * Mode.l -> _internal t
+
+    type user = _user t
+
+    type internal = _internal t
+
+    let user_or_internal : type d. d t -> (user, internal) Either.t = function
+      | Meet_const _ as m -> Left m
+      | Exactly _ as m -> Right m
+      | Undefined as m -> Right m
 
     type 'a axis = (Const.t, 'a) Axis.t
 
     type error =
       | Error : 'a axis * (('a, _) mode_comonadic, 'a) raw Solver.error -> error
 
-    let sub_log left right ~log:_ : (unit, error) Result.t =
+    let sub_any_user_log :
+        type d d'. d t -> d' t -> log:_ -> (unit, error) Result.t =
+     fun left right ~log ->
       match left, right with
       | Meet_const c0, Meet_const c1 ->
         if Const.le c0 c1
@@ -2224,43 +2331,106 @@ module Modality = struct
             Mode.axis_of_error { left = c0; right = c1 }
           in
           Error (Error (ax, { left = Meet_with left; right = Meet_with right }))
+      | Exactly (_mm, m), Meet_const c -> (
+        (* check for any x >= mm, meet(m, x) <= meet(c, x).
+           Equivalent to check meet(m, x) <= c.
+           Equivalent to check m <= c. *)
+        match Mode.submode_log m (Mode.of_const c) ~log with
+        | Ok () -> Ok ()
+        | Error (Error (ax, { left; _ })) ->
+          Error
+            (Error
+               ( ax,
+                 { left = Meet_with left; right = Meet_with (Axis.proj ax c) }
+               )))
+      | Exactly _, Exactly _ ->
+        (* [m1] is a left mode, so there is no good way to check.
+           However, this branch only hit by [wrap_constraint_with_shape],
+           in which case LHS and RHS should be physically equal. *)
+        assert (left == right);
+        Ok ()
+      | Meet_const _, Exactly _ -> assert false
+      | Undefined, _ | _, Undefined -> assert false
+
+    let sub_log left right ~log = sub_any_user_log left right ~log
 
     let id = Meet_const Const.max
 
     let cons :
-        type a l r. a axis -> ((a, l * r) mode_comonadic, a) raw -> t -> t =
+        type a l r. a axis -> ((a, l * r) mode_comonadic, a) raw -> user -> user
+        =
      fun ax a t ->
       match a, t with
       | Meet_with c0, Meet_const c ->
         Meet_const (Const.meet (Const.max_with ax c0) c)
       | Join_with _, Meet_const _ -> assert false
 
-    let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
+    let internalize : type d. d t -> internal = function
+      | Meet_const _ as t -> t
+      | Exactly _ as t -> t
+      | Undefined as t -> t
+
+    let apply_user : type l r. user -> (l * r) Mode.t -> (l * r) Mode.t =
      fun t x -> match t with Meet_const c -> Mode.meet_const c x
 
-    let to_list = function
+    let apply_left : type d r. d t -> (allowed * r) Mode.t -> Mode.l =
+     fun t x ->
+      match t with
+      | Meet_const c -> Mode.meet_const c x |> Mode.disallow_right
+      | Undefined -> assert false
+      | Exactly (_mm, m) -> m
+
+    let to_list : user -> _ = function
       | Meet_const c ->
         [ (let ax : _ Axis.t = Areality in
            Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
           (let ax : _ Axis.t = Linearity in
+           Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+          (let ax : _ Axis.t = Portability in
            Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
-    let print ppf = function
+    let print : type d. _ -> d t -> unit =
+     fun ppf -> function
       | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Const.print c
+      | Undefined -> Format.fprintf ppf "undefined"
+      | Exactly _ -> Format.fprintf ppf "exactly"
+
+    let infer mm m = Exactly (mm, m)
+
+    let max = Meet_const Const.max
+
+    let zap_to_id : type d. d t -> user = function
+      | Meet_const _ as t -> t
+      | Undefined -> assert false
+      | Exactly _ -> id
+
+    let zap_assert m =
+      match user_or_internal m with
+      | Left user -> user
+      | Right _ -> assert false
   end
 
   module Value = struct
-    type t = (Monadic.t, Comonadic.t) monadic_comonadic
+    type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
-    let apply t { monadic; comonadic } =
-      let monadic = Monadic.apply t.monadic monadic in
-      let comonadic = Comonadic.apply t.comonadic comonadic in
+    type user = _user t
+
+    type internal = _internal t
+
+    let apply_user t { monadic; comonadic } =
+      let monadic = Monadic.apply_user t.monadic monadic in
+      let comonadic = Comonadic.apply_user t.comonadic comonadic in
+      { monadic; comonadic }
+
+    let apply_left t { monadic; comonadic } =
+      let monadic = Monadic.apply_left t.monadic monadic in
+      let comonadic = Comonadic.apply_left t.comonadic comonadic in
       { monadic; comonadic }
 
     type error =
       | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
 
-    let sub_log : t -> t -> log:_ -> (unit, error) Result.t =
+    let sub_log : type d d'. d t -> d' t -> log:_ -> (unit, error) Result.t =
      fun t0 t1 ~log ->
       match Monadic.sub_log t0.monadic t1.monadic ~log with
       | Error (Error (ax, e)) -> Error (Error (Monadic ax, e))
@@ -2275,7 +2445,10 @@ module Modality = struct
 
     let equate m0 m1 = try_with_log (equate_from_submode sub_log m0 m1)
 
-    let id = { monadic = Monadic.id; comonadic = Comonadic.id }
+    let id : user = { monadic = Monadic.id; comonadic = Comonadic.id }
+
+    let undefined : internal =
+      { monadic = Undefined; comonadic = Comonadic.Undefined }
 
     let cons (Atom (ax, a)) t =
       match ax with
@@ -2286,12 +2459,44 @@ module Modality = struct
         let comonadic = Comonadic.cons ax a t.comonadic in
         { t with comonadic }
 
+    let internalize : type d. d t -> internal =
+     fun { monadic; comonadic } ->
+      let monadic = Monadic.internalize monadic in
+      let comonadic = Comonadic.internalize comonadic in
+      { monadic; comonadic }
+
+    let id' = internalize id
+
     let singleton a = cons a id
 
     let to_list { monadic; comonadic } =
       Comonadic.to_list comonadic @ Monadic.to_list monadic
 
-    let print ppf ({ monadic; comonadic } : t) =
+    let print ppf ({ monadic; comonadic } : 'd t) =
       Format.fprintf ppf "%a,%a" Monadic.print monadic Comonadic.print comonadic
+
+    let infer : Value.lr -> Value.l -> internal =
+     fun mmode mode ->
+      let comonadic = Comonadic.infer mmode.comonadic mode.comonadic in
+      let monadic = Monadic.infer mmode.monadic mode.monadic in
+      { monadic; comonadic }
+
+    let zap_to_id : type d. d t -> user =
+     fun t ->
+      let { monadic; comonadic } = t in
+      let comonadic = Comonadic.zap_to_id comonadic in
+      let monadic = Monadic.zap_to_id monadic in
+      { monadic; comonadic }
+
+    let zap_assert : type d. d t -> user =
+     fun { monadic; comonadic } ->
+      let comonadic = Comonadic.zap_assert comonadic in
+      let monadic = Monadic.zap_assert monadic in
+      { monadic; comonadic }
+
+    let max =
+      let monadic = Monadic.max in
+      let comonadic = Comonadic.max in
+      { monadic; comonadic }
   end
 end

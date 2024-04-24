@@ -385,16 +385,7 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-(* modalities on value descriptions are parsed and not type checked yet. *)
-module type S = sig
-  val x : string -> string @ local @@ foo bar
-end
-[%%expect{|
-Line 2, characters 38-41:
-2 |   val x : string -> string @ local @@ foo bar
-                                          ^^^
-Error: Modalities on value descriptions are not supported yet.
-|}]
+(* modalities on primitives are parsed but not supported yet. *)
 
 module type S = sig
   external x : string -> string @ local @@ foo bar = "%hello"
@@ -403,5 +394,5 @@ end
 Line 2, characters 43-46:
 2 |   external x : string -> string @ local @@ foo bar = "%hello"
                                                ^^^
-Error: Modalities on value descriptions are not supported yet.
+Error: Modality on primitive is not supported yet.
 |}]

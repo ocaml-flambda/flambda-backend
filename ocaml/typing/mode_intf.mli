@@ -290,6 +290,8 @@ module type S = sig
         include Lattice with type t = Areality.Const.t comonadic_with
 
         val eq : t -> t -> bool
+
+        val print_axis : (t, 'a) Axis.t -> Format.formatter -> 'a -> unit
       end
 
       type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
@@ -445,6 +447,10 @@ module type S = sig
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
   module Modality : sig
+    type _user = private User
+
+    type _internal = private Internal
+
     type ('m, 'a) raw =
       | Meet_with : 'a -> (('a, 'd) mode_comonadic, 'a) raw
           (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
@@ -467,23 +473,43 @@ module type S = sig
 
       (** A modality that acts on [Value] modes. Conceptually it is a sequnce of
           [atom] that acts on individual axes. *)
-      type t
+      type 'd t
+
+      type user = _user t
+
+      type internal = _internal t
+
+      (** Internalize a modality. *)
+      val internalize : 'd t -> internal
 
       (** The identity modality. *)
-      val id : t
+      val id : user
 
-      (** Apply a modality on mode. *)
-      val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+      (** Same as [id] but internalized for convenience. *)
+      val id' : internal
+
+      (** The undefined modality. *)
+      val undefined : internal
+
+      (** Apply a user modality on mode. *)
+      val apply_user : user -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+
+      (** Apply a modality on a left mode. *)
+      val apply_left : 'd t -> (allowed * 'r) Value.t -> Value.l
+
+      (* CR zqian: call this [compose]. *)
 
       (** [cons m t] returns the modality that is [m] after [t]. *)
-      val cons : atom -> t -> t
+      val cons : atom -> user -> user
 
       (** [singleton m] returns the modality containing only [m]. *)
-      val singleton : atom -> t
+      val singleton : atom -> user
+
+      (* CR zqian: return record, then we don't need [Exist.t]. *)
 
       (** Returns the list of [atom] in the given modality. The list is
           commutative. *)
-      val to_list : t -> atom list
+      val to_list : user -> atom list
 
       type error =
         | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
@@ -495,16 +521,39 @@ module type S = sig
           [ax] is the axis on which the modalities disagree. [left] is the
           projection of [t0] on [ax], and [right] is the projection of [t1] on
           [ax]. *)
-      val sub : t -> t -> (unit, error) Result.t
+      val sub : 'd t -> 'd t -> (unit, error) Result.t
 
       type nonrec equate_error = equate_step * error
 
       (** [equate t0 t1] checks that [t0 = t1].
           Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
-      val equate : t -> t -> (unit, equate_error) Result.t
+      val equate : 'd t -> 'd t -> (unit, equate_error) Result.t
 
       (** Printing for debugging. *)
-      val print : Format.formatter -> t -> unit
+      val print : Format.formatter -> 'd t -> unit
+
+      val infer : Value.lr -> Value.l -> internal
+
+      (** Returns a user modality weaker than the given modality. The returned
+      modality will be pushed to identity modality if possible. The given
+      modality might be mutated as a result. This function also enjoys the
+      properties:
+
+      - [let m0 = zap_to_id m in (...); let m1 = zap_to_id m in equate m0 m1]
+        always succeeds, where [...] might mutate [m].
+      - [let m' = zap_to_id m in (...; sub m m')] always succeeds, where [...]
+        might mutate [m].
+      *)
+      val zap_to_id : 'd t -> user
+
+      (* CR zqian: rename to [to_const_exn]. *)
+
+      (** Returns a user modality by asserting the given modality is already
+      user modality and returning it. *)
+      val zap_assert : 'd t -> user
+
+      (** The top modality; [sub x max] succeeds for any [x]. *)
+      val max : user
     end
   end
 end

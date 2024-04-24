@@ -98,6 +98,7 @@ type error =
       old_arg_type : Compilation_unit.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Submode_failed of Mode.Value.Comonadic.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2118,6 +2119,49 @@ let remove_mode_and_jkind_variables env sg =
   let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; None in
   List.find_map (nongen_signature_item env rm) sg |> ignore
 
+let rec map_inferred_modalities_sg : _ -> (Mode.Modality.Value.internal -> Mode.Modality.Value.user) -> _ -> _
+= fun env map sg ->
+  let rec loop acc = function
+    | Sig_value (id, desc, vis) :: rest ->
+        let val_modalities =
+          desc.val_modalities
+          |> map |> Mode.Modality.Value.internalize
+        in
+        let desc = {desc with val_modalities} in
+        let item = Sig_value (id, desc, vis) in
+        loop (item :: acc) rest
+    | Sig_module (id, pres, md, re, vis) :: rest ->
+        let md_type = map_inferred_modalities_mty env map md.md_type in
+        let md = {md with md_type} in
+        let item = Sig_module (id, pres, md, re, vis) in
+        loop (item :: acc) rest
+    | item :: rest -> loop (item :: acc) rest
+    | [] -> acc
+  in
+  List.rev (loop [] sg)
+
+and map_inferred_modalities_mty env map mty =
+  match mty with
+  | Mty_ident _ | Mty_alias _ ->
+    (* module types with names can't have inferred modalities. *)
+    mty
+  | Mty_signature sg -> Mty_signature (map_inferred_modalities_sg env map sg)
+  | Mty_functor (param, mty) ->
+    let param : Types.functor_parameter =
+      match param with
+      | Named (id, mty) ->
+          let mty =
+            map_inferred_modalities_mty env Mode.Modality.Value.zap_assert mty
+          in
+          Named (id, mty)
+      | Unit -> Unit
+    in
+    let mty = map_inferred_modalities_mty env map mty in
+    Mty_functor (param, mty)
+  | Mty_strengthen (mty, path, alias) ->
+      let mty = map_inferred_modalities_mty env Mode.Modality.Value.zap_assert mty in
+      Mty_strengthen (mty, path, alias)
+
 (* Helpers for typing recursive modules *)
 
 let anchor_submodule name anchor =
@@ -2816,8 +2860,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.fold_left
             (fun (acc, shape_map) (id, id_info, zero_alloc) ->
               List.iter
-                (fun (loc, mode, sort) ->
-                   Typecore.escape ~loc ~env:newenv ~reason:Other mode;
+                (fun (loc, _mode, sort) ->
                    (* CR layouts v5: this jkind check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
@@ -2841,9 +2884,22 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
-              let vd =  Env.find_value (Pident id) newenv in
+              let vd, mode =  Env.find_value_without_locks id newenv in
               let vd = Subst.Lazy.force_value_description vd in
-              let vd = { vd with val_zero_alloc = zero_alloc } in
+              (* structures are always legacy *)
+              let mmode = Mode.Value.legacy in
+              begin match Mode.Value.Comonadic.submode
+                mode.Mode.comonadic
+                mmode.Mode.comonadic with
+                | Ok () -> ()
+                | Error e -> raise (Error (first_loc, env, Submode_failed e))
+              end;
+              let modalities = Mode.Modality.Value.infer mmode mode in
+              let vd =
+                { vd with
+                  val_zero_alloc = zero_alloc;
+                  val_modalities = modalities }
+              in
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
@@ -3229,6 +3285,7 @@ let type_module_type_of env smod =
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
   check_nongen_modtype env smod.pmod_loc mty;
+  let mty = map_inferred_modalities_mty env Mode.Modality.Value.zap_to_id mty in
   tmty, mty
 
 (* For Typecore *)
@@ -3441,6 +3498,9 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
+        let simple_sg =
+          map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_id simple_sg
+        in
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
         let shape = Shape_reduce.local_reduce Env.empty shape in
@@ -3535,6 +3595,10 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                 sourcefile sg "(inferred signature)" simple_sg shape)
           in
           check_nongen_signature finalenv simple_sg;
+          let simple_sg =
+            map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_id
+            simple_sg
+          in
           normalize_signature simple_sg;
           let argument_interface =
             check_argument_type_if_given initial_env sourcefile simple_sg arg_type
@@ -3995,6 +4059,11 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
         Compilation_unit.Name.print arg_type
+  | Submode_failed (Error (ax, {left; right})) ->
+      Location.errorf ~loc
+        "This value is %a, but is expected to be %a because it is inside a module."
+        (Mode.Value.Comonadic.Const.print_axis ax) left
+        (Mode.Value.Comonadic.Const.print_axis ax) right
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

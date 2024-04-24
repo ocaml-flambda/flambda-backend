@@ -318,7 +318,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_modalities: Mode.Modality.Value.t;
+    ld_modalities: Mode.Modality.Value.user;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -338,7 +338,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.user;
     ca_type: type_expr;
     ca_loc: Location.t;
   }
@@ -438,6 +438,7 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
+      val_modalities : Mode.Modality.Value.internal;    (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
       val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
@@ -516,9 +517,10 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
       | Named (id,mty) -> To.Named (id, module_type m mty)
 
   let value_description m {val_type; val_kind; val_zero_alloc;
-                           val_attributes; val_loc; val_uid} =
+                           val_modalities; val_attributes; val_loc; val_uid} =
     To.{
       val_type = m.map_type_expr m val_type;
+      val_modalities;
       val_kind;
       val_zero_alloc;
       val_attributes;
@@ -699,7 +701,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_modalities: Mode.Modality.Value.t;(* Is this a global field? *)
+    lbl_modalities: Mode.Modality.Value.user;(* Is this a global field? *)
     lbl_jkind : jkind;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)

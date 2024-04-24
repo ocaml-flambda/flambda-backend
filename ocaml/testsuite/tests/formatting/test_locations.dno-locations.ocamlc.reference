@@ -88,11 +88,11 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
       <def_rec>
         pattern 
           Tpat_var "fib"
-          value_mode global,many,nonportable,shared,uncontended
+          value_mode global,many,nonportable,join_shared,contended(1[shared,uncontended,unique,uncontended])
         expression 
           Texp_function
           region true
-          alloc_mode global,many,nonportable,shared,uncontended
+          alloc_mode global,many,nonportable,id(7[shared,contended,unique,uncontended])
           []
           Tfunction_cases 
           alloc_mode global,many,nonportable,shared,uncontended

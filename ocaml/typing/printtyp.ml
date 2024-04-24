@@ -1301,6 +1301,8 @@ let tree_of_modality_new (t : Mode.Modality.t) =
   | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
   | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
   | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
+  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
+  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
   | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
 
 let tree_of_modality (t : Mode.Modality.t) =
@@ -1319,6 +1321,10 @@ let tree_of_modalities ~has_mutable_implied_modalities t =
       l
   in
   List.filter_map tree_of_modality l
+
+let tree_of_modalities_new t =
+  let l = Mode.Modality.Value.to_list t in
+  List.filter_map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
@@ -2049,6 +2055,8 @@ let tree_of_value_description id decl =
   let ty = tree_of_type_scheme decl.val_type in
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
+  let snap = Btype.snapshot () in
+  let moda = Mode.Modality.Value.zap_to_id decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2084,6 +2092,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
+      oval_modalities = tree_of_modalities_new moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -2093,7 +2102,9 @@ let tree_of_value_description id decl =
     | Val_prim p -> Primitive.print p vd
     | _ -> vd
   in
-  Osig_value vd
+  let r = Osig_value vd in
+  Btype.backtrack snap;
+  r
 
 let value_description id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_value_description id decl)

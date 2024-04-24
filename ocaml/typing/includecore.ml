@@ -45,6 +45,7 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of { missing_entirely : bool }
   | Zero_alloc_arity of int * int
+  | Modality of Mode.Modality.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -167,6 +168,10 @@ let value_descriptions ~loc env name
     vd1.val_attributes vd2.val_attributes
     name;
   zero_alloc vd1.val_zero_alloc vd2.val_zero_alloc;
+  begin match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
+  | Ok () -> ()
+  | Error e -> raise (Dont_match (Modality e))
+  end;
   match vd1.val_kind with
   | Val_prim p1 -> begin
      match vd2.val_kind with
@@ -391,6 +396,7 @@ let report_value_mismatch first second env ppf err =
         the implementation must match the function type in the interface.@ \
         Here the former is %d and the latter is %d."
       n1 n2
+  | Modality e -> report_modality_sub_error first second ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err

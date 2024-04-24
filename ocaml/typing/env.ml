@@ -434,6 +434,22 @@ module IdTbl =
     let find_same id (tbl : (empty, _, _) t) =
       find_same_without_locks id tbl
 
+    let rec find_same_and_locks id tbl macc =
+      try
+        let desc = Ident.find_same id tbl.current in
+        desc, macc
+      with Not_found as exn ->
+        begin match tbl.layer with
+        | Open {next; _} -> find_same_and_locks id next macc
+        | Map {f; next} ->
+          let desc, locks = find_same_and_locks id next macc in
+          f desc, locks
+        | Lock {lock; next} -> find_same_and_locks id next (lock :: macc)
+        | Nothing -> raise exn
+        end
+
+    let find_same_and_locks id tbl = find_same_and_locks id tbl []
+
     let rec find_name_and_locks wrap ~mark name tbl macc : _ Result.t =
       try
         let (id, desc) = Ident.find_name name tbl.current in
@@ -877,6 +893,23 @@ let md md_type =
   {md_type; md_attributes=[]; md_loc=Location.none
   ;md_uid = Uid.internal_not_actually_unique}
 
+(** The caller is not interested in modes, and thus [val_modalities] is
+invalidated. *)
+let vda_description vda =
+  let vda_description = vda.vda_description in
+  {vda_description with val_modalities = Mode.Modality.Value.undefined}
+
+(** The caller wants the mode of the [value_data] *)
+let apply_val_modalities vda =
+  let decouple_val_modalities (vd : Subst.Lazy.value_description) =
+    let modalities = vd.val_modalities in
+    let vd = {vd with val_modalities = Mode.Modality.Value.id'} in
+    modalities, vd
+  in
+  let modalities, vda_description = decouple_val_modalities vda.vda_description in
+  let vda_mode = Mode.Modality.Value.apply_left modalities vda.vda_mode in
+  {vda with vda_description; vda_mode}
+
 (* Print addresses *)
 
 let rec print_address ppf = function
@@ -1284,7 +1317,15 @@ let find_cltype path env =
   | Papply _ | Pextra_ty _ -> raise Not_found
 
 let find_value path env =
-  (find_value_full path env).vda_description
+  find_value_full path env |> vda_description
+
+let find_value_without_locks id env =
+  match IdTbl.find_same_and_locks id env.values with
+  | Val_bound _, _ :: _ -> assert false
+  | Val_bound data, [] ->
+      let data = apply_val_modalities data in
+      data.vda_description, data.vda_mode
+  | Val_unbound _, _ -> raise Not_found
 
 let find_class path env =
   (find_class_full path env).clda_declaration
@@ -1803,6 +1844,8 @@ let rec components_of_module_maker
         incr pos;
         Lazy_backtrack.create addr
       in
+      (* structures are always legacy *)
+      let mmode = Mode.Value.legacy |> Mode.Value.disallow_right in
       List.iter (fun ((item : Subst.Lazy.signature_item), path) ->
         match item with
           Sig_value(id, decl, _) ->
@@ -1815,7 +1858,7 @@ let rec components_of_module_maker
             let vda_shape = Shape.proj cm_shape (Shape.Item.value id) in
             let vda =
               { vda_description = decl'; vda_address = addr;
-                vda_mode = Mode.Value.disallow_right Mode.Value.legacy; vda_shape }
+                vda_mode = mmode; vda_shape }
             in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
@@ -1998,6 +2041,7 @@ and store_value ?check ~mode id addr decl shape env =
   Option.iter
     (fun f -> check_usage decl.val_loc id decl.val_uid f !value_declarations)
     check;
+  let _ = Mode.Modality.Value.apply_left decl.val_modalities mode in
   let vda =
     { vda_description = decl;
       vda_address = addr;
@@ -2889,7 +2933,7 @@ let use_module ~use ~loc path mda =
 
 let use_value ~use ~loc path vda =
   if use then begin
-    let desc = vda.vda_description in
+    let desc = vda |> vda_description in
     mark_value_used desc.val_uid;
     Builtin_attributes.check_alerts loc desc.val_attributes
       (Path.name path)
@@ -3399,6 +3443,7 @@ let lookup_value ~errors ~use ~loc lid env =
   let path, locks, vda =
     lookup_value_lazy ~errors ~use ~loc lid env
   in
+  let vda = apply_val_modalities vda in
   let vd = Subst.Lazy.force_value_description vda.vda_description in
   let vmode =
     if use then
@@ -3611,7 +3656,7 @@ let lookup_all_labels_from_type ?(use=true) ~loc usage ty_path env =
 let lookup_instance_variable ?(use=true) ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (path, _, Val_bound vda) -> begin
-      let desc = vda.vda_description in
+      let desc = vda |> vda_description in
       match desc.val_kind with
       | Val_ivar(mut, cl_num) ->
           use_value ~use ~loc path vda;
@@ -3758,7 +3803,7 @@ let fold_values f =
     (fun k p ve acc ->
        match ve with
        | Val_unbound _ -> acc
-       | Val_bound vda -> f k p vda.vda_description acc)
+       | Val_bound vda -> f k p (vda |> vda_description) acc)
 and fold_constructors f =
   find_all_simple_list (fun env -> env.constrs) (fun sc -> sc.comp_constrs)
     (fun cda acc -> f cda.cda_description acc)

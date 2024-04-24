@@ -943,7 +943,7 @@ and label_declaration =
      ld_name: string loc;
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
-     ld_modalities: Mode.Modality.Value.t;
+     ld_modalities: Mode.Modality.Value.user;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -963,7 +963,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.user;
     ca_type: core_type;
     ca_loc: Location.t;
   }
