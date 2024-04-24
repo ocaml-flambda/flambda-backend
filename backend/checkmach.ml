@@ -246,9 +246,9 @@ module V : sig
 
   val is_resolved : t -> bool
 
-  val apply : t -> env:(Var.t -> t) -> t
-
   val get_unresolved_names : t -> String.Set.t
+
+  val apply : t -> env:(Var.t -> t option) -> t
 
   val bot : t
 
@@ -1245,38 +1245,40 @@ end = struct
     | (Var _ | Join _ | Transform _), _ | _, (Var _ | Join _ | Transform _) ->
       assert false
 
-  let rec apply t ~env =
-    match t with
-    | Bot | Safe | Top _ -> t
-    | Var { var; witnesses } -> replace_witnesses witnesses (env var)
-    | Transform tr ->
-      let init =
-        match Transform.get_top tr with None -> Safe | Some w -> Top w
-      in
-      Vars.fold
-        ~f:(fun var w acc ->
-          let v = replace_witnesses w (env var) in
-          transform v acc)
-        ~init (Transform.get_vars tr)
-    | Join j ->
-      let init =
-        match Join.get_top j with
-        | None -> if Join.has_safe j then Safe else Bot
-        | Some w -> Top w
-      in
-      let vars, trs = Join.get j in
-      let acc =
+  let apply t ~env =
+    let env var w =
+      match env var with
+      | None -> unresolved w var
+      | Some v -> replace_witnesses w v
+    in
+    let rec aux t =
+      match t with
+      | Bot | Safe | Top _ -> t
+      | Var { var; witnesses } -> env var witnesses
+      | Transform tr ->
+        let init =
+          match Transform.get_top tr with None -> Safe | Some w -> Top w
+        in
         Vars.fold
-          ~f:(fun var w acc ->
-            let v = replace_witnesses w (env var) in
-            join v acc)
-          ~init vars
-      in
-      Transforms.fold
-        (fun tr acc ->
-          let t = Transform tr in
-          join (apply t ~env) acc)
-        trs acc
+          ~f:(fun var w acc -> transform (env var w) acc)
+          ~init (Transform.get_vars tr)
+      | Join j ->
+        let init =
+          match Join.get_top j with
+          | None -> if Join.has_safe j then Safe else Bot
+          | Some w -> Top w
+        in
+        let vars, trs = Join.get j in
+        let acc =
+          Vars.fold ~f:(fun var w acc -> join (env var w) acc) ~init vars
+        in
+        Transforms.fold
+          (fun tr acc ->
+            let t = Transform tr in
+            join (aux t) acc)
+          trs acc
+    in
+    aux t
 end
 
 module T = Zero_alloc_utils.Make_value (Witnesses) (V)
@@ -1300,7 +1302,7 @@ module Value : sig
 
   val get_component : t -> Tag.t -> V.t
 
-  val apply : t -> (Var.t -> V.t) -> t
+  val apply : t -> (Var.t -> V.t option) -> t
 end = struct
   include T
 
