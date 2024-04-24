@@ -1704,6 +1704,8 @@ module Unit_info : sig
 
   val find_opt : t -> string -> Func_info.t option
 
+  val find_exn : t -> string -> Func_info.t
+
   (** [recod t name v dbg a] name must be in the current compilation unit,
       and not previously recorded.  *)
   val record :
@@ -1721,6 +1723,8 @@ end = struct
   let reset t = String.Tbl.reset t
 
   let find_opt t name = String.Tbl.find_opt t name
+
+  let find_exn t name = String.Tbl.find t name
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
@@ -1883,7 +1887,7 @@ end = struct
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Func_info.print ~witnesses:true ppf ~msg func_info
 
-  let record_unit ppf unit_info =
+  let check_and_save_unit_info ppf unit_info =
     let errors = ref [] in
     let record (func_info : Func_info.t) =
       (match func_info.annotation with
@@ -2149,9 +2153,11 @@ end = struct
 
     val empty : t
 
+    val singleton : Func_info.t -> Value.t -> t
+
     val add : Func_info.t -> Value.t -> t -> t
 
-    val get_value : string -> t -> Value.t
+    val get_value_exn : string -> t -> Value.t
 
     val iter : t -> f:(Func_info.t -> Value.t -> unit) -> unit
 
@@ -2176,7 +2182,9 @@ end = struct
       let d = { func_info; approx } in
       String.Map.add func_info.name d t
 
-    let get_value name t =
+    let singleton (func_info : Func_info.t) approx = add func_info approx empty
+
+    let get_value_exn name t =
       let d = String.Map.find name t in
       d.approx
 
@@ -2198,27 +2206,11 @@ end = struct
 
   (* CR gyorsh: do we need join in the fixpoint computation or is the function
      body analysis/summary already monotone? *)
-  let fixpoint ppf unit_info =
-    report_unit_info ppf unit_info ~msg:"before fixpoint";
+  let fixpoint ppf init_env =
     (* CR gyorsh: this is a really dumb iteration strategy. *)
-    let found_unresolved = ref false in
-    let init_env =
-      (* initialize [env] with Bot for all functions on normal and exceptional
-         return, and Safe for diverage component conservatively. *)
-      let init_val = Value.diverges in
-      Unit_info.fold unit_info ~init:Env.empty ~f:(fun func_info env ->
-          let v =
-            if Value.is_resolved func_info.value
-            then func_info.value
-            else (
-              found_unresolved := true;
-              init_val)
-          in
-          Env.add func_info v env)
-    in
     let lookup env var =
-      let v = Env.get_value (Var.name var) env in
-      Value.get_component v (Var.tag var)
+      let v = Env.get_value_exn (Var.name var) env in
+      Some (Value.get_component v (Var.tag var))
     in
     let rec loop env =
       Env.print ~msg:"computing fixpoint" ppf env;
@@ -2246,18 +2238,93 @@ end = struct
       in
       if !changed then loop env' else env'
     in
-    if !found_unresolved
-    then (
-      let env = loop init_env in
-      Env.iter env ~f:(fun func_info v -> Func_info.update func_info v);
-      Env.print ~msg:"after fixpoint" ppf env;
-      report_unit_info ppf unit_info ~msg:"after fixpoint")
+    let env = loop init_env in
+    Env.iter env ~f:(fun func_info v ->
+        assert (Value.is_resolved v);
+        Func_info.update func_info v);
+    Env.print ~msg:"after fixpoint" ppf env
 
-  let record_unit unit_info ppf =
+  let record_unit unit_info unresolved_deps ppf =
     Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
       (fun () ->
-        fixpoint ppf unit_info;
-        record_unit ppf unit_info)
+        report_unit_info ppf unit_info ~msg:"before fixpoint";
+        let found_unresolved = ref false in
+        let init_env =
+          Unit_info.fold unit_info ~init:Env.empty ~f:(fun func_info env ->
+              let v =
+                if Value.is_resolved func_info.value
+                then func_info.value
+                else (
+                  found_unresolved := true;
+                  Env.init_val)
+              in
+              Env.add func_info v env)
+        in
+        if !found_unresolved
+        then (
+          fixpoint ppf init_env;
+          report_unit_info ppf unit_info ~msg:"after fixpoint")
+        else assert (Unresolved_dependencies.is_empty unresolved_deps);
+        check_and_save_unit_info ppf unit_info)
+
+  (* [fixpoint_self_rec] try to resolves the common case of self-recursive
+     functions with no other unresolved dependencies, instead of waiting until
+     the end of the compilation unit to compute its fixpoint. Return the
+     unresolved callees of [func_info]. *)
+  let fixpoint_self_rec (func_info : Func_info.t) ppf =
+    let unresolved_callees = Value.get_unresolved_names func_info.value in
+    if String.Set.is_empty unresolved_callees
+       || not
+            (String.Set.equal unresolved_callees
+               (String.Set.singleton func_info.name))
+    then unresolved_callees
+    else
+      let init_env = Env.singleton func_info Env.init_val in
+      fixpoint ppf init_env;
+      report_func_info ~msg:"after self-rec fixpoint" ppf func_info;
+      String.Set.empty
+
+  (* [propagate] applies resolved values to transitive dependencies, but does
+     not resolve mutually recursive loops. *)
+  let rec propagate ~callee unit_info unresolved_deps ppf =
+    let callee_info = Unit_info.find_exn unit_info callee in
+    if Value.is_resolved callee_info.value
+       && Unresolved_dependencies.contains ~callee unresolved_deps
+    then (
+      let callers =
+        Unresolved_dependencies.get_callers ~callee unresolved_deps
+      in
+      assert (not (String.Set.is_empty callers));
+      Unresolved_dependencies.remove ~callee unresolved_deps;
+      let lookup var =
+        if String.equal (Var.name var) callee
+        then Some (Value.get_component callee_info.value (Var.tag var))
+        else None
+      in
+      (* To avoid problems due to cyclic dependencies and sharing, first resolve
+         everything that directly depends on [callee_info] and update
+         dependencies, then propagate recursively. *)
+      String.Set.iter
+        (fun caller ->
+          let caller_info = Unit_info.find_exn unit_info caller in
+          let new_value = Value.apply caller_info.value lookup in
+          Func_info.update caller_info new_value;
+          let unresolved_callees = fixpoint_self_rec caller_info ppf in
+          Unresolved_dependencies.update ~caller:caller_info.name
+            ~callees:unresolved_callees unresolved_deps)
+        callers;
+      String.Set.iter
+        (fun caller -> propagate ~callee:caller unit_info unresolved_deps ppf)
+        callers)
+
+  let add_unresolved_dependencies caller unit_info unresolved_deps ppf =
+    let caller_info = Unit_info.find_exn unit_info caller in
+    let unresolved_callees = fixpoint_self_rec caller_info ppf in
+    if not (String.Set.is_empty unresolved_callees)
+    then
+      Unresolved_dependencies.add ~caller ~callees:unresolved_callees
+        unresolved_deps;
+    propagate ~callee:caller unit_info unresolved_deps ppf
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info unresolved_deps ppf
       =
@@ -2277,6 +2344,7 @@ end = struct
           assert (Witnesses.is_empty exn);
           assert (Witnesses.is_empty div));
         Unit_info.record unit_info fun_name res f.fun_dbg a;
+        add_unresolved_dependencies fun_name unit_info unresolved_deps t.ppf;
         report_unit_info ppf unit_info ~msg:"after record"
       in
       let really_check () =
