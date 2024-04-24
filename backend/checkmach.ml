@@ -2031,6 +2031,10 @@ end = struct
     val map : t -> f:(Func_info.t -> Value.t -> Value.t) -> t
 
     val print : msg:string -> Format.formatter -> t -> unit
+
+    (** initialize [env] with Bot for all functions on normal and exceptional
+       return, and Safe for diverage component conservatively. *)
+    val init_val : Value.t
   end = struct
     type data =
       { func_info : Func_info.t;
@@ -2061,6 +2065,8 @@ end = struct
             Format.fprintf ppf "Env %s: %s: %a@." msg func_info.name
               (Value.print ~witnesses:true)
               approx)
+
+    let init_val = Value.diverges
   end
 
   (* CR gyorsh: do we need join in the fixpoint computation or is the function
