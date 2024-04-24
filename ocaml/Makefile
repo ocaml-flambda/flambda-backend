@@ -631,7 +631,6 @@ runtime4_COMMON_C_SOURCES = \
   hash \
   instrtrace \
   intern \
-  interp \
   ints \
   io \
   lexing \

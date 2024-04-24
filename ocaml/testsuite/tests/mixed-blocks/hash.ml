@@ -1,34 +1,12 @@
 (* TEST
  flags = "-extension layouts_alpha";
- program = "${test_build_directory}/hash.exe";
- all_modules = "hash.ml";
  flambda2;
  {
-   setup-ocamlc.opt-build-env;
-   ocamlc.opt;
-   run;
-   reference = "${test_source_directory}/hash.byte.reference";
-   check-program-output;
+   native;
  }{
-   setup-ocamlopt.opt-build-env;
-   ocamlopt.opt;
-   run;
-   reference = "${test_source_directory}/hash.native.reference";
-   check-program-output;
+   bytecode;
  }
 *)
-
-(* Currently bytecode/native hashes of mixed records are different.
-   Mixed records are represented as mixed blocks in native code and
-   normal blocks in bytecode. Hash raises on mixed blocks (but not
-   on normal blocks).
-
-   We could consider making native hash return a value instead. But,
-   if it's a different value than bytecode, it's important that users
-   can't marshal mixed block values from native code to bytecode.
-   (Otherwise you could marshal a hashtable, breaking its invariants.)
-*)
-
 let hash x =
  match Hashtbl.hash x with
  | exception exn -> Printf.sprintf "raised %s" (Printexc.to_string exn)

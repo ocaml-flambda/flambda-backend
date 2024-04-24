@@ -334,10 +334,8 @@ let copy_via_tag x =
   line {|let oc = Out_channel.open_bin "/dev/null"|};
   line {|exception Unexpected_success|};
   line {|type forget = T : _ -> forget|};
-  if not bytecode
-  then
-    line
-      {|
+  line
+    {|
 let expect_failure f =
   try f (); raise Unexpected_success with
   | Unexpected_success -> assert false
@@ -351,21 +349,7 @@ let try_compare x y =
   expect_failure (fun () -> ignore ((T x) = (T y) : bool))
 
 let try_marshal t =
-  expect_failure (fun () -> output_value oc t)|}
-  else
-    (* In bytecode, polymorphic comparison/hash/marshaling don't
-       raise, as mixed records are represented as normal non-mixed blocks.
-     *)
-    line
-      {|
-let try_hash x =
-  ignore (Hashtbl.hash x : int)
-
-let try_compare x y =
-  ignore (compare (T x) (T y) : int);
-  ignore ((T x) = (T y) : bool)
-
-let try_marshal t = output_value oc t;;|};
+  expect_failure (fun () -> output_value oc t)|};
   line
     {|
 let check_reachable_words expected actual message =
