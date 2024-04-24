@@ -145,11 +145,19 @@ originally built for Spacetime profiling, hence the odd name.
 #define Reserved_hd(hd) ((reserved_t)(Profinfo_hd(hd)))
 #define Reserved_val(val) ((reserved_t)(Profinfo_val(val)))
 
-#define Scannable_wosize_val(val) (Scannable_wosize_hd (Hd_val (val)))
-
 #define Is_mixed_block_reserved(res)               (((reserved_t)(res)) > 0)
-#define Mixed_block_scannable_wosize_reserved(res) (((reserved_t)(res)) - 1)
+
+#ifdef NATIVE_CODE
+#define Scannable_wosize_val(val) (Scannable_wosize_hd (Hd_val (val)))
 #define Reserved_mixed_block_scannable_wosize(sz)  (((mlsize_t)(sz)) + 1)
+#define Mixed_block_scannable_wosize_reserved_native(res) (((reserved_t)(res)) - 1)
+
+Caml_inline mlsize_t Scannable_wosize_reserved(reserved_t res, mlsize_t sz) {
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : sz;
+}
 
 /* The scannable size of a block is how many fields are values as opposed
    to flat floats/ints/etc. This is different than the (normal) size of a
@@ -159,10 +167,10 @@ originally built for Spacetime profiling, hence the odd name.
    an OCaml value. (e.g. polymorphic comparison, GC marking/sweeping)
    All of these traversals must be written to have one of the following
    properties:
-     - it's known that the input can never be a mixed block,
-     - it raises an exception on mixed blocks, or
-     - it uses the scannable size (not the normal size) to figure out which
-       fields to recursively descend into.
+   - it's known that the input can never be a mixed block,
+   - it raises an exception on mixed blocks, or
+   - it uses the scannable size (not the normal size) to figure out which
+   fields to recursively descend into.
 
    Otherwise, the traversal could attempt to recursively descend into
    a flat field, which could segfault (or worse).
@@ -171,9 +179,21 @@ Caml_inline mlsize_t Scannable_wosize_hd(header_t hd) {
   reserved_t res = Reserved_hd(hd);
   return
     Is_mixed_block_reserved(res)
-    ? Mixed_block_scannable_wosize_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
     : Wosize_hd(hd);
 }
+
+#else
+#define Scannable_wosize_hd(val)  (Wosize_hd (val))
+#define Scannable_wosize_val(val) (Wosize_hd (Hd_val (val)))
+#define Faux_mixed_block_sentinel ((reserved_t) 0xff)
+
+// In bytecode always use the size of the block as the scannable size
+Caml_inline mlsize_t Scannable_wosize_reserved(reserved_t res, mlsize_t size) {
+  return size;
+}
+
+#endif // NATIVE_CODE
 
 #define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
 #define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */

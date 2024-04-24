@@ -37,10 +37,7 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
   mlsize_t i;
 
   // Optimization: for mixed blocks, don't fill in non-scannable fields
-  mlsize_t scannable_wosize =
-    Is_mixed_block_reserved(reserved)
-    ? Mixed_block_scannable_wosize_reserved(reserved)
-    : wosize;
+  mlsize_t scannable_wosize = Scannable_wosize_reserved(reserved, wosize);
 
   CAMLassert (tag < Num_tags);
   CAMLassert (tag != Infix_tag);
@@ -364,18 +361,23 @@ CAMLprim value caml_alloc_dummy_float (value size)
 CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
 {
   mlsize_t wosize = Long_val(size);
+#ifdef NATIVE_CODE
   mlsize_t scannable_wosize = Long_val(scannable_size);
-#ifdef NATIVECODE
   /* The below code runs for bytecode and native code, and critically assumes
      that a double record field can be stored in one word. That's true both for
      32-bit and 64-bit bytecode (as a double record field in a mixed record is
      always boxed), and for 64-bit native code (as the double record field is
      stored flat, taking up 1 word).
-   */
+  */
   CAML_STATIC_ASSERT(Double_wosize == 1);
-#endif
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize(scannable_wosize);
+#else
+  /* [scannable_size] can't be used meaningfully in bytecode */
+  (void)scannable_size;
+  CAMLassert(scannable_size == Val_int(-1));
+  reserved_t reserved = Faux_mixed_block_sentinel;
+#endif // NATIVE_CODE
   return caml_alloc_with_reserved (wosize, 0, reserved);
 }
 
