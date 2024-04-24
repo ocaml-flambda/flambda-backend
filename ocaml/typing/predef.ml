@@ -275,15 +275,16 @@ let build_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple (List.map
-                                 (fun x ->
-                                    {
-                                      ca_type=x;
-                                      ca_global=Unrestricted;
-                                      ca_loc=Location.none
-                                    }
-                                 )
-                                 args);
+        ext_args =
+          Cstr_tuple
+            (List.map
+              (fun x ->
+                {
+                  ca_type=x;
+                  ca_global=Unrestricted;
+                  ca_loc=Location.none
+                })
+              args);
         ext_arg_jkinds = jkinds;
         ext_constant = args = [];
         ext_ret_type = None;

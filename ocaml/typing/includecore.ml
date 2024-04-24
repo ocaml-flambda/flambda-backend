@@ -725,9 +725,9 @@ module Variant_diffing = struct
         if List.length arg1 <> List.length arg2 then
           Some (Arity : constructor_mismatch)
         else begin
-          let map_arg = List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_global) in
-          let arg1_tys, arg1_gfs = List.split (map_arg arg1)
-          and arg2_tys, arg2_gfs = List.split (map_arg arg2)
+          let type_and_mode (ca : Types.constructor_argument) = ca.ca_type, ca.ca_global in
+          let arg1_tys, arg1_gfs = List.split (List.map type_and_mode arg1)
+          and arg2_tys, arg2_gfs = List.split (List.map type_and_mode arg2)
           in
           (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
           match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
