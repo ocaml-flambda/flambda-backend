@@ -1008,8 +1008,10 @@ end = struct
     | Transform tr1, Transform tr2 -> Transform (Transform.flatten tr1 tr2)
     | Transform tr, Join j | Join j, Transform tr ->
       Join (Join.distribute_transform_over_join j tr)
-    | Top w, Join j | Join j, Top w ->
-      Join (Join.distribute_transform_top_over_join j w)
+    | (Top w as top), Join j | Join j, (Top w as top) ->
+      if Join.has_safe j && not (Join.has_witnesses j)
+      then top
+      else Join (Join.distribute_transform_top_over_join j w)
     | Var { var; witnesses }, Join j | Join j, Var { var; witnesses } ->
       Join (Join.distribute_transform_var_over_join j var witnesses)
     | Join j1, Join j2 -> Join (Join.distribute_transform_over_joins j1 j2)
