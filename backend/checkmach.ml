@@ -147,7 +147,7 @@ module Tag = struct
     | E
     | D
 
-  let compare = Stdlib.compare
+  let compare : t -> t -> int = Stdlib.compare
 
   let print = function N -> "nor" | E -> "exn" | D -> "div"
 end
