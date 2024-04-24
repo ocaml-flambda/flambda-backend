@@ -2795,7 +2795,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
-            (fun (acc, shape_map) (id, modes) ->
+            (fun (acc, shape_map) (id, id_info) ->
               List.iter
                 (fun (loc, mode, sort, _) ->
                    Typecore.escape ~loc ~env:newenv ~reason:Other mode;
@@ -2806,13 +2806,13 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    then raise (Error (loc, env,
                                    Toplevel_nonvalue (Ident.name id,sort)))
                 )
-                modes;
+                id_info;
               let zero_alloc =
                 (* We only allow "Check" attributes in signatures.  Here we
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] modes with
+                match[@warning "+9"] id_info with
                 | [(_, _, _, (Default_check | Ignore_assert_all _))] ->
                   Default_check
                 | [(_, _, _, (Check _ as zero_alloc))] -> zero_alloc
@@ -2821,7 +2821,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                   Check { strict; property; arity; loc; opt = false }
                 | _ -> Default_check
               in
-              let (first_loc, _, _, _) = List.hd modes in
+              let (first_loc, _, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
               let vd = Subst.Lazy.force_value_description vd in
