@@ -66,12 +66,13 @@ module Acc : sig
 
   val code_deps : t -> code_dep Code_id.Map.t
 
-  val deps : t -> Graph.graph
+  val deps : t -> Graph.graph * Graph.graph
 end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
       mutable apply_deps : apply_dep list;
-      deps : Graph.graph;
+      deps1 : Graph.graph;
+      deps2 : Graph.graph;
       mutable kinds : Flambda_kind.t Name.Map.t
     }
 
@@ -80,10 +81,11 @@ end = struct
   let create () =
     { code = Code_id.Map.empty;
       apply_deps = [];
-      deps =
+      deps1 =
         { toplevel_graph = Graph.create ();
           function_graphs = Hashtbl.create 100
         };
+      deps2 = { toplevel_graph = Graph.create (); function_graphs = Hashtbl.create 100 };
       kinds = Name.Map.empty
     }
 
@@ -123,52 +125,68 @@ end = struct
 
   let find_code t code_id = Code_id.Map.find code_id t.code
 
-  let cur_deps_from_code_id code_id t =
+  let cur_deps_from_code_id_deps code_id (deps : Graph.graph) =
     match code_id with
-    | None -> t.deps.toplevel_graph
+    | None -> deps.toplevel_graph
     | Some code_id -> (
-      match Hashtbl.find_opt t.deps.function_graphs code_id with
+      match Hashtbl.find_opt deps.function_graphs code_id with
       | None ->
-        let deps = Graph.create () in
-        Hashtbl.add t.deps.function_graphs code_id deps;
-        deps
+        let fdeps = Graph.create () in
+        Hashtbl.add deps.function_graphs code_id fdeps;
+        fdeps
       | Some deps -> deps)
+
+  let cur_deps_from_code_id code_id t = cur_deps_from_code_id_deps code_id t.deps1
 
   let cur_deps ~denv t = cur_deps_from_code_id denv.current_code_id t
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
-    Graph.add_dep (cur_deps ~denv t) name dep
+    Graph.add_dep (cur_deps ~denv t) name dep;
+    Graph.add_dep t.deps2.toplevel_graph name dep
 
   let record_dep' ~denv code_id_or_name dep t =
-    Graph.add_dep (cur_deps ~denv t) code_id_or_name dep
+    Graph.add_dep (cur_deps ~denv t) code_id_or_name dep;
+    Graph.add_dep t.deps2.toplevel_graph code_id_or_name dep
 
   let record_deps ~denv code_id_or_name deps t =
-    Graph.add_deps (cur_deps ~denv t) code_id_or_name deps
+    Graph.add_deps (cur_deps ~denv t) code_id_or_name deps;
+    Graph.add_deps t.deps2.toplevel_graph code_id_or_name deps
 
   let cont_dep ~denv pat dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
-        Graph.add_cont_dep (cur_deps ~denv t) pat name)
+          Graph.add_cont_dep (cur_deps ~denv t) pat name;
+          Graph.add_cont_dep t.deps2.toplevel_graph pat name)
       ~const:(fun _ -> ())
 
   let func_param_dep ~denv param arg t =
     Graph.add_func_param (cur_deps ~denv t)
       ~param:(Bound_parameter.var param)
+      ~arg:(Name.var arg);
+    Graph.add_func_param t.deps2.toplevel_graph
+      ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg)
 
-  let root v t = Graph.add_use t.deps.toplevel_graph (Code_id_or_name.var v)
+  let root v t =
+    Graph.add_use t.deps1.toplevel_graph (Code_id_or_name.var v);
+    Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
-        Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name))
+          Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name);
+          Graph.add_use (cur_deps_from_code_id_deps denv.current_code_id t.deps2) (Code_id_or_name.name name)
+        )
       ~const:(fun _ -> ())
 
   let used_code_id code_id t =
-    Graph.add_use t.deps.toplevel_graph (Code_id_or_name.code_id code_id)
+    Graph.add_use t.deps1.toplevel_graph (Code_id_or_name.code_id code_id);
+    Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.code_id code_id)
 
-  let called ~denv code_id t = Graph.add_called (cur_deps ~denv t) code_id
+  let called ~denv code_id t =
+    Graph.add_called (cur_deps ~denv t) code_id;
+    Graph.add_called (cur_deps_from_code_id_deps denv.current_code_id t.deps2) code_id
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -182,11 +200,12 @@ end = struct
              apply_exn
            } ->
         let deps = cur_deps_from_code_id apply_in_func t in
+        let deps2 = cur_deps_from_code_id_deps apply_in_func t.deps2 in
         let code_dep = find_code t apply_code_id in
         List.iter2
           (fun param arg ->
             Simple.pattern_match arg
-              ~name:(fun name ~coercion:_ -> Graph.add_cont_dep deps param name)
+              ~name:(fun name ~coercion:_ -> Graph.add_cont_dep deps param name; Graph.add_cont_dep deps2 param name)
               ~const:(fun _ -> ()))
           code_dep.params apply_params;
         (match apply_closure with
@@ -194,17 +213,17 @@ end = struct
         | Some apply_closure ->
           Simple.pattern_match apply_closure
             ~name:(fun name ~coercion:_ ->
-              Graph.add_cont_dep deps code_dep.my_closure name)
+                Graph.add_cont_dep deps code_dep.my_closure name; Graph.add_cont_dep deps2 code_dep.my_closure name)
             ~const:(fun _ -> ()));
         (match apply_return with
         | None -> ()
         | Some apply_return ->
           List.iter2
-            (fun arg param -> Graph.add_cont_dep deps param (Name.var arg))
+            (fun arg param -> Graph.add_cont_dep deps param (Name.var arg); Graph.add_cont_dep deps2 param (Name.var arg))
             code_dep.return apply_return);
-        Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn))
+        Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn); Graph.add_cont_dep deps2 apply_exn (Name.var code_dep.exn))
       t.apply_deps;
-    t.deps
+    t.deps1, t.deps2
 end
 
 type acc = Acc.t
@@ -842,5 +861,5 @@ let run (unit : Flambda_unit.t) =
   in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
-  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, deps) in
+  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, fst deps) in
   holed, deps, kinds

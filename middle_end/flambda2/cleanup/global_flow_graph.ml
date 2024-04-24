@@ -49,6 +49,7 @@ module Dep = struct
       | Block of Field.t * Code_id_or_name.t
       | Apply of Name.t * Code_id.t
       | Return_of_that_function of Name.t
+      | Called_by_that_function of Code_id.t
 
     let compare t1 t2 =
       let numbering = function
@@ -59,6 +60,7 @@ module Dep = struct
         | Block _ -> 4
         | Apply _ -> 5
         | Return_of_that_function _ -> 6
+        | Called_by_that_function _ -> 7
       in
       match t1, t2 with
       | Alias v1, Alias v2 -> Name.compare v1 v2
@@ -75,8 +77,10 @@ module Dep = struct
         if c <> 0 then c else Code_id.compare c1 c2
       | Return_of_that_function n1, Return_of_that_function n2 ->
         Name.compare n1 n2
+      | Called_by_that_function c1, Called_by_that_function c2 ->
+        Code_id.compare c1 c2
       | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Apply _
-          | Return_of_that_function _ ),
+          | Return_of_that_function _ | Called_by_that_function _),
           _ ) ->
         Int.compare (numbering t1) (numbering t2)
 
@@ -96,6 +100,8 @@ module Dep = struct
         Format.fprintf ppf "Apply %a %a" Name.print n Code_id.print c
       | Return_of_that_function n ->
         Format.fprintf ppf "Return_of_that_function %a" Name.print n
+      | Called_by_that_function c ->
+        Format.fprintf ppf "Called_by_that_function %a" Code_id.print c
   end
 
   include M

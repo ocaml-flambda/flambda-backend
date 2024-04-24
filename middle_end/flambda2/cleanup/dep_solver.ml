@@ -24,6 +24,7 @@ type elt = Dep_solver_safe.elt =
 module Make_SCC = struct
   let dep (d : Global_flow_graph.Dep.t) =
     match d with
+    | Called_by_that_function code_id -> Code_id_or_name.Set.singleton (Code_id_or_name.code_id code_id)
     | Alias n | Use n | Field (_, n) | Return_of_that_function n ->
       Code_id_or_name.Set.singleton (Code_id_or_name.name n)
     | Contains cn | Block (_, cn) -> Code_id_or_name.Set.singleton cn
@@ -186,6 +187,7 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
       | Fields _ -> None
       | Top -> Some (Code_id_or_name.name n, Top)
     end
+    | Called_by_that_function c -> Some (Code_id_or_name.code_id c, Fields { depth = 1; fields = Field.Map.singleton Apply Top })
     | Alias n -> Some (Code_id_or_name.name n, elt)
     | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
     | Contains n -> Some (n, Top)
@@ -210,6 +212,7 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
 let propagate_top (dep : dep) : Code_id_or_name.t option =
   match dep with
   | Return_of_that_function n -> Some (Code_id_or_name.name n)
+  | Called_by_that_function _ -> None
   | Alias n -> Some (Code_id_or_name.name n)
   | Apply (n, _) -> Some (Code_id_or_name.name n)
   | Contains n -> Some n
@@ -462,9 +465,9 @@ let fixpoint_topo (graph : graph) : result =
     components;
   state.result
 
-let fixpoint graph =
-  let result = Dep_solver_safe.fixpoint graph in
-  let result_topo = fixpoint_topo graph in
+let fixpoint graph_old graph_new =
+  let result = Dep_solver_safe.fixpoint graph_old in
+  let result_topo = fixpoint_topo graph_new in
   if Sys.getenv_opt "TOTO" <> None
   then (
     Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;

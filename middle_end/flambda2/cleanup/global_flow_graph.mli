@@ -21,6 +21,7 @@ module Dep : sig
     | Block of Field.t * Code_id_or_name.t
     | Apply of Name.t * Code_id.t
     | Return_of_that_function of Name.t
+    | Called_by_that_function of Code_id.t
 
   val print : Format.formatter -> t -> unit
 

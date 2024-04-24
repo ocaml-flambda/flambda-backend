@@ -51,6 +51,7 @@ module P = struct
     | Graph.Dep.Field (_, n) ->
       [Code_id_or_name.name n]
     | Graph.Dep.Contains n | Graph.Dep.Block (_, n) -> [n]
+    | Graph.Dep.Called_by_that_function c -> [Code_id_or_name.code_id c]
     | Graph.Dep.Apply (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
 
@@ -85,6 +86,7 @@ module P = struct
     let color, deps =
       match dst with
       | Return_of_that_function name -> "purple", [Code_id_or_name.name name]
+      | Called_by_that_function code_id -> "orange", [Code_id_or_name.code_id code_id]
       | Alias name -> "black", [Code_id_or_name.name name]
       | Use name ->
         (* ignore name; *)
