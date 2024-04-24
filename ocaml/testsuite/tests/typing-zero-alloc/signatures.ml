@@ -511,8 +511,8 @@ Error: Signature mismatch:
  *        The former provides a weaker "zero_alloc" guarantee than the latter.
  * |}] *)
 
-(**********************************************************)
-(* Test 4: requires function types, does not do expansion *)
+(*************************************************************************)
+(* Test 4: Requires valid arity, inferred or provided, without expansion *)
 
 module type S_non_func_int = sig
   val[@zero_alloc] x : int
@@ -524,7 +524,7 @@ Line 2, characters 2-26:
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
        Hint: You can write "[@zero_alloc arity n]" to specify the arity
-       of an alias.
+       of an alias (for n > 0).
 |}]
 
 module type S_non_func_alias = sig
@@ -538,7 +538,7 @@ Line 3, characters 2-24:
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
        Hint: You can write "[@zero_alloc arity n]" to specify the arity
-       of an alias.
+       of an alias (for n > 0).
 |}]
 
 module type S_func_alias = sig
@@ -553,7 +553,41 @@ Line 4, characters 2-24:
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
        Hint: You can write "[@zero_alloc arity n]" to specify the arity
-       of an alias.
+       of an alias (for n > 0).
+|}]
+
+module type S_func_alias = sig
+  type t = int -> int
+  val[@zero_alloc arity 0] x : t
+end
+[%%expect{|
+Line 3, characters 2-32:
+3 |   val[@zero_alloc arity 0] x : t
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In signatures, zero_alloc is only supported on function declarations.
+       Found no arrows in this declaration's type.
+       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       of an alias (for n > 0).
+|}]
+
+module type S_arity_0 = sig
+  val[@zero_alloc arity 0] f : int -> int
+end
+[%%expect{|
+Line 2, characters 2-41:
+2 |   val[@zero_alloc arity 0] f : int -> int
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Invalid zero_alloc attribute: arity must be greater than 0.
+|}]
+
+module type S_arity_negative = sig
+  val[@zero_alloc arity (-1)] f : int -> int
+end
+[%%expect{|
+Line 2, characters 2-44:
+2 |   val[@zero_alloc arity (-1)] f : int -> int
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Invalid zero_alloc attribute: arity must be greater than 0.
 |}]
 
 (********************************************)
@@ -613,7 +647,7 @@ Line 2, characters 2-33:
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
        Hint: You can write "[@zero_alloc arity n]" to specify the arity
-       of an alias.
+       of an alias (for n > 0).
 |}]
 
 module type S_alias_explicit_arity_2 = sig

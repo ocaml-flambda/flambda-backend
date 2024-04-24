@@ -118,7 +118,8 @@ type error =
   | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
   | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
-  | Zero_alloc_attr_bad_arity
+  | Zero_alloc_attr_non_function
+  | Zero_alloc_attr_bad_user_arity
   | Zero_alloc_attr_opt
 
 open Typedtree
@@ -2686,8 +2687,10 @@ let transl_value_decl env loc valdecl =
       begin match zero_alloc with
       | Default_check -> ()
       | Check za ->
-        if za.arity = 0 then
-          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_arity));
+        if default_arity = 0 && za.arity <= 0 then
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
+        if za.arity <= 0 then
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
         if za.opt then
           (* CR ccasinghino: It would be nice to support opt, but it's not
              obvious what its meaning should be. *)
@@ -3499,12 +3502,15 @@ let report_error ppf = function
       fprintf ppf
         "@[zero_alloc \"%s\" attributes are not supported in signatures@]"
         variety
-  | Zero_alloc_attr_bad_arity ->
+  | Zero_alloc_attr_non_function ->
     fprintf ppf
       "@[In signatures, zero_alloc is only supported on function declarations.\
          @ Found no arrows in this declaration's type.\
          @ Hint: You can write \"[@zero_alloc arity n]\" to specify the arity\
-         @ of an alias.@]"
+         @ of an alias (for n > 0).@]"
+  | Zero_alloc_attr_bad_user_arity ->
+    fprintf ppf
+      "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
   | Zero_alloc_attr_opt ->
     fprintf ppf "@[\"zero_alloc opt\" is not supported in signatures.@]"
 
