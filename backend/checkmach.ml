@@ -439,8 +439,13 @@ end = struct
           (Vars.print ~witnesses) vars
   end
 
-  (* CR gyorsh: treatment of vars and top is duplicated between Args and
-     Transform, is there a nice way to factor it out? *)
+  (* CR-someday gyorsh: treatment of vars and top is duplicated between Args and
+     Transform, is there a nice way to factor it out?
+
+     For instance, Join.t could be defined as a record { args : Args.t; ... }
+     with the ellipsis encoding top/safe. It may simplify a couple of functions
+     in the Join module, and perhaps lead to a type like { args : Args.t; rest :
+     'a; } that could then be used in other modules such as Transform. *)
 
   (** helper for Join  *)
   module Args : sig
@@ -1016,6 +1021,12 @@ end = struct
     | Var { var; witnesses }, Join j | Join j, Var { var; witnesses } ->
       Join (Join.distribute_transform_var_over_join j var witnesses)
     | Join j1, Join j2 -> Join (Join.distribute_transform_over_joins j1 j2)
+
+  (* CR-soon xclerc for gyorsh: It may be valuable to gather the elements about
+     the "constructors" (e.g. join, transform above) in one place, with the
+     theoretical properties (e.g. neutral or absorbing elements, distribution),
+     while keeping the comments about implementation choices and/or imperatives
+     (e.g. why/how witnesses are tracked) next to the code. *)
 
   let replace_witnesses w t =
     match t with
