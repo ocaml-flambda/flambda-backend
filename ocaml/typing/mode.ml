@@ -1049,7 +1049,10 @@ module Lattices_mono = struct
       let g' = left_adjoint mid g in
       Compose (g', f')
     | Join_with c -> Subtract c
-    | Meet_with _ -> Id
+    | Meet_with _c ->
+      (* The downward closure of [Meet_with c]'s image is all [x <= c].
+         For those, [x <= meet c y] is equivalent to [x <= y]. *)
+      Id
     | Imply c -> Meet_with c
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_min
     | Monadic_to_comonadic_max -> Comonadic_to_monadic dst
@@ -1077,7 +1080,10 @@ module Lattices_mono = struct
       Compose (g', f')
     | Meet_with c -> Imply c
     | Subtract c -> Join_with c
-    | Join_with _ -> Id
+    | Join_with _c ->
+      (* The upward closure of [Join_with c]'s image is all [x >= c].
+         For those, [join c y <= x] is equivalent to [y <= x]. *)
+      Id
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_max
     | Monadic_to_comonadic_min -> Comonadic_to_monadic dst
     | Local_to_regional -> Regional_to_local
