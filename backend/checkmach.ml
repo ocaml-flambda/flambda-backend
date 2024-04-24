@@ -261,6 +261,9 @@ end = struct
 
     val compare : t -> t -> int
 
+    (** [same_vars] compares variables ignoring witnesses *)
+    val same_vars : t -> t -> bool
+
     val join : t -> t -> t
 
     val update : t -> Var.t -> Witnesses.t -> t
@@ -285,6 +288,8 @@ end = struct
     let singleton var w = Var.Map.singleton var w
 
     let compare = Var.Map.compare Witnesses.compare
+
+    let same_vars = Var.Map.equal (fun _ _ -> (* ignore witnesses *) true)
 
     let has_witnesses vars =
       Var.Map.exists (fun _ w -> not (Witnesses.is_empty w)) vars
@@ -331,6 +336,9 @@ end = struct
     val get_top : t -> Witnesses.t option
 
     val get_vars : t -> Vars.t
+
+    (** [same_vars] compares variables ignoring witnesses *)
+    val same_vars : t -> t -> bool
 
     module Set : Set.S with type elt = t
   end = struct
@@ -406,6 +414,8 @@ end = struct
 
     let get_vars t =
       match t with Args_with_top { w = _; vars } | Args vars -> vars
+
+    let same_vars t1 t2 = Vars.same_vars (get_vars t1) (get_vars t2)
 
     let has_witnesses t =
       match t with
@@ -921,7 +931,11 @@ end = struct
     | Transform tr, Var { var; witnesses } ->
       Join (Join.var_with_tr var witnesses tr)
     | Transform tr1, Transform tr2 ->
-      if Transform.equal tr1 tr2 then t1 else Join (Join.trs tr1 tr2)
+      if Transform.equal tr1 tr2
+      then t1
+      else if Transform.same_vars tr1 tr2
+      then Transform (Transform.flatten tr1 tr2)
+      else Join (Join.trs tr1 tr2)
     | (Top w as top), Transform tr | Transform tr, (Top w as top) ->
       (* [has_witnesses]: Don't simplify (join Top x) to x if there are any
          witnesses in x. This makes the analysis more expensive because symbolic
