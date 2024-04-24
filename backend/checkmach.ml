@@ -576,7 +576,6 @@ end = struct
 
   (** normal form of join *)
   module Join : sig
-    (** normal form of Join *)
     type t
 
     val tr_with_safe : Transform.t -> t
