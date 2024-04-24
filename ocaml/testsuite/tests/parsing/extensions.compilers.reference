@@ -12,6 +12,8 @@
                 Ppat_var "x" (extensions.ml[9,153+11]..[9,153+12])
               expression (extensions.ml[9,153+15]..[9,153+16])
                 Pexp_constant PConst_int (1,None)
+              modes
+              []
           ]
           expression (extensions.ml[9,153+20]..[9,153+21])
             Pexp_ident "x" (extensions.ml[9,153+20]..[9,153+21])
@@ -59,6 +61,8 @@
               expression (extensions.ml[10,176+40]..[10,176+45])
                 Pexp_constant PConst_string("foo",(extensions.ml[10,176+41]..[10,176+44]),None)
           ]
+        modes
+        []
     ]
   structure_item (extensions.ml[12,224+0]..[12,224+26])
     Pstr_extension "foo"
@@ -87,6 +91,8 @@
                   expression (extensions.ml[13,251+19]..[13,251+21])
                     Pexp_construct "()" (extensions.ml[13,251+19]..[13,251+21])
                     None
+                  modes
+                  []
               ]
           ]
         core_type (extensions.ml[13,251+26]..[13,251+44])
@@ -130,6 +136,8 @@
                         []
               ]
           ]
+        modes
+        []
     ]
   structure_item (extensions.ml[15,327+0]..[15,327+16])
     Pstr_extension "foo"
@@ -163,6 +171,10 @@
             core_type (extensions.ml[16,344+34]..[16,344+35])
               Ptyp_constr "t" (extensions.ml[16,344+34]..[16,344+35])
               []
+            modes
+            []
+            modes
+            []
         expression (extensions.ml[16,344+40]..[16,344+60])
           Pexp_extension "foo"
           core_type (extensions.ml[16,344+47]..[16,344+58])
@@ -171,6 +183,8 @@
                 core_type (extensions.ml[16,344+55]..[16,344+56])
                   Ptyp_constr "t" (extensions.ml[16,344+55]..[16,344+56])
                   []
+        modes
+        []
     ]
   structure_item (extensions.ml[18,406+0]..[18,406+11])
     Pstr_extension "foo"
@@ -233,6 +247,8 @@
                 pattern (extensions.ml[20,445+56]..[20,445+57])
                   Ppat_var "x" (extensions.ml[20,445+56]..[20,445+57])
             ]
+        modes
+        []
     ]
   structure_item (extensions.ml[22,507+0]..[22,507+26])
     Pstr_extension "foo"
@@ -283,12 +299,16 @@
                   Ptyp_constr "t" (extensions.ml[24,573+19]..[24,573+20])
                   []
                 []
+                modes
+                []
             signature_item (extensions.ml[24,573+22]..[24,573+31])
               Psig_value
               value_description "y" (extensions.ml[24,573+26]..[24,573+27]) (extensions.ml[24,573+22]..[24,573+31])
                 core_type (extensions.ml[24,573+30]..[24,573+31])
                   Ptyp_constr "t" (extensions.ml[24,573+30]..[24,573+31])
                   []
+                []
+                modes
                 []
           ]
         expression (extensions.ml[25,606+4]..[25,606+23])
@@ -312,6 +332,8 @@
                         []
               ]
           ]
+        modes
+        []
     ]
 ]
 

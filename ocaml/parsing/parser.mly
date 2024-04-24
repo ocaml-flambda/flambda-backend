@@ -241,9 +241,6 @@ let mkexp_opt_type_constraint ~loc ~modes e = function
   | None -> e
   | Some c -> mkexp_type_constraint ~loc ~modes e c
 
-let mkpat_opt_constraint ~loc ~modes p typ =
-  mkpat ~loc (Ppat_constraint(p, typ, modes))
-
 let syntax_error () =
   raise Syntaxerr.Escape_error
 
@@ -3505,7 +3502,7 @@ pattern_no_exn:
   | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN %prec COMMA
       { let loc = $loc(label) in
         let pat = mkpatvar ~loc label in
-        Some label, mkpat_opt_constraint ~loc ~modes:[] pat (Some cty) }
+        Some label, mkpat_with_modes ~loc ~modes:[] ~pat ~cty:(Some cty) }
 
 %inline labeled_tuple_pat_element_noprec(self):
   | self { None, $1 }
@@ -3518,7 +3515,7 @@ pattern_no_exn:
       { let lbl_loc = $loc(label) in
         let pat_loc = $startpos($2), $endpos in
         let pat = mkpatvar ~loc:lbl_loc label in
-        Some label, mkpat_opt_constraint ~loc:pat_loc ~modes:[] pat (Some cty) }
+        Some label, mkpat_with_modes ~loc:pat_loc ~modes:[] ~pat ~cty:(Some cty) }
 
 labeled_tuple_pat_element_list(self):
   | labeled_tuple_pat_element_list(self) COMMA labeled_tuple_pat_element(self)
@@ -3668,7 +3665,7 @@ simple_delimited_pattern:
         | Some pat ->
             ($startpos(octy), $endpos), label, pat
       in
-      label, mkpat_opt_constraint ~loc:constraint_loc ~modes:[] pat octy
+      label, mkpat_with_modes ~loc:constraint_loc ~modes:[] ~pat ~cty:octy
     }
 ;
 
