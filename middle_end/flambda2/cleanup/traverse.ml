@@ -139,6 +139,7 @@ end = struct
   let cur_deps_from_code_id code_id t = cur_deps_from_code_id_deps code_id t.deps1
 
   let cur_deps ~denv t = cur_deps_from_code_id denv.current_code_id t
+  let cur_deps2 ~denv t = cur_deps_from_code_id_deps denv.current_code_id t.deps2
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
@@ -176,7 +177,7 @@ end = struct
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
           Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name);
-          Graph.add_use (cur_deps_from_code_id_deps denv.current_code_id t.deps2) (Code_id_or_name.name name)
+          Graph.add_use (cur_deps2 ~denv t) (Code_id_or_name.name name)
         )
       ~const:(fun _ -> ())
 
@@ -186,7 +187,7 @@ end = struct
 
   let called ~denv code_id t =
     Graph.add_called (cur_deps ~denv t) code_id;
-    Graph.add_called (cur_deps_from_code_id_deps denv.current_code_id t.deps2) code_id
+    Graph.add_called (cur_deps2 ~denv t) code_id
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 

@@ -287,9 +287,9 @@ let create_state (graph : graph) =
     end
   in
   let add_called called =
+    Hashtbl.replace state.added_fungraph called ();
     if Hashtbl.mem graph.function_graphs called
     then begin
-      Hashtbl.replace state.added_fungraph called ();
       let subgraph = Hashtbl.find graph.function_graphs called in
       Hashtbl.remove graph.function_graphs called;
       called_stack := subgraph :: !called_stack
