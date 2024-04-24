@@ -799,8 +799,9 @@ end = struct
       | Args_with_safe args ->
         Args_with_safe (Args.replace_witnesses args witnesses)
       | Args args -> Args (Args.replace_witnesses args witnesses)
-      | Args_with_top { w; args } ->
-        Args_with_top { w; args = Args.replace_witnesses args witnesses }
+      | Args_with_top { w = _; args } ->
+        Args_with_top
+          { w = witnesses; args = Args.replace_witnesses args witnesses }
 
     let compare t1 t2 =
       match t1, t2 with
