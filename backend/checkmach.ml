@@ -1735,6 +1735,89 @@ end = struct
       String.Tbl.replace t name func_info
 end
 
+module Unresolved_dependencies : sig
+  type t
+
+  val create : unit -> t
+
+  val reset : t -> unit
+
+  val is_empty : t -> bool
+
+  val contains : callee:string -> t -> bool
+
+  val get_callers : callee:string -> t -> String.Set.t
+
+  (** removes all association of the [callee] with its direct callers. [callee] must exist
+      and must not be associated with any callees of its own in [t]. *)
+  val remove : callee:string -> t -> unit
+
+  (** adds a new caller. *)
+  val add : t -> caller:string -> callees:String.Set.t -> unit
+
+  (** Ensure [caller] exists and is already associated with [callees], and remove
+      association of [caller] with any other callees.  *)
+  val update : t -> caller:string -> callees:String.Set.t -> unit
+end = struct
+  (** reverse dependencies: map from an unresolved callee to all its callers  *)
+  type t = String.Set.t String.Tbl.t
+
+  let create () = String.Tbl.create 2
+
+  let reset t = String.Tbl.reset t
+
+  let is_empty t = String.Tbl.length t = 0
+
+  let contains ~callee t = String.Tbl.mem t callee
+
+  let get_callers ~callee t = String.Tbl.find t callee
+
+  let remove ~callee t =
+    assert (contains ~callee t);
+    String.Tbl.iter
+      (fun _ callers -> assert (not (String.Set.mem callee callers)))
+      t;
+    String.Tbl.remove t callee
+
+  let add_one t ~caller callee =
+    let callers =
+      match String.Tbl.find_opt t callee with
+      | None -> String.Set.singleton caller
+      | Some callers ->
+        assert (not (String.Set.mem caller callers));
+        String.Set.add caller callers
+    in
+    String.Tbl.replace t callee callers
+
+  let add t ~caller ~callees = String.Set.iter (add_one t ~caller) callees
+
+  let update t ~caller ~callees =
+    (* check that all callees are present *)
+    String.Set.iter
+      (fun callee ->
+        match String.Tbl.find_opt t callee with
+        | None ->
+          Misc.fatal_errorf "Unresolved dependencies: missing callee %s of %s"
+            callee caller
+        | Some callers ->
+          if not (String.Set.mem caller callers)
+          then
+            Misc.fatal_errorf
+              "Unresolved_dependencies: missing caller %s for callee %s in \
+               unresolved "
+              caller callee)
+      callees;
+    (* remove resolved callees of this caller *)
+    let remove callee callers =
+      if String.Set.mem callee callees
+      then Some callers
+      else
+        let new_callers = String.Set.remove caller callers in
+        if String.Set.is_empty new_callers then None else Some new_callers
+    in
+    String.Tbl.filter_map_inplace remove t
+end
+
 (** The analysis involved some fixed point computations.
     Termination: [Value.t] is a finite height domain and
     [transfer] is a monotone function w.r.t. [Value.lessequal] order.
@@ -1745,12 +1828,14 @@ module Analysis (S : Spec) : sig
     Mach.fundecl ->
     future_funcnames:String.Set.t ->
     Unit_info.t ->
+    Unresolved_dependencies.t ->
     Format.formatter ->
     unit
 
   (** Resolve all function summaries, check them against user-provided assertions,
       and record the summaries in Compilenv to be saved in .cmx files *)
-  val record_unit : Unit_info.t -> Format.formatter -> unit
+  val record_unit :
+    Unit_info.t -> Unresolved_dependencies.t -> Format.formatter -> unit
 end = struct
   (** Information about the current function under analysis. *)
   type t =
@@ -2174,7 +2259,8 @@ end = struct
         fixpoint ppf unit_info;
         record_unit ppf unit_info)
 
-  let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
+  let fundecl (f : Mach.fundecl) ~future_funcnames unit_info unresolved_deps ppf
+      =
     let check () =
       let fun_name = f.fun_name in
       let a =
@@ -2289,14 +2375,19 @@ module Check_zero_alloc = Analysis (Spec_zero_alloc)
 (** Information about the current unit. *)
 let unit_info = Unit_info.create ()
 
+let unresolved_deps = Unresolved_dependencies.create ()
+
 let fundecl ppf_dump ~future_funcnames fd =
-  Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
+  Check_zero_alloc.fundecl fd ~future_funcnames unit_info unresolved_deps
+    ppf_dump;
   fd
 
-let reset_unit_info () = Unit_info.reset unit_info
+let reset_unit_info () =
+  Unit_info.reset unit_info;
+  Unresolved_dependencies.reset unresolved_deps
 
 let record_unit_info ppf_dump =
-  Check_zero_alloc.record_unit unit_info ppf_dump;
+  Check_zero_alloc.record_unit unit_info unresolved_deps ppf_dump;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
 type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
