@@ -155,7 +155,7 @@ end
 module Var : sig
   type t
 
-  val get : string -> Tag.t -> t
+  val create : string -> Tag.t -> t
 
   val name : t -> string
 
@@ -189,7 +189,7 @@ end = struct
 
   let tag t = t.tag
 
-  let get name tag = { name; tag }
+  let create name tag = { name; tag }
 
   let print ppf { name; tag } =
     Format.fprintf ppf "%s.%s@ " name (Tag.print tag)
@@ -1095,9 +1095,9 @@ end = struct
   include T
 
   let unresolved name w =
-    { nor = Var.get name Tag.N |> V.unresolved w;
-      exn = Var.get name Tag.E |> V.unresolved w;
-      div = Var.get name Tag.D |> V.unresolved w
+    { nor = Var.create name Tag.N |> V.unresolved w;
+      exn = Var.create name Tag.E |> V.unresolved w;
+      div = Var.create name Tag.D |> V.unresolved w
     }
 
   let is_resolved t =
