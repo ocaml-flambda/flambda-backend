@@ -416,7 +416,7 @@ end = struct
     let replace_witnesses t w =
       match t with
       | Args vars -> Args (Vars.replace_witnesses vars w)
-      | Args_with_top { w; vars } ->
+      | Args_with_top { w = _; vars } ->
         Args_with_top { w; vars = Vars.replace_witnesses vars w }
 
     let print ~witnesses ppf t =
