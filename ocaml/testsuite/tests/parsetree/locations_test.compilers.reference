@@ -229,6 +229,8 @@ Ptop_def
             []
           expression (//toplevel//[4,29+14]..[4,29+15])
             Pexp_constant PConst_int (3,None)
+          modes
+          []
       ]
   ]
 
@@ -243,15 +245,22 @@ Ptop_def
             Ppat_constraint
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
-            core_type (//toplevel//[2,1+16]..[2,1+22]) ghost
-              Ptyp_poly 'a
-              core_type (//toplevel//[2,1+16]..[2,1+22])
-                Ptyp_arrow
-                Nolabel
-                core_type (//toplevel//[2,1+16]..[2,1+17])
-                  Ptyp_var a
-                core_type (//toplevel//[2,1+21]..[2,1+22])
-                  Ptyp_var a
+            Some
+              core_type (//toplevel//[2,1+16]..[2,1+22]) ghost
+                Ptyp_poly 'a
+                core_type (//toplevel//[2,1+16]..[2,1+22])
+                  Ptyp_arrow
+                  Nolabel
+                  core_type (//toplevel//[2,1+16]..[2,1+17])
+                    Ptyp_var a
+                  core_type (//toplevel//[2,1+21]..[2,1+22])
+                    Ptyp_var a
+                  modes
+                  []
+                  modes
+                  []
+            modes
+            []
           expression (//toplevel//[2,1+4]..[2,1+35])
             Pexp_newtype "a"
             expression (//toplevel//[2,1+4]..[2,1+35])
@@ -275,6 +284,14 @@ Ptop_def
                 core_type (//toplevel//[2,1+21]..[2,1+22])
                   Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
                   []
+                modes
+                []
+                modes
+                []
+              modes
+              []
+          modes
+          []
       ]
   ]
 
@@ -322,6 +339,12 @@ Ptop_def
                             core_type (//toplevel//[3,16+26]..[3,16+27])
                               Ptyp_constr "a" (//toplevel//[3,16+26]..[3,16+27])
                               []
+                            modes
+                            []
+                            modes
+                            []
+                          modes
+                          []
                       Some
                         core_type (//toplevel//[3,16+9]..[4,46+14]) ghost
                           Ptyp_poly 'a
@@ -332,7 +355,13 @@ Ptop_def
                               Ptyp_var a
                             core_type (//toplevel//[3,16+26]..[3,16+27])
                               Ptyp_var a
+                            modes
+                            []
+                            modes
+                            []
               ]
+          modes
+          []
       ]
   ]
 
@@ -361,6 +390,8 @@ Ptop_def
                     Pexp_ident "contents" (//toplevel//[4,17+19]..[4,17+27])
               ]
               None
+          modes
+          []
       ]
   ]
 
@@ -384,8 +415,12 @@ Ptop_def
                   core_type (//toplevel//[2,1+21]..[2,1+24])
                     Ptyp_constr "int" (//toplevel//[2,1+21]..[2,1+24])
                     []
+                  modes
+                  []
             ]
             None
+          modes
+          []
       ]
   ]
 
@@ -417,8 +452,12 @@ Ptop_def
                     core_type (//toplevel//[2,1+30]..[2,1+33])
                       Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
                       []
+                    modes
+                    []
               ]
               None
+          modes
+          []
       ]
   ]
 
@@ -442,11 +481,18 @@ Ptop_def
                   [
                     "contents" (//toplevel//[2,1+19]..[2,1+27]) ghost
                       pattern (//toplevel//[2,1+19]..[2,1+27])
-                        Ppat_var "contents" (//toplevel//[2,1+19]..[2,1+27])
+                        Ppat_constraint
+                        pattern (//toplevel//[2,1+19]..[2,1+27])
+                          Ppat_var "contents" (//toplevel//[2,1+19]..[2,1+27])
+                        None
+                        modes
+                        []
                   ]
                 expression (//toplevel//[2,1+33]..[2,1+41])
                   Pexp_ident "contents" (//toplevel//[2,1+33]..[2,1+41])
             ]
+          modes
+          []
       ]
   ]
 
@@ -473,13 +519,18 @@ Ptop_def
                         Ppat_constraint
                         pattern (//toplevel//[2,1+19]..[2,1+27])
                           Ppat_var "contents" (//toplevel//[2,1+19]..[2,1+27])
-                        core_type (//toplevel//[2,1+30]..[2,1+33])
-                          Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
-                          []
+                        Some
+                          core_type (//toplevel//[2,1+30]..[2,1+33])
+                            Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
+                            []
+                        modes
+                        []
                   ]
                 expression (//toplevel//[2,1+39]..[2,1+47])
                   Pexp_ident "contents" (//toplevel//[2,1+39]..[2,1+47])
             ]
+          modes
+          []
       ]
   ]
 
@@ -506,13 +557,18 @@ Ptop_def
                         Ppat_constraint
                         pattern (//toplevel//[2,1+36]..[2,1+37])
                           Ppat_var "i" (//toplevel//[2,1+36]..[2,1+37])
-                        core_type (//toplevel//[2,1+30]..[2,1+33])
-                          Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
-                          []
+                        Some
+                          core_type (//toplevel//[2,1+30]..[2,1+33])
+                            Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
+                            []
+                        modes
+                        []
                   ]
                 expression (//toplevel//[2,1+43]..[2,1+44])
                   Pexp_ident "i" (//toplevel//[2,1+43]..[2,1+44])
             ]
+          modes
+          []
       ]
   ]
 
@@ -560,6 +616,8 @@ Ptop_def
                           ]
                       None
               ]
+          modes
+          []
       ]
   ]
 
@@ -584,6 +642,8 @@ Ptop_def
                     Pexp_constant PConst_int (3,None)
               ]
               None
+          modes
+          []
       ]
   ]
 
@@ -621,6 +681,8 @@ Ptop_def
                               None
                           ]
                   ]
+          modes
+          []
       ]
   ]
 
@@ -643,6 +705,8 @@ Ptop_def
                 Pexp_constant PConst_int (3,None)
               expression (//toplevel//[2,1+15]..[2,1+16])
                 Pexp_constant PConst_int (4,None)
+          modes
+          []
       ]
   ]
 
@@ -688,6 +752,8 @@ Ptop_def
                     expression (//toplevel//[6,56+23]..[6,56+24])
                       Pexp_ident "y" (//toplevel//[6,56+23]..[6,56+24])
                 ]
+          modes
+          []
       ]
     structure_item (//toplevel//[7,81+0]..[7,81+32])
       Pstr_value Nonrec
@@ -741,6 +807,8 @@ Ptop_def
                       expression (//toplevel//[7,81+31]..[7,81+32])
                         Pexp_ident "z" (//toplevel//[7,81+31]..[7,81+32])
                   ]
+          modes
+          []
       ]
     structure_item (//toplevel//[8,114+0]..[8,114+25])
       Pstr_value Nonrec
@@ -776,6 +844,8 @@ Ptop_def
                     expression (//toplevel//[8,114+24]..[8,114+25])
                       Pexp_ident "y" (//toplevel//[8,114+24]..[8,114+25])
                 ]
+          modes
+          []
       ]
     structure_item (//toplevel//[9,140+0]..[9,140+33])
       Pstr_value Nonrec
@@ -829,6 +899,8 @@ Ptop_def
                       expression (//toplevel//[9,140+32]..[9,140+33])
                         Pexp_ident "z" (//toplevel//[9,140+32]..[9,140+33])
                   ]
+          modes
+          []
       ]
     structure_item (//toplevel//[10,174+0]..[10,174+25])
       Pstr_value Nonrec
@@ -864,6 +936,8 @@ Ptop_def
                     expression (//toplevel//[10,174+24]..[10,174+25])
                       Pexp_ident "y" (//toplevel//[10,174+24]..[10,174+25])
                 ]
+          modes
+          []
       ]
     structure_item (//toplevel//[11,200+0]..[11,200+33])
       Pstr_value Nonrec
@@ -917,6 +991,8 @@ Ptop_def
                       expression (//toplevel//[11,200+32]..[11,200+33])
                         Pexp_ident "z" (//toplevel//[11,200+32]..[11,200+33])
                   ]
+          modes
+          []
       ]
   ]
 
@@ -1082,13 +1158,18 @@ Ptop_def
                   Ppat_constraint
                   pattern (//toplevel//[4,28+25]..[4,28+26])
                     Ppat_unpack "M" (//toplevel//[4,28+25]..[4,28+26])
-                  core_type (//toplevel//[4,28+29]..[4,28+30])
-                    Ptyp_package "S" (//toplevel//[4,28+29]..[4,28+30])
-                    []
+                  Some
+                    core_type (//toplevel//[4,28+29]..[4,28+30])
+                      Ptyp_package "S" (//toplevel//[4,28+29]..[4,28+30])
+                      []
+                  modes
+                  []
                 expression (//toplevel//[4,28+35]..[4,28+37])
                   Pexp_construct "()" (//toplevel//[4,28+35]..[4,28+37])
                   None
             ]
+          modes
+          []
       ]
   ]
 
@@ -1163,6 +1244,8 @@ Ptop_def
             Ppat_var "x" (//toplevel//[5,56+4]..[5,56+5])
           expression (//toplevel//[6,64+2]..[6,64+4])
             Pexp_constant PConst_int (42,None)
+          modes
+          []
       ]
   ]
 
@@ -1191,6 +1274,8 @@ Ptop_def
                         Pexp_constant PConst_int (1,None)
                       None
               ]
+          modes
+          []
       ]
   ]
 
@@ -1221,6 +1306,8 @@ Ptop_def
                           Pexp_constant PConst_int (1,None)
                         None
                 ]
+          modes
+          []
       ]
   ]
 
@@ -1252,6 +1339,8 @@ Ptop_def
                             Pexp_constant PConst_int (1,None)
                           None
                   ]
+          modes
+          []
       ]
   ]
 
@@ -1285,6 +1374,8 @@ Ptop_def
                               Pexp_constant PConst_int (1,None)
                             None
                     ]
+          modes
+          []
       ]
   ]
 
@@ -1321,6 +1412,8 @@ Ptop_def
                     Ppat_var "z" (//toplevel//[2,1+10]..[2,1+11])
                   expression (//toplevel//[2,1+14]..[2,1+15])
                     Pexp_ident "x" (//toplevel//[2,1+14]..[2,1+15])
+            modes
+            []
         ]
         expression (//toplevel//[3,20+0]..[5,76+12])
           Pexp_apply
@@ -1421,6 +1514,8 @@ Ptop_def
                           expression (//toplevel//[4,76+17]..[4,76+18])
                             Pexp_constant PConst_int (1,None)
                       ]
+                  modes
+                  []
               ]
               expression (//toplevel//[5,98+2]..[5,98+12])
                 Pexp_apply
@@ -1436,7 +1531,11 @@ Ptop_def
                       core_type (//toplevel//[5,98+8]..[5,98+11])
                         Ptyp_constr "int" (//toplevel//[5,98+8]..[5,98+11])
                         []
+                      modes
+                      []
                 ]
+          modes
+          []
       ]
   ]
 
@@ -1462,6 +1561,8 @@ Ptop_def
                     expression (//toplevel//[3,15+25]..[3,15+27])
                       Pexp_construct "()" (//toplevel//[3,15+25]..[3,15+27])
                       None
+          modes
+          []
       ]
   ]
 
@@ -1496,11 +1597,14 @@ Ptop_def
             Ppat_constraint
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "a" (//toplevel//[2,1+4]..[2,1+5])
-            core_type (//toplevel//[2,1+20]..[2,1+24]) ghost
-              Ptyp_poly 'a 'b 'c
-              core_type (//toplevel//[2,1+20]..[2,1+24])
-                Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
-                []
+            Some
+              core_type (//toplevel//[2,1+20]..[2,1+24]) ghost
+                Ptyp_poly 'a 'b 'c
+                core_type (//toplevel//[2,1+20]..[2,1+24])
+                  Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
+                  []
+            modes
+            []
           expression (//toplevel//[2,1+4]..[2,1+29])
             Pexp_newtype "a"
             expression (//toplevel//[2,1+4]..[2,1+29]) ghost
@@ -1515,6 +1619,10 @@ Ptop_def
                   core_type (//toplevel//[2,1+20]..[2,1+24])
                     Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
                     []
+                  modes
+                  []
+          modes
+          []
       ]
   ]
 

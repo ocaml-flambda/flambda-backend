@@ -79,6 +79,7 @@ module Example = struct
                          ; pvb_attributes = []
                          ; pvb_loc = loc
                          ; pvb_constraint = None
+                         ; pvb_modes = []
                          }
   let payload          = PStr structure
   let class_signature  = { pcsig_self = core_type

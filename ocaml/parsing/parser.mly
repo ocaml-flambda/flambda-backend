@@ -2659,13 +2659,9 @@ label_let_pattern:
 ;
 let_pattern:
     pat=pattern modes=optional_at_mode_expr
-      {
-        pat, None, modes
-      }
+      { pat, None, modes }
   | pat=pattern COLON cty=core_type modes=optional_atat_mode_expr
-      {
-        pat, Some cty, modes
-      }
+      { pat, Some cty, modes }
   | poly_pattern
       { $1 }
 ;
@@ -2876,6 +2872,22 @@ comprehension_iterator:
 comprehension_clause_binding:
   | attributes pattern comprehension_iterator
       { Jane_syntax.Comprehensions.{ pattern = $2 ; iterator = $3 ; attributes = $1 } }
+  (* We can't write [[e for local_ x = 1 to 10]], because the [local_] has to
+     move to the RHS and there's nowhere for it to move to; besides, you never
+     want that [int] to be [local_].  But we can parse [[e for local_ x in xs]].
+     We have to have that as a separate rule here because it moves the [local_]
+     over to the RHS of the binding, so we need everything to be visible. *)
+  | attributes mode_legacy pattern IN expr
+      { let expr =
+          mkexp ~loc:$sloc
+                (Pexp_constraint ($5, Typ.mk ~loc:(ghost_loc $sloc) Ptyp_any, [$2]))
+        in
+        Jane_syntax.Comprehensions.
+          { pattern    = $3
+          ; iterator   = In expr
+          ; attributes = $1
+          }
+      }
 ;
 
 comprehension_clause:

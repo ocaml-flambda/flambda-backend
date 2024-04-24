@@ -58,6 +58,8 @@
             []
           Pexp_construct "()" (attributes.ml[14,206+30]..[14,206+32])
           None
+        modes
+        []
     ]
   structure_item (attributes.ml[17,256+0]..[19,293+7])
     Pstr_type Rec
@@ -284,6 +286,10 @@
               []
             Ptyp_package "T" (attributes.ml[55,728+22]..[55,728+23])
             []
+          modes
+          []
+        modes
+        []
     ]
   structure_item (attributes.ml[57,761+0]..[57,761+49])
     Pstr_value Nonrec
@@ -307,6 +313,10 @@
                 Ptyp_constr "int" (attributes.ml[57,761+38]..[57,761+41])
                 []
             ]
+          modes
+          []
+        modes
+        []
     ]
 ]
 

@@ -136,6 +136,7 @@ let typevars ppf vs =
        Jane_syntax, which depends on this module for debugging. *)
 
 let modes i ppf modes =
+  line i ppf "modes\n";
   list i string_loc ppf (
     List.map (Location.map (fun (Mode x) -> x)) modes
   )

@@ -863,7 +863,6 @@ module N_ary_functions = struct
     | Pexp_constraint (e, ty, m) ->
       Some ({ mode_annotations = m; type_constraint = Pconstraint ty }, e)
     | Pexp_coerce (e, ty1, ty2) ->
-      (* CR cgunn: _ *)
       Some ({ mode_annotations = []; type_constraint = Pcoerce (ty1, ty2) }, e)
     | _ -> None
 
