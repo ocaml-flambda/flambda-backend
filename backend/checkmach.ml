@@ -147,7 +147,7 @@ module Tag = struct
     | E
     | D
 
-  let compare : t -> t -> int = Stdlib.compare
+  let compare : t -> t -> int = fun t1 t2 -> Stdlib.compare t1 t2
 
   let print = function N -> "nor" | E -> "exn" | D -> "div"
 end
@@ -286,7 +286,7 @@ end = struct
 
     let singleton var w = Var.Map.singleton var w
 
-    let compare = Var.Map.compare Witnesses.compare
+    let compare t1 t2 = Var.Map.compare Witnesses.compare t1 t2
 
     let same_vars = Var.Map.equal (fun _ _ -> (* ignore witnesses *) true)
 
