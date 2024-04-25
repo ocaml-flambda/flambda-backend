@@ -22,20 +22,12 @@ val f : float# -> unit = <fun>
 
 type t = C of float#;;
 [%%expect {|
-Line 1, characters 9-20:
-1 | type t = C of float#;;
-             ^^^^^^^^^^^
-Error: Type float# has layout float64.
-       Variants may not yet contain types of this layout.
+type t = C of float#
 |}];;
 
 type t = C : float# -> t;;
 [%%expect {|
-Line 1, characters 9-24:
-1 | type t = C : float# -> t;;
-             ^^^^^^^^^^^^^^^
-Error: Type float# has layout float64.
-       Variants may not yet contain types of this layout.
+type t = C : float# -> t
 |}];;
 
 (* float# works as an argument to normal type constructors, not just classes,

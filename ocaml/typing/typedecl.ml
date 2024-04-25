@@ -3493,7 +3493,7 @@ let report_error ppf = function
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
             "@[Expected all flat fields after non-value field, %s,@]@, \
-            \ @[but found boxed field, %s.@]"
+            \@[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
       | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
