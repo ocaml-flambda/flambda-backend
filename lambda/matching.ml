@@ -118,7 +118,7 @@ let jkind_layout_must_be_value loc jkind =
    outlived its usefulness and should be deleted. *)
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
-  | (Value | Immediate | Immediate64), _ -> ()
+  | (Value | Immediate | Immediate64 | Non_null_value), _ -> ()
   | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
