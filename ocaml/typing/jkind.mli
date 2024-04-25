@@ -176,9 +176,11 @@ end
 
 type sort = Sort.t
 
-(* The layout of a type describes its memory layout. A layout is either the
-   indeterminate [Any], a sort, which is a concrete memory layout, or
-   [Non_null_value], which is the same as [Value] but also can't be null. *)
+(** The layout of a type describes its memory layout. A layout is either the
+    indeterminate [Any], a sort, which is a concrete memory layout, or
+    [Non_null_value], which is a sublayout of the sort [Value] describing types
+    that do not allow the concrete value null. [Non_null_value] is also the
+    layout of "classical" OCaml values used by the upstream compiler. *)
 module Layout : sig
   module Const : sig
     type t =
