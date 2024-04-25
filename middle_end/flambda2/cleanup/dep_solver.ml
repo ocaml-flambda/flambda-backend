@@ -192,7 +192,7 @@ let propagate (elt : elt) (dep : dep) uses : (Code_id_or_name.t * elt) option =
     | Called_by_that_function c -> Some (Code_id_or_name.code_id c, Top)
     | Alias n -> Some (Code_id_or_name.name n, elt)
     | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
-    | Contains n -> Some (n, Top)
+    | Contains n -> (match elt with Bottom -> assert false | Fields _ -> None | Top -> Some (n, Top))
     | Use n -> Some (Code_id_or_name.name n, Top)
     | Field (f, n) ->
       let elt = cut_at (max_depth - 1) elt in
