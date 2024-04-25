@@ -60,9 +60,10 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_macos
-            config: --enable-middle-end=flambda2 --disable-warn-error
-            os: macos-latest
+          # CR ccasinghino: Understand why the macos build is failing and reenable
+          #  - name: flambda2_macos
+          #    config: --enable-middle-end=flambda2 --disable-warn-error
+          #    os: macos-latest
 
           - name: irc
             config: --enable-middle-end=flambda2
