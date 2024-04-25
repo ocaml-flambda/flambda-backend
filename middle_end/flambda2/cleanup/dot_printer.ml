@@ -54,6 +54,9 @@ module P = struct
     | Graph.Dep.Called_by_that_function c -> [Code_id_or_name.code_id c]
     | Graph.Dep.Apply (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
+    | Graph.Dep.Alias_if_def (n, c) ->
+      [Code_id_or_name.name n; Code_id_or_name.code_id c]
+    | Graph.Dep.Propagate (n1, n2) -> [Code_id_or_name.name n1; Code_id_or_name.name n2]
 
   let all_names t =
     let names = Hashtbl.create 100 in
@@ -95,7 +98,8 @@ module P = struct
       | Contains name -> "yellow", [name]
       | Field (_, name) -> "green", [Code_id_or_name.name name]
       | Block (_, name) -> "blue", [name]
-      | Apply (name, _code) -> "pink", [Code_id_or_name.name name]
+      | Apply (name, _code) | Alias_if_def (name, _code) -> "pink", [Code_id_or_name.name name]
+      | Propagate (name, _from) -> "brown", [Code_id_or_name.name name]
     in
     List.iter
       (fun dst ->

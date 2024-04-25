@@ -50,6 +50,8 @@ module Dep = struct
       | Apply of Name.t * Code_id.t
       | Return_of_that_function of Name.t
       | Called_by_that_function of Code_id.t
+      | Alias_if_def of Name.t * Code_id.t
+      | Propagate of Name.t * Name.t
 
     let compare t1 t2 =
       let numbering = function
@@ -61,6 +63,8 @@ module Dep = struct
         | Apply _ -> 5
         | Return_of_that_function _ -> 6
         | Called_by_that_function _ -> 7
+        | Alias_if_def _ -> 8
+        | Propagate _ -> 9
       in
       match t1, t2 with
       | Alias v1, Alias v2 -> Name.compare v1 v2
@@ -79,8 +83,14 @@ module Dep = struct
         Name.compare n1 n2
       | Called_by_that_function c1, Called_by_that_function c2 ->
         Code_id.compare c1 c2
+      | Alias_if_def (n1, c1), Alias_if_def (n2, c2) ->
+        let c = Name.compare n1 n2 in
+        if c <> 0 then c else Code_id.compare c1 c2
+      | Propagate (n1, m1), Propagate (n2, m2) ->
+        let c = Name.compare n1 n2 in
+        if c <> 0 then c else Name.compare m1 m2
       | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Apply _
-          | Return_of_that_function _ | Called_by_that_function _),
+          | Return_of_that_function _ | Called_by_that_function _ | Alias_if_def _ | Propagate _),
           _ ) ->
         Int.compare (numbering t1) (numbering t2)
 
@@ -102,6 +112,10 @@ module Dep = struct
         Format.fprintf ppf "Return_of_that_function %a" Name.print n
       | Called_by_that_function c ->
         Format.fprintf ppf "Called_by_that_function %a" Code_id.print c
+      | Alias_if_def (n, c) ->
+        Format.fprintf ppf "Alias_if_def %a %a" Name.print n Code_id.print c
+      | Propagate (n1, n2) ->
+        Format.fprintf ppf "Propagate %a %a" Name.print n1 Name.print n2
   end
 
   include M

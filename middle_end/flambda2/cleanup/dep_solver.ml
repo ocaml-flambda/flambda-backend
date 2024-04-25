@@ -32,6 +32,8 @@ module Make_SCC = struct
       Code_id_or_name.Set.add
         (Code_id_or_name.code_id c)
         (Code_id_or_name.Set.singleton (Code_id_or_name.name n))
+    | Alias_if_def (n, _c) -> Code_id_or_name.Set.singleton (Code_id_or_name.name n)
+    | Propagate (n1, _n2) -> Code_id_or_name.Set.singleton (Code_id_or_name.name n1)
 
   let depset (d : DepSet.t) : Code_id_or_name.Set.t =
     DepSet.fold
@@ -176,7 +178,7 @@ let rec cut_at depth elt =
       let fields = Field.Map.map (cut_at (depth - 1)) fields in
       Fields { depth; fields }
 
-let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
+let propagate (elt : elt) (dep : dep) uses : (Code_id_or_name.t * elt) option =
   match elt with
   | Bottom -> None
   | Top | Fields _ -> begin
@@ -207,9 +209,19 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
         | None -> None
         | Some elt -> Some (n, elt))
     end
+    | Alias_if_def (n, c) -> begin
+      match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
+      | None | Some Bottom -> None
+      | Some (Fields _ | Top) -> Some (Code_id_or_name.name n, elt)
+    end
+    | Propagate (n1, n2) -> begin
+      match Hashtbl.find_opt uses (Code_id_or_name.name n2) with
+      | None | Some Bottom -> None
+      | Some ((Fields _ | Top) as elt) -> Some (Code_id_or_name.name n1, elt)
+    end
   end
 
-let propagate_top (dep : dep) : Code_id_or_name.t option =
+let propagate_top (dep : dep) uses : Code_id_or_name.t option =
   match dep with
   | Return_of_that_function n -> Some (Code_id_or_name.name n)
   | Called_by_that_function _ -> None
@@ -219,6 +231,16 @@ let propagate_top (dep : dep) : Code_id_or_name.t option =
   | Use n -> Some (Code_id_or_name.name n)
   | Field _ -> None
   | Block (_, n) -> Some n
+  | Alias_if_def (n, c) -> begin
+    match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
+    | None | Some Bottom -> None
+    | Some (Fields _ | Top) -> Some (Code_id_or_name.name n)
+    end
+  | Propagate (n1, n2) -> begin
+    match Hashtbl.find_opt uses (Code_id_or_name.name n2) with
+    | None | Some (Bottom | Fields _) -> None
+    | Some Top -> Some (Code_id_or_name.name n1)
+    end
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
@@ -304,7 +326,7 @@ let create_state (graph : graph) =
         then
           DepSet.iter
             (fun dep ->
-              match propagate_top dep with None -> () | Some n2 -> add_used n2)
+              match propagate_top dep state.result with None -> () | Some n2 -> add_used n2)
             deps;
         match Hashtbl.find_opt state.all_deps n with
         | None -> Hashtbl.add state.all_deps n deps
@@ -321,7 +343,7 @@ let create_state (graph : graph) =
       in
       DepSet.iter
         (fun dep ->
-          match propagate_top dep with None -> () | Some n2 -> add_used n2)
+          match propagate_top dep state.result with None -> () | Some n2 -> add_used n2)
         cur_deps;
       Code_id_or_name.pattern_match' n
         ~name:(fun _ -> ())
@@ -405,7 +427,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
     check_and_add_fungraph n elt;
     DepSet.iter
       (fun dep ->
-        match propagate elt dep with
+        match propagate elt dep result with
         | None -> ()
         | Some (dep_upon, dep_elt) -> (
           assert (dep_elt <> Bottom);

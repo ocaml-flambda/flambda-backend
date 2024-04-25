@@ -22,6 +22,8 @@ module Dep : sig
     | Apply of Name.t * Code_id.t
     | Return_of_that_function of Name.t
     | Called_by_that_function of Code_id.t
+    | Alias_if_def of Name.t * Code_id.t
+    | Propagate of Name.t * Name.t
 
   val print : Format.formatter -> t -> unit
 

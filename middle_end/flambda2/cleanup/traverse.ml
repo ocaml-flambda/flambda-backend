@@ -139,7 +139,6 @@ end = struct
   let cur_deps_from_code_id code_id t = cur_deps_from_code_id_deps code_id t.deps1
 
   let cur_deps ~denv t = cur_deps_from_code_id denv.current_code_id t
-  let cur_deps2 ~denv t = cur_deps_from_code_id_deps denv.current_code_id t.deps2
 
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
@@ -177,7 +176,9 @@ end = struct
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
           Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name);
-          Graph.add_use (cur_deps2 ~denv t) (Code_id_or_name.name name)
+          match denv.current_code_id with
+          | None -> Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.name name);
+          | Some code_id -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id) (Graph.Dep.Use name)
         )
       ~const:(fun _ -> ())
 
@@ -187,7 +188,9 @@ end = struct
 
   let called ~denv code_id t =
     Graph.add_called (cur_deps ~denv t) code_id;
-    Graph.add_called (cur_deps2 ~denv t) code_id
+    match denv.current_code_id with
+    | None -> Graph.add_called t.deps2.toplevel_graph code_id
+    | Some code_id2 -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id2) (Graph.Dep.Called_by_that_function code_id)
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -201,12 +204,19 @@ end = struct
              apply_exn
            } ->
         let deps = cur_deps_from_code_id apply_in_func t in
-        let deps2 = cur_deps_from_code_id_deps apply_in_func t.deps2 in
         let code_dep = find_code t apply_code_id in
+        let add_cond_dep param name =
+          let param = Name.var param in
+          match apply_in_func with
+          | None -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name param) (Graph.Dep.Alias name)
+          | Some code_id ->
+            Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name param) (Graph.Dep.Alias_if_def (name, code_id));
+            Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id) (Graph.Dep.Propagate (name, param))
+        in
         List.iter2
           (fun param arg ->
             Simple.pattern_match arg
-              ~name:(fun name ~coercion:_ -> Graph.add_cont_dep deps param name; Graph.add_cont_dep deps2 param name)
+              ~name:(fun name ~coercion:_ -> Graph.add_cont_dep deps param name; add_cond_dep param name)
               ~const:(fun _ -> ()))
           code_dep.params apply_params;
         (match apply_closure with
@@ -214,15 +224,15 @@ end = struct
         | Some apply_closure ->
           Simple.pattern_match apply_closure
             ~name:(fun name ~coercion:_ ->
-                Graph.add_cont_dep deps code_dep.my_closure name; Graph.add_cont_dep deps2 code_dep.my_closure name)
+                Graph.add_cont_dep deps code_dep.my_closure name; add_cond_dep code_dep.my_closure name)
             ~const:(fun _ -> ()));
         (match apply_return with
         | None -> ()
         | Some apply_return ->
           List.iter2
-            (fun arg param -> Graph.add_cont_dep deps param (Name.var arg); Graph.add_cont_dep deps2 param (Name.var arg))
+            (fun arg param -> Graph.add_cont_dep deps param (Name.var arg); add_cond_dep param (Name.var arg))
             code_dep.return apply_return);
-        Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn); Graph.add_cont_dep deps2 apply_exn (Name.var code_dep.exn))
+        Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn); add_cond_dep apply_exn (Name.var code_dep.exn))
       t.apply_deps;
     t.deps1, t.deps2
 end

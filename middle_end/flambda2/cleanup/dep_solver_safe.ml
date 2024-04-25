@@ -32,6 +32,7 @@ module Make_SCC = struct
       Code_id_or_name.Set.add
         (Code_id_or_name.code_id c)
         (Code_id_or_name.Set.singleton (Code_id_or_name.name n))
+    | Alias_if_def _ | Propagate _ -> assert false
 
   let depset (d : DepSet.t) : Code_id_or_name.Set.t =
     DepSet.fold
@@ -222,6 +223,7 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
         | None -> None
         | Some elt -> Some (n, elt))
     end
+    | Alias_if_def _ | Propagate _ -> assert false
   end
 
 let propagate_top (dep : dep) : Code_id_or_name.t option =
@@ -234,6 +236,7 @@ let propagate_top (dep : dep) : Code_id_or_name.t option =
   | Use n -> Some (Code_id_or_name.name n)
   | Field _ -> None
   | Block (_, n) -> Some n
+  | Alias_if_def _ | Propagate _ -> assert false
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
