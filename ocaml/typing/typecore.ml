@@ -3646,7 +3646,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
                 end;
-                if not optional && is_optional l' then
+                if not optional && not (is_position l) && is_optional l' then
                   Location.prerr_warning sarg.pexp_loc
                     (Warnings.Nonoptional_label (Printtyp.string_of_label l));
                 remaining_sargs, use_arg ~commuted sarg l'

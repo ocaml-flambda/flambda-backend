@@ -12,11 +12,6 @@ let _ = f ?call_pos:None ();
 Line 1, characters 20-24:
 1 | let _ = f ?call_pos:None ();
                         ^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
-Line 1, characters 20-24:
-1 | let _ = f ?call_pos:None ();
-                        ^^^^
 Error: This expression should not be a constructor, the expected type is
        lexing_position
 |}]
@@ -25,11 +20,6 @@ let _ =
   let pos = f () in
   f ?call_pos:(Some pos) ();
 [%%expect {|
-Line 3, characters 14-24:
-3 |   f ?call_pos:(Some pos) ();
-                  ^^^^^^^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
 Line 3, characters 14-24:
 3 |   f ?call_pos:(Some pos) ();
                   ^^^^^^^^^^
@@ -48,11 +38,6 @@ let _ =  ( >>| ) ?call_pos:None 1 2 ;;
 Line 1, characters 27-31:
 1 | let _ =  ( >>| ) ?call_pos:None 1 2 ;;
                                ^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
-Line 1, characters 27-31:
-1 | let _ =  ( >>| ) ?call_pos:None 1 2 ;;
-                               ^^^^
 Error: This expression should not be a constructor, the expected type is
        lexing_position
 |}]
@@ -62,11 +47,6 @@ let _ =
   ( >>| ) ?call_pos:(Some pos) 1 2
 ;;
 [%%expect {|
-Line 3, characters 20-30:
-3 |   ( >>| ) ?call_pos:(Some pos) 1 2
-                        ^^^^^^^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
 Line 3, characters 20-30:
 3 |   ( >>| ) ?call_pos:(Some pos) 1 2
                         ^^^^^^^^^^
@@ -88,11 +68,6 @@ let _ = new c ?call_pos:None ();;
 Line 1, characters 24-28:
 1 | let _ = new c ?call_pos:None ();;
                             ^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
-Line 1, characters 24-28:
-1 | let _ = new c ?call_pos:None ();;
-                            ^^^^
 Error: This expression should not be a constructor, the expected type is
        lexing_position
 |}]
@@ -101,11 +76,6 @@ let _ =
   let pos = f () in
   new c ?call_pos:(Some pos) ();;
 [%%expect {|
-Line 3, characters 18-28:
-3 |   new c ?call_pos:(Some pos) ();;
-                      ^^^^^^^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
 Line 3, characters 18-28:
 3 |   new c ?call_pos:(Some pos) ();;
                       ^^^^^^^^^^
