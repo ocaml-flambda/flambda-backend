@@ -1164,7 +1164,7 @@ module Log_test_cases = struct
     try
       output_string oc
 {|(* TEST
-   flags = "-extension comprehensions"
+   flags = "-extension-universe beta"
    * expect
 *)
 

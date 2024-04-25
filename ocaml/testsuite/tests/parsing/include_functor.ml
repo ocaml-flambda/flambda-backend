@@ -1,5 +1,5 @@
 (* TEST
- flags = "-dsource -extension include_functor";
+ flags = "-dsource -extension-universe stable";
  expect;
 *)
 

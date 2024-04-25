@@ -2,7 +2,7 @@
  {
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }
 *)
@@ -28,7 +28,7 @@ Line 1, characters 15-19:
 1 | type t_void  : void;;
                    ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 type t_non_null_value : non_null_value;;
@@ -37,7 +37,7 @@ Line 1, characters 24-38:
 1 | type t_non_null_value : non_null_value;;
                             ^^^^^^^^^^^^^^
 Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}]
 
 (******************************************************************)
@@ -605,7 +605,7 @@ Line 1, characters 11-15:
 1 | type ('a : void) void4 = Void4  of 'a;;
                ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 type ('a : any) any4 = Any4 of 'a
@@ -970,7 +970,7 @@ Line 2, characters 13-17:
 2 |   type ('a : void) t = { x : int; v : 'a }
                  ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}]
 
 module M11_1f = struct
@@ -1400,7 +1400,7 @@ Line 1, characters 20-24:
 1 | type 'a t_void_16 : void;;
                         ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (**************************************************************************)

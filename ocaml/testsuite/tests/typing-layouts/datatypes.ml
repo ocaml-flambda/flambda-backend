@@ -2,7 +2,7 @@
  {
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }
 *)
@@ -26,7 +26,7 @@ Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (********************************************************)
@@ -510,4 +510,3 @@ Error: This type t_any M.t2 should be an instance of type 'a M.t2
        But the layout of t_any must be a sublayout of value, because
          of the definition of t1 at line 3, characters 2-42.
 |}]
-

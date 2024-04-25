@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  expect;
 *)
 
@@ -65,4 +65,3 @@ Error: This expression has type [ `A | `B ]
        But the layout of [ `A | `B ] must be a sublayout of void, because
          of the definition of t at line 1, characters 0-22.
 |}]
-

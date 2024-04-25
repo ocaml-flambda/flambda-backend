@@ -1,6 +1,6 @@
 (* TEST
  readonly_files = "gadt_extensible.ml insert_extensible.ml extract_extensible.ml";
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  setup-ocamlc.byte-build-env;
  module = "gadt_extensible.ml";
  ocamlc.byte;

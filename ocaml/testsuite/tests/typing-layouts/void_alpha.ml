@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  expect;
 *)
 (* CR layouts v5: when we add the ability to make actual void types, eliminate

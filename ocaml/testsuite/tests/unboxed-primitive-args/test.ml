@@ -10,7 +10,7 @@
  arguments = "ml";
  compiler_output = "main.ml";
  ocaml;
- ocamlopt_flags = "-extension simd -cc '${cc} -msse4.2'";
+ ocamlopt_flags = "-extension-universe stable -cc '${cc} -msse4.2'";
  all_modules = "test_common.c stubs.c common.mli common.ml test0.ml test1.ml main.ml";
  ocamlopt.opt;
  run;

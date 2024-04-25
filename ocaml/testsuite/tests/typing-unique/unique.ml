@@ -1,5 +1,5 @@
 (* TEST
- flags += "-extension unique";
+ flags += "-extension-universe alpha";
  expect;
 *)
 
@@ -655,4 +655,3 @@ Line 2, characters 11-19:
                ^^^^^^^^
 
 |}]
-

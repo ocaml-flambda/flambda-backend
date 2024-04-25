@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension comprehensions";
+ flags = "-extension-universe beta";
 *)
 
 module Iarray = Stdlib__Iarray

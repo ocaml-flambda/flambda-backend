@@ -1,6 +1,6 @@
 (* TEST
  readonly_files = "a.ml b.ml";
- flags = "-extension layouts_beta";
+ flags = "-extension-universe beta";
  setup-ocamlc.byte-build-env;
  module = "a.ml";
  ocamlc.byte;

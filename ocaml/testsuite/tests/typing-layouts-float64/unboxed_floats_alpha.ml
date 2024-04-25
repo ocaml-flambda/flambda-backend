@@ -2,10 +2,10 @@
  reference = "${test_source_directory}/unboxed_floats_alpha.reference";
  flambda2;
  {
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    native;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    bytecode;
  }
 *)

@@ -1,8 +1,8 @@
 (* TEST
- flags = "-extension layouts_beta";
+ flags = "-extension-universe beta";
  expect;
 *)
-(* CR layouts: Using [-extension layouts_beta] here is not backward-compatible.
+(* CR layouts: Using [-extension-universe beta] here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.
 *)
 

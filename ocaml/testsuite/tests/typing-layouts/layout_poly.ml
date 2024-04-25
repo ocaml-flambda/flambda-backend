@@ -1,9 +1,9 @@
 (* TEST
  {
-   flags = "-extension layouts";
+   flags = "-extension-universe stable";
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }
 *)

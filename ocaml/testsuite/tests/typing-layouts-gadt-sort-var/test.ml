@@ -1,6 +1,6 @@
 (* TEST
  readonly_files = "gadt.ml insert.ml extract.ml";
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  setup-ocamlc.byte-build-env;
  module = "gadt.ml";
  ocamlc.byte;

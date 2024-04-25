@@ -1,7 +1,7 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  {
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }{
    expect;

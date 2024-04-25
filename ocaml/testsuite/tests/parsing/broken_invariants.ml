@@ -29,6 +29,6 @@ let f ([%lt_short_closed_pat]) = ();;
  program = "ppx.exe";
  ocamlc.byte with ocamlcommon;
  all_modules = "broken_invariants.ml";
- flags = "-extension labeled_tuples -ppx '${ocamlrun} ${test_build_directory_prefix}/ocamlc.byte/ppx.exe'";
+ flags = "-extension-universe stable -ppx '${ocamlrun} ${test_build_directory_prefix}/ocamlc.byte/ppx.exe'";
  toplevel;
 *)

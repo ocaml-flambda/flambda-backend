@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  expect;
 *)
 type t_non_null_value : non_null_value

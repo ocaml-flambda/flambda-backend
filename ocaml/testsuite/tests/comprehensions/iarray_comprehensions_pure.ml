@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension comprehensions";
+ flags = "-extension-universe beta";
  expect;
 *)
 
@@ -327,7 +327,7 @@ Error: This expression has type 'a iarray
 |}];;
 
 (* No mixing immutable arrays with anything else; we check these here so we
-   don't have to enable -extension immutable_arrays elsewhere, but we should
+   don't have to enable -extension-universe stable elsewhere, but we should
    move them when that changes *)
 
 [x for x in [::]];;

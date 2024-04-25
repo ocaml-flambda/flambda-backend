@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts";
+ flags = "-extension-universe stable";
  flambda2;
  {
    native;

@@ -1,7 +1,7 @@
 (* TEST
  reason = "bugs not fixed yet";
  skip;
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  expect;
 *)
 

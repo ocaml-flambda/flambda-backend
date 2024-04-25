@@ -1,5 +1,5 @@
 (* TEST
- flags = "-no-extension simd";
+ flags = "-no-extension-universe stable";
  expect;
 *)
 

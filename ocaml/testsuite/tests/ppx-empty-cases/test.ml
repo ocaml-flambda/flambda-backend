@@ -43,7 +43,7 @@ let non_empty_cases_accepting_float64 : float# -> t = function _ -> assert false
  all_modules = "ppx_empty_cases.ml";
  ocamlc.byte;
  module = "test.ml";
- flags = "-I ${test_build_directory} -ppx ${program} -extension layouts_alpha -dlambda";
+ flags = "-I ${test_build_directory} -ppx ${program} -extension-universe alpha -dlambda";
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)

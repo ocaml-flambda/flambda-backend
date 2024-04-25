@@ -5,16 +5,16 @@
  }{
    bytecode;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    native;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    bytecode;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    native;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    bytecode;
  }
 *)

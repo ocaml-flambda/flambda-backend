@@ -106,16 +106,16 @@ let () = test2 123_456_789_000
  }{
    bytecode;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    native;
  }{
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    bytecode;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    native;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    bytecode;
  }{
    ocamlc_byte_exit_status = "2";

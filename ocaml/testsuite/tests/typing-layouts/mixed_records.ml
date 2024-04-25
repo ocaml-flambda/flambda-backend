@@ -15,7 +15,7 @@ Lines 1-4, characters 0-3:
 3 |     b : float#;
 4 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* Mixed float-float# blocks are always OK. *)
@@ -31,7 +31,7 @@ Lines 1-4, characters 0-3:
 3 |     b : float;
 4 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* When a non-float/float# field appears, [float]
@@ -65,7 +65,7 @@ Lines 1-5, characters 0-3:
 4 |     c : int;
 5 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* The field [c] can't be flat because a non-float/float# field [d] appears. *)
@@ -115,7 +115,7 @@ Lines 1-5, characters 0-3:
 4 |     f3 : float;
 5 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* The string [f3] can't appear in the flat suffix. *)
@@ -148,7 +148,7 @@ Lines 1-5, characters 0-3:
 4 |     c : int;
 5 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* Parameterized types *)
@@ -159,7 +159,7 @@ Line 1, characters 0-46:
 1 | type ('a : float64) t = { x : string; y : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
@@ -168,7 +168,7 @@ Line 1, characters 0-70:
 1 | type ('a : float64, 'b : immediate) t = { x : string; y : 'a; z : 'b }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 (* Recursive groups *)
@@ -210,7 +210,7 @@ Lines 3-4, characters 0-60:
 3 | and ('a : float64, 'b : immediate, 'ptr) t =
 4 |   {ptr : 'ptr; x : 'a; y : 'a t_float; z : 'b; w : 'b t_imm}
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 
@@ -266,5 +266,5 @@ Lines 2-37, characters 0-3:
 36 |     value_but_flat:int; unboxed:float#;
 37 |   }
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;

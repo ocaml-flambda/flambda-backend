@@ -1,5 +1,5 @@
 (* TEST
- flags += "-extension unique";
+ flags += "-extension-universe alpha";
  expect;
 *)
 

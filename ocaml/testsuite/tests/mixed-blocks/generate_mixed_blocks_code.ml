@@ -289,7 +289,7 @@ let main n ~bytecode =
   in
   let per_type f = List.iter named_blocks ~f in
   line {|(* TEST
- flags = "-extension layouts_alpha";|};
+ flags = "-extension-universe alpha";|};
   if bytecode then (
     line {| bytecode;|};
   ) else (

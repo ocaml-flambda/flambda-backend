@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  toplevel;
 *)
 

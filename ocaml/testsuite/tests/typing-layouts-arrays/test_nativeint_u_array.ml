@@ -7,10 +7,10 @@
  }{
    native;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    bytecode;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    native;
  }
 *)

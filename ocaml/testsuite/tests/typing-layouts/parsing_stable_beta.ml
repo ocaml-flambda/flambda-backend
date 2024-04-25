@@ -3,7 +3,7 @@
    compiler_reference = "${test_source_directory}/parsing_stable.compilers.reference";
    toplevel;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    compiler_reference = "${test_source_directory}/parsing_beta.compilers.reference";
    toplevel;
  }

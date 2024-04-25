@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha -extension comprehensions";
+ flags = "-extension-universe alpha -extension-universe beta";
  expect;
 *)
 

@@ -3,13 +3,13 @@
  modules = "${readonly_files}";
  flambda2;
  {
-   flags = "-extension comprehensions -extension layouts_alpha";
+   flags = "-extension-universe beta -extension-universe alpha";
    expect;
  }{
-   flags = "-extension comprehensions -extension layouts_beta";
+   flags = "-extension-universe beta -extension-universe beta";
    expect;
  }{
-   flags = "-extension comprehensions";
+   flags = "-extension-universe beta";
    expect;
  }
 *)

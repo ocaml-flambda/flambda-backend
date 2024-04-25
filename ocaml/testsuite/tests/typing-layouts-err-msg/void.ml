@@ -1,8 +1,7 @@
 (* TEST
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  expect;
 *)
 
 (**********************)
 (* Void layout errors *)
-

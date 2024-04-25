@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension include_functor";
+ flags = "-extension-universe stable";
  native;
 *)
 

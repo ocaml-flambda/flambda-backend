@@ -1,10 +1,10 @@
 (* TEST
  flambda2;
  {
-   flags = "-extension layouts_alpha";
+   flags = "-extension-universe alpha";
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }{
    expect;

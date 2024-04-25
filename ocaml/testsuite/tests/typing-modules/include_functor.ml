@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension include_functor -w +a";
+ flags = "-extension-universe stable -w +a";
  expect;
 *)
 
@@ -706,4 +706,3 @@ module M21 :
     module P : sig module Make : functor (M : sig end) -> F(M).S end
   end
 |}];;
-

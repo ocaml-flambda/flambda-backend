@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension labeled_tuples";
+ flags = "-extension-universe stable";
  expect;
 *)
 
@@ -82,4 +82,3 @@ Line 1, characters 15-23:
 Error: This expression has type 'a * y:'b
        but an expression was expected of type x:int * int
 |}]
-

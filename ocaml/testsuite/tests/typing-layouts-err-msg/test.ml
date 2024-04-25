@@ -1,6 +1,6 @@
 (* TEST
  readonly_files = "a.ml";
- flags = "-extension layouts_alpha";
+ flags = "-extension-universe alpha";
  setup-ocamlc.byte-build-env;
  module = "a.ml";
  ocamlc.byte;

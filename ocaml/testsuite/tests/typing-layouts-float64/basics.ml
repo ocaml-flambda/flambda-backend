@@ -3,7 +3,7 @@
  {
    expect;
  }{
-   flags = "-extension layouts_beta";
+   flags = "-extension-universe beta";
    expect;
  }
 *)
@@ -294,7 +294,7 @@ Line 1, characters 0-36:
 1 | type 'a t5_14 = {x : 'a; y : float#};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The enabled layouts extension does not allow for mixed records.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension-universe alpha to use this feature.
 |}];;
 
 type ufref = { mutable contents : float# };;
