@@ -971,7 +971,7 @@ module Flambda_backend_options_impl = struct
 
   let checkmach_join n =
     let c : Flambda_backend_flags.checkmach_join =
-      if n < 0 then Error n
+      if n < 0 then Error (-n)
       else if n = 0 then Keep_all
       else Widen n
     in
