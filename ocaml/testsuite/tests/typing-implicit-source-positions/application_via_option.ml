@@ -65,6 +65,47 @@ let _ =
 {pos_fname = ""; pos_lnum = 2; pos_bol = 1290; pos_cnum = 1302}
 |}]
 
+class parent ~(call_pos : [%call_pos]) () = object
+  method pos = call_pos
+end
+[%%expect {|
+class parent :
+  call_pos:[%call_pos] -> unit -> object method pos : lexing_position end
+|}]
+
+let _ = (object 
+  inherit parent ?call_pos:None ()
+end)#pos;;
+[%%expect {|
+Line 2, characters 27-31:
+2 |   inherit parent ?call_pos:None ()
+                               ^^^^
+Warning 43 [nonoptional-label]: the label call_pos is not optional.
+
+Line 2, characters 27-31:
+2 |   inherit parent ?call_pos:None ()
+                               ^^^^
+Error: This expression should not be a constructor, the expected type is
+       lexing_position
+|}]
+
+let o = (object 
+  inherit parent ?call_pos:(Some (f ())) ()
+end)#pos
+[%%expect {|
+Line 2, characters 27-40:
+2 |   inherit parent ?call_pos:(Some (f ())) ()
+                               ^^^^^^^^^^^^^
+Warning 43 [nonoptional-label]: the label call_pos is not optional.
+
+Line 2, characters 27-40:
+2 |   inherit parent ?call_pos:(Some (f ())) ()
+                               ^^^^^^^^^^^^^
+Error: This expression should not be a constructor, the expected type is
+       lexing_position
+|}]
+
+
 (* TEST
  expect;
 *)
