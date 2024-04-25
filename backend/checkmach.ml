@@ -296,7 +296,10 @@ end = struct
 
     let same_vars = Var.Map.equal (fun _ _ -> (* ignore witnesses *) true)
 
-    let get_vars t = t |> Var.Map.to_seq |> Seq.map fst |> Var.Set.of_seq
+    let get_vars t =
+      (* CR-someday gyorsh: If this is called often, it may be better to store
+         the result of [get_vars t] in [t] instead of recomputing it. *)
+      t |> Var.Map.to_seq |> Seq.map fst |> Var.Set.of_seq
 
     let has_witnesses vars =
       Var.Map.exists (fun _ w -> not (Witnesses.is_empty w)) vars
