@@ -2,7 +2,7 @@
  include ocamlcommon;
 *)
 
-let () = Language_extension.enable Comprehensions ();;
+let () = Language_extension.(set_universe_and_enable_all Universe.Beta);;
 
 let printf = Printf.printf;;
 
