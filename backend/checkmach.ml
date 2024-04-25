@@ -490,7 +490,7 @@ end = struct
       let res = M.add (get_key tr) tr t in
       maybe_widen res
 
-    let compare = M.compare Transform.compare
+    let compare t1 t2 = M.compare Transform.compare t1 t2
 
     let iter f t = M.iter (fun _key tr -> f tr) t
 
