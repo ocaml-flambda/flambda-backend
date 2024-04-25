@@ -51,16 +51,18 @@ class c :
   unit -> object method call_pos : lexing_position end
 |}]
 
-let _ = new c ?call_pos:None ();;
+let _ = (new c ?call_pos:None ())#call_pos;;
 [%%expect {|
-- : c = <obj>
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 1; pos_bol = 1132; pos_cnum = 1140}
 |}]
 
 let _ = 
   let pos = f () in
-  new c ?call_pos:(Some pos) ();;
+  (new c ?call_pos:(Some pos) ())#call_pos;;
 [%%expect {|
-- : c = <obj>
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 2; pos_bol = 1290; pos_cnum = 1302}
 |}]
 
 (* TEST
