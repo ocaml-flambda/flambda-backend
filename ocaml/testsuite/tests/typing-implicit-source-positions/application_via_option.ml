@@ -77,32 +77,16 @@ let _ = (object
   inherit parent ?call_pos:None ()
 end)#pos;;
 [%%expect {|
-Line 2, characters 27-31:
-2 |   inherit parent ?call_pos:None ()
-                               ^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
-Line 2, characters 27-31:
-2 |   inherit parent ?call_pos:None ()
-                               ^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 2; pos_bol = 1662; pos_cnum = 1672}
 |}]
 
 let o = (object 
   inherit parent ?call_pos:(Some (f ())) ()
 end)#pos
 [%%expect {|
-Line 2, characters 27-40:
-2 |   inherit parent ?call_pos:(Some (f ())) ()
-                               ^^^^^^^^^^^^^
-Warning 43 [nonoptional-label]: the label call_pos is not optional.
-
-Line 2, characters 27-40:
-2 |   inherit parent ?call_pos:(Some (f ())) ()
-                               ^^^^^^^^^^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+val o : lexing_position =
+  {pos_fname = ""; pos_lnum = 2; pos_bol = 1829; pos_cnum = 1862}
 |}]
 
 

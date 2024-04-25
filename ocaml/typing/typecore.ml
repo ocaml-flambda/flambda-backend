@@ -7504,9 +7504,6 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
         | false -> sarg
         | true -> 
           let loc = { sarg.pexp_loc with loc_ghost = true } in
-          (* TODO: This should probably happen at the "typed tree" level... Otherwise, I
-             think shadowing Some/None could cause issue... although maybe that's fine in
-             this case?? *)
           let none_case = 
             Ast_helper.Exp.case
               (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "None"}) None)
