@@ -1,8 +1,6 @@
 (* TEST
-include upstream_compatible
 * bytecode
 * native
 *)
 
 (* Check that extension library modules exist. *)
-module Upstream_compatible = Upstream_compatible
