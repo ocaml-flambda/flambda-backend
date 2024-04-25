@@ -99,19 +99,18 @@ open Printpat
 module Scoped_location = Debuginfo.Scoped_location
 
 type error =
-    Non_value_layout of Jkind.Violation.t
+  | Void_layout
   | Illegal_record_field of Jkind.const
 
 exception Error of Location.t * error
 
 let dbg = false
 
-(* CR layouts v5: When we're ready to allow non-values, these can be deleted or
-   changed to check for void. *)
-let jkind_layout_must_be_value loc jkind =
-  match Jkind.(sub_or_error jkind (value ~why:V1_safety_check)) with
-  | Ok _ -> ()
-  | Error e -> raise (Error (loc, Non_value_layout e))
+let jkind_layout_default_to_value_and_check_not_void loc jkind =
+  match Jkind.get_default_value jkind with
+  | Void -> raise (Error (loc, Void_layout))
+  | _ -> ()
+;;
 
 (* CR layouts v5: This function is only used for sanity checking the
    typechecker.  When we allow arbitrary layouts in structures, it will have
@@ -1793,7 +1792,9 @@ let get_pat_args_constr p rem =
   match p with
   | { pat_desc = Tpat_construct (_, {cstr_arg_jkinds}, args, _) } ->
     List.iteri
-      (fun i arg -> jkind_layout_must_be_value arg.pat_loc cstr_arg_jkinds.(i))
+      (fun i arg ->
+         jkind_layout_default_to_value_and_check_not_void
+           arg.pat_loc cstr_arg_jkinds.(i))
       args;
       (* CR layouts v5: This sanity check will have to go (or be replaced with a
          void-specific check) when we have other non-value sorts *)
@@ -1809,15 +1810,38 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   let loc = head_loc ~scopes head in
   (* CR layouts v5: This sanity check should be removed or changed to
      specifically check for void when we add other non-value sorts. *)
-  Array.iter (fun jkind -> jkind_layout_must_be_value head.pat_loc jkind)
+  Array.iter (fun jkind ->
+      jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
     cstr.cstr_arg_jkinds;
-  let make_field_accesses binding_kind first_pos last_pos argl =
+  let make_field_accesses binding_kind first_pos last_pos argl ~get_jkind =
     let rec make_args pos =
       if pos > last_pos then
         argl
       else
-        (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), binding_kind,
-         Jkind.Sort.for_constructor_arg, layout_field)
+        let prim =
+          match cstr.cstr_shape with
+          | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
+          | Constructor_mixed shape ->
+              let read =
+                match Types.get_mixed_record_element shape pos with
+                | Value_prefix -> Mread_value_prefix Pointer
+                | Flat_suffix flat ->
+                    let flat_read =
+                      match flat with
+                      | Imm -> Flat_read_imm
+                      | Float64 -> Flat_read_float64
+                      | Float ->
+                          Misc.fatal_error
+                            "unexpected flat float of layout value in \
+                             constructor field"
+                    in
+                    Mread_flat_suffix flat_read
+              in
+              Pmixedfield (pos, read, Reads_agree)
+        in
+        let jkind = get_jkind pos in
+        let sort = Jkind.sort_of_jkind jkind in
+        (Lprim (prim, [ arg ], loc), binding_kind, sort, layout_field)
         :: make_args (pos + 1)
     in
     make_args first_pos
@@ -1828,8 +1852,11 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         make_field_accesses Alias 0 (cstr.cstr_arity - 1) rem
+          ~get_jkind:(fun pos -> cstr.cstr_arg_jkinds.(pos))
     | Variant_unboxed -> (arg, Alias, sort, layout) :: rem
-    | Variant_extensible -> make_field_accesses Alias 1 cstr.cstr_arity rem
+    | Variant_extensible ->
+        make_field_accesses Alias 1 cstr.cstr_arity rem
+          ~get_jkind:(fun pos -> cstr.cstr_arg_jkinds.(pos - 1))
 
 let divide_constructor ~scopes ctx pm =
   divide
@@ -1850,7 +1877,7 @@ let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
       rem =
   let loc = head_loc ~scopes head in
    let field_prim = nonconstant_variant_field 1 in
-  (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_constructor_arg,
+  (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_variant_arg,
    layout_field)
   :: rem
 
@@ -4158,11 +4185,10 @@ let for_optional_arg_default
 open Format
 
 let report_error ppf = function
-  | Non_value_layout err ->
+  | Void_layout ->
       fprintf ppf
-        "Non-value detected in translation:@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Jkind.Violation.report_with_name ~name:"this expression") err
+        "Void layout detected in translation:@ Please report this error to \
+         the Jane Street compilers team."
   | Illegal_record_field c ->
       fprintf ppf
         "Sort %s detected where value was expected in a record field:@ Please \
