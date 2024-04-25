@@ -6,7 +6,8 @@ type code_dep = Dot.code_dep =
   { params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t (* Dummy variable representing exn return value *)
+    exn : Variable.t; (* Dummy variable representing exn return value *)
+    code_id_for_escape : Code_id.t
   }
 
 type apply_dep =
@@ -60,6 +61,8 @@ module Acc : sig
 
   val add_apply : apply_dep -> t -> unit
 
+  val add_set_of_closures_dep : Name.t -> Code_id.t -> t -> unit
+
   val add_code : Code_id.t -> code_dep -> t -> unit
 
   val find_code : t -> Code_id.t -> code_dep
@@ -71,6 +74,7 @@ end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
       mutable apply_deps : apply_dep list;
+      mutable set_of_closures_dep : (Name.t * Code_id.t) list;
       deps1 : Graph.graph;
       deps2 : Graph.graph;
       mutable kinds : Flambda_kind.t Name.Map.t
@@ -81,6 +85,7 @@ end = struct
   let create () =
     { code = Code_id.Map.empty;
       apply_deps = [];
+      set_of_closures_dep = [];
       deps1 =
         { toplevel_graph = Graph.create ();
           function_graphs = Hashtbl.create 100
@@ -194,6 +199,8 @@ end = struct
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
+  let add_set_of_closures_dep name code_id t = t.set_of_closures_dep <- (name, code_id) :: t.set_of_closures_dep
+
   let deps t =
     List.iter
       (fun { apply_in_func;
@@ -234,6 +241,14 @@ end = struct
             code_dep.return apply_return);
         Graph.add_cont_dep deps apply_exn (Name.var code_dep.exn); add_cond_dep apply_exn (Name.var code_dep.exn))
       t.apply_deps;
+    List.iter (fun (name, code_id) ->
+      let code_id = try
+      let code_dep = find_code t code_id in code_dep.code_id_for_escape
+        with Not_found -> code_id
+      in
+      Graph.add_dep t.deps1.toplevel_graph (Code_id_or_name.name name) (Graph.Dep.Contains (Code_id_or_name.code_id code_id));
+      Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name name) (Graph.Dep.Contains (Code_id_or_name.code_id code_id))
+      ) t.set_of_closures_dep;
     t.deps1, t.deps2
 end
 
@@ -261,7 +276,8 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Bottom -> false
     | Ok _ -> true
   in
-  let code_dep = { return; my_closure; exn; params } in
+  let code_id_for_escape = Code_id.rename code_id in
+  let code_dep = { return; my_closure; exn; params; code_id_for_escape } in
   let () =
     if has_unsafe_result_type
     then
@@ -277,9 +293,10 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
       in
       List.iter
         (fun dep ->
-          Acc.record_dep' ~denv (Code_id_or_name.code_id code_id) dep acc)
+          Acc.record_dep' ~denv (Code_id_or_name.code_id code_id_for_escape) dep acc)
         deps
   in
+  let () = Acc.record_dep' ~denv (Code_id_or_name.code_id code_id_for_escape) (Graph.Dep.Contains (Code_id_or_name.code_id code_id)) acc in
   Acc.add_code code_id code_dep acc
 
 let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
@@ -298,8 +315,11 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
         match code_id with
         | Deleted -> ()
         | Code_id code_id ->
-          let code_id = Code_id_or_name.code_id code_id in
-          Acc.record_dep ~denv name (Graph.Dep.Contains code_id) acc)
+        if Compilation_unit.is_current (Code_id.get_compilation_unit code_id) then
+          Acc.add_set_of_closures_dep name code_id acc;
+          
+          (* let code_id = Code_id_or_name.code_id code_id in
+          Acc.record_dep ~denv name (Graph.Dep.Contains code_id) acc *) )
       names_and_function_slots
   in
   let deps =
@@ -588,6 +608,14 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           | Static b -> b
           | Singleton _ | Set_of_closures _ -> assert false
         in
+        let () =
+          Flambda.Static_const_group.match_against_bound_static group
+            bound_static ~init:()
+            ~code:(fun () -> prepare_code ~denv acc)
+            ~deleted_code:(fun _ _ -> ())
+            ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
+            ~block_like:(fun _ _ _ -> ())
+        in
         Flambda.Static_const_group.match_against_bound_static group bound_static
           ~init:()
           ~code:(fun () _code_id _code ->
@@ -708,14 +736,6 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
           | Static b -> b
           | Singleton _ | Set_of_closures _ -> assert false
         in
-        let () =
-          Flambda.Static_const_group.match_against_bound_static group
-            bound_static ~init:()
-            ~code:(fun () -> prepare_code ~denv acc)
-            ~deleted_code:(fun _ _ -> ())
-            ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
-            ~block_like:(fun _ _ _ -> ())
-        in
         let rev_group =
           Flambda.Static_const_group.match_against_bound_static group
             bound_static ~init:[]
@@ -762,7 +782,6 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
     | Check { property = Zero_alloc; _ } -> true
   in
   let is_opaque = Code_metadata.is_opaque code_metadata in
-  if never_delete then Acc.used_code_id code_id acc;
   Flambda.Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
@@ -776,6 +795,7 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~free_names_of_body:_
        ->
       let code_dep = Acc.find_code acc code_id in
+      if never_delete then Acc.used_code_id code_dep.code_id_for_escape acc;
       let maybe_opaque var = if is_opaque then Variable.rename var else var in
       let return = List.map maybe_opaque code_dep.return in
       let exn = maybe_opaque code_dep.exn in

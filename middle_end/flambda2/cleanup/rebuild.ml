@@ -188,7 +188,7 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
                   match
                     Hashtbl.find_opt uses (Code_id_or_name.code_id code_id)
                   with
-                  | None | Some Bottom -> false
+                  | None | Some Bottom -> not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
                   | Some Top | Some (Fields _) -> true
                then Code_id code_id
                else Deleted)
@@ -301,7 +301,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
                 match
                   Hashtbl.find_opt uses (Code_id_or_name.code_id code_id)
                 with
-                | None | Some Bottom -> false
+                | None | Some Bottom -> not (Compilation_unit.is_current (Code_id.get_compilation_unit code_id))
                 | Some Top | Some (Fields _) -> true
              then Code_id code_id
              else Deleted)
