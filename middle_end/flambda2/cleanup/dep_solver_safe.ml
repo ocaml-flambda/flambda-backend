@@ -276,8 +276,7 @@ let add_subgraph push state (fun_graph : Global_flow_graph.fun_graph) =
         let code_id = Code_id_or_name.code_id code_id in
         if not (Hashtbl.mem result code_id)
         then begin
-          Hashtbl.replace result code_id
-            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+          Hashtbl.replace result code_id Top;
           push code_id
         end
         (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
@@ -366,8 +365,7 @@ let create_state (graph : graph) =
       let code_id = Code_id_or_name.code_id code_id0 in
       if not (Hashtbl.mem state.result code_id)
       then begin
-        Hashtbl.replace state.result code_id
-          (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        Hashtbl.replace state.result code_id Top;
         Hashtbl.replace graph.toplevel_graph.called code_id0 ()
       end)
     state.added_fungraph;
@@ -474,8 +472,7 @@ let fixpoint (graph : graph) : result =
         let code_id = Code_id_or_name.code_id code_id in
         if not (Hashtbl.mem result code_id)
         then
-          Hashtbl.replace result code_id
-            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+          Hashtbl.replace result code_id Top;
         (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
            Field.Map.singleton Apply Top)) *)
         Queue.push code_id q (* CR do better, push_front? *))

@@ -5,7 +5,6 @@ module Field : sig
     | Block of int
     | Value_slot of Value_slot.t
     | Function_slot of Function_slot.t
-    | Apply
 
   val print : Format.formatter -> t -> unit
 

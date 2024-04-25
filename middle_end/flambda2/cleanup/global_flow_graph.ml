@@ -6,20 +6,16 @@ module Field = struct
       | Block of int
       | Value_slot of Value_slot.t
       | Function_slot of Function_slot.t
-      | Apply
 
     let compare t1 t2 =
       match t1, t2 with
       | Block n1, Block n2 -> Int.compare n1 n2
       | Value_slot v1, Value_slot v2 -> Value_slot.compare v1 v2
       | Function_slot f1, Function_slot f2 -> Function_slot.compare f1 f2
-      | Apply, Apply -> 0
-      | Block _, (Value_slot _ | Function_slot _ | Apply) -> -1
-      | (Value_slot _ | Function_slot _ | Apply), Block _ -> 1
-      | Value_slot _, (Function_slot _ | Apply) -> -1
-      | (Function_slot _ | Apply), Value_slot _ -> 1
-      | Function_slot _, Apply -> -1
-      | Apply, Function_slot _ -> 1
+      | Block _, (Value_slot _ | Function_slot _) -> -1
+      | (Value_slot _ | Function_slot _), Block _ -> 1
+      | Value_slot _, Function_slot _ -> -1
+      | Function_slot _, Value_slot _ -> 1
 
     let equal a b = compare a b = 0
 
@@ -29,7 +25,6 @@ module Field = struct
       | Block i -> Format.fprintf ppf "%i" i
       | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
       | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
-      | Apply -> Format.fprintf ppf "apply"
   end
 
   include M

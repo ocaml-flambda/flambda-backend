@@ -189,7 +189,7 @@ let propagate (elt : elt) (dep : dep) uses : (Code_id_or_name.t * elt) option =
       | Fields _ -> None
       | Top -> Some (Code_id_or_name.name n, Top)
     end
-    | Called_by_that_function c -> Some (Code_id_or_name.code_id c, Fields { depth = 1; fields = Field.Map.singleton Apply Top })
+    | Called_by_that_function c -> Some (Code_id_or_name.code_id c, Top)
     | Alias n -> Some (Code_id_or_name.name n, elt)
     | Apply (n, _) -> Some (Code_id_or_name.name n, Top)
     | Contains n -> Some (n, Top)
@@ -224,7 +224,7 @@ let propagate (elt : elt) (dep : dep) uses : (Code_id_or_name.t * elt) option =
 let propagate_top (dep : dep) uses : Code_id_or_name.t option =
   match dep with
   | Return_of_that_function n -> Some (Code_id_or_name.name n)
-  | Called_by_that_function _ -> None
+  | Called_by_that_function c -> Some (Code_id_or_name.code_id c)
   | Alias n -> Some (Code_id_or_name.name n)
   | Apply (n, _) -> Some (Code_id_or_name.name n)
   | Contains n -> Some n
@@ -280,8 +280,7 @@ let add_subgraph push state (fun_graph : Global_flow_graph.fun_graph) =
         let code_id = Code_id_or_name.code_id code_id in
         if not (Hashtbl.mem result code_id)
         then begin
-          Hashtbl.replace result code_id
-            (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+          Hashtbl.replace result code_id Top;
           push code_id
         end
         (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
@@ -370,8 +369,7 @@ let create_state (graph : graph) =
       let code_id = Code_id_or_name.code_id code_id0 in
       if not (Hashtbl.mem state.result code_id)
       then begin
-        Hashtbl.replace state.result code_id
-          (Fields { depth = 1; fields = Field.Map.singleton Apply Top });
+        Hashtbl.replace state.result code_id Top;
         Hashtbl.replace graph.toplevel_graph.called code_id0 ()
       end)
     state.added_fungraph;
