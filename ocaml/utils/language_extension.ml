@@ -11,8 +11,6 @@ module type Extension_level = sig
   val max_value : t
 
   val all : t list
-
-  val to_command_line_suffix : t -> string
 end
 
 module Unit = struct
@@ -25,8 +23,6 @@ module Unit = struct
   let max_value = ()
 
   let all = [()]
-
-  let to_command_line_suffix () = ""
 end
 
 module Maturity = struct
@@ -44,11 +40,6 @@ module Maturity = struct
   let max_value = Alpha
 
   let all = [Stable; Beta; Alpha]
-
-  let to_command_line_suffix = function
-    | Stable -> ""
-    | Beta -> "_beta"
-    | Alpha -> "_alpha"
 end
 
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
@@ -82,34 +73,11 @@ module Exist_pair = struct
     | Pair (Small_numbers, ()) -> Alpha
 
   let is_erasable : t -> bool = function Pair (ext, _) -> is_erasable ext
-
-  let to_string = function
-    | Pair (Layouts, m) -> to_string Layouts ^ "_" ^ maturity_to_string m
-    | Pair
-        ( (( Comprehensions | Mode | Unique | Include_functor
-           | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-           | SIMD | Labeled_tuples | Small_numbers ) as ext),
-          _ ) ->
-      to_string ext
 end
 
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 
 type exist = Exist.t = Pack : _ t -> exist
-
-(**********************************)
-(* string conversions *)
-
-let to_command_line_string : type a. a t -> a -> string =
- fun extn level ->
-  let (module Ops) = get_level_ops extn in
-  to_string extn ^ Ops.to_command_line_suffix level
-
-let pair_of_string_exn extn_name =
-  match pair_of_string extn_name with
-  | Some pair -> pair
-  | None ->
-    raise (Arg.Bad (Printf.sprintf "Extension %s is not known" extn_name))
 
 (************************************)
 (* equality *)
@@ -150,6 +118,8 @@ module Universe : sig
 
   val maximal : t
 
+  val of_maturity : maturity -> t
+
   val to_string : t -> string
 
   val of_string : string -> t option
@@ -159,8 +129,6 @@ module Universe : sig
   val set : t -> unit
 
   val is : t -> bool
-
-  val check : extn_pair -> unit
 
   (* Allowed extensions, each with the greatest allowed level. *)
   val allowed_extensions_in : t -> extn_pair list
@@ -177,6 +145,11 @@ end = struct
   let all = [No_extensions; Upstream_compatible; Stable; Beta; Alpha]
 
   let maximal = Alpha
+
+  let of_maturity : maturity -> t = function
+    | Stable -> Stable
+    | Beta -> Beta
+    | Alpha -> Alpha
 
   let to_string = function
     | No_extensions -> "no_extensions"
@@ -214,13 +187,6 @@ end = struct
 
   let is u = compare u !universe = 0
 
-  let compiler_options = function
-    | No_extensions -> "flag -extension-universe no_extensions"
-    | Upstream_compatible -> "flag -extension-universe upstream_compatible"
-    | Stable -> "flag -extension-universe stable"
-    | Beta -> "flag -extension-universe beta"
-    | Alpha -> "flag -extension-universe alpha (default CLI option)"
-
   let is_allowed_in t extn_pair =
     match t with
     | No_extensions -> false
@@ -230,20 +196,6 @@ end = struct
     | Stable -> Maturity.compare (Exist_pair.maturity extn_pair) Stable <= 0
     | Beta -> Maturity.compare (Exist_pair.maturity extn_pair) Beta <= 0
     | Alpha -> true
-
-  let is_allowed extn_pair = is_allowed_in !universe extn_pair
-
-  (* The terminating [()] argument helps protect against ignored arguments. See
-     the documentation for [Base.failwithf]. *)
-  let fail fmt = Format.ksprintf (fun str () -> raise (Arg.Bad str)) fmt
-
-  let check extn_pair =
-    if not (is_allowed extn_pair)
-    then
-      fail "Cannot enable extension %s: incompatible with %s"
-        (Exist_pair.to_string extn_pair)
-        (compiler_options !universe)
-        ()
 
   let allowed_extensions_in t =
     let maximal_in_universe (Pack extn) =
@@ -276,32 +228,6 @@ let legacy_default_extensions : extn_pair list =
 
 let extensions : extn_pair list ref = ref legacy_default_extensions
 
-let set_worker (type a) (extn : a t) = function
-  | Some value ->
-    Universe.check (Pair (extn, value));
-    let (module Ops) = get_level_ops extn in
-    let rec update_extensions already_seen : extn_pair list -> extn_pair list =
-      function
-      | [] -> Pair (extn, value) :: already_seen
-      | (Pair (extn', v) as e) :: es -> (
-        match equal_t extn extn' with
-        | None -> update_extensions (e :: already_seen) es
-        | Some Refl ->
-          Pair (extn, Ops.max v value) :: List.rev_append already_seen es)
-    in
-    extensions := update_extensions [] !extensions
-  | None ->
-    extensions
-      := List.filter
-           (fun (Pair (extn', _) : extn_pair) -> not (equal extn extn'))
-           !extensions
-
-let set extn ~enabled = set_worker extn (if enabled then Some () else None)
-
-let enable extn value = set_worker extn (Some value)
-
-let disable extn = set_worker extn None
-
 (* This is similar to [Misc.protect_refs], but we don't have values to set
    [extensions] to. *)
 let with_temporary_extensions f =
@@ -311,25 +237,6 @@ let with_temporary_extensions f =
 (* It might make sense to ban [set], [enable], [disable],
    [only_erasable_extensions], and [disallow_extensions] inside [f], but it's
    not clear that it's worth the hassle *)
-let with_set_worker extn value f =
-  with_temporary_extensions (fun () ->
-      set_worker extn value;
-      f ())
-
-let with_set extn ~enabled =
-  with_set_worker extn (if enabled then Some () else None)
-
-let with_enabled extn value = with_set_worker extn (Some value)
-
-let with_disabled extn = with_set_worker extn None
-
-let enable_of_string_exn extn_name =
-  match pair_of_string_exn extn_name with
-  | Pair (extn, setting) -> enable extn setting
-
-let disable_of_string_exn extn_name =
-  match pair_of_string_exn extn_name with Pair (extn, _) -> disable extn
-
 let disable_all () = extensions := []
 
 let unconditionally_enable_maximal_without_checks () =
@@ -374,24 +281,11 @@ let is_enabled extn =
   in
   check !extensions
 
-let get_command_line_string_if_enabled extn =
-  let rec find = function
-    | [] -> None
-    | Pair (e, v) :: _ when equal e extn -> Some (to_command_line_string e v)
-    | _ :: es -> find es
-  in
-  find !extensions
-
 (********************************************)
 (* existentially packed extension *)
 
 module Exist = struct
   include Exist
-
-  let to_command_line_strings (Pack extn) =
-    let (module Ops) = get_level_ops extn in
-    List.map (to_command_line_string extn) Ops.all
-
   let to_string : t -> string = function Pack extn -> to_string extn
 
   let is_enabled : t -> bool = function Pack extn -> is_enabled extn

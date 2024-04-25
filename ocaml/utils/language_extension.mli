@@ -38,10 +38,6 @@ module Exist : sig
 
   val is_erasable : t -> bool
 
-  (** Returns a list of all strings, like ["layouts_beta"], that
-      correspond to this extension. *)
-  val to_command_line_strings : t -> string list
-
   val all : t list
 end
 with type 'a extn := 'a t
@@ -74,6 +70,8 @@ module Universe : sig
   (** Equal to [Alpha]. *)
   val maximal : t
 
+  val of_maturity : maturity -> t
+
   val to_string : t -> string
 
   val of_string : string -> t option
@@ -90,28 +88,9 @@ val is_erasable : 'a t -> bool
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : 'a t -> string
 
-val to_command_line_string : 'a t -> 'a -> string
-
 val of_string : string -> Exist.t option
 
 val maturity_to_string : maturity -> string
-
-(** Get the command line string enabling the given extension, if it's
-    enabled; otherwise None *)
-val get_command_line_string_if_enabled : 'a t -> string option
-
-(** Enable and disable according to command-line strings; these raise
-    an exception if the input string is invalid. *)
-val enable_of_string_exn : string -> unit
-
-val disable_of_string_exn : string -> unit
-
-(** Enable and disable language extensions; these operations are idempotent *)
-val set : unit t -> enabled:bool -> unit
-
-val enable : 'a t -> 'a -> unit
-
-val disable : 'a t -> unit
 
 (** Check if a language extension is currently enabled (at any maturity level)
 *)
@@ -120,15 +99,6 @@ val is_enabled : 'a t -> bool
 (** Check if a language extension is enabled at least at the given level *)
 val is_at_least : 'a t -> 'a -> bool
 
-(** Tooling support: Temporarily enable and disable language extensions; these
-    operations are idempotent.  Calls to [set], [enable], [disable] inside the body
-    of the function argument will also be rolled back when the function finishes,
-    but this behavior may change; nest multiple [with_*] functions instead.  *)
-val with_set : unit t -> enabled:bool -> (unit -> unit) -> unit
-
-val with_enabled : 'a t -> 'a -> (unit -> unit) -> unit
-
-val with_disabled : 'a t -> (unit -> unit) -> unit
 
 (** Check if the allowable extensions are restricted to only those that are
     "erasable". This is true when the universe is set to [No_extensions] or

@@ -786,11 +786,11 @@ let report_error ppf = function
       | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
       end;
       fprintf ppf
-        ",@ but this requires extension %s, which is not enabled.@ \
+        ",@ but this requires -extension-universe %s, which is not enabled.@ \
          If you intended to use this layout, please add this flag to your \
          build file.@ \
          Otherwise, please report this error to the Jane Street compilers team."
-        (Language_extension.to_command_line_string Layouts maturity)
+        Language_extension.Universe.(to_string (of_maturity maturity))
   | Not_a_sort (ty, err) ->
       fprintf ppf "A representable layout is required here.@ %a"
         (Jkind.Violation.report_with_offender

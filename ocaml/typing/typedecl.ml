@@ -3388,9 +3388,8 @@ let report_error ppf = function
             max_value_prefix_len value_prefix_len
       | Insufficient_level { required_layouts_level } -> (
         let hint ppf =
-          Format.fprintf ppf "You must enable -extension %s to use this feature."
-            (Language_extension.to_command_line_string Layouts
-               required_layouts_level)
+          Format.fprintf ppf "You must enable -extension-universe %s to use this feature."
+            Language_extension.Universe.(to_string (of_maturity required_layouts_level))
         in
         match Language_extension.is_enabled Layouts with
         | false ->
