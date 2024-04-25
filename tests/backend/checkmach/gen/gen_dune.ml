@@ -39,7 +39,7 @@ let () =
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
+  let print_test_expected_output ?(filter="filter.sh") ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
     let ml_deps =
       let s =
         match extra_dep with
@@ -55,6 +55,7 @@ let () =
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
       | "extra_flags" -> extra_flags
+      | "filter" -> filter
       | _ -> assert false
     in
     Buffer.clear buf;
@@ -63,14 +64,14 @@ let () =
 (rule
  ${enabled_if}
  (targets ${name}.output.corrected)
- (deps ${ml_deps} filter.sh)
+ (deps ${ml_deps} ${filter})
  (action
    (with-outputs-to ${name}.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
           ${extra_flags} -checkmach-details-cutoff ${cutoff} -O3))
-    (run "./filter.sh")
+    (run "./${filter}")
    ))))
 
 (rule
