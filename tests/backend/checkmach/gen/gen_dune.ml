@@ -160,4 +160,16 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_arity";
   print_cmi_target "stop_after_typing";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join -2"
+    ~extra_dep:None ~exit_code:2 ~filter:"filter_fatal_error.sh" "test_bounded_join";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 2"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join3";
+  print_test_expected_output ~cutoff:3
+    ~extra_flags:"-zero-alloc-check default -checkmach-join 0"
+    ~extra_dep:None ~exit_code:2 "test_bounded_join4";
   ()

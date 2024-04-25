@@ -17,3 +17,15 @@
 (rule
  (alias  runtest)
  (action (copy test_all_opt.ml test_all_opt3.ml)))
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join2.ml )))
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join3.ml )))
+
+(rule
+ (alias  runtest)
+ (action (copy test_bounded_join.ml test_bounded_join4.ml )))
