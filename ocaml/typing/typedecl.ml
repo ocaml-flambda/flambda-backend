@@ -1263,7 +1263,7 @@ let update_decl_jkind env dpath decl =
       let classify (lbl : Types.label_declaration) jkind =
         if is_float env lbl.ld_type then Float_element
         else match Jkind.get_default_value jkind with
-          | Value | Immediate64 -> Value_element
+          | Value | Immediate64 | Non_null_value -> Value_element
           | Immediate -> Imm_element
           | Float64 -> Flat_float64_element
           | Void -> Element_without_runtime_component
