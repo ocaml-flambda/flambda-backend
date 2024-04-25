@@ -42,11 +42,22 @@ and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
 
-type mixed_record_violation =
-  | Runtime_support_not_enabled
+module Mixed_product_kind = struct
+  type t =
+    | Record
+    | Cstr_tuple
+
+  let to_plural_string = function
+    | Record -> "records"
+    | Cstr_tuple -> "constructors"
+end
+
+type mixed_product_violation =
+  | Runtime_support_not_enabled of Mixed_product_kind.t
   | Value_prefix_too_long of
       { value_prefix_len : int;
         max_value_prefix_len : int;
+        mixed_product_kind : Mixed_product_kind.t;
       }
   | Flat_field_expected of
       { boxed_lbl : Ident.t;
@@ -57,7 +68,9 @@ type mixed_record_violation =
         non_value_arg : type_expr;
       }
   | Insufficient_level of
-      { required_layouts_level : Language_extension.maturity }
+      { required_layouts_level : Language_extension.maturity;
+        mixed_product_kind : Mixed_product_kind.t;
+      }
 
 type bad_jkind_inference_location =
   | Check_constraints
@@ -109,7 +122,7 @@ type error =
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
-  | Illegal_mixed_record of mixed_record_violation
+  | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1228,26 +1241,30 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
-(* CR mixed blocks: "mixed product" *)
-let assert_mixed_record_support =
+let assert_mixed_product_support =
   let required_reserved_header_bits = 8 in
   (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
      the prefix. But the all-0 prefix means "not a mixed block", so we can't use
      the all-0 pattern, and we must subtract 2 instead. *)
   let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
-  fun loc ~value_prefix_len ->
+  fun loc mixed_product_kind ~value_prefix_len ->
     let required_layouts_level = Language_extension.Alpha in
     if not (Language_extension.is_at_least Layouts required_layouts_level) then
-      raise (Error (loc, Illegal_mixed_record
-                          (Insufficient_level { required_layouts_level })));
+      raise (Error (loc, Illegal_mixed_product
+                      (Insufficient_level { required_layouts_level;
+                                            mixed_product_kind;
+                                          })));
     if Config.reserved_header_bits < required_reserved_header_bits then
-      raise (Error (loc, Illegal_mixed_record Runtime_support_not_enabled));
+      raise (Error (loc, Illegal_mixed_product
+                      (Runtime_support_not_enabled
+                        mixed_product_kind)));
     if value_prefix_len > max_value_prefix_len then
       raise
         (Error (loc,
-                Illegal_mixed_record
+                Illegal_mixed_product
                   (Value_prefix_too_long
-                     { value_prefix_len; max_value_prefix_len })))
+                     { value_prefix_len; max_value_prefix_len;
+                       mixed_product_kind })))
 
 let update_constructor_representation
     env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
@@ -1269,7 +1286,7 @@ let update_constructor_representation
                     boxed_arg = boxed;
                   }
               in
-              raise (Error (loc, Illegal_mixed_record violation)))
+              raise (Error (loc, Illegal_mixed_product violation)))
     | Cstr_record fields ->
         let arg_reprs =
           List.map (fun ld ->
@@ -1285,7 +1302,7 @@ let update_constructor_representation
                 }
             in
             raise (Error (non_value.Types.ld_loc,
-                          Illegal_mixed_record violation)))
+                          Illegal_mixed_product violation)))
   in
   match flat_suffix with
   | None -> Constructor_uniform_value
@@ -1293,6 +1310,7 @@ let update_constructor_representation
       let value_prefix_len =
         Array.length arg_jkinds - Array.length flat_suffix
       in
+      assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
       Constructor_mixed { value_prefix_len; flat_suffix }
 
 
@@ -1369,7 +1387,7 @@ let update_decl_jkind env dpath decl =
                 reprs
               |> Array.of_list
             in
-            assert_mixed_record_support loc ~value_prefix_len:0;
+            assert_mixed_product_support loc Record ~value_prefix_len:0;
             Record_mixed { value_prefix_len = 0; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = true  }
         | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
@@ -1383,7 +1401,7 @@ let update_decl_jkind env dpath decl =
                       }
                   in
                   raise (Error (boxed.Types.ld_loc,
-                                Illegal_mixed_record violation)))
+                                Illegal_mixed_product violation)))
             in
             let flat_suffix =
               match flat_suffix with
@@ -1393,7 +1411,7 @@ let update_decl_jkind env dpath decl =
             let value_prefix_len =
               Array.length jkinds - Array.length flat_suffix
             in
-            assert_mixed_record_support loc ~value_prefix_len;
+            assert_mixed_product_support loc Record ~value_prefix_len;
             Record_mixed { value_prefix_len; flat_suffix }
         | { values = true ; imms = _    ; floats = _    ; float64s = false }
         | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
@@ -3486,16 +3504,18 @@ let report_error ppf = function
       val_name (Jkind.Violation.report_with_offender ~offender) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
-      match lloc with
-      | Record -> "Unboxed variant records"
-      | Unboxed_record -> "Unboxed records"
-      | Cstr_tuple -> "Unboxed variants"
-      | External | External_with_layout_poly -> assert false
+      match lloc, sort_const with
+      | Record, Float64 -> "Unboxed variant records"
+      | Record, _ -> "Records"
+      | Unboxed_record, _ -> "Unboxed records"
+      | Cstr_tuple, Float64 -> "Unboxed variants"
+      | Cstr_tuple, _ -> "Variants"
+      | (External | External_with_layout_poly), _ -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
       Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
-  | Illegal_mixed_record error -> begin
+  | Illegal_mixed_product error -> begin
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
@@ -3509,15 +3529,18 @@ let report_error ppf = function
              argument, %a,@]@,@[but found boxed argument, %a.@]"
             Printtyp.type_expr non_value_arg
             Printtyp.type_expr boxed_arg
-      | Runtime_support_not_enabled ->
+      | Runtime_support_not_enabled mixed_product_kind ->
           fprintf ppf
-            "@[This OCaml runtime doesn't support mixed records.@]"
-      | Value_prefix_too_long { value_prefix_len; max_value_prefix_len } ->
+            "@[This OCaml runtime doesn't support mixed %s.@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
+      | Value_prefix_too_long
+          { value_prefix_len; max_value_prefix_len; mixed_product_kind } ->
           fprintf ppf
-            "@[Mixed records may contain at most %d value fields prior to the\
+            "@[Mixed %s may contain at most %d value fields prior to the\
             \ flat suffix, but this one contains %d.@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
             max_value_prefix_len value_prefix_len
-      | Insufficient_level { required_layouts_level } -> (
+      | Insufficient_level { required_layouts_level; mixed_product_kind } -> (
         let hint ppf =
           Format.fprintf ppf "You must enable -extension %s to use this feature."
             (Language_extension.to_command_line_string Layouts
@@ -3529,8 +3552,9 @@ let report_error ppf = function
             "@[<v>The appropriate layouts extension is not enabled.@;%t@]" hint
         | true ->
           fprintf ppf
-            "@[<v>The enabled layouts extension does not allow for mixed records.@;\
+            "@[<v>The enabled layouts extension does not allow for mixed %s.@;\
              %t@]"
+            (Mixed_product_kind.to_plural_string mixed_product_kind)
             hint)
     end
   | Bad_unboxed_attribute msg ->
