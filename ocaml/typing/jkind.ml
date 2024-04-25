@@ -349,6 +349,8 @@ module Sort = struct
 
   let for_tuple_element = value
 
+  let for_variant_arg = value
+
   let for_instance_var = value
 
   let for_class_arg = value

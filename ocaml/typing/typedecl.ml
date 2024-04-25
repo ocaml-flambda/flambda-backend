@@ -3460,9 +3460,10 @@ let report_error ppf = function
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
-      | Record -> "Records"
+      | Record -> "Unboxed variant records"
       | Unboxed_record -> "Unboxed records"
-      | Cstr_tuple | External | External_with_layout_poly -> assert false
+      | Cstr_tuple -> "Unboxed variants"
+      | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"

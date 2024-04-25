@@ -351,7 +351,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | Error violation ->
         if (Jkind.Violation.is_missing_cmi violation)
         then raise Missing_cmi_fallback
-        else assert false
+        else raise (Error (loc, Non_value_layout (ty, Some violation)))
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
