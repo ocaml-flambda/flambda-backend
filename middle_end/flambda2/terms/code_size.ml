@@ -407,7 +407,7 @@ let variadic_prim_size prim args =
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
   | Make_array (_, _mut, _alloc_mode)
-  | Make_mixed_block (_, _mut, _alloc_mode) ->
+  | Make_mixed_block (_, _, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =

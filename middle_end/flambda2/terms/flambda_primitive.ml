@@ -411,7 +411,8 @@ module Block_access_kind = struct
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
     | Mixed of
-        { size : Targetint_31_63.t Or_unknown.t;
+        { tag : Tag.Scannable.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Mixed_block_access_field_kind.t
         }
 
@@ -433,12 +434,14 @@ module Block_access_kind = struct
           @[<hov 1>(size@ %a)@]\
           )@]"
         (Or_unknown.print Targetint_31_63.print) size
-    | Mixed { size; field_kind } ->
+    | Mixed { tag; size; field_kind } ->
       Format.fprintf ppf
         "@[<hov 1>(Mixed@ \
+          @[<hov 1>(tag@ %a)@]@ \
           @[<hov 1>(size@ %a)@]@ \
           @[<hov 1>(field_kind@ %a)@]\
           )@]"
+        (Or_unknown.print Tag.Scannable.print) tag
         (Or_unknown.print Targetint_31_63.print) size
         Mixed_block_access_field_kind.print field_kind
 
@@ -482,12 +485,16 @@ module Block_access_kind = struct
         else Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
       Or_unknown.compare Targetint_31_63.compare size1 size2
-    | ( Mixed { size = size1; field_kind = field_kind1 },
-        Mixed { size = size2; field_kind = field_kind2 } ) ->
-      let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+    | ( Mixed { tag = tag1; size = size1; field_kind = field_kind1 },
+        Mixed { tag = tag2; size = size2; field_kind = field_kind2 } ) ->
+      let c = Or_unknown.compare Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
-      else Mixed_block_access_field_kind.compare field_kind1 field_kind2
+      else
+        let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+        if c <> 0
+        then c
+        else Mixed_block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats _, Mixed _ -> -1
     | Mixed _, Naked_floats _ -> 1
     | Values _, _ -> -1
@@ -1793,27 +1800,28 @@ type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
-      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
+      Tag.Scannable.t * Lambda.mixed_block_shape * Mutability.t *
+      Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
   | Make_block (_, _, Local _)
   | Make_array (_, Immutable, Local _)
-  | Make_mixed_block (_, _, Local _) ->
+  | Make_mixed_block (_, _, _, Local _) ->
     false
   | Make_block (_, Immutable, Heap)
   | Make_array (_, Immutable, _)
-  | Make_mixed_block (_, Immutable, Heap) ->
+  | Make_mixed_block (_, _, Immutable, Heap) ->
     (* See comment in [unary_primitive_eligible_for_cse], above, on [Box_number]
        case. *)
     List.exists (fun arg -> Simple.is_var arg) args
   | Make_block (_, Immutable_unique, _)
   | Make_array (_, Immutable_unique, _)
-  | Make_mixed_block (_, Immutable_unique, _) ->
+  | Make_mixed_block (_, _, Immutable_unique, _) ->
     false
   | Make_block (_, Mutable, _)
   | Make_array (_, Mutable, _)
-  | Make_mixed_block (_, Mutable, _) ->
+  | Make_mixed_block (_, _, Mutable, _) ->
     false
 
 let compare_variadic_primitive p1 p2 =
@@ -1838,16 +1846,20 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | ( Make_mixed_block (kind1, mut1, alloc_mode1),
-      Make_mixed_block (kind2, mut2, alloc_mode2) ) ->
-    let c = Mixed_block_kind.compare kind1 kind2 in
+  | ( Make_mixed_block (tag1, kind1, mut1, alloc_mode1),
+      Make_mixed_block (tag2, kind2, mut2, alloc_mode2) ) ->
+    let c = Tag.Scannable.compare tag1 tag2 in
     if c <> 0
     then c
     else
-      let c = Stdlib.compare mut1 mut2 in
+      let c = Mixed_block_kind.compare kind1 kind2 in
       if c <> 0
       then c
-      else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+      else
+        let c = Stdlib.compare mut1 mut2 in
+        if c <> 0
+        then c
+        else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Make_array _, Make_mixed_block _ -> -1
   | Make_mixed_block _, Make_array _ -> 1
   | Make_block _, _ -> -1
@@ -1864,8 +1876,9 @@ let print_variadic_primitive ppf p =
   | Make_array (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_array@ %a@ %a@ %a)@]" Array_kind.print kind
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
-  | Make_mixed_block (kind, mut, alloc_mode) ->
-    fprintf ppf "@[<hov 1>(Make_mixed_block@ %a@ %a@ %a)@]"
+  | Make_mixed_block (tag, kind, mut, alloc_mode) ->
+    fprintf ppf "@[<hov 1>(Make_mixed_block %a@ %a@ %a@ %a)@]"
+      Tag.Scannable.print tag
       Mixed_block_kind.print kind Mutability.print mut
       Alloc_mode.For_allocations.print alloc_mode
 
@@ -1875,7 +1888,7 @@ let args_kind_of_variadic_primitive p : arg_kinds =
     Variadic_all_of_kind (Block_kind.element_kind kind)
   | Make_array (kind, _, _) ->
     Variadic_all_of_kind (Array_kind.element_kind_for_primitive kind)
-  | Make_mixed_block (kind, _, _) ->
+  | Make_mixed_block (_, kind, _, _) ->
     Variadic
       (List.init (Mixed_block_kind.length kind) (fun i ->
            Mixed_block_kind.element_kind i kind))
@@ -1888,7 +1901,7 @@ let effects_and_coeffects_of_variadic_primitive p =
   match p with
   | Make_block (_, mut, alloc_mode)
   | Make_array (_, mut, alloc_mode)
-  | Make_mixed_block (_, mut, alloc_mode) ->
+  | Make_mixed_block (_, _, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
       | Heap -> Coeffects.No_coeffects
@@ -1906,7 +1919,7 @@ let free_names_variadic_primitive p =
     Alloc_mode.For_allocations.free_names alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
-  | Make_mixed_block (_kind, _mut, alloc_mode) ->
+  | Make_mixed_block (_tag, _kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
 
 let apply_renaming_variadic_primitive p renaming =
@@ -1921,13 +1934,13 @@ let apply_renaming_variadic_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Make_array (kind, mut, alloc_mode')
-  | Make_mixed_block (kind, mut, alloc_mode) ->
+  | Make_mixed_block (tag, kind, mut, alloc_mode) ->
     let alloc_mode' =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode'
     then p
-    else Make_mixed_block (kind, mut, alloc_mode')
+    else Make_mixed_block (tag, kind, mut, alloc_mode')
 
 let ids_for_export_variadic_primitive p =
   match p with
@@ -1935,7 +1948,7 @@ let ids_for_export_variadic_primitive p =
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | Make_mixed_block (_kind, _mut, alloc_mode) ->
+  | Make_mixed_block (_tag, _kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
 
 type t =

@@ -969,7 +969,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
-  | Pmakemixedblock (mutability, shape, mode), _ ->
+  | Pmakemixedblock (tag, mutability, shape, mode), _ ->
     let args = List.flatten args in
     let args =
       List.mapi
@@ -981,7 +981,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
-    [Variadic (Make_mixed_block (shape, mutability, mode), args)]
+    let tag = Tag.Scannable.create_exn tag in
+    [Variadic (Make_mixed_block (tag, shape, mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1389,7 +1390,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             | Flat_read_float _ -> Float
             | Flat_read_float64 -> Float64)
       in
-      Mixed { field_kind; size = Unknown }
+      Mixed { tag = Unknown; field_kind; size = Unknown }
     in
     let block_access : H.expr_primitive =
       Binary (Block_load (block_access, mutability), arg, Simple field)
@@ -1450,7 +1451,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
             | Mwrite_flat_suffix flat -> Flat_suffix flat);
-          size = Unknown
+          size = Unknown;
+          tag = Unknown;
         }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in

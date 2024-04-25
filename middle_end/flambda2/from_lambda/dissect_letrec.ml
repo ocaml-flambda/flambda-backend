@@ -271,7 +271,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     match current_let with
     | Some cl -> build_block cl (List.length args) Flat_float_record lam letrec
     | None -> dead_code lam letrec)
-  | Lprim (Pmakemixedblock (_, shape, mode), args, _) -> (
+  | Lprim (Pmakemixedblock (_, _, shape, mode), args, _) -> (
     assert_not_local ~lam mode;
     match current_let with
     | Some cl -> build_block cl (List.length args) (Mixed shape) lam letrec

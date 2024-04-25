@@ -508,9 +508,22 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
-          begin try
-            Lconst(Const_block(runtime_tag, List.map extract_constant ll))
-          with Not_constant ->
+          let const_block =
+            match cstr.cstr_shape with
+            | Constructor_mixed _ ->
+                (* CR layouts v5.1: We should support structured constants for
+                   blocks containing unboxed float literals.
+                *)
+                None
+            | Constructor_uniform_value -> (
+                match List.map extract_constant ll with
+                | exception Not_constant -> None
+                | constant ->
+                    Some (Lconst(Const_block(runtime_tag, constant))))
+          in
+          begin match const_block with
+          | Some const_block -> const_block
+          | None ->
             let alloc_mode = transl_alloc_mode_r (Option.get alloc_mode) in
             let makeblock =
               match cstr.cstr_shape with
@@ -522,9 +535,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   in
                   Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
               | Constructor_mixed shape ->
-                  (* CR mixed blocks: runtime_tag *)
                   let shape = Lambda.transl_mixed_record_shape shape in
-                  Pmakemixedblock(Immutable, shape, alloc_mode)
+                  Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
             in
             Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
           end
@@ -554,7 +566,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   let shape =
                     { shape with value_prefix_len = shape.value_prefix_len + 1 }
                   in
-                  Pmakemixedblock(Immutable, shape, alloc_mode)
+                  Pmakemixedblock(0, Immutable, shape, alloc_mode)
             in
             Lprim (makeblock, lam :: ll, of_location ~scopes e.exp_loc)
       | Extension _, (Variant_boxed _ | Variant_unboxed)
@@ -1783,10 +1795,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
         | Record_ufloat | Record_mixed _ ->
-            (* CR layouts v2.5: When we add unboxed float literals, we may need
-               to do something here.  (Currrently this case isn't reachable for
-               `float#` records because `extact_constant` will have raised
-               `Not_constant`.) *)
+            (* CR layouts v5.1: We should support structured constants for
+               blocks containing unboxed float literals.
+            *)
             raise Not_constant
         | Record_inlined (_, Variant_extensible)
         | Record_inlined (Extension _, _) ->
@@ -1814,7 +1825,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             assert false
         | Record_mixed shape ->
             let shape = transl_mixed_record_shape shape in
-            Lprim (Pmakemixedblock (mut, shape, Option.get mode), ll, loc)
+            Lprim (Pmakemixedblock (0, mut, shape, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
       None -> lam

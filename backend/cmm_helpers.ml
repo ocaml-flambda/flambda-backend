@@ -1471,7 +1471,7 @@ let make_float_alloc ~mode dbg tag args =
     (List.length args * size_float / size_addr)
     args
 
-let make_mixed_alloc ~mode dbg shape args =
+let make_mixed_alloc ~mode dbg tag shape args =
   let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
@@ -1492,8 +1492,7 @@ let make_mixed_alloc ~mode dbg shape args =
     values + floats
   in
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
-    (* CR mixed blocks v1: Support inline record args to variants. *)
-    set_fn dbg Obj.first_non_constant_constructor_tag size args
+    set_fn dbg tag size args
 
 (* Record application and currying functions *)
 
