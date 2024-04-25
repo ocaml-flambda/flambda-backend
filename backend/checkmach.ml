@@ -311,6 +311,8 @@ end = struct
     val fold :
       f:(Var.t -> Witnesses.t -> 'acc -> 'acc) -> init:'acc -> t -> 'acc
 
+    val exists : (Var.t -> Witnesses.t -> bool) -> t -> bool
+
     val cutoff : t -> int -> t
 
     val cutoff_witnesses : t -> int -> t
@@ -336,8 +338,9 @@ end = struct
       t |> Var.Map.to_seq |> Seq.map fst |> Seq.map Var.name
       |> String.Set.of_seq
 
-    let has_witnesses vars =
-      Var.Map.exists (fun _ w -> not (Witnesses.is_empty w)) vars
+    let exists p t = Var.Map.exists p t
+
+    let has_witnesses vars = exists (fun _ w -> not (Witnesses.is_empty w)) vars
 
     let join t1 t2 =
       Var.Map.union (fun _var w1 w2 -> Some (Witnesses.join w1 w2)) t1 t2
@@ -1246,37 +1249,55 @@ end = struct
       assert false
 
   let apply t ~env =
-    let env var w =
+    let get env var w =
       match env var with
       | None -> unresolved w var
       | Some v -> replace_witnesses w v
     in
+    let contains_any env vars =
+      Vars.exists (fun var _w -> Option.is_some (env var)) vars
+    in
+    (* CR-someday gyorsh: This is a naive implementation that reallocates the
+       entire [t] whenever there is a change. Can be optimized to update the
+       underlying sets and maps instead of using [fold]. *)
     let rec aux t =
       match t with
       | Bot | Safe | Top _ -> t
-      | Var { var; witnesses } -> env var witnesses
+      | Var { var; witnesses } -> (
+        match env var with None -> t | Some v -> replace_witnesses witnesses v)
       | Transform tr ->
-        let init =
-          match Transform.get_top tr with None -> Safe | Some w -> Top w
-        in
-        Vars.fold
-          ~f:(fun var w acc -> transform (env var w) acc)
-          ~init (Transform.get_vars tr)
+        let vars = Transform.get_vars tr in
+        if not (contains_any env vars)
+        then t
+        else
+          let init =
+            match Transform.get_top tr with None -> Safe | Some w -> Top w
+          in
+          Vars.fold
+            ~f:(fun var w acc -> transform (get env var w) acc)
+            ~init vars
       | Join j ->
-        let init =
-          match Join.get_top j with
-          | None -> if Join.has_safe j then Safe else Bot
-          | Some w -> Top w
-        in
         let vars, trs = Join.get j in
-        let acc =
-          Vars.fold ~f:(fun var w acc -> join (env var w) acc) ~init vars
-        in
-        Transforms.fold
-          (fun tr acc ->
-            let t = Transform tr in
-            join (aux t) acc)
-          trs acc
+        if (not (contains_any env vars))
+           && not
+                (Transforms.exists
+                   (fun tr -> contains_any env (Transform.get_vars tr))
+                   trs)
+        then t
+        else
+          let init =
+            match Join.get_top j with
+            | None -> if Join.has_safe j then Safe else Bot
+            | Some w -> Top w
+          in
+          let acc =
+            Vars.fold ~f:(fun var w acc -> join (get env var w) acc) ~init vars
+          in
+          Transforms.fold
+            (fun tr acc ->
+              let t = Transform tr in
+              join (aux t) acc)
+            trs acc
     in
     aux t
 end
@@ -2179,6 +2200,7 @@ end = struct
     let empty = String.Map.empty
 
     let add (func_info : Func_info.t) approx t =
+      assert (Value.is_resolved approx);
       let d = { func_info; approx } in
       String.Map.add func_info.name d t
 
@@ -2189,7 +2211,12 @@ end = struct
       d.approx
 
     let map t ~f =
-      String.Map.map (fun d -> { d with approx = f d.func_info d.approx }) t
+      String.Map.map
+        (fun d ->
+          let approx = f d.func_info d.approx in
+          assert (Value.is_resolved approx);
+          { d with approx })
+        t
 
     let iter t ~f = String.Map.iter (fun _name d -> f d.func_info d.approx) t
 
