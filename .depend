@@ -29,6 +29,7 @@ utils/ccomp.cmx : \
     utils/ccomp.cmi
 utils/ccomp.cmi :
 utils/clflags.cmo : \
+    utils/zero_alloc_annotations.cmi \
     utils/profile.cmi \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -36,6 +37,7 @@ utils/clflags.cmo : \
     utils/arg_helper.cmi \
     utils/clflags.cmi
 utils/clflags.cmx : \
+    utils/zero_alloc_annotations.cmx \
     utils/profile.cmx \
     utils/numbers.cmx \
     utils/misc.cmx \
@@ -43,6 +45,7 @@ utils/clflags.cmx : \
     utils/arg_helper.cmx \
     utils/clflags.cmi
 utils/clflags.cmi : \
+    utils/zero_alloc_annotations.cmi \
     utils/profile.cmi \
     utils/misc.cmi
 utils/compilation_unit.cmo : \
@@ -282,6 +285,11 @@ utils/warnings.cmx : \
     utils/misc.cmx \
     utils/warnings.cmi
 utils/warnings.cmi :
+utils/zero_alloc_annotations.cmo : \
+    utils/zero_alloc_annotations.cmi
+utils/zero_alloc_annotations.cmx : \
+    utils/zero_alloc_annotations.cmi
+utils/zero_alloc_annotations.cmi :
 utils/zero_alloc_utils.cmo : \
     utils/zero_alloc_utils.cmi
 utils/zero_alloc_utils.cmx : \
@@ -401,6 +409,7 @@ parsing/attr_helper.cmi : \
     parsing/asttypes.cmi
 parsing/builtin_attributes.cmo : \
     utils/zero_alloc_utils.cmi \
+    utils/zero_alloc_annotations.cmi \
     utils/warnings.cmi \
     parsing/parsetree.cmi \
     utils/misc.cmi \
@@ -414,6 +423,7 @@ parsing/builtin_attributes.cmo : \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmx : \
     utils/zero_alloc_utils.cmx \
+    utils/zero_alloc_annotations.cmx \
     utils/warnings.cmx \
     parsing/parsetree.cmi \
     utils/misc.cmx \
@@ -690,6 +700,7 @@ typing/annot.cmi : \
 typing/btype.cmo : \
     typing/types.cmi \
     typing/path.cmi \
+    parsing/parsetree.cmi \
     utils/local_store.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi \
@@ -697,6 +708,7 @@ typing/btype.cmo : \
 typing/btype.cmx : \
     typing/types.cmx \
     typing/path.cmx \
+    parsing/parsetree.cmi \
     utils/local_store.cmx \
     typing/ident.cmx \
     parsing/asttypes.cmi \
@@ -704,6 +716,7 @@ typing/btype.cmx : \
 typing/btype.cmi : \
     typing/types.cmi \
     typing/path.cmi \
+    parsing/parsetree.cmi \
     typing/jkind.cmi \
     parsing/asttypes.cmi
 typing/cmt2annot.cmo : \
@@ -1449,8 +1462,7 @@ typing/printtyp.cmi : \
     parsing/location.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
-    typing/env.cmi \
-    parsing/asttypes.cmi
+    typing/env.cmi
 typing/printtyped.cmo : \
     utils/zero_alloc_utils.cmi \
     typing/types.cmi \
@@ -1932,6 +1944,7 @@ typing/typedecl.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/language_extension.cmi \
     typing/jkind.cmi \
     typing/includecore.cmi \
     typing/ident.cmi \
@@ -7055,6 +7068,7 @@ toplevel/genprintval.cmo : \
     typing/env.cmi \
     typing/datarepr.cmi \
     typing/ctype.cmi \
+    utils/clflags.cmi \
     typing/btype.cmi \
     parsing/asttypes.cmi \
     toplevel/genprintval.cmi
@@ -7076,6 +7090,7 @@ toplevel/genprintval.cmx : \
     typing/env.cmx \
     typing/datarepr.cmx \
     typing/ctype.cmx \
+    utils/clflags.cmx \
     typing/btype.cmx \
     parsing/asttypes.cmi \
     toplevel/genprintval.cmi
@@ -7264,7 +7279,6 @@ toplevel/topprinters.cmo : \
     typing/mode.cmi \
     typing/ident.cmi \
     typing/ctype.cmi \
-    parsing/asttypes.cmi \
     toplevel/topprinters.cmi
 toplevel/topprinters.cmx : \
     typing/types.cmx \
@@ -7273,7 +7287,6 @@ toplevel/topprinters.cmx : \
     typing/mode.cmx \
     typing/ident.cmx \
     typing/ctype.cmx \
-    parsing/asttypes.cmi \
     toplevel/topprinters.cmi
 toplevel/topprinters.cmi : \
     typing/types.cmi
@@ -7412,7 +7425,6 @@ toplevel/byte/trace.cmo : \
     bytecomp/meta.cmi \
     parsing/longident.cmi \
     typing/ctype.cmi \
-    parsing/asttypes.cmi \
     toplevel/byte/trace.cmi
 toplevel/byte/trace.cmx : \
     typing/types.cmx \
@@ -7425,7 +7437,6 @@ toplevel/byte/trace.cmx : \
     bytecomp/meta.cmx \
     parsing/longident.cmx \
     typing/ctype.cmx \
-    parsing/asttypes.cmi \
     toplevel/byte/trace.cmi
 toplevel/byte/trace.cmi : \
     typing/types.cmi \

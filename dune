@@ -77,7 +77,7 @@
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
-   zero_alloc_utils
+   zero_alloc_utils zero_alloc_annotations
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -248,6 +248,7 @@
     (identifiable.mli as compiler-libs/identifiable.mli)
     (numbers.mli as compiler-libs/numbers.mli)
     (arg_helper.mli as compiler-libs/arg_helper.mli)
+    (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
     (clflags.mli as compiler-libs/clflags.mli)
     (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
