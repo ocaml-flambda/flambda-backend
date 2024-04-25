@@ -9,22 +9,16 @@ val f : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
 
 let _ = f ?call_pos:None ();
 [%%expect {|
-Line 1, characters 20-24:
-1 | let _ = f ?call_pos:None ();
-                        ^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 1; pos_bol = 157; pos_cnum = 165}
 |}]
 
 let _ =
   let pos = f () in
   f ?call_pos:(Some pos) ();
 [%%expect {|
-Line 3, characters 14-24:
-3 |   f ?call_pos:(Some pos) ();
-                  ^^^^^^^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : lexing_position =
+{pos_fname = ""; pos_lnum = 2; pos_bol = 296; pos_cnum = 308}
 |}]
 
 let ( >>| ) ~(call_pos : [%call_pos]) a b = a + b, call_pos ;;
@@ -35,11 +29,8 @@ val ( >>| ) : call_pos:[%call_pos] -> int -> int -> int * lexing_position =
 
 let _ =  ( >>| ) ?call_pos:None 1 2 ;;
 [%%expect {|
-Line 1, characters 27-31:
-1 | let _ =  ( >>| ) ?call_pos:None 1 2 ;;
-                               ^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : int * lexing_position =
+(3, {pos_fname = ""; pos_lnum = 1; pos_bol = 612; pos_cnum = 621})
 |}]
 
 let _ =
@@ -47,11 +38,8 @@ let _ =
   ( >>| ) ?call_pos:(Some pos) 1 2
 ;;
 [%%expect {|
-Line 3, characters 20-30:
-3 |   ( >>| ) ?call_pos:(Some pos) 1 2
-                        ^^^^^^^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : int * lexing_position =
+(3, {pos_fname = ""; pos_lnum = 2; pos_bol = 772; pos_cnum = 784})
 |}]
 
 class c ~(call_pos : [%call_pos]) () = object 
@@ -65,22 +53,14 @@ class c :
 
 let _ = new c ?call_pos:None ();;
 [%%expect {|
-Line 1, characters 24-28:
-1 | let _ = new c ?call_pos:None ();;
-                            ^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : c = <obj>
 |}]
 
 let _ = 
   let pos = f () in
   new c ?call_pos:(Some pos) ();;
 [%%expect {|
-Line 3, characters 18-28:
-3 |   new c ?call_pos:(Some pos) ();;
-                      ^^^^^^^^^^
-Error: This expression should not be a constructor, the expected type is
-       lexing_position
+- : c = <obj>
 |}]
 
 (* TEST

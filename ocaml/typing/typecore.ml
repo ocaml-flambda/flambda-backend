@@ -3372,7 +3372,8 @@ type untyped_apply_arg =
         commuted : bool;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr;
-        wrapped_in_some : bool; }
+        wrapped_in_some : bool;
+        is_call_pos_applied_optionally : bool  }
   | Unknown_arg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
@@ -3606,9 +3607,10 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           if wrapped_in_some then
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
+          let is_call_pos_applied_optionally = is_position l && is_optional l' in
           Arg (Known_arg
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
-              mode_fun; mode_arg; wrapped_in_some })
+              mode_fun; mode_arg; wrapped_in_some; is_call_pos_applied_optionally})
         in
         let eliminate_omittable_arg expected_label =
           may_warn funct.exp_loc
@@ -7496,7 +7498,28 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           (type_option(newvar Predef.option_argument_jkind));
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
-                     mode_arg; wrapped_in_some; sort_arg }) ->
+                     mode_arg; wrapped_in_some; sort_arg; is_call_pos_applied_optionally }) ->
+      let sarg = 
+        match is_call_pos_applied_optionally with
+        | false -> sarg
+        | true -> 
+          let loc = { sarg.pexp_loc with loc_ghost = true } in
+          (* TODO: This should probably happen at the "typed tree" level... Otherwise, I
+             think shadowing Some/None could cause issue... although maybe that's fine in
+             this case?? *)
+          let none_case = 
+            Ast_helper.Exp.case
+              (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "None"}) None)
+              (let loc = app_loc in
+               Ast_helper.Exp.extension ~loc ({loc; txt = "src_pos"}, PStr []))
+          in
+          let some_case = 
+            Ast_helper.Exp.case
+              (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "Some"}) (Some ([], Ast_helper.Pat.var {loc ; txt = "x"})))
+              (Ast_helper.Exp.ident ~loc {loc; txt = Lident "x"})
+          in
+          Ast_helper.Exp.match_ ~loc sarg [ none_case; some_case ]
+      in
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
       let ty_arg', vars = tpoly_get_poly ty_arg in
