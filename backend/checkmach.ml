@@ -2166,7 +2166,7 @@ end = struct
     val print : msg:string -> Format.formatter -> t -> unit
 
     (** initialize [env] with Bot for all functions on normal and exceptional
-       return, and Safe for diverage component conservatively. *)
+       return, and Safe for diverge component conservatively. *)
     val init_val : Value.t
   end = struct
     type data =
