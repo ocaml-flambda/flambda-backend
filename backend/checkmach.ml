@@ -143,7 +143,13 @@ end = struct
       if not (is_empty res)
       then Misc.fatal_errorf "expected no witnesses got %a" print res;
       res
-    | At_most n -> cutoff res ~n
+    | At_most n ->
+      (* CR-someday gyorsh: current implementation is naive: first compute the
+         union and then remove some elements. This can be optimized but should
+         preserve the property that we keep the smallest [n] witnesses from both
+         sets. This property makes user error messages more stable and
+         independent of iteration order. *)
+      cutoff res ~n
 
   let meet = inter
 
