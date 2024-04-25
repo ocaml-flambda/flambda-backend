@@ -291,7 +291,7 @@ should also work, if you wish to work outside emacs.
 These commands will prompt you for the arguments to be passed to the compiler.
 Usually this includes the location of a test `.ml` file to be compiled (note
 that `~` will not be expanded, so using a full path is often necessary).
-Compiler command line flags may also be passed this way (e.g., `-extension`
+Compiler command line flags may also be passed this way (e.g., `-extension-universe`
 flags).
 
 Once at the ocamldebugger's `(ocd)` prompt, you are ready to set breakpoints

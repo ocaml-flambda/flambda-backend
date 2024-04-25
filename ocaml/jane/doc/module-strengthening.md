@@ -17,9 +17,8 @@ sig type t = M.t end
 ```
 
 We call this type "`S` strengthened with `M`". It can be written out explicitly
-as above and this is, in fact, the only way to write it without `-extension
-module_strengthening`. The new extension allows this type to be written as `S
-with M`.
+as above and this is, in fact, the only way to write it without module strengthening.
+The new extension allows this type to be written as `S with M`.
 
 The main motivation for this work are compiler performance improvements, which
 use this new form internally.

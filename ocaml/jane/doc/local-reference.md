@@ -4,7 +4,7 @@ The goal of this document is to be a reasonably complete reference to local
 allocations in OCaml. For a gentler introduction, see [the
 introduction](local-intro.md).
 
-When local allocations are enabled with the `-extension local` flag, the
+When local allocations are enabled, the
 compiler may locally allocate some values, placing them on a stack rather than
 the garbage collected heap. Instead of waiting for the next GC, the memory used
 by locally allocated values is reclaimed when their _region_ (see below) ends, and

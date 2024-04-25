@@ -18,10 +18,6 @@ let x = local_ { foo; bar } in
 ...
 ```
 
-To enable this feature, you need to pass the `-extension local` flag
-to the compiler. Without this flag, `local_` is not recognized as a
-keyword.
-
 These values live on a separate stack, and are popped off at the end
 of the _region_. Generally, the region ends when the surrounding
 function returns, although read [the reference](local-reference.md) for more
@@ -113,7 +109,7 @@ val uses_callback : f:(local_ int Foo.Table.t -> 'a) -> 'a
 The examples above use the `local_` keyword to mark local
 allocations. In fact, this is not necessary, and the compiler will
 use local allocations by default where possible, as long as the
-`-extension local` flag is enabled.
+`-extension-universe upstream_compatible` or higher flag is enabled.
 
 The only effect of the keyword on e.g. a let binding is to change the
 behavior for escaping values: if the bound value looks like it escapes
@@ -139,29 +135,29 @@ There are a number of other features that allow more precise control
 over which values are locally allocated, including:
 
   - **Local closures**:
-  
+
     ```ocaml
     let local_ f a b c = ...
     ```
-    
+
     defines a function `f` whose closure is itself locally allocated.
-    
+
   - **Local-returning functions**
-  
+
     ```ocaml
     let f a b c = local_
       ...
     ```
-    
+
     defines a function `f` which returns local allocations into its
     caller's region.
-    
+
   - **Global fields**
-  
+
     ```ocaml
     type 'a t = { global_ g : 'a }
     ```
-    
+
     defines a record type `t` whose `g` field is always known to be on
     the GC heap (and may therefore freely escape regions), even though
     the record itself may be locally allocated.

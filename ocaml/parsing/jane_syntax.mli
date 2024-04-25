@@ -79,7 +79,7 @@ module Comprehensions : sig
     | Cexp_array_comprehension of Asttypes.mutable_flag * comprehension
         (** [|BODY ...CLAUSES...|] (flag = Mutable)
         [:BODY ...CLAUSES...:] (flag = Immutable)
-          (only allowed with [-extension immutable_arrays]) *)
+          (only allowed with [immutable_arrays]) *)
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end

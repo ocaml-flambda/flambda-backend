@@ -197,7 +197,7 @@ install: _install
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
 	rm -f '$(prefix)/lib/ocaml/ocaml_compiler_internal_params'
         # rm `ocaml_compiler_internal_params`, which is used to compile the
-        # stdlib `Float_u` module with `-extension layouts_alpha`, because we
+        # stdlib `Float_u` module with `-extension-universe alpha`, because we
         # don't want user programs that happened to be named
         # `ocaml/stdlib/float_u.ml` to get the flag automatically.
 

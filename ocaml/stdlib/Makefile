@@ -209,27 +209,27 @@ stdlib.cmx: stdlib.ml
 
 
 # special cases to add the extension flag when compiling float_u etc.
-# CR layouts: eventually these can be just [-extension layouts]
+# CR layouts: eventually these can be just [-extension-universe stable]
 stdlib__%_u.cmi:
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	$(CAMLC) $(COMPFLAGS) -extension-universe alpha \
 	         -o $@ -c $(filter %.mli, $^)
 
 stdlib__%_u.cmo:
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha \
+	$(CAMLC) $(COMPFLAGS) -extension-universe alpha \
 	         -o $@ -c $(filter %.ml, $^)
 
 stdlib__%_u.cmx:
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha \
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension-universe alpha \
 	           -o $@ -c $(filter %.ml, $^)
 
 %_u.cmi: %_u.mli
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+	$(CAMLC) $(COMPFLAGS) -extension-universe alpha -c $<
 
 %_u.cmo: %_u.ml
-	$(CAMLC) $(COMPFLAGS) -extension layouts_alpha -c $<
+	$(CAMLC) $(COMPFLAGS) -extension-universe alpha -c $<
 
 %_u.cmx: %_u.ml
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension layouts_alpha -c $<
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -extension-universe alpha -c $<
 
 %.cmi: %.mli
 	$(V_OCAMLC)$(CAMLC) $(COMPFLAGS) -c $<

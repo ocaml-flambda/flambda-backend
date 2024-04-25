@@ -10,8 +10,7 @@
        category, e.g. [include sig [%jane.ERASABILITY.EXTNAME];; BODY end] for
        signature items.
 
-    In particular, for an language extension named [EXTNAME] (i.e., one that is
-    enabled by [-extension EXTNAME] on the command line), the attribute (if
+    In particular, for an language extension named [EXTNAME], the attribute (if
     used) must be [[@jane.ERASABILITY.EXTNAME]], and the extension node (if
     used) must be [[%jane.ERASABILITY.EXTNAME]]. For built-in syntax, we use
     [_builtin] instead of an language extension name.

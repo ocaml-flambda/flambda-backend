@@ -888,14 +888,6 @@ hyphen (-).}
 \item["-help" or "--help"]
 Display a short usage summary and exit.
 
-\item[(JST) "-extension" \var{language-extension}]
-Enable the specified \var{language-extension}.  Can be specified more than once,
-either with the same or a different language extension; is idempotent.
-
-\item[(JST) "-no-extension" \var{language-extension}]
-Disable the specified \var{language-extension}.  Can be specified more than once,
-either with the same or a different language extension; is idempotent.
-
 \item[(JST) "-extension-universe" \var{universe}]
 Set the extension universe and enable all extensions in it. Each universe
 allows a set of extensions, and every successive universe includes
