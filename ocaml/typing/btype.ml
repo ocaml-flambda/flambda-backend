@@ -597,6 +597,25 @@ let label_name = function
   | Optional s
   | Position s -> s
 
+let optionally_apply_call_pos ~(arg : Parsetree.expression) ~application_loc =
+  let loc = { arg.pexp_loc with loc_ghost = true } in
+  let none_case =
+    Ast_helper.Exp.case
+      (Ast_helper.Pat.construct ~loc { loc; txt = Lident "None" } None)
+      (let loc = application_loc in
+       Ast_helper.Exp.extension ~loc ({ loc; txt = "src_pos" }, PStr []))
+  in
+  let some_case =
+    Ast_helper.Exp.case
+      (Ast_helper.Pat.construct
+         ~loc
+         { loc; txt = Lident "Some" }
+         (Some ([], Ast_helper.Pat.var { loc; txt = "x" })))
+      (Ast_helper.Exp.ident ~loc { loc; txt = Lident "x" })
+  in
+  Ast_helper.Exp.match_ ~loc arg [ none_case; some_case ]
+;;
+
 let prefixed_label_name = function
     Nolabel -> ""
   | Labelled s | Position s -> "~" ^ s

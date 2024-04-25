@@ -7502,20 +7502,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       let sarg = 
         match is_call_pos_applied_optionally with
         | false -> sarg
-        | true -> 
-          let loc = { sarg.pexp_loc with loc_ghost = true } in
-          let none_case = 
-            Ast_helper.Exp.case
-              (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "None"}) None)
-              (let loc = app_loc in
-               Ast_helper.Exp.extension ~loc ({loc; txt = "src_pos"}, PStr []))
-          in
-          let some_case = 
-            Ast_helper.Exp.case
-              (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "Some"}) (Some ([], Ast_helper.Pat.var {loc ; txt = "x"})))
-              (Ast_helper.Exp.ident ~loc {loc; txt = Lident "x"})
-          in
-          Ast_helper.Exp.match_ ~loc sarg [ none_case; some_case ]
+        | true -> Btype.optionally_apply_call_pos ~arg:sarg ~application_loc:app_loc
       in
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in

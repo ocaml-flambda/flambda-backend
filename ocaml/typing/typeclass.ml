@@ -1322,22 +1322,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               let sarg =
                 match is_call_pos_applied_optionally with
                 | false -> sarg
-                | true -> 
-                  (* TODO: Deduplicate *)
-                  let app_loc = scl.pcl_loc in
-                  let loc = { sarg.pexp_loc with loc_ghost = true } in
-                  let none_case = 
-                    Ast_helper.Exp.case
-                      (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "None"}) None)
-                      (let loc = app_loc in
-                       Ast_helper.Exp.extension ~loc ({loc; txt = "src_pos"}, PStr []))
-                  in
-                  let some_case = 
-                    Ast_helper.Exp.case
-                      (Ast_helper.Pat.construct ~loc ({loc; txt = Lident "Some"}) (Some ([], Ast_helper.Pat.var {loc ; txt = "x"})))
-                      (Ast_helper.Exp.ident ~loc {loc; txt = Lident "x"})
-                  in
-                  Ast_helper.Exp.match_ ~loc sarg [ none_case; some_case ]
+                | true -> Btype.optionally_apply_call_pos ~arg:sarg ~application_loc:scl.pcl_loc
               in
               Arg (
                 if not optional || Btype.is_optional l' then
