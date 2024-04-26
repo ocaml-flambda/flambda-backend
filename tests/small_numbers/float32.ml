@@ -19,7 +19,7 @@ module Poly = struct
 
   external compare : 'a -> 'a -> int = "%compare"
 
-  external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]
+  external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash_exn" [@@noalloc]
 
   external to_bytes: 'a -> extern_flags list -> bytes = "caml_output_value_to_bytes"
   external from_bytes_unsafe: bytes -> int -> 'a = "caml_input_value_from_bytes"
