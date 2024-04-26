@@ -19,6 +19,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Int
   | Float
   | Vec128
+  | Float32
 
 type machtype = machtype_component array
 
@@ -27,11 +28,12 @@ let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
 let typ_float = [|Float|]
+let typ_float32 = [|Float32|]
 let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float     Vec128
+      Addr     Float32     Float     Vec128
        ^
        |
       Val
@@ -58,11 +60,14 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
+  | Float32, Float32 -> Float32
   | Vec128, Vec128 -> Vec128
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
     Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
@@ -79,11 +84,14 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
+  | Float32, Float32 -> true
   | Vec128, Vec128 -> true
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
     Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
 
@@ -100,7 +108,7 @@ let machtype_of_exttype = function
   | XInt32 -> typ_int
   | XInt64 -> typ_int
   | XFloat -> typ_float
-  | XFloat32 -> typ_float
+  | XFloat32 -> typ_float32
   | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
@@ -177,6 +185,10 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
+type float_width =
+  | Float64
+  | Float32
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -186,7 +198,7 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int
   | Word_val
-  | Single
+  | Single of { reg : float_width }
   | Double
   | Onetwentyeight_unaligned
   | Onetwentyeight_aligned
@@ -195,8 +207,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
-  | Float_to_int
-  | Float_of_int
+  | Float_to_int of float_width
+  | Float_of_int of float_width
+  | Float_to_float32
+  | Float_of_float32
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -249,7 +263,7 @@ type kind_for_unboxing =
   | Any
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float
+  | Boxed_float of Lambda.boxed_float
 
 type is_global = Global | Local
 
@@ -269,6 +283,7 @@ let global_symbol sym_name = { sym_name; sym_global = Global }
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -367,6 +382,7 @@ let iter_shallow_tail f = function
       true
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -410,6 +426,7 @@ let map_shallow_tail ?kind f = function
       cmm
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -422,6 +439,7 @@ let map_tail ?kind f =
   let rec loop = function
     | Cconst_int _
     | Cconst_natint _
+    | Cconst_float32 _
     | Cconst_float _
     | Cconst_symbol _
     | Cvar _
@@ -461,6 +479,7 @@ let iter_shallow f = function
       f e1; f e2
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -497,6 +516,7 @@ let map_shallow f = function
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -504,18 +524,20 @@ let map_shallow f = function
     as c ->
       c
 
-let equal_machtype_component left right =
+let equal_machtype_component (left : machtype_component) (right : machtype_component) =
   match left, right with
   | Val, Val -> true
   | Addr, Addr -> true
   | Int, Int -> true
   | Float, Float -> true
   | Vec128, Vec128 -> true
-  | Val, (Addr | Int | Float | Vec128)
-  | Addr, (Val | Int | Float | Vec128)
-  | Int, (Val | Addr | Float | Vec128)
-  | Float, (Val | Addr | Int | Vec128)
-  | Vec128, (Val | Addr | Int | Float) ->
+  | Float32, Float32 -> true
+  | Val, (Addr | Int | Float | Vec128 | Float32)
+  | Addr, (Val | Int | Float | Vec128 | Float32)
+  | Int, (Val | Addr | Float | Vec128 | Float32)
+  | Float, (Val | Addr | Int | Vec128 | Float32)
+  | Vec128, (Val | Addr | Int | Float | Float32)
+  | Float32, (Val | Addr | Int | Float | Vec128) ->
     false
 
 let equal_exttype left right =
@@ -530,10 +552,37 @@ let equal_exttype left right =
   | XInt32, (XInt | XInt64 | XFloat | XFloat32 | XVec128)
   | XInt64, (XInt | XInt32 | XFloat | XFloat32 | XVec128)
   | XFloat, (XInt | XInt32 | XFloat32 | XInt64 | XVec128)
-  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32) ->
-    false
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32)
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
+
+let equal_float_width left right =
+  match left, right with
+  | Float64, Float64 -> true
+  | Float32, Float32 -> true
+  | (Float32 | Float64), _ -> false
+
+let equal_scalar_cast left right =
+  match left, right with
+  | Float_to_float32, Float_to_float32 -> true
+  | Float_of_float32, Float_of_float32 -> true
+  | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
+  | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
+  | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_of_scalar _)
+  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_to_scalar _)
+    -> false
 
 let equal_float_comparison left right =
   match left, right with
@@ -569,45 +618,53 @@ let equal_memory_chunk left right =
   | Thirtytwo_signed, Thirtytwo_signed -> true
   | Word_int, Word_int -> true
   | Word_val, Word_val -> true
-  | Single, Single -> true
+  | Single { reg = regl }, Single { reg = regr } -> equal_float_width regl regr
   | Double, Double -> true
   | Onetwentyeight_unaligned, Onetwentyeight_unaligned
   | Onetwentyeight_aligned, Onetwentyeight_aligned -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                   | Thirtytwo_signed | Word_int | Word_val
+                   | Single _ | Double
                    | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                 | Thirtytwo_signed | Word_int | Word_val
+                 | Single _ | Double
                  | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                      | Thirtytwo_signed | Word_int | Word_val
+                      | Single _ | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                    | Thirtytwo_signed | Word_int | Word_val
+                    | Single _ | Double
                     | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                        | Thirtytwo_signed | Word_int | Word_val
+                        | Single _ | Double
                         | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
+                      | Thirtytwo_unsigned | Word_int | Word_val
+                      | Single _ | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val
+              | Single _ | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int
+              | Single _ | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
-  | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
-            | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
             | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Onetwentyeight_unaligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
             | Double | Onetwentyeight_aligned)
   | Onetwentyeight_aligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
+            | Double | Onetwentyeight_unaligned)
+  | Single _, (Onetwentyeight_aligned | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double | Onetwentyeight_unaligned) ->
     false
 

@@ -206,8 +206,10 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Float32_by_bit_pattern.to_float in
     let structured f = Cmmgen_state.Const_float32 f in
     let res, env, updates =
-      static_boxed_number ~kind:Single ~env ~symbol ~default
-        ~emit:C.emit_float32_constant ~transl ~structured v res updates
+      static_boxed_number
+        ~kind:(Single { reg = Float32 })
+        ~env ~symbol ~default ~emit:C.emit_float32_constant ~transl ~structured
+        v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_float v ->

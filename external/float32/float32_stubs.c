@@ -184,10 +184,10 @@ value compiler_float32_to_float_boxed(value i)
     return caml_copy_double(compiler_float32_to_float(Int32_val(i)));
 }
 
-/* The following functions are nearly identical to those in runtime/float32.c, 
-   but we cannot reuse them because the flambda-backend compiler must be 
+/* The following functions are nearly identical to those in runtime/float32.c,
+   but we cannot reuse them because the flambda-backend compiler must be
    compiled using the upstream runtime. Additionally, we cannot reuse the
-   64-bit float parsing functions because they have different rounding 
+   64-bit float parsing functions because they have different rounding
    behavior. */
 
 static int compiler_float32_of_hex(const char * s, const char * end, float * res)

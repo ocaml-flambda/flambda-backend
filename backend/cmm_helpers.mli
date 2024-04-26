@@ -253,6 +253,7 @@ module Extended_machtype_component : sig
     | Any_int
     | Float
     | Vec128
+    | Float32
 end
 
 module Extended_machtype : sig
@@ -265,6 +266,8 @@ module Extended_machtype : sig
   val typ_any_int : t
 
   val typ_float : t
+
+  val typ_float32 : t
 
   val typ_void : t
 

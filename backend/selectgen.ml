@@ -154,7 +154,8 @@ let oper_result_type = function
   | Cload {memory_chunk} ->
       begin match memory_chunk with
       | Word_val -> typ_val
-      | Single | Double -> typ_float
+      | Single { reg = Float64 } | Double -> typ_float
+      | Single { reg = Float32 } -> typ_float32
       | Onetwentyeight_aligned | Onetwentyeight_unaligned -> typ_vec128
       | _ -> typ_int
       end
@@ -175,10 +176,13 @@ let oper_result_type = function
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast Bits128 -> typ_vec128
-  | Cscalarcast Float_of_int -> typ_float
-  | Cscalarcast Float_to_int -> typ_int
+  | Cscalarcast (Float_of_float32 | Float_of_int Float64) -> typ_float
+  | Cscalarcast (Float_to_float32 | Float_of_int Float32) -> typ_float32
+  | Cscalarcast (Float_to_int (Float64 | Float32)) -> typ_int
   | Cscalarcast (V128_of_scalar _) -> typ_vec128
-  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) -> typ_float
+  | Cscalarcast (V128_to_scalar (Float64x2 | Float32x4)) ->
+    (* CR mslater: (SIMD) replace once we have unboxed float32 *)
+    typ_float
   | Cscalarcast (V128_to_scalar (Int8x16 | Int16x8 | Int32x4 | Int64x2)) -> typ_int
   | Craise _ -> typ_void
   | Cprobe _ -> typ_void
@@ -194,10 +198,13 @@ let oper_result_type = function
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
 
-let size_component = function
+let size_component : machtype_component -> int = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
   | Float -> Arch.size_float
+  | Float32 ->
+    assert (Arch.size_float = 8);
+    Arch.size_float / 2
   | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
@@ -212,6 +219,9 @@ let size_expr (env:environment) exp =
       Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ ->
         Arch.size_addr
+    | Cconst_float32 _ ->
+      assert (Arch.size_float = 8);
+      Arch.size_float / 2
     | Cconst_float _ -> Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
@@ -459,6 +469,7 @@ class virtual selector_generic = object (self : 'self)
 method is_simple_expr = function
     Cconst_int _ -> true
   | Cconst_natint _ -> true
+  | Cconst_float32 _ -> true
   | Cconst_float _ -> true
   | Cconst_symbol _ -> true
   | Cconst_vec128 _ -> true
@@ -509,8 +520,8 @@ method is_simple_expr = function
 method effects_of exp =
   let module EC = Effect_and_coeffect in
   match exp with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
-  | Cvar _ -> EC.none
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ -> EC.none
   | Ctuple el -> EC.join_list_map el self#effects_of
   | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
     EC.join (self#effects_of arg) (self#effects_of body)
@@ -828,6 +839,9 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
   | Cconst_natint (n, _dbg) ->
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_int n) [||] r)
+  | Cconst_float32 (n, _dbg) ->
+      let r = self#regs_for typ_float32 in
+      ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
       ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
@@ -1007,8 +1021,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
           | Ialloc { bytes = _; mode } ->
               let rd = self#regs_for typ_val in
               let bytes = size_expr env (Ctuple new_args) in
-              assert (bytes mod Arch.size_addr = 0);
-              let alloc_words = bytes / Arch.size_addr in
+              let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
               let op =
                 Ialloc { bytes;
                          dbginfo = [{alloc_words; alloc_dbg = dbg}];
@@ -1459,6 +1472,7 @@ method emit_stores env dbg data regs_addr =
                 let r = regs.(i) in
                 let kind = match r.typ with
                   | Float -> Double
+                  | Float32 -> Single { reg = Float32 }
                   | Vec128 ->
                     (* 128-bit memory operations are default unaligned. Aligned (big)array
                        operations are handled separately via cmm. *)
@@ -1712,7 +1726,8 @@ method emit_tail (env:environment) exp =
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
       end
   | Cop _
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _
   | Cassign _
   | Ctuple _
