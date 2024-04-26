@@ -685,12 +685,14 @@ type check_attribute =
   | Check of { property: property;
                strict: bool;
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 let is_check_enabled ~opt property =
@@ -751,16 +753,23 @@ let get_id_from_exp =
   | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
   | _ -> Result.Error ()
 
-let get_ids_from_exp exp =
+let get_id_or_constant_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | _ -> Result.Error ()
+
+let get_ids_and_constants_from_exp exp =
   let open Parsetree in
   (match exp with
    | { pexp_desc = Pexp_apply (exp, args) } ->
-     get_id_from_exp exp ::
+     get_id_or_constant_from_exp exp ::
      List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+       | (Asttypes.Nolabel, arg) -> get_id_or_constant_from_exp arg
        | (_, _) -> Result.Error ())
        args
-   | _ -> [get_id_from_exp exp])
+   | _ -> [get_id_or_constant_from_exp exp])
   |> List.fold_left (fun acc r ->
     match acc, r with
     | Result.Ok ids, Ok id -> Result.Ok (id::ids)
@@ -788,52 +797,113 @@ let parse_optional_id_payload txt loc ~empty cases payload =
       | Some r -> Ok r
       | None -> warn ()
 
-let parse_ids_payload txt loc ~default ~empty cases payload =
-  let[@local] warn () =
-    let ( %> ) f g x = g (f x) in
-    let msg =
-      cases
-      |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
-      |> String.concat ", "
-      |> Printf.sprintf "It must be either %s or empty"
-    in
-    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-    default
+(* Looks for `arity n` in payload. If present, this returns `n` and an updated
+   payload with `arity n` removed. Note it may change the order of the payload,
+   which is fine because we sort it later. *)
+let filter_arity payload =
+  let is_arity s1 s2 =
+    match s1 with
+    | "arity" -> int_of_string_opt s2
+    | _ -> None
   in
-  match get_optional_payload get_ids_from_exp payload with
-  | Error () -> warn ()
-  | Ok None -> empty
-  | Ok (Some ids) ->
-      match List.assoc_opt (List.sort String.compare ids) cases with
-      | Some r -> r
-      | None -> warn ()
+  let rec find_arity acc payload =
+    match payload with
+    | [] | [_] -> None
+    | s1 :: ((s2 :: payload) as payload') ->
+      begin match is_arity s1 s2 with
+      | Some n -> Some (n, acc @ payload)
+      | None -> find_arity (s1 :: acc) payload'
+      end
+  in
+  find_arity [] payload
 
-let parse_property_attribute attr property =
+let zero_alloc_lookup_table =
+  (* These are the possible payloads (sans arity) paired with a function that
+     returns the corresponding check_attribute, given the arity and the loc. *)
+  let property = Zero_alloc in
+  [
+    (["assume"],
+     fun arity loc ->
+       Assume { property; strict = false; never_returns_normally = false;
+                arity; loc; });
+    (["strict"],
+     fun arity loc ->
+       Check { property; strict = true; opt = false; arity; loc; });
+    (["opt"],
+     fun arity loc ->
+       Check { property; strict = false; opt = true; arity; loc; });
+    (["opt"; "strict"; ],
+     fun arity loc ->
+       Check { property; strict = true; opt = true; arity; loc; });
+    (["assume"; "strict"],
+     fun arity loc ->
+       Assume { property; strict = true; never_returns_normally = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"],
+     fun arity loc ->
+       Assume { property; strict = false; never_returns_normally = true;
+                arity; loc; });
+    (["assume"; "never_returns_normally"; "strict"],
+     fun arity loc ->
+       Assume { property; strict = true; never_returns_normally = true;
+                arity; loc; });
+    (["ignore"], fun _ _ -> Ignore_assert_all property)
+  ]
+
+let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
+  (* This parses the remainder of the payload after arity has been parsed
+     out. *)
+  match payload with
+  | [] -> empty
+  | _ :: _ ->
+    let payload = List.sort String.compare payload in
+    match List.assoc_opt payload zero_alloc_lookup_table with
+    | None -> warn (); Default_check
+    | Some ca -> ca arity loc
+
+let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
   match attr with
   | None -> Default_check
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
-      parse_ids_payload txt loc
-        ~default:Default_check
-        ~empty:(Check { property; strict = false; opt = false; loc; } )
-        [
-          ["assume"],
-          Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; opt = false; loc; };
-          ["opt"], Check { property; strict = false; opt = true; loc; };
-          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
-          ["assume"; "strict"],
-          Assume { property; strict = true; never_returns_normally = false; loc; };
-          ["assume"; "never_returns_normally"],
-          Assume { property; strict = false; never_returns_normally = true; loc; };
-          ["assume"; "never_returns_normally"; "strict"],
-          Assume { property; strict = true; never_returns_normally = true; loc; };
-          ["ignore"], Ignore_assert_all property
-        ]
-        payload
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+    let warn () =
+      let ( %> ) f g x = g (f x) in
+      let msg =
+        zero_alloc_lookup_table
+        |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
+        |> String.concat ", "
+        |> Printf.sprintf "It must be either %s or empty"
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
+    in
+    let empty arity =
+      Check {property = Zero_alloc; strict = false; opt = false; arity; loc; }
+    in
+    match get_optional_payload get_ids_and_constants_from_exp payload with
+    | Error () -> warn (); Default_check
+    | Ok None -> empty default_arity
+    | Ok (Some payload) ->
+      let arity, payload =
+        match filter_arity payload with
+        | None -> default_arity, payload
+        | Some (user_arity, payload) ->
+          if is_arity_allowed then
+            user_arity, payload
+          else
+            (warn_payload loc txt
+               "The \"arity\" field is only supported on \"zero_alloc\" in \
+                signatures";
+             default_arity, payload)
+      in
+      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
 
-let get_property_attribute l p =
+let get_property_attribute ~in_signature ~default_arity l p =
   let attr = find_attribute (is_property_attribute p) l in
-  let res = parse_property_attribute attr p in
+  let res =
+    match p with
+    | Zero_alloc ->
+      parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
+        attr
+  in
   (match attr, res with
    | None, Default_check -> ()
    | _, Default_check -> ()
@@ -841,10 +911,10 @@ let get_property_attribute l p =
    | Some _, Ignore_assert_all _ -> ()
    | Some _, Assume _ -> ()
    | Some attr, Check { opt; _ } ->
-     if is_check_enabled ~opt p && !Clflags.native_code then
-       (* The warning for unchecked functions will not trigger if the check is requested
-          through the [@@@zero_alloc all] top-level annotation rather than through the
-          function annotation [@zero_alloc]. *)
+     if not in_signature && is_check_enabled ~opt p && !Clflags.native_code then
+       (* The warning for unchecked functions will not trigger if the check is
+          requested through the [@@@zero_alloc all] top-level annotation rather
+          than through the function annotation [@zero_alloc]. *)
        register_property attr.attr_name);
    res
 
