@@ -511,7 +511,11 @@ let set_inlining_arguments arguments t =
 let set_inlined_debuginfo t ~from =
   { t with inlined_debuginfo = from.inlined_debuginfo }
 
-let set_inlined_debuginfo' t inlined_debuginfo = { t with inlined_debuginfo }
+let merge_inlined_debuginfo t ~from_apply_expr =
+  { t with
+    inlined_debuginfo =
+      Inlined_debuginfo.merge t.inlined_debuginfo ~from_apply_expr
+  }
 
 let add_inlined_debuginfo t dbg =
   Inlined_debuginfo.rewrite t.inlined_debuginfo dbg

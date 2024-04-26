@@ -59,6 +59,10 @@ val is_none : t -> bool
     inlining. *)
 val create : called_code_id:Code_id.t -> apply_dbg:Debuginfo.t -> t
 
+(** Merge an existing value of type [t] with [from_apply_expr], the latter
+    corresponding to an [Apply_expr] term that is being inlined out. *)
+val merge : t -> from_apply_expr:t -> t
+
 (** For an instance of inlining [t] and a debuginfo value [dbg] occurring in
     the body of the corresponding function to be inlined, return a new
     debuginfo value to replace the old one.

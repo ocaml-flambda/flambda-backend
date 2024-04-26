@@ -255,7 +255,12 @@ let enter_function_body env ~return_continuation ~exn_continuation =
 
 (* Debuginfo *)
 
-let enter_inlined_apply t inlined_debuginfo = { t with inlined_debuginfo }
+let enter_inlined_apply t new_inlined_debuginfo =
+  { t with
+    inlined_debuginfo =
+      Inlined_debuginfo.merge t.inlined_debuginfo
+        ~from_apply_expr:new_inlined_debuginfo
+  }
 
 let set_inlined_debuginfo t inlined_debuginfo = { t with inlined_debuginfo }
 
