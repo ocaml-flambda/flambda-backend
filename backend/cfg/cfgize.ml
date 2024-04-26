@@ -632,6 +632,9 @@ module Stack_offset_and_exn = struct
         | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
+    | Stack_check _ ->
+      Misc.fatal_error
+        "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check"
 
   (* The argument [stack_offset] has a different meaning from the field
      [stack_offset] of Cfg's basic_blocks and instructions. The argument

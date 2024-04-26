@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * toplevel
+ flags = "-extension layouts_alpha";
+ toplevel;
 *)
 type ('a : float64) t = 'a
 let f ppf (x : 'a t) = ();;

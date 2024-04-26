@@ -622,9 +622,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
-  | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
+  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
   | Pfloatoffloat32 _ | Pfloat32offloat _
   | Pnegfloat (_, _)
@@ -1508,13 +1509,18 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let unboxing_kind (layout : Lambda.layout) :
       Function_decl.unboxing_kind option =
-    match layout with
-    | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
+    match[@warning "-fragile-match"] layout with
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })
+      ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
-    | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all

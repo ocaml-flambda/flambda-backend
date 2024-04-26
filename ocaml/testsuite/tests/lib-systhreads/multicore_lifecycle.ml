@@ -1,10 +1,13 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
-** hassysthreads
-include systhreads
-*** bytecode
-*** native
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ include systhreads;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 let _ =

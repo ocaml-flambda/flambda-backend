@@ -1029,7 +1029,7 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
               in
               self#insert_debug env (Iop op) dbg [||] rd;
               add_naming_op_for_bound_name rd;
-              self#emit_stores env new_args rd;
+              self#emit_stores env dbg new_args rd;
               set_traps_for_raise env;
               ret rd
           | Iprobe _ ->
@@ -1457,7 +1457,7 @@ method insert_move_extcall_arg env _ty_arg src dst =
      for example a "32-bit move" instruction for int32 arguments. *)
   self#insert_moves env src dst
 
-method emit_stores env data regs_addr =
+method emit_stores env dbg data regs_addr =
   let a =
     ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int)) in
   List.iter
@@ -1479,13 +1479,14 @@ method emit_stores env data regs_addr =
                     Onetwentyeight_unaligned
                   | Val | Addr | Int ->  Word_val
                 in
-                self#insert env
+                self#insert_debug env
                             (Iop(Istore(kind, !a, false)))
+                            dbg
                             (Array.append [|r|] regs_addr) [||];
                 a := Arch.offset_addressing !a (size_component r.typ)
               done
           | _ ->
-              self#insert env (Iop op) (Array.append regs regs_addr) [||];
+              self#insert_debug env (Iop op) dbg (Array.append regs regs_addr) [||];
               a := Arch.offset_addressing !a (size_expr env e))
     data
 

@@ -41,6 +41,11 @@ CAMLextern value caml_alloc_shr (mlsize_t wosize, tag_t);
    Equivalent to caml_alloc_shr unless WITH_PROFINFO is true */
 CAMLextern value caml_alloc_shr_with_profinfo (mlsize_t, tag_t, intnat);
 
+/* The same as [caml_alloc_shr_with_profinfo], but named to match the runtime5
+   naming convention of reserved bits.
+ */
+CAMLextern value caml_alloc_shr_reserved (mlsize_t, tag_t, reserved_t);
+
 /* Variant of [caml_alloc_shr] where no memprof sampling is performed. */
 CAMLextern value caml_alloc_shr_no_track_noexc (mlsize_t, tag_t);
 
@@ -239,6 +244,9 @@ extern void caml_alloc_small_dispatch (intnat wosize, int flags,
 
 #define Alloc_small_with_profinfo(result, wosize, tag, profinfo) \
   Alloc_small_aux(result, wosize, tag, profinfo, CAML_DO_TRACK)
+
+#define Alloc_small_with_reserved(result, wosize, tag, reserved)  \
+  Alloc_small_with_profinfo(result, wosize, tag, reserved)
 
 #define Alloc_small(result, wosize, tag) \
   Alloc_small_with_profinfo(result, wosize, tag, (uintnat) 0)

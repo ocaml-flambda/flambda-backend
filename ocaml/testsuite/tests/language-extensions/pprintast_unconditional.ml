@@ -1,6 +1,6 @@
 (* TEST
-   include ocamlcommon
-   flags = "-I ${ocamlsrcdir}/parsing"
+ include ocamlcommon;
+ flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
 (******************************************************************************)

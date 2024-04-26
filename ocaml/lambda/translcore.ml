@@ -68,7 +68,7 @@ let record_field_kind l =
 let check_record_field_sort loc sort repres =
   match Jkind.Sort.get_default_value sort, repres with
   | Value, _ -> ()
-  | Float64, Record_ufloat -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (loc, Illegal_record_field Float64))
@@ -400,12 +400,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let return_layout = layout_exp sort body in
       transl_let ~scopes ~return_layout rec_flag pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes sort body))
-  | Texp_function { params; body; region; ret_sort; ret_mode; alloc_mode } ->
+  | Texp_function { params; body; region; ret_sort; ret_mode; alloc_mode;
+                    zero_alloc } ->
       transl_function ~in_new_scope ~scopes e params body
-        ~alloc_mode ~ret_mode ~ret_sort ~region
+        ~alloc_mode ~ret_mode ~ret_sort ~region ~zero_alloc
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
-                exp_type = prim_type; } as funct, oargs, pos, ap_mode)
+                 exp_type = prim_type; } as funct,
+               oargs, pos, ap_mode, assume_zero_alloc)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -438,10 +440,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let tailcall = Translattribute.get_tailcall_attribute funct in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
-        let assume_zero_alloc =
-          Translattribute.get_assume_zero_alloc ~with_warnings:true
-            funct.exp_attributes
-        in
         let position = transl_apply_position pos in
         let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
@@ -451,14 +449,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, ap_mode) ->
+  | Texp_apply(funct, oargs, position, ap_mode, assume_zero_alloc)
+    ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
-      let assume_zero_alloc =
-        Translattribute.get_assume_zero_alloc ~with_warnings:true
-          funct.exp_attributes
-      in
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
       let mode = transl_locality_mode_l ap_mode in
@@ -578,6 +573,28 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_inlined (_, Variant_extensible) ->
           Lprim (Pfield (lbl.lbl_pos + 1, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+          let read =
+            if lbl.lbl_num < value_prefix_len then
+              Mread_value_prefix (maybe_pointer e)
+            else
+              let flat_read =
+                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                | Imm -> Flat_read_imm
+                | Float64 -> Flat_read_float64
+                | Float ->
+                  (match float with
+                    | Boxing (mode, _) ->
+                        Flat_read_float (transl_alloc_mode_r mode)
+                    | Non_boxing _ ->
+                        Misc.fatal_error
+                          "expected typechecking to make [float] boxing mode\
+                          \ present for float field read")
+              in
+              Mread_flat_suffix flat_read
+          in
+          Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [targ],
+                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
@@ -600,6 +617,21 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_ufloat -> Psetufloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
+        | Record_mixed { value_prefix_len; flat_suffix } -> begin
+          let write =
+            if lbl.lbl_num < value_prefix_len then
+              Mwrite_value_prefix (maybe_pointer newval)
+            else
+              let flat_element =
+                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                | Imm -> Imm
+                | Float -> Float
+                | Float64 -> Float64
+              in
+              Mwrite_flat_suffix flat_element
+           in
+           Psetmixedfield(lbl.lbl_pos, write, mode)
+        end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
@@ -1122,7 +1154,7 @@ and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
       ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
-      ?(assume_zero_alloc = Assume_info.none)
+      ?(assume_zero_alloc = Zero_alloc_utils.Assume_info.none)
       ?(position=Rc_normal)
       ?(mode=alloc_heap)
       ~result_layout
@@ -1261,14 +1293,9 @@ and transl_function_without_attributes
     match body with
     | Tfunction_body exp ->
         layout_exp return_sort exp
-    | Tfunction_cases { fc_cases = { c_rhs; _ } :: _ } ->
-        layout_exp return_sort c_rhs
-    | Tfunction_cases { fc_cases = [] } ->
-        (* ppxes can generate empty function cases, which compiles to
-           a function that always raises Match_failure. We try less
-           hard to calculate a detailed layout that the middle-end can
-           use for optimizations. *)
-        layout_of_sort loc return_sort
+    | Tfunction_cases cases ->
+        layout cases.fc_env cases.fc_loc return_sort cases.fc_ret_type
+
   in
   match
     transl_tupled_function ~scopes loc params body
@@ -1317,7 +1344,8 @@ and transl_tupled_function
             cases in
         let kinds =
           match arg_layout with
-          | Pvalue (Pvariant { consts = []; non_consts = [0, kinds] }) ->
+          | Pvalue (Pvariant { consts = [];
+                               non_consts = [0, Constructor_uniform kinds] }) ->
               (* CR layouts v5: to change when we have non-value tuple
                  elements. *)
               List.map (fun vk -> Pvalue vk) kinds
@@ -1516,11 +1544,12 @@ and transl_curried_function ~scopes loc repr params body
     ((Curried { nlocal }, params, return_layout, region, return_mode ), body)
 
 and transl_function ~in_new_scope ~scopes e params body
-    ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion =
+      ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion
+      ~zero_alloc =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode_r alloc_mode in
   let assume_zero_alloc =
-    Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
+    Builtin_attributes.assume_zero_alloc ~is_check_allowed:true zero_alloc
   in
   let scopes =
     if in_new_scope then
@@ -1548,7 +1577,9 @@ and transl_function ~in_new_scope ~scopes e params body
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
   in
-  let attr = function_attribute_disallowing_arity_fusion in
+  let attr =
+    { function_attribute_disallowing_arity_fusion with check = zero_alloc }
+  in
   let loc = of_location ~scopes e.exp_loc in
   let body = if region then maybe_region_layout return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
@@ -1568,9 +1599,9 @@ and transl_bound_exp ~scopes ~in_structure pat sort expr loc attrs =
   let lam =
     match pat_bound_idents pat with
     | (id :: _) when should_introduce_scope ->
-      let assume_zero_alloc =
-        Translattribute.get_assume_zero_alloc ~with_warnings:false attrs
-      in
+      let assume_zero_alloc = Zero_alloc_utils.Assume_info.none in
+      (* If this is a let-binding of a function, the scope will be updated
+         with zero_alloc info in [transl_function]. *)
       let scopes = enter_value_definition ~scopes ~assume_zero_alloc id in
       transl_scoped_exp ~scopes sort expr
     | _ -> transl_exp ~scopes sort expr
@@ -1672,6 +1703,24 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                        so it's simpler to leave it Alloc_heap *)
                     Pfloatfield (i, sem, alloc_heap)
                  | Record_ufloat -> Pufloatfield (i, sem)
+                 | Record_mixed { value_prefix_len; flat_suffix } ->
+                   let read =
+                    if lbl.lbl_num < value_prefix_len then
+                      Mread_value_prefix (maybe_pointer_type env typ)
+                    else
+                      let read =
+                        match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                        | Imm -> Flat_read_imm
+                        | Float ->
+                            (* See the handling of [Record_float] above for
+                                why we choose Alloc_heap.
+                            *)
+                            Flat_read_float alloc_heap
+                        | Float64 -> Flat_read_float64
+                      in
+                      Mread_flat_suffix read
+                   in
+                   Pmixedfield (i, read, sem)
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -1698,7 +1747,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
-        | Record_ufloat ->
+        | Record_ufloat | Record_mixed _ ->
             (* CR layouts v2.5: When we add unboxed float literals, we may need
                to do something here.  (Currrently this case isn't reachable for
                `float#` records because `extact_constant` will have raised
@@ -1728,6 +1777,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
+        | Record_mixed shape ->
+            let shape = transl_mixed_record_shape shape in
+            Lprim (Pmakemixedblock (mut, shape, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
       None -> lam
@@ -1760,6 +1812,23 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 let pos = lbl.lbl_pos + 1 in
                 let ptr = maybe_pointer expr in
                 Psetfield(pos, ptr, Assignment modify_heap)
+            | Record_mixed { value_prefix_len; flat_suffix } -> begin
+                let write =
+                  if lbl.lbl_num < value_prefix_len then
+                    let ptr = maybe_pointer expr in
+                    Mwrite_value_prefix ptr
+                  else
+                    let flat_element =
+                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                      | Imm -> Imm
+                      | Float -> Float
+                      | Float64 -> Float64
+                    in
+                    Mwrite_flat_suffix flat_element
+                in
+                Psetmixedfield
+                  (lbl.lbl_pos, write, Assignment modify_heap)
+              end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
                                 transl_exp ~scopes lbl_sort expr],
@@ -1805,9 +1874,9 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
            use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full arg_sort pv in
-        let ids = List.map (fun (id, _, _, _) -> id) ids_full in
+        let ids = List.map (fun (id, _, _, _, _) -> id) ids_full in
         let ids_kinds =
-          List.map (fun (id, {Location.loc; _}, ty, s) ->
+          List.map (fun (id, {Location.loc; _}, ty, _, s) ->
             id, Typeopt.layout pv.pat_env loc s ty)
             ids_full
         in
@@ -1958,7 +2027,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
                 { fc_cases = [case]; fc_param = param; fc_partial = partial;
                   fc_loc = ghost_loc; fc_exp_extra = None; fc_attributes = [];
                   fc_arg_mode = Mode.Alloc.disallow_right Mode.Alloc.legacy;
-                  fc_arg_sort = param_sort;
+                  fc_arg_sort = param_sort; fc_env = env;
+                  fc_ret_type = case.c_rhs.exp_type;
                 }))
     in
     let attr = function_attribute_disallowing_arity_fusion in
@@ -1996,9 +2066,13 @@ let transl_scoped_exp ~scopes sort exp =
   maybe_region_exp sort exp (transl_scoped_exp ~scopes sort exp)
 
 let transl_apply
-      ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn args loc =
-  maybe_region_layout result_layout (transl_apply
-      ~scopes ?tailcall ?inlined ?specialised ~assume_zero_alloc:Assume_info.none ?position ?mode ~result_layout fn args loc)
+      ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn
+      args loc =
+  maybe_region_layout result_layout
+    (transl_apply
+       ~scopes ?tailcall ?inlined ?specialised
+       ~assume_zero_alloc:Zero_alloc_utils.Assume_info.none ?position ?mode
+       ~result_layout fn args loc)
 
 (* Error report *)
 

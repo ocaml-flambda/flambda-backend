@@ -1,6 +1,6 @@
 (** Abstract domain used in static analysis for checking annotations such as @zero_alloc.
     See [backend/checkmach] for details of the analysis.
-    See [lambda/assume_info.ml] for details about the translation of
+    See this module's .ml file for details about the translation of
     user-provided annotations to abstract values in this domain.
 *)
 module type WS = sig
@@ -96,4 +96,49 @@ module Make (Witnesses : WS) : sig
         with different witnesses. *)
     val compare : t -> t -> int
   end
+end
+
+(** The [Assume_info] module contains an instantiation of the abstract domain
+   with trivial witnesses.  It is used to propagate assume annotations from the
+   front-end to the backend.  The backend contains a different instantiation of
+   the abstract domain where the witnesses contain actual information about
+   allocations - see [Checkmach].  *)
+module Assume_info : sig
+  type t
+
+  val none : t
+
+  val create : strict:bool -> never_returns_normally:bool -> t
+
+  val compare : t -> t -> int
+
+  val equal : t -> t -> bool
+
+  val join : t -> t -> t
+
+  val meet : t -> t -> t
+
+  val to_string : t -> string
+
+  val print : Format.formatter -> t -> unit
+
+  val is_none : t -> bool
+
+  module Witnesses : sig
+    type t = unit
+
+    val join : t -> t -> t
+
+    val lessequal : t -> t -> bool
+
+    val meet : t -> t -> t
+
+    val print : Format.formatter -> t -> unit
+
+    val compare : t -> t -> int
+  end
+
+  include module type of Make (Witnesses)
+
+  val get_value : t -> Value.t option
 end

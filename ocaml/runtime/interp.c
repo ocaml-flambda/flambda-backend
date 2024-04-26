@@ -840,6 +840,25 @@ value caml_interprete(code_t prog, asize_t prog_size)
       accu = block;
       Next;
     }
+    Instruct(MAKE_FAUX_MIXEDBLOCK): {
+      mlsize_t wosize = *pc++;
+      tag_t tag = *pc++;
+      mlsize_t i;
+      value block;
+      if (wosize <= Max_young_wosize) {
+        Alloc_small_with_reserved(block, wosize, tag, Enter_gc,
+                                  Faux_mixed_block_sentinel);
+        Field(block, 0) = accu;
+        for (i = 1; i < wosize; i++) Field(block, i) = *sp++;
+      } else {
+        block =
+          caml_alloc_shr_reserved(wosize, tag, Faux_mixed_block_sentinel);
+        caml_initialize(&Field(block, 0), accu);
+        for (i = 1; i < wosize; i++) caml_initialize(&Field(block, i), *sp++);
+      }
+      accu = block;
+      Next;
+    }
     Instruct(MAKEFLOATBLOCK): {
       mlsize_t size = *pc++;
       mlsize_t i;

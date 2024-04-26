@@ -1,7 +1,10 @@
 (* TEST
-   * expect
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 (* CR layouts: all tests from this file moved to [void_alpha.ml].  Move back

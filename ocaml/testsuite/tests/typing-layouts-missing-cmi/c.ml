@@ -1,15 +1,14 @@
 (* TEST
-
-readonly_files = "a.ml b.ml"
-flags = "-extension layouts_beta"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "a.ml"
-*** ocamlc.byte
-module = "b.ml"
-**** script
-script = "rm -f a.cmi"
-***** expect
+ readonly_files = "a.ml b.ml";
+ flags = "-extension layouts_beta";
+ setup-ocamlc.byte-build-env;
+ module = "a.ml";
+ ocamlc.byte;
+ module = "b.ml";
+ ocamlc.byte;
+ script = "rm -f a.cmi";
+ script;
+ expect;
 *)
 
 (* CR layouts v2.5: The commented out code in this file uses void, but could

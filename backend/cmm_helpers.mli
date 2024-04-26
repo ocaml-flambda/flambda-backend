@@ -301,6 +301,15 @@ val make_alloc :
 val make_float_alloc :
   mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
+(** Allocate an mixed block of the corresponding shape.  Initial values of
+    the flat suffix should be provided unboxed. *)
+val make_mixed_alloc :
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  Lambda.mixed_block_shape ->
+  expression list ->
+  expression
+
 (** Sys.opaque_identity *)
 val opaque : expression -> Debuginfo.t -> expression
 
@@ -901,8 +910,6 @@ val gc_root_table : Cmm.symbol list -> phrase
    If [None] is returned, that means "no estimate available". The expression
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
-
-val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string

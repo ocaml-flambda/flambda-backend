@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha -extension comprehensions"
-   * expect
+ flags = "-extension layouts_alpha -extension comprehensions";
+ expect;
 *)
 
 (***********************)

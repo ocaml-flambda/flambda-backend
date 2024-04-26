@@ -264,8 +264,10 @@ and expression_desc =
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r
+        alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
+        zero_alloc : Builtin_attributes.check_attribute
+        (* zero-alloc attributes *)
       }
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
           fun P0 P1 -> E                             (body = Tfunction_body _)
@@ -277,7 +279,8 @@ and expression_desc =
           saturated with n arguments.
       *)
   | Texp_apply of
-      expression * (arg_label * apply_arg) list * apply_position * Mode.Locality.l
+      expression * (arg_label * apply_arg) list * apply_position *
+        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -292,7 +295,11 @@ and expression_desc =
                         [(Nolabel, Omitted _);
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
-         *)
+
+            The [Zero_alloc_utils.Assume_info.t] records the optional
+            [@zero_alloc assume] attribute that may appear on applications.  If
+            that attribute is absent, it is [Assume_info.none].
+          *)
   | Texp_match of expression * Jkind.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
@@ -458,8 +465,13 @@ and function_body =
 
 and function_cases =
   { fc_cases: value case list;
+    fc_env : Env.t;
+    (** [fc_env] contains entries from all parameters except
+        for the last one being matched by the cases.
+    *)
     fc_arg_mode: Mode.Alloc.l;
     fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
     fc_loc: Location.t;
@@ -676,6 +688,7 @@ and module_binding =
     {
      mb_id: Ident.t option;
      mb_name: string option loc;
+     mb_uid: Uid.t;
      mb_presence: Types.module_presence;
      mb_expr: module_expr;
      mb_attributes: attributes;
@@ -758,6 +771,7 @@ and module_declaration =
     {
      md_id: Ident.t option;
      md_name: string option loc;
+     md_uid: Uid.t;
      md_presence: Types.module_presence;
      md_type: module_type;
      md_attributes: attributes;
@@ -768,6 +782,7 @@ and module_substitution =
     {
      ms_id: Ident.t;
      ms_name: string loc;
+     ms_uid: Uid.t;
      ms_manifest: Path.t;
      ms_txt: Longident.t loc;
      ms_attributes: attributes;
@@ -778,6 +793,7 @@ and module_type_declaration =
     {
      mtd_id: Ident.t;
      mtd_name: string loc;
+     mtd_uid: Uid.t;
      mtd_type: module_type option;
      mtd_attributes: attributes;
      mtd_loc: Location.t;
@@ -912,6 +928,7 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
+     ld_uid: Uid.t;
      ld_mutable: Types.mutability;
      ld_global: Mode.Global_flag.t;
      ld_type: core_type;
@@ -923,6 +940,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
+     cd_uid: Uid.t;
      cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
@@ -1041,6 +1059,23 @@ type implementation = {
     structure.
 *)
 
+type item_declaration =
+  | Value of value_description
+  | Value_binding of value_binding
+  | Type of type_declaration
+  | Constructor of constructor_declaration
+  | Extension_constructor of extension_constructor
+  | Label of label_declaration
+  | Module of module_declaration
+  | Module_substitution of module_substitution
+  | Module_binding of module_binding
+  | Module_type of module_type_declaration
+  | Class of class_declaration
+  | Class_type of class_type_declaration
+(** [item_declaration] groups together items that correspond to the syntactic
+    category of "declarations" which include types, values, modules, etc.
+    declarations in signatures and their definitions in implementations. *)
+
 (* Auxiliary functions over the a.s.t. *)
 
 (** [as_computation_pattern p] is a computation pattern with description
@@ -1088,7 +1123,7 @@ val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
   Jkind.sort -> 'k general_pattern
-  -> (Ident.t * string loc * Types.type_expr * Jkind.sort) list
+  -> (Ident.t * string loc * Types.type_expr * Types.Uid.t * Jkind.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:

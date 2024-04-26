@@ -398,27 +398,34 @@ CAMLprim value caml_ephe_get_data (value ar)
 
 static void copy_value(value src, value dst)
 {
-  mlsize_t sz, i;
-  sz = Wosize_val(src);
+  mlsize_t scan_from, scan_to;
   if (Tag_val (src) >= No_scan_tag) {
     /* Direct copy */
-    memcpy (Bp_val (dst), Bp_val (src), Bsize_wsize (sz));
+    memcpy (Bp_val (dst), Bp_val (src), Bosize_val(src));
     return;
   }
-  i = 0;
   if (Tag_val (src) == Closure_tag) {
     /* Direct copy of the code pointers and closure info fields */
-    i = Start_env_closinfo(Closinfo_val(src));
-    memcpy (Bp_val (dst), Bp_val (src), Bsize_wsize (i));
+    scan_from = Start_env_closinfo(Closinfo_val(src));
+    scan_to = Wosize_val(src);
+    memcpy (Bp_val (dst), Bp_val (src), Bsize_wsize (scan_from));
+  } else {
+    scan_from = 0;
+    scan_to = Scannable_wosize_val(src);
   }
   /* Field-by-field copy and darkening of the remaining fields */
-  for (/*nothing*/; i < sz; i++){
+  for (mlsize_t i = scan_from; i < scan_to; i++){
     value f = Field (src, i);
     if (caml_gc_phase == Phase_mark && Must_be_Marked_during_mark(f)){
       caml_darken (f, NULL);
     }
     caml_modify (&Field (dst, i), f);
   }
+
+  /* Copy non-scannable suffix */
+  memcpy (Op_val(dst) + scan_to,
+          Op_val(src) + scan_to,
+          Bsize_wsize(Wosize_val(src) - scan_to));
 }
 
 CAMLexport int caml_ephemeron_get_key_copy(value ar, mlsize_t offset,
@@ -464,7 +471,8 @@ CAMLexport int caml_ephemeron_get_key_copy(value ar, mlsize_t offset,
       caml_minor_collection ();
     } else {
       /* cases where loop is between 0 to 7 and where loop is equal to 9 */
-      elt = caml_alloc (Wosize_val (v), Tag_val (v));
+      elt = caml_alloc_with_reserved (Wosize_val (v), Tag_val (v),
+                                      Reserved_val (v));
       /* The GC may erase, move or even change v during this call to
          caml_alloc. */
     }
@@ -521,7 +529,8 @@ CAMLexport int caml_ephemeron_get_data_copy (value ar, value *data)
       caml_minor_collection ();
     } else {
       /* cases where loop is between 0 to 7 and where loop is equal to 9 */
-      elt = caml_alloc (Wosize_val (v), Tag_val (v));
+      elt = caml_alloc_with_reserved (Wosize_val (v), Tag_val (v),
+                                      Reserved_val (v));
       /** cf caml_ephemeron_get_key_copy */
     }
     ++loop;

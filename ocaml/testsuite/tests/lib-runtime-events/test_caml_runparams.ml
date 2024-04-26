@@ -1,9 +1,12 @@
 (* TEST
-* runtime4
-** skip
-* runtime5
-include runtime_events
-ocamlrunparam += ",e=4"
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   ocamlrunparam += ",e=4";
+   runtime5;
+ }
 *)
 
 (* We set the ring buffer size smaller and witness that we do indeed

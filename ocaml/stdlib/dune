@@ -514,6 +514,7 @@
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
   .stdlib.objs/native/stdlib__Iarray.cmx
-  .stdlib.objs/native/stdlib__IarrayLabels.cmx)
+  .stdlib.objs/native/stdlib__IarrayLabels.cmx
+  (META as stdlib/META))
  (section lib)
  (package ocaml_runtime_stdlib))

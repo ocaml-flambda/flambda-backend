@@ -104,6 +104,7 @@ let with_additional_action (config : additional_action_config) s =
         let word = Jkind.of_const Word ~why:reason in
         let bits32 = Jkind.of_const Bits32 ~why:reason in
         let bits64 = Jkind.of_const Bits64 ~why:reason in
+        let non_null_value = Jkind.of_const Non_null_value ~why:reason in
         let prepare_jkind loc lay =
           match Jkind.get lay with
           | Const Any -> any
@@ -115,6 +116,7 @@ let with_additional_action (config : additional_action_config) s =
           | Const Word -> word
           | Const Bits32 -> bits32
           | Const Bits64 -> bits64
+          | Const Non_null_value -> non_null_value
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -445,8 +447,7 @@ let record_representation ~prepare_jkind loc = function
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_jkind loc) lays)
-  | Record_float -> Record_float
-  | Record_ufloat -> Record_ufloat
+  | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;

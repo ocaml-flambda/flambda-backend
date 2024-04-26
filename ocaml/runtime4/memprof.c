@@ -1089,6 +1089,11 @@ CAMLprim value caml_memprof_stop(value unit)
   return Val_unit;
 }
 
+CAMLprim value caml_memprof_discard(value profile)
+{
+  caml_failwith("Gc.Memprof.discard: not implemented in runtime4");
+}
+
 /**** Interface with systhread. ****/
 
 static void th_ctx_iter_default(th_ctx_action f, void* data) {

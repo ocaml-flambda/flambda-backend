@@ -1,6 +1,6 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
 *)
 
 type u = U of unit

@@ -1,13 +1,18 @@
 (* TEST
- readonly_files = "float_u_array.ml"
- modules = "${readonly_files}"
- * flambda2
- ** native
- ** bytecode
- ** native
-   flags = "-extension layouts_beta"
- ** bytecode
-   flags = "-extension layouts_beta"
+ readonly_files = "float_u_array.ml";
+ modules = "${readonly_files}";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 (* Test compilation correctness for array of unboxed floats. General
    tests around type-checking should go to [basics.ml]. *)

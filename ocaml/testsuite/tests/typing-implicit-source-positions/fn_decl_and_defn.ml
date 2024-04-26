@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 type t = call_pos:[%call_pos] -> unit -> unit

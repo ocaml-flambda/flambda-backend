@@ -1,10 +1,11 @@
 (* TEST
-   * flambda2
-   ** expect
-   ** expect
-     flags = "-extension layouts_alpha"
-   ** expect
-     flags = "-extension layouts_beta"
+ flambda2;
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 (* This file contains typing tests for the layout [float64].
@@ -195,31 +196,15 @@ Error: This type ('b : value) should be an instance of type ('a : float64)
          it's the type of a tuple element.
 |}]
 
-(******************************************************************************)
-(* Test 5: Can't be put in structures in typedecls, except all-float records. *)
+(****************************************************************************)
+(* Test 5: Can't be put in structures in typedecls, except certain records. *)
 
+(* all-float64 records are allowed, as are some records that mix float64 and
+   value fields. See [tests/typing-layouts/mixed_records.ml] for tests of mixed
+   records. *)
 type t5_1 = { x : t_float64 };;
 [%%expect{|
 type t5_1 = { x : t_float64; }
-|}];;
-
-(* CR layouts v5: this should work *)
-type t5_2 = { y : int; x : t_float64 };;
-[%%expect{|
-Line 1, characters 0-38:
-1 | type t5_2 = { y : int; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
-|}];;
-
-(* CR layouts: this runs afoul of the mixed block restriction, but should work
-   once we relax that. *)
-type t5_2' = { y : string; x : t_float64 };;
-[%%expect{|
-Line 1, characters 0-42:
-1 | type t5_2' = { y : string; x : t_float64 };;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -274,8 +259,6 @@ type ('a : float64, 'b : float64) t5_9 = {x : 'a; y : 'b; z : 'a}
 
 type 'a t5_10 = 'a t_float64_id
 and 'a t5_11 = {x : 'a t5_10; y : 'a}
-
-type ('a : float64) t5_12 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64, 'b : float64) t5_9 = { x : 'a; y : 'b; z : 'a; }
 Line 4, characters 20-28:
@@ -294,17 +277,24 @@ Error: Layout mismatch in final type declaration consistency check.
        the declaration where this error is reported.
 |}];;
 
+type ('a : float64) t5_12 = {x : 'a; y : float#};;
+[%%expect{|
+type ('a : float64) t5_12 = { x : 'a; y : float#; }
+|}];;
+
 type ('a : float64) t5_13 = {x : 'a; y : float#};;
 [%%expect{|
 type ('a : float64) t5_13 = { x : 'a; y : float#; }
 |}];;
 
+(* Mixed records are allowed, but are prohibited outside of alpha. *)
 type 'a t5_14 = {x : 'a; y : float#};;
 [%%expect{|
 Line 1, characters 0-36:
 1 | type 'a t5_14 = {x : 'a; y : float#};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Records may not contain both unboxed floats and normal values.
+Error: The enabled layouts extension does not allow for mixed records.
+       You must enable -extension layouts_alpha to use this feature.
 |}];;
 
 type ufref = { mutable contents : float# };;

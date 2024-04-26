@@ -1,7 +1,6 @@
 (* TEST
-   * skip
-
- *)
+ skip;
+*)
 
 open Printf
 open Effect

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module ZA = Zero_alloc_utils
+
 module Scoped_location : sig
   type scope_item = private
     | Sc_anonymous_function
@@ -28,24 +30,24 @@ module Scoped_location : sig
   type scopes = private
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
-               assume_zero_alloc: Assume_info.t}
+               assume_zero_alloc: ZA.Assume_info.t}
 
   val string_of_scopes : scopes -> string
 
   val empty_scopes : scopes
-  val enter_anonymous_function : scopes:scopes -> assume_zero_alloc:Assume_info.t
-    -> scopes
-  val enter_value_definition : scopes:scopes -> assume_zero_alloc:Assume_info.t
-    -> Ident.t -> scopes
+  val enter_anonymous_function :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> scopes
+  val enter_value_definition :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> Ident.t -> scopes
   val enter_compilation_unit : scopes:scopes -> Compilation_unit.t -> scopes
   val enter_module_definition : scopes:scopes -> Ident.t -> scopes
   val enter_class_definition : scopes:scopes -> Ident.t -> scopes
   val enter_method_definition : scopes:scopes -> Asttypes.label -> scopes
   val enter_lazy : scopes:scopes -> scopes
   val enter_partial_or_eta_wrapper : scopes:scopes -> scopes
-  val update_assume_zero_alloc : scopes:scopes ->
-    assume_zero_alloc:Assume_info.t -> scopes
-  val get_assume_zero_alloc : scopes:scopes -> Assume_info.t
+  val update_assume_zero_alloc :
+    scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> scopes
+  val get_assume_zero_alloc : scopes:scopes -> ZA.Assume_info.t
 
   type t =
     | Loc_unknown
@@ -102,7 +104,7 @@ val print_compact : Format.formatter -> t -> unit
 
 val merge : into:t -> t -> t
 
-val assume_zero_alloc : t -> Assume_info.t
+val assume_zero_alloc : t -> ZA.Assume_info.t
 
 module Dbg : sig
   type t

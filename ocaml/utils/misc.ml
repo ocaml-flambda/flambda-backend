@@ -270,6 +270,20 @@ module Stdlib = struct
       in
       loop 0
 
+    let compare compare arr1 arr2 =
+      let len1 = Array.length arr1 in
+      let len2 = Array.length arr2 in
+      if len1 <> len2 then
+        Int.compare len1 len2
+      else
+        let rec loop i =
+          if i >= len1 then 0
+          else
+            let cmp = compare arr1.(i) arr2.(i) in
+            if cmp <> 0 then cmp else loop (i + 1)
+        in
+        loop 0
+
     let map_sharing f a =
       let same = ref true in
       let f' x =

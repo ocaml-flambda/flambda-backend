@@ -1,14 +1,13 @@
 (* TEST
-
-   readonly_files ="multiple_files.ml"
-   * setup-ocamlopt.opt-build-env
-   ** ocamlopt.opt
-       module = "multiple_files.ml"
-       flags = "-g"
-   *** ocamlopt.opt
-        module = "test_multiple_files.ml"
-        flags = "-short-paths -i"
-   **** check-ocamlopt.opt-output
+ readonly_files = "multiple_files.ml";
+ setup-ocamlopt.opt-build-env;
+ module = "multiple_files.ml";
+ flags = "-g";
+ ocamlopt.opt;
+ module = "test_multiple_files.ml";
+ flags = "-short-paths -i";
+ ocamlopt.opt;
+ check-ocamlopt.opt-output;
 *)
 
 (* Ensure that underscore-prefixed type names

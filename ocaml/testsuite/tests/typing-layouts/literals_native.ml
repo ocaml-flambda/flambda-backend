@@ -1,8 +1,11 @@
 (* TEST
-   * flambda2
-   flags = "-extension layouts_beta"
-   ** native
-   ** bytecode
+ flags = "-extension layouts_beta";
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }
 *)
 
 (*****************************************)

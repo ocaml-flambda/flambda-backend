@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension small_numbers"
-   * expect
+ flags = "-extension small_numbers";
+ expect;
 *)
 
 (* Operations are tested in tests/small_numbers/float32.ml *)

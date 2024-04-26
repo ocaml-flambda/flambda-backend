@@ -861,6 +861,7 @@ VERSION
 default_build_target
 native_compiler
 CONFIGURE_ARGS
+runtime_suffix
 enable_runtime5
 target_alias
 host_alias
@@ -3241,8 +3242,15 @@ then :
   enableval=$enable_runtime5;
 fi
 
+if test x"$enable_runtime5" = xyes
+then :
+  runtime_suffix=
+else $as_nop
+  runtime_suffix=4
+fi
 
 ## Output variables
+
 
 
 
@@ -18521,6 +18529,8 @@ case $host in #(
     PTHREAD_LIBS="-l:libpthread.a -lgcc_eh" ;; #(
   *-pc-windows) :
     PTHREAD_LIBS="-l:libpthread.lib" ;; #(
+  *-apple-darwin*) :
+    PTHREAD_LIBS="-pthread" ;; #(
   *) :
 
 
