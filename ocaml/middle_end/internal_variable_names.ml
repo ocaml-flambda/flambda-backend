@@ -123,6 +123,7 @@ let pfloatcomp = "Pfloatcomp"
 let punboxed_float_comp = "Punboxed_float_comp"
 let pfloatfield = "Pfloatfield"
 let pufloatfield = "Pufloatfield"
+let pmixedfield = "Pmixedfield"
 let pfloatofint = "Pfloatofint"
 let pfloat32offloat = "Pfloat32offloat"
 let pfloatoffloat32 = "Pfloatoffloat32"
@@ -148,6 +149,7 @@ let pmakearray = "Pmakearray"
 let pmakeblock = "Pmakeblock"
 let pmakefloatblock = "Pmakefloatblock"
 let pmakeufloatblock = "Pmakeufloatblock"
+let pmakemixedblock = "Pmakemixedblock"
 let pmodbint = "Pmodbint"
 let pmodint = "Pmodint"
 let pmulbint = "Pmulbint"
@@ -172,6 +174,7 @@ let psetfield = "Psetfield"
 let psetfield_computed = "Psetfield_computed"
 let psetfloatfield = "Psetfloatfield"
 let psetufloatfield = "Psetufloatfield"
+let psetmixedfield = "Psetmixedfield"
 let psetglobal = "Psetglobal"
 let pstring_load_16 = "Pstring_load_16"
 let pstring_load_32 = "Pstring_load_32"
@@ -250,6 +253,7 @@ let pfloatcomp_arg = "Pfloatcomp_arg"
 let punboxed_float_comp_arg = "Punboxed_float_comp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pufloatfield_arg = "Pufloatfield_arg"
+let pmixedfield_arg = "Pmixedfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pfloatoffloat32_arg = "Pfloatoffloat32_arg"
 let pfloat32offloat_arg = "Pfloat32offloat_arg"
@@ -275,6 +279,7 @@ let pmakearray_arg = "Pmakearray_arg"
 let pmakeblock_arg = "Pmakeblock_arg"
 let pmakefloatblock_arg = "Pmakefloatblock_arg"
 let pmakeufloatblock_arg = "Pmakeufloatblock_arg"
+let pmakemixedblock_arg = "Pmakemixedblock_arg"
 let pmodbint_arg = "Pmodbint_arg"
 let pmodint_arg = "Pmodint_arg"
 let pmulbint_arg = "Pmulbint_arg"
@@ -296,6 +301,7 @@ let psetfield_arg = "Psetfield_arg"
 let psetfield_computed_arg = "Psetfield_computed_arg"
 let psetfloatfield_arg = "Psetfloatfield_arg"
 let psetufloatfield_arg = "Psetufloatfield_arg"
+let psetmixedfield_arg = "Psetmixedfield_arg"
 let psetglobal_arg = "Psetglobal_arg"
 let pstring_load_16_arg = "Pstring_load_16_arg"
 let pstring_load_32_arg = "Pstring_load_32_arg"
@@ -415,6 +421,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
   | Pmakeufloatblock _ -> pmakeufloatblock
+  | Pmakemixedblock _ -> pmakemixedblock
   | Pfield _ -> pfield
   | Pfield_computed _ -> pfield_computed
   | Psetfield _ -> psetfield
@@ -423,6 +430,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Psetfloatfield _ -> psetfloatfield
   | Pufloatfield _ -> pufloatfield
   | Psetufloatfield _ -> psetufloatfield
+  | Pmixedfield _ -> pmixedfield
+  | Psetmixedfield _ -> psetmixedfield
   | Pduprecord _ -> pduprecord
   | Pccall _ -> pccall
   | Praise _ -> praise
@@ -567,6 +576,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pmakeufloatblock _ -> pmakeufloatblock_arg
+  | Pmakemixedblock _ -> pmakemixedblock_arg
   | Pfield _ -> pfield_arg
   | Pfield_computed _ -> pfield_computed_arg
   | Psetfield _ -> psetfield_arg
@@ -575,6 +585,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Psetfloatfield _ -> psetfloatfield_arg
   | Pufloatfield _ -> pufloatfield_arg
   | Psetufloatfield _ -> psetufloatfield_arg
+  | Pmixedfield _ -> pmixedfield_arg
+  | Psetmixedfield _ -> psetmixedfield_arg
   | Pduprecord _ -> pduprecord_arg
   | Pccall _ -> pccall_arg
   | Praise _ -> praise_arg

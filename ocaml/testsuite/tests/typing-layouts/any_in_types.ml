@@ -1,6 +1,9 @@
 (* TEST
-   * native
-   * bytecode
+ {
+   native;
+ }{
+   bytecode;
+ }
 *)
 
 (* See also Test 10 in modules.ml, which tests for type-checking failures in

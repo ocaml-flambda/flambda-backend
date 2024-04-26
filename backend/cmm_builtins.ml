@@ -17,6 +17,13 @@ open Cmm
 open Cmm_helpers
 open Arch
 
+type error = Bad_immediate of string
+
+exception Error of error
+
+let bad_immediate fmt =
+  Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
+
 let four_args name args =
   match args with
   | [arg1; arg2; arg3; arg4] -> arg1, arg2, arg3, arg4
@@ -193,14 +200,14 @@ let rec const_float_args n args name =
   match n, args with
   | 0, [] -> []
   | n, Cconst_float (f, _) :: args -> f :: const_float_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid float constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant float arguments for %s" name
 
 (* Assumes untagged int or unboxed int32, always representable by int63 *)
 let rec const_int_args n args name =
   match n, args with
   | 0, [] -> []
   | n, Cconst_int (i, _) :: args -> i :: const_int_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid int constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant int arguments for %s" name
 
 (* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
    int63, otherwise we get Cconst_natint *)
@@ -211,23 +218,23 @@ let rec const_int64_args n args name =
     Int64.of_int i :: const_int64_args (n - 1) args name
   | n, Cconst_natint (i, _) :: args ->
     Int64.of_nativeint i :: const_int64_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid int64 constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant int64 arguments for %s" name
 
 let int64_of_int8 i =
   (* CR mslater: (SIMD) replace once we have unboxed int8 *)
   if i < 0 || i > 0xff
-  then Misc.fatal_errorf "Int8 constant must be in [0x0,0xff]: %016x" i;
+  then bad_immediate "Int8 constant not in range [0x0,0xff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int16 i =
   (* CR mslater: (SIMD) replace once we have unboxed int16 *)
   if i < 0 || i > 0xffff
-  then Misc.fatal_errorf "Int16 constant must be in [0x0,0xffff]: %016x" i;
+  then bad_immediate "Int16 constant not in range [0x0,0xffff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int32 i =
   if i < Int32.to_int Int32.min_int || i > Int32.to_int Int32.max_int
-  then Misc.fatal_errorf "Constant was not an int32: %016x" i;
+  then bad_immediate "Int32 constant not in range [0x0,0xffffffff]: 0x%016x" i;
   Int64.of_int i |> Int64.logand 0xffffffffL
 
 let int64_of_float32 f =
@@ -749,3 +756,11 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
     | Some op -> op
     | None -> default
   else default
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

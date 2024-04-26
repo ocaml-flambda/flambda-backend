@@ -631,7 +631,6 @@ runtime4_COMMON_C_SOURCES = \
   hash \
   instrtrace \
   intern \
-  interp \
   ints \
   io \
   lexing \
@@ -1467,14 +1466,14 @@ tools/ocamldep$(EXE): OC_BYTECODE_LINKFLAGS += -compat-32
 ocamlprof_LIBRARIES =
 ocamlprof_MODULES = \
   config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags terminfo warnings location longident \
-  docstrings syntaxerr ast_helper camlinternalMenhirLib parser pprintast \
-  lexer parse ocamlprof
+  local_store load_path zero_alloc_annotations clflags terminfo warnings \
+  location longident docstrings syntaxerr ast_helper camlinternalMenhirLib \
+  parser pprintast lexer parse ocamlprof
 
 ocamlcp_ocamloptp_MODULES = \
   config build_path_prefix_map misc profile warnings identifiable numbers \
-  arg_helper local_store load_path clflags terminfo location ccomp compenv \
-  main_args ocamlcp_common
+  arg_helper local_store load_path zero_alloc_annotations clflags terminfo \
+  location ccomp compenv main_args ocamlcp_common zero_alloc_annotations
 
 ocamlcp_LIBRARIES =
 ocamlcp_MODULES = $(ocamlcp_ocamloptp_MODULES) ocamlcp
@@ -1491,7 +1490,7 @@ ocamlmklib_MODULES = config build_path_prefix_map misc ocamlmklib
 ocamlmktop_LIBRARIES =
 ocamlmktop_MODULES = \
   config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags profile ccomp ocamlmktop
+  local_store load_path zero_alloc_annotations clflags profile ccomp ocamlmktop
 
 # Reading cmt files
 

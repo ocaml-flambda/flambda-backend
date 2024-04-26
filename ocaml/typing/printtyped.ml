@@ -191,6 +191,11 @@ let variant_representation i ppf = let open Types in function
       (array (i+1) (fun _ ppf -> jkind_array (i+1) ppf)) jkinds
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
+let flat_element i ppf = let open Types in function
+  | Imm -> line i ppf "Immediate\n"
+  | Float -> line i ppf "Float\n"
+  | Float64 -> line i ppf "Float64\n"
+
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
@@ -200,6 +205,9 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
   | Record_ufloat -> line i ppf "Record_ufloat\n"
+  | Record_mixed { value_prefix_len; flat_suffix } ->
+    line i ppf "Record_mixed (value_prefix_len %d)\n" value_prefix_len;
+    array (i+1) flat_element ppf flat_suffix
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;
@@ -359,7 +367,7 @@ and function_body i ppf (body : function_body) =
       expression (i+1) ppf e
   | Tfunction_cases
       { fc_cases; fc_loc; fc_exp_extra; fc_attributes; fc_arg_mode;
-        fc_arg_sort; fc_param = _; fc_partial = _; }
+        fc_arg_sort; fc_param = _; fc_partial = _; fc_env = _; fc_ret_type = _ }
     ->
       line i ppf "Tfunction_cases %a\n" fmt_location fc_loc;
       alloc_mode i ppf fc_arg_mode;
@@ -396,16 +404,16 @@ and expression_extra i ppf x attrs =
       attributes i ppf attrs;
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
-  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print_raw ()) m
+  = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
 
 and locality_mode i ppf m =
   line i ppf "locality_mode %a\n"
-    (Mode.Locality.print_raw ()) m
+    (Mode.Locality.print ()) m
 
 and value_mode i ppf m =
-  line i ppf "value_mode %a\n" (Mode.Value.print_raw ()) m
+  line i ppf "value_mode %a\n" (Mode.Value.print ()) m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
@@ -435,7 +443,7 @@ and expression i ppf x =
       alloc_mode i ppf am;
       list i function_param ppf params;
       function_body i ppf body;
-  | Texp_apply (e, l, m, am) ->
+  | Texp_apply (e, l, m, am, za) ->
       line i ppf "Texp_apply\n";
       line i ppf "apply_mode %s\n"
         (match m with
@@ -443,6 +451,9 @@ and expression i ppf x =
          | Nontail -> "Nontail"
          | Default -> "Default");
       locality_mode i ppf am;
+      if not (Zero_alloc_utils.Assume_info.is_none za) then
+        line i ppf "assume_zero_alloc %a\n"
+          Zero_alloc_utils.Assume_info.print za;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, sort, l, _partial) ->

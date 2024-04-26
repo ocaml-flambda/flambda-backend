@@ -1,0 +1,2 @@
+File "i8_range.ml", line 1:
+Error: Int8 constant not in range [0x0,0xff]: 0x0000000000000100

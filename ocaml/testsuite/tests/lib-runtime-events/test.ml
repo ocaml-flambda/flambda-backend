@@ -1,9 +1,12 @@
 (* TEST
-* runtime4
-** skip
-* runtime5
-modules = "stubs.c"
-include runtime_events
+ {
+   runtime4;
+   skip;
+ }{
+   modules = "stubs.c";
+   include runtime_events;
+   runtime5;
+ }
 *)
 
 external start_runtime_events : unit -> unit = "start_runtime_events"

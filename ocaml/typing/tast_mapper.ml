@@ -374,15 +374,16 @@ let function_body sub body =
       Tfunction_body (sub.expr sub body)
   | Tfunction_cases
       { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-        fc_arg_mode; fc_arg_sort; }
+        fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
     ->
       let fc_loc = sub.location sub fc_loc in
       let fc_attributes = sub.attributes sub fc_attributes in
       let fc_cases = List.map (sub.case sub) fc_cases in
       let fc_exp_extra = Option.map (extra sub) fc_exp_extra in
+      let fc_env = sub.env sub fc_env in
       Tfunction_cases
         { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
-          fc_arg_mode; fc_arg_sort; }
+          fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
 
 let expr sub x =
   let extra x = extra sub x in
@@ -434,18 +435,20 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort } ->
+    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                      zero_alloc } ->
         let params = List.map (function_param sub) params in
         let body = function_body sub body in
-        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort }
-    | Texp_apply (exp, list, pos, am) ->
+        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+                        zero_alloc }
+    | Texp_apply (exp, list, pos, am, za) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
-          pos, am
+          pos, am, za
         )
     | Texp_match (exp, sort, cases, p) ->
         Texp_match (

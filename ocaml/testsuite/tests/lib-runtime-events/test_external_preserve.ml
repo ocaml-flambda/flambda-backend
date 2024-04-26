@@ -1,13 +1,20 @@
 (* TEST
-* runtime4
-** skip
-* runtime5
-  include runtime_events
-  include unix
-  set OCAML_RUNTIME_EVENTS_PRESERVE = "1"
-  ** libunix
-  *** bytecode
-  *** native *)
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   include unix;
+   set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
+   runtime5;
+   libunix;
+   {
+     bytecode;
+   }{
+     native;
+   }
+ }
+*)
 
   (* this tests the preservation of ring buffers after termination *)
 

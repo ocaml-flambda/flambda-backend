@@ -332,108 +332,23 @@ let pr_var_jkind ppf (v, l) = match l with
 let pr_var_jkinds =
   print_list pr_var_jkind (fun ppf -> fprintf ppf "@ ")
 
-let join_locality lm1 lm2 =
-  match lm1, lm2 with
-  | Olm_local, _ -> Olm_local
-  | _, Olm_local -> Olm_local
-  | Olm_unknown, _ -> Olm_unknown
-  | _, Olm_unknown -> Olm_unknown
-  | Olm_global, Olm_global -> Olm_global
+(* NON-LEGACY MODES
+  Here, we are printing mode annotations even if the mode extension is
+  disabled. Mode extension being disabled means mode annotations are
+  disallowed in parsing of this file, but non-legacy modes might still pop
+  up. For example, the current file might cite values from other files that
+  mention non-legacy modes *)
+let print_out_mode ppf = function
+  | Omd_local -> fprintf ppf "local_"
+  | Omd_unique -> fprintf ppf "unique_"
+  | Omd_once -> fprintf ppf "once_"
 
-let join_uniqueness u1 u2 =
-  match u1, u2 with
-  | Oum_shared, _ -> Oum_shared
-  | _, Oum_shared -> Oum_shared
-  | Oum_unknown, _ -> Oum_unknown
-  | _, Oum_unknown -> Oum_unknown
-  | Oum_unique, Oum_unique -> Oum_unique
+let print_out_mode_space ppf m =
+  print_out_mode ppf m;
+  pp_print_space ppf ()
 
-let join_linearity l1 l2 =
-  match l1, l2 with
-  | Olinm_once, _
-  | _, Olinm_once -> Olinm_once
-  | Olinm_unknown, _
-  | _, Olinm_unknown -> Olinm_unknown
-  | Olinm_many, Olinm_many -> Olinm_many
-
-let uniqueness_to_linearity = function
-  | Oum_unique -> Olinm_once
-  | Oum_shared -> Olinm_many
-  | Oum_unknown -> Olinm_unknown
-
-let join_modes m1 m2 =
-  { oam_locality = join_locality m1.oam_locality m2.oam_locality;
-    oam_uniqueness = join_uniqueness m1.oam_uniqueness m2.oam_uniqueness;
-    oam_linearity = join_linearity m1.oam_linearity m2.oam_linearity }
-
-let default_mode =
-  { oam_locality = Olm_global;
-    oam_uniqueness = Oum_shared;
-    oam_linearity = Olinm_many; }
-
-let close_over arg_mode =
-  let oam_locality = arg_mode.oam_locality in
-  let oam_uniqueness = Oum_shared in
-  let oam_linearity =
-    join_linearity
-      arg_mode.oam_linearity
-      (uniqueness_to_linearity arg_mode.oam_uniqueness)
-  in
-  { oam_locality;
-    oam_uniqueness;
-    oam_linearity }
-
-let partial_apply alloc_mode =
-  let oam_locality = alloc_mode.oam_locality in
-  let oam_uniqueness = Oum_shared in
-  let oam_linearity = alloc_mode.oam_linearity in
-  { oam_locality; oam_uniqueness; oam_linearity }
-
-(* Following functions are used to check if the return mode can omitted in the
-   case of currying *)
-let locality_agree expected real =
-  match expected, real with
-  (* If expected and real matches, can omit *)
-  | Olm_local, Olm_local | Olm_global, Olm_global -> true
-  (* If the real mode is unknown, we'd rather not put extra parentheses, because
-     we wouldn't put "unknown" around the parentheses either, which would make
-     the printing even less precise *)
-  | _, Olm_unknown -> true
-  (* In all other cases (the real mode is known), we will print the mode to be
-     safe*)
-  | _, _ -> false
-
-let uniqueness_agree expected real =
-  match expected, real with
-  | Oum_unique, Oum_unique | Oum_shared, Oum_shared -> true
-  | _, Oum_unknown -> true
-  | _, _ -> false
-
-let linearity_agree expected real =
-  match expected, real with
-  | Olinm_many, Olinm_many | Olinm_once, Olinm_once -> true
-  | _, Olinm_unknown -> true
-  | _, _ -> false
-
-let mode_agree expected real =
-  locality_agree expected.oam_locality real.oam_locality &&
-  uniqueness_agree expected.oam_uniqueness real.oam_uniqueness &&
-  linearity_agree expected.oam_linearity real.oam_linearity
-
-let is_local mode =
-  match mode.oam_locality with
-  | Olm_local -> true
-  | _ -> false
-
-let is_unique mode =
-  match mode.oam_uniqueness with
-  | Oum_unique -> true
-  | _ -> false
-
-let is_once mode =
-  match mode.oam_linearity with
-  | Olinm_once -> true
-  | _ -> false
+let print_out_modes ppf l =
+  pp_print_list print_out_mode_space ppf l
 
 (* Labeled tuples with the first element labeled sometimes require parens. *)
 let is_initially_labeled_tuple ty =
@@ -445,55 +360,43 @@ let string_of_gbl_space = function
   | Ogf_global -> "global_ "
   | Ogf_unrestricted -> ""
 
-let rec print_out_type_0 mode ppf =
+let rec print_out_type_0 ppf =
   function
   | Otyp_alias {non_gen; aliased; alias } ->
     fprintf ppf "@[%a@ as %a@]"
-      (print_out_type_0 mode) aliased
+      print_out_type_0 aliased
       (ty_var ~non_gen) alias
   | Otyp_poly ([], ty) ->
-      print_out_type_0 mode ppf ty  (* no "." if there are no vars *)
+      print_out_type_0 ppf ty  (* no "." if there are no vars *)
   | Otyp_poly (sl, ty) ->
       fprintf ppf "@[<hov 2>%a.@ %a@]"
         pr_var_jkinds sl
-        (print_out_type_0 mode) ty
+        print_out_type_0 ty
   | ty ->
-      print_out_type_1 mode ppf ty
+      print_out_type_1 ppf ty
 
 (* We must parenthesize a labeled tuple with the first element labeled when:
    - It is an argument to a function ([~arg])
    - Or, there is at least one mode to print.
  *)
 and print_out_type_mode ~arg mode ppf ty =
-  let is_local = is_local mode in
-  let is_unique = is_unique mode in
-  let is_once = is_once mode in
+  let has_modes =
+    match mode with
+    | [] -> false
+    | _ -> true
+  in
   let parens =
     is_initially_labeled_tuple ty
-    && (arg || is_local || is_unique || is_once)
+    && (arg || has_modes)
   in
-  (* NON-LEGACY MODES
-     Here, we are printing mode annotations even if the mode extension is
-     disabled. Mode extension being disabled means mode annotations are
-     disallowed in parsing of this file, but non-legacy modes might still pop
-     up. For example, the current file might cite values from other files that
-     mention non-legacy modes *)
-  if is_local then begin
-    pp_print_string ppf "local_";
-    pp_print_space ppf () end;
-  if is_unique then begin
-    pp_print_string ppf "unique_";
-    pp_print_space ppf () end;
-  if is_once then begin
-    pp_print_string ppf "once_";
-    pp_print_space ppf () end;
+  print_out_modes ppf mode;
   if parens then
     pp_print_char ppf '(';
-  print_out_type_2 mode ppf ty;
+  print_out_type_2 ppf ty;
   if parens then
     pp_print_char ppf ')'
 
-and print_out_type_1 mode ppf =
+and print_out_type_1 ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
@@ -509,34 +412,38 @@ and print_out_type_1 mode ppf =
           pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_string ppf " ->";
       pp_print_space ppf ();
-      let mode =
-        join_modes
-          (partial_apply mode)
-          (close_over am)
-      in
-      print_out_ret mode rm ppf ty2;
+      print_out_ret rm ppf ty2;
       pp_close_box ppf ()
-  | ty -> print_out_type_mode ~arg:false mode ppf ty
+  | ty -> print_out_type_2 ppf ty
 
 and print_out_arg am ppf ty =
   print_out_type_mode ~arg:true am ppf ty
 
-and print_out_ret mode rm ppf =
+and print_out_ret rm ppf =
   function
-  (* the 'mode' argument only has meaning if we are talking about closure *)
   | Otyp_arrow _ as ty ->
-    if mode_agree mode rm
-      then print_out_type_1 rm ppf ty
-      else print_out_type_mode ~arg:false rm ppf ty
-  | ty -> print_out_type_mode ~arg:false rm ppf ty
+    begin match rm with
+    | Orm_not_arrow _ -> assert false
+    | Orm_no_parens ->
+      print_out_type_1 ppf ty
+    | Orm_parens rm ->
+      print_out_modes ppf rm;
+      pp_print_char ppf '(';
+      print_out_type_1 ppf ty;
+      pp_print_char ppf ')'
+    end
+  | ty ->
+    match rm with
+    | Orm_not_arrow rm -> print_out_type_mode ~arg:false rm ppf ty
+    | _ -> assert false
 
-and print_out_type_2 mode ppf =
+and print_out_type_2 ppf =
   function
   | Otyp_tuple tyl ->
       fprintf
         ppf "@[<0>%a@]" (print_labeled_typlist print_simple_out_type " *") tyl
-  | ty -> print_out_type_3 mode ppf ty
-and print_out_type_3 mode ppf =
+  | ty -> print_out_type_3 ppf ty
+and print_out_type_3 ppf =
   function
     Otyp_class (id, tyl) ->
       fprintf ppf "@[%a#%a@]" print_typargs tyl print_ident id
@@ -571,7 +478,7 @@ and print_out_type_3 mode ppf =
   | Otyp_alias _ | Otyp_poly _ | Otyp_arrow _ | Otyp_tuple _ as ty ->
       pp_open_box ppf 1;
       pp_print_char ppf '(';
-      print_out_type_0 mode ppf ty;
+      print_out_type_0 ppf ty;
       pp_print_char ppf ')';
       pp_close_box ppf ()
   | Otyp_abstract | Otyp_open
@@ -589,15 +496,15 @@ and print_out_type_3 mode ppf =
       fprintf ppf ")@]"
   | Otyp_attribute (t, attr) ->
       fprintf ppf "@[<1>(%a [@@%s])@]"
-        (print_out_type_0 mode) t attr.oattr_name
+        print_out_type_0 t attr.oattr_name
   | Otyp_jkind_annot (t, lay) ->
     fprintf ppf "@[<1>(%a@ :@ %a)@]"
-      (print_out_type_0 mode) t
+      print_out_type_0 t
       print_out_jkind lay
 and print_out_type ppf typ =
-  print_out_type_0 default_mode ppf typ
+  print_out_type_0 ppf typ
 and print_simple_out_type ppf typ =
-  print_out_type_3 default_mode ppf typ
+  print_out_type_3 ppf typ
 and print_record_decl ppf lbls =
   fprintf ppf "{%a@;<1 -2>}"
     (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
@@ -690,7 +597,7 @@ let rec print_out_class_type ppf =
       in
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
-      let print_type = print_out_type_2 default_mode in
+      let print_type = print_out_type_2 in
       let label, print_type = match lab with
         | Nolabel -> "", print_type
         | Labelled l -> l ^ ":", print_type

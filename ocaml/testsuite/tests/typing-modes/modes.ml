@@ -1,5 +1,6 @@
 (* TEST
-   * expect *)
+ expect;
+*)
 
 (* Let bindings *)
 let local_ foo : string @@ unique = "hello"
@@ -7,7 +8,7 @@ let local_ foo : string @@ unique = "hello"
 Line 1, characters 4-43:
 1 | let local_ foo : string @@ unique = "hello"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let local_ foo @ unique = "hello"
@@ -15,7 +16,7 @@ let local_ foo @ unique = "hello"
 Line 1, characters 4-33:
 1 | let local_ foo @ unique = "hello"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
@@ -23,7 +24,7 @@ let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
 Line 1, characters 4-52:
 1 | let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let foo : type a. a -> a @@ unique = fun x -> x
@@ -36,7 +37,7 @@ let (x, y) @ local unique = "hello", "world"
 Line 1, characters 4-44:
 1 | let (x, y) @ local unique = "hello", "world"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let (x, y) : _ @@ local unique = "hello", "world"
@@ -44,7 +45,7 @@ let (x, y) : _ @@ local unique = "hello", "world"
 Line 1, characters 4-49:
 1 | let (x, y) : _ @@ local unique = "hello", "world"
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 let foo @ foo = "hello"
@@ -75,7 +76,7 @@ let foo = ("hello" : _ @@ local)
 Line 1, characters 10-32:
 1 | let foo = ("hello" : _ @@ local)
               ^^^^^^^^^^^^^^^^^^^^^^
-Error: This value escapes its region
+Error: This value escapes its region.
 |}]
 
 (* this is not mode annotation *)
@@ -161,18 +162,18 @@ Error: Found a shared value where a unique value was expected
 (* arrow types *)
 type r = local_ string @ unique once -> unique_ string @ local once
 [%%expect{|
-type r = local_ unique_ once_ string -> local_ unique_ once_ string
+type r = local_ once_ unique_ string -> local_ once_ unique_ string
 |}]
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
-type r = local_ unique_ once_ string * string -> local_ once_ string * string
+type r = local_ once_ unique_ string * string -> local_ once_ string * string
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ unique_ once_ string * string -> local_ once_ string * string
+    x:local_ once_ unique_ string * string -> local_ once_ string * string
 |}]
 
 
@@ -250,12 +251,12 @@ type r = { global_ x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
@@ -268,12 +269,12 @@ Error: Optional parameters cannot be polymorphic
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int * int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ unique_ once_ int * int -> unit -> unit = <fun>
+val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()

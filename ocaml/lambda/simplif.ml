@@ -817,7 +817,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_func = Lvar inner_id;
             ap_args = args;
             ap_result_layout = return;
-            ap_loc = Loc_unknown;
+            ap_loc = loc;
             ap_region_close = Rc_normal;
             ap_mode = alloc_heap;
             ap_tailcall = Default_tailcall;

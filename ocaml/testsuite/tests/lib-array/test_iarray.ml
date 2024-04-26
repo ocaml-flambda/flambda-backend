@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 module Iarray = Stdlib__Iarray;;

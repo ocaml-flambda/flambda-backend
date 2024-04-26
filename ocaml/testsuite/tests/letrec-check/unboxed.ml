@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 (* CR layouts: Using layout annotations here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.

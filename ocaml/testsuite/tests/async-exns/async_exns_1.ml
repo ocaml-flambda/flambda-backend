@@ -1,5 +1,5 @@
 (* TEST
-   modules = "async_exns_stubs.c"
+ modules = "async_exns_stubs.c";
 *)
 
 let () = Sys.catch_break true

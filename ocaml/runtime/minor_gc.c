@@ -15,6 +15,7 @@
 
 #define CAML_INTERNALS
 
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -30,6 +31,7 @@
 #include "caml/globroots.h"
 #include "caml/major_gc.h"
 #include "caml/memory.h"
+#include "caml/memprof.h"
 #include "caml/minor_gc.h"
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
@@ -309,12 +311,29 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
     if( try_update_object_header(v, p, result, infix_offset) ) {
-      if (sz > 1){
+      /* Copy the non-scannable suffix of fields.
+         There is some trickiness around the 0th field, which
+         has been overwritten in [v], so we have to use [field0]
+         directly.
+       */
+      mlsize_t scannable_sz = Scannable_wosize_hd(hd);
+      i = scannable_sz;
+      if (i == 0) {
+        Field(result, i) = field0;
+        i++;
+      }
+      for (; i < sz; i++) {
+        Field(result, i) = Field(v, i);
+      }
+
+      if (scannable_sz == 0) {
+        return;
+      } else if (scannable_sz > 1){
         Field(result, 0) = field0;
         Field(result, 1) = st->todo_list;
         st->todo_list = v;
       } else {
-        CAMLassert (sz == 1);
+        CAMLassert (scannable_sz == 1);
         p = Op_val(result);
         v = field0;
         goto tail_call;
@@ -325,6 +344,9 @@ static void oldify_one (void* st_v, value v, volatile value *p)
                                     caml_allocation_status());
       #ifdef DEBUG
       {
+        /* Don't need to check reserved bits for whether this is a mixed block;
+           this is just uninitialized data for debugging.
+         */
         int c;
         for( c = 0; c < sz ; c++ ) {
           Field(result, c) = Val_long(1);
@@ -411,13 +433,23 @@ again:
     new_v = Field(v, 0);                 /* Follow forward pointer. */
     st->todo_list = Field (new_v, 1);    /* Remove from list. */
 
+    mlsize_t scannable_wosize = Scannable_wosize_val(new_v);
+
+    /* [v] was only added to the [todo_list] if its [scannable_wosize > 1].
+         - It needs to be greater than 0 because we oldify the first field.
+         - It needs to be greater than 1 so the below loop runs at least once,
+           overwriting Field(new_v, 1) which [oldify_one] used as temporary
+           storage of the next value of [todo_list].
+     */
+    CAMLassert (scannable_wosize > 1);
+
     f = Field(new_v, 0);
     CAMLassert (!Is_debug_tag(f));
     if (Is_block (f) && Is_young(f)) {
       oldify_one (st, f, Op_val (new_v));
     }
-    mlsize_t new_v_size = Wosize_val (new_v);
-    for (i = 1; i < new_v_size; i++){
+
+    for (i = 1; i < scannable_wosize; i++){
       f = Field(v, i);
       CAMLassert (!Is_debug_tag(f));
       if (Is_block (f) && Is_young(f)) {
@@ -426,6 +458,9 @@ again:
         Field(new_v, i) = f;
       }
     }
+
+    // The non-scannable suffix is already copied in [oldify_one].
+
     CAMLassert (Wosize_val(new_v));
   }
 
@@ -595,6 +630,11 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
                              domain, 0);
   CAML_EV_END(EV_MINOR_FINALIZERS_OLDIFY);
 
+  CAML_EV_BEGIN(EV_MINOR_MEMPROF_ROOTS);
+  caml_memprof_scan_roots(&oldify_one, oldify_scanning_flags, &st,
+                          domain, false, participating[0] == domain);
+  CAML_EV_END(EV_MINOR_MEMPROF_ROOTS);
+
   CAML_EV_BEGIN(EV_MINOR_REMEMBERED_SET_PROMOTE);
   oldify_mopup (&st, 1); /* ephemerons promoted here */
   CAML_EV_END(EV_MINOR_REMEMBERED_SET_PROMOTE);
@@ -629,11 +669,16 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   CAML_EV_END(EV_MINOR_LOCAL_ROOTS_PROMOTE);
   CAML_EV_END(EV_MINOR_LOCAL_ROOTS);
 
+  CAML_EV_BEGIN(EV_MINOR_MEMPROF_CLEAN);
+  caml_memprof_after_minor_gc(domain, participating[0] == domain);
+  CAML_EV_END(EV_MINOR_MEMPROF_CLEAN);
+
   domain->young_ptr = domain->young_end;
   /* Trigger a GC poll when half of the minor heap is filled. At that point, a
    * major slice is scheduled. */
   domain->young_trigger = domain->young_start
     + (domain->young_end - domain->young_start) / 2;
+  caml_memprof_set_trigger(domain);
   caml_reset_young_limit(domain);
 
   if( participating_count > 1 ) {
@@ -874,23 +919,25 @@ void caml_alloc_small_dispatch (caml_domain_state * dom_st,
   /* Re-do the allocation: we now have enough space in the minor heap. */
   dom_st->young_ptr -= whsize;
 
-#if 0
   /* Check if the allocated block has been sampled by memprof. */
-  if (dom_st->young_ptr < caml_memprof_young_trigger) {
+  if (dom_st->young_ptr < dom_st->memprof_young_trigger) {
     if(flags & CAML_DO_TRACK) {
-      caml_memprof_track_young(wosize, flags & CAML_FROM_CAML,
-                               nallocs, encoded_alloc_lens);
-      /* Until the allocation actually takes place, the heap is in an invalid
-         state (see comments in [caml_memprof_track_young]). Hence, very little
-         heap operations are allowed before the actual allocation.
+      caml_memprof_sample_young(wosize, flags & CAML_FROM_CAML,
+                                nallocs, encoded_alloc_lens);
+      /* Until the allocation actually takes place, the heap is in an
+         invalid state (see comments in [caml_memprof_sample_young]).
+         Hence, very few heap operations are allowed between this point
+         and the actual allocation.
 
-         Moreover, [Caml_state->young_ptr] should not be modified before the
-         allocation, because its value has been used as the pointer to
-         the sampled block.
+         Specifically, [dom_st->young_ptr] must not now be modified
+         before the allocation, because it has been used to predict
+         addresses of sampled block(s).
       */
-    } else caml_memprof_renew_minor_sample();
+    } else { /* CAML DONT TRACK */
+      caml_memprof_set_trigger(dom_st);
+      caml_reset_young_limit(dom_st);
+    }
   }
-#endif
 }
 
 /* Request a minor collection and enter as if it were an interrupt.
