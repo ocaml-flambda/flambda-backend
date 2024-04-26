@@ -26,6 +26,14 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
+(* CR mshinwell/poechsel: if this becomes the flambda2 replacement for
+   [Debuginfo.t] we could maybe avoid making the uids in the same way, and add a
+   "below" constructor or something to identify different instances of
+   inlining. *)
+
+(* CR mshinwell/poechsel: maybe this could be integrated with the inlining
+   histories *)
+
 (* In classic mode and when running Simplify on classic-mode-generated code, we
    may encounter multiple [Enter_inlined_apply] primitives, before reaching any
    particular [Debuginfo.t]. As such we need to keep a stack of these so we
@@ -36,14 +44,6 @@ module One_step = struct
       function_symbol : Linkage_name.t;
       uid : string
     }
-
-  (* CR mshinwell/poechsel: if this becomes the flambda2 replacement for
-     [Debuginfo.t] we could maybe avoid making the uids in the same way, and add
-     a "below" constructor or something to identify different instances of
-     inlining. *)
-
-  (* CR mshinwell/poechsel: maybe this could be integrated with the inlining
-     histories *)
 
   let print_debuginfo ppf dbg =
     if Debuginfo.is_none dbg
@@ -89,6 +89,11 @@ module One_step = struct
          uid and function symbol in [t.dbg]. *)
       Debuginfo.inline t.dbg dbg_from_inlined_body
 end
+
+(* The most recent [Enter_inlined_apply] primitive that we have encountered,
+   corresponding to the deepest inlining, is at the head of the list. This means
+   that it will be the first to be applied to the [Debuginfo.t] from an inlined
+   body by [rewrite], below. *)
 
 type t = One_step.t list
 
