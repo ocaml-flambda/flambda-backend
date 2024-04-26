@@ -499,7 +499,8 @@ module Dwarf_helpers = struct
     match can_emit_dwarf,
           Target_system.architecture (),
           Target_system.derived_system () with
-    | true, X86_64, _ -> sourcefile_for_dwarf := Some sourcefile
+    | true, (X86_64 | AArch64), _ ->
+      sourcefile_for_dwarf := Some sourcefile
     | true, _, _
     | false, _, _ -> ()
 
