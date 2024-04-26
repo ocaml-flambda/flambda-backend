@@ -651,10 +651,7 @@ let max_register_pressure =
 
 (* Layout of the stack frame *)
 
-let initial_stack_offset ~num_stack_slots ~contains_calls =
-  (8 * num_stack_slots.(0))
-  + (8 * num_stack_slots.(1))
-  + if contains_calls then 8 else 0
+let initial_stack_offset ~num_stack_slots:_ ~contains_calls:_ = 0
 
 let trap_frame_size_in_bytes = 16
 
