@@ -120,6 +120,19 @@ static void run_pending_actions(struct compare_stack* stk,
 
 /* Structural comparison */
 
+/* Like abstract blocks, mixed blocks don't support polymorphic compare.
+   Unlike abstract blocks, it's fairly common for some values of a type
+   to be mixed and others to not be mixed, so we take special care to
+   raise if either argument is mixed.
+*/
+Caml_inline void check_pointer_not_mixed_block(
+    value* val, struct compare_stack* stk) {
+  CAMLassert(!Is_long(val));
+  if (Is_mixed_block_reserved(Reserved_val(val))) {
+    compare_free_stack(stk);
+    caml_invalid_argument("compare: mixed block value");
+  }
+}
 
 #define LESS -1
 #define EQUAL 0
@@ -149,15 +162,7 @@ static intnat do_compare_val(struct compare_stack* stk,
         if (Is_long(v2))
           return Long_val(v1) - Long_val(v2);
         /* Subtraction above cannot overflow and cannot result in UNORDERED */
-        /* Like abstract blocks, mixed blocks don't support polymorphic compare.
-           Unlike abstract blocks, it's fairly common for some values of a type
-           to be mixed and others to not be mixed, so we take special care to
-           raise if either argument is mixed.
-        */
-        if (Is_mixed_block_reserved(Reserved_val(v2))) {
-          compare_free_stack(stk);
-          caml_invalid_argument("compare: mixed block value");
-        }
+        check_pointer_not_mixed_block(v2, stack);
         switch (Tag_val(v2)) {
           case Forward_tag:
             v2 = Forward_val(v2);
@@ -178,10 +183,7 @@ static intnat do_compare_val(struct compare_stack* stk,
 
         return LESS;                /* v1 long < v2 block */
       }
-      if (Is_mixed_block_reserved(Reserved_val(v1))) {
-        compare_free_stack(stk);
-        caml_invalid_argument("compare: mixed block value");
-      }
+      check_pointer_not_mixed_block(v1, stack);
       if (Is_long(v2)) {
         switch (Tag_val(v1)) {
           case Forward_tag:
@@ -202,10 +204,7 @@ static intnat do_compare_val(struct compare_stack* stk,
           }
         return GREATER;            /* v1 block > v2 long */
       }
-      if (Is_mixed_block_reserved(Reserved_val(v2))) {
-        compare_free_stack(stk);
-        caml_invalid_argument("compare: mixed block value");
-      }
+      check_pointer_not_mixed_block(v2, stack);
       t1 = Tag_val(v1);
       t2 = Tag_val(v2);
       if (t1 != t2) {
