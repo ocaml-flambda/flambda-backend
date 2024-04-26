@@ -66,7 +66,12 @@ val create : called_code_id:Code_id.t -> apply_dbg:Debuginfo.t -> t
     The new debuginfo value will consistently have the same, fresh, uid on every
     item corresponding to the inlined body (i.e. every item except those at the
     head of the list, which are those---typically just one item in fact---that
-    came from the [apply_dbg] passed to [create]).
+    came from the [apply_dbg] passed to [create]).  It might seem that
+    every debuginfo value ends up with the same uid throughout---but this will
+    not be the case in the situation where [apply_dbg] contains inlined frames
+    (i.e. the inlined-out call site was only exposed by inlining) in
+    addition to the inlined frame(s) arising from the inlined-out body.
+    See the last example below.
 
     In addition, the first (outermost, less deep inlining) debuginfo item
     arising from the inlined body is annotated with the function symbol from the
@@ -76,5 +81,66 @@ val create : called_code_id:Code_id.t -> apply_dbg:Debuginfo.t -> t
     function symbols at all points except the outermost frame. (The symbol for
     that frame will be known by the backend, since it is the function into which
     everything is ultimately being inlined.)
+
+    For example in:
+
+    let[@inline] f x = (Sys.opaque_identity x) + 1
+    let[@inline] g x = 2 * f x
+    let foo x = g x - f x
+
+    we have the following in [f]:
+
+    Paddint/44N = ((+ Popaque/43N 1) example.ml:1,19--46)
+
+    and the following in [g]:
+
+    Paddint/61N =
+     ((+ Popaque/60N 1)
+      example.ml:2,23--26;
+      example.ml:1,19--46[871832529][FS=camlExample.f_0_3_code])
+    Pmulint/62N = (( * 2 Paddint/61N) example.ml:2,19--26)
+
+    and the following in [h]:
+
+    Paddint/80N =
+     ((+ Popaque/79N 1)
+      example.ml:3,18--21;
+      example.ml:1,19--46[19414450][FS=camlExample.f_0_3_code])
+    Paddint/90N =            <- call this addition A
+     ((+ Popaque/89N 1)
+      example.ml:3,12--15;
+      example.ml:2,23--26[83388650][FS=camlExample.g_1_4_code];
+      example.ml:1,19--46[83388650][FS=camlExample.f_0_3_code])
+    Pmulint/91N =
+     (( * 2 Paddint/90N)
+      example.ml:3,12--15;
+      example.ml:2,19--26[83388650][FS=camlExample.g_1_4_code])
+
+    Note that in [h] the two instances of the addition have different uids.
+    Moreover, even though in [g] the addition and multiplication have
+    different uids (indeed no uid on the multiplication, as it hasn't come
+    from an inline frame), after inlining of [g] they both have the same
+    uid.
+
+    To show why different uids may occur within a single [Debuginfo.t],
+    consider the following extension of the above example, where a call
+    site is revealed by inlining:
+
+    let[@inline] bar f x = f x
+    let baz x = bar foo x
+
+    The term marked as "addition A" above now looks like this:
+
+    Paddint/144N =
+     ((+ Popaque/143N 1)
+      example.ml:6,12--21;
+      example.ml:5,23--26[88799133][FS=camlExample.bar_3_8_code];
+      example.ml:3,12--15[777401542][FS=camlExample.foo_2_7_code];
+      example.ml:2,23--26[777401542][FS=camlExample.g_1_6_code];
+      example.ml:1,19--46[777401542][FS=camlExample.f_0_5_code])
+
+    The uid 88799133 corresponds to the instance of inlining that revealed
+    the call to [foo] inside [bar]; and the uid 777401542 corresponds to
+    the instance of inlining that populated the body of [bar] itself.
 *)
 val rewrite : t -> Debuginfo.t -> Debuginfo.t
