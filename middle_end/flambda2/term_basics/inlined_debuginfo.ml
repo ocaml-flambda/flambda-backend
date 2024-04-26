@@ -90,7 +90,6 @@ module One_step = struct
       Debuginfo.inline t.dbg dbg_from_inlined_body
 end
 
-(* The head of the list is the most recent inlining. *)
 type t = One_step.t list
 
 let none = []
@@ -119,6 +118,4 @@ let compare t1 t2 = List.compare One_step.compare t1 t2
 let rewrite t dbg =
   (* This could be optimized in terms of freshening uids, but for the moment use
      a more obviously-correct implementation. *)
-  List.fold_left
-    (fun dbg one_step -> One_step.rewrite one_step dbg)
-    dbg (List.rev t)
+  List.fold_left (fun dbg one_step -> One_step.rewrite one_step dbg) dbg t
