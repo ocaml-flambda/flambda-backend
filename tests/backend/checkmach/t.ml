@@ -296,3 +296,25 @@ let[@zero_alloc strict] test54 x =
     (test42 [@zero_alloc assume strict]) x
   in
   test55 x
+
+
+module Test1 = struct
+  let[@inline never][@local never] h s = [Random.int s ; Random.int s]
+
+  let[@inline never][@local never][@zero_alloc] g x =
+    if x < 0 then Sys.opaque_identity (x+1) else raise (Failure (string_of_int x))
+
+  let[@inline never][@local never] handle_exn exn =
+    (match exn with
+     | Failure s -> print_string s; print_newline ()
+     | _ -> failwith "Boo");
+    0
+  ;;
+
+  let[@zero_alloc] f x =
+    match g x with
+    | exception exn ->
+      (handle_exn[@zero_alloc assume error]) exn
+      |> h |> List.hd  (* ignore this allocation *)
+    | answer -> (answer * 2)
+end
