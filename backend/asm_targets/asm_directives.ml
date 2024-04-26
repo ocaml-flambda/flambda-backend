@@ -305,9 +305,9 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_labels_64_bit_with_offsets ?comment:comment' ~upper ~upper_offset
-      ~lower ~lower_offset () =
-    Option.iter D.comment comment';
+  let between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+      ~lower_offset () =
+    Option.iter D.comment comment;
     let upper_offset = Targetint.to_int64 upper_offset in
     let lower_offset = Targetint.to_int64 lower_offset in
     let expr =
@@ -321,11 +321,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const_machine_width (force_assembly_time_constant expr)
 
-  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper
-      ~lower ~offset_upper () =
+  let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+      ~offset_upper () =
     (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
        check_symbol_and_label_in_same_section lower upper; *)
-    Option.iter D.comment comment';
+    Option.iter D.comment comment;
     if Targetint.compare offset_upper Targetint.zero = 0
     then
       let expr =
