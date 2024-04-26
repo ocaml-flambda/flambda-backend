@@ -7059,6 +7059,13 @@ and type_function
           end;
           Some (id, ety)
       in
+      let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+      let arg_md = {
+        md_type = mty;
+        md_attributes = [];
+        md_loc = pparam_loc;
+        md_uid = pv_uid;
+      } in
       let { function_ = res_ty, params, body;
             newtypes; params_contain_gadt = contains_gadt;
             fun_alloc_mode; ret_info; }, s_ident, ret_sort =
@@ -7066,7 +7073,8 @@ and type_function
           let s_ident =
             Ident.create_scoped ~scope:(Ctype.get_current_level()) name.txt
           in
-          let new_env = Env.add_module s_ident Mp_present mty env in
+          let new_env = Env.add_module_declaration ~check:true s_ident
+                Mp_present arg_md env in
           let expected_res = match id_expected_typ_opt with
             | Some (id, ety) ->
               instance_funct ~id_in:id ~p_out:(Pident s_ident) ~fixed:false ety
@@ -7090,15 +7098,8 @@ and type_function
       in
       let exp_type =
           Btype.newgenty (Tfunctor (ident, (path, fl), res_ty)) in
-      let _ =
-        try
-          unify env ty_expected exp_type
-        with Unify trace ->
-          raise (Error(loc, env, Expr_type_clash(trace, None, None)))
-      in
-      let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
-      let pat_desc =
-        Tpat_var (s_ident, name, pv_uid, Value.newvar ()) in
+      unify_exp_types loc env exp_type (instance ty_expected);
+      let pat_desc = Tpat_var (s_ident, name, pv_uid, Value.disallow_right Value.legacy) in
       let pattern = {
         pat_desc;
         pat_loc = pparam_loc;
@@ -7146,7 +7147,7 @@ and type_function
         { has_poly = false;
           param = { fp_kind;
             fp_sort = fp_sort;
-            fp_mode = Alloc.newvar();
+            fp_mode = Alloc.disallow_right Alloc.legacy;
             fp_curry = curry;
             fp_arg_label = Nolabel;
             fp_param = ident;
