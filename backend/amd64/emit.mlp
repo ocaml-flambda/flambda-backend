@@ -105,26 +105,20 @@ let frame_required = ref false
 let contains_calls = ref false
 
 let frame_size () =
-  Stack_check.frame_size
+  Proc.frame_size
     ~stack_offset:!stack_offset
-    ~frame_required:!frame_required
     ~num_stack_slots
     ~contains_calls:!contains_calls
 
-let slot_offset loc cl =
-  match loc with
-  | Incoming n -> frame_size() + n
-  | Local n ->
-      if num_stack_slots.(2) > 0 || cl >= 2 then assert_simd_enabled ();
-      (!stack_offset +
-        (* Preserves original ordering (int -> float) *)
-        match cl with
-        | 2 -> n * 16
-        | 0 -> num_stack_slots.(2) * 16 + n * 8
-        | 1 -> num_stack_slots.(2) * 16 + num_stack_slots.(0) * 8 + n * 8
-        | _ -> Misc.fatal_error "Unknown register class")
-  | Outgoing n -> n
-  | Domainstate _ -> assert false (* not a stack slot *)
+let slot_offset loc stack_class =
+  let offset =
+    Proc.slot_offset loc ~stack_class ~stack_offset:!stack_offset
+      ~fun_contains_calls:!contains_calls ~fun_num_stack_slots:num_stack_slots
+  in
+  match offset with
+  | Bytes_relative_to_stack_pointer n -> n
+  | Bytes_relative_to_domainstate_pointer _ ->
+    Misc.fatal_errorf "Not a stack slot"
 
 let emit_stack_offset n =
   if n < 0

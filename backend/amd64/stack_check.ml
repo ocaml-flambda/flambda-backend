@@ -18,39 +18,13 @@
 
 let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
 
-let fp = Config.with_frame_pointers
-
-let initial_stack_offset ~num_stack_slots:_ ~contains_calls:_ =
-  Misc.fatal_error "Not used on amd64"
-
-(* includes return address *)
-let frame_size :
-    stack_offset:int ->
-    frame_required:bool ->
-    num_stack_slots:int array ->
-    contains_calls:bool ->
-    int =
- fun ~stack_offset ~frame_required ~num_stack_slots ~contains_calls:_ ->
-  if frame_required
-  then (
-    if num_stack_slots.(2) > 0 then Arch.assert_simd_enabled ();
-    let sz =
-      stack_offset + 8
-      + (8 * num_stack_slots.(0))
-      + (8 * num_stack_slots.(1))
-      + (16 * num_stack_slots.(2))
-      + if fp then 8 else 0
-    in
-    Misc.align sz 16)
-  else stack_offset + 8
-
 let linear : Linear.fundecl -> Linear.fundecl =
  fun fundecl ->
   match Config.runtime5 with
   | false -> fundecl
   | true ->
     let frame_size =
-      frame_size ~stack_offset:0 ~frame_required:fundecl.fun_frame_required
+      Proc.frame_size ~stack_offset:0
         ~num_stack_slots:fundecl.fun_num_stack_slots
         ~contains_calls:fundecl.fun_contains_calls
     in
