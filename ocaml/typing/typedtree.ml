@@ -1038,24 +1038,26 @@ let rev_let_bound_idents_full bindings =
   !idents_full
 
 let let_bound_idents_with_modes_sorts_and_checks bindings =
-  let modes_sorts_and_checks = Ident.Tbl.create 3 in
+  let modes_and_sorts = Ident.Tbl.create 3 in
   let f id sloc _ _uid mode sort =
-    Ident.Tbl.add modes_sorts_and_checks id
-      (sloc.loc, mode, sort, Builtin_attributes.Default_check)
+    Ident.Tbl.add modes_and_sorts id (sloc.loc, mode, sort)
   in
-  List.iter (fun vb ->
-    iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
-     match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
-     | Tpat_var (id, _, _, _), Texp_function fn ->
-       let (loc, mode, sort, _) = Ident.Tbl.find modes_sorts_and_checks id in
-       Ident.Tbl.replace modes_sorts_and_checks id
-         (loc, mode, sort, fn.zero_alloc)
-     | _ -> ()
-  )
-    bindings;
+  let checks =
+    List.fold_left (fun checks vb ->
+      iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
+       match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
+       | Tpat_var (id, _, _, _), Texp_function fn ->
+         Ident.Map.add id fn.zero_alloc checks
+       | _ -> checks
+    ) Ident.Map.empty bindings
+  in
   List.rev_map
     (fun (id, _, _, _) ->
-       id, List.rev (Ident.Tbl.find_all modes_sorts_and_checks id))
+       let zero_alloc =
+         Option.value (Ident.Map.find_opt id checks)
+           ~default:Builtin_attributes.Default_check
+       in
+       id, List.rev (Ident.Tbl.find_all modes_and_sorts id), zero_alloc)
     (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =

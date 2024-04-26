@@ -2795,9 +2795,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
-            (fun (acc, shape_map) (id, id_info) ->
+            (fun (acc, shape_map) (id, id_info, zero_alloc) ->
               List.iter
-                (fun (loc, mode, sort, _) ->
+                (fun (loc, mode, sort) ->
                    Typecore.escape ~loc ~env:newenv ~reason:Other mode;
                    (* CR layouts v5: this jkind check has the effect of
                       defaulting the sort of top-level bindings to value, which
@@ -2812,23 +2812,20 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] id_info with
-                | [(_, _, _, (Default_check | Ignore_assert_all _))] ->
-                  Default_check
-                | [(_, _, _, (Check c as zero_alloc))] when not c.opt ->
-                  zero_alloc
-                | [(_, _, _, (Check _))] ->
-                  (* CR ccasinghino: We'd like to opt in signatures, but for now
-                     we don't, and must make sure you can't get it in a
+                match[@warning "+9"] zero_alloc with
+                | Default_check | Ignore_assert_all _ -> Default_check
+                | Check c when not c.opt -> zero_alloc
+                | Check _ ->
+                  (* CR ccasinghino: We'd like to allow opt in signatures, but
+                     for now we don't, and must make sure you can't get it in a
                      signature by writing it in a structure and using module
                      type of. *)
                   Default_check
-                | [(_, _, _, Assume { property; strict; arity; loc;
-                                      never_returns_normally = _ })] ->
+                | Assume { property; strict; arity; loc;
+                           never_returns_normally = _ } ->
                   Check { strict; property; arity; loc; opt = false }
-                | _ -> Default_check
               in
-              let (first_loc, _, _, _) = List.hd id_info in
+              let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
               let vd = Subst.Lazy.force_value_description vd in

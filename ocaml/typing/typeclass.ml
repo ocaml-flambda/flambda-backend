@@ -446,7 +446,7 @@ and class_type_aux env virt self_scope scty =
         match l with
         | Position _ -> ctyp Ttyp_call_pos (Ctype.newconstr Predef.path_lexing_position [])
         | Optional _ | Labelled _ | Nolabel ->
-          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty 
+          transl_simple_type ~new_var_jkind:Any env ~closed:false Alloc.Const.legacy sty
       in
       let ty = cty.ctyp_type in
       let ty =
@@ -1269,10 +1269,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       if not_nolabel_function cl.cl_type then begin
         match l with
         | Nolabel | Labelled _ -> ()
-        | Optional _ -> 
+        | Optional _ ->
           Location.prerr_warning pat.pat_loc
             Warnings.Unerasable_optional_argument;
-        | Position _ -> 
+        | Position _ ->
           Location.prerr_warning pat.pat_loc
             Warnings.Unerasable_position_argument;
       end;
@@ -1353,7 +1353,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                        (not optional && l' = Nolabel)
                     then
                       (remaining_sargs, use_arg sarg l')
-                    else if optional && label_is_absent_in_remaining_args () 
+                    else if optional && label_is_absent_in_remaining_args ()
                     then (sargs, eliminate_optional_arg ())
                     else if Btype.is_position l && label_is_absent_in_remaining_args ()
                     then (sargs, eliminate_position_arg ())
@@ -1417,9 +1417,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, modes_and_sorts) (vals, met_env) ->
+          (fun (id, modes_and_sorts, _) (vals, met_env) ->
              List.iter
-               (fun (loc, mode, sort, _) ->
+               (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
                   if not (Jkind.Sort.(equate sort value))
                   then

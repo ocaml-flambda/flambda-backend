@@ -1115,14 +1115,15 @@ val let_bound_idents_full:
    Note that:
    * The list associated with each ident can only have more than one element in
      the case of or pattern, where the ident is bound on both sides.
-   * Check attributes are only supported in the case of a simple variable
-     pattern bound to a function ([Default_check] will be returned in all other
-     cases).
+   * We return just one check_attribute per identifier, because this attribute
+     can only be something other than [Default_check] in the case of a simple
+     variable pattern bound to a function (in which case the list will also
+     have just one element).
 *)
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
-  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort
-                 * Builtin_attributes.check_attribute) list) list
+  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
+              * Builtin_attributes.check_attribute) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:
