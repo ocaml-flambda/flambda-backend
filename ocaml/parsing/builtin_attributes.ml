@@ -753,16 +753,23 @@ let get_id_from_exp =
   | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
   | _ -> Result.Error ()
 
-let get_ids_from_exp exp =
+let get_id_or_constant_from_exp =
+  let open Parsetree in
+  function
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | _ -> Result.Error ()
+
+let get_ids_and_constants_from_exp exp =
   let open Parsetree in
   (match exp with
    | { pexp_desc = Pexp_apply (exp, args) } ->
-     get_id_from_exp exp ::
+     get_id_or_constant_from_exp exp ::
      List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+       | (Asttypes.Nolabel, arg) -> get_id_or_constant_from_exp arg
        | (_, _) -> Result.Error ())
        args
-   | _ -> [get_id_from_exp exp])
+   | _ -> [get_id_or_constant_from_exp exp])
   |> List.fold_left (fun acc r ->
     match acc, r with
     | Result.Ok ids, Ok id -> Result.Ok (id::ids)
@@ -790,124 +797,112 @@ let parse_optional_id_payload txt loc ~empty cases payload =
       | Some r -> Ok r
       | None -> warn ()
 
-let parse_ids_payload txt loc ~default ~empty cases payload =
-  let[@local] warn () =
-    let ( %> ) f g x = g (f x) in
-    let msg =
-      cases
-      |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
-      |> String.concat ", "
-      |> Printf.sprintf "It must be either %s or empty"
-    in
-    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-    default
-  in
-  match get_optional_payload get_ids_from_exp payload with
-  | Error () -> warn ()
-  | Ok None -> empty
-  | Ok (Some ids) ->
-      match List.assoc_opt (List.sort String.compare ids) cases with
-      | Some r -> r
-      | None -> warn ()
-
 (* Looks for `arity n` in payload. If present, this returns `n` and an updated
-   payload with `arity n` removed *)
-let parse_arity payload =
-  let open Parsetree in
-  let is_arity e1 e2 =
-    match e1.pexp_desc, e2.pexp_desc with
-    | Pexp_ident {txt = Lident "arity"; _},
-      Pexp_constant (Pconst_integer (s,None)) -> Some (int_of_string s)
-    | _, _ -> None
-  in
-  let rec find_arity_in_args acc args =
-    (* Scan a list of arguments for two that are the arity clause.  If found,
-       return the arity and the rest of the args. *)
-    match args with
-    | [] | [_] | ((Labelled _ | Optional _), _) :: _
-    | _ :: ((Labelled _ | Optional _), _) :: _ ->
-      (* If the payload contains any labeled or optional args, it will be
-         rejected later, and we just leave it alone. *)
-      None
-    | (Nolabel, exp1) as arg1 :: (((Nolabel, exp2) :: args) as args') ->
-      begin match is_arity exp1 exp2 with
-      | Some n -> Some (n, (List.rev acc) @ args)
-      | None -> find_arity_in_args (arg1 :: acc) args'
-      end
-  in
-  match payload with
-  | PStr [{pstr_desc = Pstr_eval (exp, []); pstr_loc}] ->
-    let new_payload pexp_desc =
-      let new_exp =
-        { pexp_desc; pexp_loc = exp.pexp_loc; pexp_loc_stack = [];
-          pexp_attributes = [] }
-      in
-      PStr [{pstr_desc = Pstr_eval (new_exp, []); pstr_loc}]
-    in
-    begin match exp.pexp_desc with
-    | Pexp_apply (exp, args) ->
-      begin match find_arity_in_args [] ((Nolabel, exp) :: args) with
-      | None -> None
-      | Some (n, payload) ->
-        match payload with
-        | [] -> Some (n, PStr [])
-        | [(Nolabel, exp)] -> Some (n, new_payload exp.pexp_desc)
-        | (Nolabel, exp) :: exps ->
-          let new_exp = Pexp_apply (exp, exps) in
-          Some (n, new_payload new_exp)
-        | _ ->
-          Misc.fatal_error "Builtin_attributes.parse_arity: bad application"
-      end
+   payload with `arity n` removed. Note it may change the order of the payload,
+   which is fine because we sort it later. *)
+let filter_arity payload =
+  let is_arity s1 s2 =
+    match s1 with
+    | "arity" -> int_of_string_opt s2
     | _ -> None
-    end
-  | _ -> None
+  in
+  let rec find_arity acc payload =
+    match payload with
+    | [] | [_] -> None
+    | s1 :: ((s2 :: payload) as payload') ->
+      begin match is_arity s1 s2 with
+      | Some n -> Some (n, acc @ payload)
+      | None -> find_arity (s1 :: acc) payload'
+      end
+  in
+  find_arity [] payload
 
-let parse_property_attribute ~is_arity_allowed ~default_arity attr property =
+let zero_alloc_lookup_table =
+  (* These are the possible payloads (sans arity) paired with a function that
+     returns the corresponding check_attribute, given the arity and the loc. *)
+  let property = Zero_alloc in
+  [
+    (["assume"],
+     fun arity loc ->
+       Assume { property; strict = false; never_returns_normally = false;
+                arity; loc; });
+    (["strict"],
+     fun arity loc ->
+       Check { property; strict = true; opt = false; arity; loc; });
+    (["opt"],
+     fun arity loc ->
+       Check { property; strict = false; opt = true; arity; loc; });
+    (["opt"; "strict"; ],
+     fun arity loc ->
+       Check { property; strict = true; opt = true; arity; loc; });
+    (["assume"; "strict"],
+     fun arity loc ->
+       Assume { property; strict = true; never_returns_normally = false;
+                arity; loc; });
+    (["assume"; "never_returns_normally"],
+     fun arity loc ->
+       Assume { property; strict = false; never_returns_normally = true;
+                arity; loc; });
+    (["assume"; "never_returns_normally"; "strict"],
+     fun arity loc ->
+       Assume { property; strict = true; never_returns_normally = true;
+                arity; loc; });
+    (["ignore"], fun _ _ -> Ignore_assert_all property)
+  ]
+
+let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
+  (* This parses the remainder of the payload after arity has been parsed
+     out. *)
+  match payload with
+  | [] -> empty
+  | _ :: _ ->
+    let payload = List.sort String.compare payload in
+    match List.assoc_opt payload zero_alloc_lookup_table with
+    | None -> warn (); Default_check
+    | Some ca -> ca arity loc
+
+let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
   match attr with
   | None -> Default_check
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
-      let payload, arity =
-        match parse_arity payload with
-        | None -> payload, default_arity
+    let warn () =
+      let ( %> ) f g x = g (f x) in
+      let msg =
+        zero_alloc_lookup_table
+        |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
+        |> String.concat ", "
+        |> Printf.sprintf "It must be either %s or empty"
+      in
+      Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
+    in
+    let empty arity =
+      Check {property = Zero_alloc; strict = false; opt = false; arity; loc; }
+    in
+    match get_optional_payload get_ids_and_constants_from_exp payload with
+    | Error () -> warn (); Default_check
+    | Ok None -> empty default_arity
+    | Ok (Some payload) ->
+      let arity, payload =
+        match filter_arity payload with
+        | None -> default_arity, payload
         | Some (user_arity, payload) ->
           if is_arity_allowed then
-            payload, user_arity
+            user_arity, payload
           else
             (warn_payload loc txt
                "The \"arity\" field is only supported on \"zero_alloc\" in \
                 signatures";
-             payload, default_arity)
+             default_arity, payload)
       in
-      parse_ids_payload txt loc
-        ~default:Default_check
-        ~empty:(Check { property; strict = false; opt = false; arity; loc; } )
-        [
-          (["assume"],
-           Assume { property; strict = false; never_returns_normally = false;
-                    arity; loc; });
-          (["strict"],
-           Check { property; strict = true; opt = false; arity; loc; });
-          (["opt"], Check { property; strict = false; opt = true; arity; loc; });
-          (["opt"; "strict"; ],
-           Check { property; strict = true; opt = true; arity; loc; });
-          (["assume"; "strict"],
-           Assume { property; strict = true; never_returns_normally = false;
-                    arity; loc; });
-          (["assume"; "never_returns_normally"],
-           Assume { property; strict = false; never_returns_normally = true;
-                    arity; loc; });
-          (["assume"; "never_returns_normally"; "strict"],
-           Assume { property; strict = true; never_returns_normally = true;
-                    arity; loc; });
-          (["ignore"], Ignore_assert_all property)
-        ]
-        payload
+      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
 
 let get_property_attribute ~in_signature ~default_arity l p =
   let attr = find_attribute (is_property_attribute p) l in
   let res =
-    parse_property_attribute ~is_arity_allowed:in_signature ~default_arity attr
-      p
+    match p with
+    | Zero_alloc ->
+      parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
+        attr
   in
   (match attr, res with
    | None, Default_check -> ()
