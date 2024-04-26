@@ -84,7 +84,8 @@ val merge : t -> from_apply_expr:t -> t
     that [Debuginfo.t] values returned from this function end up annotated with
     function symbols at all points except the outermost frame. (The symbol for
     that frame will be known by the backend, since it is the function into which
-    everything is ultimately being inlined.)
+    everything is ultimately being inlined.)  This can be seen by looking
+    at the "FS=" annotations in the following examples.
 
     For example in:
 
@@ -100,11 +101,13 @@ val merge : t -> from_apply_expr:t -> t
 
     Paddint/61N =
      ((+ Popaque/60N 1)
-      example.ml:2,23--26;
+      example.ml:2,23--26;  <-- this is a position in the current function
       example.ml:1,19--46[871832529][FS=camlExample.f_0_3_code])
+         ^
+         \-- this is a position in the first (outermost) inlined frame
     Pmulint/62N = (( * 2 Paddint/61N) example.ml:2,19--26)
 
-    and the following in [h]:
+    and the following in [foo]:
 
     Paddint/80N =
      ((+ Popaque/79N 1)
@@ -114,13 +117,17 @@ val merge : t -> from_apply_expr:t -> t
      ((+ Popaque/89N 1)
       example.ml:3,12--15;
       example.ml:2,23--26[83388650][FS=camlExample.g_1_4_code];
+         ^
+         \-- this is a position in the first (outermost) inlined frame
       example.ml:1,19--46[83388650][FS=camlExample.f_0_3_code])
+         ^
+         \-- this is a position in the deepest (innermost) inlined frame
     Pmulint/91N =
      (( * 2 Paddint/90N)
       example.ml:3,12--15;
       example.ml:2,19--26[83388650][FS=camlExample.g_1_4_code])
 
-    Note that in [h] the two instances of the addition have different uids.
+    Note that in [foo] the two instances of the addition have different uids.
     Moreover, even though in [g] the addition and multiplication have
     different uids (indeed no uid on the multiplication, as it hasn't come
     from an inline frame), after inlining of [g] they both have the same
@@ -146,5 +153,11 @@ val merge : t -> from_apply_expr:t -> t
     The uid 88799133 corresponds to the instance of inlining that revealed
     the call to [foo] inside [bar]; and the uid 777401542 corresponds to
     the instance of inlining that populated the body of [bar] itself.
+
+    Equipped with the [Debuginfo.t] items and uids, the backend can reconstruct
+    the inlining tree, with per-instruction granularity.  The stacks of items
+    within each [Debuginfo.t] show which functions got inlined into which other;
+    and the uids enable disambiguation between different instances of inlining
+    the same functions.
 *)
 val rewrite : t -> Debuginfo.t -> Debuginfo.t
