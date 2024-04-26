@@ -3492,14 +3492,14 @@ let report_error ppf = function
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
-            "@[Expected all flat fields after non-value field, %s,@]@, \
-            \@[but found boxed field, %s.@]"
+            "@[Expected all flat fields after non-value field, %s,@]@,\
+            \ @[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
       | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
           fprintf ppf
             "@[Expected all flat constructor arguments after non-value \
-             argument, %a,@]@,@[but found boxed argument, %a.@]"
+             argument, %a,@]@,@ @[but found boxed argument, %a.@]"
             Printtyp.type_expr non_value_arg
             Printtyp.type_expr boxed_arg
       | Runtime_support_not_enabled mixed_product_kind ->
