@@ -257,6 +257,7 @@ type check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }

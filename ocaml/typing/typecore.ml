@@ -5087,6 +5087,7 @@ let zero_alloc_of_application ~num_args attrs funct =
           property = Zero_alloc;
           strict = c.strict;
           never_returns_normally = false;
+          never_raises = false;
           arity = c.arity;
           loc = c.loc
         }

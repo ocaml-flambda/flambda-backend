@@ -266,14 +266,16 @@ end = struct
     { strict : bool;  (** strict or relaxed? *)
       assume : bool;
       never_returns_normally : bool;
+      never_raises : bool;
       loc : Location.t
           (** Source location of the annotation, used for error messages. *)
     }
 
   let get_loc t = t.loc
 
-  let expected_value { strict; never_returns_normally; _ } =
-    Value.of_annotation ~strict ~never_returns_normally
+  let expected_value
+      { strict; never_returns_normally; assume = _; loc = _; never_raises } =
+    Value.of_annotation ~strict ~never_returns_normally ~never_raises
 
   let valid t v =
     (* Use Value.lessequal but ignore witnesses. *)
@@ -295,10 +297,23 @@ end = struct
         (fun (c : Cmm.codegen_option) ->
           match c with
           | Check { property; strict; loc } when property = spec ->
-            Some { strict; assume = false; never_returns_normally = false; loc }
-          | Assume { property; strict; never_returns_normally; loc }
+            Some
+              { strict;
+                assume = false;
+                never_returns_normally = false;
+                never_raises = false;
+                loc
+              }
+          | Assume
+              { property; strict; never_returns_normally; never_raises; loc }
             when property = spec ->
-            Some { strict; assume = true; never_returns_normally; loc }
+            Some
+              { strict;
+                assume = true;
+                never_returns_normally;
+                never_raises;
+                loc
+              }
           | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)

@@ -640,6 +640,7 @@ type check_attribute = Builtin_attributes.check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }

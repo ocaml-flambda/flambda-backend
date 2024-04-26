@@ -691,6 +691,7 @@ type check_attribute =
   | Assume of { property: property;
                 strict: bool;
                 never_returns_normally: bool;
+                never_raises: bool;
                 arity: int;
                 loc: Location.t;
               }
@@ -825,6 +826,7 @@ let zero_alloc_lookup_table =
     (["assume"],
      fun arity loc ->
        Assume { property; strict = false; never_returns_normally = false;
+                never_raises = false;
                 arity; loc; });
     (["strict"],
      fun arity loc ->
@@ -838,18 +840,22 @@ let zero_alloc_lookup_table =
     (["assume"; "strict"],
      fun arity loc ->
        Assume { property; strict = true; never_returns_normally = false;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"],
      fun arity loc ->
        Assume { property; strict = false; never_returns_normally = true;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"; "strict"],
      fun arity loc ->
        Assume { property; strict = true; never_returns_normally = true;
+                never_raises = false;
                 arity; loc; });
     (["assume"; "error"],
      fun arity loc ->
        Assume { property; strict = false; never_returns_normally = true;
+                never_raises = true;
                 arity; loc; });
     (["ignore"], fun _ _ -> Ignore_assert_all property)
   ]
@@ -926,8 +932,8 @@ let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
   match check with
   | Default_check -> Zero_alloc_utils.Assume_info.none
   | Ignore_assert_all Zero_alloc -> Zero_alloc_utils.Assume_info.none
-  | Assume { property=Zero_alloc; strict; never_returns_normally; } ->
-    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally
+  | Assume { property=Zero_alloc; strict; never_returns_normally; never_raises; } ->
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
   | Check { property=Zero_alloc; loc; _ } ->
     if not is_check_allowed then begin
       let name = "zero_alloc" in
