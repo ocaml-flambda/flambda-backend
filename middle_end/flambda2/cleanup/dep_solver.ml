@@ -1,5 +1,3 @@
-type graph = Global_flow_graph.graph
-
 type dep = Global_flow_graph.Dep.t
 
 module Field = Global_flow_graph.Field
@@ -113,14 +111,10 @@ module Make_SCC = struct
             ds acc)
         fun_graph.name_to_dep acc
 
-  let from_graph (graph : graph) result : SCC.directed_graph =
+  let from_graph (graph : Global_flow_graph.fun_graph) result : SCC.directed_graph =
     let acc =
-      Hashtbl.fold
-        (fun code_id fun_graph acc -> add_fungraph (Some code_id) acc fun_graph)
-        graph.function_graphs
-        (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph)
+        (add_fungraph None Code_id_or_name.Map.empty graph)
     in
-    ignore result;
     Code_id_or_name.Map.map
       (Code_id_or_name.Set.filter (fun n ->
            Hashtbl.find_opt result n <> Some Top))
@@ -262,44 +256,15 @@ type fixpoint_state =
     added_fungraph : (Code_id.t, unit) Hashtbl.t
   }
 
-let add_subgraph push state (fun_graph : Global_flow_graph.fun_graph) =
-  let result = state.result in
-  let add_used used =
-    Hashtbl.iter
-      (fun n () ->
-        if Hashtbl.find_opt result n <> Some Top
-        then begin
-          Hashtbl.replace result n Top;
-          push n
-        end)
-      used
-  in
-  let add_called called =
-    Hashtbl.iter
-      (fun code_id () ->
-        let code_id = Code_id_or_name.code_id code_id in
-        if not (Hashtbl.mem result code_id)
-        then begin
-          Hashtbl.replace result code_id Top;
-          push code_id
-        end
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
-           Field.Map.singleton Apply Top)) *))
-      called
-  in
-  add_used fun_graph.used;
-  add_called fun_graph.called
-
-let create_state (graph : graph) =
+let create_state (graph : Global_flow_graph.fun_graph) =
   let state =
     { result = Hashtbl.create 100;
       all_added = Hashtbl.create 100;
-      all_deps = graph.toplevel_graph.name_to_dep;
+      all_deps = graph.name_to_dep;
       added_fungraph = Hashtbl.create 100
     }
   in
   let stack = ref [] in
-  let called_stack = ref [] in
   let add_used used =
     if not (Hashtbl.mem state.result used)
     then begin
@@ -309,29 +274,6 @@ let create_state (graph : graph) =
   in
   let add_called called =
     Hashtbl.replace state.added_fungraph called ();
-    if Hashtbl.mem graph.function_graphs called
-    then begin
-      let subgraph = Hashtbl.find graph.function_graphs called in
-      Hashtbl.remove graph.function_graphs called;
-      called_stack := subgraph :: !called_stack
-    end
-  in
-  let add_subgraph (subgraph : Global_flow_graph.fun_graph) =
-    Hashtbl.iter (fun n () -> add_used n) subgraph.used;
-    Hashtbl.iter (fun code_id () -> add_called code_id) subgraph.called;
-    Hashtbl.iter
-      (fun n deps ->
-        if Hashtbl.mem state.result n
-        then
-          DepSet.iter
-            (fun dep ->
-              match propagate_top dep state.result with None -> () | Some n2 -> add_used n2)
-            deps;
-        match Hashtbl.find_opt state.all_deps n with
-        | None -> Hashtbl.add state.all_deps n deps
-        | Some deps2 ->
-          Hashtbl.replace state.all_deps n (DepSet.union deps deps2))
-      subgraph.name_to_dep
   in
   let rec loop () =
     match !stack with
@@ -348,21 +290,15 @@ let create_state (graph : graph) =
         ~name:(fun _ -> ())
         ~code_id:(fun code_id -> add_called code_id);
       loop ()
-    | [] -> (
-      match !called_stack with
-      | (subgraph : Global_flow_graph.fun_graph) :: rest ->
-        called_stack := rest;
-        add_subgraph subgraph;
-        loop ()
-      | [] -> ())
+    | [] -> ()
   in
-  Hashtbl.iter (fun n () -> add_used n) graph.toplevel_graph.used;
+  Hashtbl.iter (fun n () -> add_used n) graph.used;
   Hashtbl.iter
     (fun code_id () -> add_called code_id)
-    graph.toplevel_graph.called;
+    graph.called;
   loop ();
   Hashtbl.iter
-    (fun n _ -> Hashtbl.replace graph.toplevel_graph.used n ())
+    (fun n _ -> Hashtbl.replace graph.used n ())
     state.result;
   Hashtbl.iter
     (fun code_id0 () ->
@@ -370,13 +306,12 @@ let create_state (graph : graph) =
       if not (Hashtbl.mem state.result code_id)
       then begin
         Hashtbl.replace state.result code_id Top;
-        Hashtbl.replace graph.toplevel_graph.called code_id0 ()
+        Hashtbl.replace graph.called code_id0 ()
       end)
     state.added_fungraph;
   state
 
-let fixpoint_component (state : fixpoint_state) (component : SCC.component)
-    (graph : graph) =
+let fixpoint_component (state : fixpoint_state) (component : SCC.component) =
   let result : result = state.result in
   let all_deps = state.all_deps in
   let q = Queue.create () in
@@ -398,31 +333,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
           q_s := Code_id_or_name.Set.remove n !q_s
         end
   in
-  let rec add_fungraph (fungraph : Global_flow_graph.fun_graph) =
-    Hashtbl.iter
-      (fun n deps ->
-        (match Hashtbl.find_opt all_deps n with
-        | None -> Hashtbl.add all_deps n deps
-        | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
-        if Hashtbl.mem result n
-        then propagate_elt n (Hashtbl.find result n) deps)
-      fungraph.name_to_dep;
-    add_subgraph push state fungraph
-  and check_and_add_fungraph n elt =
-    let added_fungraphs = state.added_fungraph in
-    Code_id_or_name.pattern_match'
-      ~name:(fun _ -> ())
-      ~code_id:(fun code_id ->
-        if (match elt with Bottom -> false | Fields _ | Top -> true)
-           && (not (Hashtbl.mem added_fungraphs code_id))
-           && Hashtbl.mem graph.function_graphs code_id
-        then begin
-          add_fungraph (Hashtbl.find graph.function_graphs code_id);
-          Hashtbl.add added_fungraphs code_id ()
-        end)
-      n
-  and propagate_elt n elt deps =
-    check_and_add_fungraph n elt;
+  let propagate_elt _n elt deps =
     DepSet.iter
       (fun dep ->
         match propagate elt dep result with
@@ -458,7 +369,7 @@ let fixpoint_component (state : fixpoint_state) (component : SCC.component)
   | No_loop id -> Hashtbl.add state.all_added id ()
   | Has_loop ids -> List.iter (fun n -> Hashtbl.add state.all_added n ()) ids
 
-let fixpoint_topo (graph : graph) : result =
+let fixpoint_topo (graph : Global_flow_graph.fun_graph) : result =
   let state = create_state graph in
   let components =
     SCC.connected_components_sorted_from_roots_to_leaf
@@ -481,7 +392,7 @@ let fixpoint_topo (graph : graph) : result =
     Format.eprintf "@."
   end;
   Array.iter
-    (fun component -> fixpoint_component state component graph)
+    (fun component -> fixpoint_component state component)
     components;
   state.result
 

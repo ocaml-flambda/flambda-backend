@@ -69,14 +69,14 @@ module Acc : sig
 
   val code_deps : t -> code_dep Code_id.Map.t
 
-  val deps : t -> Graph.graph * Graph.graph
+  val deps : t -> Graph.graph * Graph.fun_graph
 end = struct
   type t =
     { mutable code : code_dep Code_id.Map.t;
       mutable apply_deps : apply_dep list;
       mutable set_of_closures_dep : (Name.t * Code_id.t) list;
       deps1 : Graph.graph;
-      deps2 : Graph.graph;
+      deps2 : Graph.fun_graph;
       mutable kinds : Flambda_kind.t Name.Map.t
     }
 
@@ -90,7 +90,7 @@ end = struct
         { toplevel_graph = Graph.create ();
           function_graphs = Hashtbl.create 100
         };
-      deps2 = { toplevel_graph = Graph.create (); function_graphs = Hashtbl.create 100 };
+      deps2 = Graph.create ();
       kinds = Name.Map.empty
     }
 
@@ -148,54 +148,54 @@ end = struct
   let record_dep ~denv name dep t =
     let name = Code_id_or_name.name name in
     Graph.add_dep (cur_deps ~denv t) name dep;
-    Graph.add_dep t.deps2.toplevel_graph name dep
+    Graph.add_dep t.deps2 name dep
 
   let record_dep' ~denv code_id_or_name dep t =
     Graph.add_dep (cur_deps ~denv t) code_id_or_name dep;
-    Graph.add_dep t.deps2.toplevel_graph code_id_or_name dep
+    Graph.add_dep t.deps2 code_id_or_name dep
 
   let record_deps ~denv code_id_or_name deps t =
     Graph.add_deps (cur_deps ~denv t) code_id_or_name deps;
-    Graph.add_deps t.deps2.toplevel_graph code_id_or_name deps
+    Graph.add_deps t.deps2 code_id_or_name deps
 
   let cont_dep ~denv pat dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
           Graph.add_cont_dep (cur_deps ~denv t) pat name;
-          Graph.add_cont_dep t.deps2.toplevel_graph pat name)
+          Graph.add_cont_dep t.deps2 pat name)
       ~const:(fun _ -> ())
 
   let func_param_dep ~denv param arg t =
     Graph.add_func_param (cur_deps ~denv t)
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg);
-    Graph.add_func_param t.deps2.toplevel_graph
+    Graph.add_func_param t.deps2
       ~param:(Bound_parameter.var param)
       ~arg:(Name.var arg)
 
   let root v t =
     Graph.add_use t.deps1.toplevel_graph (Code_id_or_name.var v);
-    Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.var v)
+    Graph.add_use t.deps2 (Code_id_or_name.var v)
 
   let used ~denv dep t =
     Simple.pattern_match dep
       ~name:(fun name ~coercion:_ ->
           Graph.add_use (cur_deps ~denv t) (Code_id_or_name.name name);
           match denv.current_code_id with
-          | None -> Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.name name);
-          | Some code_id -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id) (Graph.Dep.Use name)
+          | None -> Graph.add_use t.deps2 (Code_id_or_name.name name);
+          | Some code_id -> Graph.add_dep t.deps2 (Code_id_or_name.code_id code_id) (Graph.Dep.Use name)
         )
       ~const:(fun _ -> ())
 
   let used_code_id code_id t =
     Graph.add_use t.deps1.toplevel_graph (Code_id_or_name.code_id code_id);
-    Graph.add_use t.deps2.toplevel_graph (Code_id_or_name.code_id code_id)
+    Graph.add_use t.deps2 (Code_id_or_name.code_id code_id)
 
   let called ~denv code_id t =
     Graph.add_called (cur_deps ~denv t) code_id;
     match denv.current_code_id with
-    | None -> Graph.add_called t.deps2.toplevel_graph code_id
-    | Some code_id2 -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id2) (Graph.Dep.Called_by_that_function code_id)
+    | None -> Graph.add_called t.deps2 code_id
+    | Some code_id2 -> Graph.add_dep t.deps2 (Code_id_or_name.code_id code_id2) (Graph.Dep.Called_by_that_function code_id)
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -215,10 +215,10 @@ end = struct
         let add_cond_dep param name =
           let param = Name.var param in
           match apply_in_func with
-          | None -> Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name param) (Graph.Dep.Alias name)
+          | None -> Graph.add_dep t.deps2 (Code_id_or_name.name param) (Graph.Dep.Alias name)
           | Some code_id ->
-            Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name param) (Graph.Dep.Alias_if_def (name, code_id));
-            Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.code_id code_id) (Graph.Dep.Propagate (name, param))
+            Graph.add_dep t.deps2 (Code_id_or_name.name param) (Graph.Dep.Alias_if_def (name, code_id));
+            Graph.add_dep t.deps2 (Code_id_or_name.code_id code_id) (Graph.Dep.Propagate (name, param))
         in
         List.iter2
           (fun param arg ->
@@ -247,7 +247,7 @@ end = struct
         with Not_found -> code_id
       in
       Graph.add_dep t.deps1.toplevel_graph (Code_id_or_name.name name) (Graph.Dep.Contains (Code_id_or_name.code_id code_id));
-      Graph.add_dep t.deps2.toplevel_graph (Code_id_or_name.name name) (Graph.Dep.Contains (Code_id_or_name.code_id code_id))
+      Graph.add_dep t.deps2 (Code_id_or_name.name name) (Graph.Dep.Contains (Code_id_or_name.code_id code_id))
       ) t.set_of_closures_dep;
     t.deps1, t.deps2
 end
