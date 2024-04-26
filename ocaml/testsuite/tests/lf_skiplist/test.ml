@@ -1,6 +1,6 @@
 (* TEST
-   modules = "stubs.c"
-   * runtime5
+ modules = "stubs.c";
+ runtime5;
 *)
 
 external test_skiplist_serial : unit -> unit = "test_skiplist_serial"

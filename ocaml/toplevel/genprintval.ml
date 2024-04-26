@@ -132,6 +132,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Generic of Path.t * (int -> (int -> O.t -> Outcometree.out_value,
                                      O.t -> Outcometree.out_value) gen_printer)
 
+    (* CR mixed blocks v1: It would be good, and not hard, to add proper
+       printing support for unboxed values. *)
     let printers = ref ([
       ( Pident(Ident.create_local "print_int"),
         Simple (Predef.type_int,
@@ -234,6 +236,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       ty
 
     (* The main printing function *)
+
+    type outval_record_rep =
+      | Outval_record_boxed
+      | Outval_record_unboxed
+      | Outval_record_mixed_block of mixed_record_shape
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
@@ -436,10 +443,16 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             (Ident.name cd_id) false 0 depth obj
                             ty_args unbx
                       | Cstr_record lbls ->
+                          let rep =
+                            if unbx then
+                              Outval_record_unboxed
+                            else
+                              Outval_record_boxed
+                          in
                           let r =
                             tree_of_record_fields depth
                               env path type_params ty_list
-                              lbls 0 obj unbx
+                              lbls 0 obj rep
                           in
                           Oval_constr(tree_of_constr env path
                                         (Out_name.create (Ident.name cd_id)),
@@ -454,12 +467,26 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           | Record_inlined (_, Variant_extensible) -> 1
                           | _ -> 0
                         in
-                        let unbx =
-                          match rep with Record_unboxed -> true | _ -> false
+                        let rep =
+                          match rep with
+                          | Record_inlined (_, Variant_unboxed)
+                          | Record_unboxed
+                              -> Outval_record_unboxed
+                          | Record_boxed _ | Record_float | Record_ufloat
+                          | Record_inlined _
+                              -> Outval_record_boxed
+                          | Record_mixed mixed
+                              ->
+                                (* Mixed records are only represented as
+                                   mixed blocks in native code.
+                                *)
+                                if !Clflags.native_code
+                                then Outval_record_mixed_block mixed
+                                else Outval_record_boxed
                         in
                         tree_of_record_fields depth
                           env path decl.type_params ty_list
-                          lbl_list pos obj unbx
+                          lbl_list pos obj rep
                     end
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
@@ -505,7 +532,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         end
 
       and tree_of_record_fields depth env path type_params ty_list
-          lbl_list pos obj unboxed =
+          lbl_list pos obj rep =
         let rec tree_of_fields first pos = function
           | [] -> []
           | {ld_id; ld_type; ld_jkind} :: remainder ->
@@ -519,17 +546,25 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 else Oide_ident (Out_name.create name)
               and v =
                 if is_void then Oval_stuff "<void>"
-                else if unboxed then
-                  tree_of_val (depth - 1) obj ty_arg
-                else begin
-                  let fld =
-                    if O.tag obj = O.double_array_tag then
-                      O.repr (O.double_field obj pos)
-                    else
-                      O.field obj pos
-                  in
-                  nest tree_of_val (depth - 1) fld ty_arg
-                end
+                else match rep with
+                  | Outval_record_unboxed -> tree_of_val (depth - 1) obj ty_arg
+                  | Outval_record_boxed ->
+                      let fld =
+                        if O.tag obj = O.double_array_tag then
+                          O.repr (O.double_field obj pos)
+                        else
+                          O.field obj pos
+                      in
+                      nest tree_of_val (depth - 1) fld ty_arg
+                  | Outval_record_mixed_block shape ->
+                      let fld =
+                        match Types.get_mixed_record_element shape pos with
+                        | Value_prefix -> O.field obj pos
+                        | Flat_suffix Imm -> O.field obj pos
+                        | Flat_suffix (Float | Float64) ->
+                            O.repr (O.double_field obj pos)
+                      in
+                      nest tree_of_val (depth - 1) fld ty_arg
               in
               let pos = if is_void then pos else pos + 1 in
               (lid, v) :: tree_of_fields false pos remainder

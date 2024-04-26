@@ -84,6 +84,7 @@ COMPILERLIBS_SOURCES=\
   utils/arg_helper.ml \
   utils/local_store.ml \
   utils/load_path.ml \
+  utils/zero_alloc_annotations.ml \
   utils/clflags.ml \
   utils/debug.ml \
   utils/language_extension_kernel.ml \
@@ -129,7 +130,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
-  lambda/assume_info.ml \
+  typing/shape_reduce.ml \
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \

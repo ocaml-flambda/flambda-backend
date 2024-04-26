@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 (* lexing_position and Lexing.position are synonyms *)

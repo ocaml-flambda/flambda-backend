@@ -94,8 +94,6 @@ let emit_debug_info_linear i =
 
 let fp = Config.with_frame_pointers
 
-let stack_threshold_size = Config.stack_threshold * 8 (* bytes *)
-
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
@@ -109,19 +107,14 @@ let prologue_required = ref false
 
 let frame_required = ref false
 
-let frame_size () =                     (* includes return address *)
-  if !frame_required then begin
-    if num_stack_slots.(2) > 0 then assert_simd_enabled ();
-    let sz =
-      (!stack_offset
-       + 8
-       + 8 * num_stack_slots.(0)
-       + 8 * num_stack_slots.(1)
-       + 16 * num_stack_slots.(2)
-       + (if fp then 8 else 0))
-    in Misc.align sz 16
-  end else
-    !stack_offset + 8
+let contains_calls = ref false
+
+let frame_size () =
+  Stack_check.frame_size
+    ~stack_offset:!stack_offset
+    ~frame_required:!frame_required
+    ~num_stack_slots
+    ~contains_calls:!contains_calls
 
 let slot_offset loc cl =
   match loc with
@@ -479,6 +472,36 @@ let emit_call_safety_errors () =
     emit_call (Cmm.global_symbol "caml_ml_array_align_error")
   end
 
+(* Stack reallocation *)
+type stack_realloc = {
+  sc_label : Label.t; (* Label of the reallocation code. *)
+  sc_return : Label.t; (* Label to return to after reallocation. *)
+  sc_max_frame_size_in_bytes : int; (* Size for reallocation. *)
+}
+
+let stack_realloc = ref (None : stack_realloc option)
+
+let clear_stack_realloc () =
+  stack_realloc := None
+
+let emit_stack_realloc () =
+  begin match !stack_realloc with
+  | None -> ()
+  | Some { sc_label; sc_return; sc_max_frame_size_in_bytes; } -> begin
+      def_label sc_label;
+      (* Pass the desired frame size on the stack, since all of the
+         argument-passing registers may be in use.
+         Also serves to align the stack properly before the call *)
+      I.push (int (Config.stack_threshold + sc_max_frame_size_in_bytes / 8));
+      cfi_adjust_cfa_offset 8;
+      (* measured in words *)
+      emit_call (Cmm.global_symbol "caml_call_realloc_stack");
+      I.add (int 8) rsp;
+      cfi_adjust_cfa_offset (-8);
+      I.jmp (label sc_return)
+    end
+  end
+
 (* Record jump tables *)
 type jump_table =
   { table_lbl: string;
@@ -682,7 +705,7 @@ let output_epilogue f =
 
 (* Floating-point constants *)
 
-let float_constants = ref ([] : (int64 * int) list)
+let float_constants = ref ([] : (int64 * label) list)
 
 let add_float_constant cst =
   try
@@ -698,7 +721,7 @@ let emit_float_constant f lbl =
 
 (* Vector constants *)
 
-let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
+let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 
 let add_vec128_constant bits =
   try
@@ -1209,7 +1232,7 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 (* Emit an instruction *)
-let emit_instr fallthrough i =
+let emit_instr ~first ~fallthrough i =
   emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
@@ -1809,14 +1832,29 @@ let emit_instr fallthrough i =
           I.pop (domain_field Domainstate.Domain_exn_handler);
           I.pop r11;
           I.jmp r11
-      end
+    end
+  | Lstackcheck { max_frame_size_bytes; } ->
+    let save_registers = not first in
+    let overflow = new_label () and ret = new_label () in
+    let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
+    if save_registers then I.push r10;
+    I.lea (mem64 NONE (-(max_frame_size_bytes + threshold_offset)) RSP) r10;
+    I.cmp (domain_field Domainstate.Domain_current_stack) r10;
+    if save_registers then I.pop r10;
+    I.jb (label overflow);
+    def_label ret;
+    stack_realloc := Some {
+      sc_label = overflow;
+      sc_return = ret;
+      sc_max_frame_size_in_bytes = max_frame_size_bytes;
+    }
 
-let rec emit_all fallthrough i =
+let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
   | _ ->
-      emit_instr fallthrough i;
-      emit_all (Linear.has_fallthrough i.desc) i.next
+      emit_instr ~first ~fallthrough i;
+      emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
@@ -1842,10 +1880,12 @@ let fundecl fundecl =
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
+  contains_calls := fundecl.fun_contains_calls;
   stack_offset := 0;
   call_gc_sites := [];
   local_realloc_sites := [];
   clear_safety_checks ();
+  clear_stack_realloc ();
   for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
@@ -1871,53 +1911,14 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  let handle_overflow_and_max_frame_size =
-    (* CR mshinwell: this should be conditionalized on a specific
-       "stack checks enabled" config option, so we can backport to 4.x *)
-    if not Config.runtime5 then None
-    else (
-      if !Clflags.runtime_variant = "d" then
-        emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
-      let { max_frame_size; contains_nontail_calls} =
-        preproc_stack_check
-          ~fun_body:fundecl.fun_body ~frame_size:(frame_size ()) ~trap_size:16
-      in
-      let handle_overflow =
-        if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
-          let overflow = new_label () and ret = new_label () in
-          let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
-          I.lea (mem64 NONE (-(max_frame_size + threshold_offset)) RSP) r10;
-          I.cmp (domain_field Domainstate.Domain_current_stack) r10;
-          I.jb (label overflow);
-          def_label ret;
-          Some (overflow, ret)
-        end else None
-      in
-      match handle_overflow with
-      | None -> None
-      | Some handle_overflow -> Some (handle_overflow, max_frame_size)
-    )
-  in
-  emit_all true fundecl.fun_body;
+  if Config.runtime5 && !Clflags.runtime_variant = "d" then begin
+    emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
+  end;
+  emit_all ~first:true ~fallthrough:true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
-  begin match handle_overflow_and_max_frame_size with
-    | None -> ()
-    | Some ((overflow,ret), max_frame_size) -> begin
-        def_label overflow;
-        (* Pass the desired frame size on the stack, since all of the
-           argument-passing registers may be in use.
-           Also serves to align the stack properly before the call *)
-        I.push (int (Config.stack_threshold + max_frame_size / 8));
-        cfi_adjust_cfa_offset 8;
-        (* measured in words *)
-        emit_call (Cmm.global_symbol "caml_call_realloc_stack");
-        I.pop r10; (* ignored *)
-        cfi_adjust_cfa_offset (-8);
-        I.jmp (label ret)
-      end
-  end;
+  emit_stack_realloc ();
   if !frame_required then begin
     let n = frame_size() - 8 - (if fp then 8 else 0) in
     if n <> 0

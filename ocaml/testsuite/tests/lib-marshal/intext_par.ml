@@ -1,7 +1,7 @@
 (* TEST
-* skip
-reason = "CR ocaml 5 domains: re-enable this test"
-   modules = "intextaux_par.c"
+ reason = "CR ocaml 5 domains: re-enable this test";
+ modules = "intextaux_par.c";
+ skip;
 *)
 
 (* Test for output_value / input_value *)

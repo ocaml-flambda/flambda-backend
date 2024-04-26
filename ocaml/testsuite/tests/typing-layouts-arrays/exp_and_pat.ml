@@ -1,19 +1,26 @@
 (* TEST
- readonly_files = "float_u_array.ml"
- modules = "${readonly_files}"
- * flambda2
- ** native
-   flags = "-extension comprehensions -extension layouts_alpha"
- ** bytecode
-   flags = "-extension comprehensions -extension layouts_alpha"
- ** native
-   flags = "-extension comprehensions -extension layouts_beta"
- ** bytecode
-   flags = "-extension comprehensions -extension layouts_beta"
- ** native
-   flags = "-extension comprehensions"
- ** bytecode
-   flags = "-extension comprehensions"
+ readonly_files = "float_u_array.ml";
+ modules = "${readonly_files}";
+ flambda2;
+ {
+   flags = "-extension comprehensions -extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension comprehensions -extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension comprehensions -extension layouts_beta";
+   native;
+ }{
+   flags = "-extension comprehensions -extension layouts_beta";
+   bytecode;
+ }{
+   flags = "-extension comprehensions";
+   native;
+ }{
+   flags = "-extension comprehensions";
+   bytecode;
+ }
 *)
 (* Test for literals, patterns, and comprehension (when that's
    supported) for arrays of unboxed types. In its own file so

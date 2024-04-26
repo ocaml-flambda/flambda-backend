@@ -163,6 +163,7 @@ module S = struct
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
+    | Stack_check of { max_frame_size_bytes : int }
 
   type 'a with_label_after =
     { op : 'a;

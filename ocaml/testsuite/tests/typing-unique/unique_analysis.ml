@@ -1,6 +1,7 @@
   (* TEST
-   flags += "-extension unique"
- * expect *)
+ flags += "-extension unique";
+ expect;
+*)
 
 (* This file is to test uniqueness_analysis.ml *)
 
@@ -185,7 +186,7 @@ let or_patterns1 : unique_ float list -> float list -> float =
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let or_patterns2 : float list -> unique_ float list -> float =
@@ -196,7 +197,7 @@ let or_patterns2 : float list -> unique_ float list -> float =
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let or_patterns3 p =

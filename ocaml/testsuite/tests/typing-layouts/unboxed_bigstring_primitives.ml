@@ -1,15 +1,22 @@
 (* TEST
-   * flambda2
-   ** native
-   ** bytecode
-   ** native
-   flags = "-extension layouts_alpha"
-   ** bytecode
-   flags = "-extension layouts_alpha"
-   ** native
-   flags = "-extension layouts_beta"
-   ** bytecode
-   flags = "-extension layouts_beta"
+ flambda2;
+ {
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 
 (* CR layouts: add the unboxed simd externals once we support them *)

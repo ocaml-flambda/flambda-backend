@@ -117,7 +117,7 @@ int* caml_init_opcode_nargs(void)
 
     /* Instructions with two operands */
     l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
-      l[GETGLOBALFIELD] = l[MAKEBLOCK] = l[C_CALLN] =
+      l[GETGLOBALFIELD] = l[MAKEBLOCK] = l[MAKE_FAUX_MIXEDBLOCK] = l[C_CALLN] =
       l[BEQ] = l[BNEQ] = l[BLTINT] = l[BLEINT] = l[BGTINT] = l[BGEINT] =
       l[BULTINT] = l[BUGEINT] = l[GETPUBMET] = 2;
 

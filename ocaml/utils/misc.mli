@@ -211,6 +211,9 @@ module Stdlib : sig
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
 
+    val compare : ('a -> 'a -> int) -> 'a array -> 'a array -> int
+    (** Compare two arrays, using the supplied predicate for element equality *)
+
     val map_sharing : ('a -> 'a) -> 'a array -> 'a array
     (** [map_sharing f a] is [map f a]. If for all elements of the array
         [f e == e] then [map_sharing f a == a] *)
