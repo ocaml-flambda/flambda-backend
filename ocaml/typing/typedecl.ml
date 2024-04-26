@@ -120,7 +120,6 @@ type error =
   | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
-  | Zero_alloc_attr_opt
 
 open Typedtree
 
@@ -2691,10 +2690,6 @@ let transl_value_decl env loc valdecl =
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
         if za.arity <= 0 then
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
-        if za.opt then
-          (* CR ccasinghino: It would be nice to support opt, but it's not
-             obvious what its meaning should be. *)
-          raise (Error(valdecl.pval_loc, Zero_alloc_attr_opt));
       | Assume _ | Ignore_assert_all _ ->
         raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       end;
@@ -3511,8 +3506,6 @@ let report_error ppf = function
   | Zero_alloc_attr_bad_user_arity ->
     fprintf ppf
       "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
-  | Zero_alloc_attr_opt ->
-    fprintf ppf "@[\"zero_alloc opt\" is not supported in signatures.@]"
 
 let () =
   Location.register_error_of_exn

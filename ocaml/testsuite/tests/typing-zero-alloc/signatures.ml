@@ -16,34 +16,24 @@ module type S_payloads_base = sig
   val[@zero_alloc] f : int -> int
 end
 
-module type S_payloads_strict = sig
-  val[@zero_alloc strict] f : int -> int
-end
-
-[%%expect{|
-module type S_payloads_base = sig val f : int -> int [@@zero_alloc] end
-module type S_payloads_strict =
-  sig val f : int -> int [@@zero_alloc strict] end
-|}]
-
 module type S_payloads_opt = sig
   val[@zero_alloc opt] f : int -> int
 end
-[%%expect{|
-Line 2, characters 2-37:
-2 |   val[@zero_alloc opt] f : int -> int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: "zero_alloc opt" is not supported in signatures.
-|}]
+
+module type S_payloads_strict = sig
+  val[@zero_alloc strict] f : int -> int
+end
 
 module type S_payloads_strict_opt = sig
   val[@zero_alloc strict opt] f : int -> int
 end
 [%%expect{|
-Line 2, characters 2-44:
-2 |   val[@zero_alloc strict opt] f : int -> int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: "zero_alloc opt" is not supported in signatures.
+module type S_payloads_base = sig val f : int -> int [@@zero_alloc] end
+module type S_payloads_opt = sig val f : int -> int [@@zero_alloc opt] end
+module type S_payloads_strict =
+  sig val f : int -> int [@@zero_alloc strict] end
+module type S_payloads_strict_opt =
+  sig val f : int -> int [@@zero_alloc strict opt] end
 |}]
 
 module type S_payloads_assume = sig
@@ -106,54 +96,53 @@ module M_assume_strict : S_good_inc_base
 module M_assume_strict_nrn : S_good_inc_base
 |}]
 
-(* CR ccasinghino: The below should work once we allow opt in signatures. *)
-(* module type S_good_inc_opt = sig
- *   val[@zero_alloc opt] f : 'a -> 'a
- * end
- *
- * module M_base : S_good_inc_opt = struct
- *   let[@zero_alloc] f x = x
- * end
- *
- * module M_opt : S_good_inc_opt = struct
- *   let[@zero_alloc opt] f x = x
- * end
- *
- * module M_assume : S_good_inc_opt = struct
- *   let[@zero_alloc assume] f x = x
- * end
- *
- * module M_assume_nrn : S_good_inc_opt = struct
- *   let[@zero_alloc assume never_returns_normally] f x = x
- * end
- *
- * module M_strict : S_good_inc_opt = struct
- *   let[@zero_alloc strict] f x = x
- * end
- *
- * module M_strict_opt : S_good_inc_opt = struct
- *   let[@zero_alloc strict opt] f x = x
- * end
- *
- * module M_assume_strict : S_good_inc_opt = struct
- *   let[@zero_alloc assume strict] f x = x
- * end
- *
- * module M_assume_strict_nrn : S_good_inc_opt = struct
- *   let[@zero_alloc assume strict never_returns_normally] f x = x
- * end
- *
- * [%%expect{|
- * module type S_good_inc_opt = sig val f : 'a -> 'a [@@zero_alloc opt] end
- * module M_base : S_good_inc_opt
- * module M_opt : S_good_inc_opt
- * module M_assume : S_good_inc_opt
- * module M_assume_nrn : S_good_inc_opt
- * module M_strict : S_good_inc_opt
- * module M_strict_opt : S_good_inc_opt
- * module M_assume_strict : S_good_inc_opt
- * module M_assume_strict_nrn : S_good_inc_opt
- * |}] *)
+module type S_good_inc_opt = sig
+  val[@zero_alloc opt] f : 'a -> 'a
+end
+
+module M_base : S_good_inc_opt = struct
+  let[@zero_alloc] f x = x
+end
+
+module M_opt : S_good_inc_opt = struct
+  let[@zero_alloc opt] f x = x
+end
+
+module M_assume : S_good_inc_opt = struct
+  let[@zero_alloc assume] f x = x
+end
+
+module M_assume_nrn : S_good_inc_opt = struct
+  let[@zero_alloc assume never_returns_normally] f x = x
+end
+
+module M_strict : S_good_inc_opt = struct
+  let[@zero_alloc strict] f x = x
+end
+
+module M_strict_opt : S_good_inc_opt = struct
+  let[@zero_alloc strict opt] f x = x
+end
+
+module M_assume_strict : S_good_inc_opt = struct
+  let[@zero_alloc assume strict] f x = x
+end
+
+module M_assume_strict_nrn : S_good_inc_opt = struct
+  let[@zero_alloc assume strict never_returns_normally] f x = x
+end
+
+[%%expect{|
+module type S_good_inc_opt = sig val f : 'a -> 'a [@@zero_alloc opt] end
+module M_base : S_good_inc_opt
+module M_opt : S_good_inc_opt
+module M_assume : S_good_inc_opt
+module M_assume_nrn : S_good_inc_opt
+module M_strict : S_good_inc_opt
+module M_strict_opt : S_good_inc_opt
+module M_assume_strict : S_good_inc_opt
+module M_assume_strict_nrn : S_good_inc_opt
+|}]
 
 module type S_good_inc_strict = sig
   val[@zero_alloc strict] f : 'a -> 'a
@@ -179,35 +168,34 @@ module M_assume_strict : S_good_inc_strict
 module M_assume_strict_nrn : S_good_inc_strict
 |}]
 
-(* CR ccasinghino: The below should work once we allow opt in signatures. *)
-(* module type S_good_inc_strict_opt = sig
- *   val[@zero_alloc strict opt] f : 'a -> 'a
- * end
- *
- * module M_strict : S_good_inc_strict_opt = struct
- *   let[@zero_alloc strict] f x = x
- * end
- *
- * module M_strict_opt : S_good_inc_strict_opt = struct
- *   let[@zero_alloc strict opt] f x = x
- * end
- *
- * module M_assume_strict : S_good_inc_strict_opt = struct
- *   let[@zero_alloc assume strict] f x = x
- * end
- *
- * module M_assume_strict_nrn : S_good_inc_strict_opt = struct
- *   let[@zero_alloc assume strict never_returns_normally] f x = x
- * end
- *
- * [%%expect{|
- * module type S_good_inc_strict_opt =
- *   sig val f : 'a -> 'a [@@zero_alloc strict opt] end
- * module M_strict : S_good_inc_strict_opt
- * module M_strict_opt : S_good_inc_strict_opt
- * module M_assume_strict : S_good_inc_strict_opt
- * module M_assume_strict_nrn : S_good_inc_strict_opt
- * |}] *)
+module type S_good_inc_strict_opt = sig
+  val[@zero_alloc strict opt] f : 'a -> 'a
+end
+
+module M_strict : S_good_inc_strict_opt = struct
+  let[@zero_alloc strict] f x = x
+end
+
+module M_strict_opt : S_good_inc_strict_opt = struct
+  let[@zero_alloc strict opt] f x = x
+end
+
+module M_assume_strict : S_good_inc_strict_opt = struct
+  let[@zero_alloc assume strict] f x = x
+end
+
+module M_assume_strict_nrn : S_good_inc_strict_opt = struct
+  let[@zero_alloc assume strict never_returns_normally] f x = x
+end
+
+[%%expect{|
+module type S_good_inc_strict_opt =
+  sig val f : 'a -> 'a [@@zero_alloc strict opt] end
+module M_strict : S_good_inc_strict_opt
+module M_strict_opt : S_good_inc_strict_opt
+module M_assume_strict : S_good_inc_strict_opt
+module M_assume_strict_nrn : S_good_inc_strict_opt
+|}]
 
 
 (*********************************)
@@ -237,7 +225,7 @@ Error: Signature mismatch:
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_opt : S_bad_inc_base = struct
@@ -251,44 +239,42 @@ Lines 1-3, characters 32-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a [@@zero_alloc opt] end
        is not included in
          S_bad_inc_base
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
-(* CR ccasinghino: The below should work once we allow opt in signatures. *)
-(* module type S_bad_inc_opt = sig
- *   val[@zero_alloc opt] f : 'a -> 'a
- * end
- *
- * module M_absent : S_bad_inc_opt = struct
- *   let f x = x
- * end
- *
- * [%%expect{|
- * module type S_bad_inc_opt = sig val f : 'a -> 'a [@@zero_alloc opt] end
- * Lines 5-7, characters 34-3:
- * 5 | ..................................struct
- * 6 |   let f x = x
- * 7 | end
- * Error: Signature mismatch:
- *        Modules do not match:
- *          sig val f : 'a -> 'a end
- *        is not included in
- *          S_bad_inc_opt
- *        Values do not match:
- *          val f : 'a -> 'a
- *        is not included in
- *          val f : 'a -> 'a [@@zero_alloc opt]
- *        The former provides a weaker "zero_alloc" guarantee than the latter.
- *        Hint: Add a "zero_alloc" attribute to the implementation.
- * |}] *)
+module type S_bad_inc_opt = sig
+  val[@zero_alloc opt] f : 'a -> 'a
+end
+
+module M_absent : S_bad_inc_opt = struct
+  let f x = x
+end
+
+[%%expect{|
+module type S_bad_inc_opt = sig val f : 'a -> 'a [@@zero_alloc opt] end
+Lines 5-7, characters 34-3:
+5 | ..................................struct
+6 |   let f x = x
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_bad_inc_opt
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc opt]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
+|}]
 
 module type S_bad_inc_strict = sig
   val[@zero_alloc strict] f : 'a -> 'a
@@ -314,7 +300,7 @@ Error: Signature mismatch:
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_base : S_bad_inc_strict = struct
@@ -369,15 +355,14 @@ Lines 1-3, characters 34-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a [@@zero_alloc opt] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_strict_opt : S_bad_inc_strict = struct
@@ -391,15 +376,14 @@ Lines 1-3, characters 41-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a [@@zero_alloc strict opt] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a [@@zero_alloc strict opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
 |}]
 
 module M_assume_nrn : S_bad_inc_strict = struct
@@ -423,96 +407,95 @@ Error: Signature mismatch:
        The former provides a weaker "zero_alloc" guarantee than the latter.
 |}]
 
-(* CR ccasinghino: The below should work once we allow opt in signatures. *)
-(* module type S_strict_opt = sig
- *   val[@zero_alloc strict opt] f : 'a -> 'a
- * end
- *
- * module M_absent : S_strict_opt = struct
- *   let f x = x
- * end
- *
- * [%%expect{|
- * module type S_strict_opt = sig val f : 'a -> 'a [@@zero_alloc strict opt] end
- * Lines 5-7, characters 33-3:
- * 5 | .................................struct
- * 6 |   let f x = x
- * 7 | end
- * Error: Signature mismatch:
- *        Modules do not match:
- *          sig val f : 'a -> 'a end
- *        is not included in
- *          S_strict_opt
- *        Values do not match:
- *          val f : 'a -> 'a
- *        is not included in
- *          val f : 'a -> 'a [@@zero_alloc strict opt]
- *        The former provides a weaker "zero_alloc" guarantee than the latter.
- *        Hint: Add a "zero_alloc" attribute to the implementation.
- * |}]
- *
- * module M_assume : S_strict_opt = struct
- *   let[@zero_alloc assume] f x = x
- * end
- *
- * [%%expect{|
- * Lines 1-3, characters 33-3:
- * 1 | .................................struct
- * 2 |   let[@zero_alloc assume] f x = x
- * 3 | end
- * Error: Signature mismatch:
- *        Modules do not match:
- *          sig val f : 'a -> 'a [@@zero_alloc] end
- *        is not included in
- *          S_strict_opt
- *        Values do not match:
- *          val f : 'a -> 'a [@@zero_alloc]
- *        is not included in
- *          val f : 'a -> 'a [@@zero_alloc strict opt]
- *        The former provides a weaker "zero_alloc" guarantee than the latter.
- * |}]
- *
- * module M_opt : S_strict_opt = struct
- *   let[@zero_alloc opt] f x = x
- * end
- *
- * [%%expect{|
- * Lines 1-3, characters 30-3:
- * 1 | ..............................struct
- * 2 |   let[@zero_alloc opt] f x = x
- * 3 | end
- * Error: Signature mismatch:
- *        Modules do not match:
- *          sig val f : 'a -> 'a [@@zero_alloc opt] end
- *        is not included in
- *          S_strict_opt
- *        Values do not match:
- *          val f : 'a -> 'a [@@zero_alloc opt]
- *        is not included in
- *          val f : 'a -> 'a [@@zero_alloc strict opt]
- *        The former provides a weaker "zero_alloc" guarantee than the latter.
- * |}]
- *
- * module M_assume_nrn : S_strict_opt = struct
- *   let[@zero_alloc assume never_returns_normally] f x = x
- * end
- *
- * [%%expect{|
- * Lines 1-3, characters 37-3:
- * 1 | .....................................struct
- * 2 |   let[@zero_alloc assume never_returns_normally] f x = x
- * 3 | end
- * Error: Signature mismatch:
- *        Modules do not match:
- *          sig val f : 'a -> 'a [@@zero_alloc] end
- *        is not included in
- *          S_strict_opt
- *        Values do not match:
- *          val f : 'a -> 'a [@@zero_alloc]
- *        is not included in
- *          val f : 'a -> 'a [@@zero_alloc strict opt]
- *        The former provides a weaker "zero_alloc" guarantee than the latter.
- * |}] *)
+module type S_strict_opt = sig
+  val[@zero_alloc strict opt] f : 'a -> 'a
+end
+
+module M_absent : S_strict_opt = struct
+  let f x = x
+end
+
+[%%expect{|
+module type S_strict_opt = sig val f : 'a -> 'a [@@zero_alloc strict opt] end
+Lines 5-7, characters 33-3:
+5 | .................................struct
+6 |   let f x = x
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a end
+       is not included in
+         S_strict_opt
+       Values do not match:
+         val f : 'a -> 'a
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc strict opt]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
+|}]
+
+module M_assume : S_strict_opt = struct
+  let[@zero_alloc assume] f x = x
+end
+
+[%%expect{|
+Lines 1-3, characters 33-3:
+1 | .................................struct
+2 |   let[@zero_alloc assume] f x = x
+3 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a [@@zero_alloc] end
+       is not included in
+         S_strict_opt
+       Values do not match:
+         val f : 'a -> 'a [@@zero_alloc]
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc strict opt]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+module M_opt : S_strict_opt = struct
+  let[@zero_alloc opt] f x = x
+end
+
+[%%expect{|
+Lines 1-3, characters 30-3:
+1 | ..............................struct
+2 |   let[@zero_alloc opt] f x = x
+3 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a [@@zero_alloc opt] end
+       is not included in
+         S_strict_opt
+       Values do not match:
+         val f : 'a -> 'a [@@zero_alloc opt]
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc strict opt]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+module M_assume_nrn : S_strict_opt = struct
+  let[@zero_alloc assume never_returns_normally] f x = x
+end
+
+[%%expect{|
+Lines 1-3, characters 37-3:
+1 | .....................................struct
+2 |   let[@zero_alloc assume never_returns_normally] f x = x
+3 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val f : 'a -> 'a [@@zero_alloc] end
+       is not included in
+         S_strict_opt
+       Values do not match:
+         val f : 'a -> 'a [@@zero_alloc]
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc strict opt]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
 
 (*************************************************************************)
 (* Test 4: Requires valid arity, inferred or provided, without expansion *)
@@ -822,8 +805,6 @@ Error: Signature mismatch:
 (*************************************)
 (* Test 8: Parsing "arity n" works *)
 
-(* CR ccasinghino: when we have support for opt, add tests for all the
-   combinations here. *)
 module type S_arity_42 = sig
   val[@zero_alloc arity 42] f : int -> int
 end
@@ -836,12 +817,30 @@ module type S_strict_arity_42 = sig
   val[@zero_alloc strict arity 42] f : int -> int
 end
 
+module type S_arity_42_opt_strict = sig
+  val[@zero_alloc arity 42 opt strict] f : int -> int
+end
+
+module type S_opt_arity_42_strict = sig
+  val[@zero_alloc opt arity 42 strict] f : int -> int
+end
+
+module type S_opt_strict_arity_42 = sig
+  val[@zero_alloc opt strict arity 42] f : int -> int
+end
+
 [%%expect{|
 module type S_arity_42 = sig val f : int -> int [@@zero_alloc arity 42] end
 module type S_arity_42_strict =
   sig val f : int -> int [@@zero_alloc strict arity 42] end
 module type S_strict_arity_42 =
   sig val f : int -> int [@@zero_alloc strict arity 42] end
+module type S_arity_42_opt_strict =
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
+module type S_opt_arity_42_strict =
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
+module type S_opt_strict_arity_42 =
+  sig val f : int -> int [@@zero_alloc strict opt arity 42] end
 |}]
 
 (**************************************************)
@@ -942,7 +941,7 @@ Error: Signature mismatch:
        is not included in
          val f : int -> int [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
-       Hint: Add a "zero_alloc" attribute (without opt) to the implementation.
+       Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
 
 module M_strict_for_mto = struct
