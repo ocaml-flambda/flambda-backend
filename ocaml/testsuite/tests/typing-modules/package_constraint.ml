@@ -1,5 +1,5 @@
 (* TEST
- * expect
+ expect;
 *)
 
 (* You may constrain abstract types in packages. *)

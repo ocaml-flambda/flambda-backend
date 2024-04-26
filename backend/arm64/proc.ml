@@ -177,6 +177,16 @@ let loc_float last_float make_stack float ofs =
     ofs := !ofs + size_float; l
   end
 
+let loc_float32 last_float make_stack float ofs =
+  if !float <= last_float then begin
+    let l = phys_reg Float !float in
+    incr float; l
+  end else begin
+    let l = stack_slot (make_stack !ofs) Float in
+    ofs := !ofs + (if macosx then 4 else 8);
+    l
+  end
+
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
     let l = phys_reg Int !int in
@@ -364,6 +374,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     [| reg_d7 |]
   | Op _ | Poptrap | Prologue ->
     [||]
+  | Stack_check _ -> assert false (* not supported *)
 
 (* note: keep this function in sync with `destroyed_at_oper` above,
    and `is_destruction_point` below. *)

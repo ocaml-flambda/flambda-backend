@@ -237,6 +237,7 @@ let value_kind_of_value_jkind jkind =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
+  | Non_null_value -> Pgenval
   | Any | Void | Float64 | Word | Bits32 | Bits64 -> assert false
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -431,7 +432,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             num_nodes_visited labeled_fields
         in
         num_nodes_visited,
-        Pvariant { consts = []; non_consts = [0, fields] })
+        Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] })
   | Tvariant row ->
     num_nodes_visited,
     if Ctype.tvariant_not_immediate row then Pgenval else Pintval
@@ -512,7 +513,9 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
               Some (num_nodes_visited,
                     next_const + 1, consts, next_tag, non_consts)
             else
-              let non_consts = (next_tag, fields) :: non_consts in
+              let non_consts =
+                (next_tag, Constructor_uniform fields) :: non_consts
+              in
               Some (num_nodes_visited,
                     next_const, consts, next_tag + 1, non_consts))
           (Some (num_nodes_visited, 0, [], 0, []))
@@ -539,38 +542,67 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
-  | _ -> begin
-      let (is_mutable, num_nodes_visited), fields =
-        List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
-               (label:Types.label_declaration) ->
-            let is_mutable =
-              Types.is_mutable label.ld_mutable || is_mutable
-            in
-            let num_nodes_visited = num_nodes_visited + 1 in
-            let num_nodes_visited, field =
-              (* CR layouts v5: when we add other layouts, we'll need to check
-                 here that we aren't about to call value_kind on a different
-                 sort (we can get this info from the label.ld_jkind).  For now
-                 we rely on the layout check at the top of value_kind to rule
-                 out void. *)
-              match rep with
-              | Record_float | Record_ufloat ->
-                (* We're using the `Pboxedfloatval` value kind for unboxed floats.
-                   This is kind of a lie (there are unboxed floats in here, not
-                   boxed floats), but that was already happening here due to the
-                   float record optimization. *)
-                num_nodes_visited, Pboxedfloatval Pfloat64
-              | Record_boxed _ | Record_inlined _ | Record_unboxed ->
-                value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                  label.ld_type
-            in
-            (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+  | Record_inlined (_, (Variant_boxed _ | Variant_extensible))
+  | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
+      let is_mutable =
+        List.exists (fun label -> Types.is_mutable label.Types.ld_mutable)
+          labels
       in
       if is_mutable then
         num_nodes_visited, Pgenval
       else
+        let num_nodes_visited, fields =
+          match rep with
+          | Record_unboxed ->
+              (* The outer match guards against this *)
+              assert false
+          | Record_inlined _ | Record_boxed _ | Record_float | Record_ufloat ->
+              let num_nodes_visited, fields =
+                List.fold_left_map
+                  (fun num_nodes_visited (label:Types.label_declaration) ->
+                    let num_nodes_visited = num_nodes_visited + 1 in
+                    let num_nodes_visited, field =
+                      (* CR layouts v5: when we add other layouts, we'll need to
+                        check here that we aren't about to call value_kind on a
+                        different sort (we can get this info from the
+                        label.ld_jkind). For now we rely on the layout check at
+                        the top of value_kind to rule out void. *)
+                      (* We're using the `Pboxedfloatval` value kind for unboxed
+                        floats inside of records. This is kind of a lie, but
+                         that was already happening here due to the float record
+                        optimization. *)
+                      match rep with
+                      | Record_float | Record_ufloat ->
+                        num_nodes_visited, Pboxedfloatval Pfloat64
+                      | Record_inlined _ | Record_boxed _ ->
+                          value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                            label.ld_type
+                      | Record_mixed _ | Record_unboxed ->
+                          (* The outer match guards against this *)
+                          assert false
+                    in
+                    num_nodes_visited, field)
+                  num_nodes_visited labels
+              in
+              num_nodes_visited, Constructor_uniform fields
+          | Record_mixed { value_prefix_len; flat_suffix } ->
+              let labels_value_prefix, _ =
+                Misc.Stdlib.List.split_at value_prefix_len labels
+              in
+              assert (List.length labels_value_prefix = value_prefix_len);
+              let num_nodes_visited, value_prefix =
+                List.fold_left_map
+                  (fun num_nodes_visited
+                    (label:Types.label_declaration) ->
+                    let num_nodes_visited = num_nodes_visited + 1 in
+                    value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                      label.ld_type)
+                  num_nodes_visited labels_value_prefix
+              in
+              let flat_suffix = Array.to_list flat_suffix in
+              num_nodes_visited,
+              Constructor_mixed { value_prefix; flat_suffix }
+        in
         let non_consts =
           match rep with
           | Record_inlined (Ordinary {runtime_tag}, _) ->
@@ -580,6 +612,9 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_boxed _ ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
+            [0, fields]
+          | Record_mixed _ ->
+            (* CR mixed blocks v1: Not 0 *)
             [0, fields]
           | Record_unboxed -> assert false
         in

@@ -1455,11 +1455,11 @@ let lambda_primitive_needs_event_after = function
   | Parray_to_iarray | Parray_of_iarray
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
-  | Pufloatfield _ | Psetufloatfield _
+  | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _

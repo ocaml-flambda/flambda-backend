@@ -77,7 +77,7 @@
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
    language_extension_kernel language_extension
-   zero_alloc_utils
+   zero_alloc_utils zero_alloc_annotations
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -86,7 +86,7 @@
    jane_syntax ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
-   ident path jkind primitive shape types btype oprint subst predef datarepr
+   ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
    cmi_format persistent_env env errortrace mode
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
@@ -99,7 +99,7 @@
    annot outcometree
 
    ;; lambda/
-   assume_info debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
    translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
@@ -248,6 +248,7 @@
     (identifiable.mli as compiler-libs/identifiable.mli)
     (numbers.mli as compiler-libs/numbers.mli)
     (arg_helper.mli as compiler-libs/arg_helper.mli)
+    (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
     (clflags.mli as compiler-libs/clflags.mli)
     (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
@@ -330,7 +331,6 @@
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)
     (debuginfo.mli as compiler-libs/debuginfo.mli)
-    (assume_info.mli as compiler-libs/assume_info.mli)
     (lambda.mli as compiler-libs/lambda.mli)
     (matching.mli as compiler-libs/matching.mli)
     (printlambda.mli as compiler-libs/printlambda.mli)

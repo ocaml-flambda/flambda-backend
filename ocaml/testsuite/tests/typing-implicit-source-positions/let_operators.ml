@@ -1,5 +1,5 @@
-(* TEST
-   * expect
+(* TEST_BELOW
+Fille
 *)
 
 let ( let+ ) ~(call_pos : [%call_pos]) a f = f (call_pos, a);;
@@ -50,3 +50,7 @@ val ( >>| ) :
 - : lexing_position =
 {pos_fname = ""; pos_lnum = 3; pos_bol = 1128; pos_cnum = 1130}
 |}]
+
+(* TEST
+ expect;
+*)

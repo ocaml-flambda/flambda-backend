@@ -1,6 +1,6 @@
-(* TEST
-   flags = "-dparsetree"
-   * toplevel *)
+(* TEST_BELOW
+Filler_text_added_
+to_preserve_lo*)
 
 (* Using a toplevel test and not an expect test, because the locs get shifted
    by the expect blocks and the output is therefore not stable. *)
@@ -142,3 +142,8 @@ fun (type a b c d e) -> ()
 
 let a : type a b c. unit = ()
 ;;
+
+(* TEST
+ flags = "-dparsetree";
+ toplevel;
+*)

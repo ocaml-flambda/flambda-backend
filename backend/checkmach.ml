@@ -294,7 +294,6 @@ end = struct
   let is_strict t = t.strict
 
   let find codegen_options spec fun_name dbg =
-    let ignore_assert_all = ref false in
     let a =
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
@@ -304,25 +303,13 @@ end = struct
           | Assume { property; strict; never_returns_normally; loc }
             when property = spec ->
             Some { strict; assume = true; never_returns_normally; loc }
-          | Ignore_assert_all property when property = spec ->
-            ignore_assert_all := true;
-            None
-          | Ignore_assert_all _ | Check _ | Assume _ | Reduce_code_size | No_CSE
+          | Check _ | Assume _ | Reduce_code_size | No_CSE
           | Use_linscan_regalloc ->
             None)
         codegen_options
     in
     match a with
-    | [] ->
-      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
-      then
-        Some
-          { strict = false;
-            assume = false;
-            never_returns_normally = false;
-            loc = Debuginfo.to_location dbg
-          }
-      else None
+    | [] -> None
     | [p] -> Some p
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
@@ -348,17 +335,17 @@ end = struct
      Assume_info due to cyclic dependencies. The witnesses in Assume_info are
      always empty and the translation is trivial. Is there a better way to avoid
      duplicating [Zero_alloc_utils]? *)
-  let transl w (v : Assume_info.V.t) : V.t =
+  let transl w (v : Zero_alloc_utils.Assume_info.V.t) : V.t =
     match v with Top _ -> Top w | Safe -> Safe | Bot -> Bot
 
-  let transl w (v : Assume_info.Value.t) : Value.t =
+  let transl w (v : Zero_alloc_utils.Assume_info.Value.t) : Value.t =
     { nor = transl w v.nor; exn = transl w v.exn; div = transl w v.div }
 
   let assume_value dbg ~can_raise w =
     (* [loc] can be obtained by [Debuginfo.to_location dbg], For now just return
        [Location.none] because it is not used. *)
     let a = Debuginfo.assume_zero_alloc dbg in
-    match Assume_info.get_value a with
+    match Zero_alloc_utils.Assume_info.get_value a with
     | None -> None
     | Some v ->
       let v = transl w v in

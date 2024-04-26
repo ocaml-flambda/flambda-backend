@@ -130,8 +130,11 @@ let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
-  let t, env_extension = meet0 env t1 t2 in
-  if TG.is_obviously_bottom t then Bottom else Ok (t, env_extension)
+  if TE.is_bottom (Meet_env.env env)
+  then Bottom
+  else
+    let t, env_extension = meet0 env t1 t2 in
+    if TG.is_obviously_bottom t then Bottom else Ok (t, env_extension)
 
 and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
@@ -1025,7 +1028,9 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
     meet_env_extension0 env ext new_ext extra_extensions
 
 and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
-  try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
+  if TE.is_bottom (Meet_env.env env)
+  then Bottom
+  else try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
@@ -1700,7 +1705,10 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
   TEE.from_map equations
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
-  let result = Bound_name.create_var result_var in
-  let env = TE.add_definition env result result_kind in
-  let<+ _meet_ty, env_extension = meet (Meet_env.create env) t shape in
-  env_extension
+  if TE.is_bottom env
+  then Bottom
+  else
+    let result = Bound_name.create_var result_var in
+    let env = TE.add_definition env result result_kind in
+    let<+ _meet_ty, env_extension = meet (Meet_env.create env) t shape in
+    env_extension

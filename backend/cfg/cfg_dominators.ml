@@ -21,7 +21,8 @@ type dominator_tree =
   }
 
 type t =
-  { doms : doms;
+  { entry_label : Label.t;
+    doms : doms;
     dominance_frontiers : dominance_frontiers;
     dominator_forest : dominator_tree list
   }
@@ -418,7 +419,7 @@ let build : Cfg.t -> t =
   let doms = compute_doms cfg in
   let dominance_frontiers = compute_dominance_frontiers cfg doms in
   let dominator_forest = compute_dominator_forest cfg doms in
-  { doms; dominance_frontiers; dominator_forest }
+  { entry_label = cfg.entry_label; doms; dominance_frontiers; dominator_forest }
 
 let is_dominating t left right = is_dominating t.doms left right
 
@@ -433,6 +434,18 @@ let find_dominance_frontier t label =
       label
 
 let dominator_forest t = t.dominator_forest
+
+let dominator_tree_for_entry_point t =
+  match
+    List.find_opt t.dominator_forest ~f:(fun tree ->
+        Label.equal tree.label t.entry_label)
+  with
+  | None ->
+    fatal
+      "Cfg_dominators.dominator_tree_for_entry_point: no tree for entry point \
+       (label %d)"
+      t.entry_label
+  | Some tree -> tree
 
 let iter_breadth_dominator_forest t ~f =
   List.iter t.dominator_forest ~f:(fun dominator_tree ->

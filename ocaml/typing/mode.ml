@@ -1195,15 +1195,21 @@ module Common (Obj : Obj) = struct
 
   let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
 
-  let print_raw ?verbose () ppf m = Solver.print_raw ?verbose obj ppf m
-
   let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
 
   let zap_to_floor m = with_log (Solver.zap_to_floor obj m)
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
-  let check_const m = Solver.check_const obj m
+  module Guts = struct
+    let get_floor m = Solver.get_floor obj m
+
+    let get_ceil m = Solver.get_ceil obj m
+
+    let get_conservative_floor m = Solver.get_conservative_floor obj m
+
+    let get_conservative_ceil m = Solver.get_conservative_ceil obj m
+  end
 end
 [@@inline]
 
@@ -1227,6 +1233,18 @@ module Locality = struct
   let legacy = of_const Const.legacy
 
   let zap_to_legacy = zap_to_floor
+
+  module Guts = struct
+    let check_const m =
+      let floor = Guts.get_floor m in
+      let ceil = Guts.get_ceil m in
+      if Const.le ceil floor then Some ceil else None
+
+    let check_const_conservative m =
+      let floor = Guts.get_conservative_floor m in
+      let ceil = Guts.get_conservative_ceil m in
+      if Const.le ceil floor then Some ceil else None
+  end
 end
 
 module Regionality = struct
@@ -1324,7 +1342,9 @@ module Comonadic_with_regionality = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   let meet_const c m =
     Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
@@ -1387,7 +1407,9 @@ module Comonadic_with_locality = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   let meet_const c m =
     Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
@@ -1430,12 +1452,6 @@ module Comonadic_with_locality = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let locality = Locality.check_const (proj Areality m) in
-    let linearity = Linearity.check_const (proj Linearity m) in
-    locality, linearity
 end
 
 module Monadic = struct
@@ -1459,7 +1475,9 @@ module Monadic = struct
 
   open Obj
 
-  let proj ax m = Solver.via_monotone (C.proj_obj ax obj) (Proj (Obj.obj, ax)) m
+  let proj_obj ax = C.proj_obj ax obj
+
+  let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   (* The monadic fragment is inverted. Most of the inversion logic is taken care
      by [Solver_polarized], but some remain, such as the [Min_with] below which
@@ -1502,11 +1520,6 @@ module Monadic = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
-
-  (** overriding to check per-axis *)
-  let check_const m =
-    let uniqueness = Uniqueness.check_const (proj Uniqueness m) in
-    uniqueness, ()
 end
 
 type ('mo, 'como) monadic_comonadic =
@@ -1534,6 +1547,10 @@ module Value = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+  let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
+    | Monadic ax -> Monadic.proj_obj ax
+    | Comonadic ax -> Comonadic.proj_obj ax
+
   type ('a, 'b, 'c) modes =
     { regionality : 'a;
       linearity : 'b;
@@ -1549,13 +1566,6 @@ module Value = struct
     let regionality, linearity = comonadic in
     let uniqueness, () = monadic in
     { regionality; linearity; uniqueness }
-
-  let print_raw ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
-      (Comonadic.print_raw ?verbose ())
-      comonadic
-      (Monadic.print_raw ?verbose ())
-      monadic
 
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
@@ -1585,7 +1595,9 @@ module Value = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print_raw () ppf (of_const m)
+    let print ppf m =
+      let { monadic; comonadic } = split m in
+      Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -1603,6 +1615,11 @@ module Value = struct
       let monadic = Monadic.join m0.monadic m1.monadic in
       let comonadic = Comonadic.join m0.comonadic m1.comonadic in
       merge { monadic; comonadic }
+
+    let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
+     fun ax ppf a ->
+      let obj = proj_obj ax in
+      C.print obj ppf a
   end
 
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
@@ -1835,6 +1852,10 @@ module Alloc = struct
         (Comonadic.Const.t, 'a) Axis.t
         -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
+  let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
+    | Monadic ax -> Monadic.proj_obj ax
+    | Comonadic ax -> Comonadic.proj_obj ax
+
   type ('a, 'b, 'c) modes =
     { locality : 'a;
       linearity : 'b;
@@ -1918,13 +1939,6 @@ module Alloc = struct
 
   let equate_exn m0 m1 =
     match equate m0 m1 with Ok () -> () | Error _ -> invalid_arg "equate_exn"
-
-  let print_raw ?verbose () ppf { monadic; comonadic } =
-    Format.fprintf ppf "%a,%a"
-      (Comonadic.print_raw ?verbose ())
-      comonadic
-      (Monadic.print_raw ?verbose ())
-      monadic
 
   let print ?verbose () ppf { monadic; comonadic } =
     Format.fprintf ppf "%a,%a"
@@ -2069,7 +2083,9 @@ module Alloc = struct
       let m1 = split m1 in
       Comonadic.le m0.comonadic m1.comonadic && Monadic.le m0.monadic m1.monadic
 
-    let print ppf m = print_raw () ppf (of_const m)
+    let print ppf m =
+      let { monadic; comonadic } = split m in
+      Format.fprintf ppf "%a,%a" Comonadic.print comonadic Monadic.print monadic
 
     let legacy =
       merge { comonadic = Comonadic.legacy; monadic = Monadic.legacy }
@@ -2108,6 +2124,13 @@ module Alloc = struct
         { locality; uniqueness; linearity }
     end
 
+    let diff m0 m1 =
+      let diff le a0 a1 = if le a0 a1 && le a1 a0 then None else Some a0 in
+      let locality = diff Locality.Const.le m0.locality m1.locality in
+      let linearity = diff Linearity.Const.le m0.linearity m1.linearity in
+      let uniqueness = diff Uniqueness.Const.le m0.uniqueness m1.uniqueness in
+      { locality; linearity; uniqueness }
+
     (** See [Alloc.close_over] for explanation. *)
     let close_over m =
       let { monadic; comonadic } = split m in
@@ -2123,6 +2146,11 @@ module Alloc = struct
       let { comonadic; _ } = split m in
       let monadic = Monadic.min in
       merge { comonadic; monadic }
+
+    let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
+     fun ax ppf a ->
+      let obj = proj_obj ax in
+      C.print obj ppf a
 
     let split = split
 
@@ -2149,11 +2177,6 @@ module Alloc = struct
   let zap_to_legacy { comonadic; monadic } =
     let monadic = Monadic.zap_to_legacy monadic in
     let comonadic = Comonadic.zap_to_legacy comonadic in
-    merge { monadic; comonadic }
-
-  let check_const { comonadic; monadic } =
-    let comonadic = Comonadic.check_const comonadic in
-    let monadic = Monadic.check_const monadic in
     merge { monadic; comonadic }
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->

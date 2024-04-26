@@ -135,7 +135,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Dls_get -> false
     | Poll -> false
     | Alloc _ -> false)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc

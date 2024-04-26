@@ -1,7 +1,7 @@
 (* TEST
-   * flambda2
-   flags = "-flambda2-advanced-meet"
-   ** native
+ flags = "-flambda2-advanced-meet";
+ flambda2;
+ native;
 *)
 
 type _ opt_or_string =

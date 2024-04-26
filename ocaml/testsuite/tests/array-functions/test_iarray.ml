@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 
 module Iarray = Stdlib__Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"

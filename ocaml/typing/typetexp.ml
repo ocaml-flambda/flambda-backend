@@ -676,17 +676,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
             else transl_type env ~policy ~row_context arg_mode arg
           in
-          let {locality; linearity; _} : Alloc.Const.t =
-            Alloc.Const.join
-              (Alloc.Const.close_over arg_mode)
-              (Alloc.Const.partial_apply acc_mode)
-          in
-          (* Arrow types cross uniqueness axis. Therefore, when user writes an
-          A -> B -> C (to be used as constraint on something), we should make
-          (B -> C) shared. A proper way to do this is via modal kinds. *)
-          let acc_mode : Alloc.Const.t
-            = {locality; linearity; uniqueness=Uniqueness.Const.Shared}
-          in
+          let acc_mode = curry_mode acc_mode arg_mode in
           let ret_mode =
             match rest with
             | [] -> ret_mode

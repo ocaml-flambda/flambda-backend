@@ -1,8 +1,11 @@
 (* TEST
-* runtime4
-** skip
-* runtime5
-include runtime_events
+ {
+   runtime4;
+   skip;
+ }{
+   include runtime_events;
+   runtime5;
+ }
 *)
 open Runtime_events
 

@@ -34,6 +34,7 @@ UTILS = \
   utils/arg_helper.cmo \
   utils/local_store.cmo \
   utils/load_path.cmo \
+  utils/zero_alloc_annotations.cmo \
   utils/clflags.cmo \
   utils/debug.cmo \
   utils/language_extension_kernel.cmo \
@@ -98,6 +99,7 @@ TYPING = \
   file_formats/cmi_format.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
+  typing/shape_reduce.cmo \
   typing/errortrace.cmo \
   typing/typedtree.cmo \
   typing/signature_group.cmo \
@@ -125,7 +127,6 @@ TYPING = \
   typing/typedecl_properties.cmo \
   typing/typedecl_variance.cmo \
   typing/typedecl_separability.cmo \
-  lambda/assume_info.cmo \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \
   typing/typeopt.cmo \

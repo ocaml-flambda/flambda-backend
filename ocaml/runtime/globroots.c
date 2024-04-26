@@ -207,9 +207,11 @@ void caml_register_dyn_globals(void **globals, int nglobals) {
   caml_plat_unlock(&roots_mutex);
 }
 
-/* Logic to determine at which index within a global root to start
-   scanning.  [*glob_block] and [*start] may be updated by this function. */
-static void compute_index_for_global_root_scan(value* glob_block, int* start)
+/* Logic to determine at which index within a global root to start and stop
+   scanning.  [*glob_block], [*start], and [*stop] may be updated by this
+   function. */
+static void compute_index_for_global_root_scan(value* glob_block, int* start,
+                                               int* stop)
 {
   *start = 0;
 
@@ -224,12 +226,18 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start)
        cause a failure. */
     if (Tag_val(*glob_block) == Infix_tag)
       *glob_block -= Infix_offset_val(*glob_block);
-    if (Tag_val(*glob_block) == Closure_tag)
+
+    if (Tag_val(*glob_block) == Closure_tag) {
       *start = Start_env_closinfo(Closinfo_val(*glob_block));
+      *stop = Wosize_val(*glob_block);
+    }
+    else {
+      *stop = Scannable_wosize_val(*glob_block);
+    }
   }
   else {
     /* Set the index such that none of the block's fields will be scanned. */
-    *start = Wosize_val(*glob_block);
+    *stop = 0;
   }
 }
 
@@ -239,7 +247,7 @@ static void scan_native_globals(scanning_action f, void* fdata)
   static link* dyn_globals;
   value* glob;
   value glob_block;
-  int start;
+  int start, stop;
   link* lnk;
 
   caml_plat_lock(&roots_mutex);
@@ -250,9 +258,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
   for (i = 0; caml_globals[i] != 0; i++) {
     for(glob = caml_globals[i]; *glob != 0; glob++) {
       glob_block = *glob;
-      compute_index_for_global_root_scan(&glob_block, &start);
-      mlsize_t size = Wosize_val(glob_block);
-      for (j = start; j < size; j++) {
+      compute_index_for_global_root_scan(&glob_block, &start, &stop);
+      for (j = start; j < stop; j++) {
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
@@ -262,9 +269,8 @@ static void scan_native_globals(scanning_action f, void* fdata)
   iter_list(dyn_globals, lnk) {
     for(glob = (value *) lnk->data; *glob != 0; glob++) {
       glob_block = *glob;
-      compute_index_for_global_root_scan(&glob_block, &start);
-      mlsize_t size = Wosize_val(glob_block);
-      for (j = start; j < size; j++) {
+      compute_index_for_global_root_scan(&glob_block, &start, &stop);
+      for (j = start; j < stop; j++) {
         f(fdata, Field(glob_block, j), &Field(glob_block, j));
       }
     }
