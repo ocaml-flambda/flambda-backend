@@ -129,6 +129,15 @@ static intnat do_compare_val(struct compare_stack* stk,
       /* Subtraction above cannot overflow and cannot result in UNORDERED */
       if (!Is_in_value_area(v2))
         return LESS;
+      /* Like abstract blocks, mixed blocks don't support polymorphic compare.
+         Unlike abstract blocks, it's fairly common for some values of a type
+         to be mixed and others to not be mixed, so we take special care to
+         raise if either argument is mixed.
+       */
+      if (Is_mixed_block_reserved(Reserved_val(v2))) {
+        compare_free_stack(stk);
+        caml_invalid_argument("compare: mixed block value");
+      }
       switch (Tag_val(v2)) {
         case Forward_tag:
           v2 = Forward_val(v2);
@@ -146,6 +155,10 @@ static intnat do_compare_val(struct compare_stack* stk,
         default: /*fallthrough*/;
         }
       return LESS;                /* v1 long < v2 block */
+    }
+    if (Is_mixed_block_reserved(Reserved_val(v1))) {
+      compare_free_stack(stk);
+      caml_invalid_argument("compare: mixed block value");
     }
     if (Is_long(v2)) {
       if (!Is_in_value_area(v1))
@@ -176,6 +189,10 @@ static intnat do_compare_val(struct compare_stack* stk,
       return (v1 >> 1) - (v2 >> 1);
       /* Subtraction above cannot result in UNORDERED */
     }
+    if (Is_mixed_block_reserved(Reserved_val(v2))) {
+      compare_free_stack(stk);
+      caml_invalid_argument("compare: mixed block value");
+    }
     t1 = Tag_val(v1);
     t2 = Tag_val(v2);
     if (t1 != t2) {
@@ -193,11 +210,6 @@ static intnat do_compare_val(struct compare_stack* stk,
         if (t2 == Infix_tag) t2 = Closure_tag;
         if (t1 != t2)
             return (intnat)t1 - (intnat)t2;
-    }
-    if ( Is_mixed_block_reserved(Reserved_val(v1))
-      || Is_mixed_block_reserved(Reserved_val(v2))) {
-      compare_free_stack(stk);
-      caml_invalid_argument("compare: mixed block value");
     }
     switch(t1) {
     case Forward_tag: {
