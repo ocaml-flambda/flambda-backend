@@ -121,7 +121,6 @@ end
 type fun_graph =
   { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t;
-    called : (Code_id.t, unit) Hashtbl.t
   }
 
 type graph =
@@ -151,7 +150,6 @@ let pp_used ppf (graph : graph) =
 let create () =
   { name_to_dep = Hashtbl.create 100;
     used = Hashtbl.create 100;
-    called = Hashtbl.create 100
   }
 
 let insert t k v =
@@ -207,4 +205,4 @@ let add_func_param t ~param ~arg =
 
 let add_use t dep = Hashtbl.replace t.used dep ()
 
-let add_called t code_id = Hashtbl.replace t.called code_id ()
+let add_called t code_id = Hashtbl.replace t.used (Code_id_or_name.code_id code_id) ()

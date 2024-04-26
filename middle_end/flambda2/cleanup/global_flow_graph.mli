@@ -32,7 +32,6 @@ end
 type fun_graph =
   { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
     used : (Code_id_or_name.t, unit) Hashtbl.t;
-    called : (Code_id.t, unit) Hashtbl.t
   }
 
 type graph =

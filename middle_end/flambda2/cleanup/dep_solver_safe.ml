@@ -4,7 +4,6 @@ type dep = Global_flow_graph.Dep.t
 
 module Field = Global_flow_graph.Field
 module DepSet = Global_flow_graph.Dep.Set
-module SCC = Strongly_connected_components.Make (Code_id_or_name)
 
 let max_depth = 2
 
@@ -20,126 +19,6 @@ type elt =
         * depth is the maximum of fields depth + 1
         * no element of fields is Bottom *)
   | Bottom  (** Value not accessed *)
-
-module Make_SCC = struct
-  let dep (d : Global_flow_graph.Dep.t) =
-    match d with
-    | Called_by_that_function code_id -> Code_id_or_name.Set.singleton (Code_id_or_name.code_id code_id)
-    | Alias n | Use n | Field (_, n) | Return_of_that_function n ->
-      Code_id_or_name.Set.singleton (Code_id_or_name.name n)
-    | Contains cn | Block (_, cn) -> Code_id_or_name.Set.singleton cn
-    | Apply (n, c) ->
-      Code_id_or_name.Set.add
-        (Code_id_or_name.code_id c)
-        (Code_id_or_name.Set.singleton (Code_id_or_name.name n))
-    | Alias_if_def _ | Propagate _ -> assert false
-
-  let depset (d : DepSet.t) : Code_id_or_name.Set.t =
-    DepSet.fold
-      (fun d acc -> Code_id_or_name.Set.union acc (dep d))
-      d Code_id_or_name.Set.empty
-
-  let ensure_domain acc s =
-    Code_id_or_name.Set.fold
-      (fun x acc ->
-        if Code_id_or_name.Map.mem x acc
-        then acc
-        else Code_id_or_name.Map.add x Code_id_or_name.Set.empty acc)
-      s acc
-
-  let add_fungraph code_id (acc : SCC.directed_graph)
-      (fun_graph : Global_flow_graph.fun_graph) =
-    let acc =
-      Hashtbl.fold
-        (fun cn d acc ->
-          let deps = depset d in
-          let ndeps =
-            match Code_id_or_name.Map.find_opt cn acc with
-            | None -> deps
-            | Some deps2 -> Code_id_or_name.Set.union deps deps2
-          in
-          ensure_domain (Code_id_or_name.Map.add cn ndeps acc) deps)
-        fun_graph.name_to_dep acc
-    in
-    match code_id with
-    | None -> acc
-    | Some code_id ->
-      let code_id = Code_id_or_name.code_id code_id in
-      let acc = ensure_domain acc (Code_id_or_name.Set.singleton code_id) in
-      let invert = false in
-      let acc =
-        Hashtbl.fold
-          (fun cn () acc ->
-            let cn, code_id = if invert then code_id, cn else cn, code_id in
-            let d =
-              match Code_id_or_name.Map.find_opt code_id acc with
-              | None -> Code_id_or_name.Set.empty
-              | Some d -> d
-            in
-            let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
-            Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
-          fun_graph.used acc
-      in
-      let acc =
-        Hashtbl.fold
-          (fun cid2 () acc ->
-            let cn = Code_id_or_name.code_id cid2 in
-            let cn, code_id = if invert then code_id, cn else cn, code_id in
-            let d =
-              match Code_id_or_name.Map.find_opt code_id acc with
-              | None -> Code_id_or_name.Set.empty
-              | Some d -> d
-            in
-            let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
-            Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
-          fun_graph.called acc
-      in
-      Hashtbl.fold
-        (fun _ ds acc ->
-          DepSet.fold
-            (fun dp acc ->
-              Code_id_or_name.Set.fold
-                (fun cn acc ->
-                  let cn, code_id =
-                    if invert then code_id, cn else cn, code_id
-                  in
-                  let d =
-                    match Code_id_or_name.Map.find_opt code_id acc with
-                    | None -> Code_id_or_name.Set.empty
-                    | Some d -> d
-                  in
-                  let acc =
-                    ensure_domain acc (Code_id_or_name.Set.singleton cn)
-                  in
-                  Code_id_or_name.Map.add code_id
-                    (Code_id_or_name.Set.add cn d)
-                    acc)
-                (dep dp) acc)
-            ds acc)
-        fun_graph.name_to_dep acc
-
-  let from_graph (graph : graph) result : SCC.directed_graph =
-    let acc =
-      Hashtbl.fold
-        (fun code_id fun_graph acc -> add_fungraph (Some code_id) acc fun_graph)
-        graph.function_graphs
-        (add_fungraph None Code_id_or_name.Map.empty graph.toplevel_graph)
-    in
-    ignore result;
-    if true
-    then
-      Code_id_or_name.Map.map
-        (Code_id_or_name.Set.filter (fun n ->
-             Hashtbl.find_opt result n <> Some Top))
-        acc
-    else
-      Code_id_or_name.Map.mapi
-        (fun n d ->
-          if Hashtbl.find_opt result n = Some Top
-          then Code_id_or_name.Set.empty
-          else d)
-        acc
-end
 
 (* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
    Top *)
@@ -226,18 +105,6 @@ let propagate (elt : elt) (dep : dep) : (Code_id_or_name.t * elt) option =
     | Alias_if_def _ | Propagate _ -> assert false
   end
 
-let propagate_top (dep : dep) : Code_id_or_name.t option =
-  match dep with
-  | Return_of_that_function n -> Some (Code_id_or_name.name n)
-  | Called_by_that_function _ -> None
-  | Alias n -> Some (Code_id_or_name.name n)
-  | Apply (n, _) -> Some (Code_id_or_name.name n)
-  | Contains n -> Some n
-  | Use n -> Some (Code_id_or_name.name n)
-  | Field _ -> None
-  | Block (_, n) -> Some n
-  | Alias_if_def _ | Propagate _ -> assert false
-
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
 let pp_result ppf (res : result) =
@@ -251,209 +118,6 @@ let pp_result ppf (res : result) =
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
 
-type fixpoint_state =
-  { result : result;
-    all_added : (Code_id_or_name.t, unit) Hashtbl.t;
-    all_deps : (Code_id_or_name.t, DepSet.t) Hashtbl.t;
-    added_fungraph : (Code_id.t, unit) Hashtbl.t
-  }
-
-let add_subgraph push state (fun_graph : Global_flow_graph.fun_graph) =
-  let result = state.result in
-  let add_used used =
-    Hashtbl.iter
-      (fun n () ->
-        if Hashtbl.find_opt result n <> Some Top
-        then begin
-          Hashtbl.replace result n Top;
-          push n
-        end)
-      used
-  in
-  let add_called called =
-    Hashtbl.iter
-      (fun code_id () ->
-        let code_id = Code_id_or_name.code_id code_id in
-        if not (Hashtbl.mem result code_id)
-        then begin
-          Hashtbl.replace result code_id Top;
-          push code_id
-        end
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
-           Field.Map.singleton Apply Top)) *))
-      called
-  in
-  add_used fun_graph.used;
-  add_called fun_graph.called
-
-let create_state (graph : graph) =
-  let state =
-    { result = Hashtbl.create 100;
-      all_added = Hashtbl.create 100;
-      all_deps = graph.toplevel_graph.name_to_dep;
-      added_fungraph = Hashtbl.create 100
-    }
-  in
-  let stack = ref [] in
-  let called_stack = ref [] in
-  let add_used used =
-    if not (Hashtbl.mem state.result used)
-    then begin
-      Hashtbl.replace state.result used Top;
-      stack := used :: !stack
-    end
-  in
-  let add_called called =
-    if Hashtbl.mem graph.function_graphs called
-    then begin
-      Hashtbl.replace state.added_fungraph called ();
-      let subgraph = Hashtbl.find graph.function_graphs called in
-      Hashtbl.remove graph.function_graphs called;
-      called_stack := subgraph :: !called_stack
-    end
-  in
-  let add_subgraph (subgraph : Global_flow_graph.fun_graph) =
-    Hashtbl.iter (fun n () -> add_used n) subgraph.used;
-    Hashtbl.iter (fun code_id () -> add_called code_id) subgraph.called;
-    Hashtbl.iter
-      (fun n deps ->
-        if Hashtbl.mem state.result n
-        then
-          DepSet.iter
-            (fun dep ->
-              match propagate_top dep with None -> () | Some n2 -> add_used n2)
-            deps;
-        match Hashtbl.find_opt state.all_deps n with
-        | None -> Hashtbl.add state.all_deps n deps
-        | Some deps2 ->
-          Hashtbl.replace state.all_deps n (DepSet.union deps deps2))
-      subgraph.name_to_dep
-  in
-  let rec loop () =
-    match !stack with
-    | n :: rest ->
-      stack := rest;
-      let cur_deps =
-        try Hashtbl.find state.all_deps n with Not_found -> DepSet.empty
-      in
-      DepSet.iter
-        (fun dep ->
-          match propagate_top dep with None -> () | Some n2 -> add_used n2)
-        cur_deps;
-      Code_id_or_name.pattern_match' n
-        ~name:(fun _ -> ())
-        ~code_id:(fun code_id -> add_called code_id);
-      loop ()
-    | [] -> (
-      match !called_stack with
-      | (subgraph : Global_flow_graph.fun_graph) :: rest ->
-        called_stack := rest;
-        add_subgraph subgraph;
-        loop ()
-      | [] -> ())
-  in
-  Hashtbl.iter (fun n () -> add_used n) graph.toplevel_graph.used;
-  Hashtbl.iter
-    (fun code_id () -> add_called code_id)
-    graph.toplevel_graph.called;
-  loop ();
-  Hashtbl.iter
-    (fun n _ -> Hashtbl.replace graph.toplevel_graph.used n ())
-    state.result;
-  Hashtbl.iter
-    (fun code_id0 () ->
-      let code_id = Code_id_or_name.code_id code_id0 in
-      if not (Hashtbl.mem state.result code_id)
-      then begin
-        Hashtbl.replace state.result code_id Top;
-        Hashtbl.replace graph.toplevel_graph.called code_id0 ()
-      end)
-    state.added_fungraph;
-  state
-
-let fixpoint_component (state : fixpoint_state) (component : SCC.component)
-    (graph : graph) =
-  let result : result = state.result in
-  let all_deps = state.all_deps in
-  let q = Queue.create () in
-  (* Invariants: [!q_s] contails the elements that may be pushed in [q], that
-     is, the elements of [ids] that are not already in [q]. *)
-  let q_s = ref Code_id_or_name.Set.empty in
-  let push =
-    match component with
-    | No_loop id ->
-      Queue.push id q;
-      fun n -> assert (not (Hashtbl.mem state.all_added n))
-    | Has_loop ids ->
-      List.iter (fun id -> Queue.push id q) ids;
-      fun n ->
-        assert (not (Hashtbl.mem state.all_added n));
-        if Code_id_or_name.Set.mem n !q_s
-        then begin
-          Queue.push n q;
-          q_s := Code_id_or_name.Set.remove n !q_s
-        end
-  in
-  let rec add_fungraph (fungraph : Global_flow_graph.fun_graph) =
-    Hashtbl.iter
-      (fun n deps ->
-        (match Hashtbl.find_opt all_deps n with
-        | None -> Hashtbl.add all_deps n deps
-        | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
-        if Hashtbl.mem result n
-        then propagate_elt n (Hashtbl.find result n) deps)
-      fungraph.name_to_dep;
-    add_subgraph push state fungraph
-  and check_and_add_fungraph n elt =
-    let added_fungraphs = state.added_fungraph in
-    Code_id_or_name.pattern_match'
-      ~name:(fun _ -> ())
-      ~code_id:(fun code_id ->
-        if (match elt with Bottom -> false | Fields _ | Top -> true)
-           && (not (Hashtbl.mem added_fungraphs code_id))
-           && Hashtbl.mem graph.function_graphs code_id
-        then begin
-          add_fungraph (Hashtbl.find graph.function_graphs code_id);
-          Hashtbl.add added_fungraphs code_id ()
-        end)
-      n
-  and propagate_elt n elt deps =
-    check_and_add_fungraph n elt;
-    DepSet.iter
-      (fun dep ->
-        match propagate elt dep with
-        | None -> ()
-        | Some (dep_upon, dep_elt) -> (
-          assert (dep_elt <> Bottom);
-          match Hashtbl.find_opt result dep_upon with
-          | None ->
-            Hashtbl.replace result dep_upon dep_elt;
-            push dep_upon
-          | Some prev_dep ->
-            let u = join_elt dep_elt prev_dep in
-            if not (equal_elt u prev_dep)
-            then begin
-              Hashtbl.replace result dep_upon u;
-              push dep_upon
-            end))
-      deps
-  in
-  while not (Queue.is_empty q) do
-    let n = Queue.pop q in
-    q_s := Code_id_or_name.Set.add n !q_s;
-    let deps =
-      match Hashtbl.find_opt all_deps n with
-      | None -> DepSet.empty
-      | Some s -> s
-    in
-    match Hashtbl.find_opt result n with
-    | None -> ()
-    | Some elt -> propagate_elt n elt deps
-  done;
-  match component with
-  | No_loop id -> Hashtbl.add state.all_added id ()
-  | Has_loop ids -> List.iter (fun n -> Hashtbl.add state.all_added n ()) ids
-
 let fixpoint (graph : graph) : result =
   let result : result = Hashtbl.create 100 in
   let q = Queue.create () in
@@ -466,18 +130,7 @@ let fixpoint (graph : graph) : result =
       used
   in
   let added_fungraphs = Hashtbl.create 100 in
-  let rec add_called called =
-    Hashtbl.iter
-      (fun code_id () ->
-        let code_id = Code_id_or_name.code_id code_id in
-        if not (Hashtbl.mem result code_id)
-        then
-          Hashtbl.replace result code_id Top;
-        (* check_and_add_fungraph (Code_id_or_name.code_id code_id) (Fields (1,
-           Field.Map.singleton Apply Top)) *)
-        Queue.push code_id q (* CR do better, push_front? *))
-      called
-  and add_fungraph (fungraph : Global_flow_graph.fun_graph) =
+  let rec add_fungraph (fungraph : Global_flow_graph.fun_graph) =
     Hashtbl.iter
       (fun n deps ->
         (match Hashtbl.find_opt all_deps n with
@@ -485,8 +138,7 @@ let fixpoint (graph : graph) : result =
         | Some deps2 -> Hashtbl.replace all_deps n (DepSet.union deps deps2));
         if Hashtbl.mem result n then Queue.push n q)
       fungraph.name_to_dep;
-    add_used fungraph.used;
-    add_called fungraph.called
+    add_used fungraph.used
   and check_and_add_fungraph n elt =
     Code_id_or_name.pattern_match'
       ~name:(fun _ -> ())
@@ -501,7 +153,6 @@ let fixpoint (graph : graph) : result =
       n
   in
   add_used graph.toplevel_graph.used;
-  add_called graph.toplevel_graph.called;
   while not (Queue.is_empty q) do
     let n = Queue.pop q in
     let deps =

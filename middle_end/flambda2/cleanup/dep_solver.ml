@@ -77,19 +77,6 @@ module Make_SCC = struct
             Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
           fun_graph.used acc
       in
-      let acc =
-        Hashtbl.fold
-          (fun cid2 () acc ->
-            let cn = Code_id_or_name.code_id cid2 in
-            let d =
-              match Code_id_or_name.Map.find_opt code_id acc with
-              | None -> Code_id_or_name.Set.empty
-              | Some d -> d
-            in
-            let acc = ensure_domain acc (Code_id_or_name.Set.singleton cn) in
-            Code_id_or_name.Map.add code_id (Code_id_or_name.Set.add cn d) acc)
-          fun_graph.called acc
-      in
       Hashtbl.fold
         (fun _ ds acc ->
           DepSet.fold
@@ -272,9 +259,6 @@ let create_state (graph : Global_flow_graph.fun_graph) =
       stack := used :: !stack
     end
   in
-  let add_called called =
-    Hashtbl.replace state.added_fungraph called ();
-  in
   let rec loop () =
     match !stack with
     | n :: rest ->
@@ -286,16 +270,10 @@ let create_state (graph : Global_flow_graph.fun_graph) =
         (fun dep ->
           match propagate_top dep state.result with None -> () | Some n2 -> add_used n2)
         cur_deps;
-      Code_id_or_name.pattern_match' n
-        ~name:(fun _ -> ())
-        ~code_id:(fun code_id -> add_called code_id);
       loop ()
     | [] -> ()
   in
   Hashtbl.iter (fun n () -> add_used n) graph.used;
-  Hashtbl.iter
-    (fun code_id () -> add_called code_id)
-    graph.called;
   loop ();
   Hashtbl.iter
     (fun n _ -> Hashtbl.replace graph.used n ())
@@ -306,7 +284,6 @@ let create_state (graph : Global_flow_graph.fun_graph) =
       if not (Hashtbl.mem state.result code_id)
       then begin
         Hashtbl.replace state.result code_id Top;
-        Hashtbl.replace graph.called code_id0 ()
       end)
     state.added_fungraph;
   state
