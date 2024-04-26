@@ -183,6 +183,8 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -1647,6 +1649,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Poffsetref _ -> None
   | Pintoffloat _ -> None
   | Pfloatofint (_, m) -> Some m
+  | Pfloatoffloat32 m -> Some m
+  | Pfloat32offloat m -> Some m
   | Pnegfloat (_, m) | Pabsfloat (_, m)
   | Paddfloat (_, m) | Psubfloat (_, m)
   | Pmulfloat (_, m) | Pdivfloat (_, m) -> Some m
@@ -1791,6 +1795,8 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ -> layout_boxed_float Pfloat64
+  | Pfloatoffloat32 _ -> layout_boxed_float Pfloat64
+  | Pfloat32offloat _ -> layout_boxed_float Pfloat32
   | Pfloatofint (f, _) | Pnegfloat (f, _) | Pabsfloat (f, _)
   | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
   | Pbox_float (f, _) -> layout_boxed_float f
@@ -1861,7 +1867,7 @@ let primitive_result_layout (p : primitive) =
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
       | Pbigarray_float32 ->
-        (* CR mslater: (float32) bigarrays *)
+        (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8
