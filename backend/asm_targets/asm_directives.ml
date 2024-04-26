@@ -247,14 +247,14 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         let lab = D.const_label (Asm_symbol.encode sym) in
         const_machine_width lab)
 
-  let label ?comment:comment' lab =
-    Option.iter D.comment comment';
+  let label ?comment lab =
+    Option.iter D.comment comment;
     let lab = D.const_label (Asm_label.encode lab) in
     const_machine_width lab
 
-  let label_plus_offset ?comment:comment' lab ~offset_in_bytes =
+  let label_plus_offset ?comment lab ~offset_in_bytes =
     let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
-    Option.iter D.comment comment';
+    Option.iter D.comment comment;
     let lab = D.const_label (Asm_label.encode lab) in
     const_machine_width (D.const_add lab (D.const_int64 offset_in_bytes))
 
