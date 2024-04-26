@@ -70,6 +70,15 @@ module Value : sig
     unit ->
     Dwarf_attributes.Form.data8 t
 
+  val distance_between_labels_64_bit_with_offsets :
+    ?comment:string ->
+    upper:Asm_label.t ->
+    upper_offset:Targetint.t ->
+    lower:Asm_label.t ->
+    lower_offset:Targetint.t ->
+    unit ->
+    Dwarf_attributes.Form.data8 t
+
   val distance_between_label_and_symbol_32_bit :
     ?comment:string ->
     upper:Asm_label.t ->
@@ -86,6 +95,12 @@ module Value : sig
 
   val code_address_from_label :
     ?comment:string -> Asm_label.t -> Dwarf_attributes.Form.addr t
+
+  val code_address_from_label_plus_offset :
+    ?comment:string ->
+    Asm_label.t ->
+    offset_in_bytes:Targetint.t ->
+    Dwarf_attributes.Form.addr t
 
   val code_address_from_symbol :
     ?comment:string -> Asm_symbol.t -> Dwarf_attributes.Form.addr t

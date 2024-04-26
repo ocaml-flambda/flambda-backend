@@ -9,3 +9,11 @@
 (rule
  (alias  runtest)
  (action (copy fail25.ml fail26.ml)))
+
+(rule
+ (alias  runtest)
+ (action (copy test_all_opt.ml test_all_opt2.ml)))
+
+(rule
+ (alias  runtest)
+ (action (copy test_all_opt.ml test_all_opt3.ml)))

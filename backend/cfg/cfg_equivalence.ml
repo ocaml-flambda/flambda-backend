@@ -339,6 +339,10 @@ let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
     State.add_to_explore state expected_lbl_handler result_lbl_handler
   | Poptrap, Poptrap -> ()
   | Prologue, Prologue -> ()
+  | ( Stack_check { max_frame_size_bytes = expected_max_frame_size_bytes },
+      Stack_check { max_frame_size_bytes = result_max_frame_size_bytes } ) ->
+    if expected_max_frame_size_bytes <> result_max_frame_size_bytes
+    then different location "stack check"
   | _ -> different location "basic"
  [@@ocaml.warning "-4"]
 
@@ -393,6 +397,7 @@ let check_basic_instruction :
     | Pushtrap _ -> false
     | Poptrap -> false
     | Prologue -> false
+    | Stack_check _ -> false
   in
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result

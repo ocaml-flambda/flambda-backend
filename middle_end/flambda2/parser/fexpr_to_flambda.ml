@@ -433,6 +433,9 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
+  | Mixed { size = s; field_kind } ->
+    let s = size s in
+    Mixed { size = s; field_kind }
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with

@@ -1,10 +1,10 @@
-(* TEST
-   flags = "-g"
-   * bytecode
-     reference = "${test_source_directory}/names_partial_application.byte.reference"
-   * native
-     reference = "${test_source_directory}/names_partial_application.opt.reference"
- *)
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+*)
 
 let[@inline never] bang () = raise Exit
 
@@ -23,3 +23,14 @@ let () =
   | _ -> assert false
   | exception Exit ->
      Printexc.print_backtrace stdout
+
+(* TEST
+ flags = "-g";
+ {
+   reference = "${test_source_directory}/names_partial_application.byte.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/names_partial_application.opt.reference";
+   native;
+ }
+*)

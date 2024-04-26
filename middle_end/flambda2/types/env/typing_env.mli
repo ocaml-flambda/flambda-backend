@@ -115,6 +115,8 @@ val create :
   get_imported_names:(unit -> Name.Set.t) ->
   t
 
+val is_bottom : t -> bool
+
 val closure_env : t -> t
 
 val resolver : t -> Compilation_unit.t -> Serializable.t option

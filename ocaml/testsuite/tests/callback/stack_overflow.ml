@@ -1,11 +1,14 @@
 (* TEST
-   include unix
-   modules = "stack_overflow_.c"
-   * skip
-     reason = "CR ocaml 5 effects: re-enable this test"
-   ** libunix
-   *** bytecode
-   *** native
+ include unix;
+ modules = "stack_overflow_.c";
+ reason = "CR ocaml 5 effects: re-enable this test";
+ skip;
+ libunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 external caml_to_c : (unit -> 'a) -> 'a = "caml_to_c"

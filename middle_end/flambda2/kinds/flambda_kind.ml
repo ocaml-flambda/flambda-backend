@@ -617,30 +617,45 @@ module With_subkind = struct
     | Pboxedvectorval (Pvec128 _) -> boxed_vec128
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
-      match consts, non_consts with
-      | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-      | [], [(tag, fields)] when tag = Obj.double_array_tag ->
-        (* If we have [Obj.double_array_tag] here, this is always an all-float
-           block, not an array. *)
-        float_block ~num_fields:(List.length fields)
-      | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
-        let consts =
-          Targetint_31_63.Set.of_list
-            (List.map (fun const -> Targetint_31_63.of_int const) consts)
-        in
-        let non_consts =
-          List.fold_left
-            (fun non_consts (tag, fields) ->
-              match Tag.Scannable.create tag with
-              | Some tag ->
-                Tag.Scannable.Map.add tag
-                  (List.map (fun vk -> from_lambda_value_kind vk) fields)
-                  non_consts
-              | None ->
-                Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
-            Tag.Scannable.Map.empty non_consts
-        in
-        create value (Variant { consts; non_consts }))
+      let all_uniform_non_consts =
+        List.map
+          (fun (tag, (shape : Lambda.constructor_shape)) ->
+            match shape with
+            | Constructor_uniform shape -> Some (tag, shape)
+            | Constructor_mixed _ -> None)
+          non_consts
+        |> Misc.Stdlib.List.some_if_all_elements_are_some
+      in
+      match all_uniform_non_consts with
+      | None ->
+        (* CR mixed blocks v2: have a better representation of mixed blocks in
+           the flambda2 middle end so that they can be optimized more. *)
+        any_value
+      | Some non_consts -> (
+        match consts, non_consts with
+        | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
+        | [], [(tag, fields)] when tag = Obj.double_array_tag ->
+          (* If we have [Obj.double_array_tag] here, this is always an all-float
+             block, not an array. *)
+          float_block ~num_fields:(List.length fields)
+        | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
+          let consts =
+            Targetint_31_63.Set.of_list
+              (List.map (fun const -> Targetint_31_63.of_int const) consts)
+          in
+          let non_consts =
+            List.fold_left
+              (fun non_consts (tag, fields) ->
+                match Tag.Scannable.create tag with
+                | Some tag ->
+                  Tag.Scannable.Map.add tag
+                    (List.map from_lambda_value_kind fields)
+                    non_consts
+                | None ->
+                  Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
+              Tag.Scannable.Map.empty non_consts
+          in
+          create value (Variant { consts; non_consts })))
     | Parrayval Pfloatarray -> float_array
     | Parrayval Pintarray -> immediate_array
     | Parrayval Paddrarray -> value_array

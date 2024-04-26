@@ -93,10 +93,14 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
     [Use the OCaml 5 runtime])])
+AS_IF([test x"$enable_runtime5" = xyes],
+      [runtime_suffix=],
+      [runtime_suffix=4])
 
 ## Output variables
 
 AC_SUBST([enable_runtime5])
+AC_SUBST([runtime_suffix])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([default_build_target])
@@ -2106,6 +2110,8 @@ AS_CASE([$host],
     [PTHREAD_LIBS="-l:libpthread.a -lgcc_eh"],
   [*-pc-windows],
     [PTHREAD_LIBS="-l:libpthread.lib"],
+  [*-apple-darwin*],
+    [PTHREAD_LIBS="-pthread"],
   [AX_PTHREAD(
     [common_cflags="$common_cflags $PTHREAD_CFLAGS"
     saved_CFLAGS="$CFLAGS"

@@ -1,7 +1,10 @@
 (* TEST
-   * expect
-   * expect
-   flags = "-extension layouts_beta"
+ {
+   expect;
+ }{
+   flags = "-extension layouts_beta";
+   expect;
+ }
 *)
 
 type t_value : value
@@ -25,6 +28,16 @@ Line 1, characters 14-18:
 1 | type t_void : void;;
                   ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
+type t_non_null_value : non_null_value;;
+
+[%%expect{|
+Line 1, characters 24-38:
+1 | type t_non_null_value : non_null_value;;
+                            ^^^^^^^^^^^^^^
+Error: Layout non_null_value is more experimental than allowed by the enabled layouts extension.
        You must enable -extension layouts_alpha to use this feature.
 |}]
 

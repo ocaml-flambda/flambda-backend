@@ -1,11 +1,11 @@
-(* TEST
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
 
-   flags = "-w +A-60-70"
 
- * setup-ocamlc.byte-build-env
- ** ocamlc.byte
-   compile_only = "true"
- *** check-ocamlc.byte-output
+
+
+
+
 
 *)
 
@@ -22,4 +22,12 @@ let[@jane] f () = ();;
 
 (* We can't use expect test here because warning 53 is only raised by ocamlc,
    not the toplevel. This is probably a bug.
+*)
+
+(* TEST
+ flags = "-w +A-60-70";
+ setup-ocamlc.byte-build-env;
+ compile_only = "true";
+ ocamlc.byte;
+ check-ocamlc.byte-output;
 *)

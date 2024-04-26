@@ -1,6 +1,9 @@
 (* TEST
-   * bytecode
-   * native
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* This was producing an error in ocamlopt because the call to [failwith] had

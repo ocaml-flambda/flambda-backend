@@ -1,6 +1,6 @@
 (* TEST
-   include ocamlcommon
-   flags = "-I ${ocamlsrcdir}/parsing"
+ include ocamlcommon;
+ flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
 (* Change these two variables to change which extension is being tested *)

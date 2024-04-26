@@ -319,7 +319,6 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Ignore_assert_all of property
   | Assume of { property: property; strict: bool; never_returns_normally: bool;
                 loc: Location.t }
   | Check of { property: property; strict: bool; loc : Location.t; }
@@ -554,8 +553,7 @@ let equal_exttype left right =
   | XInt32, (XInt | XInt64 | XFloat | XFloat32 | XVec128)
   | XInt64, (XInt | XInt32 | XFloat | XFloat32 | XVec128)
   | XFloat, (XInt | XInt32 | XFloat32 | XInt64 | XVec128)
-  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32) ->
-    false
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32)
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
 

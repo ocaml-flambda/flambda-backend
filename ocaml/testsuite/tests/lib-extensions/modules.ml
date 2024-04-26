@@ -1,6 +1,9 @@
 (* TEST
-* bytecode
-* native
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* Check that extension library modules exist. *)

@@ -64,18 +64,95 @@ let mk_load_atomic memory_chunk =
 
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
+type t =
+  | Scan_all
+  | Scan_prefix of int
+
+module Mixed_block_support : sig
+  val assert_mixed_block_support : unit -> unit
+
+  val make_header : Nativeint.t -> scannable_prefix:int -> Nativeint.t
+end = struct
+  (* CR mixed blocks v1: This "8" is duplicated in [typedecl.ml]. We should fix
+     up this duplication when we make the "8" configurable. *)
+  let required_reserved_header_bits = 8
+
+  let required_addr_size_bits = 64
+
+  (* Many of these checks are duplicated *)
+
+  (* CR mixed blocks v1: This is also duplicated in [typedecl.ml]. *)
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_scannable_prefix = (1 lsl required_reserved_header_bits) - 2
+
+  let max_header =
+    (1 lsl (required_addr_size_bits - required_reserved_header_bits)) - 1
+    |> Nativeint.of_int
+
+  let assert_mixed_block_support =
+    lazy
+      (if not Config.native_compiler
+       then Misc.fatal_error "Mixed blocks are only supported in native code";
+       let reserved_header_bits = Config.reserved_header_bits in
+       let addr_size_bits = Arch.size_addr * 8 in
+       match
+         ( reserved_header_bits = required_reserved_header_bits,
+           addr_size_bits = required_addr_size_bits )
+       with
+       | true, true -> ()
+       | false, true ->
+         Misc.fatal_errorf
+           "Need %d reserved header bits for mixed blocks; got %d"
+           required_reserved_header_bits reserved_header_bits
+       | _, false ->
+         Misc.fatal_errorf
+           "Mixed blocks only supported on %d bit platforms; got %d"
+           required_addr_size_bits addr_size_bits)
+
+  let assert_mixed_block_support () = Lazy.force assert_mixed_block_support
+
+  let make_header header ~scannable_prefix =
+    assert_mixed_block_support ();
+    if scannable_prefix > max_scannable_prefix
+    then
+      Misc.fatal_errorf "Scannable prefix too big (%d > %d)" scannable_prefix
+        max_scannable_prefix;
+    (* This means we crash the compiler if someone tries to write a mixed record
+       with too many fields, but you effectively can't: you'd need something
+       like 2^46 fields. *)
+    if header > max_header
+    then
+      Misc.fatal_errorf
+        "Header too big for the mixed block encoding to be added (%nd > %nd)"
+        header max_header;
+    Nativeint.add
+      (Nativeint.shift_left
+         (Nativeint.of_int (scannable_prefix + 1))
+         (required_addr_size_bits - required_reserved_header_bits))
+      header
+end
+
 (* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header tag sz =
-  Nativeint.add
-    (Nativeint.shift_left (Nativeint.of_int sz) 10)
-    (Nativeint.of_int tag)
+let block_header ?(scannable_prefix = Scan_all) tag sz =
+  let hdr =
+    Nativeint.add
+      (Nativeint.shift_left (Nativeint.of_int sz) 10)
+      (Nativeint.of_int tag)
+  in
+  match scannable_prefix with
+  | Scan_all -> hdr
+  | Scan_prefix scannable_prefix ->
+    Mixed_block_support.make_header hdr ~scannable_prefix
 
 (* Static data corresponding to "value"s must be marked black in case we are in
    no-naked-pointers mode. See [caml_darken] and the code below that emits
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
-let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
+let local_block_header ?scannable_prefix tag sz =
+  Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
 
 let white_closure_header sz = block_header Obj.closure_tag sz
 
@@ -1353,15 +1430,16 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ~mode set_fn dbg tag wordsize args =
+let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
+    wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
       match mode with
-      | Lambda.Alloc_local -> local_block_header tag wordsize
-      | Lambda.Alloc_heap -> block_header tag wordsize
+      | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
+      | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1370,17 +1448,25 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
       | [] -> Cvar id
       | e1 :: el ->
         Csequence
-          ( set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
-            fill_fields (idx + 2) el )
+          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
+            fill_fields (idx + 1) el )
+    in
+    let caml_alloc_func, caml_alloc_args =
+      match Config.runtime5, scannable_prefix with
+      | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | false, Scan_all -> "caml_alloc", [wordsize; tag]
+      | true, Scan_prefix prefix_len ->
+        Mixed_block_support.assert_mixed_block_support ();
+        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
+      | false, Scan_prefix prefix_len ->
+        Mixed_block_support.assert_mixed_block_support ();
+        "caml_alloc_mixed", [wordsize; tag; prefix_len]
     in
     Clet
       ( VP.create id,
         Cop
           ( Cextcall
-              { func =
-                  (if Config.runtime5
-                  then "caml_alloc_shr_check_gc"
-                  else "caml_alloc");
+              { func = caml_alloc_func;
                 ty = typ_val;
                 alloc = true;
                 builtin = false;
@@ -1389,32 +1475,60 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
                 coeffects = Has_coeffects;
                 ty_args = []
               },
-            [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)],
+            List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
             dbg ),
-        fill_fields 1 args )
+        fill_fields 0 args )
+
+let addr_array_init arr ofs newval dbg =
+  Cop
+    ( Cextcall
+        { func = "caml_initialize";
+          ty = typ_void;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty_args = []
+        },
+      [array_indexing log2_size_addr arr ofs dbg; newval],
+      dbg )
 
 let make_alloc ~mode dbg tag args =
-  let addr_array_init arr ofs newval dbg =
-    Cop
-      ( Cextcall
-          { func = "caml_initialize";
-            ty = typ_void;
-            alloc = false;
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty_args = []
-          },
-        [array_indexing log2_size_addr arr ofs dbg; newval],
-        dbg )
-  in
-  make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
+  make_alloc_generic ~mode
+    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
+    dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg tag args =
-  make_alloc_generic ~mode float_array_set dbg tag
+  make_alloc_generic ~mode
+    (fun _ -> float_array_set)
+    dbg tag
     (List.length args * size_float / size_addr)
     args
+
+let make_mixed_alloc ~mode dbg shape args =
+  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
+  (* args with shape [Float] must already have been unboxed. *)
+  let set_fn idx arr ofs newval dbg =
+    if idx < value_prefix_len
+    then addr_array_init arr ofs newval dbg
+    else
+      match flat_suffix.(idx - value_prefix_len) with
+      | Imm -> int_array_set arr ofs newval dbg
+      | Float | Float64 -> float_array_set arr ofs newval dbg
+  in
+  let size =
+    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
+    if size_float <> size_addr
+    then
+      Misc.fatal_error
+        "Unable to compile mixed blocks on a platform where a float is not the \
+         same width as a value.";
+    values + floats
+  in
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+    (* CR mixed blocks v1: Support inline record args to variants. *)
+    set_fn dbg Obj.first_non_constant_constructor_tag size args
 
 (* Record application and currying functions *)
 
@@ -3686,24 +3800,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
-let transl_property : Lambda.property -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Assume { property; strict; never_returns_normally; loc } ->
-    [ Assume
-        { property = transl_property property;
-          strict;
-          never_returns_normally;
-          loc
-        } ]
-  | Check { property; strict; loc; opt } ->
-    if Lambda.is_check_enabled ~opt property
-    then [Check { property = transl_property property; strict; loc }]
-    else []
-
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
   | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
@@ -3838,3 +3934,6 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+(* Drop internal optional arguments from exported interface *)
+let block_header x y = block_header x y

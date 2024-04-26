@@ -1,11 +1,14 @@
 (* TEST
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/loop_regions.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/loop_regions.heap.reference"
- *)
+ {
+   stack-allocation;
+   reference = "${test_source_directory}/loop_regions.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/loop_regions.heap.reference";
+   native;
+ }
+*)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 let local_stack_offset () = local_stack_offset () / (Sys.word_size / 8)

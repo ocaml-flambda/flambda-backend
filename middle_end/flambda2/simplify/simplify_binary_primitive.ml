@@ -1007,10 +1007,19 @@ let[@inline always] simplify_immutable_block_load0
   let result_kind = P.Block_access_kind.element_kind_for_load access_kind in
   let result_var' = Bound_var.var result_var in
   let typing_env = DA.typing_env dacc in
-  match T.meet_equals_single_tagged_immediate typing_env index_ty with
-  | Invalid -> SPR.create_invalid dacc
-  | Need_meet -> SPR.create_unknown dacc ~result_var result_kind ~original_term
-  | Known_result index -> (
+  match[@warning "-fragile-match"]
+    T.meet_equals_single_tagged_immediate typing_env index_ty, access_kind
+  with
+  | _, Mixed _ ->
+    SPR.create_unknown dacc ~result_var result_kind ~original_term
+    (* CR mixed blocks: An flambda2 person will see how to do better here for
+       mixed blocks. Simply extending the existing code would require extending
+       [Block_kind] with [Mixed], but various parts of the code seem to assume
+       blocks have uniform element kinds. *)
+  | Invalid, _ -> SPR.create_invalid dacc
+  | Need_meet, _ ->
+    SPR.create_unknown dacc ~result_var result_kind ~original_term
+  | Known_result index, _ -> (
     match
       T.meet_block_field_simple typing_env ~min_name_mode
         ~field_kind:result_kind block_ty index
@@ -1039,6 +1048,7 @@ let[@inline always] simplify_immutable_block_load0
             then Unknown
             else Known Tag.double_array_tag
           | Unknown -> Unknown)
+        | Mixed _ -> assert false
       in
       let result =
         Simplify_common.simplify_projection dacc ~original_term
@@ -1073,6 +1083,7 @@ let[@inline always] simplify_immutable_block_load0
                 in
                 Values (tag, arity)
               | Naked_floats _ -> Naked_floats
+              | Mixed _ -> assert false
             in
             let prim =
               P.Eligible_for_cse.create

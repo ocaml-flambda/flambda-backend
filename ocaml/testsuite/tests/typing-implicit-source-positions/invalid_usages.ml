@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 type t = [%call_pos]
@@ -44,7 +44,7 @@ Line 1, characters 14-15:
                   ^
 Error: This expression has type call_pos:[%call_pos] -> unit -> unit
        but an expression was expected of type
-         call_pos:Lexing.position -> (unit -> 'a)
+         call_pos:Lexing.position -> unit -> 'a
 |}]
 
 let h ?(call_pos:[%call_pos]) () = ()

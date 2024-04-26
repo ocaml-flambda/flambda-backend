@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
- * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 module Float_u = Stdlib__Float_u

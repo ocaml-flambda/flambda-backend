@@ -62,6 +62,20 @@ module Array_kind_for_length : sig
     | Float_array_opt_dynamic
 end
 
+module Mixed_block_kind : sig
+  type t = Lambda.mixed_block_shape
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val fold_left : ('a -> Flambda_kind.t -> 'a) -> 'a -> t -> 'a
+
+  val element_kind : int -> t -> Flambda_kind.t
+
+  val length : t -> int
+end
+
 module Init_or_assign : sig
   type t =
     | Initialization
@@ -101,6 +115,11 @@ module Duplicate_block_kind : sig
           length : Targetint_31_63.t
         }
     | Naked_floats of { length : Targetint_31_63.t }
+    | Mixed
+        (** We could store tag/length (or other relevant fields) on [Mixed],
+            but we don't because the fields of [t] are currently only used for
+            printing.
+        *)
 
   val print : Format.formatter -> t -> unit
 
@@ -132,6 +151,16 @@ module Block_access_field_kind : sig
   val compare : t -> t -> int
 end
 
+module Mixed_block_access_field_kind : sig
+  type t =
+    | Value_prefix of Block_access_field_kind.t
+    | Flat_suffix of Lambda.flat_element
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+end
+
 module Block_access_kind : sig
   type t =
     | Values of
@@ -140,6 +169,10 @@ module Block_access_kind : sig
           field_kind : Block_access_field_kind.t
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
+    | Mixed of
+        { size : Targetint_31_63.t Or_unknown.t;
+          field_kind : Mixed_block_access_field_kind.t
+        }
 
   val print : Format.formatter -> t -> unit
 
@@ -422,6 +455,8 @@ type ternary_primitive =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_mixed_block of
+      Lambda.mixed_block_shape * Mutability.t * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

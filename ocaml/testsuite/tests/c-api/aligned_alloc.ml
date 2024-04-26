@@ -1,9 +1,12 @@
 (* TEST
-  modules = "aligned_alloc_stubs.c"
-  * runtime4
-  ** skip
-  * runtime5
-  ** native
+ modules = "aligned_alloc_stubs.c";
+ {
+   runtime4;
+   skip;
+ }{
+   runtime5;
+   native;
+ }
 *)
 
 external is_aligned : 'a Atomic.t -> bool = "caml_atomic_is_aligned"

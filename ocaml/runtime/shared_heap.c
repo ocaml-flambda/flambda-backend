@@ -15,6 +15,7 @@
 /**************************************************************************/
 #define CAML_INTERNALS
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,6 +28,7 @@
 #include "caml/globroots.h"
 #include "caml/major_gc.h"
 #include "caml/memory.h"
+#include "caml/memprof.h"
 #include "caml/mlvalues.h"
 #include "caml/platform.h"
 #include "caml/roots.h"
@@ -808,8 +810,8 @@ static void verify_object(struct heap_verify_state* st, value v) {
     if (Tag_val(v) == Closure_tag) {
       i = Start_env_closinfo(Closinfo_val(v));
     }
-    mlsize_t size = Wosize_val(v);
-    for (; i < size; i++) {
+    mlsize_t scannable_wosize = Scannable_wosize_val(v);
+    for (; i < scannable_wosize; i++) {
       value f = Field(v, i);
       if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
     }
@@ -909,8 +911,8 @@ static void compact_update_block(header_t* p)
     }
 
     if (tag < No_scan_tag) {
-      mlsize_t wosz = Wosize_hd(hd);
-      for (mlsize_t i = offset; i < wosz; i++) {
+      mlsize_t scannable_wosz = Scannable_wosize_hd(hd);
+      for (mlsize_t i = offset; i < scannable_wosz; i++) {
         compact_update_value_at(&Field(Val_hp(p), i));
       }
     }
@@ -1233,6 +1235,10 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
   /* First we do roots (locals and finalisers) */
   caml_do_roots(&compact_update_value, 0, NULL, Caml_state, 1);
+
+  /* Memprof roots and "weak" pointers to tracked blocks */
+  caml_memprof_scan_roots(&compact_update_value, 0, NULL,
+                          Caml_state, true, participants[0] == Caml_state);
 
   /* Next, one domain does the global roots */
   if (participants[0] == Caml_state) {

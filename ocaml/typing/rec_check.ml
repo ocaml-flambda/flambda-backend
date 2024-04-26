@@ -169,10 +169,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _, _)
       when is_ref vd ->
         Static
-    | Texp_apply (_, args, _, _)
+    | Texp_apply (_, args, _, _, _)
       when List.exists is_abstracted_arg args ->
         Static
     | Texp_apply _ ->
@@ -586,7 +586,8 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _, _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _,
+         _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -594,7 +595,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- ref e: m
       *)
       expression arg << Guard
-    | Texp_apply (e, args, _, _)  ->
+    | Texp_apply (e, args, _, _, _)  ->
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty
@@ -644,17 +645,25 @@ let rec expression : Typedtree.expression -> term_judg =
       option (fun (e, _) -> expression e) eo << Guard
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
-        let field_mode = match rep with
+        let field_mode i = match rep with
           | Record_float | Record_ufloat -> Dereference
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
+          | Record_mixed mixed_shape ->
+              (match get_mixed_record_element mixed_shape i with
+               | Value_prefix -> Guard
+               | Flat_suffix _ -> Dereference)
         in
-        let field (_label, field_def) = match field_def with
-            Kept _ -> empty
-          | Overridden (_, e) -> expression e
+        let field (label, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << field_mode label.lbl_num
         in
         join [
-          array field es << field_mode;
+          array field es;
           option expression eo << Dereference
         ]
     | Texp_ifthenelse (cond, ifso, ifnot) ->

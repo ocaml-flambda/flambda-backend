@@ -145,14 +145,17 @@ type primitive =
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
+  | Pmixedfield of int * mixed_block_read * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
+  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -322,7 +325,7 @@ and value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * constructor_shape) list;
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
@@ -338,6 +341,30 @@ and layout =
 
 and block_shape =
   value_kind list option
+
+and flat_element = Types.flat_element = Imm | Float | Float64
+and flat_element_read =
+  | Flat_read_imm
+  | Flat_read_float of alloc_mode
+  | Flat_read_float64
+and mixed_block_read =
+  | Mread_value_prefix of immediate_or_pointer
+  | Mread_flat_suffix of flat_element_read
+and mixed_block_write =
+  | Mwrite_value_prefix of immediate_or_pointer
+  | Mwrite_flat_suffix of flat_element
+
+and mixed_block_shape = Types.mixed_record_shape =
+  { value_prefix_len : int;
+    flat_suffix : flat_element array;
+  }
+
+and constructor_shape =
+  | Constructor_uniform of value_kind list
+  | Constructor_mixed of
+      { value_prefix : value_kind list;
+        flat_suffix : flat_element list;
+      }
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
@@ -445,6 +472,13 @@ let join_boxed_vector_layout v1 v2 =
   match v1, v2 with
   | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
+let equal_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm -> true
+  | Float, Float -> true
+  | Float64, Float64 -> true
+  | (Imm | Float | Float64), _ -> false
+
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
@@ -462,13 +496,25 @@ let rec equal_value_kind x y =
     let non_consts1 = List.sort compare_by_tag non_consts1 in
     let non_consts2 = List.sort compare_by_tag non_consts2 in
     List.equal Int.equal consts1 consts2
-      && List.equal (fun (tag1, fields1) (tag2, fields2) ->
+      && List.equal (fun (tag1, cstr1) (tag2, cstr2) ->
              Int.equal tag1 tag2
-             && List.length fields1 = List.length fields2
-             && List.for_all2 equal_value_kind fields1 fields2)
+             && equal_constructor_shape cstr1 cstr2)
            non_consts1 non_consts2
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
+
+and equal_constructor_shape x y =
+  match x, y with
+  | Constructor_uniform fields1, Constructor_uniform fields2 ->
+      List.length fields1 = List.length fields2
+      && List.for_all2 equal_value_kind fields1 fields2
+  | Constructor_mixed { value_prefix = p1; flat_suffix = s1 },
+    Constructor_mixed { value_prefix = p2; flat_suffix = s2 } ->
+      List.length p1 = List.length p2
+      && List.for_all2 equal_value_kind p1 p2
+      && List.length s1 = List.length s2
+      && List.for_all2 equal_flat_element s1 s2
+  | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -582,14 +628,14 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property =
+type property = Builtin_attributes.property =
   | Zero_alloc
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute =
+type check_attribute = Builtin_attributes.check_attribute =
   | Default_check
   | Ignore_assert_all of property
   | Check of { property: property;
@@ -788,7 +834,8 @@ let layout_int = Pvalue Pintval
 let layout_array kind = Pvalue (Parrayval kind)
 let layout_block = Pvalue Pgenval
 let layout_list =
-  Pvalue (Pvariant { consts = [0] ; non_consts = [0, [Pgenval; Pgenval]] })
+  Pvalue (Pvariant { consts = [0] ;
+                     non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
@@ -1190,6 +1237,18 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
+let transl_mixed_record_shape : Types.mixed_record_shape -> mixed_block_shape =
+  fun x -> x
+
+let count_mixed_block_values_and_floats =
+  Types.count_mixed_record_values_and_floats
+
+type mixed_block_element = Types.mixed_record_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+let get_mixed_block_element = Types.get_mixed_record_element
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -1562,11 +1621,19 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
+  | Pmakemixedblock (_, _, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
+  | Pmixedfield (_, read, _) -> begin
+      match read with
+      | Mread_value_prefix _ -> None
+      | Mread_flat_suffix (Flat_read_float m) -> Some m
+      | Mread_flat_suffix (Flat_read_float64 | Flat_read_imm) -> None
+    end
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
+  | Psetmixedfield _ -> None
   | Pduprecord _ -> Some alloc_heap
   | Pmake_unboxed_product _ | Punboxed_product_field _ -> None
   | Pccall p -> alloc_mode_of_primitive_description p
@@ -1712,7 +1779,7 @@ let primitive_result_layout (p : primitive) =
   | Popaque layout | Pobj_magic layout -> layout
   | Pbytes_to_string | Pbytes_of_string -> layout_string
   | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
-  | Psetufloatfield _
+  | Psetufloatfield _ | Psetmixedfield _
   | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
@@ -1722,7 +1789,7 @@ let primitive_result_layout (p : primitive) =
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _
+  | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
@@ -1735,6 +1802,16 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
+  | Pmixedfield (_, kind, _) -> begin
+      match kind with
+      | Mread_value_prefix _ -> layout_field
+      | Mread_flat_suffix proj -> begin
+          match proj with
+          | Flat_read_imm -> layout_int
+          | Flat_read_float _ -> layout_boxed_float Pfloat64
+          | Flat_read_float64 -> layout_unboxed_float Pfloat64
+        end
+    end
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
@@ -1877,16 +1954,6 @@ let array_set_kind mode = function
   | Pfloatarray -> Pfloatarray_set
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
-
-let is_check_enabled ~opt property =
-  match property with
-  | Zero_alloc ->
-    match !Clflags.zero_alloc_check with
-    | No_check -> false
-    | Check_all -> true
-    | Check_default -> not opt
-    | Check_opt_only -> opt
-
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)
