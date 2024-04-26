@@ -48,7 +48,7 @@ module Make_Fixpoint(G : Graph) = struct
       G.fold_nodes graph (fun n acc ->
           let deps = depset graph n in
           let acc = ensure_domain acc deps in
-          (* For nodes which are already as [top], the fixpoint is already reached. We can safely ignore the dependency and process these nodes at the end, cutting some cycles. *)
+          (* For nodes which are already as [top], the fixpoint is already reached. We can safely ignore the dependency and process these nodes at the beginning, cutting some cycles. *)
           let deps = Node.Set.filter (fun other -> not (G.is_top (G.get state other))) deps in
           Node.Map.add n deps acc)
         Node.Map.empty
@@ -77,11 +77,9 @@ module Make_Fixpoint(G : Graph) = struct
   let fixpoint_component (graph : G.graph) (state : G.state) (component : SCC.component) =
     match component with
     | No_loop id ->
-      Format.eprintf "%a@." Node.print id;
       let current_elt = G.get state id in
       if not (G.is_bottom current_elt) then
         G.fold_edges graph id (fun dep () ->
-            Format.eprintf "%a -> %a@." Node.print id Node.print (G.target dep);
             let propagated = G.propagate state current_elt dep in
             if not (G.is_bottom propagated) then
               let target = G.target dep in
@@ -110,10 +108,11 @@ module Make_Fixpoint(G : Graph) = struct
             if not (G.is_bottom propagated) then
               let target = G.target dep in
               let old = G.get state target in
-              if Node.Set.mem target in_loop then
+              if Node.Set.mem target in_loop then begin
                 let widened = G.widen state ~old propagated in
                 if not (G.less_equal state widened old) then
                   (G.set state target widened; push target)
+              end
               else
                 G.set state target (G.join state old propagated)
             ) ()
@@ -280,7 +279,7 @@ let propagate_top uses (dep : dep) : bool =
   | Contains _ -> true
   | Use _ -> true
   | Field _ -> false
-  | Block (_, _) -> false
+  | Block (_, _) -> true
   | Alias_if_def (_, c) -> begin
     match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
     | None | Some Bottom -> false
@@ -327,14 +326,14 @@ module Graph = struct
   let is_bottom = function Bottom -> true | Top | Fields _ -> false
 
   let widen _ ~old:elt1 elt2 = cut_at max_depth (join_elt elt1 elt2)
-  let join _ elt1 elt2 = join_elt elt1 elt2
+  let join _ elt1 elt2 = (cut_at max_depth (join_elt elt1 elt2)) (* XXX no need to cut *) 
   let less_equal _ elt1 elt2 = equal_elt (join_elt elt1 elt2) elt2 (* TODO *) 
 
   let propagate = propagate
   let propagate_top = propagate_top
 
   let get state n = match Hashtbl.find_opt state n with None -> Bottom | Some elt -> elt
-  let set state n elt = Hashtbl.replace state n elt
+  let set state n elt = Hashtbl.replace state n (cut_at max_depth elt) (* XXX no need to cut *)
 end
 
 module Solver = Make_Fixpoint(Graph)
