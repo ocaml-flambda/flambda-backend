@@ -17,6 +17,7 @@
 open! Flambda.Import
 module K = Flambda_kind
 module T = Flambda2_types
+module Float32_by_bit_pattern = Numeric_types.Float32_by_bit_pattern
 module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -74,6 +75,8 @@ module type Num_common = sig
   val to_const : t -> Reg_width_const.t
 
   val to_immediate : t -> Targetint_31_63.t
+
+  val to_naked_float32 : t -> Numeric_types.Float32_by_bit_pattern.t
 
   val to_naked_float : t -> Numeric_types.Float_by_bit_pattern.t
 
@@ -221,6 +224,9 @@ module For_tagged_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
+    let to_naked_float32 t =
+      Float32_by_bit_pattern.create (Targetint_31_63.to_float t)
+
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -286,6 +292,9 @@ module For_naked_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
+    let to_naked_float32 t =
+      Float32_by_bit_pattern.create (Targetint_31_63.to_float t)
+
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -310,6 +319,55 @@ module For_naked_immediates : Int_number_kind = struct
     Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
 end
 
+module For_float32s : Boxable_number_kind = struct
+  module Num = struct
+    include Float32_by_bit_pattern
+
+    let add = IEEE_semantics.add
+
+    let sub = IEEE_semantics.sub
+
+    let mul = IEEE_semantics.mul
+
+    let div t1 t2 = Some (IEEE_semantics.div t1 t2)
+
+    let mod_ t1 t2 = Some (IEEE_semantics.mod_ t1 t2)
+
+    let to_const t = Reg_width_const.naked_float32 t
+
+    let to_immediate t = Targetint_31_63.of_float (to_float t)
+
+    let to_naked_float32 t = t
+
+    let to_naked_float t = Float_by_bit_pattern.create (to_float t)
+
+    let to_naked_int32 t = Int32.of_float (to_float t)
+
+    let to_naked_int64 t = Int64.of_float (to_float t)
+
+    let to_naked_nativeint t = Targetint_32_64.of_float (to_float t)
+  end
+
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_float32
+
+  let boxable_number_kind = K.Boxable_number.Naked_float32
+
+  let unboxed_prover = T.meet_naked_float32s
+
+  let this_unboxed = T.this_naked_float32
+
+  let these_unboxed = T.these_naked_float32s
+
+  let this_boxed = T.this_boxed_float32
+
+  let these_boxed = T.these_boxed_float32s
+
+  let box = T.box_float32
+
+  let term_unboxed f =
+    Named.create_simple (Simple.const (Reg_width_const.naked_float32 f))
+end
+
 module For_floats : Boxable_number_kind = struct
   module Num = struct
     include Float_by_bit_pattern
@@ -327,6 +385,8 @@ module For_floats : Boxable_number_kind = struct
     let to_const t = Reg_width_const.naked_float t
 
     let to_immediate t = Targetint_31_63.of_float (to_float t)
+
+    let to_naked_float32 t = Float32_by_bit_pattern.create (to_float t)
 
     let to_naked_float t = t
 
@@ -394,6 +454,8 @@ module For_int32s : Boxable_int_number_kind = struct
     let to_const t = Reg_width_const.naked_int32 t
 
     let to_immediate t = Targetint_31_63.of_int32 t
+
+    let to_naked_float32 t = Float32_by_bit_pattern.create (Int32.to_float t)
 
     let to_naked_float t = Float_by_bit_pattern.create (Int32.to_float t)
 
@@ -464,6 +526,8 @@ module For_int64s : Boxable_int_number_kind = struct
 
     let to_immediate t = Targetint_31_63.of_int64 t
 
+    let to_naked_float32 t = Float32_by_bit_pattern.create (Int64.to_float t)
+
     let to_naked_float t = Float_by_bit_pattern.create (Int64.to_float t)
 
     let to_naked_int32 t = Int64.to_int32 t
@@ -532,6 +596,9 @@ module For_nativeints : Boxable_int_number_kind = struct
     let to_const t = Reg_width_const.naked_nativeint t
 
     let to_immediate t = Targetint_31_63.of_targetint t
+
+    let to_naked_float32 t =
+      Float32_by_bit_pattern.create (Targetint_32_64.to_float t)
 
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_32_64.to_float t)

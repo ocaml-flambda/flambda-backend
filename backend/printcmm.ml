@@ -49,6 +49,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XFloat32 -> fprintf ppf "float32"
   | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =

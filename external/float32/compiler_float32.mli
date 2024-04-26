@@ -4,9 +4,10 @@
 (*                                                                        *)
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                        Max Slater, Jane Street                         *)
 (*                                                                        *)
-(*   Copyright 2013--2020 OCamlPro SAS                                    *)
-(*   Copyright 2014--2020 Jane Street Group LLC                           *)
+(*   Copyright 2013--2024 OCamlPro SAS                                    *)
+(*   Copyright 2014--2024 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,29 +15,43 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include Int_ids.Const
+(** IEE754 32-bit floats represented as 32-bit integers.
+    Operations are implemented in C stubs. *)
 
-let of_descr (descr : Descr.t) =
-  match descr with
-  | Naked_immediate i -> naked_immediate i
-  | Tagged_immediate i -> tagged_immediate i
-  | Naked_float32 f -> naked_float32 f
-  | Naked_float f -> naked_float f
-  | Naked_int32 i -> naked_int32 i
-  | Naked_int64 i -> naked_int64 i
-  | Naked_nativeint i -> naked_nativeint i
-  | Naked_vec128 v -> naked_vec128 v
+type t
 
-let is_naked_immediate t =
-  match descr t with
-  | Naked_immediate i -> Some i
-  | Tagged_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-    None
+val neg : t -> t
 
-let is_tagged_immediate t =
-  match descr t with
-  | Tagged_immediate i -> Some i
-  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-    None
+val abs : t -> t
+
+val add : t -> t -> t
+
+val sub : t -> t -> t
+
+val mul : t -> t -> t
+
+val div : t -> t -> t
+
+val mod_ : t -> t -> t
+
+val compare : t -> t -> int
+
+val equal : t -> t -> bool
+
+(** Parse 32-bit float literal. *)
+val of_string : string -> t
+
+(** Format 32-bit float to string. *)
+val to_string : t -> string
+
+(** Convert from a 64-bit float; rounds to the nearest 32-bit float. *)
+val of_float : float -> t
+
+(** Convert to a 64-bit float; exact. *)
+val to_float : t -> float
+
+(** Bit-cast to 32-bit integer. *)
+val to_bits : t -> int32
+
+(** Bit-cast from 32-bit integer. *)
+val of_bits : int32 -> t

@@ -627,6 +627,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
   | Pnegfloat (_, _)
   | Pabsfloat (_, _)
   | Paddfloat (_, _)
@@ -1527,16 +1528,13 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
             match kind with
             | Pboxedfloatval Pfloat64 -> true
             | Pboxedfloatval Pfloat32
-            (* CR mshinwell: should this unboxing apply for Pfloat32? *)
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
             | Pboxedvectorval _ ->
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
-    | Pvalue (Pboxedfloatval Pfloat32) ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
     | Pvalue (Pboxedintval bi) ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with

@@ -131,6 +131,10 @@ val mk_compare_floats_untagged :
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
+val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+
+val unbox_float32 : Debuginfo.t -> expression -> expression
+
 val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
@@ -524,6 +528,8 @@ val cdefine_symbol : symbol -> data_item list
 val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
+val emit_float32_constant : symbol -> float -> data_item list -> data_item list
+
 val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
 val emit_string_constant : symbol -> string -> data_item list -> data_item list
@@ -559,6 +565,9 @@ val symbol : dbg:Debuginfo.t -> Cmm.symbol -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : dbg:Debuginfo.t -> float -> expression
+
+(** Create a constant float32 expression. *)
+val float32 : dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
 val int : dbg:Debuginfo.t -> int -> expression
@@ -661,10 +670,19 @@ val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
     first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
+(** Conversions functions between integers and floats. *)
+
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
 
-(** Conversions functions between integers and floats. *)
 val float_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val int_of_float32 : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_int : dbg:Debuginfo.t -> expression -> expression
+
+val float32_of_float : dbg:Debuginfo.t -> expression -> expression
+
+val float_of_float32 : dbg:Debuginfo.t -> expression -> expression
 
 val eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
@@ -814,6 +832,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 
 (** Static integer. *)
 val cint : nativeint -> data_item
+
+(** Static float32. *)
+val cfloat32 : float -> data_item
 
 (** Static float. *)
 val cfloat : float -> data_item
