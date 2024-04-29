@@ -21,8 +21,7 @@ include $(ROOTDIR)/Makefile.common
 # at the moment, the clean targets depend on this variable but
 # when they are invoked ../Makefile.config is not included, so that
 # OTHERLIBRARIES would be empty and the clean targets would thus not work.
-OTHERLIBRARIES ?= dynlink str systhreads$(RUNTIME_SUFFIX) unix runtime_events\
-                  upstream_compatible stable beta alpha
+OTHERLIBRARIES ?= dynlink str systhreads$(RUNTIME_SUFFIX) unix runtime_events
 
 # $1: target name to dispatch to all otherlibs/*/Makefile
 define dispatch_
