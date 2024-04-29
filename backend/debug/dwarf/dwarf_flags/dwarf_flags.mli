@@ -68,3 +68,9 @@ val default_ddebug_invariants : bool
 val ddebug_invariants : bool ref
 
 val gdwarf_may_alter_codegen : bool ref
+
+(** Setting this to [true] will emit sufficient DWARF to get inlined frame
+    information, but won't emit information e.g. about local variables (unless
+    [restrict_to_upstream_dwarf] is set to [false], although that implies
+    this variable being set to [true]). *)
+val dwarf_inlined_frames : bool ref
