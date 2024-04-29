@@ -252,6 +252,15 @@ let mk_constructor_description cstr_name =
 let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
   { vb_pat; vb_expr; vb_attributes; vb_loc = Location.none }
 
+let mk_value_description ~val_type ~val_kind ~val_attributes =
+  {
+    val_type;
+    val_kind;
+    val_loc = Location.none;
+    val_attributes;
+    val_uid = Uid.internal_not_actually_unique;
+  }
+
 let mkTtyp_any = Ttyp_any
 let mkTtyp_var s = Ttyp_var s
 

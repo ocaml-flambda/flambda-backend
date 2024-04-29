@@ -740,6 +740,7 @@ let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
+    val_zero_alloc = descr.val_zero_alloc;
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }

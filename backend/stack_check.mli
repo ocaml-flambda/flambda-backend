@@ -18,17 +18,4 @@
 
 val stack_threshold_size : int
 
-val initial_stack_offset :
-  num_stack_slots:int array -> contains_calls:bool -> int
-
-(* CR mshinwell: We should maybe remove [frame_required]. For example this isn't
-   required on arm64, and on amd64 we should be able to compute it using the
-   other parameters here. *)
-val frame_size :
-  stack_offset:int ->
-  frame_required:bool ->
-  num_stack_slots:int array ->
-  contains_calls:bool ->
-  int
-
 val linear : Linear.fundecl -> Linear.fundecl

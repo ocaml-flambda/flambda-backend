@@ -1443,3 +1443,24 @@ end
 module type T4 = sig
   type ('a, 'b, 'c, 'd) t
 end
+
+let remove_double_underscores s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let skip = ref false in
+  let rec loop i =
+    if i < len
+    then (
+      let c = String.get s i in
+      if c = '.' then skip := true;
+      if (not !skip) && c = '_' && i + 1 < len && String.get s (i + 1) = '_'
+      then (
+        Buffer.add_char buf '.';
+        skip := true;
+        loop (i + 2))
+      else (
+        Buffer.add_char buf c;
+        loop (i + 1)))
+  in
+  loop 0;
+  Buffer.contents buf

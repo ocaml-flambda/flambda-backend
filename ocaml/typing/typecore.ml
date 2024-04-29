@@ -1100,11 +1100,13 @@ let iter_pattern_variables_type f : pattern_variable list -> unit =
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (fun {pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes} env ->
+    (fun {pv_id; pv_uid; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes}
+      env ->
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes;
+          val_zero_alloc = Builtin_attributes.Default_check;
           val_uid = pv_uid
          } env
     )
@@ -2888,6 +2890,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_reg
             ; val_attributes = pv_attributes
+            ; val_zero_alloc = Builtin_attributes.Default_check
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -2898,6 +2901,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             { val_type = pv_type
             ; val_kind = Val_ivar (Immutable, cl_num)
             ; val_attributes = pv_attributes
+            ; val_zero_alloc = Builtin_attributes.Default_check
             ; val_loc = pv_loc
             ; val_uid = pv_uid
             }
@@ -5044,7 +5048,12 @@ let add_check_attribute expr attributes =
   in
   match expr.exp_desc with
   | Texp_function fn ->
-    begin match get_property_attribute attributes Zero_alloc with
+    let default_arity = function_arity fn.params fn.body in
+    let za =
+      get_property_attribute ~in_signature:false ~default_arity attributes
+        Zero_alloc
+    in
+    begin match za with
     | Default_check -> expr
     | (Ignore_assert_all _ | Check _ | Assume _) as check ->
       begin match fn.zero_alloc with
@@ -5386,9 +5395,10 @@ and type_expect_
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
       let assume_zero_alloc =
+        let default_arity = List.length args in
         let zero_alloc =
-          Builtin_attributes.get_property_attribute sfunct.pexp_attributes
-            Zero_alloc
+          Builtin_attributes.get_property_attribute ~in_signature:false
+            ~default_arity sfunct.pexp_attributes Zero_alloc
         in
         Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
       in
@@ -7400,6 +7410,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let desc =
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
+            val_zero_alloc = Builtin_attributes.Default_check;
             val_loc = Location.none;
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -8773,7 +8784,7 @@ and type_n_ary_function
         region_locked;
       }
     in
-    let { function_ = exp_type, params, body;
+    let { function_ = exp_type, result_params, body;
           newtypes; params_contain_gadt = contains_gadt;
           ret_info; fun_alloc_mode;
         } =
@@ -8792,6 +8803,8 @@ and type_n_ary_function
             "[ret_info] can't be None -- that indicates a function with \
              no parameters."
     in
+    let params = List.map (fun { param } -> param) result_params in
+    let syntactic_arity = function_arity params body in
     (* Require that the n-ary function is known to have at least n arrows
         in the type. This prevents GADT equations introduced by the parameters
         from hiding arrows from the resulting type.
@@ -8838,12 +8851,6 @@ and type_n_ary_function
                       "Jkind_error not expected as this point; this should \
                        have been caught when the function was typechecked."
               in
-              let syntactic_arity =
-                List.length params +
-                (match body with
-                | Tfunction_body _ -> 0
-                | Tfunction_cases _ -> 1)
-              in
               let err =
                 Function_arity_type_clash
                   { syntactic_arity;
@@ -8858,7 +8865,7 @@ and type_n_ary_function
               filter_ty_ret_exn ret_ty param.fp_arg_label
                 ~force_tpoly:(not has_poly))
             exp_type
-            params
+            result_params
         in
         match body with
         | Tfunction_body _ -> ()
@@ -8866,9 +8873,9 @@ and type_n_ary_function
             ignore
               (filter_ty_ret_exn ret_ty Nolabel ~force_tpoly:true : type_expr)
     end;
-    let params = List.map (fun { param } -> param) params in
     let zero_alloc =
-      Builtin_attributes.get_property_attribute attributes Zero_alloc
+      Builtin_attributes.get_property_attribute ~in_signature:false
+        ~default_arity:syntactic_arity attributes Zero_alloc
     in
     re
       { exp_desc =
