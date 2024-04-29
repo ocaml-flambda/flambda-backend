@@ -21,6 +21,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Int
   | Float
   | Vec128
+  | Float32
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -55,6 +56,7 @@ val typ_val: machtype
 val typ_addr: machtype
 val typ_int: machtype
 val typ_float: machtype
+val typ_float32: machtype
 val typ_vec128: machtype
 
 (** Least upper bound of two [machtype_component]s. *)
@@ -74,6 +76,7 @@ type exttype =
   | XInt                                (**r OCaml value, word-sized integer *)
   | XInt32                              (**r 32-bit integer *)
   | XInt64                              (**r 64-bit integer  *)
+  | XFloat32                            (**r single-precision FP number *)
   | XFloat                              (**r double-precision FP number  *)
   | XVec128                             (**r 128-bit vector *)
 (** A variant of [machtype] used to describe arguments
@@ -155,6 +158,10 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
+type float_width =
+  | Float64
+  | Float32
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -164,7 +171,8 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int                           (* integer or pointer outside heap *)
   | Word_val                           (* pointer inside heap or encoded int *)
-  | Single
+  | Single of { reg : float_width }    (* F32 on the heap, may be F32 or F64
+                                          in registers. *)
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight_unaligned           (* word-aligned 128-bit vector *)
@@ -174,8 +182,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
-  | Float_to_int
-  | Float_of_int
+  | Float_to_int of float_width
+  | Float_of_int of float_width
+  | Float_to_float32
+  | Float_of_float32
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -236,7 +246,7 @@ type kind_for_unboxing =
   | Any (* This may contain anything, including non-scannable things *)
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float
+  | Boxed_float of Lambda.boxed_float
 
 type is_global = Global | Local
 val equal_is_global : is_global -> is_global -> bool
@@ -268,6 +278,7 @@ val global_symbol : string -> symbol
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -376,6 +387,7 @@ val map_shallow: (expression -> expression) -> expression -> expression
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 val equal_exttype : exttype -> exttype -> bool
+val equal_scalar_cast : scalar_cast -> scalar_cast -> bool
 val equal_float_comparison : float_comparison -> float_comparison -> bool
 val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool

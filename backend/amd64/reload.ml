@@ -158,7 +158,9 @@ method! reload_operation op arg res =
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
-  | Iscalarcast (Float_of_int | Float_to_int) ->
+  | Iscalarcast (Float_of_int (Float32 | Float64) |
+                 Float_to_int (Float32 | Float64) |
+                 Float_of_float32 | Float_to_float32) ->
     (* Result must be in register, but argument can be on stack *)
     (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iscalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2)) ->
@@ -189,8 +191,8 @@ method! reload_operation op arg res =
                | Ipause
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)
-  | Imove|Ispill|Ireload|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
-  | Ifloatop (Icompf _|Inegf|Iabsf)
+  | Imove|Ispill|Ireload|Iconst_float _|Iconst_float32 _|Iconst_vec128 _
+  | Icall_ind|Icall_imm _|Ifloatop (Icompf _|Inegf|Iabsf)
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _

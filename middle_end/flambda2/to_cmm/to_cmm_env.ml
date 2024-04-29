@@ -406,8 +406,8 @@ let splittable_primitive dbg prim args = Splittable_prim { dbg; prim; args }
 
 let is_cmm_simple cmm =
   match (cmm : Cmm.expression) with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
-  | Cconst_symbol _ | Cvar _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
     true
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
   | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->

@@ -194,7 +194,7 @@ and value_kind = Lambda.value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * Lambda.constructor_shape) list;
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector

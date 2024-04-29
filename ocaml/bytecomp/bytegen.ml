@@ -128,7 +128,8 @@ let preserve_tailcall_for_prim = function
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pfloatofint (_, _) | Pnegfloat (_, _) | Pabsfloat (_, _)
+  | Pfloatofint (_, _) | Pfloatoffloat32 _ | Pfloat32offloat _
+  | Pnegfloat (_, _) | Pabsfloat (_, _)
   | Paddfloat (_, _) | Psubfloat (_, _) | Pmulfloat (_, _)
   | Pdivfloat (_, _) | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu  | Pstringrefs
@@ -183,6 +184,8 @@ let rec push_dummies n k = match n with
 
 type rhs_kind =
   | RHS_block of int
+  | RHS_faux_mixedblock of int
+  (* See [instruct.ml] for what the "faux" means.  *)
   | RHS_infix of { blocksize : int; offset : int }
   | RHS_floatblock of int
   | RHS_nonrec
@@ -204,7 +207,7 @@ let rec size_of_lambda env = function
   | Llet (Strict, _k, id, Lprim (Pduprecord (kind, size), _, _), body)
     when check_recordwith_updates id body ->
       begin match kind with
-      | Record_mixed _
+      | Record_mixed _ -> RHS_faux_mixedblock size
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
       | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float | Record_ufloat -> RHS_floatblock size
@@ -237,7 +240,7 @@ let rec size_of_lambda env = function
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
   | Lprim (Pmakemixedblock (_, _, _), args, _) ->
-      RHS_block (List.length args)
+      RHS_faux_mixedblock (List.length args)
   | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
@@ -493,6 +496,8 @@ let comp_primitive stack_info p sz args =
   | Poffsetref n -> Koffsetref n
   | Pintoffloat Pfloat64 -> Kccall("caml_int_of_float", 1)
   | Pfloatofint (Pfloat64, _) -> Kccall("caml_float_of_int", 1)
+  | Pfloatoffloat32 _ -> Kccall("caml_float_of_float32", 1)
+  | Pfloat32offloat _ -> Kccall("caml_float32_of_float", 1)
   | Pnegfloat (Pfloat64, _) -> Kccall("caml_neg_float", 1)
   | Pabsfloat (Pfloat64, _) -> Kccall("caml_abs_float", 1)
   | Paddfloat (Pfloat64, _) -> Kccall("caml_add_float", 2)
@@ -806,6 +811,16 @@ let rec comp_expr stack_info env exp sz cont =
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
               comp_init (add_var id (sz+1) new_env) (sz+1) rem
+          | (id, _exp, RHS_faux_mixedblock blocksize) :: rem ->
+              (* The -1 argument is unused by [caml_alloc_dummy_mixed]
+                 in bytecode, except to check that it's been set to
+                 this sentinel -1 value.
+              *)
+              Kconst(Const_base(Const_int (-1))) ::
+              Kpush ::
+              Kconst(Const_base(Const_int blocksize)) ::
+              Kccall("caml_alloc_dummy_mixed", 2) :: Kpush ::
+              comp_init (add_var id (sz+1) new_env) (sz+1) rem
           | (id, _exp, RHS_block blocksize) :: rem ->
               Kconst(Const_base(Const_int blocksize)) ::
               Kccall("caml_alloc_dummy", 1) :: Kpush ::
@@ -829,7 +844,8 @@ let rec comp_expr stack_info env exp sz cont =
           | [] -> comp_rec new_env sz ndecl decl_size
           | (_id, _exp, (RHS_block _ | RHS_infix _ |
                          RHS_floatblock _ |
-                         RHS_function _))
+                         RHS_function _ |
+                         RHS_faux_mixedblock _))
             :: rem ->
               comp_nonrec new_env sz (i-1) rem
           | (_id, exp, RHS_nonrec) :: rem ->
@@ -839,7 +855,8 @@ let rec comp_expr stack_info env exp sz cont =
           | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
           | (_id, exp, (RHS_block _ | RHS_infix _ |
                         RHS_floatblock _ |
-                        RHS_function _))
+                        RHS_function _ |
+                        RHS_faux_mixedblock _))
             :: rem ->
               comp_expr stack_info new_env exp sz
                 (Kpush :: Kacc i :: Kccall("caml_update_dummy", 2) ::
@@ -924,7 +941,7 @@ let rec comp_expr stack_info env exp sz cont =
         (* CR mixed blocks v1: We will need to use the actual tag instead of [0]
            once mixed blocks can have non-zero tags.
         *)
-        (Kmakeblock (total_len, 0) :: cont)
+        (Kmake_faux_mixedblock (total_len, 0) :: cont)
   | Lprim((Pmakearray (kind, _, _)) as p, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

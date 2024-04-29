@@ -1,0 +1,16 @@
+(library
+ (name compiler_float32)
+ (foreign_stubs
+  (language c)
+  (names float32_stubs)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp))))
+ (synopsis "OCaml library for float32 operations"))
+
+(install
+ (files
+  (dllcompiler_float32_stubs.so as stublibs/dllcompiler_float32_stubs.so))
+ (section lib)
+ (package ocaml))

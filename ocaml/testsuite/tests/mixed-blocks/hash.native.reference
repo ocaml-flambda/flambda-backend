@@ -1,8 +1,0 @@
-All Float Mixed Records
-	{ x : float; y : float# } = 980550003
-	{ x : float#; y : float } = 980550003
-General Mixed Records
-	{ x : string; y : float# } = 883581425
-	{ x : int; y : float# } = 980550003
-	{ x : int; y : float#; z : int } = 531159882
-	{ a : string; x : int; y : float#; z : int } = 677901263

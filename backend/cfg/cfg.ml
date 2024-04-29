@@ -265,6 +265,8 @@ let dump_op ppf = function
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
+  | Const_float32 f ->
+    Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
   | Const_vec128 { high; low } ->
@@ -281,8 +283,12 @@ let dump_op ppf = function
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
-  | Scalarcast Float_of_int -> Format.fprintf ppf "int->float"
-  | Scalarcast Float_to_int -> Format.fprintf ppf "float->int"
+  | Scalarcast (Float_of_int Float64) -> Format.fprintf ppf "int->float"
+  | Scalarcast (Float_to_int Float64) -> Format.fprintf ppf "float->int"
+  | Scalarcast (Float_of_int Float32) -> Format.fprintf ppf "int->float32"
+  | Scalarcast (Float_to_int Float32) -> Format.fprintf ppf "float32->int"
+  | Scalarcast Float_of_float32 -> Format.fprintf ppf "float32->float"
+  | Scalarcast Float_to_float32 -> Format.fprintf ppf "float->float32"
   | Scalarcast (V128_to_scalar ty) ->
     Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
   | Scalarcast (V128_of_scalar ty) ->
@@ -471,6 +477,7 @@ let is_pure_operation : operation -> bool = function
   | Spill -> true
   | Reload -> true
   | Const_int _ -> true
+  | Const_float32 _ -> true
   | Const_float _ -> true
   | Const_symbol _ -> true
   | Const_vec128 _ -> true
@@ -542,11 +549,12 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
-      ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
-      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-      | Intop_atomic _ | Floatop _ | Opaque | Valueofint | Intofvalue
-      | Scalarcast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Valueofint
+      | Intofvalue | Scalarcast _ | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region | Dls_get | Poll
+      | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
     false
 

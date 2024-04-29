@@ -102,10 +102,10 @@ let mk_heap_reduction_threshold f =
 ;;
 
 let mk_zero_alloc_check f =
-  let annotations = Clflags.Annotations.(List.map to_string all) in
+  let annotations = Zero_alloc_annotations.(List.map to_string all) in
   "-zero-alloc-check", Arg.Symbol (annotations, f),
   " Check that annotated functions do not allocate \
-   and do not have indirect calls. "^Clflags.Annotations.doc
+   and do not have indirect calls. "^Zero_alloc_annotations.doc
 
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
@@ -933,7 +933,7 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
-    match Clflags.Annotations.of_string s with
+    match Zero_alloc_annotations.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some a ->
       Clflags.zero_alloc_check := a
@@ -1214,7 +1214,7 @@ module Extra_params = struct
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
-      (match Clflags.Annotations.of_string v with
+      (match Zero_alloc_annotations.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
        | None ->
          raise

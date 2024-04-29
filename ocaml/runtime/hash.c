@@ -24,6 +24,7 @@
 #include "caml/custom.h"
 #include "caml/memory.h"
 #include "caml/hash.h"
+#include "caml/fail.h"
 
 /* The implementation based on MurmurHash 3,
    https://github.com/aappleby/smhasher/ */
@@ -181,7 +182,14 @@ CAMLexport uint32_t caml_hash_mix_string(uint32_t h, value s)
 
 /* The generic hash function */
 
-CAMLprim value caml_hash(value count, value limit, value seed, value obj)
+/* Internally to Jane Street, we have renamed [caml_hash] to [caml_hash_exn]
+   to suggest that calling it could raise. (E.g. it raises on mixed blocks.)
+   As such, we've removed [@@noalloc] from the OCaml [external] that references
+   this C binding, and would likewise need to remove [@@noalloc] from any
+   other [external] formerly bound to [caml_hash].
+*/
+
+CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
 {
   value queue[HASH_QUEUE_SIZE]; /* Queue of values to examine */
   intnat rd;                    /* Position of first value in queue */
@@ -279,20 +287,16 @@ CAMLprim value caml_hash(value count, value limit, value seed, value obj)
         break;
 
       default:
+	if (Is_mixed_block_reserved(Reserved_val(v))) {
+	  caml_invalid_argument("hash: mixed block value");
+	}
         /* Mix in the tag and size, but do not count this towards [num] */
         h = caml_hash_mix_uint32(h, Cleanhd_hd(Hd_val(v)));
         /* Copy fields into queue, not exceeding the total size [sz] */
-        for (i = 0, len = Scannable_wosize_val(v); i < len; i++) {
+        for (i = 0, len = Wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
           queue[wr++] = Field(v, i);
         }
-
-	/* We don't attempt to hash the flat suffix of a mixed block.
-	   This is consistent with abstract blocks which, like mixed
-	   blocks, cause polymorphic comparison to raise and don't
-	   attempt to hash the non-scannable portion.
-	 */
-
         break;
       }
     }

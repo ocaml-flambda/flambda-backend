@@ -14,6 +14,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Spill -> Ispill
       | Reload -> Ireload
       | Const_int n -> Iconst_int n
+      | Const_float32 n -> Iconst_float32 n
       | Const_float n -> Iconst_float n
       | Const_symbol n -> Iconst_symbol n
       | Const_vec128 bits -> Iconst_vec128 bits

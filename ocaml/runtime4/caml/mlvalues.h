@@ -60,6 +60,11 @@ extern "C" {
 typedef intnat value;
 typedef uintnat header_t;
 typedef uintnat mlsize_t;
+typedef header_t reserved_t; /* Same role as reserved_t in runtime 5 (reserved
+                                header bits). The mechanism for reserving bits
+                                in runtime 4 is different than runtime 5: it's
+                                the WITH_PROFINFO and PROFINFO_WIDTH macros.
+                              */
 typedef unsigned int tag_t;             /* Actually, an unsigned char */
 typedef uintnat color_t;
 typedef uintnat mark_t;
@@ -135,6 +140,86 @@ originally built for Spacetime profiling, hence the odd name.
 #define Profinfo_hd(hd) NO_PROFINFO
 #endif /* WITH_PROFINFO */
 
+/* Header bits reserved for mixed blocks */
+
+#define Reserved_hd(hd) ((reserved_t)(Profinfo_hd(hd)))
+#define Reserved_val(val) ((reserved_t)(Profinfo_val(val)))
+
+#define Is_mixed_block_reserved(res) (((reserved_t)(res)) > 0)
+
+/* Native code versions of mixed block macros.
+
+   The scannable size of a block is how many fields are values as opposed
+   to flat floats/ints/etc. This is different than the (normal) size of a
+   block for mixed blocks.
+
+   The runtime has several functions that traverse over the structure of
+   an OCaml value. (e.g. polymorphic comparison, GC marking/sweeping)
+   All of these traversals must be written to have one of the following
+   properties:
+   - it's known that the input can never be a mixed block,
+   - it raises an exception on mixed blocks, or
+   - it uses the scannable size (not the normal size) to figure out which
+   fields to recursively descend into.
+
+   Otherwise, the traversal could attempt to recursively descend into
+   a flat field, which could segfault (or worse).
+*/
+
+#define Scannable_wosize_val_native(val) (Scannable_wosize_hd (Hd_val (val)))
+#define Reserved_mixed_block_scannable_wosize_native(sz)  (((mlsize_t)(sz)) + 1)
+#define Mixed_block_scannable_wosize_reserved_native(res) \
+  (((reserved_t)(res)) - 1)
+
+Caml_inline mlsize_t Scannable_wosize_reserved_native(reserved_t res,
+                                                      mlsize_t sz) {
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : sz;
+}
+
+Caml_inline mlsize_t Scannable_wosize_hd_native(header_t hd) {
+  reserved_t res = Reserved_hd(hd);
+  return
+    Is_mixed_block_reserved(res)
+    ? Mixed_block_scannable_wosize_reserved_native(res)
+    : Wosize_hd(hd);
+}
+
+/* Bytecode versions of mixed block macros.
+
+   Bytecode always uses the size of the block as the scannable size. That's
+   because bytecode doesn't represent mixed records as mixed blocks. They're
+   "faux mixed blocks", which are regular blocks with a sentinel value set
+   in the header bits.
+*/
+
+#define Scannable_wosize_hd_byte(hd)  (Wosize_hd (hd))
+#define Scannable_wosize_val_byte(val) (Wosize_hd (Hd_val (val)))
+Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
+                                                    mlsize_t size) {
+  (void)res;
+  return size;
+}
+
+/* Users should specify whether they want to use the bytecode or native
+   versions of these macros. Internally to the runtime, the NATIVE_CODE
+   macro lets us make that determination, so we can define suffixless
+   versions of the mixed block macros.
+*/
+#ifdef CAML_INTERNALS
+#ifdef NATIVE_CODE
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_native(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_native(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_native(val)
+#else
+#define Faux_mixed_block_sentinel ((reserved_t) 0xff)
+#define Scannable_wosize_reserved(r, s) Scannable_wosize_reserved_byte(r, s)
+#define Scannable_wosize_hd(hd)         Scannable_wosize_hd_byte(hd)
+#define Scannable_wosize_val(val)       Scannable_wosize_val_byte(val)
+#endif // NATIVE_CODE
+#endif // CAML_INTERNALS
 
 #define Hd_val(val) (((header_t *) (val)) [-1])        /* Also an l-value. */
 #define Hd_op(op) (Hd_val (op))                        /* Also an l-value. */

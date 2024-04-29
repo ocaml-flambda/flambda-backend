@@ -48,6 +48,11 @@ val meet_naked_immediates :
 val meet_equals_single_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> Targetint_31_63.t meet_shortcut
 
+val meet_naked_float32s :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Numeric_types.Float32_by_bit_pattern.Set.t meet_shortcut
+
 val meet_naked_floats :
   Typing_env.t ->
   Type_grammar.t ->
@@ -87,6 +92,9 @@ val prove_is_a_boxed_or_tagged_number :
   Typing_env.t -> Type_grammar.t -> boxed_or_tagged_number proof_of_property
 
 val prove_is_a_tagged_immediate :
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
+
+val prove_is_a_boxed_float32 :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_float :
@@ -175,6 +183,12 @@ val prove_tagging_of_simple :
   Simple.t proof_of_property
 
 val meet_tagging_of_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t meet_shortcut
+
+val meet_boxed_float32_containing_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->

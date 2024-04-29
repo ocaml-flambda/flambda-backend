@@ -477,8 +477,7 @@ end
 module type TestZeroAllocSig = sig
   type 'a t1 = 'a [@@zero_alloc] (* rejected *)
   type s1 = Foo1 [@zero_alloc] (* rejected *)
-  val x : int [@@zero_alloc] (* rejected *)
-  val f : int -> int [@@zero_alloc] (* rejected *)
+  val f : int -> int [@@zero_alloc] (* accepted *)
 
   external y : (int [@zero_alloc]) -> (int [@zero_alloc]) = "x" (* rejected *)
   external z : int -> int = "x" "y" [@@zero_alloc] (* rejected *)

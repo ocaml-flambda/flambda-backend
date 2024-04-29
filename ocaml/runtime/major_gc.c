@@ -920,7 +920,7 @@ again:
       reserved_t reserved = Reserved_hd(hd);
       if (Is_mixed_block_reserved(reserved)) {
         uintnat scannable_wosize =
-          Mixed_block_scannable_wosize_reserved(reserved);
+          Scannable_wosize_reserved(reserved, Wosize_hd(hd));
         me.end = me.start + scannable_wosize;
         budget -= Wosize_hd(hd) - scannable_wosize; /* unscannable suffix */
       } else {
