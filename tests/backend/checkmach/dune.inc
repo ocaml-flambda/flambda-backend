@@ -857,3 +857,41 @@
  (target stop_after_typing.cmi)
  (enabled_if (= %{context_name} "main"))
  (action (run %{bin:ocamlopt.opt} stop_after_typing.ml -g -c -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_functors.output.corrected)
+ (deps (:ml test_signatures_functors.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_functors.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_functors.output test_signatures_functors.output.corrected)
+ (action (diff test_signatures_functors.output test_signatures_functors.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_signatures_first_class_modules.output.corrected)
+ (deps (:ml test_signatures_first_class_modules.ml) filter.sh)
+ (action
+   (with-outputs-to test_signatures_first_class_modules.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_signatures_first_class_modules.output test_signatures_first_class_modules.output.corrected)
+ (action (diff test_signatures_first_class_modules.output test_signatures_first_class_modules.output.corrected)))

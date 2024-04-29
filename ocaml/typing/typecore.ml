@@ -5045,6 +5045,38 @@ let add_check_attribute expr attributes =
     end
   | _ -> expr
 
+let zero_alloc_of_application ~num_args attrs funct =
+  let zero_alloc =
+    Builtin_attributes.get_property_attribute ~in_signature:false
+      ~default_arity:num_args attrs Zero_alloc
+  in
+  let zero_alloc =
+    match zero_alloc with
+    | Ignore_assert_all _ | Check _ | Assume _ ->
+      (* The user wrote a zero_alloc attribute on the application - keep it *)
+      zero_alloc
+    | Default_check ->
+      (* No zero_alloc attribute on the application - see if we can find
+         information from the value description. *)
+      let use_opt =
+        match !Clflags.zero_alloc_check with
+        | Check_default | No_check -> false
+        | Check_all | Check_opt_only -> true
+      in
+      match funct.exp_desc with
+      | Texp_ident (_, _, { val_zero_alloc = (Check c); _ }, _, _)
+        when c.arity = num_args && (use_opt || not c.opt) ->
+        Builtin_attributes.Assume {
+          property = Zero_alloc;
+          strict = c.strict;
+          never_returns_normally = false;
+          arity = c.arity;
+          loc = c.loc
+        }
+      | _ -> Builtin_attributes.Default_check
+  in
+  Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
+
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
@@ -5373,12 +5405,8 @@ and type_expect_
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
       let assume_zero_alloc =
-        let default_arity = List.length args in
-        let zero_alloc =
-          Builtin_attributes.get_property_attribute ~in_signature:false
-            ~default_arity sfunct.pexp_attributes Zero_alloc
-        in
-        Builtin_attributes.assume_zero_alloc ~is_check_allowed:false zero_alloc
+        zero_alloc_of_application ~num_args:(List.length args)
+          sfunct.pexp_attributes funct
       in
 
       rue {

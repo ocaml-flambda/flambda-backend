@@ -159,4 +159,8 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_arity";
   print_cmi_target "stop_after_typing";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_functors";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_first_class_modules";
   ()

@@ -1,0 +1,129 @@
+File "test_signatures_separate_b.ml", line 14, characters 5-15:
+14 | let[@zero_alloc strict] f_id_is_not_za_strict x = A.f_id x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_id_is_not_za_strict (camlTest_signatures_separate_b.f_id_is_not_za_strict_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 14, characters 50-58:
+14 | let[@zero_alloc strict] f_id_is_not_za_strict x = A.f_id x
+                                                       ^^^^^^^^
+Error: called function may allocate on a path to exceptional return (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 22, characters 5-15:
+22 | let[@zero_alloc strict] f_tuple_assume_is_not_za_strict x = A.f_tuple_assume x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_tuple_assume_is_not_za_strict (camlTest_signatures_separate_b.f_tuple_assume_is_not_za_strict_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 22, characters 60-78:
+22 | let[@zero_alloc strict] f_tuple_assume_is_not_za_strict x = A.f_tuple_assume x
+                                                                 ^^^^^^^^^^^^^^^^^^
+Error: called function may allocate on a path to exceptional return (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 24, characters 5-15:
+24 | let[@zero_alloc] f_tuple_no_assume_is_not_za x = A.f_tuple_no_assume x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_tuple_no_assume_is_not_za (camlTest_signatures_separate_b.f_tuple_no_assume_is_not_za_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 24, characters 49-70:
+24 | let[@zero_alloc] f_tuple_no_assume_is_not_za x = A.f_tuple_no_assume x
+                                                      ^^^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 26, characters 5-15:
+26 | let[@zero_alloc strict] f_tuple_no_assume_is_not_za_strict x =
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_tuple_no_assume_is_not_za_strict (camlTest_signatures_separate_b.f_tuple_no_assume_is_not_za_strict_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 27, characters 2-23:
+27 |   A.f_tuple_no_assume x
+       ^^^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 44, characters 5-15:
+44 | let[@zero_alloc] f_id_opt_is_za_iff_all x =
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_id_opt_is_za_iff_all (camlTest_signatures_separate_b.f_id_opt_is_za_iff_all_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 45, characters 2-14:
+45 |   A.f_id_opt x
+       ^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 50, characters 5-15:
+50 | let[@zero_alloc strict] f_id_opt_is_not_za_strict x =
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_id_opt_is_not_za_strict (camlTest_signatures_separate_b.f_id_opt_is_not_za_strict_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 51, characters 2-14:
+51 |   A.f_id_opt x
+       ^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 59, characters 5-15:
+59 | let[@zero_alloc] f_arity_one_is_not_za_two_args x = A.f_arity_one (fun y -> y) x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_one_is_not_za_two_args (camlTest_signatures_separate_b.f_arity_one_is_not_za_two_args_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 59, characters 52-80:
+59 | let[@zero_alloc] f_arity_one_is_not_za_two_args x = A.f_arity_one (fun y -> y) x
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (direct tailcall caml_apply2)
+
+File "test_signatures_separate_b.ml", line 61, characters 5-15:
+61 | let[@zero_alloc] f_arity_two_is_not_za_one_arg x = A.f_arity_two x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_two_is_not_za_one_arg_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 61, characters 51-66:
+61 | let[@zero_alloc] f_arity_two_is_not_za_one_arg x = A.f_arity_two x
+                                                        ^^^^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 65, characters 5-15:
+65 | let[@zero_alloc] f_arity_two_is_not_za_three_args x y z = A.f_arity_two x y z
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_is_not_za_three_args (camlTest_signatures_separate_b.f_arity_two_is_not_za_three_args_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 65, characters 58-77:
+65 | let[@zero_alloc] f_arity_two_is_not_za_three_args x y z = A.f_arity_two x y z
+                                                               ^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (direct tailcall caml_apply3)
+
+File "test_signatures_separate_b.ml", line 67, characters 5-15:
+67 | let[@zero_alloc] f_arity_three_is_not_za_one_arg x = A.f_arity_three x
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_three_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_three_is_not_za_one_arg_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 67, characters 53-70:
+67 | let[@zero_alloc] f_arity_three_is_not_za_one_arg x = A.f_arity_three x
+                                                          ^^^^^^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 69, characters 5-15:
+69 | let[@zero_alloc] f_arity_three_is_not_za_two_args x y = A.f_arity_three x y
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_three_is_not_za_two_args (camlTest_signatures_separate_b.f_arity_three_is_not_za_two_args_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 69, characters 56-75:
+69 | let[@zero_alloc] f_arity_three_is_not_za_two_args x y = A.f_arity_three x y
+                                                             ^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (direct tailcall caml_apply2)
+
+File "test_signatures_separate_b.ml", line 73, characters 5-15:
+73 | let[@zero_alloc] f_arity_two_sig_is_not_za_one_arg x =
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_sig_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_two_sig_is_not_za_one_arg_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 74, characters 2-29:
+74 |   A.M_arity.f_arity_two_sig x
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (indirect tailcall)
+
+File "test_signatures_separate_b.ml", line 79, characters 5-15:
+79 | let[@zero_alloc] f_arity_two_sig_is_not_za_three_args x y z =
+          ^^^^^^^^^^
+Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_sig_is_not_za_three_args (camlTest_signatures_separate_b.f_arity_two_sig_is_not_za_three_args_HIDE_STAMP)
+
+File "test_signatures_separate_b.ml", line 80, characters 2-33:
+80 |   A.M_arity.f_arity_two_sig x y z
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: called function may allocate (direct tailcall caml_apply3)
