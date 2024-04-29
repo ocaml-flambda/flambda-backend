@@ -170,5 +170,11 @@ val mk_value_binding :
   vb_attributes:attributes ->
   value_binding
 
+val mk_value_description :
+  val_type:type_expr ->
+  val_kind:value_kind ->
+  val_attributes:attributes ->
+  value_description
+
 val print_path : Path.t -> string
 val replace_id_in_path : Path.t -> Ident.t -> Path.t

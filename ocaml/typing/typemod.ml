@@ -2795,7 +2795,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
-            (fun (acc, shape_map) (id, modes) ->
+            (fun (acc, shape_map) (id, id_info, zero_alloc) ->
               List.iter
                 (fun (loc, mode, sort) ->
                    Typecore.escape ~loc ~env:newenv ~reason:Other mode;
@@ -2806,16 +2806,29 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    then raise (Error (loc, env,
                                    Toplevel_nonvalue (Ident.name id,sort)))
                 )
-                modes;
-              let (first_loc, _, _) = List.hd modes in
+                id_info;
+              let zero_alloc =
+                (* We only allow "Check" attributes in signatures.  Here we
+                   convert "Assume"s in structures to the equivalent "Check" for
+                   the signature. *)
+                let open Builtin_attributes in
+                match[@warning "+9"] zero_alloc with
+                | Default_check | Ignore_assert_all _ -> Default_check
+                | Check _ -> zero_alloc
+                | Assume { property; strict; arity; loc;
+                           never_returns_normally = _ } ->
+                  Check { strict; property; arity; loc; opt = false }
+              in
+              let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
               let vd = Subst.Lazy.force_value_description vd in
+              let vd = { vd with val_zero_alloc = zero_alloc } in
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
             ([], shape_map)
-            (let_bound_idents_with_modes_and_sorts defs)
+            (let_bound_idents_with_modes_sorts_and_checks defs)
         in
         Tstr_value(rec_flag, defs),
         List.rev items,
