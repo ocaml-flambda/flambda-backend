@@ -87,6 +87,7 @@ end = struct
     let files = read_libloc_file (Filename.concat libloc_lib_path "cmi-cmx") in
     let files = List.map (fun (base, path) ->
       let path = if Filename.is_relative path then
+        (* Paths are relative to parent directory of libloc directory *)
         Filename.concat (Filename.dirname libloc) path
       else
         path
