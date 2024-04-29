@@ -27,7 +27,7 @@
    program = "${test_source_directory}/generate.out";
    all_modules = "generate_mixed_blocks_code.ml";
    ocamlopt.opt;
-   arguments = "150 byte";
+   arguments = "300 byte";
    output = "${test_source_directory}/generated_byte_test.ml.corrected";
    run;
    output = "${test_source_directory}/generated_byte_test.ml.corrected";
