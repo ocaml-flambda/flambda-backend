@@ -162,7 +162,7 @@ static intnat do_compare_val(struct compare_stack* stk,
         if (Is_long(v2))
           return Long_val(v1) - Long_val(v2);
         /* Subtraction above cannot overflow and cannot result in UNORDERED */
-        check_pointer_not_mixed_block(v2, stack);
+        check_pointer_not_mixed_block(v2, stk);
         switch (Tag_val(v2)) {
           case Forward_tag:
             v2 = Forward_val(v2);
@@ -183,7 +183,7 @@ static intnat do_compare_val(struct compare_stack* stk,
 
         return LESS;                /* v1 long < v2 block */
       }
-      check_pointer_not_mixed_block(v1, stack);
+      check_pointer_not_mixed_block(v1, stk);
       if (Is_long(v2)) {
         switch (Tag_val(v1)) {
           case Forward_tag:
@@ -204,7 +204,7 @@ static intnat do_compare_val(struct compare_stack* stk,
           }
         return GREATER;            /* v1 block > v2 long */
       }
-      check_pointer_not_mixed_block(v2, stack);
+      check_pointer_not_mixed_block(v2, stk);
       t1 = Tag_val(v1);
       t2 = Tag_val(v2);
       if (t1 != t2) {
