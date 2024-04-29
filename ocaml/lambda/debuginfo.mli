@@ -34,6 +34,8 @@ module Scoped_location : sig
 
   val string_of_scopes : scopes -> string
 
+  val compilation_unit : scopes -> Compilation_unit.t option
+
   val empty_scopes : scopes
   val enter_anonymous_function :
     scopes:scopes -> assume_zero_alloc:ZA.Assume_info.t -> scopes
@@ -71,7 +73,16 @@ type item = private {
   dinfo_end_bol: int;
   dinfo_end_line: int;
   dinfo_scopes: Scoped_location.scopes;
+  (** See the [Inlined_debuginfo] module in Flambda 2 for an explanation
+      of the uid and function symbol fields.  (They are used for generation
+      of DWARF inlined frame information.)  These fields should only be
+      set to [Some] by Flambda 2. *)
+  dinfo_uid: string option;
+  dinfo_function_symbol: string option;
 }
+
+val item_with_uid_and_function_symbol : item -> dinfo_uid:string option
+  -> dinfo_function_symbol:string option -> item
 
 type t
 
@@ -90,6 +101,12 @@ val none : t
 
 val is_none : t -> bool
 
+val of_items : item list -> t
+
+val mapi_items : t -> f:(int -> item -> item) -> t
+
+val to_items : t -> item list
+
 val to_string : t -> string
 
 val from_location : Scoped_location.t -> t
@@ -101,6 +118,9 @@ val inline : t -> t -> t
 val compare : t -> t -> int
 
 val print_compact : Format.formatter -> t -> unit
+
+(** Like [print_compact] but also prints uid and function symbol info. *)
+val print_compact_extended : Format.formatter -> t -> unit
 
 val merge : into:t -> t -> t
 
