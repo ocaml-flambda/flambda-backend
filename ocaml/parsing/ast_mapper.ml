@@ -193,6 +193,7 @@ module T = struct
         Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -776,12 +777,13 @@ module P = struct
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
         Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)

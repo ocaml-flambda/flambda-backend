@@ -532,7 +532,8 @@ and labeled_core_type1 ctxt f (label, ty) =
   core_type1 ctxt f ty
 
 and return_type ctxt f (x, m) =
-  maybe_type_at_modes core_type1 ctxt f (x, m)
+  if x.ptyp_attributes <> [] then maybe_type_at_modes core_type1 ctxt f (x, m)
+  else maybe_type_at_modes core_type ctxt f (x, m)
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
