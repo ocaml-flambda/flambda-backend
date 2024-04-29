@@ -13645,6 +13645,16 @@ esac
 otherlibraries="dynlink"
 lib_dynlink=true
 
+ac_config_files="$ac_config_files otherlibs/upstream_compatible/META"
+
+ac_config_files="$ac_config_files otherlibs/stable/META"
+
+ac_config_files="$ac_config_files otherlibs/beta/META"
+
+ac_config_files="$ac_config_files otherlibs/alpha/META"
+
+otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
+
 if test x"$enable_runtime5" = x"yes"
 then :
   otherlibraries="$otherlibraries runtime_events"
@@ -21292,6 +21302,10 @@ do
     "otherlibs/runtime_events/META") CONFIG_FILES="$CONFIG_FILES otherlibs/runtime_events/META" ;;
     "stdlib/META") CONFIG_FILES="$CONFIG_FILES stdlib/META" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
+    "otherlibs/upstream_compatible/META") CONFIG_FILES="$CONFIG_FILES otherlibs/upstream_compatible/META" ;;
+    "otherlibs/stable/META") CONFIG_FILES="$CONFIG_FILES otherlibs/stable/META" ;;
+    "otherlibs/beta/META") CONFIG_FILES="$CONFIG_FILES otherlibs/beta/META" ;;
+    "otherlibs/alpha/META") CONFIG_FILES="$CONFIG_FILES otherlibs/alpha/META" ;;
     "otherlibs/unix/META") CONFIG_FILES="$CONFIG_FILES otherlibs/unix/META" ;;
     "otherlibs/str/META") CONFIG_FILES="$CONFIG_FILES otherlibs/str/META" ;;
     "otherlibs/systhreads/META") CONFIG_FILES="$CONFIG_FILES otherlibs/systhreads/META" ;;
@@ -22432,3 +22446,5 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
+
+

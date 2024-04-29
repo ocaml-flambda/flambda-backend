@@ -230,9 +230,6 @@ install_for_test: _install
 	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
 	rm _runtest/testsuite/tests/unboxed-primitive-args/*
 	cp -a testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
-	 # add extension library tests that are not supported by the upstream compiler
-	rm _runtest/testsuite/tests/lib-extensions/*
-	cp -a testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
@@ -258,10 +255,10 @@ install_for_test: _install
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
-         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
-         $(cpl) stdlib/stable/* otherlibs/stable; \
-         $(cpl) stdlib/beta/* otherlibs/beta; \
-         $(cpl) stdlib/alpha/* otherlibs/alpha; \
+         $(cpl) stdlib/upstream_compatible/{lib,}upstream_compatible* otherlibs/upstream_compatible; \
+         $(cpl) stdlib/stable/{lib,}stable* otherlibs/stable; \
+         $(cpl) stdlib/beta/{lib,}beta* otherlibs/beta; \
+         $(cpl) stdlib/alpha/{lib,}alpha* otherlibs/alpha; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \

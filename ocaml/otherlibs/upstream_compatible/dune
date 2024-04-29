@@ -26,9 +26,7 @@
    A
    -bin-annot
    -safe-string
-   -strict-formats
-   -extension-universe
-   upstream_compatible))
+   -strict-formats))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags
