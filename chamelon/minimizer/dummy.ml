@@ -70,13 +70,8 @@ let dummy_core_typet : Parsetree.core_type =
   }
 
 let dummy_value_description =
-  {
-    val_type = dummy_type_expr;
-    val_kind = Val_reg;
-    val_loc = Location.none;
-    val_attributes = [];
-    val_uid = Uid.internal_not_actually_unique;
-  }
+  mk_value_description ~val_type:dummy_type_expr ~val_kind:Val_reg
+    ~val_attributes:[]
 
 let exp_desc_to_exp ed =
   {

@@ -18,4 +18,5 @@ val for_fundecl :
   Linear.fundecl ->
   fun_end_label:Asm_targets.Asm_label.t ->
   Available_ranges_vars.t ->
+  Inlined_frame_ranges.t ->
   unit

@@ -1,5 +1,0 @@
-alpha.cmo : \
-    alpha.cmi
-alpha.cmx : \
-    alpha.cmi
-alpha.cmi :

@@ -1789,7 +1789,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
           CC.close_let acc ccenv
-            [scrutinee_tag, Flambda_kind.With_subkind.naked_immediate]
+            [scrutinee_tag, Flambda_kind.With_subkind.tagged_immediate]
             Not_user_visible (Get_tag scrutinee) ~body
         in
         if switch.sw_numblocks = 0
@@ -1815,7 +1815,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             let region = Env.current_region env in
             CC.close_let acc ccenv
-              [is_scrutinee_int, Flambda_kind.With_subkind.naked_immediate]
+              [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
               Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };

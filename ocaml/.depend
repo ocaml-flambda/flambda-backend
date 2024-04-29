@@ -972,6 +972,7 @@ typing/includeclass.cmi : \
     typing/env.cmi \
     typing/ctype.cmi
 typing/includecore.cmo : \
+    utils/zero_alloc_utils.cmi \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/printtyp.cmi \
@@ -990,6 +991,7 @@ typing/includecore.cmo : \
     parsing/asttypes.cmi \
     typing/includecore.cmi
 typing/includecore.cmx : \
+    utils/zero_alloc_utils.cmx \
     typing/types.cmx \
     typing/typedtree.cmx \
     typing/printtyp.cmx \
@@ -1948,6 +1950,7 @@ typing/typedecl.cmi : \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 typing/typedecl_properties.cmo : \
     typing/types.cmi \
@@ -2254,6 +2257,7 @@ typing/types.cmo : \
     typing/jkind.cmi \
     typing/ident.cmi \
     utils/config.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     typing/types.cmi
 typing/types.cmx : \
@@ -2269,6 +2273,7 @@ typing/types.cmx : \
     typing/jkind.cmx \
     typing/ident.cmx \
     utils/config.cmx \
+    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     typing/types.cmi
 typing/types.cmi : \
@@ -2281,6 +2286,7 @@ typing/types.cmi : \
     parsing/location.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
+    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi
 typing/typetexp.cmo : \
     typing/types.cmi \
