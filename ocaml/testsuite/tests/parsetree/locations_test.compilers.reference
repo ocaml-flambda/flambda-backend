@@ -481,12 +481,7 @@ Ptop_def
                   [
                     "contents" (//toplevel//[2,1+19]..[2,1+27]) ghost
                       pattern (//toplevel//[2,1+19]..[2,1+27])
-                        Ppat_constraint
-                        pattern (//toplevel//[2,1+19]..[2,1+27])
-                          Ppat_var "contents" (//toplevel//[2,1+19]..[2,1+27])
-                        None
-                        modes
-                        []
+                        Ppat_var "contents" (//toplevel//[2,1+19]..[2,1+27])
                   ]
                 expression (//toplevel//[2,1+33]..[2,1+41])
                   Pexp_ident "contents" (//toplevel//[2,1+33]..[2,1+41])
