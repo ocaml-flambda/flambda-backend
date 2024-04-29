@@ -164,7 +164,6 @@ type error =
   | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
-  | Zero_alloc_attr_opt
 
 exception Error of Location.t * error
 
