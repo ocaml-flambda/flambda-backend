@@ -1486,7 +1486,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                 (convert_block_access_field_kind immediate_or_pointer)
             | Mwrite_flat_suffix flat -> Flat_suffix flat);
           size = Unknown;
-          tag = Unknown;
+          tag = Unknown
         }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
