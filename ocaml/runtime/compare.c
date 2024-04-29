@@ -126,7 +126,7 @@ static void run_pending_actions(struct compare_stack* stk,
    raise if either argument is mixed.
 */
 Caml_inline void check_pointer_not_mixed_block(
-    value* val, struct compare_stack* stk) {
+    value val, struct compare_stack* stk) {
   CAMLassert(!Is_long(val));
   if (Is_mixed_block_reserved(Reserved_val(val))) {
     compare_free_stack(stk);
