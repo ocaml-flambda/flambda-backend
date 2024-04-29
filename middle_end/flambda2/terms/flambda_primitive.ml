@@ -1800,8 +1800,10 @@ type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_mixed_block of
-      Tag.Scannable.t * Lambda.mixed_block_shape * Mutability.t *
-      Alloc_mode.For_allocations.t
+      Tag.Scannable.t
+      * Lambda.mixed_block_shape
+      * Mutability.t
+      * Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
@@ -1878,8 +1880,7 @@ let print_variadic_primitive ppf p =
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
   | Make_mixed_block (tag, kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_mixed_block %a@ %a@ %a@ %a)@]"
-      Tag.Scannable.print tag
-      Mixed_block_kind.print kind Mutability.print mut
+      Tag.Scannable.print tag Mixed_block_kind.print kind Mutability.print mut
       Alloc_mode.For_allocations.print alloc_mode
 
 let args_kind_of_variadic_primitive p : arg_kinds =

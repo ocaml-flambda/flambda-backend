@@ -202,10 +202,9 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     SPR.create named ~try_reify:true dacc
 
 let simplify_make_mixed_block ~original_prim ~kind
-    ~(mutable_or_immutable : Mutability.t) tag alloc_mode dacc ~original_term dbg
-    ~args_with_tys ~result_var =
-  simplify_make_block ~original_prim
-    ~mutable_or_immutable
+    ~(mutable_or_immutable : Mutability.t) tag alloc_mode dacc ~original_term
+    dbg ~args_with_tys ~result_var =
+  simplify_make_block ~original_prim ~mutable_or_immutable
     ~block_shape:(Mixed kind) tag alloc_mode dacc ~original_term dbg
     ~args_with_tys ~result_var
 
