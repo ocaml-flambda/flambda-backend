@@ -508,6 +508,9 @@ let set_inlining_arguments arguments t =
     inlining_state = Inlining_state.with_arguments arguments t.inlining_state
   }
 
+(* CR mshinwell/gbury: we might be dropping [Enter_inlined_apply] context here
+   when mixing code compiled in classic and Simplify modes *)
+
 let set_inlined_debuginfo t ~from =
   { t with inlined_debuginfo = from.inlined_debuginfo }
 
