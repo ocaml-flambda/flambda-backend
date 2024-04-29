@@ -1010,6 +1010,22 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
            generated. *)
         body acc body_env
       | _ -> (
+        (match defining_expr with
+        | Prim (prim, _) ->
+          let kind = Flambda_kind.With_subkind.kind kind in
+          let result_kind =
+            match Flambda_primitive.result_kind prim with
+            | Unit -> Flambda_kind.value
+            | Singleton result_kind -> result_kind
+          in
+          if not (Flambda_kind.equal kind result_kind)
+          then
+            Misc.fatal_errorf
+              "Incompatible kinds when binding %a: this variable has kind %a, \
+               but is bound to the result of %a which has kind %a@."
+              Variable.print var Flambda_kind.print kind Flambda_primitive.print
+              prim Flambda_kind.print result_kind
+        | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> ());
         let bound_pattern =
           Bound_pattern.singleton (VB.create var Name_mode.normal)
         in
