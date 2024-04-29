@@ -1813,17 +1813,18 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   Array.iter (fun jkind ->
       jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
     cstr.cstr_arg_jkinds;
-  let make_field_accesses binding_kind first_pos last_pos argl ~get_jkind =
-    let rec make_args pos =
-      if pos > last_pos then
+  let make_field_accesses binding_kind argl ~field_to_pos =
+    let rec make_args field =
+      if field > cstr.cstr_arity - 1 then
         argl
       else
+        let pos = field_to_pos field in
         let prim =
           match cstr.cstr_shape with
           | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
           | Constructor_mixed shape ->
               let read =
-                match Types.get_mixed_record_element shape pos with
+                match Types.get_mixed_record_element shape field with
                 | Value_prefix -> Mread_value_prefix Pointer
                 | Flat_suffix flat ->
                     let flat_read =
@@ -1839,24 +1840,22 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
               in
               Pmixedfield (pos, read, Reads_agree)
         in
-        let jkind = get_jkind pos in
+        let jkind = cstr.cstr_arg_jkinds.(field) in
         let sort = Jkind.sort_of_jkind jkind in
         (Lprim (prim, [ arg ], loc), binding_kind, sort, layout_field)
-        :: make_args (pos + 1)
+        :: make_args (field + 1)
     in
-    make_args first_pos
+    make_args 0
   in
   if cstr.cstr_inlined <> None then
     (arg, Alias, sort, layout) :: rem
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
-        make_field_accesses Alias 0 (cstr.cstr_arity - 1) rem
-          ~get_jkind:(fun pos -> cstr.cstr_arg_jkinds.(pos))
+        make_field_accesses Alias rem ~field_to_pos:(fun field -> field)
     | Variant_unboxed -> (arg, Alias, sort, layout) :: rem
     | Variant_extensible ->
-        make_field_accesses Alias 1 cstr.cstr_arity rem
-          ~get_jkind:(fun pos -> cstr.cstr_arg_jkinds.(pos - 1))
+        make_field_accesses Alias rem ~field_to_pos:(fun field -> field + 1)
 
 let divide_constructor ~scopes ctx pm =
   divide
