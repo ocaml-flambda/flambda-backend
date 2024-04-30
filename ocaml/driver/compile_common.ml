@@ -140,8 +140,9 @@ let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
       hook_typed_tree typed;
       if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
         backend info typed;
-        Builtin_attributes.warn_unchecked_property ()
       end;
     end;
+    if not (Clflags.(should_stop_after Compiler_pass.Selection)) then
+      Builtin_attributes.warn_unchecked_property ();
     Warnings.check_fatal ();
   )
