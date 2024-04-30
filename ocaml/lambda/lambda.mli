@@ -720,8 +720,17 @@ val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
-(* A layout that is Pgenval because it is the field of a block *)
-val layout_field : layout
+(* A layout that is Pgenval because it is the field of a tuple *)
+val layout_tuple_element : layout
+(* A layout that is Pgenval because it is the arg of a polymorphic variant *)
+val layout_variant_arg : layout
+(* A layout that is Pgenval because it is the field of a block being considered
+   for the tmc transformation
+*)
+val layout_tmc_field : layout
+(* A layout that is Pgenval because it is an optional argument *)
+val layout_optional_arg : layout
+val layout_value_field : layout
 val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)

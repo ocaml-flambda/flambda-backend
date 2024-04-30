@@ -838,7 +838,11 @@ let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ;
                      non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
-let layout_field = Pvalue Pgenval
+let layout_tuple_element = Pvalue Pgenval
+let layout_value_field = Pvalue Pgenval
+let layout_tmc_field = Pvalue Pgenval
+let layout_optional_arg = Pvalue Pgenval
+let layout_variant_arg = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
@@ -1770,7 +1774,7 @@ let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
-  | Pgenarray_ref _ | Paddrarray_ref -> layout_field
+  | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
@@ -1793,7 +1797,7 @@ let primitive_result_layout (p : primitive) =
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
-  | Pfield _ | Pfield_computed _ -> layout_field
+  | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ -> layout_boxed_float Pfloat64
@@ -1806,7 +1810,7 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float float_kind -> Punboxed_float float_kind
   | Pmixedfield (_, kind, _) -> begin
       match kind with
-      | Mread_value_prefix _ -> layout_field
+      | Mread_value_prefix _ -> layout_value_field
       | Mread_flat_suffix proj -> begin
           match proj with
           | Flat_read_imm -> layout_int

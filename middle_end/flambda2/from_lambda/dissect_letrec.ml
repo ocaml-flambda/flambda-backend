@@ -247,7 +247,11 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
             (id, def) :: defs, Lambda.Lvar id :: args)
         args ([], [])
     in
-    let arg_layout = Typeopt.layout_union layout_field layout_block in
+    (* [arg_layout] is more general than any of the possible layouts of [args]:
+         - The arguments to [Pmakeblock]/[Pmakearray] are value fields.
+         - The argument to [Pduprecord] is a block.
+    *)
+    let arg_layout = Typeopt.layout_union layout_value_field layout_block in
     (* Bytecode evaluates effects in blocks from right to left, so reverse defs
        to preserve evaluation order. Relevant test: letrec/evaluation_order_3 *)
     let lam =
@@ -257,6 +261,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         (Lambda.Lprim (prim, args, dbg))
         defs
     in
+    if !Clflags.debug_ocaml then Printlambda.lambda Format.err_formatter lam;
     prepare_letrec recursive_set current_let lam letrec
   | Lprim (Pmakeblock (_, _, _, mode), args, _)
   | Lprim (Pmakearray ((Paddrarray | Pintarray), _, mode), args, _) -> (
