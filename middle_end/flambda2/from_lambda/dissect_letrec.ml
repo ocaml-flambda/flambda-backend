@@ -260,7 +260,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         (Lambda.Lprim (prim, args, dbg))
         defs
     in
-    if !Clflags.debug_ocaml then Printlambda.lambda Format.err_formatter lam;
     prepare_letrec recursive_set current_let lam letrec
   | Lprim (Pmakeblock (_, _, _, mode), args, _)
   | Lprim (Pmakearray ((Paddrarray | Pintarray), _, mode), args, _) -> (
