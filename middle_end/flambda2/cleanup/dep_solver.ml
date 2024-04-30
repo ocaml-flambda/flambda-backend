@@ -176,14 +176,20 @@ let rec pp_elt ppf elt =
   | Fields { depth; fields } ->
     Format.fprintf ppf "%d{ %a }" depth (Field.Map.print pp_elt) fields
 
-let rec equal_elt e1 e2 =
+let rec less_equal_elt e1 e2 =
   match e1, e2 with
-  | Bottom, Bottom -> true
-  | Bottom, (Top | Fields _) | (Top | Fields _), Bottom -> false
-  | Top, Top -> true
-  | Top, Fields _ | Fields _, Top -> false
+  | Bottom, _ | _, Top -> true
+  | (Top | Fields _), Bottom | Top, Fields _ -> false
   | Fields { fields = f1; _ }, Fields { fields = f2; _ } ->
-    if f1 == f2 then true else Field.Map.equal equal_elt f1 f2
+    if f1 == f2 then true else
+      let ok = ref true in
+      ignore (Field.Map.merge (fun _ e1 e2 ->
+        let e1 = Option.value e1 ~default:Bottom in
+        let e2 = Option.value e2 ~default:Bottom in
+        if not (less_equal_elt e1 e2) then ok := false;
+        None
+      ) f1 f2);
+      !ok
 
 let depth_of e = match e with Bottom | Top -> 0 | Fields f -> f.depth
 
@@ -304,7 +310,6 @@ let pp_result ppf (res : result) =
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
 
-
 module Graph = struct
   type graph = Global_flow_graph.fun_graph
   module Node = Code_id_or_name
@@ -327,13 +332,13 @@ module Graph = struct
 
   let widen _ ~old:elt1 elt2 = cut_at max_depth (join_elt elt1 elt2)
   let join _ elt1 elt2 = (cut_at max_depth (join_elt elt1 elt2)) (* XXX no need to cut *) 
-  let less_equal _ elt1 elt2 = equal_elt (join_elt elt1 elt2) elt2 (* TODO *) 
+  let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
 
   let propagate = propagate
   let propagate_top = propagate_top
 
   let get state n = match Hashtbl.find_opt state n with None -> Bottom | Some elt -> elt
-  let set state n elt = Hashtbl.replace state n (cut_at max_depth elt) (* XXX no need to cut *)
+  let set state n elt = Hashtbl.replace state n elt
 end
 
 module Solver = Make_Fixpoint(Graph)
