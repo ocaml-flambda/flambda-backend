@@ -4065,7 +4065,6 @@ generalized_constructor_arguments:
 
 constructor_arguments:
   | tys = inline_separated_nonempty_llist(STAR, constructor_argument)
-    %prec below_HASH
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
       { Pcstr_record $2 }
@@ -4428,8 +4427,9 @@ atat_mode_expr:
 %inline modalities:
   | modality+ { $1 }
 
-%inline optional_atat_modalities_expr:
-  | { [] }
+optional_atat_modalities_expr:
+  | %prec below_HASH
+    { [] }
   | ATAT modalities { $2 }
   | ATAT error { expecting $loc($2) "modality expression" }
 ;
