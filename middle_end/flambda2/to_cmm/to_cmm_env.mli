@@ -101,10 +101,10 @@ val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 
 (** Adjust the inlined debuginfo in the env to represent the fact
     that we entered the inlined body of a function. *)
-val enter_inlined_apply : t -> Debuginfo.t -> t
+val enter_inlined_apply : t -> Inlined_debuginfo.t -> t
 
 (** Set the inlined debuginfo. *)
-val set_inlined_debuginfo : t -> Debuginfo.t -> t
+val set_inlined_debuginfo : t -> Inlined_debuginfo.t -> t
 
 (** {2 Continuations} *)
 
@@ -300,7 +300,7 @@ type cont = private
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
         handler_body : Flambda.Expr.t;
-        handler_body_inlined_debuginfo : Debuginfo.t
+        handler_body_inlined_debuginfo : Inlined_debuginfo.t
       }
 
 (** Record that the given continuation should be compiled to a jump, creating a

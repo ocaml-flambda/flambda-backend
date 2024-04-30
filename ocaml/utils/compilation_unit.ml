@@ -245,13 +245,14 @@ let create_child parent name_ =
 
 let of_string str =
   let for_pack_prefix, name =
-    match String.rindex_opt str '.' with
-    | None -> Prefix.empty, Name.of_string str
-    | Some 0 ->
-      (* See [Name.check_as_path_component]; this allows ".cinaps" as a
-         compilation unit *)
-      Prefix.empty, Name.of_string str
-    | Some _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
+    (* Also see [Name.check_as_path_component] *)
+    if String.equal str ".cinaps" || String.equal str "(.cinaps)"
+    then Prefix.empty, Name.of_string str
+    else
+      match String.rindex_opt str '.' with
+      | None -> Prefix.empty, Name.of_string str
+      | Some _ ->
+        Misc.fatal_errorf "[of_string] does not parse qualified names: %s" str
   in
   create for_pack_prefix name
 

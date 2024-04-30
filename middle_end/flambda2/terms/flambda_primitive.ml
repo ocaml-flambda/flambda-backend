@@ -823,7 +823,7 @@ type nullary_primitive =
   | Probe_is_enabled of { name : string }
   | Begin_region
   | Begin_try_region
-  | Enter_inlined_apply of { dbg : Debuginfo.t }
+  | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
 
 let nullary_primitive_eligible_for_cse = function
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
@@ -839,7 +839,7 @@ let compare_nullary_primitive p1 p2 =
   | Begin_region, Begin_region -> 0
   | Begin_try_region, Begin_try_region -> 0
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
-    Debuginfo.compare dbg1 dbg2
+    Inlined_debuginfo.compare dbg1 dbg2
   | ( Invalid _,
       ( Optimised_out _ | Probe_is_enabled _ | Begin_region | Begin_try_region
       | Enter_inlined_apply _ ) ) ->
@@ -880,7 +880,7 @@ let print_nullary_primitive ppf p =
   | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
-      Debuginfo.print_compact dbg
+      Inlined_debuginfo.print dbg
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with

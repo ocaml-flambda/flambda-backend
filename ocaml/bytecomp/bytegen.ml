@@ -128,7 +128,8 @@ let preserve_tailcall_for_prim = function
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pfloatofint (_, _) | Pnegfloat (_, _) | Pabsfloat (_, _)
+  | Pfloatofint (_, _) | Pfloatoffloat32 _ | Pfloat32offloat _
+  | Pnegfloat (_, _) | Pabsfloat (_, _)
   | Paddfloat (_, _) | Psubfloat (_, _) | Pmulfloat (_, _)
   | Pdivfloat (_, _) | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu  | Pstringrefs
@@ -495,6 +496,8 @@ let comp_primitive stack_info p sz args =
   | Poffsetref n -> Koffsetref n
   | Pintoffloat Pfloat64 -> Kccall("caml_int_of_float", 1)
   | Pfloatofint (Pfloat64, _) -> Kccall("caml_float_of_int", 1)
+  | Pfloatoffloat32 _ -> Kccall("caml_float_of_float32", 1)
+  | Pfloat32offloat _ -> Kccall("caml_float32_of_float", 1)
   | Pnegfloat (Pfloat64, _) -> Kccall("caml_neg_float", 1)
   | Pabsfloat (Pfloat64, _) -> Kccall("caml_abs_float", 1)
   | Paddfloat (Pfloat64, _) -> Kccall("caml_add_float", 2)

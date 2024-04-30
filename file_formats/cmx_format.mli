@@ -32,7 +32,7 @@ open Misc
    of these infos *)
 
 (* Declare machtype here to avoid depending on [Cmm]. *)
-type machtype_component = Val | Addr | Int | Float | Vec128
+type machtype_component = Val | Addr | Int | Float | Vec128 | Float32
 type machtype = machtype_component array
 
 type apply_fn := machtype list * machtype * Lambda.alloc_mode

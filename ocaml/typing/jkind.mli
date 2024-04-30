@@ -176,13 +176,17 @@ end
 
 type sort = Sort.t
 
-(* The layout of a type describes its memory layout. A layout is either the
-   indeterminate [Any] or a sort, which is a concrete memory layout. *)
+(** The layout of a type describes its memory layout. A layout is either the
+    indeterminate [Any], a sort, which is a concrete memory layout, or
+    [Non_null_value], which is a sublayout of the sort [Value] describing types
+    that do not allow the concrete value null. [Non_null_value] is also the
+    layout of "classical" OCaml values used by the upstream compiler. *)
 module Layout : sig
   module Const : sig
     type t =
       | Sort of Sort.const
       | Any
+      | Non_null_value
   end
 end
 
@@ -378,6 +382,7 @@ type const =
   | Word
   | Bits32
   | Bits64
+  | Non_null_value
 
 val const_of_user_written_annotation :
   context:annotation_context -> Jane_asttypes.jkind_annotation -> const

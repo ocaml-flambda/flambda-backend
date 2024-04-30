@@ -145,6 +145,9 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  (* CR mslater: (float32) use a single cast primitive *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -512,12 +515,14 @@ type check_attribute = Builtin_attributes.check_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =

@@ -70,7 +70,9 @@ val is_destruction_point : more_destruction_points:bool -> Cfg_intf.S.terminator
 
 (* Info for laying out the stack frame *)
 
-val initial_stack_offset : int
+val initial_stack_offset : num_stack_slots:int array
+  -> contains_calls:bool -> int
+
 val trap_frame_size_in_bytes : int
 
 val frame_required :
@@ -80,8 +82,8 @@ val frame_required :
 
 val frame_size :
   stack_offset:int ->
-  fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  contains_calls:bool ->
+  num_stack_slots:int array ->
   int
 
 type slot_offset = private
