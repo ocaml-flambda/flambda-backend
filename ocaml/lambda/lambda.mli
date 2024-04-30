@@ -352,10 +352,9 @@ and block_shape =
 
 and flat_element = Types.flat_element =
     Imm | Float | Float64 | Bits32 | Bits64 | Word
-and flat_element_read =
-  | Flat_read_imm
+and flat_element_read = private
+  | Flat_read of flat_element (* invariant: not a float *)
   | Flat_read_float of alloc_mode
-  | Flat_read_float64
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -798,6 +797,10 @@ type mixed_block_element =
 
 (** Raises if the int is out of bounds. *)
 val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
+
+(** Raises if [flat_element] is float. *)
+val flat_read_non_float : flat_element -> flat_element_read
+val flat_read_float : alloc_mode -> flat_element_read
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 

@@ -1819,17 +1819,16 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
       | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
       | Constructor_mixed shape ->
           let read =
-            match Types.get_mixed_record_element shape field with
+            match get_mixed_record_element shape field with
             | Value_prefix -> Mread_value_prefix Pointer
             | Flat_suffix flat ->
                 let flat_read =
                   match flat with
-                  | Imm -> Flat_read_imm
-                  | Float64 -> Flat_read_float64
                   | Float ->
                       Misc.fatal_error
                         "unexpected flat float of layout value in \
-                          constructor field"
+                         constructor field"
+                  | non_float -> flat_read_non_float non_float
                 in
                 Mread_flat_suffix flat_read
           in
@@ -2196,11 +2195,11 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm -> Flat_read_imm
-                  | Float64 -> Flat_read_float64
+                  | Imm | Float64 | Bits32 | Bits64 | Word as non_float ->
+                      flat_read_non_float non_float
                   | Float ->
                       (* TODO: could optimise to Alloc_local sometimes *)
-                      Flat_read_float alloc_heap
+                      flat_read_float alloc_heap
                 in
                 Mread_flat_suffix read
             in

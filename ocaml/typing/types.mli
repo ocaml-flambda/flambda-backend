@@ -877,7 +877,10 @@ type mixed_record_element =
 (** Raises if the int is out of bounds. *)
 val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
 
+val equal_flat_element : flat_element -> flat_element -> bool
+val compare_flat_element : flat_element -> flat_element -> int
 val flat_element_to_string : flat_element -> string
+val flat_element_to_lowercase_string : flat_element -> string
 
 (**** Utilities for backtracking ****)
 

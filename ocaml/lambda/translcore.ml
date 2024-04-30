@@ -627,16 +627,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             else
               let flat_read =
                 match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Imm -> Flat_read_imm
-                | Float64 -> Flat_read_float64
                 | Float ->
                   (match float with
                     | Boxing (mode, _) ->
-                        Flat_read_float (transl_alloc_mode_r mode)
+                        flat_read_float (transl_alloc_mode_r mode)
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
                           \ present for float field read")
+                | non_float -> flat_read_non_float non_float
               in
               Mread_flat_suffix flat_read
           in
@@ -669,12 +668,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             if lbl.lbl_num < value_prefix_len then
               Mwrite_value_prefix (maybe_pointer newval)
             else
-              let flat_element =
-                match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                | Imm -> Imm
-                | Float -> Float
-                | Float64 -> Float64
-              in
+              let flat_element = flat_suffix.(lbl.lbl_num - value_prefix_len) in
               Mwrite_flat_suffix flat_element
            in
            Psetmixedfield(lbl.lbl_pos, write, mode)
@@ -1757,13 +1751,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     else
                       let read =
                         match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Imm -> Flat_read_imm
                         | Float ->
                             (* See the handling of [Record_float] above for
                                 why we choose Alloc_heap.
                             *)
-                            Flat_read_float alloc_heap
-                        | Float64 -> Flat_read_float64
+                            flat_read_float alloc_heap
+                        | non_float -> flat_read_non_float non_float
                       in
                       Mread_flat_suffix read
                    in
@@ -1865,10 +1858,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     Mwrite_value_prefix ptr
                   else
                     let flat_element =
-                      match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                      | Imm -> Imm
-                      | Float -> Float
-                      | Float64 -> Float64
+                      flat_suffix.(lbl.lbl_num - value_prefix_len)
                     in
                     Mwrite_flat_suffix flat_element
                 in

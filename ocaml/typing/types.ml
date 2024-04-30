@@ -576,6 +576,22 @@ let equal_flat_element e1 e2 =
     -> true
   | (Imm | Float64 | Float | Word | Bits32 | Bits64), _ -> false
 
+let compare_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float, Float | Float64, Float64
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> 0
+  | Imm, _ -> -1
+  | _, Imm -> 1
+  | Float, _ -> -1
+  | _, Float -> 1
+  | Float64, _ -> -1
+  | _, Float64 -> 1
+  | Word, _ -> -1
+  | _, Word -> 1
+  | Bits32, _ -> -1
+  | _, Bits32 -> 1
+
 let equal_mixed_record_shape r1 r2 = r1 == r2 ||
   (* Warning 9 alerts us if we add another field *)
   let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
@@ -708,6 +724,14 @@ let flat_element_to_string = function
   | Bits32 -> "Bits32"
   | Bits64 -> "Bits64"
   | Word -> "Word"
+
+let flat_element_to_lowercase_string = function
+  | Imm -> "imm"
+  | Float -> "float"
+  | Float64 -> "float64"
+  | Bits32 -> "bits32"
+  | Bits64 -> "bits64"
+  | Word -> "word"
 
 (**** Definitions for backtracking ****)
 

@@ -345,9 +345,8 @@ and block_shape =
 and flat_element = Types.flat_element =
     Imm | Float | Float64 | Bits32 | Bits64 | Word
 and flat_element_read =
-  | Flat_read_imm
+  | Flat_read of flat_element
   | Flat_read_float of alloc_mode
-  | Flat_read_float64
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -1246,6 +1245,14 @@ type mixed_block_element = Types.mixed_record_element =
 
 let get_mixed_block_element = Types.get_mixed_record_element
 
+let flat_read_non_float flat_element =
+  match flat_element with
+  | Float -> Misc.fatal_error "flat_element_read_non_float Float"
+  | Imm | Float64 | Bits32 | Bits64 | Word as flat_element ->
+      Flat_read flat_element
+
+let flat_read_float alloc_mode = Flat_read_float alloc_mode
+
 (* Compile a sequence of expressions *)
 
 let rec make_sequence fn = function
@@ -1626,7 +1633,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
       match read with
       | Mread_value_prefix _ -> None
       | Mread_flat_suffix (Flat_read_float m) -> Some m
-      | Mread_flat_suffix (Flat_read_float64 | Flat_read_imm) -> None
+      | Mread_flat_suffix (Flat_read _) -> None
     end
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
@@ -1770,6 +1777,20 @@ let array_ref_kind_result_layout = function
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
 
+let layout_of_mixed_field (kind : mixed_block_read) =
+  match kind with
+  | Mread_value_prefix _ -> layout_value_field
+  | Mread_flat_suffix (Flat_read_float (_ : alloc_mode)) ->
+      layout_boxed_float Pfloat64
+  | Mread_flat_suffix (Flat_read proj) ->
+      match proj with
+      | Imm -> layout_int
+      | Float64 -> layout_unboxed_float Pfloat64
+      | Bits32 -> layout_unboxed_int32
+      | Bits64 -> layout_unboxed_int64
+      | Word -> layout_unboxed_nativeint
+      | Float -> layout_boxed_float Pfloat64
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
@@ -1799,16 +1820,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pmixedfield (_, kind, _) -> begin
-      match kind with
-      | Mread_value_prefix _ -> layout_value_field
-      | Mread_flat_suffix proj -> begin
-          match proj with
-          | Flat_read_imm -> layout_int
-          | Flat_read_float _ -> layout_boxed_float Pfloat64
-          | Flat_read_float64 -> layout_unboxed_float Pfloat64
-        end
-    end
+  | Pmixedfield (_, kind, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

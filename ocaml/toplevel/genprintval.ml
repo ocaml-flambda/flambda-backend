@@ -559,12 +559,17 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                   | Outval_record_mixed_block shape ->
                       let fld =
                         match Types.get_mixed_record_element shape pos with
-                        | Value_prefix -> O.field obj pos
-                        | Flat_suffix Imm -> O.field obj pos
+                        | Value_prefix -> `Continue (O.field obj pos)
+                        | Flat_suffix Imm -> `Continue (O.field obj pos)
                         | Flat_suffix (Float | Float64) ->
-                            O.repr (O.double_field obj pos)
+                            `Continue (O.repr (O.double_field obj pos))
+                        | Flat_suffix (Bits32 | Bits64 | Word) ->
+                            `Stop (Oval_stuff "<bits>")
                       in
-                      nest tree_of_val (depth - 1) fld ty_arg
+                      match fld with
+                      | `Continue fld ->
+                          nest tree_of_val (depth - 1) fld ty_arg
+                      | `Stop result -> result
               in
               let pos = if is_void then pos else pos + 1 in
               (lid, v) :: tree_of_fields false pos remainder
