@@ -125,7 +125,7 @@ originally built for Spacetime profiling, hence the odd name.
 #ifdef WITH_PROFINFO
 #define PROFINFO_SHIFT (Gen_profinfo_shift(PROFINFO_WIDTH))
 #define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
-#define NO_PROFINFO 0
+#define NO_PROFINFO 0xff
 #define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
 #define Wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
 #define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))
