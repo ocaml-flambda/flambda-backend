@@ -22,56 +22,56 @@ Error: Annotation check for zero_alloc strict failed on function Test_signatures
 File "test_signatures_separate_b.ml", line 27, characters 2-23:
 Error: called function may allocate (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 47, characters 5-15:
+File "test_signatures_separate_b.ml", line 48, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_id_opt_is_not_za_strict_opt (camlTest_signatures_separate_b.f_id_opt_is_not_za_strict_opt_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 48, characters 2-14:
+File "test_signatures_separate_b.ml", line 49, characters 2-14:
 Error: called function may allocate on a path to exceptional return (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 50, characters 5-15:
+File "test_signatures_separate_b.ml", line 51, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_signatures_separate_b.f_id_opt_is_not_za_strict (camlTest_signatures_separate_b.f_id_opt_is_not_za_strict_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 51, characters 2-14:
+File "test_signatures_separate_b.ml", line 52, characters 2-14:
 Error: called function may allocate on a path to exceptional return (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 59, characters 5-15:
+File "test_signatures_separate_b.ml", line 60, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_one_is_not_za_two_args (camlTest_signatures_separate_b.f_arity_one_is_not_za_two_args_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 59, characters 52-80:
+File "test_signatures_separate_b.ml", line 60, characters 52-80:
 Error: called function may allocate (direct tailcall caml_apply2)
 
-File "test_signatures_separate_b.ml", line 61, characters 5-15:
+File "test_signatures_separate_b.ml", line 62, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_two_is_not_za_one_arg_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 61, characters 51-66:
+File "test_signatures_separate_b.ml", line 62, characters 51-66:
 Error: called function may allocate (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 65, characters 5-15:
+File "test_signatures_separate_b.ml", line 66, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_is_not_za_three_args (camlTest_signatures_separate_b.f_arity_two_is_not_za_three_args_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 65, characters 58-77:
+File "test_signatures_separate_b.ml", line 66, characters 58-77:
 Error: called function may allocate (direct tailcall caml_apply3)
 
-File "test_signatures_separate_b.ml", line 67, characters 5-15:
+File "test_signatures_separate_b.ml", line 68, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_three_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_three_is_not_za_one_arg_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 67, characters 53-70:
+File "test_signatures_separate_b.ml", line 68, characters 53-70:
 Error: called function may allocate (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 69, characters 5-15:
+File "test_signatures_separate_b.ml", line 70, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_three_is_not_za_two_args (camlTest_signatures_separate_b.f_arity_three_is_not_za_two_args_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 69, characters 56-75:
+File "test_signatures_separate_b.ml", line 70, characters 56-75:
 Error: called function may allocate (direct tailcall caml_apply2)
 
-File "test_signatures_separate_b.ml", line 73, characters 5-15:
+File "test_signatures_separate_b.ml", line 74, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_sig_is_not_za_one_arg (camlTest_signatures_separate_b.f_arity_two_sig_is_not_za_one_arg_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 74, characters 2-29:
+File "test_signatures_separate_b.ml", line 75, characters 2-29:
 Error: called function may allocate (indirect tailcall)
 
-File "test_signatures_separate_b.ml", line 79, characters 5-15:
+File "test_signatures_separate_b.ml", line 80, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_signatures_separate_b.f_arity_two_sig_is_not_za_three_args (camlTest_signatures_separate_b.f_arity_two_sig_is_not_za_three_args_HIDE_STAMP)
 
-File "test_signatures_separate_b.ml", line 80, characters 2-33:
+File "test_signatures_separate_b.ml", line 81, characters 2-33:
 Error: called function may allocate (direct tailcall caml_apply3)
