@@ -50,6 +50,7 @@ let value_slot_offset env value_slot =
 let unbox_number ~dbg kind arg =
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
+  | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
@@ -58,6 +59,7 @@ let unbox_number ~dbg kind arg =
 let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
+  | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
@@ -351,8 +353,11 @@ let unary_float_arith_primitive _env dbg op arg =
 let arithmetic_conversion dbg src dst arg =
   let open K.Standard_int_or_float in
   match src, dst with
-  (* Identity on floats *)
+  (* Float-Float conversions *)
+  | Naked_float32, Naked_float32 -> None, arg
   | Naked_float, Naked_float -> None, arg
+  | Naked_float, Naked_float32 -> None, C.float32_of_float ~dbg arg
+  | Naked_float32, Naked_float -> None, C.float_of_float32 ~dbg arg
   (* Conversions to and from tagged ints *)
   | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
       Tagged_immediate ) ->
@@ -378,7 +383,21 @@ let arithmetic_conversion dbg src dst arg =
   | Naked_nativeint, (Naked_int64 | Naked_nativeint | Naked_immediate)
   | Naked_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
     None, arg
-  (* Int-Float conversions *)
+  (* Int-Float32 conversions *)
+  | Tagged_immediate, Naked_float32 ->
+    None, C.float32_of_int ~dbg (C.untag_int arg dbg)
+  | ( (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint),
+      Naked_float32 ) ->
+    None, C.float32_of_int ~dbg arg
+  | Naked_float32, Tagged_immediate ->
+    None, C.tag_int (C.int_of_float32 ~dbg arg) dbg
+  | Naked_float32, (Naked_int64 | Naked_nativeint) ->
+    None, C.int_of_float32 ~dbg arg
+  | Naked_float32, Naked_int32 ->
+    None, C.sign_extend_32 dbg (C.int_of_float32 ~dbg arg)
+  | Naked_float32, Naked_immediate ->
+    None, C.sign_extend_63 dbg (C.int_of_float32 ~dbg arg)
+    (* Int-Float conversions *)
   | Tagged_immediate, Naked_float ->
     None, C.float_of_int ~dbg (C.untag_int arg dbg)
   | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Naked_float

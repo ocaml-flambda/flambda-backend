@@ -128,6 +128,7 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   @@
   match nnk with
   | Naked_immediate -> "imm"
+  | Naked_float32 -> "float32"
   | Naked_float -> "float"
   | Naked_int32 -> "int32"
   | Naked_int64 -> "int64"
@@ -140,6 +141,7 @@ let rec subkind ppf (k : subkind) =
   | Anything -> str "val"
   | Float_block { num_fields } -> Format.fprintf ppf "float ^ %d" num_fields
   | Boxed_float -> str "float boxed"
+  | Boxed_float32 -> str "float32 boxed"
   | Boxed_int32 -> str "int32 boxed"
   | Boxed_int64 -> str "int64 boxed"
   | Boxed_nativeint -> str "nativeint boxed"
@@ -207,6 +209,7 @@ let convertible_type ppf (t : standard_int_or_float) =
     match t with
     | Tagged_immediate -> "imm tagged"
     | Naked_immediate -> "imm"
+    | Naked_float32 -> "float32"
     | Naked_float -> "float"
     | Naked_int32 -> "int32"
     | Naked_int64 -> "int64"
@@ -254,6 +257,7 @@ let const ppf (c : Fexpr.const) =
   | Naked_immediate i -> Format.fprintf ppf "%si" i
   | Tagged_immediate i -> Format.fprintf ppf "%s" i
   | Naked_float f -> float ppf f
+  | Naked_float32 f -> Format.fprintf ppf "%hs" f
   | Naked_int32 i -> Format.fprintf ppf "%lil" i
   | Naked_int64 i -> Format.fprintf ppf "%LiL" i
   | Naked_nativeint i -> Format.fprintf ppf "%Lin" i
@@ -295,6 +299,7 @@ let empty_array_kind ~space ppf (ak : empty_array_kind) =
   let str =
     match ak with
     | Values_or_immediates_or_naked_floats -> None
+    | Naked_float32s -> Some "float32"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
@@ -332,6 +337,7 @@ let static_data ppf : static_data -> unit = function
       tag
       (pp_comma_list field_of_block)
       elts
+  | Boxed_float32 (Const f) -> Format.fprintf ppf "%hs" f
   | Boxed_float (Const f) -> Format.fprintf ppf "%h" f
   | Boxed_int32 (Const i) -> Format.fprintf ppf "%lil" i
   | Boxed_int64 (Const i) -> Format.fprintf ppf "%LiL" i
@@ -339,6 +345,7 @@ let static_data ppf : static_data -> unit = function
   | Boxed_vec128 (Const { high; low }) ->
     Format.fprintf ppf "vec128[%016Lx:%016Lx]" high low
   | Boxed_float (Var v) -> boxed_variable ppf v ~kind:"float"
+  | Boxed_float32 (Var v) -> boxed_variable ppf v ~kind:"float32"
   | Boxed_int32 (Var v) -> boxed_variable ppf v ~kind:"int32"
   | Boxed_int64 (Var v) -> boxed_variable ppf v ~kind:"int64"
   | Boxed_nativeint (Var v) -> boxed_variable ppf v ~kind:"nativeint"
@@ -539,6 +546,7 @@ let unop ppf u =
   let box_or_unbox verb_not_imm (bk : box_kind) =
     let print verb obj = Format.fprintf ppf "%%%s_%s" verb obj in
     match bk with
+    | Naked_float32 -> print verb_not_imm "float32"
     | Naked_float -> print verb_not_imm "float"
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"

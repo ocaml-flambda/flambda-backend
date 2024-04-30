@@ -54,6 +54,7 @@ type region =
 type const =
   | Naked_immediate of immediate
   | Tagged_immediate of immediate
+  | Naked_float32 of float
   | Naked_float of float
   | Naked_int32 of int32
   | Naked_int64 of int64
@@ -88,6 +89,7 @@ type static_data =
         mutability : mutability;
         elements : field_of_block list
       }
+  | Boxed_float32 of float or_variable
   | Boxed_float of float or_variable
   | Boxed_int32 of int32 or_variable
   | Boxed_int64 of int64 or_variable
@@ -104,6 +106,7 @@ type kind = Flambda_kind.t
 
 type subkind =
   | Anything
+  | Boxed_float32
   | Boxed_float
   | Boxed_int32
   | Boxed_int64
@@ -182,6 +185,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Naked_nativeints
 
 type box_kind = Flambda_kind.Boxable_number.t =
+  | Naked_float32
   | Naked_float
   | Naked_int32
   | Naked_int64
@@ -221,6 +225,7 @@ type standard_int = Flambda_kind.Standard_int.t =
 type standard_int_or_float = Flambda_kind.Standard_int_or_float.t =
   | Tagged_immediate
   | Naked_immediate
+  | Naked_float32
   | Naked_float
   | Naked_int32
   | Naked_int64

@@ -130,7 +130,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Pintarray -> Array_kind Immediates
   | Pfloatarray | Punboxedfloatarray Pfloat64 -> Array_kind Naked_floats
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
@@ -142,6 +142,7 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
+  (* CR mslater: (float32) unboxed arrays *)
   type t =
     | Immediates
     | Values
@@ -173,7 +174,7 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
   | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
   | Punboxedfloatarray_ref Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
@@ -231,7 +232,7 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
   | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
   | Punboxedfloatarray_set Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
@@ -264,7 +265,7 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     Duplicate_array_kind (Naked_floats { length = None })
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint32 ->
     Duplicate_array_kind (Naked_int32s { length = None })
@@ -284,6 +285,17 @@ let tag_int (arg : H.expr_primitive) : H.expr_primitive =
 
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Untag_immediate, arg))
+
+let unbox_float32 (arg : H.simple_or_prim) : H.simple_or_prim =
+  Prim (Unary (Unbox_number K.Boxable_number.Naked_float32, arg))
+
+let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
+    H.expr_primitive =
+  Unary
+    ( Box_number
+        ( K.Boxable_number.Naked_float32,
+          Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+      Prim arg )
 
 let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
@@ -658,6 +670,8 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
   match P.Bigarray_kind.element_kind kind with
   | Value -> Fun.id
   | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
+  | Naked_number Naked_float32 ->
+    fun arg -> H.Unary (Box_number (Naked_float32, alloc_mode), Prim arg)
   | Naked_number Naked_float ->
     fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
   | Naked_number Naked_int32 ->
@@ -680,6 +694,8 @@ let bigarray_unbox_or_untag_value_to_store kind =
   | Value -> Fun.id
   | Naked_number Naked_immediate ->
     fun arg -> H.Prim (Unary (Untag_immediate, arg))
+  | Naked_number Naked_float32 ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_float32, arg))
   | Naked_number Naked_float ->
     fun arg -> H.Prim (Unary (Unbox_number Naked_float, arg))
   | Naked_number Naked_int32 ->
@@ -1080,6 +1096,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ tag_int
         (Binary (convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
     ]
+  | Pfloatoffloat32 mode, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float32 in
+    let dst = K.Standard_int_or_float.Naked_float in
+    [ box_float mode
+        (Unary (Num_conv { src; dst }, unbox_float32 arg))
+        ~current_region ]
+  | Pfloat32offloat mode, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float in
+    let dst = K.Standard_int_or_float.Naked_float32 in
+    [ box_float32 mode
+        (Unary (Num_conv { src; dst }, unbox_float arg))
+        ~current_region ]
   | Pintoffloat Pfloat64, [[arg]] ->
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Tagged_immediate in
@@ -1127,8 +1155,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Naked_float,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
-  | Pintoffloat Pfloat32, _
-  | Pfloatofint (Pfloat32, _), _
+  | Pintoffloat Pfloat32, [[arg]] ->
+    let src = K.Standard_int_or_float.Naked_float32 in
+    let dst = K.Standard_int_or_float.Tagged_immediate in
+    [Unary (Num_conv { src; dst }, unbox_float32 arg)]
+  | Pfloatofint (Pfloat32, mode), [[arg]] ->
+    let src = K.Standard_int_or_float.Tagged_immediate in
+    let dst = K.Standard_int_or_float.Naked_float32 in
+    [box_float32 mode (Unary (Num_conv { src; dst }, arg)) ~current_region]
   | Pnegfloat (Pfloat32, _), _
   | Pabsfloat (Pfloat32, _), _
   | Paddfloat (Pfloat32, _), _
@@ -1140,7 +1174,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbox_float (Pfloat32, _), _
   | Pcompare_floats Pfloat32, _
   | Punboxed_float_comp (Pfloat32, _), _ ->
-    (* CR mslater: (float32) middle end support *)
+    (* CR mslater: (float32) runtime *)
     assert false
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in
@@ -1823,8 +1857,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Printlambda.primitive prim H.print_list_of_simple_or_prim
       (List.flatten args)
   | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _
-      | Pintoffloat Pfloat64
-      | Pfloatofint (Pfloat64, _)
+      | Pintoffloat (Pfloat64 | Pfloat32)
+      | Pfloatofint ((Pfloat64 | Pfloat32), _)
+      | Pfloatoffloat32 _ | Pfloat32offloat _
       | Pnegfloat (Pfloat64, _)
       | Pabsfloat (Pfloat64, _)
       | Pstringlength | Pbyteslength | Pbintofint _ | Pintofbint _ | Pnegbint _

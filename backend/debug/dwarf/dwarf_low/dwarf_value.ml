@@ -44,6 +44,10 @@ type value =
   | Indirect_string of string
   | Absolute_address of Targetint.t
   | Code_address_from_label of Asm_label.t
+  | Code_address_from_label_plus_offset of
+      { label : Asm_label.t;
+        offset_in_bytes : Targetint.t
+      }
   | Code_address_from_symbol of Asm_symbol.t
   | Code_address_from_label_symbol_diff of
       { upper : Asm_label.t;
@@ -80,6 +84,12 @@ type value =
       { upper : Asm_label.t;
         lower : Asm_label.t
       }
+  | Distance_between_labels_64_bit_with_offsets of
+      { upper : Asm_label.t;
+        upper_offset : Targetint.t;
+        lower : Asm_label.t;
+        lower_offset : Targetint.t
+      }
 
 type t =
   { value : value;
@@ -105,6 +115,10 @@ let print ppf { value; comment = _ } =
   | Absolute_address addr ->
     Format.fprintf ppf "0x%Lx" (Targetint.to_int64 addr)
   | Code_address_from_label lbl -> Asm_label.print ppf lbl
+  | Code_address_from_label_plus_offset
+      { label : Asm_label.t; offset_in_bytes : Targetint.t } ->
+    Format.fprintf ppf "%a + %a" Asm_label.print label Targetint.print
+      offset_in_bytes
   | Code_address_from_symbol sym -> Asm_symbol.print ppf sym
   | Code_address_from_label_symbol_diff { upper; lower; offset_upper } ->
     Format.fprintf ppf "(%a + %a) - %a" Asm_label.print upper Targetint.print
@@ -143,6 +157,11 @@ let print ppf { value; comment = _ } =
   | Distance_between_labels_64_bit { upper; lower } ->
     Format.fprintf ppf "%a - %a (64)" Asm_label.print upper Asm_label.print
       lower
+  | Distance_between_labels_64_bit_with_offsets
+      { upper; upper_offset; lower; lower_offset } ->
+    Format.fprintf ppf "(%a + %a) - (%a + %a) (64)" Asm_label.print upper
+      Targetint.print upper_offset Asm_label.print lower Targetint.print
+      lower_offset
 
 let flag_true ?comment () = { value = Flag_true; comment }
 
@@ -176,6 +195,11 @@ let absolute_address ?comment addr = { value = Absolute_address addr; comment }
 
 let code_address_from_label ?comment lbl =
   { value = Code_address_from_label lbl; comment }
+
+let code_address_from_label_plus_offset ?comment label ~offset_in_bytes =
+  { value = Code_address_from_label_plus_offset { label; offset_in_bytes };
+    comment
+  }
 
 let code_address_from_symbol ?comment sym =
   { value = Code_address_from_symbol sym; comment }
@@ -233,6 +257,14 @@ let distance_between_labels_32_bit ?comment ~upper ~lower () =
 let distance_between_labels_64_bit ?comment ~upper ~lower () =
   { value = Distance_between_labels_64_bit { upper; lower }; comment }
 
+let distance_between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset
+    ~lower ~lower_offset () =
+  { value =
+      Distance_between_labels_64_bit_with_offsets
+        { upper; upper_offset; lower; lower_offset };
+    comment
+  }
+
 let append_to_comment { value; comment } to_append =
   let comment =
     match comment with
@@ -271,7 +303,8 @@ let size { value; comment = _ } =
   | Int64 _ | Uint64 _ -> Dwarf_int.eight ()
   | Uleb128 i -> uleb128_size i
   | Sleb128 i -> sleb128_size i
-  | Absolute_address _ | Code_address_from_label _ | Code_address_from_symbol _
+  | Absolute_address _ | Code_address_from_label _
+  | Code_address_from_label_plus_offset _ | Code_address_from_symbol _
   | Code_address_from_label_symbol_diff _ | Code_address_from_symbol_diff _
   | Code_address_from_symbol_plus_bytes _ -> (
     match Targetint.size with
@@ -289,7 +322,9 @@ let size { value; comment = _ } =
     Dwarf_int.size (Dwarf_int.zero ())
   | Distance_between_labels_16_bit _ -> Dwarf_int.two ()
   | Distance_between_labels_32_bit _ -> Dwarf_int.four ()
-  | Distance_between_labels_64_bit _ -> Dwarf_int.eight ()
+  | Distance_between_labels_64_bit _
+  | Distance_between_labels_64_bit_with_offsets _ ->
+    Dwarf_int.eight ()
 
 let emit ~asm_directives { value; comment } =
   let module A = (val asm_directives : Asm_directives.S) in
@@ -331,6 +366,8 @@ let emit ~asm_directives { value; comment } =
       A.comment abbrev
   | Absolute_address addr -> A.targetint ?comment addr
   | Code_address_from_label lbl -> A.label ?comment lbl
+  | Code_address_from_label_plus_offset { label; offset_in_bytes } ->
+    A.label_plus_offset ?comment label ~offset_in_bytes
   | Code_address_from_symbol sym -> A.symbol ?comment sym
   | Code_address_from_label_symbol_diff { upper; lower; offset_upper } ->
     A.between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
@@ -377,3 +414,7 @@ let emit ~asm_directives { value; comment } =
     A.between_labels_32_bit ?comment ~upper ~lower ()
   | Distance_between_labels_64_bit { upper; lower } ->
     A.between_labels_64_bit ?comment ~upper ~lower ()
+  | Distance_between_labels_64_bit_with_offsets
+      { upper; upper_offset; lower; lower_offset } ->
+    A.between_labels_64_bit_with_offsets ?comment ~upper ~upper_offset ~lower
+      ~lower_offset ()

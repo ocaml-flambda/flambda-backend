@@ -100,7 +100,7 @@ CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
                                                 mlsize_t scannable_prefix_len)
 {
   reserved_t reserved =
-    Reserved_mixed_block_scannable_wosize(scannable_prefix_len);
+    Reserved_mixed_block_scannable_wosize_native(scannable_prefix_len);
   return caml_alloc_shr_reserved_check_gc(wosize, tag, reserved);
 }
 #endif
@@ -371,7 +371,7 @@ CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
   */
   CAML_STATIC_ASSERT(Double_wosize == 1);
   reserved_t reserved =
-    Reserved_mixed_block_scannable_wosize(scannable_wosize);
+    Reserved_mixed_block_scannable_wosize_native(scannable_wosize);
 #else
   /* [scannable_size] can't be used meaningfully in bytecode */
   (void)scannable_size;

@@ -162,6 +162,10 @@ let local_closure_header sz = local_block_header Obj.closure_tag sz
 
 let infix_header ofs = block_header Obj.infix_tag ofs
 
+let boxedfloat32_header = block_header Obj.custom_tag 2
+
+let boxedfloat32_local_header = local_block_header Obj.custom_tag 2
+
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 
 let float_local_header =
@@ -202,6 +206,8 @@ let custom_header ~size = block_header Obj.custom_tag size
 
 let custom_local_header ~size = local_block_header Obj.custom_tag size
 
+let caml_float32_ops = "caml_float32_ops"
+
 let caml_nativeint_ops = "caml_nativeint_ops"
 
 let caml_int32_ops = "caml_int32_ops"
@@ -235,6 +241,11 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
   closure_info'
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
+
+let alloc_boxedfloat32_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
 let alloc_float_header mode dbg =
   match mode with
@@ -769,6 +780,34 @@ let test_bool dbg cmm =
 
 (* Float *)
 
+let box_float32 dbg mode exp =
+  Cop
+    ( Calloc mode,
+      [ alloc_boxedfloat32_header mode dbg;
+        Cconst_symbol (global_symbol caml_float32_ops, dbg);
+        exp ],
+      dbg )
+
+let unbox_float32 dbg =
+  map_tail ~kind:Any (function
+    | Cop (Calloc _, [Cconst_natint (hdr, _); _ops; c], _)
+      when Nativeint.equal hdr boxedfloat32_header
+           || Nativeint.equal hdr boxedfloat32_local_header ->
+      c
+    | Cconst_symbol (s, _dbg) as cmm -> (
+      match Cmmgen_state.structured_constant_of_sym s.sym_name with
+      | Some (Const_float32 x) -> Cconst_float32 (x, dbg) (* or keep _dbg? *)
+      | _ ->
+        Cop
+          ( mk_load_immut (Single { reg = Float32 }),
+            [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+            dbg ))
+    | cmm ->
+      Cop
+        ( mk_load_immut (Single { reg = Float32 }),
+          [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
+          dbg ))
+
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
@@ -829,7 +868,7 @@ let field_address ?(memory_chunk = Word_val) ptr n dbg =
       | Byte_unsigned | Byte_signed -> 1
       | Sixteen_unsigned | Sixteen_signed -> 2
       | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single ->
+      | Single { reg = Float64 | Float32 } ->
         assert (size_float = 8);
         (* unclear what to do if this is false *)
         size_float / 2
@@ -1273,6 +1312,7 @@ module Extended_machtype_component = struct
     | Any_int
     | Float
     | Vec128
+    | Float32
 
   let of_machtype_component (component : machtype_component) =
     match component with
@@ -1281,6 +1321,7 @@ module Extended_machtype_component = struct
     | Int -> Any_int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1289,6 +1330,7 @@ module Extended_machtype_component = struct
     | Tagged_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 
   let change_tagged_int_to_val t : machtype_component =
     match t with
@@ -1298,6 +1340,7 @@ module Extended_machtype_component = struct
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
+    | Float32 -> Float32
 end
 
 module Extended_machtype = struct
@@ -1310,6 +1353,8 @@ module Extended_machtype = struct
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
   let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_float32 = [| Extended_machtype_component.Float32 |]
 
   let typ_vec128 = [| Extended_machtype_component.Vec128 |]
 
@@ -1330,9 +1375,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float Pfloat64 -> typ_float
-    | Punboxed_float Pfloat32 ->
-      (* CR mslater: (float32) backend support *)
-      assert false
+    | Punboxed_float Pfloat32 -> typ_float32
     | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
@@ -1356,6 +1399,7 @@ let machtype_identifier t =
     | Int -> 'I'
     | Float -> 'F'
     | Vec128 -> 'X'
+    | Float32 -> 'S'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
   in
@@ -1555,7 +1599,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
-  | Pbigarray_float32 -> Single
+  | Pbigarray_float32 -> Single { reg = Float64 }
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed
   | Pbigarray_uint8 -> Byte_unsigned
@@ -1565,7 +1609,7 @@ let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_int64 -> Word_int
   | Pbigarray_caml_int -> Word_int
   | Pbigarray_native_int -> Word_int
-  | Pbigarray_complex32 -> Single
+  | Pbigarray_complex32 -> Single { reg = Float64 }
   | Pbigarray_complex64 -> Double
 
 (* the three functions below assume 64-bit words *)
@@ -2701,21 +2745,27 @@ let ints_per_vec128 = size_vec128 / Arch.size_int
 let machtype_stored_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
 let machtype_non_scanned_size t =
   Array.fold_left
     (fun cur c ->
-      match c with
+      match (c : machtype_component) with
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val -> cur
       | Int -> cur + 1
       | Float -> cur + ints_per_float
+      | Float32 ->
+        (* Float32 slots still take up a full word *)
+        cur + 1
       | Vec128 -> cur + ints_per_vec128)
     0 t
 
@@ -2725,8 +2775,8 @@ let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
       (fun (_, c) ->
-        match c with
-        | Int | Float | Vec128 -> true
+        match (c : machtype_component) with
+        | Int | Float | Float32 | Vec128 -> true
         | Val -> false
         | Addr -> assert false)
       vs
@@ -2740,12 +2790,16 @@ let read_from_closure_given_machtype t clos base_offset dbg =
   let _, l =
     List.fold_left_map
       (fun (non_scanned_pos, scanned_pos) c ->
-        match c with
+        match (c : machtype_component) with
         | Int ->
           (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
           ( (non_scanned_pos + ints_per_float, scanned_pos),
             load Double non_scanned_pos )
+        | Float32 ->
+          (* Float32 slots still take up a full word *)
+          ( (non_scanned_pos + 1, scanned_pos),
+            load (Single { reg = Float32 }) non_scanned_pos )
         | Vec128 ->
           (* Vectors stored in closures may not be 16-byte aligned. *)
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
@@ -2949,7 +3003,7 @@ let arraylength kind arg dbg =
        Punboxedfloatarray *)
     Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Punboxedfloatarray Pfloat32 ->
-    (* CR mslater: (float32) array support *)
+    (* CR mslater: (float32) unboxed arrays *)
     assert false
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
@@ -3168,6 +3222,10 @@ let emit_boxed_int64_constant_fields n cont =
 
 let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
+
+let emit_float32_constant symb f cont =
+  emit_block symb boxedfloat32_header
+    (Csymbol_address (global_symbol caml_float32_ops) :: Csingle f :: cont)
 
 let emit_float_constant symb f cont =
   emit_block symb float_header (Cdouble f :: cont)
@@ -3406,6 +3464,8 @@ let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
+let float32 ~dbg f = Cconst_float32 (f, dbg)
+
 let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
@@ -3420,10 +3480,10 @@ let letin v ~defining_expr ~body =
   match body with
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
-  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
-  | Cexit _ | Ctrywith _ ->
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _
+  | Cassign _ | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _
+  | Ccatch _ | Cexit _ | Ctrywith _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -3464,9 +3524,17 @@ let unary op ~dbg x = Cop (op, [x], dbg)
 
 let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
-let int_of_float = unary (Cscalarcast Float_to_int)
+let int_of_float = unary (Cscalarcast (Float_to_int Float64))
 
-let float_of_int = unary (Cscalarcast Float_of_int)
+let float_of_int = unary (Cscalarcast (Float_of_int Float64))
+
+let int_of_float32 = unary (Cscalarcast (Float_to_int Float32))
+
+let float32_of_int = unary (Cscalarcast (Float_of_int Float32))
+
+let float32_of_float = unary (Cscalarcast Float_to_float32)
+
+let float_of_float32 = unary (Cscalarcast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
@@ -3666,6 +3734,8 @@ let infix_field_address ~dbg ptr n =
 
 let cint i = Cmm.Cint i
 
+let cfloat32 f = Cmm.Csingle f
+
 let cfloat f = Cmm.Cdouble f
 
 let cvec128 bits = Cmm.Cvec128 bits
@@ -3706,8 +3776,8 @@ let cmm_arith_size (e : Cmm.expression) =
     | _ -> 0
   in
   match e with
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-  | Cconst_vec128 _ ->
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_symbol _ | Cvar _ | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
@@ -3716,10 +3786,7 @@ let cmm_arith_size (e : Cmm.expression) =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
-  | Pvalue (Pboxedfloatval Pfloat32) ->
-    (* CR mslater: (float32) backend support *)
-    assert false
+  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)

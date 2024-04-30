@@ -78,13 +78,8 @@ type cfg_info =
 
 let build_cfg_info : Cfg.t -> cfg_info =
  fun cfg ->
-  let frame_required =
-    Proc.frame_required ~fun_contains_calls:cfg.fun_contains_calls
-      ~fun_num_stack_slots:cfg.fun_num_stack_slots
-  in
   let frame_size =
-    Stack_check.frame_size ~stack_offset:0 ~frame_required
-      ~num_stack_slots:cfg.fun_num_stack_slots
+    Proc.frame_size ~stack_offset:0 ~num_stack_slots:cfg.fun_num_stack_slots
       ~contains_calls:cfg.fun_contains_calls
   in
   let init =

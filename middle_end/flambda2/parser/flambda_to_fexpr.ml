@@ -352,6 +352,8 @@ let name env n =
     ~var:(fun v : Fexpr.name -> Var (Env.find_var_exn env v))
     ~symbol:(fun s : Fexpr.name -> Symbol (Env.find_symbol_exn env s))
 
+let float32 f = f |> Numeric_types.Float32_by_bit_pattern.to_float
+
 let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
 let vec128 v = v |> Vector_types.Vec128.Bit_pattern.to_bits
@@ -367,6 +369,7 @@ let const c : Fexpr.const =
     Tagged_immediate
       (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
   | Naked_float f -> Naked_float (f |> float)
+  | Naked_float32 f -> Naked_float32 (f |> float32)
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
   | Naked_vec128 bits ->
@@ -421,6 +424,7 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
 let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   match k with
   | Anything -> Anything
+  | Boxed_float32 -> Boxed_float32
   | Boxed_float -> Boxed_float
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
@@ -693,6 +697,7 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
   | Set_of_closures _ -> assert false
+  | Boxed_float32 f -> Boxed_float32 (or_variable float32 env f)
   | Boxed_float f -> Boxed_float (or_variable float env f)
   | Boxed_int32 i -> Boxed_int32 (or_variable Fun.id env i)
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)

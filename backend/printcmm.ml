@@ -29,12 +29,14 @@ let rec_flag ppf = function
   | Nonrecursive -> ()
   | Recursive -> fprintf ppf " rec"
 
-let machtype_component ppf = function
+let machtype_component ppf (ty : machtype_component) =
+  match ty with
   | Val -> fprintf ppf "val"
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
   | Vec128 -> fprintf ppf "vec128"
+  | Float32 -> fprintf ppf "float32"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -49,6 +51,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XFloat32 -> fprintf ppf "float32"
   | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =
@@ -103,7 +106,8 @@ let chunk = function
   | Onetwentyeight_aligned -> "aligned vec128"
   | Word_int -> "int"
   | Word_val -> "val"
-  | Single -> "float32"
+  | Single { reg = Float64 } -> "float32_as_float64"
+  | Single { reg = Float32 } -> "float32"
   | Double -> "float64"
 
 let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
@@ -224,8 +228,12 @@ let operation d = function
   | Cintofvalue -> "intofvalue"
   | Cvectorcast Bits128 ->
     Printf.sprintf "vec128->vec128"
-  | Cscalarcast Float_to_int -> "float->int"
-  | Cscalarcast Float_of_int -> "int->float"
+  | Cscalarcast (Float_to_int Float64) -> "float->int"
+  | Cscalarcast (Float_of_int Float64) -> "int->float"
+  | Cscalarcast (Float_to_int Float32) -> "float32->int"
+  | Cscalarcast (Float_of_int Float32) -> "int->float32"
+  | Cscalarcast (Float_to_float32) -> "float->float32"
+  | Cscalarcast (Float_of_float32) -> "float32->float"
   | Cscalarcast (V128_to_scalar ty) ->
     Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | Cscalarcast (V128_of_scalar ty) ->
@@ -252,6 +260,7 @@ let rec expr ppf = function
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
+  | Cconst_float32 (n, _dbg) -> fprintf ppf "%Fs" n
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id

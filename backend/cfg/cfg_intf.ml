@@ -55,6 +55,7 @@ module S = struct
     | Spill
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
+    | Const_float32 of int32
     | Const_float of int64
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits

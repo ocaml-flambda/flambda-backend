@@ -722,6 +722,7 @@ module type Wrapped = sig
     { val_type: type_expr wrapped;                (* Type of the value *)
       val_kind: value_kind;
       val_loc: Location.t;
+      val_zero_alloc: Builtin_attributes.check_attribute;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }

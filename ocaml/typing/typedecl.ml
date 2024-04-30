@@ -134,6 +134,9 @@ type error =
   | Modalities_on_value_description
   | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
   | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
+  | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
+  | Zero_alloc_attr_non_function
+  | Zero_alloc_attr_bad_user_arity
 
 open Typedtree
 
@@ -1203,7 +1206,7 @@ module Element_repr = struct
   let classify env ty jkind =
     if is_float env ty then Float_element
     else match Jkind.get_default_value jkind with
-      | Value | Immediate64 -> Value_element
+      | Value | Immediate64 | Non_null_value -> Value_element
       | Immediate -> Imm_element
       | Float64 -> Flat_float64_element
       | Void -> Element_without_runtime_component
@@ -2783,8 +2786,31 @@ let transl_value_decl env loc valdecl =
   let v =
   match valdecl.pval_prim with
     [] when Env.is_in_signature env ->
+      let default_arity =
+        let rec count_arrows n ty =
+          match get_desc ty with
+          | Tarrow (_, _, t2, _) -> count_arrows (n+1) t2
+          | _ -> n
+        in
+        count_arrows 0 ty
+      in
+      let zero_alloc =
+        Builtin_attributes.get_property_attribute ~in_signature:true
+          ~default_arity valdecl.pval_attributes Zero_alloc
+      in
+      begin match zero_alloc with
+      | Default_check -> ()
+      | Check za ->
+        if default_arity = 0 && za.arity <= 0 then
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
+        if za.arity <= 0 then
+          raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
+      | Assume _ | Ignore_assert_all _ ->
+        raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
+      end;
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes;
+        val_zero_alloc = zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   | [] ->
@@ -2824,6 +2850,7 @@ let transl_value_decl env loc valdecl =
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes;
+        val_zero_alloc = Builtin_attributes.Default_check;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   in
@@ -3588,6 +3615,24 @@ let report_error ppf = function
          the use of -extension-universe (no_extensions|\
          upstream_compatible).@]"
       Jkind.Sort.format_const sort
+  | Zero_alloc_attr_unsupported ca ->
+      let variety = match ca with
+        | Default_check | Check _ -> assert false
+        | Assume _ -> "assume"
+        | Ignore_assert_all _ -> "ignore"
+      in
+      fprintf ppf
+        "@[zero_alloc \"%s\" attributes are not supported in signatures@]"
+        variety
+  | Zero_alloc_attr_non_function ->
+    fprintf ppf
+      "@[In signatures, zero_alloc is only supported on function declarations.\
+         @ Found no arrows in this declaration's type.\
+         @ Hint: You can write \"[@zero_alloc arity n]\" to specify the arity\
+         @ of an alias (for n > 0).@]"
+  | Zero_alloc_attr_bad_user_arity ->
+    fprintf ppf
+      "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
 
 let () =
   Location.register_error_of_exn

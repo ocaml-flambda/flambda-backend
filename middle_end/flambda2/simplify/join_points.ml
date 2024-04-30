@@ -223,10 +223,7 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         (DE.inlining_history_tracker env_at_fork)
         handler_env
     in
-    let handler_env =
-      DE.set_inlined_debuginfo handler_env
-        (DE.get_inlined_debuginfo env_at_fork)
-    in
+    let handler_env = DE.set_inlined_debuginfo handler_env ~from:env_at_fork in
     let handler_env =
       DE.set_at_unit_toplevel_state handler_env
         (DE.at_unit_toplevel env_at_fork)
