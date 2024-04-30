@@ -105,6 +105,11 @@ let poison (kind : Flambda_kind.t) =
     Simple.const
       (Int_ids.Const.naked_float
          (Numeric_types.Float_by_bit_pattern.create (float_of_int poison_value)))
+  | Naked_number Naked_float32 ->
+    Simple.const
+      (Int_ids.Const.naked_float32
+         (Numeric_types.Float32_by_bit_pattern.create
+            (float_of_int poison_value)))
   | Naked_number Naked_immediate ->
     Simple.const
       (Int_ids.Const.naked_immediate (Targetint_31_63.of_int poison_value))
@@ -216,6 +221,9 @@ let rewrite_static_const kinds (uses : uses) (sc : Static_const.t) =
   | Static_const.Boxed_float f ->
     Static_const.boxed_float
       (rewrite_or_variable Numeric_types.Float_by_bit_pattern.zero uses f)
+  | Static_const.Boxed_float32 f ->
+    Static_const.boxed_float32
+      (rewrite_or_variable Numeric_types.Float32_by_bit_pattern.zero uses f)
   | Static_const.Boxed_int32 n ->
     Static_const.boxed_int32 (rewrite_or_variable Int32.zero uses n)
   | Static_const.Boxed_int64 n ->

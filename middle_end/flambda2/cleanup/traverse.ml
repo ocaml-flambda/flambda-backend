@@ -119,6 +119,7 @@ end = struct
           | Naked_immediate _ -> Flambda_kind.naked_immediate
           | Tagged_immediate _ -> Flambda_kind.value
           | Naked_float _ -> Flambda_kind.naked_float
+          | Naked_float32 _ -> Flambda_kind.naked_float32
           | Naked_int32 _ -> Flambda_kind.naked_int32
           | Naked_int64 _ -> Flambda_kind.naked_int64
           | Naked_nativeint _ -> Flambda_kind.naked_nativeint
