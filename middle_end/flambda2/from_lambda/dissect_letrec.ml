@@ -248,7 +248,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         args ([], [])
     in
     (* [arg_layout] is more general than any of the possible layouts of [args]:
-       - The arguments to [Pmakeblock]/[Pmakearray] are value fields. - The
+       The arguments to [Pmakeblock]/[Pmakearray] are value fields, and the
        argument to [Pduprecord] is a block. *)
     let arg_layout = Typeopt.layout_union layout_value_field layout_block in
     (* Bytecode evaluates effects in blocks from right to left, so reverse defs
