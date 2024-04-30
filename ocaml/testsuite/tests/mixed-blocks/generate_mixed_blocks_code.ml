@@ -41,17 +41,24 @@ let enumeration_of_nonempty_list enumeration_of_x =
 
 type flat_element =
   | Imm
-  | Float_u
+  | Float64
   | Float
+  | Bits32
+  | Bits64
+  | Word
 
 let flat_element_is_float = function
-  | Float_u | Float -> true
-  | Imm -> false
+  | Float64 | Float -> true
+  | Imm | Bits32 | Bits64 | Word -> false
+
+let flat_element_is_unboxed = function
+  | Float64 | Bits32 | Bits64 | Word -> true
+  | Imm | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_of_flat_element = [ Imm; Float_u; Float ]
+let all_of_flat_element = [ Imm; Float64; Float; Bits32; Bits64; Word ]
 
 type value_element =
   | Str
@@ -102,7 +109,7 @@ let enumeration_of_suffix_except_all_floats_mixed
     (Seq.product flat_element_except_float enumeration_of_mutability)
   |> Seq.filter (fun suffix ->
     List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
-      flat_element_is Float_u elem))
+      flat_element_is_unboxed elem))
 ;;
 
 let enumeration_of_all_floats_mixed_suffix =
@@ -114,7 +121,7 @@ let enumeration_of_all_floats_mixed_suffix =
     (Seq.product float_flat_element enumeration_of_mutability)
   |> Seq.filter (fun suffix ->
       let suffix = Nonempty_list.to_list suffix in
-      List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+      List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float64 elem)
       && List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float elem))
 
 type block =
@@ -131,7 +138,7 @@ let enumeration_of_mixed_blocks_except_all_floats_mixed
   |> Seq.filter (fun (prefix, suffix) ->
       let all_float_u_suffix =
         List.for_all (Nonempty_list.to_list suffix)
-          ~f:(fun (elem, _) -> flat_element_is Float_u elem)
+          ~f:(fun (elem, _) -> flat_element_is Float64 elem)
       in
       let all_float_prefix =
         List.for_all prefix
@@ -174,8 +181,52 @@ let enumeration_of_all_floats_mixed_blocks =
 type field_or_arg_type =
   | Imm
   | Float
-  | Float_u
+  | Float64
   | Str
+  | Bits32
+  | Bits64
+  | Word
+
+let type_to_creation_function = function
+  | Imm -> "create_int ()"
+  | Float -> "create_float ()"
+  | Float64 -> "create_float_u ()"
+  | Bits32 -> "create_int32_u ()"
+  | Bits64 -> "create_int64_u ()"
+  | Word -> "create_nativeint_u ()"
+  | Str -> "create_string ()"
+
+let type_to_string = function
+  | Imm -> "int"
+  | Float -> "float"
+  | Float64 -> "float#"
+  | Bits32 -> "int32#"
+  | Bits64 -> "int64#"
+  | Word -> "nativeint#"
+  | Str -> "string"
+
+let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
+  let checker, transformation =
+    match type_ with
+    | Str -> "check_string", None
+    | Imm -> "check_int", None
+    | Float -> "check_float", None
+    | Float64 -> "check_float", Some "Stdlib__Float_u.to_float"
+    | Bits32 -> "check_int32", Some "Stdlib__Int32_u.to_int32"
+    | Bits64 -> "check_int64", Some "Stdlib__Int64_u.to_int64"
+    | Word -> "check_int64", Some "Stdlib__Nativeint.to_int64"
+  in
+  let transform access =
+    match transformation with
+    | None -> access
+    | Some f -> sprintf "(%s %s)" f access
+  in
+  sprintf
+    "%s %s %s ~message:\"%s\";"
+    checker
+    (transform access1)
+    (transform access2)
+    (String.escaped message)
 
 module Mixed_record = struct
   type field =
@@ -192,8 +243,8 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str -> false
-        | Float | Float_u -> true)
+        | Imm | Str | Bits32 | Bits64 | Word -> false
+        | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
     let num_fields, prefix_fields =
@@ -219,10 +270,13 @@ module Mixed_record = struct
           let field =
             match elem with
             | Imm -> { type_ = Imm; name = sprintf "imm%d" i; mutable_ }
+            | Bits32 -> { type_ = Bits32; name = sprintf "i32_%d" i; mutable_ }
+            | Bits64 -> { type_ = Bits64; name = sprintf "i64_%d" i; mutable_ }
+            | Word -> { type_ = Bits64; name = sprintf "n%d" i; mutable_ }
             | Float ->
                 { type_ = Float; name = sprintf "float%d" i; mutable_ }
-            | Float_u ->
-                { type_ = Float_u; name = sprintf "float_u%d" i; mutable_ }
+            | Float64 ->
+                { type_ = Float64; name = sprintf "float_u%d" i; mutable_ }
           in
           i+1, field)
     in
@@ -244,11 +298,7 @@ module Mixed_record = struct
               "%s%s : %s"
               (if mutable_ then "mutable " else "")
               name
-              (match type_ with
-               | Imm -> "int"
-               | Float -> "float"
-               | Float_u -> "float#"
-               | Str -> "string"))))
+              (type_to_string type_))))
   ;;
 
   let record_value t =
@@ -258,36 +308,17 @@ module Mixed_record = struct
          sprintf
            "%s = %s"
            name
-           (match type_ with
-            | Imm -> "create_int ()"
-            | Float -> "create_float ()"
-            | Float_u -> "create_float_u ()"
-            | Str -> "create_string ()")))
+           (type_to_creation_function type_)))
     |> sprintf "{ %s }"
   ;;
 
   let check_field_integrity t =
     List.map t.fields ~f:(fun field ->
-      let checker, transformation =
-        match field.type_ with
-        | Str -> "check_string", None
-        | Imm -> "check_int", None
-        | Float -> "check_float", None
-        | Float_u -> "check_float", Some "Stdlib__Float_u.to_float"
-      in
-      let transform value field =
-        let access = sprintf "%s.%s" value field in
-        match transformation with
-        | None -> access
-        | Some f -> sprintf "(%s %s)" f access
-      in
-      sprintf
-        "%s %s %s ~message:\"%s.%s\";"
-        checker
-        (transform (value t) field.name)
-        (transform (value t ~base:"t_orig") field.name)
-        (value t)
-        field.name)
+      type_to_field_integrity_check
+        field.type_
+        ~access1:(sprintf "%s.%s" (value t) field.name)
+        ~access2:(sprintf "%s.%s" (value t ~base:"t_orig") field.name)
+        ~message:(sprintf "%s.%s" (value t) field.name))
   ;;
 end
 
@@ -325,7 +356,10 @@ module Mixed_variant = struct
             match elem with
             | Imm -> Imm
             | Float -> Float
-            | Float_u -> Float_u
+            | Float64 -> Float64
+            | Bits64 -> Bits64
+            | Bits32 -> Bits32
+            | Word -> Word
           in
           i+1, arg)
     in
@@ -348,12 +382,7 @@ module Mixed_variant = struct
       cstr.name
       (String.concat
          ~sep:" * "
-         (List.map cstr.args ~f:(fun type_ ->
-            match type_ with
-              | Imm -> "int"
-              | Float -> "float"
-              | Float_u -> "float#"
-              | Str -> "string")))
+         (List.map cstr.args ~f:type_to_string))
   ;;
 
   let type_ { index; _ } = sprintf "t%d" index
@@ -365,12 +394,7 @@ module Mixed_variant = struct
       (let args_str =
         String.concat
         ~sep:", "
-        (List.map args ~f:(fun type_ ->
-            match type_ with
-            | Imm -> "create_int ()"
-            | Float -> "create_float ()"
-            | Float_u -> "create_float_u ()"
-            | Str -> "create_string ()"))
+        (List.map args ~f:type_to_creation_function)
         in
         match args with
         | [] -> args_str
@@ -400,27 +424,12 @@ module Mixed_variant = struct
     cstr.name (arg_vars cstr ~base:"a")
     cstr.name (arg_vars cstr ~base:"b")
     (String.concat ~sep:"\n"
-       (List.mapi cstr.args ~f:(fun i (arg : field_or_arg_type) ->
-          let checker, transformation =
-            match arg with
-            | Str -> "check_string", None
-            | Imm -> "check_int", None
-            | Float -> "check_float", None
-            | Float_u -> "check_float", Some "Stdlib__Float_u.to_float"
-          in
-          let transform base =
-            let access = arg_var i ~base in
-            match transformation with
-            | None -> access
-            | Some f -> sprintf "(%s %s)" f access
-          in
-          sprintf
-            "%s %s %s ~message:\"%s.%i\";"
-            checker
-            (transform "a")
-            (transform "b")
-            (value cstr)
-            i)))
+       (List.mapi cstr.args ~f:(fun i type_ ->
+          type_to_field_integrity_check
+            type_
+            ~access1:(arg_var i ~base:"a")
+            ~access2:(arg_var i ~base:"b")
+            ~message:(sprintf "%s.%i" (value cstr) i))))
     (if catchall then "| _ -> assert false" else "")
   ;;
 end
@@ -541,6 +550,9 @@ let main n ~bytecode =
   line {|let create_int () = Random.int 0x3FFF_FFFF|};
   line {|let create_float () = Random.float Float.max_float|};
   line {|let create_float_u () = Stdlib__Float_u.of_float (create_float ())|};
+  line {|let create_int32_u () = Stdlib__Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
+  line {|let create_int64_u () = Stdlib__Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
+  line {|let create_nativeint () = Stdlib__Nativeint_u.of_nativeint (Random.nativeint 0xFFFF_FFFF_FFFF_FFFFn)|};
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
@@ -553,6 +565,12 @@ let main n ~bytecode =
   line
    {|let check_float =
   check_gen ~equal:Float.equal ~to_string:Float.to_string|};
+  line
+   {|let check_int32 =
+  check_gen ~equal:Int32.equal ~to_string:Int32.to_string|};
+  line
+   {|let check_int64 =
+  check_gen ~equal:Int64.equal ~to_string:Int64.to_string|};
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
   line
@@ -619,9 +637,11 @@ let check_reachable_words expected actual message =
     | Record record ->
       let field = List.hd record.fields in
       line
-        "let %s = { %s with %s = %s.%s };;"
+        "let %s = { %s%s = %s.%s };;"
         (Value.value t ~base:"t_orig")
-        (Value.value t)
+        (match record.fields with
+         | [_] -> ""
+         | _ -> sprintf "%s with " (Value.value t))
         field.name
         (Value.value t)
         field.name);
@@ -663,14 +683,18 @@ let check_reachable_words expected actual message =
           (List.map t.fields ~f:(fun (field : Mixed_record.field) ->
             match field.type_ with
             | Imm -> ""
-            | Float_u ->
+            | Float64 ->
                 (* In bytecode, these fields aren't boxed and thus contribute
                     two words to the reachable words (the header and the
                     single-field payload).
                 *)
                 if not bytecode then "" else " + 2"
+            | Bits64 | Bits32 | Word ->
+              (* Same as float64, except these are custom blocks in bytecode,
+                 which involve still another field. *)
+                if not bytecode then "" else " + 3"
             | Float ->
-                (* The bytecode condition is the same as commented for [Float_u].
+                (* The bytecode condition is the same as commented for [Float64].
                     Additionally, if the record is not all floats, then this field
                     is stored boxed.
                 *)
