@@ -5052,8 +5052,11 @@ let zero_alloc_of_application ~num_args attrs funct =
   in
   let zero_alloc =
     match zero_alloc with
-    | Ignore_assert_all _ | Check _ | Assume _ ->
-      (* The user wrote a zero_alloc attribute on the application - keep it *)
+    | Assume _ | Ignore_assert_all _ | Check _ ->
+      (* The user wrote a zero_alloc attribute on the application - keep it.
+         (Note that `ignore` and `check` aren't really allowed here, and will be
+         rejected by the call to `Builtin_attributes.assume_zero_alloc` below.)
+       *)
       zero_alloc
     | Default_check ->
       (* No zero_alloc attribute on the application - see if we can find
