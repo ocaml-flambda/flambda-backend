@@ -230,6 +230,7 @@ type error =
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3372,8 +3373,7 @@ type untyped_apply_arg =
         commuted : bool;
         mode_fun : Alloc.lr;
         mode_arg : Alloc.lr;
-        wrapped_in_some : bool;
-        is_call_pos_applied_optionally : bool  }
+        wrapped_in_some : bool; }
   | Unknown_arg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
@@ -3607,10 +3607,9 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           if wrapped_in_some then
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
-          let is_call_pos_applied_optionally = is_position l && is_optional l' in
           Arg (Known_arg
             { sarg; ty_arg; ty_arg0; commuted; sort_arg;
-              mode_fun; mode_arg; wrapped_in_some; is_call_pos_applied_optionally})
+              mode_fun; mode_arg; wrapped_in_some })
         in
         let eliminate_omittable_arg expected_label =
           may_warn funct.exp_loc
@@ -3648,9 +3647,16 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
                 end;
-                if not optional && is_optional l' && not (is_position l) then
-                  Location.prerr_warning sarg.pexp_loc
-                    (Warnings.Nonoptional_label (Printtyp.string_of_label l));
+                if not optional && is_optional l' then (
+                  if is_position l
+                  then
+                    raise
+                      (Error
+                         (sarg.pexp_loc, env, Nonoptional_call_pos_label (Printtyp.string_of_label l)))
+                  else
+                    Location.prerr_warning
+                      sarg.pexp_loc
+                      (Warnings.Nonoptional_label (Printtyp.string_of_label l)));
                 remaining_sargs, use_arg ~commuted sarg l'
             | None ->
                 sargs,
@@ -7498,12 +7504,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           (type_option(newvar Predef.option_argument_jkind));
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
-                     mode_arg; wrapped_in_some; sort_arg; is_call_pos_applied_optionally }) ->
-      let sarg = 
-        match is_call_pos_applied_optionally with
-        | false -> sarg
-        | true -> Btype.optionally_apply_call_pos ~arg:sarg ~application_loc:app_loc
-      in
+                     mode_arg; wrapped_in_some; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
       let ty_arg', vars = tpoly_get_poly ty_arg in
@@ -10217,6 +10218,10 @@ let report_error ~loc env = function
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
         | Labelled _ | Position _ -> assert false )
+  | Nonoptional_call_pos_label label ->
+    Location.errorf ~loc
+      "@[the [%%call_pos] label '%s' is not optional. It @ \
+         cannot be applied with '?'.@]" label
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

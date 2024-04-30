@@ -110,6 +110,7 @@ type error =
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
   | Non_value_let_binding of string * Jkind.sort
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1316,14 +1317,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
             let name = Btype.label_name l
             and optional = Btype.is_optional l in
             let use_arg sarg l' =
-              let is_call_pos_applied_optionally =
-                Btype.is_position l && Btype.is_optional l'
-              in
-              let sarg =
-                match is_call_pos_applied_optionally with
-                | false -> sarg
-                | true -> Btype.optionally_apply_call_pos ~arg:sarg ~application_loc:scl.pcl_loc
-              in
               Arg (
                 if not optional || Btype.is_optional l' then
                   let arg = Typecore.type_argument val_env sarg ty ty0 in
@@ -1367,10 +1360,15 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               end else
                 match Btype.extract_label name sargs with
                 | Some (l', sarg, _, remaining_sargs) ->
-                    if not optional && Btype.is_optional l' && not (Btype.is_position l) then
-                      Location.prerr_warning sarg.pexp_loc
-                        (Warnings.Nonoptional_label
-                           (Printtyp.string_of_label l));
+                    if not optional && Btype.is_optional l' then (
+                      if Btype.is_position l then
+                        raise
+                          (Error
+                             (sarg.pexp_loc, val_env, Nonoptional_call_pos_label (Printtyp.string_of_label l)))
+                      else
+                        Location.prerr_warning sarg.pexp_loc
+                          (Warnings.Nonoptional_label
+                            (Printtyp.string_of_label l)));
                     remaining_sargs, use_arg sarg l'
                 | None ->
                     let is_erased () = List.mem_assoc Nolabel sargs in
@@ -2336,6 +2334,10 @@ let report_error env ppf = function
       "@[The types of variables bound by a 'let' in a class function@ \
        must have layout value. Instead, %s's type has layout %a.@]"
       nm Jkind.Sort.format sort
+  | Nonoptional_call_pos_label label ->
+    fprintf ppf
+      "@[the [%%call_pos] label '%s' is not optional. It @ \
+         cannot be applied with '?'.@]" label
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

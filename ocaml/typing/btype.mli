@@ -257,22 +257,6 @@ val is_position : arg_label -> bool
 val is_omittable : arg_label -> bool
 val label_name : arg_label -> label
 
-(** [optionally_apply_call_pos] is a utility functoin for [%call_pos].
-
-    Given [arg], and [application_loc], it will generate the following:
-
-    {[
-      match arg with
-      | None -> (* location of application_loc *)
-      | Some x -> x
-    ]}
-
-    This is useful for applying functions like:
-
-    [(f : foo:[%call_pos] -> unit -> unit) ?foo:ARG ()]
-*)
-val optionally_apply_call_pos : arg:Parsetree.expression -> application_loc:Location.t -> Parsetree.expression
-
 (* Returns the label name with first character '?' or '~' as appropriate. *)
 val prefixed_label_name : arg_label -> label
 

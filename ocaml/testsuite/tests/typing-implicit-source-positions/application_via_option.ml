@@ -9,16 +9,22 @@ val f : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
 
 let _ = f ?call_pos:None ();
 [%%expect {|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 1; pos_bol = 157; pos_cnum = 165}
+Line 1, characters 20-24:
+1 | let _ = f ?call_pos:None ();
+                        ^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 let _ =
   let pos = f () in
   f ?call_pos:(Some pos) ();
 [%%expect {|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 2; pos_bol = 296; pos_cnum = 308}
+Line 3, characters 14-24:
+3 |   f ?call_pos:(Some pos) ();
+                  ^^^^^^^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 let ( >>| ) ~(call_pos : [%call_pos]) a b = a + b, call_pos ;;
@@ -29,8 +35,11 @@ val ( >>| ) : call_pos:[%call_pos] -> int -> int -> int * lexing_position =
 
 let _ =  ( >>| ) ?call_pos:None 1 2 ;;
 [%%expect {|
-- : int * lexing_position =
-(3, {pos_fname = ""; pos_lnum = 1; pos_bol = 612; pos_cnum = 621})
+Line 1, characters 27-31:
+1 | let _ =  ( >>| ) ?call_pos:None 1 2 ;;
+                               ^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 let _ =
@@ -38,8 +47,11 @@ let _ =
   ( >>| ) ?call_pos:(Some pos) 1 2
 ;;
 [%%expect {|
-- : int * lexing_position =
-(3, {pos_fname = ""; pos_lnum = 2; pos_bol = 772; pos_cnum = 784})
+Line 3, characters 20-30:
+3 |   ( >>| ) ?call_pos:(Some pos) 1 2
+                        ^^^^^^^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 class c ~(call_pos : [%call_pos]) () = object 
@@ -53,16 +65,22 @@ class c :
 
 let _ = (new c ?call_pos:None ())#call_pos;;
 [%%expect {|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 1; pos_bol = 1132; pos_cnum = 1140}
+Line 1, characters 25-29:
+1 | let _ = (new c ?call_pos:None ())#call_pos;;
+                             ^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 let _ = 
   let pos = f () in
   (new c ?call_pos:(Some pos) ())#call_pos;;
 [%%expect {|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 2; pos_bol = 1290; pos_cnum = 1302}
+Line 3, characters 19-29:
+3 |   (new c ?call_pos:(Some pos) ())#call_pos;;
+                       ^^^^^^^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 class parent ~(call_pos : [%call_pos]) () = object
@@ -77,16 +95,22 @@ let _ = (object
   inherit parent ?call_pos:None ()
 end)#pos;;
 [%%expect {|
-- : lexing_position =
-{pos_fname = ""; pos_lnum = 2; pos_bol = 1662; pos_cnum = 1672}
+Line 2, characters 27-31:
+2 |   inherit parent ?call_pos:None ()
+                               ^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 let o = (object 
   inherit parent ?call_pos:(Some (f ())) ()
 end)#pos
 [%%expect {|
-val o : lexing_position =
-  {pos_fname = ""; pos_lnum = 2; pos_bol = 1829; pos_cnum = 1862}
+Line 2, characters 27-40:
+2 |   inherit parent ?call_pos:(Some (f ())) ()
+                               ^^^^^^^^^^^^^
+Error: the [%call_pos] label 'call_pos' is not optional. It
+       cannot be applied with '?'.
 |}]
 
 
