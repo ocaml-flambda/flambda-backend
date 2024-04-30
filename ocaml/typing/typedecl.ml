@@ -1196,9 +1196,15 @@ let assert_mixed_product_support =
    "Element" refers to a constructor argument or record field.
 *)
 module Element_repr = struct
+  type unboxed_element =
+    | Float64
+    | Bits32
+    | Bits64
+    | Word
+
   type t =
+    | Unboxed_element of unboxed_element
     | Imm_element
-    | Flat_float64_element
     | Float_element
     | Value_element
     | Element_without_runtime_component
@@ -1208,17 +1214,23 @@ module Element_repr = struct
     else match Jkind.get_default_value jkind with
       | Value | Immediate64 | Non_null_value -> Value_element
       | Immediate -> Imm_element
-      | Float64 -> Flat_float64_element
+      | Float64 -> Unboxed_element Float64
+      | Word -> Unboxed_element Word
+      | Bits32 -> Unboxed_element Bits32
+      | Bits64 -> Unboxed_element Bits64
       | Void -> Element_without_runtime_component
-      | Word | Bits32 | Bits64 ->
-          Misc.fatal_error
-            "Element_repr.classify: no support for unboxed ints"
       | Any ->
           Misc.fatal_error "Element_repr.classify: unexpected Any"
 
+  let unboxed_to_flat : unboxed_element -> flat_element = function
+    | Float64 -> Float64
+    | Bits32 -> Bits32
+    | Bits64 -> Bits64
+    | Word -> Word
+
   let to_flat : _ -> flat_element option = function
     | Imm_element -> Some Imm
-    | Flat_float64_element -> Some Float64
+    | Unboxed_element unboxed -> Some (unboxed_to_flat unboxed)
     (* CR layouts v7: Eventually void components will have no runtime width.
       We return [Some Imm] as a nonsense placeholder for now. (No record
       with a void field can be compiled past lambda.)
@@ -1233,7 +1245,7 @@ module Element_repr = struct
       | [] -> None
       | (t1, t1_extra) :: ts ->
           match t1 with
-          | Flat_float64_element ->
+          | Unboxed_element unboxed ->
               let suffix =
                 List.map (fun (t2, t2_extra) ->
                     match to_flat t2 with
@@ -1244,7 +1256,7 @@ module Element_repr = struct
                           ~boxed:t2_extra)
                   ts
               in
-              Some (`Continue (Float64 :: suffix))
+              Some (`Continue (unboxed_to_flat unboxed :: suffix))
           | Float_element
           | Imm_element
           | Value_element
@@ -1324,19 +1336,18 @@ let update_constructor_representation
 *)
 let update_decl_jkind env dpath decl =
   let open struct
-    (* For tracking what types appear in record blocks. The field [x]
-       tracks whether there is a record field whose most-precise layout
-       is [x]. (For example, [values] may be [false] even if [imms] is [true].)
-    *)
+    (* For tracking what types appear in record blocks. *)
     type element_repr_summary =
-      {  mutable values : bool; (* also includes [imm64] *)
+      {  mutable values : bool; (* excludes [imm], but includes [imm64] *)
          mutable imms : bool;
          mutable floats: bool;
-         (* float is not technically a 'layout', contrary to the comment above.
-            For purposes of this record, [floats] tracks whether any field
+         (* For purposes of this record, [floats] tracks whether any field
             has layout value and is known to be a float.
          *)
-         mutable float64s : bool }
+         mutable float64s : bool;
+         mutable non_float64_unboxed_fields : bool;
+         mutable any_unboxed_fields : bool;
+      }
   end in
 
   (* returns updated labels, updated rep, and updated jkind *)
@@ -1357,39 +1368,54 @@ let update_decl_jkind env dpath decl =
           lbls
       in
       let repr_summary =
-        { values = false; imms = false; floats = false; float64s = false }
+        { values = false; imms = false; floats = false; float64s = false;
+          non_float64_unboxed_fields = false; any_unboxed_fields = false;
+        }
       in
       List.iter
         (fun ((repr : Element_repr.t), _lbl) ->
            match repr with
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
-           | Flat_float64_element -> repr_summary.float64s <- true
+           | Unboxed_element Float64 ->
+               repr_summary.float64s <- true;
+               repr_summary.any_unboxed_fields <- true
+           | Unboxed_element (Bits32 | Bits64 | Word) ->
+               repr_summary.non_float64_unboxed_fields <- true;
+               repr_summary.any_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component -> ())
         reprs;
       let rep =
-        match[@warning "+9"] repr_summary with
-        | { values = false; imms = false; floats = true ; float64s = true  } ->
-            (* We store mixed float/float64 records as flat if there are no
-                non-float fields.
-            *)
+        match repr_summary with
+        (* We store mixed float/float64 records as flat if there are no
+            non-float fields.
+        *)
+        | { values = false; imms = false; floats = true;
+            float64s = true; non_float64_unboxed_fields = false;
+            any_unboxed_fields;
+          } [@warning "+9"] ->
+            assert any_unboxed_fields; (* as indicated by [float64s] *)
             let flat_suffix =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
                   match repr with
                   | Float_element -> Float
-                  | Flat_float64_element -> Float64
+                  | Unboxed_element Float64 -> Float
                   | Element_without_runtime_component -> Imm
-                  | Imm_element | Value_element ->
+                  | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
                 reprs
               |> Array.of_list
             in
             assert_mixed_product_support loc Record ~value_prefix_len:0;
             Record_mixed { value_prefix_len = 0; flat_suffix }
-        | { values = true ; imms = _    ; floats = _    ; float64s = true  }
-        | { values = _    ; imms = true ; floats = _    ; float64s = true  } ->
+        (* For other mixed blocks, float fields are stored as flat
+           only when they're unboxed.
+        *)
+        | { values = true; float64s = true }
+        | { imms = true; float64s = true }
+        | { non_float64_unboxed_fields = true } ->
             let flat_suffix =
               Element_repr.mixed_product_flat_suffix reprs
                 ~on_flat_field_expected:(fun ~non_value ~boxed ->
@@ -1412,14 +1438,25 @@ let update_decl_jkind env dpath decl =
             in
             assert_mixed_product_support loc Record ~value_prefix_len;
             Record_mixed { value_prefix_len; flat_suffix }
-        | { values = true ; imms = _    ; floats = _    ; float64s = false }
-        | { values = _    ; imms = true ; floats = _    ; float64s = false } ->
+        (* value-only records are stored as boxed records *)
+        | { values = true; float64s = false; non_float64_unboxed_fields = false;
+            any_unboxed_fields;
+          }
+        | { imms = true; float64s = false; non_float64_unboxed_fields = false;
+            any_unboxed_fields;
+          } ->
+          assert (not any_unboxed_fields);
           rep
-        | { values = false; imms = false; floats = true ; float64s = false } ->
+        (* All-float and all-float64 records are stored as flat float records.
+        *)
+        | { values = false; imms = false; floats = true ; float64s = false;
+            non_float64_unboxed_fields = false } ->
           Record_float
-        | { values = false; imms = false; floats = false; float64s = true  } ->
+        | { values = false; imms = false; floats = false; float64s = true;
+            non_float64_unboxed_fields = false } ->
           Record_ufloat
-        | { values = false; imms = false; floats = false; float64s = false } ->
+        | { values = false; imms = false; floats = false; float64s = false;
+            non_float64_unboxed_fields = false } ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
