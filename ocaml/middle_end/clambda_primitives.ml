@@ -39,7 +39,7 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of mutable_flag * Lambda.mixed_block_shape * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * Lambda.mixed_block_shape * alloc_mode
   | Pfield of int * layout * immediate_or_pointer * mutable_flag
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
