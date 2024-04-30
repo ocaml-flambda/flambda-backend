@@ -623,7 +623,7 @@ Line 1, characters 14-37:
 1 | type t11_1 += C of t_float64 * string;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
 Error: Expected all flat constructor arguments after non-value argument,
-       t_float64,but found boxed argument, string.
+       t_float64, but found boxed argument, string.
 |}]
 
 (***************************************)
