@@ -342,7 +342,8 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Types.flat_element = Imm | Float | Float64
+and flat_element = Types.flat_element =
+    Imm | Float | Float64 | Bits32 | Bits64 | Word
 and flat_element_read =
   | Flat_read_imm
   | Flat_read_float of alloc_mode
@@ -472,13 +473,6 @@ let join_boxed_vector_layout v1 v2 =
   match v1, v2 with
   | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
-let equal_flat_element e1 e2 =
-  match e1, e2 with
-  | Imm, Imm -> true
-  | Float, Float -> true
-  | Float64, Float64 -> true
-  | (Imm | Float | Float64), _ -> false
-
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
@@ -513,7 +507,7 @@ and equal_constructor_shape x y =
       List.length p1 = List.length p2
       && List.for_all2 equal_value_kind p1 p2
       && List.length s1 = List.length s2
-      && List.for_all2 equal_flat_element s1 s2
+      && List.for_all2 Types.equal_flat_element s1 s2
   | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
@@ -1245,9 +1239,6 @@ let transl_prim mod_name name =
 
 let transl_mixed_record_shape : Types.mixed_record_shape -> mixed_block_shape =
   fun x -> x
-
-let count_mixed_block_values_and_floats =
-  Types.count_mixed_record_values_and_floats
 
 type mixed_block_element = Types.mixed_record_element =
   | Value_prefix

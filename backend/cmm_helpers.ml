@@ -47,6 +47,7 @@ let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local =
   Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+
 (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -1527,14 +1528,15 @@ let make_mixed_alloc ~mode dbg tag shape args =
       | Float | Float64 -> float_array_set arr ofs newval dbg
   in
   let size =
-    let values, floats = Lambda.count_mixed_block_values_and_floats shape in
-    if size_float <> size_addr
-    then
-      Misc.fatal_error
-        "Unable to compile mixed blocks on a platform where a float is not the \
-         same width as a value.";
-    values + floats
+    (* CR layouts 5.1: When we pack int32s more efficiently, this code will need
+       to change. *)
+    value_prefix_len + List.length flat_suffix
   in
+  if size_float <> size_addr
+  then
+    Misc.fatal_error
+      "Unable to compile mixed blocks on a platform where a float is not the \
+       same width as a value.";
   make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
     set_fn dbg tag size args
 
@@ -2404,7 +2406,7 @@ let send kind met obj args args_type result akind dbg =
       | _ -> bind "met" (lookup_tag obj met dbg) (call_met obj args args_type))
 
 (*
- * CAMLprim value caml_cache_public_method (value meths, value tag,
+   * CAMLprim value caml_cache_public_method (value meths, value tag,
  *                                          value *cache)
  * {
  *   int li = 3, hi = Field(meths,0), mi;

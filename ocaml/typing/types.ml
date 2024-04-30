@@ -275,7 +275,7 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
-and flat_element = Imm | Float | Float64
+and flat_element = Imm | Float | Float64 | Bits32 | Bits64 | Word
 and mixed_record_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
@@ -571,8 +571,10 @@ let equal_tag t1 t2 =
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
-  | Imm, Imm | Float64, Float64 | Float, Float -> true
-  | (Imm | Float64 | Float), _ -> false
+  | Imm, Imm | Float64, Float64 | Float, Float
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+    -> true
+  | (Imm | Float64 | Float | Word | Bits32 | Bits64), _ -> false
 
 let equal_mixed_record_shape r1 r2 = r1 == r2 ||
   (* Warning 9 alerts us if we add another field *)
@@ -690,15 +692,6 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
-  Array.fold_left
-    (fun (values, floats) elem ->
-      match elem with
-      | Imm -> (values+1, floats)
-      | Float | Float64 -> (values, floats+1))
-    (value_prefix_len, 0)
-    flat_suffix
-
 type mixed_record_element =
   | Value_prefix
   | Flat_suffix of flat_element
@@ -707,6 +700,14 @@ let get_mixed_record_element { value_prefix_len; flat_suffix } i =
   if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
   if i < value_prefix_len then Value_prefix
   else Flat_suffix flat_suffix.(i - value_prefix_len)
+
+let flat_element_to_string = function
+  | Imm -> "Imm"
+  | Float -> "Float"
+  | Float64 -> "Float64"
+  | Bits32 -> "Bits32"
+  | Bits64 -> "Bits64"
+  | Word -> "Word"
 
 (**** Definitions for backtracking ****)
 

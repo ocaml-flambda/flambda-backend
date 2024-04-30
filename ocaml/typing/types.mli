@@ -558,7 +558,7 @@ and abstract_reason =
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
    need not be scanned by the garbage collector.
 *)
-and flat_element = Imm | Float | Float64
+and flat_element = Imm | Float | Float64 | Bits32 | Bits64 | Word
 and mixed_record_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)
@@ -870,14 +870,14 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-val count_mixed_record_values_and_floats : mixed_record_shape -> int * int
-
 type mixed_record_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
 (** Raises if the int is out of bounds. *)
 val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
+
+val flat_element_to_string : flat_element -> string
 
 (**** Utilities for backtracking ****)
 
