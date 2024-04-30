@@ -260,7 +260,7 @@ let result_layout (p : primitive) =
   | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ -> Lambda.layout_block
   | Pfield _ | Pfield_computed | Pmixedfield (_, Mread_value_prefix _) ->
-      Lambda.layout_field
+      Lambda.layout_value_field
   | Pfloatfield _ -> Lambda.layout_boxed_float Pfloat64
   | Pfloatofint (bf, _)
   | Pnegfloat (bf, _) | Pabsfloat (bf, _)
