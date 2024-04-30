@@ -62,10 +62,7 @@ module Mixed_block_kind = struct
   type t = Lambda.mixed_block_shape
 
   let print_flat_element ppf (e : Lambda.flat_element) =
-    match e with
-    | Imm -> Format.fprintf ppf "Imm"
-    | Float -> Format.fprintf ppf "Float"
-    | Float64 -> Format.fprintf ppf "Float64"
+    Format.fprintf ppf "%s" (Types.flat_element_to_string e)
 
   let print ppf ({ value_prefix_len; flat_suffix } : t) =
     Format.fprintf ppf "[|@ ";
@@ -75,13 +72,7 @@ module Mixed_block_kind = struct
       flat_suffix;
     Format.fprintf ppf "|]"
 
-  let compare_flat_element e1 e2 =
-    match (e1 : Lambda.flat_element), (e2 : Lambda.flat_element) with
-    | Imm, Imm | Float, Float | Float64, Float64 -> 0
-    | Imm, _ -> -1
-    | _, Imm -> 1
-    | Float, _ -> -1
-    | _, Float -> 1
+  let compare_flat_element = Types.compare_flat_element
 
   let compare (t1 : t) (t2 : t) =
     let components (t : t) =
@@ -104,6 +95,9 @@ module Mixed_block_kind = struct
       match flat_suffix.(i - value_prefix_len) with
       | Imm -> K.value
       | Float | Float64 -> K.naked_float
+      | Bits32 -> K.naked_int32
+      | Bits64 -> K.naked_int64
+      | Word -> K.naked_nativeint
 
   let fold_left f init t =
     let result = ref init in
@@ -453,7 +447,10 @@ module Block_access_kind = struct
       match field_kind with
       | Value_prefix _ -> K.value
       | Flat_suffix Imm -> K.value
-      | Flat_suffix (Float | Float64) -> K.naked_float)
+      | Flat_suffix (Float | Float64) -> K.naked_float
+      | Flat_suffix Bits32 -> K.naked_int32
+      | Flat_suffix Bits64 -> K.naked_int64
+      | Flat_suffix Word -> K.naked_nativeint)
 
   let element_subkind_for_load t =
     match t with
@@ -467,7 +464,10 @@ module Block_access_kind = struct
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
       | Imm -> K.With_subkind.tagged_immediate
-      | Float | Float64 -> K.With_subkind.naked_float)
+      | Float | Float64 -> K.With_subkind.naked_float
+      | Bits32 -> K.With_subkind.naked_int32
+      | Bits64 -> K.With_subkind.naked_int64
+      | Word -> K.With_subkind.naked_nativeint)
 
   let element_kind_for_set = element_kind_for_load
 

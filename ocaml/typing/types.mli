@@ -881,7 +881,10 @@ type mixed_product_element =
 val get_mixed_product_element :
   mixed_product_shape -> int -> mixed_product_element
 
+val equal_flat_element : flat_element -> flat_element -> bool
+val compare_flat_element : flat_element -> flat_element -> int
 val flat_element_to_string : flat_element -> string
+val flat_element_to_lowercase_string : flat_element -> string
 
 (**** Utilities for backtracking ****)
 

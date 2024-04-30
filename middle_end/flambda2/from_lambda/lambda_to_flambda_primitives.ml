@@ -991,7 +991,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       List.mapi
         (fun i arg ->
           match Lambda.get_mixed_block_element shape i with
-          | Value_prefix | Flat_suffix (Float64 | Imm) -> arg
+          | Value_prefix
+          | Flat_suffix (Float64 | Imm | Bits32 | Bits64 | Word) -> arg
           | Flat_suffix Float -> unbox_float arg)
         args
     in
@@ -1420,9 +1421,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read_imm -> Imm
-            | Flat_read_float _ -> Float
-            | Flat_read_float64 -> Float64)
+            | Flat_read flat_element -> flat_element
+            | Flat_read_float _ -> Float)
       in
       Mixed { tag = Unknown; field_kind; size = Unknown }
     in
@@ -1431,8 +1431,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     match read with
     | Mread_value_prefix _
-    | Mread_flat_suffix (Flat_read_imm | Flat_read_float64) ->
-      [block_access]
+    (* CR mixed blocks: OK for int32? *)
+    | Mread_flat_suffix (Flat_read _) -> [block_access]
     | Mread_flat_suffix (Flat_read_float mode) ->
       [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
@@ -1492,7 +1492,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let value =
       match write with
-      | Mwrite_value_prefix _ | Mwrite_flat_suffix (Imm | Float64) -> value
+      | Mwrite_value_prefix _
+      | Mwrite_flat_suffix (Imm | Float64 | Bits32 | Bits64 | Word) -> value
       | Mwrite_flat_suffix Float -> unbox_float value
     in
     [ Ternary

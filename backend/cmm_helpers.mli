@@ -951,6 +951,14 @@ val unboxed_int64_or_nativeint_array_length :
 val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read from an unboxed int32 field of a mixed block. *)
+val unboxed_int32_mixed_field_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(* CR layouts v5.1: This can't simply be [unboxed_int32_array_ref] because
+   int32s aren't packed efficiently in mixed blocks. We can change this when we
+   pack them efficiently.
+*)
 (** Read from an unboxed int64 or unboxed nativeint array (without bounds
     check). *)
 val unboxed_int64_or_nativeint_array_ref :
@@ -958,6 +966,18 @@ val unboxed_int64_or_nativeint_array_ref :
 
 (** Update an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(* CR layouts v5.1: This can't simply be [unboxed_int32_array_set] because
+   int32s aren't packed efficiently in mixed blocks. We can change this when we
+   pack them efficiently.
+*)
+(** Update the unboxed int32 field of a mixed block. *)
+val unboxed_int32_mixed_field_set :
   expression ->
   index:expression ->
   new_value:expression ->
