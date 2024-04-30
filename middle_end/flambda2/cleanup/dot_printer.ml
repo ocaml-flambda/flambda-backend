@@ -57,7 +57,8 @@ module P = struct
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
     | Graph.Dep.Alias_if_def (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
-    | Graph.Dep.Propagate (n1, n2) -> [Code_id_or_name.name n1; Code_id_or_name.name n2]
+    | Graph.Dep.Propagate (n1, n2) ->
+      [Code_id_or_name.name n1; Code_id_or_name.name n2]
 
   let all_names t =
     let names = Hashtbl.create 100 in
@@ -90,7 +91,8 @@ module P = struct
     let color, deps =
       match dst with
       | Return_of_that_function name -> "purple", [Code_id_or_name.name name]
-      | Called_by_that_function code_id -> "orange", [Code_id_or_name.code_id code_id]
+      | Called_by_that_function code_id ->
+        "orange", [Code_id_or_name.code_id code_id]
       | Alias name -> "black", [Code_id_or_name.name name]
       | Use name ->
         (* ignore name; *)
@@ -99,7 +101,8 @@ module P = struct
       | Contains name -> "yellow", [name]
       | Field (_, name) -> "green", [Code_id_or_name.name name]
       | Block (_, name) -> "blue", [name]
-      | Apply (name, _code) | Alias_if_def (name, _code) -> "pink", [Code_id_or_name.name name]
+      | Apply (name, _code) | Alias_if_def (name, _code) ->
+        "pink", [Code_id_or_name.name name]
       | Propagate (name, _from) -> "brown", [Code_id_or_name.name name]
     in
     List.iter

@@ -85,7 +85,8 @@ module Dep = struct
         let c = Name.compare n1 n2 in
         if c <> 0 then c else Name.compare m1 m2
       | ( ( Alias _ | Use _ | Contains _ | Field _ | Block _ | Apply _
-          | Return_of_that_function _ | Called_by_that_function _ | Alias_if_def _ | Propagate _),
+          | Return_of_that_function _ | Called_by_that_function _
+          | Alias_if_def _ | Propagate _ ),
           _ ) ->
         Int.compare (numbering t1) (numbering t2)
 
@@ -120,7 +121,7 @@ end
 
 type fun_graph =
   { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
-    used : (Code_id_or_name.t, unit) Hashtbl.t;
+    used : (Code_id_or_name.t, unit) Hashtbl.t
   }
 
 type graph =
@@ -147,10 +148,7 @@ let pp_used ppf (graph : graph) =
         graph)
     graph.function_graphs
 
-let create () =
-  { name_to_dep = Hashtbl.create 100;
-    used = Hashtbl.create 100;
-  }
+let create () = { name_to_dep = Hashtbl.create 100; used = Hashtbl.create 100 }
 
 let insert t k v =
   match Hashtbl.find_opt t k with
@@ -205,4 +203,5 @@ let add_func_param t ~param ~arg =
 
 let add_use t dep = Hashtbl.replace t.used dep ()
 
-let add_called t code_id = Hashtbl.replace t.used (Code_id_or_name.code_id code_id) ()
+let add_called t code_id =
+  Hashtbl.replace t.used (Code_id_or_name.code_id code_id) ()
