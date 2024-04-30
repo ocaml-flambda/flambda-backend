@@ -350,7 +350,8 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Types.flat_element = Imm | Float | Float64
+and flat_element = Types.flat_element =
+    Imm | Float | Float64 | Bits32 | Bits64 | Word
 and flat_element_read =
   | Flat_read_imm
   | Flat_read_float of alloc_mode
@@ -790,7 +791,6 @@ val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
 val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
-val count_mixed_block_values_and_floats : mixed_block_shape -> int * int
 
 type mixed_block_element =
   | Value_prefix
