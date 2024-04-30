@@ -30,7 +30,7 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
-  | Illegal_record_field of Jkind.Sort.const
+  | Illegal_void_record_field
   | Void_sort of type_expr
 
 exception Error of Location.t * error
@@ -53,30 +53,10 @@ let sort_must_not_be_void loc ty sort =
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
-(* This is `Lambda.must_be_value` for the special case of record fields, where
-   we allow the unboxed float layout.  Its result is never actually used in that
-   case - it would be fine to return garbage.
-*)
-let record_field_kind l =
-  match l with
-  | Punboxed_float Pfloat64 -> Pboxedfloatval Pfloat64
-  | _ -> must_be_value l
-
-(* CR layouts v5: This function is only used for sanity checking the
-   typechecker.  When we allow arbitrary layouts in structures, it will have
-   outlived its usefulness and should be deleted. *)
-let check_record_field_sort loc sort repres =
-  match Jkind.Sort.get_default_value sort, repres with
-  | Value, _ -> ()
-  | Float64, (Record_ufloat | Record_mixed _) -> ()
-  | Float64, (Record_boxed _ | Record_inlined _
-             | Record_unboxed | Record_float) ->
-    raise (Error (loc, Illegal_record_field Float64))
-  | Void, _ ->
-    raise (Error (loc, Illegal_record_field Void))
-  | (Word | Bits32 | Bits64 as const), _ ->
-    (* CR layouts v2.1: support unboxed ints here *)
-    raise (Error (loc, Illegal_record_field const))
+let check_record_field_sort loc sort =
+  match Jkind.Sort.get_default_value sort with
+  | Value | Float64 | Bits32 | Bits64 | Word -> ()
+  | Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -599,7 +579,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
@@ -648,7 +628,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          Probably we should add a sort to `Texp_setfield` in the typed tree,
          then. *)
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort id.loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort id.loc lbl_sort;
       let mode =
         Assignment (transl_modify_mode arg_mode)
       in
@@ -1725,9 +1705,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
            match definition with
            | Kept (typ, mut, _) ->
-               let field_kind =
-                 record_field_kind (layout env lbl.lbl_loc lbl_sort typ)
-               in
+               let field_layout = layout env lbl.lbl_loc lbl_sort typ in
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
@@ -1764,10 +1742,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
-               field_kind
+               field_layout
            | Overridden (_lid, expr) ->
-               let field_kind = record_field_kind (layout_exp lbl_sort expr) in
-               transl_exp ~scopes lbl_sort expr, field_kind)
+               let field_layout = layout_exp lbl_sort expr in
+               transl_exp ~scopes lbl_sort expr, field_layout)
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
@@ -1799,8 +1777,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         let loc = of_location ~scopes loc in
         match repres with
           Record_boxed _ ->
+            let shape = List.map must_be_value shape in
             Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
+            let shape = List.map must_be_value shape in
             Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
                   ll, loc)
         | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
@@ -1810,6 +1790,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_ufloat ->
             Lprim(Pmakeufloatblock (mut, Option.get mode), ll, loc)
         | Record_inlined (Extension (path, _), Variant_extensible) ->
+            let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
@@ -1832,7 +1813,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let update_field cont (lbl, definition) =
       (* CR layouts v5: allow more unboxed types here. *)
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort lbl.lbl_loc lbl_sort lbl.lbl_repres;
+      check_record_field_sort lbl.lbl_loc lbl_sort;
       match definition with
       | Kept _ -> cont
       | Overridden (_lid, expr) ->
@@ -2123,11 +2104,10 @@ let report_error ppf = function
   | Bad_probe_layout id ->
       fprintf ppf "Variables in probe handlers must have jkind value, \
                    but %s in this handler does not." (Ident.name id)
-  | Illegal_record_field c ->
+  | Illegal_void_record_field ->
       fprintf ppf
-        "Sort %a detected where value was expected in a record field:@ Please \
+        "Void sort detected where value was expected in a record field:@ Please \
          report this error to the Jane Street compilers team."
-        Jkind.Sort.format (Jkind.Sort.of_const c)
   | Void_sort ty ->
       fprintf ppf
         "Void detected in translation for type %a:@ Please report this error \

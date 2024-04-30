@@ -1098,7 +1098,7 @@ let check_abbrev env sdecl (id, decl) =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why ~allow_float env loc kloc typ =
+let check_representable ~why ~allow_unboxed env loc kloc typ =
   match Ctype.type_sort ~why env typ with
   (* CR layouts v3: This is a convenient place to rule out [float#] in
      structures for now, as it is called on all the types in declared blocks in
@@ -1112,13 +1112,9 @@ let check_representable ~why ~allow_float env loc kloc typ =
          all the defaulting, so we don't expect this actually defaults the
          sort - we just want the [const]. *)
       | Void | Value -> ()
-      | Float64 when allow_float -> ()
-      (* CR layouts v2.5: If we want to hold back [float#] records from the
-         maturity progression of [float64], we can add a check here. *)
-      | (Float64 | Word | Bits32 | Bits64 as const) ->
-        (* CR layouts v2.1: Consider changing the allow_float parameter to
-           allow unboxed ints. *)
-        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
+      | Float64 | Word | Bits32 | Bits64 as const ->
+          if not allow_unboxed then
+            raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
@@ -1146,7 +1142,7 @@ let update_label_jkinds env loc lbls named ~is_inlined =
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~why:(Label_declaration ld_id)
-        ~allow_float:(Option.is_some named) env ld_loc kloc ld_type;
+        ~allow_unboxed:(Option.is_some named) env ld_loc kloc ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       update idx ld_jkind;
       {lbl with ld_jkind}
@@ -1164,7 +1160,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx) ~allow_float:true
+      check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
         env loc (Cstr_tuple { unboxed = false }) ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
@@ -1369,7 +1365,7 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id) ~allow_float:false
+      check_representable ~why:(Label_declaration ld_id) ~allow_unboxed:false
         env ld_loc (Record { unboxed = true }) ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
@@ -1418,7 +1414,7 @@ let update_decl_jkind env dpath decl =
                 (fun ((repr : Element_repr.t), _lbl) ->
                   match repr with
                   | Float_element -> Float
-                  | Unboxed_element Float64 -> Float
+                  | Unboxed_element Float64 -> Float64
                   | Element_without_runtime_component -> Imm
                   | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
@@ -1493,13 +1489,13 @@ let update_decl_jkind env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              ~allow_float:false env cd_loc (Cstr_tuple { unboxed = true }) ty;
+              ~allow_unboxed:false env cd_loc (Cstr_tuple { unboxed = true }) ty;
             let jkind = Ctype.type_jkind env ty in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~why:(Label_declaration ld_id)
-              ~allow_float:false env ld_loc (Inlined_record { unboxed = true })
+              ~allow_unboxed:false env ld_loc (Inlined_record { unboxed = true })
               ld_type;
             let ld_jkind = Ctype.type_jkind env ld_type in
             [{ cstr with Types.cd_args =
