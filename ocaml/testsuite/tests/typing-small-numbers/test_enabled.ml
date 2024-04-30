@@ -12,52 +12,52 @@ type t = float32
 
 let _ : float32 = 1.0s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 1.
 |}];;
 
 let _ : float32 = 1.s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 1.
 |}];;
 
 let _ : float32 = 1e10s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 1e+10
 |}];;
 
 let _ : float32 = 1e+1s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 10.
 |}];;
 
 let _ : float32 = 1e-1s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 0.100000001
 |}];;
 
 let _ : float32 = 0x111.000s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 273.
 |}];;
 
 let _ : float32 = 0x1.4p+0s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 1.25
 |}];;
 
 let _ : float32 = 0xf.ffffffffffff8p+1020s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = inf
 |}];;
 
 let _ : float32 = 0x8p-972s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 0.
 |}];;
 
 let _ : float32 = 0xc.d5e6fp+1_24s;;
 [%%expect{|
-- : float32 = <abstr>
+- : float32 = 2.72982066e+38
 |}];;
 
 (* A (trivial) match with no float32 cases is allowed. *)
