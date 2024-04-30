@@ -64,7 +64,7 @@ type can_load_cmis =
 (* Data relating directly to a .cmi *)
 type import = {
   imp_is_param : bool;
-  imp_impl : Impl.t;
+  imp_impl : CU.t option;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
@@ -288,8 +288,8 @@ let acknowledge_import penv ~check modname pers_sig =
   end;
   let impl =
     match kind with
-    | Normal { cmi_impl } -> Impl.Known cmi_impl
-    | Parameter -> Impl.Unknown_argument
+    | Normal { cmi_impl } -> Some cmi_impl
+    | Parameter -> None
   in
   let {imports;} = penv in
   let import =
@@ -333,11 +333,11 @@ let find_import ~allow_hidden penv ~check modname =
           add_import penv modname;
           acknowledge_import penv ~check modname psig
 
-let make_binding _penv (impl : Impl.t) : binding =
+let make_binding _penv (impl : CU.t option) : binding =
   let unit =
     match impl with
-    | Known unit -> unit
-    | Unknown_argument ->
+    | Some unit -> unit
+    | None ->
         Misc.fatal_errorf "Can't bind a parameter statically"
   in
   Static unit
