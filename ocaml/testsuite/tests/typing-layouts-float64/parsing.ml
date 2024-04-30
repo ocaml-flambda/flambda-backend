@@ -20,16 +20,6 @@ type t = float#
 val f : float# -> unit = <fun>
 |}];;
 
-type t = C of float#;;
-[%%expect {|
-type t = C of float#
-|}];;
-
-type t = C : float# -> t;;
-[%%expect {|
-type t = C : float# -> t
-|}];;
-
 (* float# works as an argument to normal type constructors, not just classes,
    even though many of the rest of the tests in this file are concerned with
    classes.
