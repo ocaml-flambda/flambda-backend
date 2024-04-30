@@ -311,32 +311,6 @@ module Solver_mono (C : Lattices_mono) = struct
       type a l.
       log:_ -> a C.obj -> a -> (a, l * allowed) morphvar -> (unit, a) Result.t =
    fun ~log obj a (Amorphvar (v, f) as mv) ->
-    (* Requested [a <= f v], therefore [f' a <= v], where [f'] is the left
-       adjoint of [f]. We should just apply [f'] to [a] and use that to
-       constrain [v].
-
-       However, we aim to support a wider of notion of adjunctions (see
-       [solver_intf.mli] for context). Say [f : B' -> A'] and [f' : A' -> B'].
-       Note that [f' a] is known to be well-defined only if [a \in A] where [A]
-        is some convex sublattice of [A'].
-
-       Note that we don't request the [A] of [f] from [Lattices_mono] for
-       simplicity. Instead, note that we need to check [a] against [f v] anyway,
-       and the bound of the latter is a subset of [A]. Therefore, once we make
-       sure [a] is within the bound of [f v], we are free to apply [f'] to [a].
-       Concretely:
-
-       1. If [a <= (f v).lower], immediately succeed
-       2. If not [a <= (f v).upper], immediately fail
-       3. Note that at this point, we still can't ensure that [a >= (f v).lower].
-         (We don't assume total ordering, for best generality)
-        Therefore, we set [a] to [join a (f v).lower].
-
-        Note how the "convex" condition plays here: (2) and (3) together ensures
-        [(f v).lower <= a <= (f v).upper]. Note that [v \in B], therefore
-        [f v \in A]. By convexity, we have [a \in A], and thus we can safely
-        apply [f'] to [a].
-    *)
     let mlower = mlower obj mv in
     let mupper = mupper obj mv in
     if C.le obj a mlower
@@ -344,7 +318,9 @@ module Solver_mono (C : Lattices_mono) = struct
     else if not (C.le obj a mupper)
     then Error mupper
     else
-      let a = C.join obj a mlower in
+      (* At this point we know [a <= f v], therefore [a] is in the downward
+         closure of [f]'s image. Therefore, asking [a <= f v] is equivalent to
+         asking [f' a <= v]. *)
       let f' = C.left_adjoint obj f in
       let src = C.src obj f in
       let a' = C.apply src f' a in
@@ -395,7 +371,6 @@ module Solver_mono (C : Lattices_mono) = struct
     else if not (C.le obj mlower a)
     then Error mlower
     else
-      let a = C.meet obj a mupper in
       let f' = C.right_adjoint obj f in
       let src = C.src obj f in
       let a' = C.apply src f' a in
@@ -464,6 +439,9 @@ module Solver_mono (C : Lattices_mono) = struct
         match submode_cmv ~log dst (mlower dst mv) mu with
         | Error a -> Error (mlower dst mv, a)
         | Ok () ->
+          (* At this point, we know that [f v <= g u.upper], which means [f v]
+             lies within the downward closure of [g]'s image. Therefore, asking [f
+             v <= g u] is equivalent to asking [g' f v <= u] *)
           let g' = C.left_adjoint dst g in
           let src = C.src dst g in
           let g'f = C.compose src g' (C.disallow_right f) in
