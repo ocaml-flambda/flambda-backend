@@ -78,3 +78,9 @@ let[@zero_alloc] f_arity_two_sig_is_za_two_args x y =
 
 let[@zero_alloc] f_arity_two_sig_is_not_za_three_args x y z =
   A.M_arity.f_arity_two_sig x y z
+
+(* Check that a user-written assume overrides one from a signature (here the
+   signature only says this function is zero_alloc, not zero_alloc strict, so we
+   can see the user-written assumption is taking priority). *)
+let[@zero_alloc strict] f_id_override_signature x =
+  (A.f_id[@zero_alloc assume strict]) x
