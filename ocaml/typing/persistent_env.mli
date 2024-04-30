@@ -16,12 +16,12 @@
 
 open Misc
 
-module Impl : sig
+module Consistbl_data : sig
   type t
 end
 
 module Consistbl : module type of struct
-  include Consistbl.Make (Compilation_unit.Name) (Impl)
+  include Consistbl.Make (Compilation_unit.Name) (Consistbl_data)
 end
 
 type error = private

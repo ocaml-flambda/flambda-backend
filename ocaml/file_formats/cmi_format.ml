@@ -194,13 +194,12 @@ let output_cmi filename oc cmi =
   (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in
-  let unit =
-    match cmi.cmi_kind with
-    | Normal { cmi_impl } -> Some cmi_impl
-    | Parameter -> None
-  in
   let my_info =
-    Import_info.Intf.create cmi.cmi_name unit ~crc:(Some crc)
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } ->
+      Import_info.Intf.create_ordinary cmi.cmi_name cmi_impl ~crc
+    | Parameter ->
+      Import_info.Intf.create_parameter cmi.cmi_name ~crc
   in
   let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);

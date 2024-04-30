@@ -20,25 +20,8 @@ open Misc
 open Cmi_format
 
 module CU = Compilation_unit
-module Impl = struct
-  (* The implementation compilation unit for some import, if known *)
-  type t =
-    | Unknown_argument (* The import is a parameter module *)
-    | Known of CU.t
-
-  module With_crc = struct
-    type nonrec t = t * Digest.t
-
-    let of_import_info info : t option =
-      match Import_info.Intf.crc info with
-      | None -> None
-      | Some crc ->
-          match Import_info.Intf.impl info with
-          | None -> Some (Unknown_argument, crc)
-          | Some cu -> Some (Known cu, crc)
-  end
-end
-module Consistbl = Consistbl.Make (CU.Name) (Impl)
+module Consistbl_data = Import_info.Intf.Nonalias.Sort
+module Consistbl = Consistbl.Make (CU.Name) (Consistbl_data)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -165,11 +148,12 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    match Impl.With_crc.of_import_info import_info with
+    let nonalias = Import_info.Intf.nonalias import_info in
+    match nonalias with
     | None -> ()
-    | Some (impl, crc) ->
+    | Some (sort, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name impl crc source
+        Consistbl.check crc_units name sort crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv ps =
@@ -178,15 +162,15 @@ let check_consistency penv ps =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      inconsistent_data = source_impl;
-      original_data = auth_impl;
+      inconsistent_data = source_data;
+      original_data = auth_data;
     } ->
-    match source_impl, auth_impl with
-    | Known source_unit, Known auth_unit
+    match source_data, auth_data with
+    | Ordinary source_unit, Ordinary auth_unit
       when not (CU.equal source_unit auth_unit) ->
         error (Inconsistent_package_declaration_between_imports(
             ps.ps_filename, auth_unit, source_unit))
-    | (Known _ | Unknown_argument), _ ->
+    | (Ordinary _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
 let is_registered_parameter_import {param_imports; _} import =
@@ -418,14 +402,7 @@ let imports {imported_units; crc_units; _} =
     Consistbl.extract (CU.Name.Set.elements !imported_units)
       crc_units
   in
-  List.map (fun (cu_name, data) ->
-      let cu, crc =
-        match (data : (Impl.t * Digest.t) option) with
-        | None -> None, None
-        | Some (Unknown_argument, crc) -> None, Some crc
-        | Some (Known cu, crc) -> Some cu, Some crc
-      in
-      Import_info.Intf.create cu_name cu ~crc)
+  List.map (fun (cu_name, spec) -> Import_info.Intf.create cu_name spec)
     imports
 
 let looked_up {persistent_structures; _} modname =
@@ -470,12 +447,12 @@ let save_cmi penv psig =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let impl : Impl.t =
+      let data : Import_info.Intf.Nonalias.Sort.t =
         match kind with
-        | Normal { cmi_impl } -> Known cmi_impl
-        | Parameter -> Unknown_argument
+        | Normal { cmi_impl } -> Ordinary cmi_impl
+        | Parameter -> Parameter
       in
-      save_pers_struct penv crc modname impl flags filename
+      save_pers_struct penv crc modname data flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 
