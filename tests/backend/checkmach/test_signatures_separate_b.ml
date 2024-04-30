@@ -26,8 +26,8 @@ let[@zero_alloc] f_tuple_no_assume_is_not_za x = A.f_tuple_no_assume x
 let[@zero_alloc strict] f_tuple_no_assume_is_not_za_strict x =
   A.f_tuple_no_assume x
 
-(* opt behavior - these functions are marked zero-alloc opt in A. We use expect
-   to accept these as functions as "zero_alloc opt" in B always (because when
+(* opt behavior - these functions are marked zero-alloc opt in A. We expect to
+   accept these as functions as "zero_alloc opt" in B always (because when
    compiling with `-zero_alloc_check all` we make those assumptions available,
    and when compiling without it we don't check "zero_alloc opt" facts here.
 
@@ -36,7 +36,8 @@ let[@zero_alloc strict] f_tuple_no_assume_is_not_za_strict x =
    is basically a bug, but because the whole build is compiled with one
    -zero-alloc-check X setting, we're not too worried about it.  These tests
    document the current behavior, but it would be OK if we changed things so
-   that the ones without "opt" fail.
+   that the ones without "opt" fail always, instead of only when compiling
+   without `-zero-alloc-check all`.
 *)
 let[@zero_alloc opt] f_id_opt_is_za_opt x =
   A.f_id_opt x
