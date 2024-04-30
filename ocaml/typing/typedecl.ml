@@ -1116,7 +1116,77 @@ let check_representable ~why ~allow_float env loc kloc typ =
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
-(* CR mixed blocks: move me back down? *)
+(* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
+   including which fields of a record are void.  This would be hard to do during
+   [transl_declaration] due to mutually recursive types.
+*)
+(* [update_label_jkinds] additionally returns whether all the jkinds
+   were void *)
+let update_label_jkinds env loc lbls named =
+  (* [named] is [Some jkinds] for top-level records (we will update the
+     jkinds) and [None] for inlined records. *)
+  (* CR layouts v5: it wouldn't be too hard to support records that are all
+     void.  just needs a bit of refactoring in translcore *)
+  let update =
+    match named with
+    | None -> fun _ _ -> ()
+    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
+  in
+  let lbls =
+    List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
+      check_representable ~why:(Label_declaration ld_id)
+        ~allow_float:(Option.is_some named) env ld_loc Record ld_type;
+      let ld_jkind = Ctype.type_jkind env ld_type in
+      update idx ld_jkind;
+      {lbl with ld_jkind}
+    ) lbls
+  in
+  if List.for_all (fun l -> Jkind.is_void_defaulting l.ld_jkind) lbls then
+    raise (Error (loc, Jkind_empty_record))
+  else lbls, false
+(* CR layouts v5: return true for a record with all voids *)
+
+(* In addition to updated constructor arguments, returns whether
+   all arguments are void, useful for detecting enumerations that
+   can be [immediate]. *)
+let update_constructor_arguments_jkinds env loc cd_args jkinds =
+  match cd_args with
+  | Types.Cstr_tuple tys ->
+    List.iteri (fun idx (ty,_) ->
+      check_representable ~why:(Constructor_declaration idx) ~allow_float:true
+        env loc Cstr_tuple ty;
+      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
+    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
+  | Types.Cstr_record lbls ->
+    let lbls, all_void = update_label_jkinds env loc lbls None in
+    jkinds.(0) <- Jkind.value ~why:Boxed_record;
+    Types.Cstr_record lbls, all_void
+
+let assert_mixed_product_support =
+  let required_reserved_header_bits = 8 in
+  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
+     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
+     the all-0 pattern, and we must subtract 2 instead. *)
+  let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
+  fun loc mixed_product_kind ~value_prefix_len ->
+    let required_layouts_level = Language_extension.Alpha in
+    if not (Language_extension.is_at_least Layouts required_layouts_level) then
+      raise (Error (loc, Illegal_mixed_product
+                      (Insufficient_level { required_layouts_level;
+                                            mixed_product_kind;
+                                          })));
+    if Config.reserved_header_bits < required_reserved_header_bits then
+      raise (Error (loc, Illegal_mixed_product
+                      (Runtime_support_not_enabled
+                        mixed_product_kind)));
+    if value_prefix_len > max_value_prefix_len then
+      raise
+        (Error (loc,
+                Illegal_mixed_product
+                  (Value_prefix_too_long
+                     { value_prefix_len; max_value_prefix_len;
+                       mixed_product_kind })))
+
 (* [Element_repr] is used to classify whether something is a "mixed product"
    (a mixed record or mixed variant constructor), meaning that some of the
    fields are unboxed in a way that isnt encoded in the usual short numeric tag.
@@ -1191,77 +1261,6 @@ module Element_repr = struct
     | Some (`Continue flat_suffix | `Stop flat_suffix) ->
         Some (Array.of_list flat_suffix)
 end
-
-(* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
-   including which fields of a record are void.  This would be hard to do during
-   [transl_declaration] due to mutually recursive types.
-*)
-(* [update_label_jkinds] additionally returns whether all the jkinds
-   were void *)
-let update_label_jkinds env loc lbls named =
-  (* [named] is [Some jkinds] for top-level records (we will update the
-     jkinds) and [None] for inlined records. *)
-  (* CR layouts v5: it wouldn't be too hard to support records that are all
-     void.  just needs a bit of refactoring in translcore *)
-  let update =
-    match named with
-    | None -> fun _ _ -> ()
-    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
-  in
-  let lbls =
-    List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
-      check_representable ~why:(Label_declaration ld_id)
-        ~allow_float:(Option.is_some named) env ld_loc Record ld_type;
-      let ld_jkind = Ctype.type_jkind env ld_type in
-      update idx ld_jkind;
-      {lbl with ld_jkind}
-    ) lbls
-  in
-  if List.for_all (fun l -> Jkind.is_void_defaulting l.ld_jkind) lbls then
-    raise (Error (loc, Jkind_empty_record))
-  else lbls, false
-(* CR layouts v5: return true for a record with all voids *)
-
-(* In addition to updated constructor arguments, returns whether
-   all arguments are void, useful for detecting enumerations that
-   can be [immediate]. *)
-let update_constructor_arguments_jkinds env loc cd_args jkinds =
-  match cd_args with
-  | Types.Cstr_tuple tys ->
-    List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx) ~allow_float:true
-        env loc Cstr_tuple ty;
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
-    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
-  | Types.Cstr_record lbls ->
-    let lbls, all_void = update_label_jkinds env loc lbls None in
-    jkinds.(0) <- Jkind.value ~why:Boxed_record;
-    Types.Cstr_record lbls, all_void
-
-let assert_mixed_product_support =
-  let required_reserved_header_bits = 8 in
-  (* Why 2? We'd subtract 1 if the mixed block encoding could use all 8 bits of
-     the prefix. But the all-0 prefix means "not a mixed block", so we can't use
-     the all-0 pattern, and we must subtract 2 instead. *)
-  let max_value_prefix_len = (1 lsl required_reserved_header_bits) - 2 in
-  fun loc mixed_product_kind ~value_prefix_len ->
-    let required_layouts_level = Language_extension.Alpha in
-    if not (Language_extension.is_at_least Layouts required_layouts_level) then
-      raise (Error (loc, Illegal_mixed_product
-                      (Insufficient_level { required_layouts_level;
-                                            mixed_product_kind;
-                                          })));
-    if Config.reserved_header_bits < required_reserved_header_bits then
-      raise (Error (loc, Illegal_mixed_product
-                      (Runtime_support_not_enabled
-                        mixed_product_kind)));
-    if value_prefix_len > max_value_prefix_len then
-      raise
-        (Error (loc,
-                Illegal_mixed_product
-                  (Value_prefix_too_long
-                     { value_prefix_len; max_value_prefix_len;
-                       mixed_product_kind })))
 
 let update_constructor_representation
     env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
