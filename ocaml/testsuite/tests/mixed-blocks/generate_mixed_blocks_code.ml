@@ -147,8 +147,12 @@ type constructor =
 type variant = constructor Nonempty_list.t
 
 let enumeration_of_mixed_variants =
-  enumeration_of_mixed_blocks_except_all_floats_mixed
-      (List.to_seq [ `Mutability_not_relevant ])
+  let enumeration_of_mutability =
+    List.to_seq [ `Mutability_not_relevant ]
+  in
+  Seq.product
+    (enumeration_of_prefix enumeration_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed enumeration_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
       { cstr_prefix = List.map prefix ~f:ignore_mut;
@@ -369,7 +373,7 @@ module Mixed_variant = struct
             | Str -> "create_string ()"))
         in
         match args with
-        | [] | [_] -> args_str
+        | [] -> args_str
         | _ -> sprintf "(%s)" args_str)
 
   let type_decl t =
