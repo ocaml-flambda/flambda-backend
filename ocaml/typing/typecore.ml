@@ -417,12 +417,6 @@ let meet_regional mode =
 let meet_global mode =
   Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.global)]
 
-let meet_many mode =
-  Value.meet [mode; (Value.max_with (Comonadic Linearity) Linearity.many)]
-
-let join_shared mode =
-  Value.join [mode; Value.min_with (Monadic Uniqueness) Uniqueness.shared]
-
 let value_regional_to_local mode =
   mode
   |> value_to_alloc_r2l
@@ -430,25 +424,15 @@ let value_regional_to_local mode =
 
 (* Describes how a modality affects field projection. Returns the mode
    of the projection given the mode of the record. *)
-let modality_unbox_left global_flag mode =
-  let mode = Value.disallow_right mode in
+let apply_modality
+  : type l r. _ -> (l * r) Value.t -> (l * r) Value.t
+  = fun global_flag mode ->
   match global_flag with
   | Global_flag.Global ->
       mode
       |> Value.meet_with (Comonadic Areality) Regionality.Const.Global
-      |> join_shared
+      |> Value.join_with (Monadic Uniqueness) Uniqueness.Const.Shared
       |> Value.meet_with (Comonadic Linearity) Linearity.Const.Many
-  | Global_flag.Unrestricted -> mode
-
-(* Describes how a modality affects record construction. Gives the
-   expected mode of the field given the expected mode of the record. *)
-let modality_box_right global_flag mode =
-  match global_flag with
-  | Global_flag.Global ->
-      mode
-      |> meet_global
-      |> Value.join_with (Monadic Uniqueness) Uniqueness.Const.max
-      |> meet_many
   | Global_flag.Unrestricted -> mode
 
 let mode_default mode =
@@ -462,7 +446,7 @@ let mode_legacy = mode_default Value.legacy
 
 let mode_modality modality expected_mode =
   expected_mode.mode
-  |> modality_box_right modality
+  |> apply_modality modality
   |> mode_default
 
 (* used when entering a function;
@@ -799,11 +783,14 @@ let has_poly_constraint spat =
 
 (** Mode cross a left mode *)
 let mode_cross_left env ty mode =
-  if not (is_principal ty) then Value.disallow_right mode else
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  Value.meet_const upper_bounds mode
+  let mode =
+    if not (is_principal ty) then mode else
+    let jkind = type_jkind_purely env ty in
+    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+    let upper_bounds = Const.alloc_as_value upper_bounds in
+    Value.meet_const upper_bounds mode
+  in
+  mode |> Value.disallow_right
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
@@ -2394,7 +2381,7 @@ and type_pat_aux
       (* CR zqian: decouple mutable and global modality *)
       if Types.is_mutable mutability then Global else Unrestricted
     in
-    let alloc_mode = modality_unbox_left modalities alloc_mode.mode in
+    let alloc_mode = apply_modality modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2637,7 +2624,7 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = modality_unbox_left gf alloc_mode.mode in
+             let alloc_mode = apply_modality gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2680,7 +2667,7 @@ and type_pat_aux
       let type_label_pat (label_lid, label, sarg) =
         let ty_arg =
           solve_Ppat_record_field ~refine loc env label label_lid record_ty in
-        let mode = modality_unbox_left label.lbl_global alloc_mode.mode in
+        let mode = apply_modality label.lbl_global alloc_mode.mode in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
@@ -5644,7 +5631,7 @@ and type_expect_
                   unify_exp_types loc env ty_arg1 ty_arg2;
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
-                  let mode = modality_unbox_left lbl.lbl_global mode in
+                  let mode = apply_modality lbl.lbl_global mode in
                   check_construct_mutability lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_global argument_mode
@@ -5694,7 +5681,7 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      let mode = modality_unbox_left label.lbl_global rmode in
+      let mode = apply_modality label.lbl_global rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
