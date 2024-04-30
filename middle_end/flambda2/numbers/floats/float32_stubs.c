@@ -323,13 +323,6 @@ CAMLprim value compiler_float32_of_string(value vs)
   return Val_unit; /* not reached */
 }
 
-// Replaces the OCaml runtime's version for use under ocaml/ in the dune build.
-// Must have the same name as in the runtime because building ocaml/ with the
-// upstream build system calls it by name.
-CAMLweakdef value caml_float32_of_string(value vs) {
-  return compiler_float32_of_string(vs);
-}
-
 CAMLprim value compiler_float32_format(value fmt, value arg)
 {
   value res;
@@ -340,4 +333,16 @@ CAMLprim value compiler_float32_format(value fmt, value arg)
   RESTORE_LOCALE;
 
   return res;
+}
+
+// These replace the OCaml runtime versions for use under ocaml/ in the dune build.
+// They must have the same name as in the runtime because building ocaml/ with the
+// upstream build system calls it by name.
+
+CAMLweakdef value caml_float32_of_string(value vs) {
+  return compiler_float32_of_string(vs);
+}
+
+CAMLweakdef value caml_format_float32(value fmt, value arg) {
+  return compiler_float32_format(fmt, arg);
 }

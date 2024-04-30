@@ -44,6 +44,7 @@ type out_value =
   | Oval_constr of out_ident * out_value list
   | Oval_ellipsis
   | Oval_float of float
+  | Oval_float32 of Obj.t
   | Oval_int of int
   | Oval_int32 of int32
   | Oval_int64 of int64
