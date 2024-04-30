@@ -13,6 +13,10 @@ let sprintf = Printf.sprintf
 module List = ListLabels
 module String = StringLabels
 
+let list_product xs ys =
+  List.concat_map xs ~f:(fun x ->
+    List.map ys ~f:(fun y -> (x, y)))
+
 module Nonempty_list = struct
   type 'a t = ( :: ) of 'a * 'a list
 
@@ -80,16 +84,13 @@ let is_mutable = function
   | Immutable -> false
 ;;
 
-let enumeration_of_flat_element = List.to_seq all_of_flat_element
-let enumeration_of_value_element = List.to_seq all_of_value_element
-let enumeration_of_mutability = List.to_seq all_of_mutability
-
 type prefix = (value_element * mutability) list
 type suffix = (flat_element * mutability) Nonempty_list.t
 
-let enumeration_of_prefix enumeration_of_mutability =
+let enumeration_of_prefix all_of_mutability =
   enumeration_of_list
-    (Seq.product enumeration_of_value_element enumeration_of_mutability)
+    (list_product all_of_value_element all_of_mutability
+     |> List.to_seq)
   |> Seq.filter (fun prefix ->
     match List.rev prefix with
     | [] -> true
@@ -98,15 +99,16 @@ let enumeration_of_prefix enumeration_of_mutability =
 ;;
 
 let enumeration_of_suffix_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   : _ Seq.t
   =
   let flat_element_except_float =
-    enumeration_of_flat_element
-    |> Seq.filter (flat_element_is_not Float)
+    all_of_flat_element
+    |> List.filter ~f:(flat_element_is_not Float)
   in
   enumeration_of_nonempty_list
-    (Seq.product flat_element_except_float enumeration_of_mutability)
+    (list_product all_of_flat_element all_of_mutability
+      |> List.to_seq)
   |> Seq.filter (fun suffix ->
     List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
       flat_element_is_unboxed elem))
@@ -114,11 +116,12 @@ let enumeration_of_suffix_except_all_floats_mixed
 
 let enumeration_of_all_floats_mixed_suffix =
   let float_flat_element =
-    enumeration_of_flat_element
-    |> Seq.filter flat_element_is_float
+    all_of_flat_element
+    |> List.filter ~f:flat_element_is_float
   in
   enumeration_of_nonempty_list
-    (Seq.product float_flat_element enumeration_of_mutability)
+    (List.to_seq
+      (list_product float_flat_element all_of_mutability))
   |> Seq.filter (fun suffix ->
       let suffix = Nonempty_list.to_list suffix in
       List.exists suffix ~f:(fun (elem, _) -> flat_element_is Float64 elem)
@@ -130,11 +133,11 @@ type block =
   }
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   =
   Seq.product
-   (enumeration_of_prefix enumeration_of_mutability)
-   (enumeration_of_suffix_except_all_floats_mixed enumeration_of_mutability)
+   (enumeration_of_prefix all_of_mutability)
+   (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
   |> Seq.filter (fun (prefix, suffix) ->
       let all_float_u_suffix =
         List.for_all (Nonempty_list.to_list suffix)
@@ -154,12 +157,10 @@ type constructor =
 type variant = constructor Nonempty_list.t
 
 let enumeration_of_mixed_variants =
-  let enumeration_of_mutability =
-    List.to_seq [ `Mutability_not_relevant ]
-  in
+  let all_of_mutability = [ `Mutability_not_relevant ] in
   Seq.product
-    (enumeration_of_prefix enumeration_of_mutability)
-    (enumeration_of_suffix_except_all_floats_mixed enumeration_of_mutability)
+    (enumeration_of_prefix all_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
       { cstr_prefix = List.map prefix ~f:ignore_mut;
@@ -169,7 +170,7 @@ let enumeration_of_mixed_variants =
 
 let enumeration_of_mixed_blocks_except_all_floats_mixed =
   enumeration_of_mixed_blocks_except_all_floats_mixed
-    enumeration_of_mutability
+    all_of_mutability
   |> Seq.map (fun (prefix, suffix) -> { prefix; suffix })
 
 
