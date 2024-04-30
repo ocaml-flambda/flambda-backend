@@ -1813,49 +1813,46 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   Array.iter (fun jkind ->
       jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
     cstr.cstr_arg_jkinds;
-  let make_field_accesses binding_kind argl ~field_to_pos =
-    let rec make_args field =
-      if field > cstr.cstr_arity - 1 then
-        argl
-      else
-        let pos = field_to_pos field in
-        let prim =
-          match cstr.cstr_shape with
-          | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
-          | Constructor_mixed shape ->
-              let read =
-                match Types.get_mixed_record_element shape field with
-                | Value_prefix -> Mread_value_prefix Pointer
-                | Flat_suffix flat ->
-                    let flat_read =
-                      match flat with
-                      | Imm -> Flat_read_imm
-                      | Float64 -> Flat_read_float64
-                      | Float ->
-                          Misc.fatal_error
-                            "unexpected flat float of layout value in \
-                             constructor field"
-                    in
-                    Mread_flat_suffix flat_read
-              in
-              Pmixedfield (pos, read, Reads_agree)
-        in
-        let jkind = cstr.cstr_arg_jkinds.(field) in
-        let sort = Jkind.sort_of_jkind jkind in
-        (Lprim (prim, [ arg ], loc), binding_kind, sort, layout_field)
-        :: make_args (field + 1)
+  let make_field_access binding_kind ~field ~pos =
+    let prim =
+      match cstr.cstr_shape with
+      | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
+      | Constructor_mixed shape ->
+          let read =
+            match Types.get_mixed_record_element shape field with
+            | Value_prefix -> Mread_value_prefix Pointer
+            | Flat_suffix flat ->
+                let flat_read =
+                  match flat with
+                  | Imm -> Flat_read_imm
+                  | Float64 -> Flat_read_float64
+                  | Float ->
+                      Misc.fatal_error
+                        "unexpected flat float of layout value in \
+                          constructor field"
+                in
+                Mread_flat_suffix flat_read
+          in
+          Pmixedfield (pos, read, Reads_agree)
     in
-    make_args 0
+    let jkind = cstr.cstr_arg_jkinds.(field) in
+    let sort = Jkind.sort_of_jkind jkind in
+    let layout = Typeopt.layout_of_sort head.pat_loc sort in
+    (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
   if cstr.cstr_inlined <> None then
     (arg, Alias, sort, layout) :: rem
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
-        make_field_accesses Alias rem ~field_to_pos:(fun field -> field)
+        List.init cstr.cstr_arity
+          (fun i -> make_field_access Alias ~field:i ~pos:i)
+        @ rem
     | Variant_unboxed -> (arg, Alias, sort, layout) :: rem
     | Variant_extensible ->
-        make_field_accesses Alias rem ~field_to_pos:(fun field -> field + 1)
+        List.init cstr.cstr_arity
+          (fun i -> make_field_access Alias ~field:i ~pos:(i+1))
+        @ rem
 
 let divide_constructor ~scopes ctx pm =
   divide

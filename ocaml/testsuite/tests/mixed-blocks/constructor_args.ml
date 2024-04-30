@@ -218,6 +218,7 @@ let go x y z =
   let f =
     match x with
     | Mixed5 (f1, uf1, i1, uf2) ->
+        (* Close over the fields we projected out *)
         (fun () ->
            match y, z with
            | Mixed3 (f2, uf3, uf4),
@@ -262,9 +263,75 @@ let test () =
   let res1 = go x y z
   and res2 = go x z y
   in
-  Printf.printf "Test (pattern matching):\n";
+  Printf.printf "Test (pattern matching).\n";
   assert (res1 = res2);
+  Printf.printf "  Contents of fields:\n";
   List.iter (Printf.printf "  %.3f\n") res1
 ;;
 
 let () = test ()
+
+(*********************************************)
+(* Test: pattern matching, recursive closure *)
+
+let go_recursive x y z =
+  let f_even =
+    match y, z with
+    | Mixed3 (f2, uf3, uf4),
+      Mixed4 (f3, uf5, i2)
+    | Mixed4 (f3, uf5, i2),
+      Mixed3 (f2, uf3, uf4) ->
+        (* Close over the fields we projected out
+           with recursive functions.
+        *)
+        let rec f_odd i =
+          if i < 7 then f_even (i+1)
+          else match x with
+          | Mixed5 (f1, uf1, i1, uf2) ->
+              [ float_of_int i;
+                f1;
+                Float_u.to_float uf1;
+                float_of_int i1;
+                Float_u.to_float uf2;
+                f2;
+                Float_u.to_float uf3;
+                Float_u.to_float uf4;
+                f3;
+                Float_u.to_float uf5;
+                float_of_int i2;
+              ]
+          | _ -> assert false
+        and f_even i = f_odd (i+1) in
+        f_even
+    | _ -> assert false
+  in
+  f_even 0
+
+let test_recursive () =
+  let f1 = 4.0
+  and f2 = 42.0
+  and f3 = 36.0
+  and i1 = 3
+  and i2 = -10
+  and uf1 = #17.0
+  and uf2 = #28.0
+  and uf3 = #32.0
+  and uf4 = #47.5
+  and uf5 = #47.8
+  in
+  let x = Mixed5 (f1,uf1, i1, uf2) in
+  let y = Mixed3 (f2, uf3, uf4) in
+  let z = Mixed4 (f3, uf5, i2) in
+  (* These results should match as [go_recursive] is symmetric in
+     its 2nd/3rd arguments.
+  *)
+  let res1 = go_recursive x y z
+  and res2 = go_recursive x z y
+  in
+  Printf.printf "Test (pattern matching, recursive closure).\n";
+  assert (res1 = res2);
+  Printf.printf "  Contents of fields:\n";
+  List.iter (Printf.printf "  %.3f\n") res1
+;;
+
+let () = test_recursive ()
