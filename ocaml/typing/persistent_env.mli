@@ -24,7 +24,7 @@ module Consistbl : module type of struct
   include Consistbl.Make (Compilation_unit.Name) (Consistbl_data)
 end
 
-type error = private
+type error =
   | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
   | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Need_recursive_types of Compilation_unit.Name.t
