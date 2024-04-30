@@ -367,6 +367,7 @@ let mk_constructor_description cstr_name =
   {
     cstr_name;
     cstr_res = newty2 ~level:0 (mkTvar (Some "a"));
+    cstr_shape = Constructor_uniform_value;
     cstr_existentials = [];
     cstr_args = [];
     cstr_arity = 0;
