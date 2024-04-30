@@ -1874,7 +1874,7 @@ let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
   let loc = head_loc ~scopes head in
    let field_prim = nonconstant_variant_field 1 in
   (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_variant_arg,
-   layout_field)
+   layout_variant_arg)
   :: rem
 
 let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
@@ -2117,7 +2117,7 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
       rem
     else
       (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
-       Jkind.Sort.for_tuple_element, layout_field)
+       Jkind.Sort.for_tuple_element, layout_tuple_element)
         :: make_args (pos + 1)
   in
   make_args 0
@@ -3986,9 +3986,11 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
 (* Easy case since variables are available *)
 let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
-  (* The arguments of a tupled function are always values since they must be fields *)
+  (* The arguments of a tupled function are always values since they must be
+     tuple elements *)
   let args =
-    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.for_tuple_element, layout_field))
+    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.for_tuple_element,
+                         layout_tuple_element))
       paraml
   in
   let handler =

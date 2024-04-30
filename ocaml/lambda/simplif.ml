@@ -586,7 +586,9 @@ let simplify_lets lam =
       let slbody = simplif lbody in
       begin try
         let kind = match kind_ref with
-          | None -> Lambda.layout_field
+          | None ->
+              (* This is a [Pmakeblock] so the fields are all values *)
+              Lambda.layout_value_field
           | Some [field_kind] -> Pvalue field_kind
           | Some _ -> assert false
         in
@@ -801,10 +803,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
         let map_param (p : Lambda.lparam) =
           try
-            (* If the param is optional, then it must be a value *)
             {
               name = List.assoc p.name map;
-              layout = Lambda.layout_field;
+              layout = Lambda.layout_optional_arg;
               attributes = Lambda.default_param_attribute;
               mode = p.mode
             }
