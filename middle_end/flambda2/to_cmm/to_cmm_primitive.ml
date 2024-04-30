@@ -107,9 +107,12 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
     match field_kind with
     | Imm -> C.get_field_computed Immediate mutability ~block ~index dbg
-    | Float | Float64 -> C.unboxed_float_array_ref block index dbg
-    | Bits32 -> C.unboxed_int32_mixed_field_ref block index dbg
-    | Bits64 | Word -> C.unboxed_int64_or_nativeint_array_ref block index dbg)
+    | Float | Float64 ->
+      (* CR layouts v5.1: We should use the mutability here. *)
+      C.unboxed_float_array_ref block index dbg
+    | Bits32 -> C.get_field_unboxed_int32 mutability ~block ~index dbg
+    | Bits64 | Word ->
+      C.get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg)
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
@@ -128,11 +131,9 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       | Imm ->
         C.setfield_computed Immediate init_or_assign block index new_value dbg
       | Float | Float64 -> C.float_array_set block index new_value dbg
+      | Bits32 -> C.setfield_unboxed_int32 block index new_value dbg
       | Bits64 | Word ->
-        C.unboxed_int64_or_nativeint_array_set block ~index ~new_value dbg
-      | Bits32 ->
-        C.unboxed_int32_mixed_field_set block ~index ~new_value dbg
-    )
+        C.setfield_unboxed_int64_or_nativeint block index new_value dbg)
   in
   C.return_unit dbg expr
 
