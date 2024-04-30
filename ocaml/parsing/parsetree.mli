@@ -45,6 +45,8 @@ type constant =
 
 type location_stack = Location.t list
 
+type modality = | Modality of string [@@unboxed]
+
 (** {1 Extension points} *)
 
 type attribute = {

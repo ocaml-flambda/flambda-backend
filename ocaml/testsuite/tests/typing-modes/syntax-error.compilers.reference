@@ -87,11 +87,11 @@ Error: Syntax error: mode expression expected.
 Line 2, characters 26-27:
 2 | type t = Foo of string @@ * global_ string;;
                               ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: modality expression expected.
 Line 4, characters 0-1:
 4 | }
     ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error
 Line 2, characters 21-22:
 2 | let foo ?(local_ x @ = 42) () = () ;;
                          ^

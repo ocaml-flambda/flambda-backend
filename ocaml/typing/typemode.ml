@@ -41,7 +41,7 @@ let transl_global_flags modalities =
   let rec loop (acc : Global_flag.t Location.loc) = function
     | [] -> acc
     | m :: rest ->
-      let ({ txt; loc }) = (m : Asttypes.modality Location.loc) in
+      let ({ txt; loc }) = (m : Parsetree.modality Location.loc) in
       let acc : Global_flag.t Location.loc =
         let (Modality txt) = txt in
         match txt with

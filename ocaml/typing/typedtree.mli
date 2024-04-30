@@ -951,6 +951,8 @@ and constructor_declaration =
 and constructor_argument =
   {
     ca_global: Mode.Global_flag.t loc;
+    (** [ca_global]'s [loc] field is [Location.none] when its [txt] field is
+        [Unrestricted] *)
     ca_type: core_type;
     ca_loc: Location.t;
   }
