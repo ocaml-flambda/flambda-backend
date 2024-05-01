@@ -76,6 +76,8 @@ and let_expr =
     defining_expr : named
   }
 
+(* CR mshinwell/xclerc: use a different [Debuginfo.t] type (not least so that
+   freshening of uids etc causes less allocation) *)
 and named =
   | Simple of Simple.t
   | Prim of Flambda_primitive.t * Debuginfo.t
@@ -1378,6 +1380,10 @@ module Named = struct
       | Naked_number Naked_float ->
         Simple.const
           (Reg_width_const.naked_float Numeric_types.Float_by_bit_pattern.zero)
+      | Naked_number Naked_float32 ->
+        Simple.const
+          (Reg_width_const.naked_float32
+             Numeric_types.Float32_by_bit_pattern.zero)
       | Naked_number Naked_int32 ->
         Simple.const (Reg_width_const.naked_int32 Int32.zero)
       | Naked_number Naked_int64 ->
@@ -1417,11 +1423,12 @@ module Named = struct
              | Code code -> f_code acc code
              | Deleted_code
              | Static_const
-                 ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-                 | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
-                 | Immutable_float_array _ | Mutable_string _
-                 | Immutable_string _ | Empty_array | Immutable_value_array _ )
-               ->
+                 ( Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+                 | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+                 | Immutable_float_block _ | Immutable_float_array _
+                 | Mutable_string _ | Immutable_string _ | Empty_array _
+                 | Immutable_value_array _ | Immutable_int32_array _
+                 | Immutable_int64_array _ | Immutable_nativeint_array _ ) ->
                acc)
            init
 end

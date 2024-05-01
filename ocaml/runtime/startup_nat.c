@@ -94,7 +94,9 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // Silenced in flambda-backend to make it easier to run tests that
+  // check program output.
+  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;

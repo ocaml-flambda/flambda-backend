@@ -20,19 +20,19 @@ open Format
 
 val transl_type_decl:
     Env.t -> Asttypes.rec_flag -> Parsetree.type_declaration list ->
-    Typedtree.type_declaration list * Env.t
+    Typedtree.type_declaration list * Env.t * Shape.t list
 
 val transl_exception:
     Env.t -> Parsetree.extension_constructor ->
-    Typedtree.extension_constructor * Env.t
+    Typedtree.extension_constructor * Env.t * Shape.t
 
 val transl_type_exception:
     Env.t ->
-    Parsetree.type_exception -> Typedtree.type_exception * Env.t
+    Parsetree.type_exception -> Typedtree.type_exception * Env.t * Shape.t
 
 val transl_type_extension:
     bool -> Env.t -> Location.t -> Parsetree.type_extension ->
-    Typedtree.type_extension * Env.t
+    Typedtree.type_extension * Env.t * Shape.t list
 
 val transl_value_decl:
     Env.t -> Location.t ->
@@ -45,6 +45,9 @@ val transl_with_constraint:
     sig_env:Env.t -> sig_decl:Types.type_declaration ->
     outer_env:Env.t -> Parsetree.type_declaration ->
     Typedtree.type_declaration
+
+val transl_package_constraint:
+  loc:Location.t -> type_expr -> Types.type_declaration
 
 val abstract_type_decl:
   injective:bool ->
@@ -71,12 +74,34 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
-type jkind_sort_loc = Cstr_tuple | Record | External
+type jkind_sort_loc =
+  | Cstr_tuple
+  | Record
+  | Unboxed_record
+  | External
+  | External_with_layout_poly
 
 type reaching_type_path = reaching_type_step list
 and reaching_type_step =
   | Expands_to of type_expr * type_expr
   | Contains of type_expr * type_expr
+
+type mixed_record_violation =
+  | Runtime_support_not_enabled
+  | Value_prefix_too_long of
+      { value_prefix_len : int;
+        max_value_prefix_len : int;
+      }
+  | Flat_field_expected of
+      { boxed_lbl : Ident.t;
+        non_value_lbl : Ident.t;
+      }
+  | Insufficient_level of
+      { required_layouts_level : Language_extension.maturity }
+
+type bad_jkind_inference_location =
+  | Check_constraints
+  | Delayed_checks
 
 type error =
     Repeated_parameter
@@ -114,22 +139,31 @@ type error =
   | Deep_unbox_or_untag_attribute of native_repr_kind
   | Jkind_mismatch_of_type of type_expr * Jkind.Violation.t
   | Jkind_mismatch_of_path of Path.t * Jkind.Violation.t
-  | Jkind_mismatch_in_check_constraints of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_due_to_bad_inference of
+      type_expr * Jkind.Violation.t * bad_jkind_inference_location
   | Jkind_sort of
       { kloc : jkind_sort_loc
       ; typ : type_expr
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
-  | Mixed_block
+  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
+  | Illegal_mixed_record of mixed_record_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
+  | Unexpected_jkind_any_in_primitive of string
+  | Useless_layout_poly
+  | Modalities_on_value_description
+  | Missing_unboxed_attribute_on_non_value_sort of Jkind.Sort.const
+  | Non_value_sort_not_upstream_compatible of Jkind.Sort.const
+  | Zero_alloc_attr_unsupported of Builtin_attributes.check_attribute
+  | Zero_alloc_attr_non_function
+  | Zero_alloc_attr_bad_user_arity
 
 exception Error of Location.t * error
 

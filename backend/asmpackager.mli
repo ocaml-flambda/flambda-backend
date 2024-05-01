@@ -22,7 +22,6 @@ val package_files
   -> Env.t
   -> string list
   -> string
-  -> backend:(module Backend_intf.S)
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->

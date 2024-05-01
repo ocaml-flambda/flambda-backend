@@ -46,6 +46,7 @@ type constant =
   | Const of int64
   | ConstThis
   | ConstLabel of string
+  | ConstLabelOffset of string * int
   | ConstAdd of constant * constant
   | ConstSub of constant * constant
 
@@ -107,80 +108,7 @@ type arg =
   | Mem of addr
   | Mem64_RIP of data_type * string * int
 
-type instruction =
-  | ADD of arg * arg
-  | ADDSD of arg * arg
-  | AND of arg * arg
-  | ANDPD of arg * arg
-  | BSF of arg * arg
-  | BSR of arg * arg
-  | BSWAP of arg
-  | CALL of arg
-  | CDQ
-  | CMOV of condition * arg * arg
-  | CMP of arg * arg
-  | CMPSD of float_condition * arg * arg
-  | COMISD of arg * arg
-  | CQO
-  | CVTSD2SI of arg * arg
-  | CVTSD2SS of arg * arg
-  | CVTSI2SD of arg * arg
-  | CVTSS2SD of arg * arg
-  | CVTTSD2SI of arg * arg
-  | DEC of arg
-  | DIVSD of arg * arg
-  | HLT
-  | IDIV of arg
-  | IMUL of arg * arg option
-  | MUL of arg
-  | INC of arg
-  | J of condition * arg
-  | JMP of arg
-  | LEA of arg * arg
-  | LOCK_CMPXCHG of arg * arg
-  | LOCK_XADD of arg * arg
-  | LEAVE
-  | MAXSD of arg * arg
-  | MINSD of arg * arg
-  | MOV of arg * arg
-  | MOVAPD of arg * arg
-  | MOVUPD of arg * arg
-  | MOVD of arg * arg
-  | MOVQ of arg * arg
-  | MOVLPD of arg * arg
-  | MOVSD of arg * arg
-  | MOVSS of arg * arg
-  | MOVSX of arg * arg
-  | MOVSXD of arg * arg
-  | MOVZX of arg * arg
-  | MULSD of arg * arg
-  | NEG of arg
-  | NOP
-  | OR of arg * arg
-  | PAUSE
-  | POP of arg
-  | POPCNT of arg * arg
-  | PREFETCH of bool * prefetch_temporal_locality_hint * arg
-  | PUSH of arg
-  | RDTSC
-  | RDPMC
-  | LFENCE
-  | SFENCE
-  | MFENCE
-  | RET
-  | ROUNDSD of rounding * arg * arg
-  | SAL of arg * arg
-  | SAR of arg * arg
-  | SET of condition * arg
-  | SHR of arg * arg
-  | SQRTSD of arg * arg
-  | SUB of arg * arg
-  | SUBSD of arg * arg
-  | TEST of arg * arg
-  | UCOMISD of arg * arg
-  | XCHG of arg * arg
-  | XOR of arg * arg
-  | XORPD of arg * arg
+type sse_instruction =
   | CMPPS of float_condition * arg * arg
   | SHUFPS of arg * arg * arg
   | ADDPS of arg * arg
@@ -197,6 +125,8 @@ type instruction =
   | UNPCKHPS of arg * arg
   | UNPCKLPS of arg * arg
   | MOVMSKPS of arg * arg
+
+type sse2_instruction =
   | PADDB of arg * arg
   | PADDW of arg * arg
   | PADDD of arg * arg
@@ -270,6 +200,19 @@ type instruction =
   | PUNPCKLBW of arg * arg
   | PUNPCKLWD of arg * arg
   | PUNPCKLQDQ of arg * arg
+  | PAVGB of arg * arg
+  | PAVGW of arg * arg
+  | PSADBW of arg * arg
+  | PACKSSWB of arg * arg
+  | PACKSSDW of arg * arg
+  | PACKUSWB of arg * arg
+  | PACKUSDW of arg * arg
+  | PMULHW of arg * arg
+  | PMULHUW of arg * arg
+  | PMULLW of arg * arg
+  | PMADDWD of arg * arg
+
+type sse3_instruction =
   | ADDSUBPS of arg * arg
   | ADDSUBPD of arg * arg
   | HADDPS of arg * arg
@@ -279,6 +222,8 @@ type instruction =
   | MOVDDUP of arg * arg
   | MOVSHDUP of arg * arg
   | MOVSLDUP of arg * arg
+
+type ssse3_instruction =
   | PABSB of arg * arg
   | PABSW of arg * arg
   | PABSD of arg * arg
@@ -292,6 +237,10 @@ type instruction =
   | PSIGNW of arg * arg
   | PSIGND of arg * arg
   | PSHUFB of arg * arg
+  | PALIGNR of arg * arg * arg
+  | PMADDUBSW of arg * arg
+
+type sse41_instruction =
   | PBLENDW of arg * arg * arg
   | BLENDPS of arg * arg * arg
   | BLENDPD of arg * arg * arg
@@ -331,29 +280,106 @@ type instruction =
   | PMINUD of arg * arg
   | ROUNDPD of rounding * arg * arg
   | ROUNDPS of rounding * arg * arg
+  | MPSADBW of arg * arg * arg
+  | PHMINPOSUW of arg * arg
+  | PMULLD of arg * arg
+
+type sse42_instruction =
   | PCMPGTQ of arg * arg
   | PCMPESTRI of arg * arg * arg
   | PCMPESTRM of arg * arg * arg
   | PCMPISTRI of arg * arg * arg
   | PCMPISTRM of arg * arg * arg
   | CRC32 of arg * arg
-  | PAVGB of arg * arg
-  | PAVGW of arg * arg
-  | PSADBW of arg * arg
-  | PACKSSWB of arg * arg
-  | PACKSSDW of arg * arg
-  | PACKUSWB of arg * arg
-  | PACKUSDW of arg * arg
-  | PALIGNR of arg * arg * arg
-  | MPSADBW of arg * arg * arg
-  | PHMINPOSUW of arg * arg
+
+type instruction =
+  | ADD of arg * arg
+  | ADDSD of arg * arg
+  | AND of arg * arg
+  | ANDPD of arg * arg
+  | BSF of arg * arg
+  | BSR of arg * arg
+  | BSWAP of arg
+  | CALL of arg
+  | CDQ
+  | CMOV of condition * arg * arg
+  | CMP of arg * arg
+  | CMPSD of float_condition * arg * arg
+  | COMISD of arg * arg
+  | CQO
+  | CVTSS2SI of arg * arg
+  | CVTSD2SI of arg * arg
+  | CVTSI2SS of arg * arg
+  | CVTSD2SS of arg * arg
+  | CVTSI2SD of arg * arg
+  | CVTSS2SD of arg * arg
+  | CVTTSS2SI of arg * arg
+  | CVTTSD2SI of arg * arg
+  | DEC of arg
+  | DIVSD of arg * arg
+  | HLT
+  | IDIV of arg
+  | IMUL of arg * arg option
+  | MUL of arg
+  | INC of arg
+  | J of condition * arg
+  | JMP of arg
+  | LEA of arg * arg
+  | LOCK_CMPXCHG of arg * arg
+  | LOCK_XADD of arg * arg
+  | LEAVE
+  | MAXSD of arg * arg
+  | MINSD of arg * arg
+  | MOV of arg * arg
+  | MOVAPD of arg * arg
+  | MOVUPD of arg * arg
+  | MOVD of arg * arg
+  | MOVQ of arg * arg
+  | MOVLPD of arg * arg
+  | MOVSD of arg * arg
+  | MOVSS of arg * arg
+  | MOVSX of arg * arg
+  | MOVSXD of arg * arg
+  | MOVZX of arg * arg
+  | MULSD of arg * arg
+  | NEG of arg
+  | NOP
+  | OR of arg * arg
+  | PAUSE
+  | POP of arg
+  | POPCNT of arg * arg
+  | PREFETCH of bool * prefetch_temporal_locality_hint * arg
+  | PUSH of arg
+  | RDTSC
+  | RDPMC
+  | LFENCE
+  | SFENCE
+  | MFENCE
+  | RET
+  | ROUNDSD of rounding * arg * arg
+  | SAL of arg * arg
+  | SAR of arg * arg
+  | SET of condition * arg
+  | SHR of arg * arg
+  | SQRTSD of arg * arg
+  | SUB of arg * arg
+  | SUBSD of arg * arg
+  | TEST of arg * arg
+  | UCOMISD of arg * arg
+  | XCHG of arg * arg
+  | XOR of arg * arg
+  | XORPD of arg * arg
+  | SSE of sse_instruction
+  | SSE2 of sse2_instruction
+  | SSE3 of sse3_instruction
+  | SSSE3 of ssse3_instruction
+  | SSE41 of sse41_instruction
+  | SSE42 of sse42_instruction
   | PCLMULQDQ of arg * arg * arg
-  | PMULHW of arg * arg
-  | PMULHUW of arg * arg
-  | PMULLW of arg * arg
-  | PMADDWD of arg * arg
-  | PMADDUBSW of arg * arg
-  | PMULLD of arg * arg
+  | PEXT of arg * arg * arg
+  | PDEP of arg * arg * arg
+  | TZCNT of arg * arg
+  | LZCNT of arg * arg
 
 (* ELF specific *)
 type reloc_type =
@@ -373,6 +399,7 @@ type asm_line =
   | Bytes of string
   | Comment of string
   | Global of string
+  | Protected of string
   | Hidden of string
   | Weak of string
   | Long of constant

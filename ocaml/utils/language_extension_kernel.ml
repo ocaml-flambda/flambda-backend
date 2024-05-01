@@ -3,7 +3,7 @@ type maturity = Stable | Beta | Alpha
 (* Remember to update [all] when changing this type. *)
 type _ t =
   | Comprehensions : unit t
-  | Local : unit t
+  | Mode : unit t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
@@ -12,6 +12,7 @@ type _ t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
+  | Small_numbers : unit t
 
 type 'a language_extension_kernel = 'a t
 
@@ -20,7 +21,7 @@ module Exist = struct
 
   let all =
     [ Pack Comprehensions
-    ; Pack Local
+    ; Pack Mode
     ; Pack Unique
     ; Pack Include_functor
     ; Pack Polymorphic_parameters
@@ -29,6 +30,7 @@ module Exist = struct
     ; Pack Layouts
     ; Pack SIMD
     ; Pack Labeled_tuples
+    ; Pack Small_numbers
     ]
 end
 
@@ -39,7 +41,7 @@ end
 (* When you update this, update [pair_of_string] below too. *)
 let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
-  | Local -> "local"
+  | Mode -> "mode"
   | Unique -> "unique"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
@@ -48,6 +50,7 @@ let to_string : type a. a t -> string = function
   | Layouts -> "layouts"
   | SIMD -> "simd"
   | Labeled_tuples -> "labeled_tuples"
+  | Small_numbers -> "small_numbers"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
    an extension and its maturity. For extensions that don't take an
@@ -56,7 +59,7 @@ let to_string : type a. a t -> string = function
 let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))
-  | "local" -> Some (Pair (Local, ()))
+  | "mode" -> Some (Pair (Mode, ()))
   | "unique" -> Some (Pair (Unique, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
@@ -67,6 +70,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
   | "simd" -> Some (Pair (SIMD, ()))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
+  | "small_numbers" -> Some (Pair (Small_numbers, ()))
   | _ -> None
 
 let maturity_to_string = function
@@ -88,7 +92,7 @@ let of_string extn_name : Exist.t option =
    But we've decided to punt on this issue in the short term.
 *)
 let is_erasable : type a. a t -> bool = function
-  | Local
+  | Mode
   | Unique
   | Layouts ->
       true
@@ -98,7 +102,8 @@ let is_erasable : type a. a t -> bool = function
   | Immutable_arrays
   | Module_strengthening
   | SIMD
-  | Labeled_tuples ->
+  | Labeled_tuples
+  | Small_numbers ->
       false
 
 (* See the mli. *)

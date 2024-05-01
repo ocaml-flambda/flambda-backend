@@ -106,6 +106,8 @@ struct caml_thread_struct {
   value * gc_regs_buckets;   /* saved value of Caml_state->gc_regs_buckets */
   void * exn_handler;        /* saved value of Caml_state->exn_handler */
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
+  memprof_thread_t memprof;  /* memprof's internal thread data structure */
+
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
   intnat trap_barrier_off; /* saved value of Caml_state->trap_barrier_off */
@@ -286,13 +288,15 @@ static void restore_runtime_state(caml_thread_t th)
   caml_set_local_arenas(Caml_state, th->local_arenas);
   Caml_state->backtrace_pos = th->backtrace_pos;
   Caml_state->backtrace_buffer = th->backtrace_buffer;
-  Caml_state->backtrace_last_exn = th->backtrace_last_exn;
+  caml_modify_generational_global_root
+    (&Caml_state->backtrace_last_exn, th->backtrace_last_exn);
 #ifndef NATIVE_CODE
   Caml_state->trap_sp_off = th->trap_sp_off;
   Caml_state->trap_barrier_off = th->trap_barrier_off;
   Caml_state->external_raise = th->external_raise;
   Caml_state->external_raise_async = th->external_raise_async;
 #endif
+  caml_memprof_enter_thread(th->memprof);
 }
 
 CAMLexport void caml_thread_restore_runtime_state(void)
@@ -391,6 +395,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->external_raise_async = NULL;
 #endif
 
+  th->memprof = caml_memprof_new_thread(domain_state);
   return th;
 }
 
@@ -463,11 +468,13 @@ static void caml_thread_remove_and_free(caml_thread_t th)
 
 static void caml_thread_reinitialize(void)
 {
+  struct channel * chan;
   caml_thread_t th, next;
 
   th = Active_thread->next;
   while (th != Active_thread) {
     next = th->next;
+    caml_memprof_delete_thread(th->memprof);
     caml_thread_free_info(th);
     th = next;
   }
@@ -484,6 +491,16 @@ static void caml_thread_reinitialize(void)
      s->lock (busy = 1) */
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Caml_state->id));
   s->reinitialize_after_fork(s->context);
+
+  /* Reinitialize IO mutexes, in case the fork happened while another thread
+     had locked the channel. If so, we're likely in an inconsistent state,
+     but we may be able to proceed anyway. */
+  caml_plat_mutex_init(&caml_all_opened_channels_mutex);
+  for (chan = caml_all_opened_channels;
+       chan != NULL;
+       chan = chan->next) {
+    caml_plat_mutex_init(&chan->mutex);
+  }
 }
 
 CAMLprim value caml_thread_join(value th);
@@ -545,11 +562,12 @@ static void caml_thread_domain_initialize_hook(void)
   new_thread->next = new_thread;
   new_thread->prev = new_thread;
   new_thread->backtrace_last_exn = Val_unit;
+  new_thread->memprof = caml_memprof_main_thread(Caml_state);
 
   st_tls_set(caml_thread_key, new_thread);
 
   Active_thread = new_thread;
-
+  caml_memprof_enter_thread(new_thread->memprof);
 }
 
 CAMLprim value caml_thread_yield(value unit);
@@ -596,7 +614,6 @@ CAMLprim value caml_thread_initialize(value unit)
   caml_domain_external_interrupt_hook = caml_thread_interrupt_hook;
   caml_domain_initialize_hook = caml_thread_domain_initialize_hook;
   caml_domain_stop_hook = caml_thread_domain_stop_hook;
-
   caml_atfork_hook = caml_thread_reinitialize;
 
   return Val_unit;
@@ -629,6 +646,10 @@ static void caml_thread_stop(void)
      always one more thread in the chain at this point in time. */
   CAMLassert(Active_thread->next != Active_thread);
 
+  /* Tell memprof that this thread is terminating */
+  caml_memprof_delete_thread(Active_thread->memprof);
+
+  /* Signal that the thread has terminated */
   caml_threadstatus_terminate(Terminated(Active_thread->descr));
 
   /* The following also sets Active_thread to a sane value in case the

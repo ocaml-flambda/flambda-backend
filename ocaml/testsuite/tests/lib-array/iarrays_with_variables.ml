@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 let one = Sys.opaque_identity 1;;

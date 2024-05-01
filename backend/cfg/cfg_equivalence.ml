@@ -239,17 +239,9 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Mach.equal_integer_operation left_op right_op
          && Int.equal left_imm right_imm ->
     ()
-  | Negf, Negf -> ()
-  | Absf, Absf -> ()
-  | Addf, Addf -> ()
-  | Subf, Subf -> ()
-  | Mulf, Mulf -> ()
-  | Divf, Divf -> ()
-  | Compf left_comp, Compf right_comp
-    when Cmm.equal_float_comparison left_comp right_comp ->
+  | Floatop left_op, Floatop right_op
+    when Mach.equal_float_operation left_op right_op ->
     ()
-  | Floatofint, Floatofint -> ()
-  | Intoffloat, Intoffloat -> ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
   | ( Probe_is_enabled { name = expected_name },
@@ -285,15 +277,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
               (Array.to_list right_regs) ->
     ()
   | Dls_get, Dls_get -> ()
-  | _ -> different location "operation"
- [@@ocaml.warning "-4"]
-
-let check_prim_call_operation :
-    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
- fun location expected result ->
-  match expected, result with
-  | External expected, External result ->
-    check_external_call_operation location expected result
+  | Poll, Poll -> ()
   | ( Alloc
         { bytes = expected_bytes;
           dbginfo = _expected_dbginfo;
@@ -306,10 +290,15 @@ let check_prim_call_operation :
          && Lambda.eq_mode expected_mode result_mode ->
     (* CR xclerc for xclerc: also check debug info *)
     ()
-  | ( Checkbound { immediate = expected_immediate },
-      Checkbound { immediate = result_immediate } )
-    when Option.equal Int.equal expected_immediate result_immediate ->
-    ()
+  | _ -> different location "primitive call operation"
+ [@@ocaml.warning "-4"]
+
+let check_prim_call_operation :
+    location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit =
+ fun location expected result ->
+  match expected, result with
+  | External expected, External result ->
+    check_external_call_operation location expected result
   | ( Probe
         { name = expected_name;
           handler_code_sym = expected_handler_code_sym;
@@ -349,6 +338,10 @@ let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
     State.add_to_explore state expected_lbl_handler result_lbl_handler
   | Poptrap, Poptrap -> ()
   | Prologue, Prologue -> ()
+  | ( Stack_check { max_frame_size_bytes = expected_max_frame_size_bytes },
+      Stack_check { max_frame_size_bytes = result_max_frame_size_bytes } ) ->
+    if expected_max_frame_size_bytes <> result_max_frame_size_bytes
+    then different location "stack check"
   | _ -> different location "basic"
  [@@ocaml.warning "-4"]
 
@@ -403,6 +396,7 @@ let check_basic_instruction :
     | Pushtrap _ -> false
     | Poptrap -> false
     | Prologue -> false
+    | Stack_check _ -> false
   in
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result
@@ -505,9 +499,6 @@ let check_terminator_instruction :
       Specific_can_raise { op = op2; label_after = lbl2 } )
     when Arch.equal_specific_operation op1 op2 ->
     State.add_to_explore state lbl1 lbl2
-  | Poll_and_jump return_label1, Poll_and_jump return_label2
-    when Label.equal return_label1 return_label2 ->
-    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
@@ -515,8 +506,7 @@ let check_terminator_instruction :
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    | Poll_and_jump _ ->
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

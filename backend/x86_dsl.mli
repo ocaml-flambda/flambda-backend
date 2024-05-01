@@ -87,6 +87,7 @@ module D : sig
   val extrn: string -> data_type -> unit
   val file: file_num:int -> file_name:string -> unit
   val global: string -> unit
+  val protected: string -> unit
   val hidden: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
@@ -128,11 +129,14 @@ module I : sig
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
-  val cvtsd2si: arg -> arg -> unit
+  val cvtss2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsd2si: arg -> arg -> unit (* round half-to-even *)
+  val cvtsi2ss: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit
-  val cvttsd2si: arg -> arg -> unit
+  val cvttss2si: arg -> arg -> unit (* truncate *)
+  val cvttsd2si: arg -> arg -> unit (* truncate *)
   val dec: arg -> unit
   val divsd: arg -> arg -> unit
   val hlt: unit -> unit
@@ -387,5 +391,15 @@ module I : sig
   (* CLMUL instructions *)
 
   val pclmulqdq: arg -> arg -> arg -> unit
+
+  (* BMI instructions *)
+
+  val lzcnt: arg -> arg -> unit
+  val tzcnt: arg -> arg -> unit
+
+  (* BMI2 instructions *)
+
+  val pext: arg -> arg -> arg -> unit
+  val pdep: arg -> arg -> arg -> unit
 
 end

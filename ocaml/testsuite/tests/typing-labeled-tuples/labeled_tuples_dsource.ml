@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-extension labeled_tuples -dsource"
+ flags = "-extension labeled_tuples -dsource";
+ expect;
 *)
 let x = ~x:1, ~y:2
 [%%expect{|

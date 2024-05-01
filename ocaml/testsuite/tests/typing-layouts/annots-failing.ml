@@ -1,8 +1,8 @@
 (* TEST
-   * skip
-   reason = "bugs not fixed yet"
-   ** expect
-   flags = "-extension layouts_alpha"
+ reason = "bugs not fixed yet";
+ skip;
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 
 (* CR layouts v1.5: merge this with annots.ml after these all pass *)

@@ -18,8 +18,6 @@
 type trap_stack =
   | Uncaught
   (** Exceptions escape the current function *)
-  | Generic_trap of trap_stack
-  (** Current handler is a regular Trywith *)
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
   (** Current handler is a delayed/shared Trywith *)
 
@@ -34,10 +32,12 @@ type integer_operation =
   | Ictz of { arg_is_non_zero: bool; }
   | Ipopcnt
   | Icomp of integer_comparison
-  | Icheckbound
-  | Icheckalign of { bytes_pow2 : int }
 
 type float_comparison = Cmm.float_comparison
+
+type float_operation =
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf of float_comparison
 
 type mutable_flag = Immutable | Mutable
 
@@ -58,6 +58,7 @@ type operation =
   | Ispill
   | Ireload
   | Iconst_int of nativeint
+  | Iconst_float32 of int32
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
@@ -82,10 +83,8 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
                        addr : Arch.addressing_mode }
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_operation
   | Icsel of test
-  | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Ivectorcast of Cmm.vector_cast
   | Iscalarcast of Cmm.scalar_cast
@@ -126,7 +125,8 @@ and instruction_desc =
   | Iswitch of int array * instruction array
   | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction * bool) list * instruction
   | Iexit of int * Cmm.trap_action list
-  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
+  | Itrywith of instruction * Cmm.trywith_shared_label
+      * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =
@@ -161,3 +161,6 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
+
+val equal_float_comparison : float_comparison -> float_comparison -> bool
+val equal_float_operation : float_operation -> float_operation -> bool

@@ -40,7 +40,7 @@ jobs:
       run: |
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
-          --enable-middle-end=closure \
+          --enable-middle-end=flambda2 \
           --with-dune=/bin/false
 
     - name: Check formatting of Flambda 2 and Cfg code

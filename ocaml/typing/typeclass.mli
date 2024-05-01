@@ -121,7 +121,7 @@ type error =
   | Non_collapsable_conjunction of
       Ident.t * Types.class_declaration * Errortrace.unification_error
   | Self_clash of Errortrace.unification_error
-  | Mutability_mismatch of string * mutable_flag
+  | Mutability_mismatch of string * Asttypes.mutable_flag
   | No_overriding of string * string
   | Duplicate of string * string
   | Closing_self_type of class_signature

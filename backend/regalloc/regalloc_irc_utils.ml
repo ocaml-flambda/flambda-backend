@@ -112,6 +112,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Spill -> false
     | Reload -> false
     | Const_int _ -> false
+    | Const_float32 _ -> false
     | Const_float _ -> false
     | Const_symbol _ -> false
     | Const_vec128 _ -> false
@@ -121,16 +122,8 @@ let is_move_basic : Cfg.basic -> bool =
     | Intop _ -> false
     | Intop_imm _ -> false
     | Intop_atomic _ -> false
-    | Negf -> false
-    | Absf -> false
-    | Addf -> false
-    | Subf -> false
-    | Mulf -> false
-    | Divf -> false
-    | Compf _ -> false
+    | Floatop _ -> false
     | Csel _ -> false
-    | Floatofint -> false
-    | Intoffloat -> false
     | Valueofint -> false
     | Intofvalue -> false
     | Probe_is_enabled _ -> false
@@ -139,8 +132,10 @@ let is_move_basic : Cfg.basic -> bool =
     | End_region -> false
     | Specific _ -> false
     | Name_for_debugger _ -> false
-    | Dls_get -> false)
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+    | Dls_get -> false
+    | Poll -> false
+    | Alloc _ -> false)
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc

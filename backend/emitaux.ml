@@ -493,13 +493,15 @@ module Dwarf_helpers = struct
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
-      && not !Dwarf_flags.restrict_to_upstream_dwarf
+      && ((not !Dwarf_flags.restrict_to_upstream_dwarf)
+          || !Dwarf_flags.dwarf_inlined_frames)
       && not disable_dwarf
     in
     match can_emit_dwarf,
           Target_system.architecture (),
           Target_system.derived_system () with
-    | true, X86_64, _ -> sourcefile_for_dwarf := Some sourcefile
+    | true, (X86_64 | AArch64), _ ->
+      sourcefile_for_dwarf := Some sourcefile
     | true, _, _
     | false, _, _ -> ()
 
@@ -560,5 +562,8 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
       | Lentertrap | Lraise _ ->
         loop i.next fs max_fs nontail_flag
+      | Lstackcheck _ ->
+        (* should not be already present *)
+        assert false
   in
   loop fun_body frame_size frame_size false

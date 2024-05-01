@@ -1,11 +1,11 @@
 (* TEST
-readonly_files = "regression_class_dep.ml"
-* setup-ocamlc.opt-build-env
-** ocamlc.opt
-module = "regression_class_dep.ml"
-*** ocamlc.opt
-module = ""
-flags = "-c"
+ readonly_files = "regression_class_dep.ml";
+ setup-ocamlc.opt-build-env;
+ module = "regression_class_dep.ml";
+ ocamlc.opt;
+ module = "";
+ flags = "-c";
+ ocamlc.opt;
 *)
 
 (* https://github.com/ocaml-flambda/ocaml-jst/issues/65 *)

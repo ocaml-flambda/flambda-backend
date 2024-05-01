@@ -276,9 +276,11 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
     in
+    let bound_params_and_results =
+      Bound_parameters.append params return_cont_params
+    in
     let params_and_results =
-      Bound_parameters.var_set
-        (Bound_parameters.append params return_cont_params)
+      Bound_parameters.var_set bound_params_and_results
     in
     let typing_env = DE.typing_env join.handler_env in
     let typing_env =
@@ -287,12 +289,12 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
     in
     let results_and_types =
       List.map
-        (fun result ->
-          let name = BP.name result in
-          let kind = K.With_subkind.kind (BP.kind result) in
+        (fun result_or_param ->
+          let name = BP.name result_or_param in
+          let kind = K.With_subkind.kind (BP.kind result_or_param) in
           let ty = TE.find typing_env name (Some kind) in
           name, ty)
-        (Bound_parameters.to_list return_cont_params)
+        (Bound_parameters.to_list bound_params_and_results)
     in
     let env_extension =
       (* This call is important for compilation time performance, to cut down
@@ -486,6 +488,11 @@ let simplify_function context ~outer_dacc function_slot code_id
           let max_function_simplify_run =
             Flambda_features.Expert.max_function_simplify_run ()
           in
+          if should_resimplify && Flambda_features.dump_flambda () && debug ()
+          then
+            Format.eprintf
+              "@\n%tAfter a single simplify_set_of_closures:%t@\n%a@\n@."
+              Flambda_colours.each_file Flambda_colours.pop Code.print new_code;
           if should_resimplify && count < max_function_simplify_run
           then run ~outer_dacc ~code:new_code (count + 1)
           else
@@ -503,7 +510,6 @@ let simplify_function context ~outer_dacc function_slot code_id
     let never_delete =
       match Code_metadata.check code_metadata with
       | Default_check -> !Clflags.zero_alloc_check_assert_all
-      | Ignore_assert_all Zero_alloc -> false
       | Assume { property = Zero_alloc; _ } -> false
       | Check { property = Zero_alloc; _ } -> true
     in

@@ -7,6 +7,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe inlined_rec.flt)
+   (diff? inlined_rec.flt inlined_rec.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe inlined_rec_in.fl)
+   (diff? inlined_rec_in.fl inlined_rec_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe inlined_rec_out.fl)
+   (diff? inlined_rec_out.fl inlined_rec_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets inlined_rec.flt.new inlined_rec_in.fl.new inlined_rec_out.fl.new)
+ (deps inlined_rec.ml)
+ (action
+   (run ocamlopt -c inlined_rec.ml -nopervasives -nostdlib
+        -drawfexpr-to inlined_rec_in.fl.new
+        -dfexpr-to inlined_rec_out.fl.new
+        -dflexpect-to inlined_rec.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff inlined_rec_in.fl inlined_rec_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff inlined_rec_out.fl inlined_rec_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff inlined_rec.flt inlined_rec.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe local.flt)
    (diff? local.flt local.flt.corrected))))
 

@@ -30,11 +30,14 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
+  | Zero_alloc of { missing_entirely : bool }
+  | Zero_alloc_arity of int * int
 
 exception Dont_match of value_mismatch
 
@@ -69,6 +72,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error

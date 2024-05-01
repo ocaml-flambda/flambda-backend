@@ -39,6 +39,8 @@
     (byte/.threads.objs/byte/event.cmti as threads/event.cmti)
     (byte/.threads.objs/byte/thread.cmi as threads/thread.cmi)
     (byte/.threads.objs/byte/thread.cmti as threads/thread.cmti)
+
+    (META as threads/META)
   )
   (section lib)
   (package ocaml))

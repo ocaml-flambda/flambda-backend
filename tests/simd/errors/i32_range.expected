@@ -1,0 +1,2 @@
+File "i32_range.ml", line 1:
+Error: Int32 constant not in range [0x0,0xffffffff]: 0x0000000100000000

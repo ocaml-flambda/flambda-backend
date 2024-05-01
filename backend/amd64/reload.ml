@@ -76,7 +76,7 @@ inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
   match op with
-  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound|Icheckalign _) ->
+  | Iintop(Iadd|Isub|Iand|Ior|Ixor) ->
       (* One of the two arguments can reside in the stack, but not both *)
       if stackp arg.(0) && stackp arg.(1)
       then ([|arg.(0); self#makereg arg.(1)|], res)
@@ -108,13 +108,13 @@ method! reload_operation op arg res =
       arg, res
   | Iintop(Imulh _ | Idiv | Imod | Ilsl | Ilsr | Iasr)
   | Iintop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-               | Imulh _ | Idiv | Imod | Icheckbound | Icheckalign _), _) ->
+               | Imulh _ | Idiv | Imod ), _) ->
       (* The argument(s) and results can be either in register or on stack *)
       (* Note: Imulh, Idiv, Imod: arg(0) and res(0) already forced in regs
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
       (arg, res)
   | Iintop_imm ((Ipopcnt | Iclz _ | Ictz _), _) -> assert false
-  | Iintop(Imul) | Iaddf | Isubf | Imulf | Idivf ->
+  | Iintop(Imul) | Ifloatop(Iaddf | Isubf | Imulf | Idivf) ->
       (* First argument (= result) must be in register, second arg
          can reside in the stack *)
       if stackp arg.(0)
@@ -127,9 +127,6 @@ method! reload_operation op arg res =
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
   | Ispecific(Isimd op) -> Simd_reload.reload_operation self#makereg op arg res
-  | Ifloatofint | Iintoffloat ->
-      (* Result must be in register, but argument can be on stack *)
-      (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iconst_int n ->
       if n <= 0x7FFFFFFFn && n >= -0x80000000n
       then (arg, res)
@@ -161,6 +158,11 @@ method! reload_operation op arg res =
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
+  | Iscalarcast (Float_of_int (Float32 | Float64) |
+                 Float_to_int (Float32 | Float64) |
+                 Float_of_float32 | Float_to_float32) ->
+    (* Result must be in register, but argument can be on stack *)
+    (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
   | Iscalarcast (V128_to_scalar (Float64x2) | V128_of_scalar (Float64x2)) ->
     (* These are just moves; either the argument or result may be on the stack. *)
     begin match stackp arg.(0), stackp res.(0) with
@@ -189,8 +191,8 @@ method! reload_operation op arg res =
                | Ipause
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)
-  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Iconst_vec128 _|Icall_ind|Icall_imm _
-  | Icompf _
+  | Imove|Ispill|Ireload|Iconst_float _|Iconst_float32 _|Iconst_vec128 _
+  | Icall_ind|Icall_imm _|Ifloatop (Icompf _|Inegf|Iabsf)
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _

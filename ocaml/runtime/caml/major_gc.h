@@ -19,6 +19,7 @@
 #ifdef CAML_INTERNALS
 
 typedef enum {
+  Phase_sweep_main,
   Phase_sweep_and_mark_main,
   Phase_mark_final,
   Phase_sweep_ephe
@@ -27,6 +28,8 @@ extern gc_phase_t caml_gc_phase;
 
 Caml_inline char caml_gc_phase_char(gc_phase_t phase) {
   switch (phase) {
+    case Phase_sweep_main:
+      return 'S';
     case Phase_sweep_and_mark_main:
       return 'M';
     case Phase_mark_final:
@@ -36,6 +39,10 @@ Caml_inline char caml_gc_phase_char(gc_phase_t phase) {
     default:
       return 'U';
   }
+}
+
+Caml_inline int caml_marking_started(void) {
+  return caml_gc_phase != Phase_sweep_main;
 }
 
 intnat caml_opportunistic_major_work_available (void);

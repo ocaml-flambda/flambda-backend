@@ -44,16 +44,6 @@ module S = struct
 
   type prim_call_operation =
     | External of external_call_operation
-    | Alloc of
-        { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Lambda.alloc_mode
-        }
-    | Checkbound of { immediate : int option }
-    | Checkalign of
-        { bytes_pow2 : int;
-          immediate : int option
-        }
     | Probe of
         { name : string;
           handler_code_sym : string;
@@ -65,6 +55,7 @@ module S = struct
     | Spill
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
+    | Const_float32 of int32
     | Const_float of int64
     | Const_symbol of Cmm.symbol
     | Const_vec128 of Cmm.vec128_bits
@@ -83,16 +74,8 @@ module S = struct
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Negf
-    | Absf
-    | Addf
-    | Subf
-    | Mulf
-    | Divf
-    | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
+    | Floatop of Mach.float_operation
     | Csel of Mach.test
-    | Floatofint
-    | Intoffloat
     | Valueofint
     | Intofvalue
     | Vectorcast of Cmm.vector_cast
@@ -110,6 +93,12 @@ module S = struct
           regs : Reg.t array
         }
     | Dls_get
+    | Poll
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo;
+          mode : Lambda.alloc_mode
+        }
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)
@@ -174,6 +163,7 @@ module S = struct
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
+    | Stack_check of { max_frame_size_bytes : int }
 
   type 'a with_label_after =
     { op : 'a;
@@ -208,7 +198,6 @@ module S = struct
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
-    | Poll_and_jump of Label.t
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

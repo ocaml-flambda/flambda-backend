@@ -109,7 +109,7 @@ let dbg = false
 (* CR layouts v5: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let jkind_layout_must_be_value loc jkind =
-  match Jkind.(sub jkind (value ~why:V1_safety_check)) with
+  match Jkind.(sub_or_error jkind (value ~why:V1_safety_check)) with
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
@@ -118,12 +118,14 @@ let jkind_layout_must_be_value loc jkind =
    outlived its usefulness and should be deleted. *)
 let check_record_field_jkind lbl =
   match Jkind.(get_default_value lbl.lbl_jkind), lbl.lbl_repres with
-  | (Value | Immediate | Immediate64), _ -> ()
-  | Float64, Record_ufloat -> ()
+  | (Value | Immediate | Immediate64 | Non_null_value), _ -> ()
+  | Float64, (Record_ufloat | Record_mixed _) -> ()
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
-  | (Any | Void) as c, _ -> raise (Error (lbl.lbl_loc, Illegal_record_field c))
+  | (Any | Void | Word | Bits32 | Bits64) as c, _ ->
+    (* CR layouts v2.1: support unboxed ints here *)
+    raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -1172,10 +1174,14 @@ let can_group discr pat =
   | Constant (Const_char _), Constant (Const_char _)
   | Constant (Const_string _), Constant (Const_string _)
   | Constant (Const_float _), Constant (Const_float _)
+  | Constant (Const_float32 _), Constant (Const_float32 _)
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
-  | Constant (Const_nativeint _), Constant (Const_nativeint _) ->
+  | Constant (Const_nativeint _), Constant (Const_nativeint _)
+  | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
+  | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
+  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
       true
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
@@ -1196,7 +1202,9 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_unboxed_float _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
+          | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
+          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
+          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -1604,8 +1612,8 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
               Typedtree.pat_bound_idents_full arg_sort orp
-              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty, id_sort) ->
+              |> List.filter (fun (id, _, _, _, _) -> Ident.Set.mem id pm_fv)
+              |> List.map (fun (id, _, ty, _, id_sort) ->
                      (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
@@ -1907,7 +1915,7 @@ let get_pat_args_lazy p rem =
 *)
 
 let prim_obj_tag =
-  Primitive.simple_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
+  Lambda.simple_prim_on_values ~name:"caml_obj_tag" ~arity:1 ~alloc:false
 
 let get_mod_field modname field =
   lazy
@@ -2137,9 +2145,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
-        match lbl.lbl_mut with
-        | Immutable -> Reads_agree
-        | Mutable -> Reads_vary
+        if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let access, sort, layout =
         match lbl.lbl_repres with
@@ -2161,12 +2167,24 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
+        | Record_mixed { value_prefix_len; flat_suffix } ->
+            let read =
+              if pos < value_prefix_len then Mread_value_prefix ptr
+              else
+                let read =
+                  match flat_suffix.(pos - value_prefix_len) with
+                  | Imm -> Flat_read_imm
+                  | Float64 -> Flat_read_float64
+                  | Float ->
+                      (* TODO: could optimise to Alloc_local sometimes *)
+                      Flat_read_float alloc_heap
+                in
+                Mread_flat_suffix read
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
+            lbl_sort, lbl_layout
       in
-      let str =
-        match lbl.lbl_mut with
-        | Immutable -> Alias
-        | Mutable -> StrictOpt
-      in
+      let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       (access, str, sort, layout) :: make_args (pos + 1)
   in
   make_args 0
@@ -2211,12 +2229,10 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       ( Lprim
-          (Parrayrefu ref_kind,
+          (Parrayrefu (ref_kind, Ptagged_int_index),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
-        (match am with
-        | Mutable   -> StrictOpt
-        | Immutable -> Alias),
+        (if Types.is_mutable am then StrictOpt else Alias),
         arg_sort,
         result_layout)
       :: make_args (pos + 1)
@@ -2247,11 +2263,11 @@ let divide_array ~scopes kind ctx pm =
 let strings_test_threshold = 8
 
 let prim_string_notequal =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_notequal" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_notequal" ~arity:2
             ~alloc:false)
 
 let prim_string_compare =
-  Pccall (Primitive.simple_on_values ~name:"caml_string_compare" ~arity:2
+  Pccall (Lambda.simple_prim_on_values ~name:"caml_string_compare" ~arity:2
             ~alloc:false)
 
 let bind_sw arg layout k =
@@ -2864,13 +2880,17 @@ let combine_constant value_kind loc arg cst partial ctx def
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
     | Const_float _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp CFneq)
-          (Pfloatcomp CFlt) arg
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
+          (Pfloatcomp (Pfloat64, CFlt)) arg
+          const_lambda_list
+    | Const_float32 _ ->
+        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat32, CFneq))
+        (Pfloatcomp (Pfloat32, CFlt)) arg
           const_lambda_list
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_float_comp CFneq)
-          (Punboxed_float_comp CFlt)
+          (Punboxed_float_comp (Pfloat64, CFneq))
+          (Punboxed_float_comp (Pfloat64, CFlt))
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
@@ -2886,6 +2906,21 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail
           (Pbintcomp (Pnativeint, Cne))
           (Pbintcomp (Pnativeint, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int32 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint32, Cne))
+          (Punboxed_int_comp (Pint32, Clt))
+          arg const_lambda_list
+    | Const_unboxed_int64 _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pint64, Cne))
+          (Punboxed_int_comp (Pint64, Clt))
+          arg const_lambda_list
+    | Const_unboxed_nativeint _ ->
+        make_test_sequence value_kind loc fail
+          (Punboxed_int_comp (Pnativeint, Cne))
+          (Punboxed_int_comp (Pnativeint, Clt))
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)
@@ -2928,6 +2963,18 @@ let split_extension_cases tag_lambda_list =
        | false, Extension (path,_)-> Right (path, act)
        | _, Ordinary _ -> assert false)
     tag_lambda_list
+
+let transl_match_on_option value_kind arg loc ~if_some ~if_none =
+  (* This case is very frequent, it corresponds to
+      options and lists. *)
+  (* Keeping the Pisint test would make the bytecode
+      slightly worse, but it lets the native compiler generate
+      better code -- see #10681. *)
+  if !Clflags.native_code then
+    Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
+                if_none, if_some, value_kind)
+  else
+    Lifthenelse(arg, if_some, if_none, value_kind)
 
 let combine_constructor value_kind loc arg pat_env cstr partial ctx def
     (descr_lambda_list, total1, pats) =
@@ -3021,16 +3068,8 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
             with
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-                (* This case is very frequent, it corresponds to
-                   options and lists. *)
-                (* Keeping the Pisint test would make the bytecode
-                   slightly worse, but it lets the native compiler generate
-                   better code -- see #10681. *)
-                if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
-                              act1, act2, value_kind)
-                else
-                  Lifthenelse(arg, act2, act1, value_kind)
+                transl_match_on_option value_kind arg loc
+                  ~if_none:act1 ~if_some:act2
             | n, 0, _, [] ->
                 (* The matched type defines constant constructors only.
                    (typically the constant cases are dense, so
@@ -3533,8 +3572,8 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             partial (divide_constructor ~scopes)
             (combine_constructor value_kind ploc arg ph.pat_env cstr partial)
             ctx pm
-      | Array _ ->
-          let kind = Typeopt.array_pattern_kind pomega in
+      | Array (_, elt_sort, _) ->
+          let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_array ~scopes kind)
@@ -3609,10 +3648,7 @@ let is_record_with_mutable_field p =
   match p.pat_desc with
   | Tpat_record (lps, _) ->
       List.exists
-        (fun (_, lbl, _) ->
-          match lbl.Types.lbl_mut with
-          | Mutable -> true
-          | Immutable -> false)
+        (fun (_, lbl, _) -> Types.is_mutable lbl.lbl_mut)
         lps
   | Tpat_alias _
   | Tpat_variant _
@@ -3907,11 +3943,11 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-          (fun (id, _, typ, sort) ->
+          (fun (id, _, typ, _, sort) ->
              (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
-      let ids = List.map (fun (id, _, _, _) -> id) catch_ids in
+      let ids = List.map (fun (id, _, _, _, _) -> id) catch_ids in
       let bind =
         map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
                       arg_sort)
@@ -4088,6 +4124,33 @@ let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list parti
     (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list
        partial)
 
+let for_optional_arg_default
+    ~scopes loc pat ~param ~default_arg ~default_arg_sort ~return_layout body
+  : lambda
+  =
+  (* CR layouts v1.5: It's sad to compute [default_arg_layout] here as we
+     immediately go and do it again in [for_let]. We should rework [for_let]
+     so it can take a precomputed layout.
+  *)
+  let default_arg_layout =
+    Typeopt.layout pat.pat_env pat.pat_loc default_arg_sort pat.pat_type
+  in
+  let supplied_or_default =
+    transl_match_on_option
+      default_arg_layout
+      (Lvar param)
+      Loc_unknown
+      ~if_none:default_arg
+      ~if_some:
+        (Lprim
+           (* CR ncik-roberts: Check whether we need something better here. *)
+           (Pfield (0, Pointer, Reads_agree),
+            [ Lvar param ],
+            Loc_unknown))
+  in
+  for_let ~scopes ~arg_sort:default_arg_sort ~return_layout
+    loc supplied_or_default pat body
+
 (* Error report *)
 (* CR layouts v5: This file didn't use to have the report_error infrastructure -
    I added it only for the void sanity checking in this module, which I'm not
@@ -4099,7 +4162,7 @@ let report_error ppf = function
       fprintf ppf
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
-        (Jkind.Violation.report_with_name ~name:"This expression") err
+        (Jkind.Violation.report_with_name ~name:"this expression") err
   | Illegal_record_field c ->
       fprintf ppf
         "Sort %s detected where value was expected in a record field:@ Please \

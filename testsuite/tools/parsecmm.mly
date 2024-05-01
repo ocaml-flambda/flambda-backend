@@ -75,7 +75,6 @@ let access_array base numelt size =
 %token BYTE
 %token CASE
 %token CATCH
-%token CHECKBOUND
 %token COLON
 %token DATA
 %token DIVF
@@ -210,7 +209,7 @@ componentlist:
   | componentlist STAR component { $3 :: $1 }
 ;
 traps:
-    LPAREN INTCONST RPAREN       { List.init $2 (fun _ -> Pop Pop_generic) }
+    LPAREN INTCONST RPAREN       { List.init $2 (fun i -> Pop i) }
   | /**/                         { [] }
 expr:
     INTCONST    { Cconst_int ($1, debuginfo ()) }
@@ -264,9 +263,31 @@ expr:
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
       Ccatch(Recursive, handlers, $3, Any) }
   | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
-  | LPAREN TRY sequence WITH bind_ident sequence RPAREN
-      { unbind_ident $5; Ctrywith($3, Regular, $5, $6, debuginfo (),
-                                  Any) }
+  | LPAREN TRY machtype sequence WITH bind_ident sequence RPAREN
+      { let after_push_k = Lambda.next_raise_count () in
+        let after_pop_k = Lambda.next_raise_count () in
+        let exn_k = Lambda.next_raise_count () in
+        let result = Backend_var.create_local "result" in
+        let result' = Backend_var.With_provenance.create result in
+        unbind_ident $6;
+        Ctrywith (
+          Ccatch (Nonrecursive,
+            [after_push_k, [],
+             Ccatch (Nonrecursive,
+               [after_pop_k, [result', $3],
+                Cvar result, debuginfo (), false],
+               Cexit (Cmm.Lbl after_pop_k,
+                 [$4], (* original try body *)
+                 [Pop exn_k]),
+               Any),
+             debuginfo (), false],
+            Cexit (Cmm.Lbl after_push_k, [], [Push exn_k]),
+            Any),
+          exn_k,
+          $6, (* exception parameter *)
+          $7, (* exception handler *)
+          debuginfo (),
+          Any) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload {memory_chunk=Word_val;
@@ -339,7 +360,7 @@ chunk:
   | SIGNED INT32                { Thirtytwo_signed }
   | INT                         { Word_int }
   | ADDR                        { Word_val }
-  | FLOAT32                     { Single }
+  | FLOAT32                     { Single { reg = Float64 } }
   | FLOAT64                     { Double }
   | FLOAT                       { Double }
   | VAL                         { Word_val }
@@ -348,8 +369,8 @@ unaryop:
     LOAD chunk                  { Cload {memory_chunk=$2;
                                          mutability=Asttypes.Mutable;
                                          is_atomic=false} }
-  | FLOATOFINT                  { Cfloatofint }
-  | INTOFFLOAT                  { Cintoffloat }
+  | FLOATOFINT                  { Cscalarcast (Float_of_int Float64) }
+  | INTOFFLOAT                  { Cscalarcast (Float_to_int Float64) }
   | VALUEOFINT                  { Cvalueofint }
   | INTOFVALUE                  { Cintofvalue }
   | RAISE                       { Craise $1 }
@@ -395,7 +416,6 @@ binaryop:
   | NGTF                        { Ccmpf CFngt }
   | GEF                         { Ccmpf CFge }
   | NGEF                        { Ccmpf CFnge }
-  | CHECKBOUND                  { Ccheckbound }
   | MULH                        { (Cmulhi {signed = true}) }
   | MULH UNSIGNED               { (Cmulhi {signed = false}) }
 ;

@@ -22,7 +22,7 @@ open Types
    found in; it's used by [type_forcing_context], which see. *)
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension of mutable_flag
+  | Array_comprehension of mutability
 
 (* This variant is used to print improved error messages, and does not affect
    the behavior of the typechecker itself.
@@ -47,6 +47,7 @@ type type_forcing_context =
   | Comprehension_for_start
   | Comprehension_for_stop
   | Comprehension_when
+  | Error_message_attr of string
 
 (* The combination of a type and a "type forcing context". The intent is that it
    describes a type that is "expected" (required) by the context. If unifying
@@ -63,7 +64,7 @@ type pattern_variable =
   {
     pv_id: Ident.t;
     pv_uid: Uid.t;
-    pv_mode: Mode.Value.t;
+    pv_mode: Mode.Value.l;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -150,11 +151,11 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some:
-  Env.t -> Typedtree.expression -> Mode.Value.t -> Typedtree.expression
-val option_none:
-  Env.t -> type_expr -> Location.t -> Typedtree.expression
-val extract_option_type: Env.t -> type_expr -> type_expr
+val type_option_some:
+        Env.t -> Parsetree.expression ->
+        type_expr-> type_expr -> Typedtree.expression
+val type_option_none:
+        Env.t -> type_expr -> Location.t -> Typedtree.expression
 val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
@@ -177,7 +178,7 @@ type submode_reason =
 
   | Other (* add more cases here for better hints *)
 
-val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> Mode.Value.t -> unit
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> (Mode.allowed * 'r) Mode.Value.t -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -197,6 +198,11 @@ type error =
   | Expr_type_clash of
       Errortrace.unification_error * type_forcing_context option
       * Parsetree.expression_desc option
+  | Function_arity_type_clash of
+      { syntactic_arity :  int;
+        type_constraint : type_expr;
+        trace : Errortrace.unification_error;
+      }
   | Apply_non_function of {
       funct : Typedtree.expression;
       func_ty : type_expr;
@@ -275,8 +281,8 @@ type error =
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.closure_context option * Env.shared_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
-  | Param_mode_mismatch of type_expr * Mode.Alloc.error
+  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t
   | Function_returns_local
@@ -287,6 +293,8 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Modes_on_pattern
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -320,3 +328,5 @@ val constant: Parsetree.constant -> (Typedtree.constant, error) result
 val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
 val check_recursive_class_bindings :
   Env.t -> Ident.t list -> Typedtree.class_expr list -> unit
+
+val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression 

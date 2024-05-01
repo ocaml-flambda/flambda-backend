@@ -24,6 +24,8 @@
     Don't add new types to this file; add them to [jane_asttypes.mli] instead.
     This file is considered part of the parse tree, which we can't modify. *)
 
+(* Do not add to this type; it is no longer used in the compiler but is
+   required by ppxlib. *)
 type constant =
     Const_int of int
   | Const_char of char
@@ -50,6 +52,7 @@ type closed_flag = Closed | Open
 
 type label = string
 
+(** This is used only in the Parsetree. *)
 type arg_label =
     Nolabel
   | Labelled of string (** [label:T -> ...] *)

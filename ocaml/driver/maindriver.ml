@@ -67,7 +67,7 @@ let main argv ppf =
            are  incompatible with -pack, -a, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
-      | Some (P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
+      | Some (P.Middle_end | P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
         assert false (* native only *)
     end;
     if !make_archive then begin

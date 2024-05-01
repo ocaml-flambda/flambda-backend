@@ -339,6 +339,8 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     if (Color_hd(hd) == NOT_MARKABLE) {
       /* Local allocation, not marked */
 #ifdef DEBUG
+      /* We don't check the reserved bits here because this is OK even for mixed
+         blocks. */
       for (i = 0; i < Wosize_hd(hd); i++)
         Field(Val_hp(hp), i) = Debug_free_local;
 #endif
@@ -357,7 +359,10 @@ static void scan_local_allocations(scanning_action f, void* fdata,
     i = 0;
     if (Tag_hd(hd) == Closure_tag)
       i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
-    for (; i < Wosize_hd(hd); i++) {
+
+    mlsize_t scannable_wosize = Scannable_wosize_hd(hd);
+
+    for (; i < scannable_wosize; i++) {
       value *p = Op_val(Val_hp(hp)) + i;
       int marked_ix = visit(f, fdata, loc, colors, p);
       if (marked_ix != -1) {
@@ -845,9 +850,9 @@ CAMLprim value caml_continuation_use_noexc (value cont)
 
   /* this forms a barrier between execution and any other domains
      that might be marking this continuation */
-  if (!Is_young(cont) ) caml_darken_cont(cont);
+  if (!Is_young(cont) && caml_marking_started())
+    caml_darken_cont(cont);
 
-  /* at this stage the stack is assured to be marked */
   v = Field(cont, 0);
 
   if (caml_domain_alone()) {
