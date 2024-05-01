@@ -124,6 +124,8 @@ module Assume_info : sig
 
   val is_none : t -> bool
 
+  val meet_with_strict : t -> t
+
   module Witnesses : sig
     type t = unit
 

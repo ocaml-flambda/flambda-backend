@@ -215,4 +215,8 @@ module Assume_info = struct
   let get_value t = match t with No_assume -> None | Assume v -> Some v
 
   let is_none t = match t with No_assume -> true | Assume _ -> false
+
+  let strict = Assume Value.safe
+
+  let meet_with_strict t = meet t strict
 end

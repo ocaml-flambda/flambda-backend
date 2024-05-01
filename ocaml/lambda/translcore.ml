@@ -98,6 +98,22 @@ let declare_probe_handlers lam =
     lam
     !probe_handlers
 
+(* Propagate zero_alloc assume annotations to the body of try-with. *)
+let trywith_body_scopes scopes =
+  let assume_zero_alloc =
+    Debuginfo.Scoped_location.get_assume_zero_alloc ~scopes
+  in
+  if Zero_alloc_utils.Assume_info.is_none assume_zero_alloc then
+    scopes
+  else
+    (* Force "strict" assume.
+       This is a heuristic that is useful for a common code pattern
+       but not sound in rare cases. See flambda-backend PR2458. *)
+    let assume_zero_alloc =
+      Zero_alloc_utils.Assume_info.meet_with_strict assume_zero_alloc
+    in
+    update_assume_zero_alloc ~scopes ~assume_zero_alloc
+
 (* Compile an exception/extension definition *)
 
 let prim_fresh_oo_id =
@@ -469,7 +485,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
       let return_layout = layout_exp sort e in
-      Ltrywith(transl_exp ~scopes sort body, id,
+      Ltrywith(transl_exp ~scopes:(trywith_body_scopes scopes) sort body, id,
                Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
