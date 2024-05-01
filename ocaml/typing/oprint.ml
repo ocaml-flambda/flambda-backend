@@ -219,7 +219,7 @@ let print_out_value ppf tree =
                                      (f < 0.0 || 1. /. f = neg_infinity)
     | Oval_float32 f ->
         let s = float32_to_string f in
-        parenthesize_if_neg ppf "%s" s (String.starts_with ~prefix:"-" s)
+        parenthesize_if_neg ppf "%ss" s (String.starts_with ~prefix:"-" s)
     | Oval_string (_,_, Ostr_bytes) as tree ->
       pp_print_char ppf '(';
       print_simple_tree ppf tree;
@@ -232,7 +232,7 @@ let print_out_value ppf tree =
     | Oval_int64 i -> fprintf ppf "%LiL" i
     | Oval_nativeint i -> fprintf ppf "%nin" i
     | Oval_float f -> pp_print_string ppf (float_repres f)
-    | Oval_float32 f -> pp_print_string ppf (float32_to_string f)
+    | Oval_float32 f -> fprintf ppf "%ss" (float32_to_string f)
     | Oval_char c -> fprintf ppf "%C" c
     | Oval_string (s, maxlen, kind) ->
        begin try

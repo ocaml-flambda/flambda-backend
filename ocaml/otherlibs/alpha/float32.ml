@@ -40,24 +40,34 @@ external div :
   (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
   = "%divfloat32"
 
-external ( ~-. ) : (float32[@local_opt]) -> (float32[@local_opt])
-  = "%negfloat32"
+external pow : float32 -> float32 -> float32
+  = "caml_power_float32_bytecode" "powf"
+  [@@unboxed] [@@noalloc]
 
-external ( +. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%addfloat32"
+module Operators = struct
+  external ( ~-. ) : (float32[@local_opt]) -> (float32[@local_opt])
+    = "%negfloat32"
 
-external ( -. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%subfloat32"
+  external ( +. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%addfloat32"
 
-external ( *. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%mulfloat32"
+  external ( -. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%subfloat32"
 
-external ( /. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%divfloat32"
+  external ( *. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%mulfloat32"
+
+  external ( /. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%divfloat32"
+
+  external ( ** ) : float32 -> float32 -> float32
+    = "caml_power_float32_bytecode" "powf"
+    [@@unboxed] [@@noalloc]
+end
 
 external fma : float32 -> float32 -> float32 -> float32
   = "caml_fma_float32_bytecode" "fmaf"
@@ -75,8 +85,8 @@ let minus_one = -1.s
 let infinity = float32_of_bits 0x7f800000l
 let neg_infinity = float32_of_bits 0xff800000l
 let nan = float32_of_bits 0x7f800001l
-let is_finite (x : float32) = x -. x = 0.s
-let is_infinite (x : float32) = 1.s /. x = 0.s
+let is_finite (x : float32) = sub x x = 0.s
+let is_infinite (x : float32) = div 1.s x = 0.s
 let is_nan (x : float32) = x <> x
 let pi = 0x1.921fb6p+1s
 let max_float = float32_of_bits 0x7f7fffffl
@@ -111,17 +121,9 @@ type fpclass = Stdlib.fpclass =
   | FP_infinite
   | FP_nan
 
-external classify : (float32[@unboxed]) -> fpclass
+external classify_float : (float32[@unboxed]) -> fpclass
   = "caml_classify_float32_bytecode" "caml_classify_float32"
   [@@noalloc]
-
-external ( ** ) : float32 -> float32 -> float32
-  = "caml_power_float32_bytecode" "powf"
-  [@@unboxed] [@@noalloc]
-
-external pow : float32 -> float32 -> float32
-  = "caml_power_float32_bytecode" "powf"
-  [@@unboxed] [@@noalloc]
 
 external sqrt : float32 -> float32 = "caml_sqrt_float32_bytecode" "sqrtf"
   [@@unboxed] [@@noalloc]

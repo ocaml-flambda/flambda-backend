@@ -29,7 +29,7 @@
 *)
 
 type t = float32
-(** An alias for the type of floating-point numbers. *)
+(** An alias for the type of 32-bit floating-point numbers. *)
 
 val zero : float32
 (** The floating point 0.s *)
@@ -63,29 +63,42 @@ external div :
   = "%divfloat32"
 (** Floating-point division. *)
 
-external ( ~-. ) : (float32[@local_opt]) -> (float32[@local_opt])
-  = "%negfloat32"
-(** Unary negation. *)
+external pow : float32 -> float32 -> float32
+  = "caml_power_float32_bytecode" "powf"
+  [@@unboxed] [@@noalloc]
+(** Exponentiation. *)
 
-external ( +. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%addfloat32"
-(** Floating-point addition. *)
+(** Floating-point arithmetic operator overloads. *)
+module Operators : sig
+  external ( ~-. ) : (float32[@local_opt]) -> (float32[@local_opt])
+    = "%negfloat32"
+  (** Unary negation. *)
 
-external ( -. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%subfloat32"
-(** Floating-point subtraction. *)
+  external ( +. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%addfloat32"
+  (** Floating-point addition. *)
 
-external ( *. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%mulfloat32"
-(** Floating-point multiplication. *)
+  external ( -. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%subfloat32"
+  (** Floating-point subtraction. *)
 
-external ( /. ) :
-  (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
-  = "%divfloat32"
-(** Floating-point division. *)
+  external ( *. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%mulfloat32"
+  (** Floating-point multiplication. *)
+
+  external ( /. ) :
+    (float32[@local_opt]) -> (float32[@local_opt]) -> (float32[@local_opt])
+    = "%divfloat32"
+  (** Floating-point division. *)
+
+  external ( ** ) : float32 -> float32 -> float32
+    = "caml_power_float32_bytecode" "powf"
+    [@@unboxed] [@@noalloc]
+  (** Exponentiation. *)
+end
 
 external fma : float32 -> float32 -> float32 -> float32
   = "caml_fma_float32_bytecode" "fmaf"
@@ -209,7 +222,7 @@ val to_string : float32 -> string
     This conversion does not involve a loss of precision. *)
 
 (** The five classes of floating-point numbers, as determined by
-    the {!classify} function. *)
+    the {!classify_float} function. *)
 type fpclass = Stdlib.fpclass =
   | FP_normal  (** Normal number, none of the below *)
   | FP_subnormal  (** Number very close to 0.0s, has reduced precision *)
@@ -217,21 +230,11 @@ type fpclass = Stdlib.fpclass =
   | FP_infinite  (** Number is positive or negative infinity *)
   | FP_nan  (** Not a number: result of an undefined operation *)
 
-external classify : (float32[@unboxed]) -> fpclass
+external classify_float : (float32[@unboxed]) -> fpclass
   = "caml_classify_float32_bytecode" "caml_classify_float32"
   [@@noalloc]
 (** Return the class of the given floating-point number:
     normal, subnormal, zero, infinite, or not a number. *)
-
-external ( ** ) : float32 -> float32 -> float32
-  = "caml_power_float32_bytecode" "powf"
-  [@@unboxed] [@@noalloc]
-(** Exponentiation. *)
-
-external pow : float32 -> float32 -> float32
-  = "caml_power_float32_bytecode" "powf"
-  [@@unboxed] [@@noalloc]
-(** Exponentiation. *)
 
 external sqrt : float32 -> float32 = "caml_sqrt_float32_bytecode" "sqrtf"
   [@@unboxed] [@@noalloc]
