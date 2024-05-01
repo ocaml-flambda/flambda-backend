@@ -2,9 +2,9 @@
    checking uses of the corresponding functions.
 
    This is part of a test of separate compilation. This file is a library used
-   by [test_signatures_separate_b.ml], but with its implementation deleted,
-   showing we're inferring the correct signature and using the zero_alloc
-   information in it.
+   by [test_signatures_separate_b.ml].  The dune rules compile only its [cmi]
+   file - no executable artifacts - showing we're inferring the correct
+   signature and using the zero_alloc information in it.
 *)
 
 (* Basic behavior with strict and assume. *)

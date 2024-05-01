@@ -2,8 +2,9 @@
    checking uses of the corresponding functions.
 
    This is part of a test of separate compilation. This file uses the library
-   [test_signatures_separate_a.ml]. The dune rules delete its compiled
-   implementation first, so we're only using its signature.
+   [test_signatures_separate_a.ml]. The dune rules ensure we only build a [cmi]
+   file for that module - no executable artifacts are constructed, so we are
+   only using its signature.
 *)
 
 module A = Test_signatures_separate_a
