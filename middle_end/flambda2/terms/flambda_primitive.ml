@@ -1180,7 +1180,8 @@ let arg_kind_of_unary_primitive p =
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
   | Reinterpret_int64_as_float -> K.naked_int64
-  | Float_arith _ -> K.naked_float
+  | Float_arith (Float64, _) -> K.naked_float
+  | Float_arith (Float32, _) -> K.naked_float32
   | Array_length _ | Bigarray_length _ -> K.value
   | Unbox_number _ | Untag_immediate -> K.value
   | Box_number (kind, _) -> K.Boxable_number.unboxed_kind kind
@@ -1208,7 +1209,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value
   | Reinterpret_int64_as_float -> Singleton K.naked_float
-  | Float_arith _ -> Singleton K.naked_float
+  | Float_arith (Float64, _) -> Singleton K.naked_float
+  | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Array_length _ -> Singleton K.value
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
@@ -1587,7 +1589,10 @@ let args_kind_of_binary_primitive p =
   | Int_comp (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
-  | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
+  | Float_arith (Float64, _) | Float_comp (Float64, _) ->
+    K.naked_float, K.naked_float
+  | Float_arith (Float32, _) | Float_comp (Float32, _) ->
+    K.naked_float32, K.naked_float32
   | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> K.value, K.value
 
@@ -1606,7 +1611,8 @@ let result_kind_of_binary_primitive p : result_kind =
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
   | Int_arith (kind, _) | Int_shift (kind, _) ->
     Singleton (K.Standard_int.to_kind kind)
-  | Float_arith _ -> Singleton K.naked_float
+  | Float_arith (Float64, _) -> Singleton K.naked_float
+  | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
   | Bigarray_get_alignment _ -> Singleton K.naked_immediate
   | Atomic_exchange | Atomic_fetch_and_add -> Singleton K.value
