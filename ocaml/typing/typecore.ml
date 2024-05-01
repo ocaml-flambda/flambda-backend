@@ -3648,18 +3648,18 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                     (Warnings.Not_principal "commuting this argument")
                 end;
                 if not optional && is_optional l' then (
+                  let label = Printtyp.string_of_label l in
                   if is_position l
                   then
                     raise
                       (Error
                          ( sarg.pexp_loc
                          , env
-                         , Nonoptional_call_pos_label
-                             (Printtyp.string_of_label l)))
+                         , Nonoptional_call_pos_label label))
                   else
                     Location.prerr_warning
                       sarg.pexp_loc
-                      (Warnings.Nonoptional_label (Printtyp.string_of_label l)));
+                      (Warnings.Nonoptional_label label));
                 remaining_sargs, use_arg ~commuted sarg l'
             | None ->
                 sargs,

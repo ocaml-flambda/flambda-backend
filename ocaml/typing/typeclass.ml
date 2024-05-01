@@ -1361,17 +1361,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                 match Btype.extract_label name sargs with
                 | Some (l', sarg, _, remaining_sargs) ->
                     if not optional && Btype.is_optional l' then (
+                      let label = Printtyp.string_of_label l in
                       if Btype.is_position l then
                         raise
                           (Error
                              ( sarg.pexp_loc
                              , val_env
-                             , Nonoptional_call_pos_label
-                                 (Printtyp.string_of_label l)))
+                             , Nonoptional_call_pos_label label))
                       else
                         Location.prerr_warning sarg.pexp_loc
-                          (Warnings.Nonoptional_label
-                            (Printtyp.string_of_label l)));
+                          (Warnings.Nonoptional_label label));
                     remaining_sargs, use_arg sarg l'
                 | None ->
                     let is_erased () = List.mem_assoc Nolabel sargs in
