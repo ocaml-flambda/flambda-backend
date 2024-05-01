@@ -166,8 +166,18 @@ let mk_H f =
  \     (Like -I, but the program can not directly reference these dependencies)"
 
 let mk_libloc f =
-  "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Location of .libloc dir as well \
-    as library names accessible using it"
+  "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Add .libloc directory configuration.\n\
+  \    .libloc directory is alternative (to -I and -H flags) way of telling\n\
+  \    compiler where to find files. Each `.libloc` directory should have a\n\
+  \    structure of `.libloc/<lib>/cmi-cmx`, where `<lib>` is a library name\n\
+  \    and `cmi-cmx` is a file where each line is of format `<filename> <path>`\n\
+  \    telling compiler that <filename> for library <lib> is accessible\n\
+  \    at <path>. If <path> is relative, then it is relative to a parent directory\n\
+  \    of a `.libloc` directory.\n\
+  \    <libs> and <hidden_libs> are comma-separated lists of libraries, to let\n\
+  \    compiler know which libraries should be accessible via this `.libloc`\n\
+  \    directory. Difference between <libs> and <hidden_libs> is the same as\n\
+  \    the difference between -I and -H flags"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -1773,7 +1783,7 @@ module Default = struct
     let _no_absname = clear Clflags.absname
     let _no_alias_deps = set transparent_modules
     let _no_app_funct = clear applicative_functors
-    let _directory d = Clflags.directory := Some d 
+    let _directory d = Clflags.directory := Some d
     let _no_principal = clear principal
     let _no_rectypes = clear recursive_types
     let _no_strict_formats = clear strict_formats
