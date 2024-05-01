@@ -20,25 +20,8 @@ open Misc
 open Cmi_format
 
 module CU = Compilation_unit
-module Impl = struct
-  (* The implementation compilation unit for some import, if known *)
-  type t =
-    | Unknown_argument (* The import is a parameter module *)
-    | Known of CU.t
-
-  module With_crc = struct
-    type nonrec t = t * Digest.t
-
-    let of_import_info info : t option =
-      match Import_info.Intf.crc info with
-      | None -> None
-      | Some crc ->
-          match Import_info.Intf.impl info with
-          | None -> Some (Unknown_argument, crc)
-          | Some cu -> Some (Known cu, crc)
-  end
-end
-module Consistbl = Consistbl.Make (CU.Name) (Impl)
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
+module Consistbl = Consistbl.Make (CU.Name) (Consistbl_data)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -82,7 +65,7 @@ type can_load_cmis =
 type import = {
   imp_is_param : bool;
   imp_arg_for : Compilation_unit.Name.t option;
-  imp_impl : Impl.t;
+  imp_impl : CU.t option;
   imp_sign : Subst.Lazy.signature;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
@@ -192,11 +175,12 @@ let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
   let import_crc import_info =
     let name = Import_info.Intf.name import_info in
-    match Impl.With_crc.of_import_info import_info with
+    let nonalias = Import_info.Intf.nonalias import_info in
+    match nonalias with
     | None -> ()
-    | Some (impl, crc) ->
+    | Some (sort, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name impl crc source
+        Consistbl.check crc_units name sort crc source
   in Array.iter import_crc crcs
 
 let check_consistency penv imp =
@@ -205,15 +189,15 @@ let check_consistency penv imp =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      inconsistent_data = source_impl;
-      original_data = auth_impl;
+      inconsistent_data = source_kind;
+      original_data = auth_kind;
     } ->
-    match source_impl, auth_impl with
-    | Known source_unit, Known auth_unit
+    match source_kind, auth_kind with
+    | Normal source_unit, Normal auth_unit
       when not (CU.equal source_unit auth_unit) ->
         error (Inconsistent_package_declaration_between_imports(
             imp.imp_filename, auth_unit, source_unit))
-    | (Known _ | Unknown_argument), _ ->
+    | (Normal _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
 let is_registered_parameter_import {param_imports; _} import =
@@ -305,8 +289,8 @@ let acknowledge_import penv ~check modname pers_sig =
   end;
   let arg_for, impl =
     match kind with
-    | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Impl.Known cmi_impl
-    | Parameter -> None, Impl.Unknown_argument
+    | Normal { cmi_arg_for; cmi_impl } -> cmi_arg_for, Some cmi_impl
+    | Parameter -> None, None
   in
   let {imports;} = penv in
   let import =
@@ -351,11 +335,11 @@ let find_import ~allow_hidden penv ~check modname =
           add_import penv modname;
           acknowledge_import penv ~check modname psig
 
-let make_binding _penv (impl : Impl.t) : binding =
+let make_binding _penv (impl : CU.t option) : binding =
   let unit =
     match impl with
-    | Known unit -> unit
-    | Unknown_argument ->
+    | Some unit -> unit
+    | None ->
         Misc.fatal_errorf "Can't bind a parameter statically"
   in
   Static unit
@@ -511,14 +495,7 @@ let imports {imported_units; crc_units; _} =
     Consistbl.extract (CU.Name.Set.elements !imported_units)
       crc_units
   in
-  List.map (fun (cu_name, data) ->
-      let cu, crc =
-        match (data : (Impl.t * Digest.t) option) with
-        | None -> None, None
-        | Some (Unknown_argument, crc) -> None, Some crc
-        | Some (Known cu, crc) -> Some cu, Some crc
-      in
-      Import_info.Intf.create cu_name cu ~crc)
+  List.map (fun (cu_name, spec) -> Import_info.Intf.create cu_name spec)
     imports
 
 let looked_up {persistent_structures; _} modname =
@@ -568,12 +545,12 @@ let save_cmi penv psig =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let impl : Impl.t =
+      let data : Import_info.Intf.Nonalias.Kind.t =
         match kind with
-        | Normal { cmi_impl } -> Known cmi_impl
-        | Parameter -> Unknown_argument
+        | Normal { cmi_impl } -> Normal cmi_impl
+        | Parameter -> Parameter
       in
-      save_import penv crc modname impl flags filename
+      save_import penv crc modname data flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
 
