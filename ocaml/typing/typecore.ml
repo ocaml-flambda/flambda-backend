@@ -3652,7 +3652,10 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   then
                     raise
                       (Error
-                         (sarg.pexp_loc, env, Nonoptional_call_pos_label (Printtyp.string_of_label l)))
+                         ( sarg.pexp_loc
+                         , env
+                         , Nonoptional_call_pos_label
+                             (Printtyp.string_of_label l)))
                   else
                     Location.prerr_warning
                       sarg.pexp_loc
@@ -10220,8 +10223,8 @@ let report_error ~loc env = function
         | Labelled _ | Position _ -> assert false )
   | Nonoptional_call_pos_label label ->
     Location.errorf ~loc
-      "@[the [%%call_pos] label '%s' is not optional. It @ \
-         cannot be applied with '?'.@]" label
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

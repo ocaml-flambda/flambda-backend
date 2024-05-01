@@ -1364,7 +1364,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       if Btype.is_position l then
                         raise
                           (Error
-                             (sarg.pexp_loc, val_env, Nonoptional_call_pos_label (Printtyp.string_of_label l)))
+                             ( sarg.pexp_loc
+                             , val_env
+                             , Nonoptional_call_pos_label
+                                 (Printtyp.string_of_label l)))
                       else
                         Location.prerr_warning sarg.pexp_loc
                           (Warnings.Nonoptional_label
@@ -2336,8 +2339,8 @@ let report_error env ppf = function
       nm Jkind.Sort.format sort
   | Nonoptional_call_pos_label label ->
     fprintf ppf
-      "@[the [%%call_pos] label '%s' is not optional. It @ \
-         cannot be applied with '?'.@]" label
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true
