@@ -110,6 +110,7 @@ type error =
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
   | Non_value_let_binding of string * Jkind.sort
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1362,10 +1363,17 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               end else
                 match Btype.extract_label name sargs with
                 | Some (l', sarg, _, remaining_sargs) ->
-                    if not optional && Btype.is_optional l' then
-                      Location.prerr_warning sarg.pexp_loc
-                        (Warnings.Nonoptional_label
-                           (Printtyp.string_of_label l));
+                    if not optional && Btype.is_optional l' then (
+                      let label = Printtyp.string_of_label l in
+                      if Btype.is_position l then
+                        raise
+                          (Error
+                             ( sarg.pexp_loc
+                             , val_env
+                             , Nonoptional_call_pos_label label))
+                      else
+                        Location.prerr_warning sarg.pexp_loc
+                          (Warnings.Nonoptional_label label));
                     remaining_sargs, use_arg sarg l'
                 | None ->
                     let is_erased () = List.mem_assoc Nolabel sargs in
@@ -2332,6 +2340,10 @@ let report_error env ppf = function
       "@[The types of variables bound by a 'let' in a class function@ \
        must have layout value. Instead, %s's type has layout %a.@]"
       nm Jkind.Sort.format sort
+  | Nonoptional_call_pos_label label ->
+    fprintf ppf
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true
