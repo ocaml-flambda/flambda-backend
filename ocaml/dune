@@ -108,7 +108,7 @@
    debug_event meta opcodes bytesections dll symtable
 
    ;; some of COMP
-   pparse main_args compenv compmisc makedepend compile_common
+   pparse main_args compenv compmisc makedepend compile_common instantiator
    ; manual update: mli only files
    annot asttypes jane_asttypes cmo_format outcometree parsetree debug_event
  ))

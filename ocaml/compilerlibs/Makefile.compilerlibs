@@ -166,7 +166,8 @@ COMP = \
   driver/main_args.cmo \
   driver/compmisc.cmo \
   driver/makedepend.cmo \
-  driver/compile_common.cmo
+  driver/compile_common.cmo \
+  driver/instantiator.cmo
 COMP_CMI = \
   file_formats/cmo_format.cmi \
   file_formats/cmx_format.cmi \
