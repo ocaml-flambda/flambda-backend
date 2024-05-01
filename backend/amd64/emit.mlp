@@ -797,19 +797,24 @@ let move (src : Reg.t) (dst : Reg.t) =
          They should instead generate a separate Ispecific and this case should be
          removed. *)
       I.movq (reg src) (reg dst)
+    | Float32, _, Int, _ | Int, _, Float32, _ ->
+      (* CR-soon mslater: this case is used by the float32_to_bits/float32_of_bits intrinsics.
+         They should instead generate a separate Ispecific and this case should be
+         removed. *)
+      I.movd (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
     | Vec128, _, _, _ | _, _, Vec128, _ ->
       Misc.fatal_errorf
         "Illegal move between a vector and non-vector register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
-    | Float32, _, _, _ | _, _, Float32, _ ->
+    | Float32, _, (Val | Addr | Float), _ | (Val | Addr | Float), _, Float32, _ ->
       Misc.fatal_errorf
         "Illegal move between a float32 and non-float32 register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
     | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
       Misc.fatal_errorf
-        "Illegal move between a float and val/addr register (%s to %s)\n"
+        "Illegal move between a float and non-float register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
     end
 
