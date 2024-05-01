@@ -462,6 +462,12 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
+  (middle_end/flambda2/numbers/libflambda2_numbers_stubs.a
+   as
+   compiler-libs/libflambda2_numbers_stubs.a)
+  (middle_end/flambda2/numbers/libflambda2_numbers_stubs.a
+   as
+   compiler-libs/libflambda2_numbers_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
