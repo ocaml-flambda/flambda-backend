@@ -1972,7 +1972,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
           |> List.split
         in
         let mode = transl_alloc_mode_r alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
+        static_catch (transl_list ~scopes:(trywith_body_scopes scopes) argl) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->
@@ -1983,7 +1983,8 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let arg_layout = layout_exp arg_sort arg in
-        static_catch [transl_exp ~scopes arg_sort arg] [val_id, arg_layout]
+        static_catch [transl_exp ~scopes:(trywith_body_scopes scopes)
+                        arg_sort arg] [val_id, arg_layout]
           (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
              e.exp_loc None (Lvar val_id) val_cases partial)
   in
