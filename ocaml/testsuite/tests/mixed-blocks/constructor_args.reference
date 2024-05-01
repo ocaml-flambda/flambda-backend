@@ -3,7 +3,7 @@ Test (construction)
   Ext_mixed1 8.000000
   Mixed2 (3.000000, 4.500000)
   Mixed3 (6.000000, 17.000000, 5.000000)
-Test (construct and destruct): 61.700000 = 61.700000 (PASS)
+Test (construct and destruct): 149.700000 = 149.700000 (PASS)
 Test (mixed constructors in recursive groups):
   Mixed1 4.000000
   Mixed2 (5.000000, 4.000000)
