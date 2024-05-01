@@ -230,6 +230,7 @@ type error =
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
+  | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3637,9 +3638,19 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                   may_warn sarg.pexp_loc
                     (Warnings.Not_principal "commuting this argument")
                 end;
-                if not optional && is_optional l' then
-                  Location.prerr_warning sarg.pexp_loc
-                    (Warnings.Nonoptional_label (Printtyp.string_of_label l));
+                if not optional && is_optional l' then (
+                  let label = Printtyp.string_of_label l in
+                  if is_position l
+                  then
+                    raise
+                      (Error
+                         ( sarg.pexp_loc
+                         , env
+                         , Nonoptional_call_pos_label label))
+                  else
+                    Location.prerr_warning
+                      sarg.pexp_loc
+                      (Warnings.Nonoptional_label label));
                 remaining_sargs, use_arg ~commuted sarg l'
             | None ->
                 sargs,
@@ -10204,6 +10215,10 @@ let report_error ~loc env = function
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
         | Labelled _ | Position _ -> assert false )
+  | Nonoptional_call_pos_label label ->
+    Location.errorf ~loc
+      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
+         automatically if ommitted. It cannot be passed with '?'.@]" label
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
