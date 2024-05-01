@@ -175,3 +175,20 @@ module A9 = struct
 end
 
 
+(* Same as A2 but using "match-exception" instead of "try-with". *)
+module A10 = struct
+  let[@inline never] f x = if x = 0 then raise (Exn x) else x * x
+
+  let[@inline always] g x n =
+    let y = x+n in if  y > 10 then raise (Exn y) else y
+
+  let[@zero_alloc assume][@inline always] bar x =
+    match
+      f x
+    with
+    | exception (Exn n) -> g x n
+    | r -> r
+
+  let[@zero_alloc] foo x =
+    bar x
+end
