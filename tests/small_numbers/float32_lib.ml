@@ -265,8 +265,9 @@ let () =
 
 let () =
   CF32.check_float32s (fun f _ ->
-    let f = F32.ldexp f (Random.full_int Int.max_int) in
-    let cf = CF32.ldexp f (Random.full_int Int.max_int) in
+    let i = Random.int 1000 in
+    let cf = CF32.ldexp f i in
+    let f = F32.ldexp f i in
     bit_eq f cf
   )
 ;;
