@@ -1,1 +1,0 @@
-Failed to parse with all extensions disabled after successfully parsing with all extensions enabled. Does the parser check for extension enabledness, which is almost certainly a bug? (See the comment by this test.)
