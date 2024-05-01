@@ -17,7 +17,7 @@ module A1 = struct
     bar x
 end
 
-(* inline bar : fails *)
+(* inline bar : passes *)
 
 module A2 = struct
   let[@inline never] f x = if x = 0 then raise (Exn x) else x * x
