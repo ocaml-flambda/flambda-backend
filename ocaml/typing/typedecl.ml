@@ -1469,7 +1469,7 @@ let update_decl_jkind env dpath decl =
             non_float64_unboxed_fields = false } ->
           Record_ufloat
         | { values = false; imms = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false } ->
+            non_float64_unboxed_fields = false } [@warning "+9"] ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind

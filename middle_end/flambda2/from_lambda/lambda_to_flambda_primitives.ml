@@ -1431,10 +1431,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Binary (Block_load (block_access, mutability), arg, Simple field)
     in
     match read with
-    | Mread_value_prefix _
-    (* CR mixed blocks: OK for int32? *)
-    | Mread_flat_suffix (Flat_read _) ->
-      [block_access]
+    | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
     | Mread_flat_suffix (Flat_read_float mode) ->
       [box_float mode block_access ~current_region])
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
