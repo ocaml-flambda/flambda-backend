@@ -82,15 +82,12 @@ type binding =
   | Static of Compilation_unit.t (* Bound to a static constant *)
 
 (* Data relating to an actual referenceable module, with a signature and a
-   representation in memory. This is currently a placeholder, since such
-   modules have no more associated data than imports, but this will soon
-   change with parameterised modules, in which each import may correspond
-   to any number of different instances, each of which is a different
-   in-memory value. *)
-type pers_struct = unit
+   representation in memory. *)
+type 'a pers_struct_info = {
+  ps_val : 'a;
+}
 
-type 'a pers_struct_info = pers_struct * 'a
-
+(* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
   persistent_structures :
@@ -113,7 +110,7 @@ let empty () = {
 }
 
 let clear penv =
-  let [@warning "+missing-record-field-pattern"] {
+  let {
     imports;
     persistent_structures;
     imported_units;
@@ -154,10 +151,10 @@ let find_import_info_in_cache {imports; _} import =
 let find_info_in_cache {persistent_structures; _} name =
   match Hashtbl.find persistent_structures name with
   | exception Not_found -> None
-  | ps, pm -> Some (ps, pm)
+  | ps -> Some ps
 
 let find_in_cache penv name =
-  find_info_in_cache penv name |> Option.map (fun (_ps, pm) -> pm)
+  find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
 let register_parameter_import ({param_imports; _} as penv) import =
   begin match find_import_info_in_cache penv import with
@@ -218,7 +215,7 @@ let without_cmis penv f x =
   res
 
 let fold {persistent_structures; _} f x =
-  Hashtbl.fold (fun name (_, pm) x -> f name pm x)
+  Hashtbl.fold (fun name ps x -> f name ps.ps_val x)
     persistent_structures x
 
 (* Reading persistent structures from .cmi files *)
@@ -291,7 +288,7 @@ let acknowledge_import penv ~check modname pers_sig =
     | Normal { cmi_impl } -> Some cmi_impl
     | Parameter -> None
   in
-  let {imports;} = penv in
+  let {imports; _} = penv in
   let import =
     { imp_is_param = is_param;
       imp_impl = impl;
@@ -375,9 +372,9 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = () in
-  Hashtbl.add persistent_structures modname (ps, pm);
-  (ps, pm)
+  let ps = { ps_val = pm } in
+  Hashtbl.add persistent_structures modname ps;
+  ps
 
 let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
   let import = read_import penv ~check modname filename in
@@ -390,7 +387,7 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
-  | (ps, pm) -> (ps, pm)
+  | ps -> ps
   | exception Not_found ->
       let import = find_import ~allow_hidden penv ~check name in
       acknowledge_pers_struct penv name import val_of_pers_sig
@@ -445,7 +442,7 @@ let read penv f modname filename ~add_binding =
   read_pers_struct penv f true modname filename ~add_binding
 
 let find ~allow_hidden penv f name =
-  snd (find_pers_struct ~allow_hidden penv f true name)
+  (find_pers_struct ~allow_hidden penv f true name).ps_val
 
 let check ~allow_hidden penv f ~loc name =
   let {persistent_structures; _} = penv in
