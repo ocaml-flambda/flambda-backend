@@ -5059,8 +5059,11 @@ let zero_alloc_of_application ~num_args attrs funct =
        *)
       zero_alloc
     | Default_check ->
-      (* No zero_alloc attribute on the application - see if we can find
-         information from the value description. *)
+      (* We assume the call is zero_alloc if the function is known to be
+         zero_alloc. If the function is zero_alloc opt, then we need to be sure
+         that the opt checks were run to license this assumption. We judge
+         whether the opt checks were run based on the argument to the
+         [-zero-alloc-check] command line flag. *)
       let use_opt =
         match !Clflags.zero_alloc_check with
         | Check_default | No_check -> false
