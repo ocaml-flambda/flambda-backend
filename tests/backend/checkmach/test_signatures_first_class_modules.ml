@@ -21,17 +21,17 @@ let h x =
   end : S_basic)
 
 (* A non-strict assumption won't help you with a strict check. *)
-let[@zero_alloc strict] g_strict x y =
+let[@zero_alloc strict] g_strict_bad x y =
   let module X = (val x : S_basic) in
   X.f y
 
 module type S_strict = sig
-  val[@zero_alloc strict] f : int -> int
+  val[@zero_alloc strict] f_bad : int -> int
 end
 
 let h_strict x =
   let module X = (val x : S_basic) in
   (module struct
-    let[@zero_alloc strict] f y = X.f (y+1)
+    let[@zero_alloc strict] f_bad y = X.f (y+1)
    end : S_strict)
 
