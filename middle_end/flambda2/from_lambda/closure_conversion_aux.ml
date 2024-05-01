@@ -308,10 +308,10 @@ module Env = struct
     try Variable.Map.find var t.value_approximations
     with Not_found -> Value_approximation.Value_unknown
 
-  let set_path_to_root t path_to_root =
-    if path_to_root = Debuginfo.Scoped_location.Loc_unknown
-    then t
-    else { t with path_to_root }
+  let set_path_to_root t (path_to_root : Debuginfo.Scoped_location.t) =
+    match path_to_root with
+    | Loc_unknown -> t
+    | Loc_known _ -> { t with path_to_root }
 
   let path_to_root { path_to_root; _ } = path_to_root
 
@@ -332,10 +332,16 @@ module Acc = struct
     | Untrackable
 
   type closure_info =
-    { return_continuation : Continuation.t;
+    { code_id : Code_id.t;
+      return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
-      is_purely_tailrec : bool
+      is_purely_tailrec : bool;
+      slot_offsets_at_definition : Slot_offsets.t
+          (* note: this last field is not a property of the current closure, but
+             rather a property of its point of definition (i.e. the state of the
+             slot_offsets right before we entered the current closure). It's
+             mainly stored here for efficiency reasons. *)
     }
 
   type t =
@@ -352,6 +358,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
+      code_slot_offsets : Slot_offsets.t Code_id.Map.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list;
       symbol_short_name_counter : int
@@ -432,7 +439,7 @@ module Acc = struct
         externals := Symbol.Map.add symbol approx !externals;
         approx
 
-  let create ~slot_offsets ~cmx_loader =
+  let create ~cmx_loader =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
@@ -447,7 +454,8 @@ module Acc = struct
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
-      slot_offsets;
+      slot_offsets = Slot_offsets.empty;
+      code_slot_offsets = Code_id.Map.empty;
       regions_closed_early = Ident.Set.empty;
       closure_infos = [];
       symbol_short_name_counter = 0
@@ -471,6 +479,8 @@ module Acc = struct
 
   let slot_offsets t = t.slot_offsets
 
+  let code_slot_offsets t = t.code_slot_offsets
+
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     let approx : _ Value_approximation.t =
@@ -488,10 +498,12 @@ module Acc = struct
           let fields = List.map approx_of_field fields |> Array.of_list in
           Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
-      | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-      | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
-      | Immutable_float_array _ | Immutable_value_array _ | Empty_array
-      | Mutable_string _ | Immutable_string _ ->
+      | Set_of_closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+      | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
+      | Immutable_float_block _ | Immutable_float_array _
+      | Immutable_value_array _ | Empty_array _ | Immutable_int32_array _
+      | Immutable_int64_array _ | Immutable_nativeint_array _ | Mutable_string _
+      | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -533,10 +545,14 @@ module Acc = struct
 
   let symbol_approximations t = t.symbol_approximations
 
-  let add_code ~code_id ~code t =
+  let add_code ~code_id ~code ?slot_offsets t =
     { t with
       code_map = Code_id.Map.add code_id code t.code_map;
-      code_in_reverse_order = code :: t.code_in_reverse_order
+      code_in_reverse_order = code :: t.code_in_reverse_order;
+      code_slot_offsets =
+        (match slot_offsets with
+        | None -> t.code_slot_offsets
+        | Some offsets -> Code_id.Map.add code_id offsets t.code_slot_offsets)
     }
 
   let add_free_names free_names t =
@@ -653,6 +669,17 @@ module Acc = struct
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
 
+  let add_offsets_from_code t code_id =
+    match Code_id.Map.find code_id t.code_slot_offsets with
+    | exception Not_found ->
+      Misc.fatal_errorf "No slot offsets constraints found for code id %a"
+        Code_id.print code_id
+    | from_function ->
+      let slot_offsets =
+        Slot_offsets.add_offsets_from_function t.slot_offsets ~from_function
+      in
+      { t with slot_offsets }
+
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
     let slot_offsets =
       Slot_offsets.add_set_of_closures t.slot_offsets ~is_phantom
@@ -666,10 +693,17 @@ module Acc = struct
     | closure_info :: _ -> Some closure_info
 
   let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
-      ~is_purely_tailrec =
+      ~is_purely_tailrec ~code_id =
     { t with
+      slot_offsets = Slot_offsets.empty;
       closure_infos =
-        { return_continuation; exn_continuation; my_closure; is_purely_tailrec }
+        { code_id;
+          return_continuation;
+          exn_continuation;
+          my_closure;
+          is_purely_tailrec;
+          slot_offsets_at_definition = t.slot_offsets
+        }
         :: t.closure_infos
     }
 
@@ -678,6 +712,9 @@ module Acc = struct
       match t.closure_infos with
       | [] -> Misc.fatal_error "pop_closure_info called on empty stack"
       | closure_info :: closure_infos -> closure_info, closure_infos
+    in
+    let code_slot_offsets =
+      Code_id.Map.add closure_info.code_id t.slot_offsets t.code_slot_offsets
     in
     let closure_infos =
       match closure_infos with
@@ -688,7 +725,12 @@ module Acc = struct
         then { closure_info2 with is_purely_tailrec = false } :: closure_infos2
         else closure_infos
     in
-    closure_info, { t with closure_infos }
+    ( closure_info,
+      { t with
+        closure_infos;
+        code_slot_offsets;
+        slot_offsets = closure_info.slot_offsets_at_definition
+      } )
 end
 
 module Function_decls = struct
@@ -700,6 +742,16 @@ module Function_decls = struct
         mode : Lambda.alloc_mode
       }
 
+    type unboxing_kind =
+      | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
+      | Unboxed_number of Flambda_kind.Boxable_number.t
+      | Unboxed_float_record of int
+
+    type calling_convention =
+      | Normal_calling_convention
+      | Unboxed_calling_convention of
+          unboxing_kind option list * unboxing_kind option * Function_slot.t
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
@@ -708,6 +760,7 @@ module Function_decls = struct
         removed_params : Ident.Set.t;
         params_arity : [`Complex] Flambda_arity.t;
         return : [`Unarized] Flambda_arity.t;
+        calling_convention : calling_convention;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -723,9 +776,9 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
-        ~removed_params ~return ~return_continuation ~exn_continuation
-        ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
-        ~free_idents_of_body recursive ~closure_alloc_mode
+        ~removed_params ~return ~calling_convention ~return_continuation
+        ~exn_continuation ~my_region ~body ~(attr : Lambda.function_attribute)
+        ~loc ~free_idents_of_body recursive ~closure_alloc_mode
         ~first_complex_local_param ~result_mode
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
@@ -740,6 +793,7 @@ module Function_decls = struct
         params_arity;
         removed_params;
         return;
+        calling_convention;
         return_continuation;
         exn_continuation;
         my_region;
@@ -765,6 +819,8 @@ module Function_decls = struct
     let params_arity t = t.params_arity
 
     let return t = t.return
+
+    let calling_convention t = t.calling_convention
 
     let return_continuation t = t.return_continuation
 

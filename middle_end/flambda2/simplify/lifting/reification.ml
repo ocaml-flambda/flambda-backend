@@ -36,8 +36,9 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
           ~const:(fun const ->
             match Reg_width_const.descr const with
             | Tagged_immediate imm -> F.Tagged_immediate imm
-            | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-            | Naked_vec128 _ | Naked_nativeint _ ->
+            | Naked_immediate _ | Naked_float _ | Naked_float32 _
+            | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _
+              ->
               Misc.fatal_errorf
                 "Expected a constant of kind [Value] but got %a (dbg %a)"
                 Reg_width_const.print const Debuginfo.print_compact dbg))
@@ -50,18 +51,31 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
       if is_unique then Immutable_unique else Immutable
     in
     RSC.create_block art tag mut ~fields
+  | Boxed_float32 f -> RSC.create_boxed_float32 art (Const f)
   | Boxed_float f -> RSC.create_boxed_float art (Const f)
   | Boxed_int32 i -> RSC.create_boxed_int32 art (Const i)
   | Boxed_int64 i -> RSC.create_boxed_int64 art (Const i)
   | Boxed_nativeint i -> RSC.create_boxed_nativeint art (Const i)
   | Boxed_vec128 v -> RSC.create_boxed_vec128 art (Const v)
+  | Immutable_float32_array { fields = _ } ->
+    (* CR mslater: (float32) unboxed arrays *)
+    assert false
   | Immutable_float_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_float_array art fields
+  | Immutable_int32_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_int32_array art fields
+  | Immutable_int64_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_int64_array art fields
+  | Immutable_nativeint_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_nativeint_array art fields
   | Immutable_value_array { fields } ->
     let fields = convert_fields fields in
     RSC.create_immutable_value_array art fields
-  | Empty_array -> RSC.create_empty_array art
+  | Empty_array array_kind -> RSC.create_empty_array art array_kind
 
 let lift dacc ty ~bound_to static_const : _ Or_invalid.t * DA.t =
   let dacc, symbol =

@@ -19,6 +19,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Int
   | Float
   | Vec128
+  | Float32
 
 type machtype = machtype_component array
 
@@ -27,11 +28,12 @@ let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
 let typ_float = [|Float|]
+let typ_float32 = [|Float32|]
 let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float     Vec128
+      Addr     Float32     Float     Vec128
        ^
        |
       Val
@@ -58,11 +60,15 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
+  | Float32, Float32 -> Float32
   | Vec128, Vec128 -> Vec128
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
+    Printf.eprintf "%d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -78,17 +84,22 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
+  | Float32, Float32 -> true
   | Vec128, Vec128 -> true
-  | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128
-  | Vec128, Float ->
+  | (Int | Addr | Val), (Float | Float32 | Vec128)
+  | (Float | Float32 | Vec128), (Int | Addr | Val)
+  | (Float | Float32), Vec128
+  | Vec128, (Float | Float32)
+  | Float32, Float
+  | Float, Float32 ->
+    Printf.eprintf "GE: %d %d\n%!" (Obj.magic comp1) (Obj.magic comp2);
     assert false
 
 type exttype =
   | XInt
   | XInt32
   | XInt64
+  | XFloat32
   | XFloat
   | XVec128
 
@@ -97,6 +108,7 @@ let machtype_of_exttype = function
   | XInt32 -> typ_int
   | XInt64 -> typ_int
   | XFloat -> typ_float
+  | XFloat32 -> typ_float32
   | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
@@ -163,23 +175,19 @@ type phantom_defining_expr =
 
 type trywith_shared_label = int
 
-type pop_action =
-  | Pop_generic
-  | Pop_specific of trywith_shared_label
-
 type trap_action =
   | Push of trywith_shared_label
-  | Pop of pop_action
-
-type trywith_kind =
-  | Regular
-  | Delayed of trywith_shared_label
+  | Pop of trywith_shared_label
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type initialization_or_assignment =
   | Initialization
   | Assignment
+
+type float_width =
+  | Float64
+  | Float32
 
 type memory_chunk =
     Byte_unsigned
@@ -190,7 +198,7 @@ type memory_chunk =
   | Thirtytwo_signed
   | Word_int
   | Word_val
-  | Single
+  | Single of { reg : float_width }
   | Double
   | Onetwentyeight_unaligned
   | Onetwentyeight_aligned
@@ -199,6 +207,10 @@ type vector_cast =
   | Bits128
 
 type scalar_cast =
+  | Float_to_int of float_width
+  | Float_of_int of float_width
+  | Float_to_float32
+  | Float_of_float32
   | V128_to_scalar of Primitive.vec128_type
   | V128_of_scalar of Primitive.vec128_type
 
@@ -235,14 +247,11 @@ type operation =
   | Ccmpa of integer_comparison
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
   | Cvectorcast of vector_cast
   | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
-  | Ccheckbound
-  | Ccheckalign of { bytes_pow2: int }
   | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque
@@ -254,7 +263,7 @@ type kind_for_unboxing =
   | Any
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_vector of Lambda.boxed_vector
-  | Boxed_float
+  | Boxed_float of Lambda.boxed_float
 
 type is_global = Global | Local
 
@@ -274,6 +283,7 @@ let global_symbol sym_name = { sym_name; sym_global = Global }
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
+  | Cconst_float32 of float * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
@@ -297,10 +307,9 @@ type expression =
           * expression * Debuginfo.t * bool (* is_cold *)) list
         * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
-  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * kind_for_unboxing
-  | Cregion of expression
-  | Ctail of expression
+  | Ctrywith of expression * trywith_shared_label
+      * Backend_var.With_provenance.t * expression * Debuginfo.t
+      * kind_for_unboxing
 
 type property =
   | Zero_alloc
@@ -309,7 +318,6 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Ignore_assert_all of property
   | Assume of { property: property; strict: bool; never_returns_normally: bool;
                 loc: Location.t }
   | Check of { property: property; strict: bool; loc : Location.t; }
@@ -333,6 +341,7 @@ type data_item =
   | Cdouble of float
   | Cvec128 of vec128_bits
   | Csymbol_address of symbol
+  | Csymbol_offset of symbol * int
   | Cstring of string
   | Cskip of int
   | Calign of int
@@ -371,10 +380,9 @@ let iter_shallow_tail f = function
       true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
-  | Cregion _
-  | Ctail _
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -416,10 +424,9 @@ let map_shallow_tail ?kind f = function
               Option.value kind ~default:kind_before)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
-  | Cregion _
-  | Ctail _
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -430,10 +437,9 @@ let map_shallow_tail ?kind f = function
 
 let map_tail ?kind f =
   let rec loop = function
-    | Cregion _
-    | Ctail _
     | Cconst_int _
     | Cconst_natint _
+    | Cconst_float32 _
     | Cconst_float _
     | Cconst_symbol _
     | Cvar _
@@ -471,12 +477,9 @@ let iter_shallow f = function
       List.iter f el
   | Ctrywith (e1, _kind, _id, e2, _dbg, _value_kind) ->
       f e1; f e2
-  | Cregion e ->
-      f e
-  | Ctail e ->
-      f e
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -511,12 +514,9 @@ let map_shallow f = function
       Cexit (n, List.map f el, traps)
   | Ctrywith (e1, kind, id, e2, dbg, value_kind) ->
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
-  | Cregion e ->
-      Cregion (f e)
-  | Ctail e ->
-      Ctail (f e)
   | Cconst_int _
   | Cconst_natint _
+  | Cconst_float32 _
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
@@ -524,18 +524,20 @@ let map_shallow f = function
     as c ->
       c
 
-let equal_machtype_component left right =
+let equal_machtype_component (left : machtype_component) (right : machtype_component) =
   match left, right with
   | Val, Val -> true
   | Addr, Addr -> true
   | Int, Int -> true
   | Float, Float -> true
   | Vec128, Vec128 -> true
-  | Val, (Addr | Int | Float | Vec128)
-  | Addr, (Val | Int | Float | Vec128)
-  | Int, (Val | Addr | Float | Vec128)
-  | Float, (Val | Addr | Int | Vec128)
-  | Vec128, (Val | Addr | Int | Float) ->
+  | Float32, Float32 -> true
+  | Val, (Addr | Int | Float | Vec128 | Float32)
+  | Addr, (Val | Int | Float | Vec128 | Float32)
+  | Int, (Val | Addr | Float | Vec128 | Float32)
+  | Float, (Val | Addr | Int | Vec128 | Float32)
+  | Vec128, (Val | Addr | Int | Float | Float32)
+  | Float32, (Val | Addr | Int | Float | Vec128) ->
     false
 
 let equal_exttype left right =
@@ -543,14 +545,44 @@ let equal_exttype left right =
   | XInt, XInt -> true
   | XInt32, XInt32 -> true
   | XInt64, XInt64 -> true
+  | XFloat32, XFloat32 -> true
   | XFloat, XFloat -> true
   | XVec128, XVec128 -> true
-  | XInt, (XInt32 | XInt64 | XFloat | XVec128)
-  | XInt32, (XInt | XInt64 | XFloat | XVec128)
-  | XInt64, (XInt | XInt32 | XFloat | XVec128)
-  | XFloat, (XInt | XInt32 | XInt64 | XVec128)
-  | XVec128, (XInt | XInt32 | XInt64 | XFloat) ->
+  | XInt, (XInt32 | XInt64 | XFloat | XFloat32 | XVec128)
+  | XInt32, (XInt | XInt64 | XFloat | XFloat32 | XVec128)
+  | XInt64, (XInt | XInt32 | XFloat | XFloat32 | XVec128)
+  | XFloat, (XInt | XInt32 | XFloat32 | XInt64 | XVec128)
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat | XFloat32)
+  | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
+
+let equal_float_width left right =
+  match left, right with
+  | Float64, Float64 -> true
+  | Float32, Float32 -> true
+  | (Float32 | Float64), _ -> false
+
+let equal_scalar_cast left right =
+  match left, right with
+  | Float_to_float32, Float_to_float32 -> true
+  | Float_of_float32, Float_of_float32 -> true
+  | Float_to_int f1, Float_to_int f2 -> equal_float_width f1 f2
+  | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
+  | V128_to_scalar v1, V128_to_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Float_to_float32, (Float_of_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_float32, (Float_to_float32 | Float_to_int _ | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_to_int _, (Float_of_float32 | Float_to_float32 | Float_of_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | Float_of_int _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       V128_to_scalar _ | V128_of_scalar _)
+  | V128_to_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_of_scalar _)
+  | V128_of_scalar _, (Float_of_float32 | Float_to_float32 | Float_to_int _ |
+                       Float_of_int _ | V128_to_scalar _)
+    -> false
 
 let equal_float_comparison left right =
   match left, right with
@@ -586,45 +618,53 @@ let equal_memory_chunk left right =
   | Thirtytwo_signed, Thirtytwo_signed -> true
   | Word_int, Word_int -> true
   | Word_val, Word_val -> true
-  | Single, Single -> true
+  | Single { reg = regl }, Single { reg = regr } -> equal_float_width regl regr
   | Double, Double -> true
   | Onetwentyeight_unaligned, Onetwentyeight_unaligned
   | Onetwentyeight_aligned, Onetwentyeight_aligned -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                   | Thirtytwo_signed | Word_int | Word_val
+                   | Single _ | Double
                    | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                 | Thirtytwo_signed | Word_int | Word_val
+                 | Single _ | Double
                  | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                      | Thirtytwo_signed | Word_int | Word_val
+                      | Single _ | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                    | Thirtytwo_signed | Word_int | Word_val
+                    | Single _ | Double
                     | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
+                        | Thirtytwo_signed | Word_int | Word_val
+                        | Single _ | Double
                         | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
+                      | Thirtytwo_unsigned | Word_int | Word_val
+                      | Single _ | Double
                       | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val
+              | Single _ | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int
+              | Single _ | Double
               | Onetwentyeight_unaligned | Onetwentyeight_aligned)
-  | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
-            | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
             | Onetwentyeight_unaligned | Onetwentyeight_aligned)
   | Onetwentyeight_unaligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
             | Double | Onetwentyeight_aligned)
   | Onetwentyeight_aligned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single _
+            | Double | Onetwentyeight_unaligned)
+  | Single _, (Onetwentyeight_aligned | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double | Onetwentyeight_unaligned) ->
     false
 
@@ -643,3 +683,7 @@ let equal_integer_comparison left right =
   | Cle, (Ceq | Cne | Clt | Cgt | Cge)
   | Cge, (Ceq | Cne | Clt | Cgt | Cle) ->
     false
+
+let all_properties = [Zero_alloc]
+
+let caml_flambda2_invalid = "caml_flambda2_invalid"

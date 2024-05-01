@@ -240,7 +240,7 @@ typedef uint64_t uintnat;
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    total size of live objects. */
-#define Percent_free_def 120
+#define Percent_free_def 160
 
 /* Default setting for the major GC slice smoothing window: 1
    (i.e. no smoothing)

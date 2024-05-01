@@ -136,9 +136,13 @@ let get_field env mut layout ptr n dbg =
     match layout with
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
-    | Punboxed_float -> Double
+    | Punboxed_float Pfloat64 -> Double
+    | Punboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Punboxed_product _ -> Misc.fatal_error "TODO"
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
@@ -355,12 +359,16 @@ let exttype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> XInt
   | Float64 -> XFloat
+  | Word -> XInt
+  | Bits32 -> XInt32
+  | Bits64 -> XInt64
   | Void -> Misc.fatal_error "Cmmgen.exttype_of_sort: void encountered"
 
 let machtype_of_sort (s : Jkind.Sort.const) =
   match s with
   | Value -> typ_val
   | Float64 -> typ_float
+  | Word | Bits32 | Bits64 -> typ_int
   | Void -> Misc.fatal_error "Cmmgen.machtype_of_sort: void encountered"
 
 let is_unboxed_number_cmm ~strict cmm =
@@ -582,7 +590,7 @@ let rec transl env e =
           transl_make_array dbg env kind alloc_heap args
       | (Pduparray _, [arg]) ->
           let prim_obj_dup =
-            Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+            Lambda.simple_prim_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
           in
           transl_ccall env prim_obj_dup [arg] dbg
       | (Pmakearray _, []) ->
@@ -638,6 +646,9 @@ let rec transl env e =
           transl_prim_2 env p arg1 arg2 dbg
       | (p, [arg1; arg2; arg3]) ->
           transl_prim_3 env p arg1 arg2 arg3 dbg
+      (* Mixed blocks *)
+      | (Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _), _->
+          Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
       | (Pread_symbol _, _::_::_::_::_)
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
@@ -652,9 +663,11 @@ let rec transl env e =
          | Patomic_cas | Patomic_fetch_add
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
-         | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
-         | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-         | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
+         | Plsrint | Pasrint | Pintoffloat _ | Pfloatofint (_, _)
+         | Pnegfloat (_, _) | Pabsfloat (_, _)
+         | Paddfloat (_, _) | Psubfloat (_, _)
+         | Pmulfloat (_, _) | Pdivfloat (_, _)
+         | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
          | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
@@ -662,15 +675,15 @@ let rec transl env e =
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Pufloatfield _ | Psetufloatfield (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
-         | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-         | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _ | Parraylength _
-         | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
+         | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+         | Poffsetref _ | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+         | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
          | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
          | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-         | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
-         | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
-         | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+         | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _) | Pstring_load _
+         | Pbytes_load _ | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
          | Pbbswap _ | Pget_header _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -869,13 +882,18 @@ and transl_make_array dbg env kind mode args =
   | Pfloatarray ->
       make_float_alloc ~mode dbg Obj.double_array_tag
                       (List.map (transl_unbox_float dbg env) args)
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
     match native_repr with
     | Same_as_ocaml_repr sort -> (exttype_of_sort sort, transl env arg)
-    | Unboxed_float ->
+    | Unboxed_float Pfloat64 ->
         (XFloat, transl_unbox_float dbg env arg)
+    | Unboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | Unboxed_integer bi ->
         let xty =
           match bi with
@@ -884,7 +902,8 @@ and transl_ccall env prim args dbg =
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
     | Unboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -905,11 +924,15 @@ and transl_ccall env prim args dbg =
     match prim.prim_native_repr_res with
     | _, Same_as_ocaml_repr sort -> (machtype_of_sort sort, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
-    | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
+    | _, Unboxed_float Pfloat64 -> (typ_float, box_float dbg alloc_heap)
+    | _, Unboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
     | _, Unboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -928,7 +951,7 @@ and transl_prim_1 env p arg dbg =
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
   | Pufloatfield n ->
-      get_field env Mutable Punboxed_float (transl env arg) n dbg
+      get_field env Mutable (Punboxed_float Pfloat64) (transl env arg) n dbg
   | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
@@ -946,18 +969,25 @@ and transl_prim_1 env p arg dbg =
   | Pbox_int (bi, m) ->
     box_int dbg bi m (transl env arg)
   (* Floating-point operations *)
-  | Punbox_float ->
+  | Punbox_float Pfloat64 ->
       transl_unbox_float dbg env arg
-  | Pbox_float m ->
+  | Pbox_float (Pfloat64, m) ->
       box_float dbg m (transl env arg)
-  | Pfloatofint m ->
+  | Pfloatofint (Pfloat64, m) ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
-  | Pintoffloat ->
+  | Pintoffloat Pfloat64 ->
      tag_int(Cop(Cintoffloat, [transl_unbox_float dbg env arg], dbg)) dbg
-  | Pnegfloat m ->
+  | Pnegfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cnegf, [transl_unbox_float dbg env arg], dbg))
-  | Pabsfloat m ->
+  | Pabsfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cabsf, [transl_unbox_float dbg env arg], dbg))
+  | Punbox_float Pfloat32
+  | Pbox_float (Pfloat32, _)
+  | Pfloatofint (Pfloat32, _)
+  | Pintoffloat Pfloat32
+  | Pnegfloat (Pfloat32, _)
+  | Pabsfloat (Pfloat32, _) ->
+    Misc.fatal_error "float32 is not supported in the upstream compiler build."
   (* String operations *)
   | Pstringlength | Pbyteslength ->
       tag_int(string_length (transl env arg) dbg) dbg
@@ -1009,24 +1039,28 @@ and transl_prim_1 env p arg dbg =
       Cop(mk_load_atomic Word_int, [transl env arg], dbg)
   | Patomic_load {immediate_or_pointer = Pointer} ->
       Cop(mk_load_atomic Word_val, [transl env arg], dbg)
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
   | (Pfield_computed | Psequand | Psequor
     | Prunstack | Presume | Preperform
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
-    | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+    | Paddfloat (_, _) | Psubfloat (_, _)
+    | Pmulfloat (_, _) | Pdivfloat (_, _)
     | Pstringrefu | Pstringrefs | Pbytesrefu | Pbytessetu
     | Pbytesrefs | Pbytessets | Pisout | Pread_symbol _
     | Pmakeblock (_, _, _, _) | Psetfield (_, _, _) | Psetfield_computed (_, _)
     | Pmakeufloatblock (_, _)
     | Psetfloatfield (_, _) | Pduprecord (_, _) | Pccall _ | Pdivint _
     | Psetufloatfield (_, _)
-    | Pmodint _ | Pintcomp _ | Pfloatcomp _ | Punboxed_float_comp _ | Pmakearray (_, _, _)
-    | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    | Pmodint _ | Pintcomp _ | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+    | Pmakearray (_, _, _) | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     | Pduparray (_, _) | Parrayrefu _ | Parraysetu _
     | Parrayrefs _ | Parraysets _ | Paddbint _ | Psubbint _ | Pmulbint _
     | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
-    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+    | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
     | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
@@ -1099,44 +1133,53 @@ and transl_prim_2 env p arg1 arg2 dbg =
       let a1 = transl_unbox_int dbg env bi arg1 in
       let a2 = transl_unbox_int dbg env bi arg2 in
       mk_compare_ints dbg a1 a2
-  | Pcompare_floats ->
+  | Pcompare_floats Pfloat64 ->
       let a1 = transl_unbox_float dbg env arg1 in
       let a2 = transl_unbox_float dbg env arg2 in
       mk_compare_floats dbg a1 a2
+  | Pcompare_floats Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
   | Pisout ->
       transl_isout (transl env arg1) (transl env arg2) dbg
   (* Float operations *)
-  | Paddfloat m ->
+  | Paddfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Caddf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Psubfloat m ->
+  | Psubfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Csubf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pmulfloat m ->
+  | Pmulfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cmulf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pdivfloat m ->
+  | Pdivfloat (Pfloat64, m) ->
       box_float dbg m (Cop(Cdivf,
                     [transl_unbox_float dbg env arg1;
                      transl_unbox_float dbg env arg2],
                     dbg))
-  | Pfloatcomp cmp ->
+  | Pfloatcomp (Pfloat64, cmp) ->
       tag_int(Cop(Ccmpf cmp,
                   [transl_unbox_float dbg env arg1;
                    transl_unbox_float dbg env arg2],
                   dbg)) dbg
-  | Punboxed_float_comp cmp ->
+  | Punboxed_float_comp (Pfloat64, cmp) ->
       tag_int(Cop(Ccmpf cmp,
                   [transl env arg1;
                    transl env arg2],
                   dbg)) dbg
-
+  | Paddfloat (Pfloat32, _)
+  | Psubfloat (Pfloat32, _)
+  | Pmulfloat (Pfloat32, _)
+  | Pdivfloat (Pfloat32, _)
+  | Pfloatcomp (Pfloat32, _)
+  | Punboxed_float_comp (Pfloat32, _) ->
+      Misc.fatal_error "float32 is not supported in the upstream compiler build"
   (* String operations *)
   | Pstringrefu | Pbytesrefu ->
       stringref_unsafe (transl env arg1) (transl env arg2) dbg
@@ -1205,16 +1248,26 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Punboxed_int_comp(_, cmp) ->
+      tag_int (Cop(Ccmpi cmp,
+                     [transl env arg1;
+                      transl env arg2], dbg)) dbg
   | Patomic_exchange ->
      Cop (Cextcall ("caml_atomic_exchange", typ_val, [], false),
           [transl env arg1; transl env arg2], dbg)
   | Patomic_fetch_add ->
      Cop (Cextcall ("caml_atomic_fetch_add", typ_int, [], false),
           [transl env arg1; transl env arg2], dbg)
+
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+
   | Prunstack | Pperform | Presume | Preperform | Pdls_get
   | Patomic_cas | Patomic_load _
-  | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
+  | Pnot | Pnegint | Pintoffloat _ | Pfloatofint (_, _)
+  | Pnegfloat (_, _) | Pabsfloat (_, _)
+  | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pmakeufloatblock (_, _) | Pfloatfield _ | Pufloatfield _
@@ -1224,7 +1277,8 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
+  | Punbox_float _ | Pbox_float (_, _)
+  | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1271,6 +1325,10 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
      Cop (Cextcall ("caml_atomic_cas", typ_int, [], false),
           [transl env arg1; transl env arg2; transl env arg3], dbg)
 
+  (* Mixed blocks *)
+  | Pmakemixedblock _ | Psetmixedfield _ | Pmixedfield _ ->
+      Misc.fatal_error "Mixed blocks not supported in upstream compiler build"
+
   (* Effects *)
   | Presume ->
       Misc.fatal_error "Effects-related primitives not yet supported"
@@ -1307,25 +1365,29 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Patomic_exchange | Patomic_fetch_add | Patomic_load _
   | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
-  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-  | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
-  | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
+  | Pintoffloat _ | Pfloatofint (_, _) | Pnegfloat (_, _)
+  | Pabsfloat (_, _) | Paddfloat (_, _) | Psubfloat (_, _)
+  | Pmulfloat (_, _) | Pdivfloat (_, _) | Pstringlength
+  | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint
+  | Pisout | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pmakeufloatblock (_, _) | Pufloatfield _ | Psetufloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _
-  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pfloatcomp _ | Punboxed_float_comp _
+  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _
+  | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pmakearray (_, _, _)
   | Pduparray (_, _) | Parraylength _ | Parrayrefu _ | Parrayrefs _
   | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
   | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
-  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
+  | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp (_, _) | Punboxed_int_comp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pget_header _
+  | Punbox_float _ | Pbox_float (_, _)
+  | Punbox_int _ | Pbox_int _ | Pget_header _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1361,13 +1423,17 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
        We conservatively mark these as Alloc_heap, although with more tracking
        of allocation mode it may be possible to mark some Alloc_local *)
     match str, kind with
-    | Mutable, Pfloatval ->
+    | Mutable, Pboxedfloatval Pfloat64 ->
         Boxed (Boxed_float (alloc_heap, dbg), false)
+    | _, Pboxedfloatval Pfloat32 ->
+        Misc.fatal_error
+          "float32 is not supported in the upstream compiler build."
     | Mutable, Pboxedintval bi ->
         Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
     | _, Pboxedvectorval _ ->
-        Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
-    | _, (Pfloatval | Pboxedintval _) ->
+        Misc.fatal_error
+          "SIMD vectors are not supported in the upstream compiler build."
+    | _, (Pboxedfloatval Pfloat64 | Pboxedintval _) ->
         (* It would be safe to always unbox in this case, but
            we do it only if this indeed allows us to get rid of
            some allocations in the bound expression. *)
@@ -1414,8 +1480,12 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       let _cbody : expression = transl_body env in
       cexp
   | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
-  | Punboxed_float | Punboxed_int _ -> begin
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
+  | Punboxed_float Pfloat32 ->
+      Misc.fatal_error
+        "float32 is not supported in the upstream compiler build."
+  | Punboxed_float Pfloat64 | Punboxed_int _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with

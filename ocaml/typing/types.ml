@@ -19,6 +19,14 @@ open Asttypes
 
 type jkind = Jkind.t
 
+type mutability =
+  | Immutable
+  | Mutable of Mode.Alloc.Comonadic.Const.t
+
+let is_mutable = function
+  | Immutable -> false
+  | Mutable _ -> true
+
 (* Type expressions for the core language *)
 
 type transient_expr =
@@ -44,8 +52,14 @@ and type_desc =
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
+and arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
+
 and arrow_desc =
-  arg_label * Mode.Alloc.t * Mode.Alloc.t
+  arg_label * Mode.Alloc.lr * Mode.Alloc.lr
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -261,27 +275,30 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity
 
+and flat_element = Imm | Float | Float64
+and mixed_record_shape =
+  { value_prefix_len : int;
+    flat_suffix : flat_element array;
+  }
+
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * variant_representation
   | Record_boxed of Jkind.t array
   | Record_float
   | Record_ufloat
+  | Record_mixed of mixed_record_shape
 
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of jkind array array
   | Variant_extensible
 
-and global_flag =
-  | Global
-  | Unrestricted
-
 and label_declaration =
   {
     ld_id: Ident.t;
-    ld_mutable: mutable_flag;
-    ld_global: global_flag;
+    ld_mutable: mutability;
+    ld_global: Mode.Global_flag.t;
     ld_type: type_expr;
     ld_jkind : Jkind.t;
     ld_loc: Location.t;
@@ -300,7 +317,7 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of (type_expr * global_flag) list
+  | Cstr_tuple of (type_expr * Mode.Global_flag.t) list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -395,6 +412,7 @@ module type Wrapped = sig
     { val_type: type_expr wrapped;                (* Type of the value *)
       val_kind: value_kind;
       val_loc: Location.t;
+      val_zero_alloc: Builtin_attributes.check_attribute;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
@@ -469,10 +487,12 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
       | Unit -> To.Unit
       | Named (id,mty) -> To.Named (id, module_type m mty)
 
-  let value_description m {val_type; val_kind; val_attributes; val_loc; val_uid} =
+  let value_description m {val_type; val_kind; val_zero_alloc;
+                           val_attributes; val_loc; val_uid} =
     To.{
       val_type = m.map_type_expr m val_type;
       val_kind;
+      val_zero_alloc;
       val_attributes;
       val_loc;
       val_uid
@@ -520,7 +540,7 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_args: (type_expr * Mode.Global_flag.t) list;          (* Type of the arguments *)
     cstr_arg_jkinds: Jkind.t array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
@@ -553,6 +573,11 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
+let equal_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm | Float64, Float64 | Float, Float -> true
+  | (Imm | Float64 | Float), _ -> false
+
 let equal_record_representation r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
       true
@@ -564,8 +589,12 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
+  | Record_mixed { value_prefix_len = l1; flat_suffix = s1 },
+    Record_mixed { value_prefix_len = l2; flat_suffix = s2 }
+    [@warning "+9"] (* get alerted if we add another field *) ->
+      l1 = l2 && Misc.Stdlib.Array.equal equal_flat_element s1 s2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
-    | Record_ufloat ), _ ->
+    | Record_ufloat | Record_mixed _), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -586,7 +615,8 @@ let find_unboxed_type decl =
                   Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float | Record_ufloat ))
+                    | Record_boxed _ | Record_float | Record_ufloat
+                    | Record_mixed _))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->
@@ -605,8 +635,8 @@ type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
-    lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a global field? *)
+    lbl_mut: mutability;                (* Is this a mutable field? *)
+    lbl_global: Mode.Global_flag.t;        (* Is this a global field? *)
     lbl_jkind : Jkind.t;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
@@ -640,6 +670,24 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
+let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
+  Array.fold_left
+    (fun (values, floats) elem ->
+      match elem with
+      | Imm -> (values+1, floats)
+      | Float | Float64 -> (values, floats+1))
+    (value_prefix_len, 0)
+    flat_suffix
+
+type mixed_record_element =
+  | Value_prefix
+  | Flat_suffix of flat_element
+
+let get_mixed_record_element { value_prefix_len; flat_suffix } i =
+  if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
+  if i < value_prefix_len then Value_prefix
+  else Flat_suffix flat_suffix.(i - value_prefix_len)
+
 (**** Definitions for backtracking ****)
 
 type change =
@@ -669,7 +717,7 @@ let log_change ch =
   trail := r'
 
 let () =
-  Mode.change_log := (fun changes -> log_change (Cmodes changes));
+  Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
   Jkind.Sort.change_log := (fun change -> log_change (Csort change))
 
 (* constructor and accessors for [field_kind] *)
@@ -919,7 +967,7 @@ let undo_change = function
   | Ckind  (FKvar r) -> r.field_kind <- FKprivate
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
-  | Cmodes ms -> Mode.undo_changes ms
+  | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind.Sort.undo_change change
 
 type snapshot = changes ref * int

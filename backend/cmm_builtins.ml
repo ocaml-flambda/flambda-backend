@@ -17,6 +17,13 @@ open Cmm
 open Cmm_helpers
 open Arch
 
+type error = Bad_immediate of string
+
+exception Error of error
+
+let bad_immediate fmt =
+  Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
+
 let four_args name args =
   match args with
   | [arg1; arg2; arg3; arg4] -> arg1, arg2, arg3, arg4
@@ -193,14 +200,14 @@ let rec const_float_args n args name =
   match n, args with
   | 0, [] -> []
   | n, Cconst_float (f, _) :: args -> f :: const_float_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid float constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant float arguments for %s" name
 
 (* Assumes untagged int or unboxed int32, always representable by int63 *)
 let rec const_int_args n args name =
   match n, args with
   | 0, [] -> []
   | n, Cconst_int (i, _) :: args -> i :: const_int_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid int constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant int arguments for %s" name
 
 (* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
    int63, otherwise we get Cconst_natint *)
@@ -211,23 +218,23 @@ let rec const_int64_args n args name =
     Int64.of_int i :: const_int64_args (n - 1) args name
   | n, Cconst_natint (i, _) :: args ->
     Int64.of_nativeint i :: const_int64_args (n - 1) args name
-  | _ -> Misc.fatal_errorf "Invalid int64 constant arguments for %s" name
+  | _ -> bad_immediate "Did not find constant int64 arguments for %s" name
 
 let int64_of_int8 i =
   (* CR mslater: (SIMD) replace once we have unboxed int8 *)
   if i < 0 || i > 0xff
-  then Misc.fatal_errorf "Int8 constant must be in [0x0,0xff]: %016x" i;
+  then bad_immediate "Int8 constant not in range [0x0,0xff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int16 i =
   (* CR mslater: (SIMD) replace once we have unboxed int16 *)
   if i < 0 || i > 0xffff
-  then Misc.fatal_errorf "Int16 constant must be in [0x0,0xffff]: %016x" i;
+  then bad_immediate "Int16 constant not in range [0x0,0xffff]: 0x%016x" i;
   Int64.of_int i
 
 let int64_of_int32 i =
   if i < Int32.to_int Int32.min_int || i > Int32.to_int Int32.max_int
-  then Misc.fatal_errorf "Constant was not an int32: %016x" i;
+  then bad_immediate "Int32 constant not in range [0x0,0xffffffff]: 0x%016x" i;
   Int64.of_int i |> Int64.logand 0xffffffffL
 
 let int64_of_float32 f =
@@ -490,7 +497,14 @@ let transl_builtin name args dbg typ_res =
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
-        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
+        (* Here is an example to show how csel is compiled:
+         *   (csel val (!= cond/306 1) ifso/304 ifnot/305))
+         * [test_bool] goes from a tagged to an untagged bool. *)
+        let cond = test_bool dbg cond in
+        match cond with
+        | Cconst_int (0, _) -> ifnot
+        | Cconst_int (1, _) -> ifso
+        | _ -> Cop (op, [cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
@@ -718,40 +732,8 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> transl_vec128_builtin name args dbg typ_res
 
-let transl_effects (e : Primitive.effects) : Cmm.effects =
-  match e with
-  | No_effects -> No_effects
-  | Only_generative_effects | Arbitrary_effects -> Arbitrary_effects
-
-let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
-  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
-
-(* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
-  let name = Primitive.native_name prim in
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = ret;
-            builtin = prim.prim_c_builtin;
-            effects = transl_effects prim.prim_effects;
-            coeffects = transl_coeffects prim.prim_coeffects;
-            alloc = prim.prim_alloc;
-            returns;
-            ty_args
-          },
-        args,
-        dbg )
-  in
-  if prim.prim_c_builtin
-  then
-    match transl_builtin name args dbg ret with
-    | Some op -> op
-    | None -> default
-  else default
-
-let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
+let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
+    typ_res args =
   if not returns then assert (typ_res = typ_void);
   let default =
     Cop
@@ -762,8 +744,8 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
             ty_args;
             returns;
             builtin = is_c_builtin;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects
+            effects;
+            coeffects
           },
         args,
         dbg )
@@ -774,3 +756,11 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
     | Some op -> op
     | None -> default
   else default
+
+let report_error ppf = function
+  | Bad_immediate msg -> Format.pp_print_string ppf msg
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

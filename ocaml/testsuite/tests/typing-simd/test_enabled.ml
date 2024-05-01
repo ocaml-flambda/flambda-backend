@@ -1,6 +1,5 @@
 (* TEST
-   flags = "-extension simd"
-   * expect
+ expect;
 *)
 
 type t = int8x16;;
@@ -32,4 +31,3 @@ type t = float64x2;;
 [%%expect{|
 type t = float64x2
 |}];;
-

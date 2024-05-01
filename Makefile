@@ -32,12 +32,12 @@ ci-coverage: boot-runtest coverage
 .PHONY: minimizer-upstream
 minimizer-upstream:
 	cp chamelon/dune.upstream chamelon/dune
-	cd chamelon && RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
 
 .PHONY: minimizer
 minimizer: _build/_bootinstall
 	cp chamelon/dune.jst chamelon/dune
-	cd chamelon && RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall

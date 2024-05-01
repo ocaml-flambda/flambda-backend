@@ -100,6 +100,91 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
+module Mode_expr : sig
+  (** [Mode_expr] appears in several places:
+  - let local_ x = ...
+  - local_ exp
+  - local string -> string
+  - {global_ x : int}
+
+  Note that in the first two cases, axes other than locality are not specified;
+  in the second case, other axes are defaulted to legacy. In the last case, we
+  are specifying modalities.
+
+  In the future the three annotations will be quite different, but for now they
+  are all lists of modes/modalities. [Typemode] has the three different
+  interpretations of the annotation.
+
+  (TODO: in the future we will have mutable(...), which is similar to the second
+  occurrence above and should be covered by this module)
+  *)
+
+  module Const : sig
+    (** Constant modes *)
+
+    type raw = string
+
+    (** Represent a user-written mode constant, containing a string and its
+        location *)
+    type t = private raw Location.loc
+
+    (** Constructs a mode constant mode *)
+    val mk : string -> Location.t -> t
+  end
+
+  type t = Const.t list Location.loc
+
+  (** The empty mode expression. *)
+  val empty : t
+
+  (** The mode expression containing a single mode constant. *)
+  val singleton : Const.t -> t
+
+  (** Merging two mode expressions. This will be hard to define as mode
+      expressions gets complex. Currently it's for merging legacy and new syntax
+      *)
+  val concat : t -> t -> t
+
+  (** Extract the mode attribute (if any) from a list of attributes; also
+      returns the rest of the attributes; Raises if multiple relevant attributes
+      are found *)
+  val extract_attr :
+    Parsetree.attributes -> Parsetree.attribute option * Parsetree.attributes
+
+  (** Encode a mode expression into a [attribute]. If the expression is safe to
+      empty (and thus safe to ignore), returns [None]. *)
+  val attr_of : t -> Parsetree.attribute option
+
+  (** Given a list of attributes, extracts the mode expression and returns the
+      rest of attributes. Raises if multiple relevant attributes are found.
+      Raises if attributes encodes empty mode expression *)
+  val maybe_of_attrs : Parsetree.attributes -> t option * Parsetree.attributes
+
+  (* Similar to [maybe_of_attrs], but default to [empty] if no relevant
+      attribute is found. *)
+  val of_attrs : Parsetree.attributes -> t * Parsetree.attributes
+
+  (** In some cases, a single mode expression appears twice in the parsetree;
+      one of them needs to be made ghost to make our internal tools happy. *)
+  val ghostify : t -> t
+end
+
+(** A subset of the mode-related syntax extensions that is embedded
+    using full-blown Jane Syntax. By "full-blown" Jane Syntax, we
+    mean the [Expression], [Pattern], (etc.) modules below that
+    attempt to create a variant of all possible Jane Street syntax
+    for the syntactic form.
+
+    We avoid full-blown Jane Syntax when it isn't very lightweight to fit the
+    new construct into the (somewhat opinionated) framework. Mode coercions are
+    lightweight to fit into full-blown Jane Syntax.
+*)
+module Modes : sig
+  type expression = Coerce of Mode_expr.t * Parsetree.expression
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+end
+
 module N_ary_functions : sig
   (** These types use the [P] prefix to match how they are represented in the
       upstream compiler *)
@@ -169,13 +254,8 @@ module N_ary_functions : sig
       has a type constraint on the body, e.g.
       [let local_ f x : int -> int = ...].
   *)
-  type mode_annotation =
-    | Local
-    | Unique
-    | Once
-
   type function_constraint =
-    { mode_annotations : mode_annotation Location.loc list;
+    { mode_annotations : Mode_expr.t;
       type_constraint : type_constraint
     }
 
@@ -202,19 +282,16 @@ end
 (** The ASTs for labeled tuples. When we merge this upstream, we'll replace
     existing [P{typ,exp,pat}_tuple] constructors with these. *)
 module Labeled_tuples : sig
-  type core_type =
-    | Lttyp_tuple of (string option * Parsetree.core_type) list
-        (** [Lttyp_tuple(tl)] represents a product type:
+  (** [tl] represents a product type:
           - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
           - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
           - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
 
-          Invariant: [n >= 2] and there is at least one label.
+          Invariant: [n >= 2].
       *)
+  type core_type = (string option * Parsetree.core_type) list
 
-  type expression =
-    | Ltexp_tuple of (string option * Parsetree.expression) list
-        (** [Ltexp_tuple(el)] represents
+  (** [el] represents
           - [(E1, ..., En)]
               when [el] is [(None, E1);...;(None, En)]
           - [(~L1:E1, ..., ~Ln:En)]
@@ -222,13 +299,11 @@ module Labeled_tuples : sig
           - A mix, e.g.:
               [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
 
-          Invariant: [n >= 2] and there is at least one label.
+          Invariant: [n >= 2].
       *)
+  type expression = (string option * Parsetree.expression) list
 
-  type pattern =
-    | Ltpat_tuple of
-        (string option * Parsetree.pattern) list * Asttypes.closed_flag
-        (** [Ltpat_tuple(pl, Closed)] represents
+  (** [(pl, Closed)] represents
           - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
           - [(L1:P1, ..., Ln:Pn)] when [pl] is
                                               [(Some L1, P1);...;(Some Ln, Pn)]
@@ -236,14 +311,24 @@ module Labeled_tuples : sig
           - If pattern is open, then it also ends in a [..]
 
         Invariant:
-        - If Closed, [n >= 2] and there is at least one label.
-        - If Open, [n >= 1]
+        - If Closed, [n >= 2].
+        - If Open, [n >= 1].
       *)
+  type pattern = (string option * Parsetree.pattern) list * Asttypes.closed_flag
 
+  (** Embeds the core type in Jane Syntax only if there are any labels.
+      Otherwise, returns a normal [Ptyp_tuple].
+  *)
   val typ_of : loc:Location.t -> core_type -> Parsetree.core_type
 
+  (** Embeds the expression in Jane Syntax only if there are any labels.
+      Otherwise, returns a normal [Pexp_tuple].
+  *)
   val expr_of : loc:Location.t -> expression -> Parsetree.expression
 
+  (** Embeds the pattern in Jane Syntax only if there are any labels or
+      if the pattern is open. Otherwise, returns a normal [Ppat_tuple].
+  *)
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
@@ -513,6 +598,7 @@ module Expression : sig
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
     | Jexp_tuple of Labeled_tuples.expression
+    | Jexp_modes of Modes.expression
 
   include
     AST

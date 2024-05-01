@@ -22,6 +22,8 @@ open Typedtree
 
 type position = Errortrace.position = First | Second
 
+module ZA = Zero_alloc_utils
+
 (* Inclusion between value descriptions *)
 
 type primitive_mismatch =
@@ -34,11 +36,14 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
+  | Zero_alloc of { missing_entirely : bool }
+  | Zero_alloc_arity of int * int
 
 exception Dont_match of value_mismatch
 
@@ -64,6 +69,10 @@ let primitive_descriptions pd1 pd2 =
     Some (No_alloc First)
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
+  else if not
+    (Bool.equal pd1.prim_is_layout_poly
+                pd2.prim_is_layout_poly) then
+    Some Layout_poly_attr
   else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin
   else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
@@ -81,6 +90,70 @@ let primitive_descriptions pd1 pd2 =
   else
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
 
+let zero_alloc za1 za2 =
+  (* The core of the check here is that we translate both attributes into the
+     abstract domain and use the existing inclusion check from there, ensuring
+     what we do in the typechecker matches the backend.
+
+     There are a few additional details:
+
+     - [opt] is not captured by the abstract domain, so we need a special check
+       for it.  But it doesn't interact at all with the abstract domain - it's
+       just about whether or not the check happens - so this special check can
+       be fully separate.
+     - [arity] is also not captured by the abstract domain - it exists only for
+       use here, in typechecking.  If the arities do not match, we issue an
+       error. It's essential for the soundness of the way we (will, in the next
+       PR) use zero_alloc in signatures that the apparent arity of the type in
+       the signature matches the syntactic arity of the function.
+     - [ignore] can not appear in zero_alloc attributes in signatures, and is
+       erased from structure items when computing their signature, so we don't
+       need to consider it here.
+     *)
+  let open Builtin_attributes in
+  (* abstract domain check *)
+  let abstract_value za =
+    match za with
+    | Default_check | Ignore_assert_all _ -> ZA.Assume_info.Value.top ()
+    | Check { strict; _ } ->
+      ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally:false
+    | Assume { strict; never_returns_normally } ->
+      ZA.Assume_info.Value.of_annotation ~strict ~never_returns_normally
+  in
+  let v1 = abstract_value za1 in
+  let v2 = abstract_value za2 in
+  if not (ZA.Assume_info.Value.lessequal v1 v2) then
+    begin let missing_entirely =
+        match za1 with
+        | Default_check -> true
+        | Ignore_assert_all _ | Check _ | Assume _ -> false
+      in
+      raise (Dont_match (Zero_alloc {missing_entirely}))
+    end;
+  (* opt check *)
+  begin match za1, za2 with
+  | Check { opt = opt1; _ }, Check { opt = opt2; _ } ->
+    if opt1 && not opt2 then
+      raise (Dont_match (Zero_alloc {missing_entirely = false}))
+  | (Check _ | Default_check | Assume _ | Ignore_assert_all _), _ -> ()
+  end;
+  (* arity check *)
+  let get_arity = function
+    | Check { arity; _ } | Assume { arity; _ } -> Some arity
+    | Default_check | Ignore_assert_all _ -> None
+  in
+  match get_arity za1, get_arity za2 with
+  | Some arity1, Some arity2 ->
+    (* Check *)
+    if not (arity1 = arity2) then
+      raise (Dont_match (Zero_alloc_arity (arity1, arity2)))
+  | Some _, None -> ()
+    (* Forgetting zero_alloc info is fine *)
+  | None, Some _ ->
+    (* Fabricating it is not, but earlier cases should have ruled this out *)
+    Misc.fatal_error "Includecore.check_attributes"
+  | None, None -> ()
+
 let value_descriptions ~loc env name
     (vd1 : Types.value_description)
     (vd2 : Types.value_description) =
@@ -90,13 +163,14 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
+  zero_alloc vd1.val_zero_alloc vd2.val_zero_alloc;
   match vd1.val_kind with
   | Val_prim p1 -> begin
      match vd2.val_kind with
      | Val_prim p2 -> begin
-         let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_global, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_global =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
              mode2;
@@ -104,9 +178,9 @@ let value_descriptions ~loc env name
          in
          (try Ctype.moregeneral env true ty1_global ty2_global
           with Ctype.Moregen err -> raise (Dont_match (Type err)));
-         let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_local, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_local =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
              mode2;
@@ -119,11 +193,13 @@ let value_descriptions ~loc env name
          | Some err -> raise (Dont_match (Primitive_mismatch err))
        end
      | _ ->
-        let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
+        let ty1, mode1, sort1 = Ctype.instance_prim p1 vd1.val_type in
         (try Ctype.moregeneral env true ty1 vd2.val_type
          with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
-          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+          {pc_desc = p1; pc_type = vd2.Types.val_type;
+           pc_poly_mode = Option.map Mode.Locality.disallow_right mode1;
+           pc_poly_sort=sort1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc
      end
@@ -201,6 +277,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -280,6 +357,8 @@ let report_primitive_mismatch first second ppf err =
   | Argument_repr n ->
       pr "The two primitives' %d%s arguments have different representations"
         n (Misc.ordinal_suffix n)
+  | Layout_poly_attr ->
+      pr "The two primitives have different [@@layout_poly] attributes"
 
 let report_value_mismatch first second env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -293,6 +372,16 @@ let report_value_mismatch first second env ppf err =
       Printtyp.report_moregen_error ppf Type_scheme env trace
         (fun ppf -> Format.fprintf ppf "The type")
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
+  | Zero_alloc { missing_entirely } ->
+    pr "The former provides a weaker \"zero_alloc\" guarantee than the latter.";
+    if missing_entirely then
+      pr "@ Hint: Add a \"zero_alloc\" attribute to the implementation."
+  | Zero_alloc_arity (n1, n2) ->
+    pr "zero_alloc arity mismatch:@ \
+        When using \"zero_alloc\" in a signature, the syntactic arity of@ \
+        the implementation must match the function type in the interface.@ \
+        Here the former is %d and the latter is %d."
+      n1 n2
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err
@@ -382,6 +471,11 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses float# representation"
+  | Mixed_representation ord ->
+      (* CR layouts: As above. *)
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses mixed representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -524,25 +618,32 @@ let report_type_mismatch first second decl env ppf err =
       Jkind.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
-  match flag0, flag1 with
-  | Global, Unrestricted ->
-    Some {order = First}
-  | Unrestricted, Global ->
-    Some {order = Second}
-  | Global, Global
-  | Unrestricted, Unrestricted ->
-    None
+  let c = Mode.Global_flag.compare flag0 flag1 in
+  if c < 0 then Some {order = First}
+  else if c > 0 then Some {order = Second}
+  else None
 
 module Record_diffing = struct
 
   let compare_labels env params1 params2
         (ld1 : Types.label_declaration)
         (ld2 : Types.label_declaration) =
-        if ld1.ld_mutable <> ld2.ld_mutable
-        then
-          let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-          Some (Mutability ord)
-        else begin
+        let mut =
+          match ld1.ld_mutable, ld2.ld_mutable with
+          | Immutable, Immutable -> None
+          | Mutable _, Immutable -> Some First
+          | Immutable, Mutable _ -> Some Second
+          | Mutable m1, Mutable m2 ->
+            let open Mode.Alloc.Comonadic.Const in
+            (if not (eq m1 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m1);
+            (if not (eq m2 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m2);
+            None
+        in
+        begin match mut with
+        | Some mut -> Some (Mutability mut)
+        | None ->
           match compare_global_flags ld1.ld_global ld2.ld_global with
           | None ->
             let tl1 = params1 @ [ld1.ld_type] in
@@ -674,6 +775,12 @@ module Record_diffing = struct
         Some (Record_mismatch (Ufloat_representation First))
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
+
+     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed _, _ ->
+        Some (Record_mismatch (Mixed_representation First))
+     | _, Record_mixed _ ->
+        Some (Record_mismatch (Mixed_representation Second))
 
      | Record_boxed _, Record_boxed _ -> None
 

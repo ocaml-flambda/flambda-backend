@@ -42,7 +42,7 @@ define dune_main_context
 (lang dune 2.8)
 (context (default
   (name main)
-  (profile main)
+  (profile $(main_build_profile))
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
@@ -230,6 +230,9 @@ install_for_test: _install
 	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
 	rm _runtest/testsuite/tests/unboxed-primitive-args/*
 	cp -a testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
+	 # add extension library tests that are not supported by the upstream compiler
+	rm _runtest/testsuite/tests/lib-extensions/*
+	cp -a testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
@@ -250,10 +253,15 @@ install_for_test: _install
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray,runtime_events}; \
+	 mkdir -p otherlibs/{upstream_compatible,stable,beta,alpha}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads$(RUNTIME_SUFFIX); \
          $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
+         $(cpl) stdlib/upstream_compatible/* otherlibs/upstream_compatible; \
+         $(cpl) stdlib/stable/* otherlibs/stable; \
+         $(cpl) stdlib/beta/* otherlibs/beta; \
+         $(cpl) stdlib/alpha/* otherlibs/alpha; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
      fi; \

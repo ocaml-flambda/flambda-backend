@@ -47,6 +47,8 @@ include Identifiable.Make (Thing)
 
 let create name = name
 
+let to_raw_string t = t
+
 let escape name =
   let escaped_nb = ref 0 in
   for i = 0 to String.length name - 1 do

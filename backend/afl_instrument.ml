@@ -95,12 +95,10 @@ and instrument = function
      in
      Ccatch (isrec, cases, instrument body, kind)
   | Cexit (ex, args, traps) -> Cexit (ex, List.map instrument args, traps)
-  | Cregion e -> Cregion (instrument e)
-  | Ctail e -> Ctail (instrument e)
 
   (* these are base cases and have no logging *)
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
-  | Cconst_symbol _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+  | Cconst_vec128 _ | Cconst_symbol _
   | Cvar _ as c -> c
 
 let instrument_function c dbg =

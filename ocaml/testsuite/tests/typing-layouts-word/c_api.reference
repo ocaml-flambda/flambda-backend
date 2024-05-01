@@ -1,0 +1,6 @@
+nativeint# -> nativeint#, ~42: -43
+nativeint -> nativeint#, ~(-100): 99
+nativeint# -> nativeint, ~255: -256
+(nativeint[@unboxed]) -> nativeint#, ~1024: -1025
+nativeint# -> (nativeint[@unboxed]), ~(-1726): 1725
+Function of 7 args, 1+2+3+4+5+6+7: 28

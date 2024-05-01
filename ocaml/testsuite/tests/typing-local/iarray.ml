@@ -1,13 +1,17 @@
 (* TEST
-   * bytecode
-     reference = "${test_source_directory}/iarray.byte.reference"
-   * stack-allocation
-   ** native
-      reference = "${test_source_directory}/iarray.stack.reference"
-   * no-stack-allocation
-   ** native
-      reference = "${test_source_directory}/iarray.heap.reference"
- *)
+ {
+   reference = "${test_source_directory}/iarray.byte.reference";
+   bytecode;
+ }{
+   stack-allocation;
+   reference = "${test_source_directory}/iarray.stack.reference";
+   native;
+ }{
+   no-stack-allocation;
+   reference = "${test_source_directory}/iarray.heap.reference";
+   native;
+ }
+*)
 
 (* Testing all the [iarray] functions that allocate [iarray]s locally (not
    including multiple variants of the same function) for:

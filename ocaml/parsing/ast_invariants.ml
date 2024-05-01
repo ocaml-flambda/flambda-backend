@@ -43,9 +43,6 @@ let no_val_params loc = err loc "Functions must have a value parameter."
 let non_jane_syntax_function loc =
   err loc "Functions must be constructed using Jane Street syntax."
 
-(* We will enable this check after we finish migrating to n-ary functions. *)
-let () = ignore non_jane_syntax_function
-
 let simple_longident id =
   let rec is_simple = function
     | Longident.Lident _ -> true
@@ -69,8 +66,8 @@ let iterator =
   let jtyp _self loc (jtyp : Jane_syntax.Core_type.t) =
     match jtyp with
     | Jtyp_layout (Ltyp_var _ | Ltyp_poly _ | Ltyp_alias _) -> ()
-    | Jtyp_tuple (Lttyp_tuple ([] | [_])) -> invalid_tuple loc
-    | Jtyp_tuple (Lttyp_tuple l) ->
+    | Jtyp_tuple ([] | [_]) -> invalid_tuple loc
+    | Jtyp_tuple l ->
       if labeled_tuple_without_label l then unlabeled_labeled_tuple_typ loc
   in
   let typ self ty =
@@ -91,12 +88,12 @@ let iterator =
     | Jpat_layout (Lpat_constant _) -> ()
     | Jpat_tuple lt -> begin
         match lt with
-        | Ltpat_tuple ([], Open) -> empty_open_labeled_tuple_pat loc
-        | Ltpat_tuple (([] | [_]), Closed) ->
+        | ([], Open) -> empty_open_labeled_tuple_pat loc
+        | (([] | [_]), Closed) ->
           short_closed_labeled_tuple_pat loc
-        | Ltpat_tuple (l, Closed) ->
+        | (l, Closed) ->
           if labeled_tuple_without_label l then unlabeled_labeled_tuple_pat loc
-        | Ltpat_tuple (_ :: _, Open) -> ()
+        | (_ :: _, Open) -> ()
       end
   in
   let pat self pat =
@@ -143,13 +140,14 @@ let iterator =
         empty_comprehension loc
     | Jexp_tuple lt -> begin
         match lt with
-        | Ltexp_tuple ([] | [_]) -> invalid_tuple loc
-        | Ltexp_tuple l ->
+        | [] | [_] -> invalid_tuple loc
+        | l ->
           if labeled_tuple_without_label l then unlabeled_labeled_tuple_exp loc
       end
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _
+    | Jexp_modes _
       -> ()
   in
   let expr self exp =
@@ -176,6 +174,7 @@ let iterator =
     | Pexp_new id -> simple_longident id
     | Pexp_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
+    | Pexp_fun _ | Pexp_function _ -> non_jane_syntax_function loc
     | _ -> ()
   in
   let extension_constructor self ec =

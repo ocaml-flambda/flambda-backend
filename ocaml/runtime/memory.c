@@ -24,6 +24,7 @@
 #include "caml/misc.h"
 #include "caml/fail.h"
 #include "caml/memory.h"
+#include "caml/memprof.h"
 #include "caml/major_gc.h"
 #include "caml/signals.h"
 #include "caml/shared_heap.h"
@@ -137,7 +138,8 @@ Caml_inline void write_barrier(
           then this is in a remembered set already */
        if (Is_young(old_val)) return;
        /* old is a block and in the major heap */
-       caml_darken(Caml_state, old_val, 0);
+       if (caml_marking_started())
+         caml_darken(Caml_state, old_val, 0);
      }
      /* this update is creating a new link from major to minor, remember it */
      if (Is_block_and_young(new_val)) {
@@ -323,16 +325,6 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
   return ret;
 }
 
-CAMLexport void caml_set_fields (value obj, value v)
-{
-  int i;
-  CAMLassert (Is_block(obj));
-
-  for (i = 0; i < Wosize_val(obj); i++) {
-    caml_modify(&Field(obj, i), v);
-  }
-}
-
 CAMLexport int caml_is_stack (value v)
 {
   int i;
@@ -358,8 +350,11 @@ CAMLexport int caml_is_stack (value v)
 CAMLexport void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
-    /* This function should not be used on external values */
-    CAMLassert(caml_is_stack(obj));
+    /* This function should not be used on external values, but we have seen
+       some cases where it has been, in safe contexts where only immediate
+       values are involved. */
+    CAMLassert(caml_is_stack(obj)
+      || (!Is_block(val) && !Is_block(Field(obj, i))));
     Field(obj, i) = val;
   } else {
     caml_modify(&Field(obj, i), val);
@@ -495,11 +490,17 @@ Caml_inline value alloc_shr(mlsize_t wosize, tag_t tag, reserved_t reserved,
 
 #ifdef DEBUG
   if (tag < No_scan_tag) {
+    /* We don't check the reserved bits here because this is OK even for mixed
+       blocks. */
     mlsize_t i;
     for (i = 0; i < wosize; i++)
       Op_hp(v)[i] = Debug_uninit_major;
   }
 #endif
+  caml_memprof_sample_block(Val_hp(v), wosize,
+                            Whsize_wosize(wosize),
+                            CAML_MEMPROF_SRC_NORMAL);
+
   return Val_hp(v);
 }
 

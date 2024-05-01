@@ -23,6 +23,10 @@ type do_not_unbox_reason =
   | Not_enough_information_at_use
   | Not_of_kind_value
   | Unboxing_not_requested
+  (* CR gbury: at one point, we might want to remove this last reason, and
+     instead mark the continuation (whose parameters are being unboxed) as being
+     unreachable. *)
+  | All_fields_invalid
 
 module Extra_param_and_args = struct
   type t =
@@ -100,6 +104,7 @@ let print_do_not_unbox_reason ppf = function
     Format.fprintf ppf "not_enough_information_at_use"
   | Not_of_kind_value -> Format.fprintf ppf "not_of_kind_value"
   | Unboxing_not_requested -> Format.fprintf ppf "unboxing_not_requested"
+  | All_fields_invalid -> Format.fprintf ppf "all_fields_invalid"
 
 let rec print_decision ppf = function
   | Do_not_unbox reason ->

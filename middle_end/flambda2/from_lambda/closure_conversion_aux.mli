@@ -206,15 +206,17 @@ end
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
   type closure_info = private
-    { return_continuation : Continuation.t;
+    { code_id : Code_id.t;
+      return_continuation : Continuation.t;
       exn_continuation : Exn_continuation.t;
       my_closure : Variable.t;
-      is_purely_tailrec : bool
+      is_purely_tailrec : bool;
+      slot_offsets_at_definition : Slot_offsets.t
     }
 
   type t
 
-  val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
+  val create : cmx_loader:Flambda_cmx.loader -> t
 
   val manufacture_symbol_short_name : t -> t * Linkage_name.t
 
@@ -246,7 +248,8 @@ module Acc : sig
   val add_shareable_constant :
     symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
-  val add_code : code_id:Code_id.t -> code:Code.t -> t -> t
+  val add_code :
+    code_id:Code_id.t -> code:Code.t -> ?slot_offsets:Slot_offsets.t -> t -> t
 
   val add_free_names : Name_occurrences.t -> t -> t
 
@@ -281,6 +284,10 @@ module Acc : sig
 
   val slot_offsets : t -> Slot_offsets.t
 
+  val code_slot_offsets : t -> Slot_offsets.t Code_id.Map.t
+
+  val add_offsets_from_code : t -> Code_id.t -> t
+
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
 
@@ -292,6 +299,7 @@ module Acc : sig
     exn_continuation:Exn_continuation.t ->
     my_closure:Variable.t ->
     is_purely_tailrec:bool ->
+    code_id:Code_id.t ->
     t
 
   val pop_closure_info : t -> closure_info * t
@@ -308,6 +316,16 @@ end
     one declaration is when processing "let rec".) *)
 module Function_decls : sig
   module Function_decl : sig
+    type unboxing_kind =
+      | Fields_of_block_with_tag_zero of Flambda_kind.With_subkind.t list
+      | Unboxed_number of Flambda_kind.Boxable_number.t
+      | Unboxed_float_record of int
+
+    type calling_convention =
+      | Normal_calling_convention
+      | Unboxed_calling_convention of
+          unboxing_kind option list * unboxing_kind option * Function_slot.t
+
     type t
 
     type param =
@@ -325,6 +343,7 @@ module Function_decls : sig
       params_arity:[`Complex] Flambda_arity.t ->
       removed_params:Ident.Set.t ->
       return:[`Unarized] Flambda_arity.t ->
+      calling_convention:calling_convention ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -350,6 +369,8 @@ module Function_decls : sig
     val params_arity : t -> [`Complex] Flambda_arity.t
 
     val return : t -> [`Unarized] Flambda_arity.t
+
+    val calling_convention : t -> calling_convention
 
     val return_continuation : t -> Continuation.t
 

@@ -1,0 +1,85 @@
+let $camlInlined_rec__first_const28 = Block 0 () in
+let code inline(always) size(6)
+      apply_0 (f, i) my_closure my_region my_depth -> k * k1 =
+  apply inlined(hint) f (i) -> k * k1
+in
+let code rec size(27)
+      fact_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let `apply` = %project_value_slot fact.`apply` my_closure in
+  let prim = %phys_ne (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (1)
+     | 1 -> k2)
+    where k2 =
+      ((let Psubint = n - 1 in
+        apply direct(apply_0)
+          (`apply` : _ -> imm tagged)
+            (my_closure ~ depth my_depth -> next_depth, Psubint)
+            -> k2 * k1)
+         where k2 (apply_result : imm tagged) =
+           let Pmulint = n * apply_result in
+           cont k (Pmulint))
+in
+(let `apply` = closure apply_0 @`apply` in
+ let fact = closure fact_1 @fact with { `apply` = `apply` } in
+ apply direct(fact_1) (fact : _ -> imm tagged) (1000000) -> k1 * error
+   where k1 (i : imm tagged) =
+     let Pmakeblock = %Block 0 (`apply`, fact, i) in
+     cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(3) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(3) (module_block, 1) in
+    let field_2 = %block_load tag(0) size(3) (module_block, 2) in
+    let $camlInlined_rec = Block 0 (field_0, field_1, field_2) in
+    cont done ($camlInlined_rec)
+===>
+let code apply_0 deleted in
+let code fact_1 deleted in
+let code inline(always) loopify(never) size(6) newer_version_of(apply_0)
+      apply_0_1 (f, i) my_closure my_region my_depth -> k * k1 =
+  apply inlined(hint) f (i) -> k * k1
+in
+let $camlInlined_rec__apply_2 = closure apply_0_1 @`apply` in
+let code rec loopify(never) size(42) newer_version_of(fact_1)
+      fact_1_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %phys_ne (n, 0) in
+  switch prim
+    | 0 -> k (1)
+    | 1 -> k2
+    where k2 =
+      ((let Psubint = n - 1 in
+        let prim_1 = %phys_ne (Psubint, 0) in
+        switch prim_1
+          | 0 -> k2 (1)
+          | 1 -> k3
+          where k3 =
+            ((let Psubint_1 = Psubint - 1 in
+              apply direct(fact_1_1) inlining_state(depth(12))
+                $camlInlined_rec__fact_3 ~ depth my_depth -> succ (unroll 1 (succ my_depth))
+                  (Psubint_1)
+                  -> k3 * k1)
+               where k3 (apply_result : imm tagged) =
+                 let Pmulint = Psubint * apply_result in
+                 cont k2 (Pmulint)))
+         where k2 (apply_result : imm tagged) =
+           let Pmulint = n * apply_result in
+           cont k (Pmulint))
+and $camlInlined_rec__fact_3 =
+  closure fact_1_1 @fact
+in
+apply direct(fact_1_1)
+  ($camlInlined_rec__fact_3 : _ -> imm tagged) (1000000) -> k * error
+  where k (i : imm tagged) =
+    let $camlInlined_rec =
+      Block 0 ($camlInlined_rec__apply_2, $camlInlined_rec__fact_3, i)
+    in
+    cont done ($camlInlined_rec)

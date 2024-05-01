@@ -32,10 +32,6 @@ module State : sig
 
   val get_next_instruction_id : t -> int
 
-  val add_iend_with_poptrap : t -> Mach.instruction -> unit
-
-  val is_iend_with_poptrap : t -> Mach.instruction -> bool
-
   val add_exception_handler : t -> Label.t -> unit
 
   val get_exception_handlers : t -> Label.t list
@@ -48,7 +44,6 @@ end = struct
       layout : Cfg_with_layout.layout;
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
-      mutable iends_with_poptrap : Mach.instruction list;
       mutable exception_handlers : Label.t list
     }
 
@@ -56,7 +51,6 @@ end = struct
     let layout = DLL.make_empty () in
     let catch_handlers = Numbers.Int.Tbl.create 31 in
     let next_instruction_id = 0 in
-    let iends_with_poptrap = [] in
     let exception_handlers = [] in
     { fun_name;
       tailrec_label;
@@ -65,7 +59,6 @@ end = struct
       layout;
       catch_handlers;
       next_instruction_id;
-      iends_with_poptrap;
       exception_handlers
     }
 
@@ -108,21 +101,6 @@ end = struct
     t.next_instruction_id <- succ res;
     res
 
-  let is_iend instr =
-    match instr.Mach.desc with
-    | Iend -> true
-    | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
-    | Itrywith _ | Iraise _ ->
-      false
-
-  let add_iend_with_poptrap t iend =
-    assert (is_iend iend);
-    t.iends_with_poptrap <- iend :: t.iends_with_poptrap
-
-  let is_iend_with_poptrap t iend =
-    assert (is_iend iend);
-    List.memq iend t.iends_with_poptrap
-
   let add_exception_handler t lbl =
     t.exception_handlers <- lbl :: t.exception_handlers
 
@@ -142,6 +120,7 @@ let basic_or_terminator_of_operation :
   | Ispill -> Basic (Op Spill)
   | Ireload -> Basic (Op Reload)
   | Iconst_int i -> Basic (Op (Const_int i))
+  | Iconst_float32 f -> Basic (Op (Const_float32 f))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
   | Iconst_vec128 bits -> Basic (Op (Const_vec128 bits))
@@ -176,30 +155,11 @@ let basic_or_terminator_of_operation :
             }))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Alloc { bytes; dbginfo; mode }; label_after })
-  | Iintop Icheckbound ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkbound { immediate = None }; label_after })
-  | Iintop (Icheckalign { bytes_pow2 }) ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkalign { bytes_pow2; immediate = None }; label_after })
-  | Ipoll { return_label = None } ->
-    With_next_label (fun label_after -> Poll_and_jump label_after)
+    Basic (Op (Alloc { bytes; dbginfo; mode }))
+  | Ipoll { return_label = None } -> Basic (Op Poll)
   | Ipoll { return_label = Some return_label } ->
     Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
       return_label
-  | Iintop_imm (Icheckbound, i) ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkbound { immediate = Some i }; label_after })
-  | Iintop_imm (Icheckalign { bytes_pow2 }, i) ->
-    With_next_label
-      (fun label_after ->
-        Prim { op = Checkalign { bytes_pow2; immediate = Some i }; label_after })
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -212,15 +172,9 @@ let basic_or_terminator_of_operation :
   | Iintop_atomic { op; size; addr } ->
     Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
-  | Ifloatofint -> Basic (Op Floatofint)
-  | Iintoffloat -> Basic (Op Intoffloat)
+  | Ifloatop (Icompf comp) -> Basic (Op (Floatop (Icompf comp)))
+  | Ifloatop ((Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) as op) ->
+    Basic (Op (Floatop op))
   | Ivalueofint -> Basic (Op Valueofint)
   | Iintofvalue -> Basic (Op Intofvalue)
   | Ivectorcast cast -> Basic (Op (Vectorcast cast))
@@ -403,14 +357,6 @@ let copy_instruction_no_reg :
     available_across
   }
 
-let rec get_end : Mach.instruction -> Mach.instruction =
- fun instr ->
-  match instr.Mach.desc with
-  | Iend -> instr
-  | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
-  | Itrywith _ | Iraise _ ->
-    get_end instr.Mach.next
-
 type terminator_info =
   | Terminator of Cfg.terminator Cfg.instruction
   | With_next_label of (Label.t -> Cfg.terminator Cfg.instruction)
@@ -460,29 +406,22 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
    return. *)
 let fallthrough_label : Label.t = -1
 
-(* [add_blocks instr state ~starts_with_pushtrap ~start ~next ~is_cold] adds the
-   block beginning at [instr] with label [start], and all recursively-reachable
-   blocks to [state]. [next] is the label of the block to be executed after the
-   one beginning at [instr]. [starts_with_pushtrap] indicates whether the block
-   should be prefixed with a pushtrap instruction (to the passed label).
-   [is_cold] indicates whether to put the blocks in the cold section. *)
+(* [add_blocks instr state ~start ~next ~is_cold] adds the block beginning at
+   [instr] with label [start], and all recursively-reachable blocks to [state].
+   [next] is the label of the block to be executed after the one beginning at
+   [instr]. [is_cold] indicates whether to put the blocks in the cold
+   section. *)
 let rec add_blocks :
     Mach.instruction ->
     State.t ->
-    starts_with_pushtrap:Label.t option ->
     start:Label.t ->
     next:Label.t ->
     is_cold:bool ->
     unit =
- fun instr state ~starts_with_pushtrap ~start ~next ~is_cold ->
+ fun instr state ~start ~next ~is_cold ->
   let { instrs; last; terminator } = extract_block_info state instr in
   let terminate_block ~trap_actions terminator =
     let body = instrs in
-    (match starts_with_pushtrap with
-    | None -> ()
-    | Some lbl_handler ->
-      DLL.add_begin body
-        (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
     List.iter
       (fun trap_action ->
         let instr =
@@ -501,9 +440,8 @@ let rec add_blocks :
       else ()
     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
     | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-    | Cfg.Call_no_return _ | Cfg.Poll_and_jump _ | Cfg.Tailcall_self _
-    | Cfg.Tailcall_func _ | Cfg.Call _ | Cfg.Prim _ | Cfg.Specific_can_raise _
-      ->
+    | Cfg.Call_no_return _ | Cfg.Tailcall_self _ | Cfg.Tailcall_func _
+    | Cfg.Call _ | Cfg.Prim _ | Cfg.Specific_can_raise _ ->
       ());
     let can_raise =
       (* Recompute [can_raise]. Only terminator can actually raise. *)
@@ -528,14 +466,11 @@ let rec add_blocks :
   in
   let prepare_next_block () =
     match last.next.desc with
-    | Iend when not (State.is_iend_with_poptrap state last.next) ->
-      next, fun () -> ()
     | Iend | Iop _ | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ | Iraise _ ->
       let start = Cmm.new_label () in
       let add_next_block () =
-        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next
-          ~is_cold
+        add_blocks last.next state ~start ~next ~is_cold
       in
       start, add_next_block
   in
@@ -556,11 +491,7 @@ let rec add_blocks :
         terminate_block ~trap_actions:[]
           (copy_instruction_no_reg state last ~desc:Cfg.Never)
       else
-        terminate_block
-          ~trap_actions:
-            (if State.is_iend_with_poptrap state last
-            then [Cmm.Pop Pop_generic]
-            else [])
+        terminate_block ~trap_actions:[]
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions
@@ -572,10 +503,8 @@ let rec add_blocks :
         (copy_instruction state last
            ~desc:(terminator_of_test test ~label_false ~label_true));
       let next, add_next_block = prepare_next_block () in
-      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next
-        ~is_cold;
-      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next
-        ~is_cold;
+      add_blocks ifso state ~start:label_true ~next ~is_cold;
+      add_blocks ifnot state ~start:label_false ~next ~is_cold;
       add_next_block ()
     | Iswitch (indexes, cases) ->
       let case_labels = Array.map (fun _ -> Cmm.new_label ()) cases in
@@ -585,8 +514,7 @@ let rec add_blocks :
       let next, add_next_block = prepare_next_block () in
       Array.iteri
         (fun idx case ->
-          add_blocks case state ~starts_with_pushtrap:None
-            ~start:case_labels.(idx) ~next ~is_cold)
+          add_blocks case state ~start:case_labels.(idx) ~next ~is_cold)
         cases;
       add_next_block ()
     | Icatch (_rec, _trap_stack, handlers, body) ->
@@ -601,12 +529,10 @@ let rec add_blocks :
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always body_label));
       let next, add_next_block = prepare_next_block () in
-      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next
-        ~is_cold;
+      add_blocks body state ~start:body_label ~next ~is_cold;
       List.iter
         (fun (handler_label, handler, is_handler_cold) ->
-          add_blocks handler state ~starts_with_pushtrap:None
-            ~start:handler_label ~next
+          add_blocks handler state ~start:handler_label ~next
             ~is_cold:(is_cold || is_handler_cold))
         handlers;
       add_next_block ()
@@ -614,26 +540,15 @@ let rec add_blocks :
       let handler_label = State.get_catch_handler state ~handler_id in
       terminate_block ~trap_actions
         (copy_instruction_no_reg state last ~desc:(Cfg.Always handler_label))
-    | Itrywith (body, kind, (_trap_stack, handler)) ->
+    | Itrywith (body, handler_id, (_trap_stack, handler)) ->
       let label_body = Cmm.new_label () in
-      let label_handler, starts_with_pushtrap =
-        match kind with
-        | Regular ->
-          let label = Cmm.new_label () in
-          label, Some label
-        | Delayed handler_id ->
-          let label = State.add_catch_handler state ~handler_id in
-          label, None
-      in
+      let label_handler = State.add_catch_handler state ~handler_id in
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body));
       let next, add_next_block = prepare_next_block () in
-      State.add_iend_with_poptrap state (get_end body);
       State.add_exception_handler state label_handler;
-      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next
-        ~is_cold;
-      add_blocks handler state ~starts_with_pushtrap:None ~start:label_handler
-        ~next ~is_cold;
+      add_blocks body state ~start:label_body ~next ~is_cold;
+      add_blocks handler state ~start:label_handler ~next ~is_cold;
       add_next_block ()
     | Iraise raise_kind ->
       terminate_block ~trap_actions:[]
@@ -683,7 +598,7 @@ module Stack_offset_and_exn = struct
          self tailcall"
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Poll_and_jump _
+    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
     | Specific_can_raise _ ->
       stack_offset, traps
 
@@ -708,15 +623,17 @@ module Stack_offset_and_exn = struct
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
-        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
-        | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-        | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
-        | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Valueofint | Csel _
+        | Intofvalue | Scalarcast _ | Vectorcast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-          )
+        | Poll | Alloc _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
+    | Stack_check _ ->
+      Misc.fatal_error
+        "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check"
 
   (* The argument [stack_offset] has a different meaning from the field
      [stack_offset] of Cfg's basic_blocks and instructions. The argument
@@ -784,15 +701,13 @@ let fundecl :
         fun_contains_calls;
         (* CR-someday mshinwell: [fun_poll] will need to be propagated in the
            future, e.g. when writing a [Polling] equivalent on [Cfg]. We don't
-           do this at present since there is no need, and because
-           [Linear_to_cfg] doesn't have [fun_poll] available. *)
+           do this at present since there is no need. *)
         fun_poll = _
       } =
     fundecl
   in
   let start_label = Cmm.new_label () in
   let tailrec_label = Cmm.new_label () in
-  let fun_fast = not (List.mem Cmm.Reduce_code_size fun_codegen_options) in
   (* CR xclerc for xclerc: with the new pipeline, stacks slots are always 0 when
      Cfgize is called; we (temporarily?) always add a prologue and remove it
      after register allocation if it is not required. *)
@@ -802,8 +717,9 @@ let fundecl :
     else Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let cfg =
-    Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
-      ~fun_num_stack_slots
+    Cfg.create ~fun_name ~fun_args
+      ~fun_codegen_options:(Cfg.of_cmm_codegen_option fun_codegen_options)
+      ~fun_dbg ~fun_contains_calls ~fun_num_stack_slots
   in
   let state =
     State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls
@@ -910,8 +826,8 @@ let fundecl :
         dead = false;
         cold = false
       };
-  add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
-    ~next:fallthrough_label ~is_cold:false;
+  add_blocks fun_body state ~start:start_label ~next:fallthrough_label
+    ~is_cold:false;
   update_trap_handler_blocks state cfg;
   (* note: `Stack_offset_and_exn.update_cfg` may add edges to the graph, and
      should hence be executed before

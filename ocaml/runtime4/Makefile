@@ -112,7 +112,7 @@ libasmrunnnp_OBJECTS := $(NATIVE_C_SOURCES:.c=.nnp.$(O)) $(ASM_OBJECTS)
 # General (non target-specific) assembler and compiler flags
 
 ifneq "$(CCOMPTYPE)" "msvc"
-OC_CFLAGS += -g
+OC_CFLAGS += -g -Wno-unknown-warning-option
 endif
 
 OC_CPPFLAGS += -DCAMLDLLIMPORT=

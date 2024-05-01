@@ -1,7 +1,7 @@
 (* TEST
-   * skip
-   reason="Test is broken w.r.t. Flambda 2 name mangling etc."
- *)
+ reason = "Test is broken w.r.t. Flambda 2 name mangling etc.";
+ skip;
+*)
 
 (* mshinwell 2023-10-31
 script = "sh ${test_source_directory}/check-linker-version.sh"

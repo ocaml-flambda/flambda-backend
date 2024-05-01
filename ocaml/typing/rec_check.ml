@@ -169,10 +169,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, _, _, _, _)
       when is_ref vd ->
         Static
-    | Texp_apply (_, args, _, _)
+    | Texp_apply (_, args, _, _, _)
       when List.exists is_abstracted_arg args ->
         Static
     | Texp_apply _ ->
@@ -195,7 +195,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_unreachable
     | Texp_extension_constructor _
     | Texp_probe _
-    | Texp_probe_is_enabled _ ->
+    | Texp_probe_is_enabled _
+    | Texp_src_pos ->
         Static
 
     | Texp_match _
@@ -515,7 +516,7 @@ let (>>) : bind_judg -> term_judg -> term_judg =
   fun binder term mode -> binder mode (term mode)
 
 (* Compute the appropriate [mode] for an array expression *)
-let array_mode exp = match Typeopt.array_kind exp with
+let array_mode exp elt_sort = match Typeopt.array_kind exp elt_sort with
   | Lambda.Pfloatarray ->
     (* (flat) float arrays unbox their elements *)
     Dereference
@@ -526,6 +527,8 @@ let array_mode exp = match Typeopt.array_kind exp with
   | Lambda.Paddrarray | Lambda.Pintarray ->
     (* non-generic, non-float arrays act as constructors *)
     Guard
+  | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _ ->
+    Dereference
 
 (* Expression judgment:
      G |- e : m
@@ -583,7 +586,8 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _, _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _, _)}, [_, Arg (arg, _)], _,
+         _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -591,7 +595,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- ref e: m
       *)
       expression arg << Guard
-    | Texp_apply (e, args, _, _)  ->
+    | Texp_apply (e, args, _, _, _)  ->
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty
@@ -607,13 +611,13 @@ let rec expression : Typedtree.expression -> term_judg =
         join [expression e; list arg args] << app_mode
     | Texp_tuple (exprs, _) ->
       list expression (List.map snd exprs) << Guard
-    | Texp_array (_, exprs, _) ->
-      list expression exprs << array_mode exp
+    | Texp_array (_, elt_sort, exprs, _) ->
+      list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->
       join ((expression comp_body << Guard) ::
             comprehension_clauses comp_clauses)
-    | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
-      join ((expression comp_body << array_mode exp) ::
+    | Texp_array_comprehension (_, elt_sort, { comp_body; comp_clauses }) ->
+      join ((expression comp_body << array_mode exp elt_sort) ::
             comprehension_clauses comp_clauses)
     | Texp_construct (_, desc, exprs, _) ->
       let access_constructor =
@@ -641,17 +645,25 @@ let rec expression : Typedtree.expression -> term_judg =
       option (fun (e, _) -> expression e) eo << Guard
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
-        let field_mode = match rep with
+        let field_mode i = match rep with
           | Record_float | Record_ufloat -> Dereference
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
+          | Record_mixed mixed_shape ->
+              (match get_mixed_record_element mixed_shape i with
+               | Value_prefix -> Guard
+               | Flat_suffix _ -> Dereference)
         in
-        let field (_label, field_def) = match field_def with
-            Kept _ -> empty
-          | Overridden (_, e) -> expression e
+        let field (label, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << field_mode label.lbl_num
         in
         join [
-          array field es << field_mode;
+          array field es;
           option expression eo << Dereference
         ]
     | Texp_ifthenelse (cond, ifso, ifnot) ->
@@ -718,7 +730,7 @@ let rec expression : Typedtree.expression -> term_judg =
       join [
         expression e1 << Dereference
       ]
-    | Texp_field (e, _, _, _, _) ->
+    | Texp_field (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -790,18 +802,54 @@ let rec expression : Typedtree.expression -> term_judg =
         path pth << Dereference;
         list field fields << Dereference;
       ]
-    | Texp_function { cases } ->
+    | Texp_function { params; body } ->
       (*
-         (Gi; _ |- pi -> ei : m[Delay])^i
-         --------------------------------------
-         sum(Gi)^i |- function (pi -> ei)^i : m
-
-         Contrarily to match, the value that is pattern-matched
-         is bound locally, so the pattern modes do not influence
-         the final environment.
+         G      |-{body} b  : m[Delay]
+         (Hj    |-{def}  Pj : m[Delay])^j
+         H  := sum(Hj)^j
+         ps := sum(pat(Pj))^j
+         -----------------------------------
+         G + H - ps |- fun (Pj)^j -> b : m
       *)
-      let case_env c m = fst (case c m) in
-      list case_env cases << Delay
+        let param_pat param =
+          (* param P ::=
+              | ?(pat = expr)
+              | pat
+
+             Define pat(P) as
+                pat if P = ?(pat = expr)
+                pat if P = pat
+          *)
+          match param.fp_kind with
+          | Tparam_pat pat -> pat
+          | Tparam_optional_default (pat, _, _) -> pat
+        in
+        (* Optional argument defaults.
+           G |-{def} P : m
+        *)
+        let param_default param =
+          match param.fp_kind with
+          | Tparam_optional_default (_, default, _) ->
+                  (*
+                      G |- e : m
+                      ------------------
+                      G |-{def} ?(p=e) : m
+                  *)
+              expression default
+          | Tparam_pat _ ->
+                  (*
+                      ------------------
+                      . |-{def} p : m
+                  *)
+              empty
+        in
+        let patterns = List.map param_pat params in
+        let defaults = List.map param_default params in
+        let body = function_body body in
+        let f = join (body :: defaults) << Delay in
+        (fun m ->
+          let env = f m in
+          remove_patlist patterns env)
     | Texp_lazy e ->
       (*
         G |- e: m[Delay]
@@ -837,6 +885,35 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+    | Texp_src_pos -> empty
+
+(* Function bodies.
+    G |-{body} b : m
+*)
+and function_body body =
+  match body with
+  | Tfunction_body body ->
+    (*
+        G |- e : m
+        ------------------
+        G |-{body} e : m (**)
+
+      (**) The "e" here stands for [Tfunction_body] as opposed to
+           [Tfunction_cases].
+    *)
+      expression body
+  | Tfunction_cases { fc_cases = cases; _ } ->
+    (*
+        (Gi; _ |- pi -> ei : m)^i    (**)
+        ------------------
+        sum(Gi)^i |-{body} function (pi -> ei)^i : m
+
+      (**) Contrarily to match, the values that are pattern-matched
+           are bound locally, so the pattern modes do not influence
+           the final environment.
+    *)
+      List.map (fun c mode -> fst (case c mode)) cases
+      |> join
 
 and comprehension_clauses clauses =
   List.concat_map

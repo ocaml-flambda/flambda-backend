@@ -46,6 +46,7 @@ module EB = Expr_builder
 module EPA = Continuation_extra_params_and_args
 module FU = Flambda_unit
 module K = Flambda_kind
+module KS = Flambda_kind.With_subkind
 module LC = Lifted_constant
 module LCS = Lifted_constant_state
 module NM = Name_mode

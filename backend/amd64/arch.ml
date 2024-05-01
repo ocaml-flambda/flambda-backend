@@ -15,30 +15,85 @@
 (**************************************************************************)
 [@@@ocaml.warning "+4"]
 
-(* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
-let popcnt_support = ref true
+module Extension = struct
+  module T = struct
+    type t =
+      | POPCNT
+      | PREFETCHW
+      | PREFETCHWT1
+      | SSE3
+      | SSSE3
+      | SSE4_1
+      | SSE4_2
+      | CLMUL
+      | LZCNT
+      | BMI
+      | BMI2
 
-(* PREFETCHW instruction is not available on processors
-   based on Haswell or earlier microarchitectures. *)
-let prefetchw_support = ref true
+    let compare = compare
+  end
 
-(* PREFETCHWT1 is Intel Xeon Phi only. *)
-let prefetchwt1_support = ref false
+  include T
+  module Set = Set.Make(T)
+
+  let name = function
+    | POPCNT -> "POPCNT"
+    | PREFETCHW -> "PREFETCHW"
+    | PREFETCHWT1 -> "PREFETCHWT1"
+    | SSE3 -> "SSE3"
+    | SSSE3 -> "SSSE3"
+    | SSE4_1 -> "SSE41"
+    | SSE4_2 -> "SSE42"
+    | CLMUL -> "CLMUL"
+    | LZCNT -> "LZCNT"
+    | BMI -> "BMI"
+    | BMI2 -> "BMI2"
+
+  let generation = function
+    | POPCNT -> "Nehalem+"
+    | PREFETCHW -> "Broadwell+"
+    | PREFETCHWT1 -> "Xeon Phi"
+    | SSE3 -> "Prescott+"
+    | SSSE3 -> "Core+"
+    | SSE4_1 -> "Penryn+"
+    | SSE4_2 -> "Nehalem+"
+    | CLMUL -> "Westmere+"
+    | LZCNT -> "Haswell+"
+    | BMI -> "Haswell+"
+    | BMI2 -> "Haswell+"
+
+  let enabled_by_default = function
+    | SSE3 | SSSE3 | SSE4_1 | SSE4_2
+    | POPCNT | CLMUL | LZCNT | BMI | BMI2 -> true
+    | PREFETCHW | PREFETCHWT1 -> false
+
+  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; LZCNT; BMI; BMI2 ]
+  let config = ref (Set.filter enabled_by_default all)
+
+  let enabled t = Set.mem t !config
+  let disabled t = not (enabled t)
+
+  let args =
+    let y t = "-f" ^ (name t |> String.lowercase_ascii) in
+    let n t = "-fno-" ^ (name t |> String.lowercase_ascii) in
+    Set.fold (fun t acc ->
+      let print_default b = if b then " (default)" else "" in
+      let yd = print_default (enabled t) in
+      let nd = print_default (disabled t) in
+      (y t, Arg.Unit (fun () -> config := Set.add t !config),
+        Printf.sprintf "Enable %s instructions (%s)%s" (name t) (generation t) yd) ::
+      (n t, Arg.Unit (fun () -> config := Set.remove t !config),
+        Printf.sprintf "Disable %s instructions (%s)%s" (name t) (generation t) nd) :: acc)
+    all []
+
+    let available () = Set.fold (fun t acc -> t :: acc) !config []
+end
 
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
 
-(* Basline x86_64 requires SSE and SSE2. The others are optional. *)
-let sse3_support = ref true
-let ssse3_support = ref true
-let sse41_support = ref true
-let sse42_support = ref true
-
-(* Carry-less multiplication (Westmere+) *)
-let clmul_support = ref true
-
-(* Enable SIMD register allocation features. *)
-let simd_regalloc = ref false
+(* Emit extension symbols for CPUID startup check  *)
+let arch_check_symbols = ref true
 
 (* Machine-specific command-line options *)
 
@@ -47,48 +102,19 @@ let command_line_options =
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
-    "-fpopcnt", Arg.Set popcnt_support,
-      " Use POPCNT instruction (not available prior to Nehalem) (default)";
-    "-fno-popcnt", Arg.Clear popcnt_support,
-      " Do not use POPCNT instruction";
-    "-fprefetchw", Arg.Set prefetchw_support,
-      " Use PREFETCHW instructions (not available on Haswell and earlier) \
-        (default)";
-    "-fno-prefetchw", Arg.Clear prefetchw_support,
-      " Do not use PREFETCHW instructions";
-    "-fprefetchwt1", Arg.Set prefetchwt1_support,
-      " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
-    "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
-      " Do not use PREFETCHWT1 instructions (default)";
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information";
-    "-fsse3", Arg.Set sse3_support,
-      " Enable SSE3 intrinsics (default)";
-    "-fno-sse3", Arg.Clear sse3_support,
-      " Disable SSE3 intrinsics";
-    "-fssse3", Arg.Set ssse3_support,
-      " Enable SSSE3 intrinsics (default)";
-    "-fno-ssse3", Arg.Clear ssse3_support,
-      " Disable SSSE3 intrinsics";
-    "-fsse41", Arg.Set sse41_support,
-      " Enable SSE4.1 intrinsics (default)";
-    "-fno-sse41", Arg.Clear sse41_support,
-      " Disable SSE4.1 intrinsics";
-    "-fsse42", Arg.Set sse42_support,
-      " Enable SSE4.2 intrinsics (default)";
-    "-fno-sse42", Arg.Clear sse42_support,
-      " Disable SSE4.2 intrinsics";
-    "-fclmul", Arg.Set clmul_support,
-      " Enable CLMUL intrinsics (default)";
-    "-fno-clmul", Arg.Clear clmul_support,
-      " Disable CLMUL intrinsics";
-    "-fsimd-regalloc", Arg.Set simd_regalloc,
-      " Enable SIMD register allocation (implied by -extension SIMD)";
-    "-fno-simd-regalloc", Arg.Clear simd_regalloc,
-      " Disable SIMD register allocation (overridden by -extension SIMD) (default)";
-  ]
+      " Do not emit .note.ocaml_eh section with trap handling information"
+  ] @ Extension.args
+
+let assert_simd_enabled () =
+  if not (Language_extension.is_enabled SIMD) then
+  Misc.fatal_error "SIMD is not enabled."
+
+let assert_float32_enabled () =
+  if not (Language_extension.is_enabled Small_numbers) then
+  Misc.fatal_error "float32 is not enabled."
 
 (* Specific operations for the AMD64 processor *)
 

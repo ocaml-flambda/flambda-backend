@@ -584,7 +584,6 @@ end = struct
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare op1 op2 = 0 ->
       compare_label l1 l2
-    | Poll_and_jump l1, Poll_and_jump l2 -> compare_label l1 l2
     | _ ->
       Regalloc_utils.fatal
         "The desc of terminator with id %d changed, before: %a, after: %a." id

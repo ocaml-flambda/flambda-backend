@@ -1,6 +1,6 @@
 (* TEST
-   include ocamlcommon
-   readonly_files = "source.ml source_jane_street.ml"
+ include ocamlcommon;
+ readonly_files = "source.ml source_jane_street.ml";
 *)
 
 (* (c) Alain Frisch / Lexifi *)
@@ -61,7 +61,7 @@ let test parse_fun pprint print map filename ~extra_checks =
   | ast ->
       let str = to_string pprint ast in
       begin
-        match extra_checks str with
+        match extra_checks (to_string print ast) str with
         | Ok () -> ()
         | Error reason ->
             Printf.printf "%s: FAIL, %s\n" filename reason;
@@ -112,7 +112,7 @@ let rec process path ~extra_checks =
       path
       ~extra_checks
 
-let process ?(extra_checks = fun _ -> Ok ()) text = process text ~extra_checks
+let process ?(extra_checks = fun _ _ -> Ok ()) text = process text ~extra_checks
 
 (* Produce an error if any attribute/extension node does not start with the
    text prefix.
@@ -128,7 +128,7 @@ let process ?(extra_checks = fun _ -> Ok ()) text = process text ~extra_checks
   We've chosen to keep those constructs out of the test file in preference
   to updating this logic to properly handle them (which is hard).
 *)
-let check_all_attributes_and_extensions_start_with text ~prefix =
+let check_all_printed_attributes_and_extensions_start_with text ~prefix =
   let check introduction_string =
     String.split_on_char '[' text
     |> List.for_all (fun s ->
@@ -146,14 +146,47 @@ let check_all_attributes_and_extensions_start_with text ~prefix =
            prefix)
 ;;
 
+let check_all_ast_attributes_and_extensions_start_with raw_parsetree_str ~prefixes =
+  (* Sadly can't use Ast_mapper here because it decodes Jane Syntax by default and
+     we will need quite a bit of code duplication for it to work for this use case. *)
+  let check introduction_string =
+    Misc.Stdlib.String.split_on_string ~split_on:(introduction_string ^ " \"")
+      raw_parsetree_str
+    |> List.tl
+    |> List.for_all (fun s ->
+          List.exists
+            (fun prefix -> String.starts_with s ~prefix)
+            prefixes)
+  in
+  if check "extension" && check "attribute"
+  then Ok ()
+  else
+      Error
+        (Printf.sprintf
+          "Printast produced an extension node or attribute that doesn't \
+           begin with one of [%s]"
+           (String.concat ", " prefixes))
+;;
+
 let () =
   process "source.ml";
-  Language_extension.enable_maximal ();
-  process "source_jane_street.ml" ~extra_checks:(fun text ->
-  (* Check that printing Jane Street language extensions produces no more
+  Language_extension.set_universe_and_enable_all
+    Language_extension.Universe.maximal;
+  process "source_jane_street.ml" ~extra_checks:(fun raw_parsetree_str text ->
+  (* Additionally check that:
+
+     1. Jane Street language extensions only use "extension." and "jane." prefixed
+     attributes and exntensions for its parsetree encoding. This is important for
+     ppx support.
+
+     2. Printing Jane Street language extensions produces no more
      attributes or extension nodes than the input program, all of whose
      attributes begin with "test". This ensures that Jane Syntax attributes
      aren't printed.
    *)
-    check_all_attributes_and_extensions_start_with text ~prefix:"test");
+    Result.bind
+      (check_all_ast_attributes_and_extensions_start_with raw_parsetree_str
+        ~prefixes:["extension."; "jane."; "test."])
+      (fun () -> check_all_printed_attributes_and_extensions_start_with text
+                    ~prefix:"test"));
 ;;

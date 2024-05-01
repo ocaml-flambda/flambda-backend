@@ -16,17 +16,15 @@
 
 (* CSE for ARM64 *)
 
-open Arch
 open Mach
-open CSEgen
+open CSE_utils
 
 class cse = object
 
-inherit cse_generic as super
+inherit CSEgen.cse_generic as super
 
 method! class_of_operation op =
   match op with
-  | Ispecific(Ishiftcheckbound _) -> Op_checkbound
   | Ispecific _ -> Op_pure
   | _ -> super#class_of_operation op
 
@@ -39,3 +37,36 @@ end
 
 let fundecl f =
   (new cse)#fundecl f
+
+class cfg_cse = object
+
+  inherit Cfg_cse.cse_generic as super
+
+  method! class_of_operation op =
+    match op with
+    | Specific (Ifar_poll _
+               | Ifar_alloc _
+               | Ishiftarith _
+               | Imuladd
+               | Imulsub
+               | Inegmulf
+               | Imuladdf
+               | Inegmuladdf
+               | Imulsubf
+               | Inegmulsubf
+               | Isqrtf
+               | Ibswap _
+               | Imove32
+               | Isignext _) ->
+      Op_pure
+    | _ -> super#class_of_operation op
+
+  method! is_cheap_operation op =
+    match op with
+    | Const_int n -> n <= 65535n && n >= 0n
+    | _ -> false
+
+end
+
+let cfg_with_layout cfg_with_layout =
+  (new cfg_cse)#cfg_with_layout cfg_with_layout

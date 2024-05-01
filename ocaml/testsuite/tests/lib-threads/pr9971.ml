@@ -1,11 +1,12 @@
 (* TEST
-
-* runtime4
-** hassysthreads
-include systhreads
-*** bytecode
-*** native
-
+ runtime4;
+ include systhreads;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 (* This test was deleted in OCaml 5 upstream

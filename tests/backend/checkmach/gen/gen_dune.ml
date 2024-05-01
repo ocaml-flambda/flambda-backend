@@ -1,15 +1,9 @@
 let () =
-  let enabled_if flambda_only =
-    if flambda_only then
-      (* CR-soon: what we really want to say if dune knew about flambda2:
-         (or %{ocaml-config:flambda} %{ocaml-config:flambda2}) *)
-      {|(enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))|}
-    else
+  let enabled_if =
       {|(enabled_if (= %{context_name} "main"))|}
   in
   let buf = Buffer.create 1000 in
-  let print_test ?(extra_flags="-zero-alloc-check default") ~flambda_only deps =
-    let enabled_if = enabled_if flambda_only in
+  let print_test ?(extra_flags="-zero-alloc-check default") deps =
     let subst = function
       | "enabled_if" -> enabled_if
       | "deps" -> deps
@@ -23,12 +17,29 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c ${extra_flags} -dcse -dcheckmach -dump-into-file -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~flambda_only ~extra_dep ~exit_code name =
-    let enabled_if = enabled_if flambda_only in
+  let print_cmi_target name =
+    let subst = function
+      | "enabled_if" -> enabled_if
+      | "name" -> name
+      | _ -> "assert false"
+    in
+    Buffer.clear buf;
+    Buffer.add_substitute buf subst
+    {|
+(rule
+ (alias runtest)
+ (deps ${name}.ml)
+ (target ${name}.cmi)
+ ${enabled_if}
+ (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -stop-after typing -O3 -warn-error +a)))
+|};
+    Buffer.output_buffer Out_channel.stdout buf
+  in
+  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
     let ml_deps =
       let s =
         match extra_dep with
@@ -71,57 +82,81 @@ let () =
     Buffer.output_buffer Out_channel.stdout buf
   in
   let default_cutoff = 20 in
-  print_test ~flambda_only:false "s.ml t.ml";
-  print_test ~flambda_only:false "t5.ml test_assume.ml";
-  print_test ~flambda_only:true "test_flambda.ml";
+  print_test "s.ml t.ml";
+  print_test "t5.ml test_assume.ml";
+  print_test "test_match_on_mutable_state.ml";
+  print_test "test_flambda.ml";
 
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail1";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail2";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:(Some "t3.ml")
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail1";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail2";
+  print_test_expected_output ~cutoff:0 ~extra_dep:(Some "t3.ml")
     ~exit_code:2 "fail3";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:(Some "t4.ml")
+  print_test_expected_output ~cutoff:0 ~extra_dep:(Some "t4.ml")
     ~exit_code:2 "fail4";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail5";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail6";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail7";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail8";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail9";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail10";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail11";
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true  ~extra_dep:None ~exit_code:2 "fail12";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail13";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail14";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail15";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail16";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail17";
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail18";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail5";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail6";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail7";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:0 "fail8";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail9";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail10";
+  print_test_expected_output ~cutoff:default_cutoff  ~extra_dep:None ~exit_code:2 "fail12";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail13";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail14";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail15";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail16";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail17";
+  print_test_expected_output ~cutoff:0 ~extra_dep:None ~exit_code:2 "fail18";
   (* test printing detailed error message only in flambda because the exact output depends
      on optimization level. *)
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "dep19.ml") ~exit_code:2 "fail19";
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail20";
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail21";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "dep19.ml") ~exit_code:2 "fail19";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail20";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail21";
 
-  print_test_expected_output ~cutoff:0 ~flambda_only:false ~extra_dep:None
+  print_test_expected_output ~cutoff:0 ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
-  (* Closure does not optimize the function away, so the unchecked attribute
-     warning is only with flambda and flambda2. *)
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None
-    ~exit_code:0 "test_attr_unused";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None
+    ~exit_code:2 "test_attr_unused";
   (* Checks that the warning is printed and compilation is successful. *)
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None
     ~exit_code:0 "t6";
   (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
-  print_test ~flambda_only:false "t7.ml";
+  print_test "t7.ml";
   (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
-  print_test ~flambda_only:false "test_stub_dep.ml test_stub.ml";
-  (* flambda2 generates an indirect call but we don't yet have a way to exclude it
-     without excluding closure. *)
-  print_test ~flambda_only:true "t1.ml";
-  (* closure does not delete dead functions *)
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
-  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "test_never_returns_normally";
-  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail22";
-  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:None ~exit_code:2 "fail23";
-  print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt1.ml";
-  print_test ~extra_flags:"-zero-alloc-check opt" ~flambda_only:false "test_zero_alloc_opt2.ml";
+  print_test "test_stub_dep.ml test_stub.ml";
+  (* generates an indirect call. *)
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "t1";
+  (* deleting dead functions works *)
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_never_returns_normally";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail22";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check opt" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail23";
+  print_test ~extra_flags:"-zero-alloc-check opt" "test_zero_alloc_opt1.ml";
+  print_test ~extra_flags:"-zero-alloc-check opt" "test_zero_alloc_opt2.ml";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_fail";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_assume_on_call";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_misplaced_assume";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_all";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "test_attr_check_opt";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:0 "test_attr_check_none";
+  print_test_expected_output ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail24";
+  print_test ~extra_flags:"-zero-alloc-check default -function-layout topological"  "test_raise_message.ml";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-precise-checkmach -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail25";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default -disable-checkmach -function-layout source"
+    ~extra_dep:None ~exit_code:2 "fail26";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check default"
+    ~extra_dep:None ~exit_code:2 "test_all_opt";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:None ~exit_code:2 "test_all_opt2";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_flags:"-zero-alloc-check opt"
+    ~extra_dep:None ~exit_code:2 "test_all_opt3";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_arity";
+  print_cmi_target "stop_after_typing";
   ()
