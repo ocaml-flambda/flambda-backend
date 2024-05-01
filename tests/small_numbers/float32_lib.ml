@@ -246,6 +246,24 @@ let () =
 ;;
 
 let () =
+  CF32.check_float32s (fun f1 f2 ->
+    let cf1, cf2 = CF32.min_max f1 f2 in
+    let f1, f2 = F32.min_max f1 f2 in
+    bit_eq f1 cf1;
+    bit_eq f2 cf2
+  )
+;;
+
+let () =
+  CF32.check_float32s (fun f1 f2 ->
+    let cf1, cf2 = CF32.min_max_num f1 f2 in
+    let f1, f2 = F32.min_max_num f1 f2 in
+    bit_eq f1 cf1;
+    bit_eq f2 cf2
+  )
+;;
+
+let () =
   CF32.check_float32s (fun f _ ->
     let f = F32.ldexp f (Random.full_int Int.max_int) in
     let cf = CF32.ldexp f (Random.full_int Int.max_int) in
