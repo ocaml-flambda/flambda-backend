@@ -353,7 +353,7 @@ and block_shape =
 and flat_element = Types.flat_element =
     Imm | Float | Float64 | Bits32 | Bits64 | Word
 and flat_element_read = private
-  | Flat_read of flat_element (* invariant: not a float *)
+  | Flat_read of flat_element (* invariant: not [Float] *)
   | Flat_read_float of alloc_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer

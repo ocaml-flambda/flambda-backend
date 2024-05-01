@@ -88,16 +88,18 @@ module Mixed_block_kind = struct
   let length ({ value_prefix_len; flat_suffix } : t) =
     value_prefix_len + Array.length flat_suffix
 
-  let element_kind i ({ value_prefix_len; flat_suffix } : t) =
-    if i < value_prefix_len
-    then K.value
-    else
-      match flat_suffix.(i - value_prefix_len) with
-      | Imm -> K.value
-      | Float | Float64 -> K.naked_float
-      | Bits32 -> K.naked_int32
-      | Bits64 -> K.naked_int64
-      | Word -> K.naked_nativeint
+  let flat_element_kind (flat_element : Lambda.flat_element) =
+    match flat_element with
+    | Imm -> K.value
+    | Float | Float64 -> K.naked_float
+    | Bits32 -> K.naked_int32
+    | Bits64 -> K.naked_int64
+    | Word -> K.naked_nativeint
+
+  let element_kind i (shape : t) =
+    match Lambda.get_mixed_block_element shape i with
+    | Value_prefix -> K.value
+    | Flat_suffix flat_element -> flat_element_kind flat_element
 
   let fold_left f init t =
     let result = ref init in
@@ -394,6 +396,10 @@ module Mixed_block_access_field_kind = struct
       Stdlib.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
+
+  let to_element_kind = function
+    | Value_prefix _ -> K.value
+    | Flat_suffix flat -> Mixed_block_kind.flat_element_kind flat
 end
 
 module Block_access_kind = struct
@@ -443,14 +449,8 @@ module Block_access_kind = struct
     match t with
     | Values _ -> K.value
     | Naked_floats _ -> K.naked_float
-    | Mixed { field_kind; _ } -> (
-      match field_kind with
-      | Value_prefix _ -> K.value
-      | Flat_suffix Imm -> K.value
-      | Flat_suffix (Float | Float64) -> K.naked_float
-      | Flat_suffix Bits32 -> K.naked_int32
-      | Flat_suffix Bits64 -> K.naked_int64
-      | Flat_suffix Word -> K.naked_nativeint)
+    | Mixed { field_kind; _ } ->
+      Mixed_block_access_field_kind.to_element_kind field_kind
 
   let element_subkind_for_load t =
     match t with
