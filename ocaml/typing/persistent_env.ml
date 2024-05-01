@@ -84,6 +84,7 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type 'a pers_struct_info = {
+  ps_import : import;
   ps_val : 'a;
 }
 
@@ -309,12 +310,14 @@ let read_import penv ~check modname filename =
   let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
   acknowledge_import penv ~check modname pers_sig
 
+let check_visibility ~allow_hidden imp =
+  if not allow_hidden && imp.imp_visibility = Load_path.Hidden then raise Not_found
+
 let find_import ~allow_hidden penv ~check modname =
   let {imports; _} = penv in
   if CU.Name.equal modname CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find imports modname with
-  | Found imp when allow_hidden || imp.imp_visibility = Load_path.Visible -> imp
-  | Found _ -> raise Not_found
+  | Found imp -> check_visibility ~allow_hidden imp; imp
   | Missing -> raise Not_found
   | exception Not_found ->
       match can_load_cmis penv with
@@ -372,7 +375,11 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
     | Static unit -> Shape.for_persistent_unit (CU.full_path_as_string unit)
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
-  let ps = { ps_val = pm } in
+  let ps =
+    { ps_import = import;
+      ps_val = pm;
+    }
+  in
   Hashtbl.add persistent_structures modname ps;
   ps
 
@@ -387,7 +394,7 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
-  | ps -> ps
+  | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->
       let import = find_import ~allow_hidden penv ~check name in
       acknowledge_pers_struct penv name import val_of_pers_sig
