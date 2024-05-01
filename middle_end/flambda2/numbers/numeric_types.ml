@@ -320,7 +320,7 @@ end)
 
 module Float32_by_bit_pattern = Float_by_bit_pattern_gen (struct
   include Int32
-  module F32 = Compiler_float32
+  module F32 = Float32
 
   let of_string str = F32.to_bits (F32.of_string str)
 

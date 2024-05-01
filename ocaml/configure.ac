@@ -672,12 +672,6 @@ AS_CASE([$host],
 otherlibraries="dynlink"
 lib_dynlink=true
 
-AC_CONFIG_FILES([otherlibs/upstream_compatible/META])
-AC_CONFIG_FILES([otherlibs/stable/META])
-AC_CONFIG_FILES([otherlibs/beta/META])
-AC_CONFIG_FILES([otherlibs/alpha/META])
-otherlibraries="$otherlibraries upstream_compatible stable beta alpha"
-
 AS_IF(
   [test x"$enable_runtime5" = x"yes"],
   [otherlibraries="$otherlibraries runtime_events"

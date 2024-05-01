@@ -76,6 +76,8 @@ and let_expr =
     defining_expr : named
   }
 
+(* CR mshinwell/xclerc: use a different [Debuginfo.t] type (not least so that
+   freshening of uids etc causes less allocation) *)
 and named =
   | Simple of Simple.t
   | Prim of Flambda_primitive.t * Debuginfo.t

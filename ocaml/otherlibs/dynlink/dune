@@ -86,6 +86,7 @@
     solver
     mode_intf
     mode
+    typemode
     jkind
     primitive
     types
@@ -187,6 +188,7 @@
 (copy_files ../../typing/solver.ml)
 (copy_files ../../typing/shape_reduce.ml)
 (copy_files ../../typing/mode.ml)
+(copy_files ../../typing/typemode.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -254,6 +256,7 @@
 (copy_files ../../typing/solver.mli)
 (copy_files ../../typing/shape_reduce.mli)
 (copy_files ../../typing/mode.mli)
+(copy_files ../../typing/typemode.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -363,6 +366,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
@@ -444,6 +448,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx

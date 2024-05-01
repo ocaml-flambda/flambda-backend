@@ -322,8 +322,8 @@ module Inlining = struct
           ~are_rebuilding_terms decision;
         res
 
-  let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
-      ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
+  let make_inlined_body acc ~callee ~called_code_id ~region_inlined_into ~params
+      ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
       ~exn_continuation ~return_continuation ~apply_exn_continuation
       ~apply_return_continuation ~apply_depth ~apply_dbg =
     let rec_info =
@@ -355,16 +355,20 @@ module Inlining = struct
       acc, Expr.apply_renaming body renaming
     in
     let acc, body =
-      Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
-        ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
-        ~exn_continuation ~return_continuation ~apply_exn_continuation
-        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+      Inlining_helpers.make_inlined_body ~callee ~called_code_id
+        ~region_inlined_into ~params ~args ~my_closure ~my_region ~my_depth
+        ~rec_info ~body:(acc, body) ~exn_continuation ~return_continuation
+        ~apply_exn_continuation ~apply_return_continuation ~bind_params
+        ~bind_depth ~apply_renaming
+    in
+    let inlined_debuginfo =
+      Inlined_debuginfo.create ~called_code_id ~apply_dbg
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton
          (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
       (Named.create_prim
-         (Nullary (Enter_inlined_apply { dbg = apply_dbg }))
+         (Nullary (Enter_inlined_apply { dbg = inlined_debuginfo }))
          Debuginfo.none)
       ~body
 
@@ -421,7 +425,8 @@ module Inlining = struct
           | Known free_names -> free_names
         in
         let make_inlined_body =
-          make_inlined_body ~callee ~region_inlined_into
+          make_inlined_body ~callee ~called_code_id:(Code.code_id code)
+            ~region_inlined_into
             ~params:(Bound_parameters.vars params)
             ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
             ~exn_continuation ~return_continuation ~apply_depth ~apply_dbg

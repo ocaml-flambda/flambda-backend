@@ -493,7 +493,8 @@ module Dwarf_helpers = struct
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
-      && not !Dwarf_flags.restrict_to_upstream_dwarf
+      && ((not !Dwarf_flags.restrict_to_upstream_dwarf)
+          || !Dwarf_flags.dwarf_inlined_frames)
       && not disable_dwarf
     in
     match can_emit_dwarf,

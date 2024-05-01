@@ -850,3 +850,10 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_arity.output test_arity.output.corrected)
  (action (diff test_arity.output test_arity.output.corrected)))
+
+(rule
+ (alias runtest)
+ (deps stop_after_typing.ml)
+ (target stop_after_typing.cmi)
+ (enabled_if (= %{context_name} "main"))
+ (action (run %{bin:ocamlopt.opt} stop_after_typing.ml -g -c -stop-after typing -O3 -warn-error +a)))
