@@ -399,7 +399,7 @@ and expression_desc =
             - [for i = E1 downto E2 do E3 done]
                  when [direction] is {{!Asttypes.direction_flag.Downto}[Downto]}
          *)
-  | Pexp_constraint of expression * core_type * mode loc list  (** [(E : T @@ modes)] *)
+  | Pexp_constraint of expression * core_type option * mode loc list  (** [(E : T @@ modes)] *)
   | Pexp_coerce of expression * core_type option * core_type
       (** [Pexp_coerce(E, from, T)] represents
             - [(E :> T)]      when [from] is [None],

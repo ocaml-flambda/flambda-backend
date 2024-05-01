@@ -177,7 +177,7 @@ module Exp:
               -> direction_flag -> expression -> expression
     val coerce: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
                 -> core_type -> expression
-    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type
+    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
                      -> mode with_loc list -> expression
     val send: ?loc:loc -> ?attrs:attrs -> expression -> str -> expression
     val new_: ?loc:loc -> ?attrs:attrs -> lid -> expression

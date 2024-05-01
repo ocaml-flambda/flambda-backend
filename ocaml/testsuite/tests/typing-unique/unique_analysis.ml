@@ -124,9 +124,9 @@ Line 4, characters 35-37:
                                        ^^
 Error: This value is used here,
        but it is part of a value that has already been used as unique:
-Line 4, characters 21-33:
+Line 4, characters 30-32:
 4 |   | x :: xs as gs -> (unique_ gs), xs
-                         ^^^^^^^^^^^^
+                                  ^^
 
 |}]
 
@@ -135,9 +135,9 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> gs, unique_ xs
 [%%expect{|
-Line 4, characters 25-35:
+Line 4, characters 33-35:
 4 |   | x :: xs as gs -> gs, unique_ xs
-                             ^^^^^^^^^^
+                                     ^^
 Error: This value is used here as unique,
        but it is part of a value that has already been used:
 Line 4, characters 21-23:
@@ -155,9 +155,9 @@ Line 4, characters 35-37:
                                        ^^
 Error: This value is used here,
        but part of it has already been used as unique:
-Line 4, characters 21-33:
+Line 4, characters 30-32:
 4 |   | x :: xs as gs -> (unique_ xs), gs
-                         ^^^^^^^^^^^^
+                                  ^^
 
 |}]
 let dup_child (unique_ fs : 'a list) =
@@ -165,9 +165,9 @@ let dup_child (unique_ fs : 'a list) =
   | [] -> ([], [])
   | x :: xs as gs -> xs, unique_ gs
 [%%expect{|
-Line 4, characters 25-35:
+Line 4, characters 33-35:
 4 |   | x :: xs as gs -> xs, unique_ gs
-                             ^^^^^^^^^^
+                                     ^^
 Error: This value is used here as unique,
        but part of it has already been used:
 Line 4, characters 21-23:
@@ -248,9 +248,9 @@ let mark_top_shared =
       unique_ xx
   | [] -> []
 [%%expect{|
-Line 6, characters 6-16:
+Line 6, characters 14-16:
 6 |       unique_ xx
-          ^^^^^^^^^^
+                  ^^
 Error: This value is used here,
        but it is part of a value that has already been used as unique:
 Line 5, characters 24-26:

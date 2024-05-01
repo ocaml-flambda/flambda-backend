@@ -456,7 +456,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
                      sub.typ sub cty2)
     | Texp_constraint cty ->
         (* CR cgunn: recover mode constraint info here *)
-        Pexp_constraint (sexp, sub.typ sub cty, [])
+        Pexp_constraint (sexp, Some (sub.typ sub cty), [])
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (s, None) ->
         Pexp_newtype (add_loc s, sexp)

@@ -599,7 +599,9 @@ module E = struct
         sub.expr sub e; iter_opt (sub.typ sub) t1;
         sub.typ sub t2
     | Pexp_constraint (e, t, m) ->
-        sub.expr sub e; sub.typ sub t; sub.modes sub m
+      sub.expr sub e;
+      Option.iter (sub.typ sub) t;
+      sub.modes sub m
     | Pexp_send (e, _s) -> sub.expr sub e
     | Pexp_new lid -> iter_loc sub lid
     | Pexp_setinstvar (s, e) ->

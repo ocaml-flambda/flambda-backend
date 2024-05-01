@@ -84,19 +84,20 @@ local [File "_none_", line 1, characters 4-10]
             Pexp_constraint
             expression ([1,0+29]..[1,0+30])
               Pexp_ident "x" ([1,0+29]..[1,0+30])
-            core_type ([1,0+16]..[1,0+26])
-              Ptyp_arrow
-              Nolabel
-              core_type ([1,0+16]..[1,0+19])
-                Ptyp_constr "int" ([1,0+16]..[1,0+19])
+            Some
+              core_type ([1,0+16]..[1,0+26])
+                Ptyp_arrow
+                Nolabel
+                core_type ([1,0+16]..[1,0+19])
+                  Ptyp_constr "int" ([1,0+16]..[1,0+19])
+                  []
+                core_type ([1,0+23]..[1,0+26])
+                  Ptyp_constr "int" ([1,0+23]..[1,0+26])
+                  []
+                modes
                 []
-              core_type ([1,0+23]..[1,0+26])
-                Ptyp_constr "int" ([1,0+23]..[1,0+26])
+                modes
                 []
-              modes
-              []
-              modes
-              []
             modes
             [
               "local" ([1,0+4]..[1,0+10])

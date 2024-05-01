@@ -304,6 +304,20 @@ let tyvar_jkind_loc ~print_quote f (str,jkind) =
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
+let legacy_mode f m =
+  let Mode txt = m.txt in
+  let s =
+    match txt with
+    | "local" -> "local_"
+    | "unique" -> "unique_"
+    | "once" -> "once_"
+    | s -> Misc.fatal_errorf "Unrecognized mode %s - should not parse" s
+  in
+  pp_print_string f s
+
+let legacy_modes f m =
+  pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_mode f m
+
 let legacy_modality f m =
   let {txt; _} = (m : modality Location.loc) in
   let s =
@@ -1004,7 +1018,12 @@ and simple_expr ctxt f x =
     | Pexp_tuple l ->
         pp f "@[<hov2>(%a)@]" (list (simple_expr ctxt) ~sep:",@;") l
     | Pexp_constraint (e, ct, m) ->
+      begin match ct with
+      | None ->
+        pp f "(%a %a)" legacy_modes m (expression ctxt) e
+      | Some ct ->
         pp f "(%a : %a)" (expression ctxt) e (maybe_type_atat_modes core_type ctxt) (ct, m)
+      end
     | Pexp_coerce (e, cto1, ct) ->
         pp f "(%a%a :> %a)" (expression ctxt) e
           (option (core_type ctxt) ~first:" : " ~last:" ") cto1 (* no sep hint*)
@@ -1578,7 +1597,7 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = mode
             don't get printed -- they're just used to decide how to print *)
           | {pexp_desc=Pexp_newtype (tyvar, e); pexp_attributes=[]} ->
               gadt_exp (tyvar :: tyvars) e
-          | {pexp_desc=Pexp_constraint (e, ct, _); pexp_attributes=[]} ->
+          | {pexp_desc=Pexp_constraint (e, Some ct, _); pexp_attributes=[]} ->
               Some (List.rev tyvars, e, ct)
           | _ -> None in
         let gadt_exp = gadt_exp [] e in

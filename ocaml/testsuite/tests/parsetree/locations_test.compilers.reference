@@ -275,19 +275,20 @@ Ptop_def
                   Ppat_var "x" (//toplevel//[2,1+29]..[2,1+30])
                 expression (//toplevel//[2,1+34]..[2,1+35])
                   Pexp_ident "x" (//toplevel//[2,1+34]..[2,1+35])
-              core_type (//toplevel//[2,1+16]..[2,1+22])
-                Ptyp_arrow
-                Nolabel
-                core_type (//toplevel//[2,1+16]..[2,1+17])
-                  Ptyp_constr "a" (//toplevel//[2,1+16]..[2,1+17])
+              Some
+                core_type (//toplevel//[2,1+16]..[2,1+22])
+                  Ptyp_arrow
+                  Nolabel
+                  core_type (//toplevel//[2,1+16]..[2,1+17])
+                    Ptyp_constr "a" (//toplevel//[2,1+16]..[2,1+17])
+                    []
+                  core_type (//toplevel//[2,1+21]..[2,1+22])
+                    Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
+                    []
+                  modes
                   []
-                core_type (//toplevel//[2,1+21]..[2,1+22])
-                  Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
+                  modes
                   []
-                modes
-                []
-                modes
-                []
               modes
               []
           modes
@@ -330,19 +331,20 @@ Ptop_def
                               Ppat_var "x" (//toplevel//[4,46+8]..[4,46+9])
                             expression (//toplevel//[4,46+13]..[4,46+14])
                               Pexp_ident "x" (//toplevel//[4,46+13]..[4,46+14])
-                          core_type (//toplevel//[3,16+21]..[3,16+27])
-                            Ptyp_arrow
-                            Nolabel
-                            core_type (//toplevel//[3,16+21]..[3,16+22])
-                              Ptyp_constr "a" (//toplevel//[3,16+21]..[3,16+22])
+                          Some
+                            core_type (//toplevel//[3,16+21]..[3,16+27])
+                              Ptyp_arrow
+                              Nolabel
+                              core_type (//toplevel//[3,16+21]..[3,16+22])
+                                Ptyp_constr "a" (//toplevel//[3,16+21]..[3,16+22])
+                                []
+                              core_type (//toplevel//[3,16+26]..[3,16+27])
+                                Ptyp_constr "a" (//toplevel//[3,16+26]..[3,16+27])
+                                []
+                              modes
                               []
-                            core_type (//toplevel//[3,16+26]..[3,16+27])
-                              Ptyp_constr "a" (//toplevel//[3,16+26]..[3,16+27])
+                              modes
                               []
-                            modes
-                            []
-                            modes
-                            []
                           modes
                           []
                       Some
@@ -412,9 +414,10 @@ Ptop_def
                   Pexp_constraint
                   expression (//toplevel//[2,1+27]..[2,1+28])
                     Pexp_constant PConst_int (3,None)
-                  core_type (//toplevel//[2,1+21]..[2,1+24])
-                    Ptyp_constr "int" (//toplevel//[2,1+21]..[2,1+24])
-                    []
+                  Some
+                    core_type (//toplevel//[2,1+21]..[2,1+24])
+                      Ptyp_constr "int" (//toplevel//[2,1+21]..[2,1+24])
+                      []
                   modes
                   []
             ]
@@ -449,9 +452,10 @@ Ptop_def
                     Pexp_constraint
                     expression (//toplevel//[2,1+19]..[2,1+27])
                       Pexp_ident "contents" (//toplevel//[2,1+19]..[2,1+27])
-                    core_type (//toplevel//[2,1+30]..[2,1+33])
-                      Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
-                      []
+                    Some
+                      core_type (//toplevel//[2,1+30]..[2,1+33])
+                        Ptyp_constr "int" (//toplevel//[2,1+30]..[2,1+33])
+                        []
                     modes
                     []
               ]
@@ -1523,9 +1527,10 @@ Ptop_def
                       Pexp_constraint
                       expression (//toplevel//[5,98+6]..[5,98+7])
                         Pexp_ident "y" (//toplevel//[5,98+6]..[5,98+7])
-                      core_type (//toplevel//[5,98+8]..[5,98+11])
-                        Ptyp_constr "int" (//toplevel//[5,98+8]..[5,98+11])
-                        []
+                      Some
+                        core_type (//toplevel//[5,98+8]..[5,98+11])
+                          Ptyp_constr "int" (//toplevel//[5,98+8]..[5,98+11])
+                          []
                       modes
                       []
                 ]
@@ -1611,9 +1616,10 @@ Ptop_def
                   expression (//toplevel//[2,1+27]..[2,1+29])
                     Pexp_construct "()" (//toplevel//[2,1+27]..[2,1+29])
                     None
-                  core_type (//toplevel//[2,1+20]..[2,1+24])
-                    Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
-                    []
+                  Some
+                    core_type (//toplevel//[2,1+20]..[2,1+24])
+                      Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
+                      []
                   modes
                   []
           modes

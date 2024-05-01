@@ -860,7 +860,7 @@ module N_ary_functions = struct
 
   let check_constraint expr =
     match expr.pexp_desc with
-    | Pexp_constraint (e, ty, m) ->
+    | Pexp_constraint (e, Some ty, m) ->
       Some ({ mode_annotations = m; type_constraint = Pconstraint ty }, e)
     | Pexp_coerce (e, ty1, ty2) ->
       Some ({ mode_annotations = []; type_constraint = Pcoerce (ty1, ty2) }, e)
@@ -1073,7 +1073,7 @@ module N_ary_functions = struct
                 let loc = { body.pexp_loc with loc_ghost = true } in
                 match type_constraint with
                 | Pconstraint ty ->
-                  Ast_helper.Exp.constraint_ body ty ~loc mode_annotations
+                  Ast_helper.Exp.constraint_ body (Some ty) ~loc mode_annotations
                 | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
               in
               constrained_body

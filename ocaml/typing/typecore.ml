@@ -505,6 +505,15 @@ let mode_exclave expected_mode =
     with strictly_local = true
   }
 
+let mode_strictly_local expected_mode =
+  { expected_mode
+    with strictly_local = true
+  }
+
+let mode_coerce mode expected_mode =
+  let mode = Value.meet [expected_mode.mode; mode] in
+  { expected_mode with mode; tuple_modes = [] }
+
 let mode_tailcall_function mode =
   { (mode_default mode) with
     closure_context = Some Tailcall_function }
@@ -4149,7 +4158,7 @@ let rec type_approx env sexp ty_expected =
       (List.map (fun e -> None, e) l)
   | Pexp_ifthenelse (_,e,_) -> type_approx env e ty_expected
   | Pexp_sequence (_,e) -> type_approx env e ty_expected
-  | Pexp_constraint (e, sty, _) ->
+  | Pexp_constraint (e, Some sty, _) ->
       let ty_expected =
         type_approx_constraint env (Pconstraint sty) ty_expected ~loc
       in
@@ -4923,28 +4932,40 @@ let may_lower_contravariant_then_generalize env exp =
 
 let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=modes; _ } =
   let open Ast_helper in
+  let maybe_add_modes_constraint expr =
+    let loc = { expr.pexp_loc with Location.loc_ghost = true } in
+    match modes with
+    | [] -> expr
+    | _ -> Exp.constraint_ ~loc expr None modes
+  in
   match ct with
-  | None -> expr
+  | None -> maybe_add_modes_constraint expr
   | Some (Pvc_constraint { locally_abstract_univars=[]; typ }) ->
       begin match typ.ptyp_desc with
-      | Ptyp_poly _ -> expr
+      | Ptyp_poly _ -> maybe_add_modes_constraint expr
       | _ ->
           let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-          Exp.constraint_ ~loc expr typ modes
+          Exp.constraint_ ~loc expr (Some typ) modes
       end
   | Some (Pvc_coercion { ground; coercion}) ->
       let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-      Exp.coerce ~loc expr ground coercion
+      Exp.coerce ~loc expr ground coercion |> maybe_add_modes_constraint
   | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
       let loc_start = pat.ppat_loc.Location.loc_start in
       let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc expr typ modes in
+      let expr = Exp.constraint_ ~loc expr (Some typ) modes in
       List.fold_right (Exp.newtype ~loc) vars expr
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_modes = modes; _ } as vb) =
   let spat =
     let open Ast_helper in
+    let maybe_add_modes_constraint expr =
+      let loc =  { pat.ppat_loc with Location.loc_ghost=true } in
+      match modes with
+      | [] -> expr
+      | _ -> Pat.constraint_ ~loc pat None modes
+    in
     match vb.pvb_constraint, pat.ppat_desc, exp.pexp_desc with
     | Some (Pvc_constraint {locally_abstract_univars=[]; typ}
            | Pvc_coercion { coercion=typ; _ }),
@@ -4956,13 +4977,13 @@ let vb_pat_constraint
         let loc_end = typ.ptyp_loc.Location.loc_end in
         let loc =  { pat.ppat_loc with loc_end; loc_ghost=true } in
         Pat.constraint_ ~loc pat (Some t) modes
-    | None, (Ppat_any | Ppat_constraint _), _ -> pat
+    | None, (Ppat_any | Ppat_constraint _), _ -> maybe_add_modes_constraint pat
     | None, _, Pexp_coerce (_, _, sty)
-    | None, _, Pexp_constraint (_, sty, _) when !Clflags.principal ->
+    | None, _, Pexp_constraint (_, Some sty, _) when !Clflags.principal ->
         (* propagate type annotation to pattern,
            to allow it to be generalized in -principal mode *)
         Pat.constraint_ ~loc:{pat.ppat_loc with Location.loc_ghost=true} pat (Some sty) modes
-    | _ -> pat
+    | _ -> maybe_add_modes_constraint pat
   in
   vb.pvb_attributes, spat
 
@@ -5816,10 +5837,18 @@ and type_expect_
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
-  | Pexp_constraint (sarg, sty, modes) ->
+  | Pexp_constraint (sarg, None, modes) ->
+      let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
+      let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
+      rue {
+        exp with
+        exp_env = env
+      }
+  | Pexp_constraint (sarg, Some sty, modes) ->
       let (ty, exp_extra) =
         type_constraint env sty (Typemode.transl_alloc_mode modes)
       in
+      let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
       let ty' = instance ty in
       let error_message_attr_opt =
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
@@ -6681,7 +6710,7 @@ and type_function
               match pat.ppat_desc with
               | Ppat_constraint (_, Some sty, m) ->
                   let gloc = { default.pexp_loc with loc_ghost = true } in
-                  Ast_helper.Exp.constraint_ default sty ~loc:gloc m
+                  Ast_helper.Exp.constraint_ default (Some sty) ~loc:gloc m
               | _ -> default
             in
             (* Defaults are always global. They can be moved out of the
@@ -8694,6 +8723,19 @@ and type_expect_jane_syntax
   | Jexp_tuple x ->
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+
+and type_expect_mode ~loc ~env ~modes expected_mode =
+  let modes = Typemode.transl_mode_annots modes in
+  let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
+  let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
+  submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
+  let expected_mode = mode_coerce (Value.of_const max) expected_mode in
+  let expected_mode =
+    match modes.locality with
+    | Some Local -> mode_strictly_local expected_mode
+    | _ -> expected_mode
+  in
+  expected_mode
 
 and type_n_ary_function
       ~loc ~env ~(expected_mode : expected_mode) ~ty_expected

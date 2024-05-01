@@ -703,7 +703,7 @@ module E = struct
         coerce ~loc ~attrs (sub.expr sub e) (map_opt (sub.typ sub) t1)
           (sub.typ sub t2)
     | Pexp_constraint (e, t, m) ->
-        constraint_ ~loc ~attrs (sub.expr sub e) (sub.typ sub t) (sub.modes sub m)
+        constraint_ ~loc ~attrs (sub.expr sub e) (Option.map (sub.typ sub) t) (sub.modes sub m)
     | Pexp_send (e, s) ->
         send ~loc ~attrs (sub.expr sub e) (map_loc sub s)
     | Pexp_new lid -> new_ ~loc ~attrs (map_loc sub lid)

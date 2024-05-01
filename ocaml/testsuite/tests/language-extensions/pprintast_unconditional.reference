@@ -15,7 +15,7 @@ modality_cstrarg:
 
 modality_val: sig val t : string -> string @ local @@ foo bar end
 
-local_exp: let x = foo (x : _ @@ local) in (y : _ @@ local)
+local_exp: let x = foo (local_ x) in (local_ y)
 
 longident: No.Longidents.Require.extensions
 
@@ -88,7 +88,7 @@ modality_cstrarg:
 
 modality_val: sig val t : string -> string @ local @@ foo bar end
 
-local_exp: let x = foo (x : _ @@ local) in (y : _ @@ local)
+local_exp: let x = foo (local_ x) in (local_ y)
 
 longident: No.Longidents.Require.extensions
 

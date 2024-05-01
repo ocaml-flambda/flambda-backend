@@ -290,7 +290,7 @@ let rec add_expr bv exp =
       add_type bv ty3
   | Pexp_constraint(e1, ty2, _) ->
       add_expr bv e1;
-      add_type bv ty2
+      Option.iter (add_type bv) ty2
   | Pexp_send(e, _m) -> add_expr bv e
   | Pexp_new li -> add bv li
   | Pexp_setinstvar(_v, e) -> add_expr bv e

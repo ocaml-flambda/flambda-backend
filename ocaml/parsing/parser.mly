@@ -231,7 +231,7 @@ let mkstrexp e attrs =
 let mkexp_type_constraint ?(ghost=false) ~loc ~modes e t =
   let desc =
     match t with
-  | N_ary.Pconstraint t -> Pexp_constraint(e, t, modes)
+  | N_ary.Pconstraint t -> Pexp_constraint(e, Some t, modes)
   | N_ary.Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
   in
   if ghost then ghexp ~loc desc
@@ -525,7 +525,7 @@ let mk_newtypes ~loc newtypes exp =
    in [let_binding_body_no_punning]. *)
 let wrap_type_annotation ~loc ?(typloc=loc) ~modes newtypes core_type body =
   let mk_newtypes = mk_newtypes ~loc in
-  let exp = mkexp ~loc (Pexp_constraint(body,core_type,modes)) in
+  let exp = mkexp ~loc (Pexp_constraint(body,Some core_type,modes)) in
   let exp = mk_newtypes newtypes exp in
   let inner_type = Typ.varify_constructors (List.map fst newtypes) core_type in
   let ltyp =
@@ -685,6 +685,7 @@ let expr_of_let_bindings ~loc lbs body =
     List.map
       (fun lb ->
          Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
+          ~modes:lb.lb_modes
           ?value_constraint:lb.lb_constraint  lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
@@ -696,6 +697,7 @@ let class_of_let_bindings ~loc lbs body =
     List.map
       (fun lb ->
          Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
+          ~modes:lb.lb_modes
           ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
@@ -1668,7 +1670,7 @@ paren_module_expr:
     e = expr
       { e }
   | e = expr COLON ty = package_type
-      { ghexp ~loc:$loc (Pexp_constraint (e, ty, [])) }
+      { ghexp ~loc:$loc (Pexp_constraint (e, Some ty, [])) }
   | e = expr COLON ty1 = package_type COLONGREATER ty2 = package_type
       { ghexp ~loc:$loc (Pexp_coerce (e, Some ty1, ty2)) }
   | e = expr COLONGREATER ty2 = package_type
@@ -2740,7 +2742,7 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode=mode_legacy exp=seq_expr
-     { mkexp ~loc:$sloc (Pexp_constraint (exp, Typ.mk ~loc:(ghost_loc $sloc) Ptyp_any, [mode])) }
+     { mkexp ~loc:$sloc (Pexp_constraint (exp, None, [mode])) }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2850,7 +2852,7 @@ simple_expr:
   | LPAREN MODULE ext_attributes module_expr RPAREN
       { Pexp_pack $4, $3 }
   | LPAREN MODULE ext_attributes module_expr COLON package_type RPAREN
-      { Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $4), $6, []), $3 }
+      { Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $4), Some $6, []), $3 }
   | LPAREN MODULE ext_attributes module_expr COLON error
       { unclosed "(" $loc($1) ")" $loc($6) }
   | OBJECT ext_attributes class_structure END
@@ -2876,8 +2878,7 @@ comprehension_clause_binding:
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes mode_legacy pattern IN expr
       { let expr =
-          mkexp ~loc:$sloc
-                (Pexp_constraint ($5, Typ.mk ~loc:(ghost_loc $sloc) Ptyp_any, [$2]))
+          mkexp ~loc:$sloc (Pexp_constraint ($5, None, [$2]))
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3
@@ -3020,7 +3021,7 @@ comprehension_clause:
     package_type RPAREN
       { let modexp =
           mkexp_attrs ~loc:($startpos($3), $endpos)
-            (Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $6), $8, [])) $5 in
+            (Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $6), Some $8, [])) $5 in
         Pexp_open(od, modexp) }
   | mod_longident DOT
     LPAREN MODULE ext_attributes module_expr COLON error

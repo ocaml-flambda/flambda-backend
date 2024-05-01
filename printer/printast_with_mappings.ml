@@ -360,7 +360,7 @@ and expression i ppf x =
   | Pexp_constraint (e, ct, m) ->
       line i ppf "Pexp_constraint\n";
       expression i ppf e;
-      core_type i ppf ct;
+      option i core_type ppf ct;
       modes i ppf m;
   | Pexp_coerce (e, cto1, cto2) ->
       line i ppf "Pexp_coerce\n";
