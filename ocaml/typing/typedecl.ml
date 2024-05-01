@@ -1342,7 +1342,6 @@ let update_decl_jkind env dpath decl =
          *)
          mutable float64s : bool;
          mutable non_float64_unboxed_fields : bool;
-         mutable any_unboxed_fields : bool;
       }
   end in
 
@@ -1365,7 +1364,7 @@ let update_decl_jkind env dpath decl =
       in
       let repr_summary =
         { values = false; imms = false; floats = false; float64s = false;
-          non_float64_unboxed_fields = false; any_unboxed_fields = false;
+          non_float64_unboxed_fields = false;
         }
       in
       List.iter
@@ -1373,12 +1372,9 @@ let update_decl_jkind env dpath decl =
            match repr with
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
-           | Unboxed_element Float64 ->
-               repr_summary.float64s <- true;
-               repr_summary.any_unboxed_fields <- true
+           | Unboxed_element Float64 -> repr_summary.float64s <- true
            | Unboxed_element (Bits32 | Bits64 | Word) ->
-               repr_summary.non_float64_unboxed_fields <- true;
-               repr_summary.any_unboxed_fields <- true
+               repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component -> ())
         reprs;
@@ -1388,10 +1384,8 @@ let update_decl_jkind env dpath decl =
             non-float fields.
         *)
         | { values = false; imms = false; floats = true;
-            float64s = true; non_float64_unboxed_fields = false;
-            any_unboxed_fields;
-          } [@warning "+9"] ->
-            assert any_unboxed_fields; (* as indicated by [float64s] *)
+            float64s = true; non_float64_unboxed_fields = false; }
+          [@warning "+9"] ->
             let flat_suffix =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
@@ -1435,14 +1429,9 @@ let update_decl_jkind env dpath decl =
             assert_mixed_product_support loc Record ~value_prefix_len;
             Record_mixed { value_prefix_len; flat_suffix }
         (* value-only records are stored as boxed records *)
-        | { values = true; float64s = false; non_float64_unboxed_fields = false;
-            any_unboxed_fields;
-          }
-        | { imms = true; float64s = false; non_float64_unboxed_fields = false;
-            any_unboxed_fields;
-          } ->
-          assert (not any_unboxed_fields);
-          rep
+        | { values = true; float64s = false; non_float64_unboxed_fields = false }
+        | { imms = true; float64s = false; non_float64_unboxed_fields = false }
+          -> rep
         (* All-float and all-float64 records are stored as flat float records.
         *)
         | { values = false; imms = false; floats = true ; float64s = false;
@@ -1452,7 +1441,8 @@ let update_decl_jkind env dpath decl =
             non_float64_unboxed_fields = false } ->
           Record_ufloat
         | { values = false; imms = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false } [@warning "+9"] ->
+            non_float64_unboxed_fields = false }
+          [@warning "+9"] ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
