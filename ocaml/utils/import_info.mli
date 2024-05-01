@@ -55,28 +55,29 @@ val dummy : t
 module Intf : sig
   type nonrec t = t
 
-  val create_ordinary : CU.Name.t -> CU.t -> crc:Digest.t -> t
+  val create_normal : CU.Name.t -> CU.t -> crc:Digest.t -> t
 
   val create_alias : CU.Name.t -> t
 
   val create_parameter : CU.Name.t -> crc:Digest.t -> t
 
   module Nonalias : sig
-    module Sort : sig
+    module Kind : sig
       type t =
-        | Ordinary of CU.t
+        | Normal of CU.t
         | Parameter
     end
 
-    (** An [Intf.t] is equivalent to [CU.Name.t * Nonalias.t option] (use [create], [name],
-        and [spec] to convert back and forth). *)
-    type t = Sort.t * Digest.t
+    (** The "non-alias part" of the import info for an interface. An [Intf.t] is
+        equivalent to a [CU.Name.t * Nonalias.t option] (use [create], [name], and [spec]
+        to convert back and forth). *)
+    type t = Kind.t * Digest.t
   end
 
-  (** [create name spec] is [create_ordinary name cu crc] if [spec] is [Some (Ordinary cu,
-      crc)], [create_parameter name crc] if [spec] is [Some (Parameter, crc)], and
-      [create_alias] if [spec] is [None]. Useful when [spec] is coming out of [Consistbl].
-  *)
+  (** [create name nonalias] is [create_normal name cu crc] if [nonalias] is [Some (Normal
+      cu, crc)], [create_parameter name crc] if [nonalias] is [Some (Parameter, crc)], and
+      [create_alias] if [nonalias] is [None]. Useful when [nonalias] is coming out of
+      [Consistbl]. *)
   val create : CU.Name.t -> Nonalias.t option -> t
 
   val name : t -> CU.Name.t
