@@ -27,205 +27,8 @@ module Int32_u = Stdlib__Int32_u
 module Int64_u = Stdlib__Int64_u
 module Nativeint_u = Stdlib__Nativeint_u
 
-let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
-let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
-let print_int prefix x = Printf.printf "%s: %d\n" prefix x
-
-let dummy = "dummy"
-
-(*************************************************)
-(* Test 1: basic mixed records involving float# *)
-
-type mixedargs = { x2_1 : float;
-                   x4_1 : float;
-                   x6_1 : float;
-                   x8_1 : float;
-                   (* We include the string field to document more plainly that
-                      the preceding section of [float] fields are boxed.
-                      Without the [str] field, an implementation of mixed blocks
-                      could more conceivably unbox the [float] fields.
-                   *)
-                   dummy : string;
-                   x0_1 : int;
-                   x0_2 : int;
-                   x1 : float#;
-                   x2_2 : int;
-                   x3 : float#;
-                   x4_2 : int;
-                   x5 : float#;
-                   x6_2 : int;
-                   x7 : float#;
-                   x8_2 : int;
-                   x9 : float# }
-
-(* Get some float# args by pattern matching and others by projection *)
-let[@inline_never] f1 steps ({ x1; x0_1=start_k; x0_2=end_k; x8_1; x8_2; x5;
-                               x6_1; x6_2 } as fargs) () =
-  let[@inline never] rec go k =
-    if k = end_k
-    then Float_u.of_float 0.
-    else begin
-      let (x2_1, x2_2) = (fargs.x2_1, fargs.x2_2) in
-      let {x4_1; x4_2; _} = fargs in
-      let sum =
-        Float_u.(of_float x2_1 + of_int x2_2 + of_float x4_1 + of_int x4_2
-                 + of_float x6_1 + of_int x6_2 + of_float x8_1 + of_int x8_2)
-      in
-      let acc = go (k + 1) in
-      steps.(k) <- Float_u.to_float acc;
-      Float_u.(acc + ((x1 + fargs.x3 + x5 + fargs.x7 + fargs.x9)
-                      * sum))
-    end
-  in
-  go start_k
-
-let test1 () =
-  (* same math as f3_manyargs *)
-  let steps = Array.init 10 (fun _ -> 0.0) in
-  let x1 = Float_u.of_float 3.14 in
-  let x3 = Float_u.of_float 2.72 in
-  let x5 = Float_u.of_float 1.62 in
-  let x7 = Float_u.of_float 1.41 in
-  let x9 = Float_u.of_float 42.0 in
-
-  (* these sum to 3.0 *)
-  let x2_1 = 6.6 in
-  let x2_2 = 42 in
-  let x4_1 = -22.9 in
-  let x4_2 = 109 in
-  let x6_1 = -241.2 in
-  let x6_2 = 90 in
-  let x8_1 = -2.5 in
-  let x8_2 = 22 in
-
-  let fargs =
-    { x0_1 = 4; x0_2 = 8; x1; x2_1; x2_2; x3; x4_1; x4_2; x5; x6_1; x6_2; x7;
-      x8_1; x8_2; x9;
-      dummy }
-  in
-
-  let f1 = f1 steps fargs in
-  print_floatu "Test 1, 610.68: " (f1 ());
-  Array.iteri (Printf.printf "  Test 1, step %d: %.2f\n") steps
-
-let _ = test1 ()
-
-(*****************************************************)
-(* Test 2: mixed record manipulation *)
-
-type t2 = { a : float;
-            dummy : string;
-             mutable b : int;
-             c : float#;
-             mutable d : float#;
-             e : int;
-             mutable f : float# }
-
-(* Construction *)
-let t2_1 = { a = 3.14;
-              b = 13;
-              c = Float_u.of_float 7.31;
-              d = Float_u.of_float 1.41;
-              e = 6;
-              f = Float_u.of_float 27.1;
-              dummy;
-            }
-
-let t2_2 = { a = (-3.14);
-              b = -13;
-              c = Float_u.of_float (-7.31);
-              d = Float_u.of_float (-1.41);
-              e = -6;
-              f = Float_u.of_float (-27.1);
-              dummy;
-            }
-
-let print_t2 t2 =
-  print_float "  a" t2.a;
-  print_int "  b" t2.b;
-  print_floatu "  c" t2.c;
-  print_floatu "  d" t2.d;
-  print_int "  e" t2.e;
-  print_floatu "  f" t2.f
-
-let _ =
-  Printf.printf "Test 2, construction:\n";
-  print_t2 t2_1;
-  print_t2 t2_2
-
-(* Matching, projection *)
-let f2_1 {c; d; f; _} r =
-  match r with
-  | { a; _ } ->
-    { a = Float.of_int r.e;
-      b = Float_u.(to_int (of_float a - d));
-      c = Float_u.(r.c + c);
-      d = Float_u.(d - (of_int r.b));
-      e = Float_u.(to_int (f + (of_int r.e)));
-      f = r.f;
-      dummy}
-
-let _ =
-  Printf.printf "Test 2, matching and projection:\n";
-  print_t2 (f2_1 t2_1 t2_2)
-
-(* Record update and mutation *)
-let f2_2 ({a; d; _} as r1) r2 =
-  r1.d <- Float_u.of_float 42.0;
-  let r3 = { r2 with c = r1.d;
-                     d = Float_u.of_float 25.0 }
-  in
-  r3.b <- Float_u.(to_int (of_float a + d));
-  r2.b <- 17;
-  r1.f <- r2.c;
-  r3
-
-let _ =
-  Printf.printf "Test 2, record update and mutation:\n";
-  let t2_3 = f2_2 t2_1 t2_2 in
-  print_t2 t2_1;
-  print_t2 t2_2;
-  print_t2 t2_3
-
-(************************************************************)
-(* Test 3: (float# + immediate) records in recursive groups *)
-
-let rec f r =
-  r.d <- Float_u.of_int t3_1.b;
-  t3_2.b <- 42;
-  t3_1.f <- Float_u.of_float t3_1.a;
-  Float_u.(of_float r.a + of_float t3_2.a)
-
-
-and t3_1 = { a = 1.1;
-              b = 2;
-              c = Float_u.of_float 3.3;
-              d = Float_u.of_float 4.4;
-              e = 5;
-              f = Float_u.of_float 6.6;
-              dummy;
-  }
-
-and t3_2 = { a = (- 5.1);
-              b = -6;
-              c = Float_u.of_float (-7.3);
-              d = Float_u.of_float (-8.4);
-              e = -9;
-              f = Float_u.of_float (-10.6);
-              dummy;
-            }
-
-let _ =
-  Printf.printf "Test 3, (float#+imm) records in recursive groups:\n";
-  print_t2 t3_1;
-  print_t2 t3_2;
-  let result = f t3_1 in
-  print_floatu "  result (-4.00)" result;
-  print_t2 t3_1;
-  print_t2 t3_2
-
 (******************************)
-(* Test 4: large mixed blocks *)
+(* Test: large mixed blocks *)
 
 (* Allocations of large-enough blocks go through a different code path in the
    backend and runtime. This mixed block is larger than that threshold.
@@ -235,7 +38,7 @@ type uf = float#
 type i32 = int32#
 type i64 = int64#
 type i_n = nativeint#
-type t4 =
+type t_large =
   { x : string;
     f1 : uf; f2 : i_n; f3 : uf; f4 : uf; f5 : uf; f6 : uf; f7 : uf;
     f8 : i32; f9 : i64; f10 : uf; f11 : uf; f12 : i_n; f13 : uf; f14 : uf;
@@ -276,7 +79,7 @@ type t4 =
     f253 : uf; f254 : uf; f255 : uf; f256 : uf; f257 : uf; f258 : i32; f259 : i64;
   }
 
-let create_t4 f i32 i64 i_n =
+let create_large f i32 i64 i_n =
   { x = "prefix";
   f1=f 1;f2=i_n 2;f3=f 3;f4=f 4;f5=f 5;f6=f 6;f7=f 7;
   f8=i32 8;f9=i64 9;f10=f 10;f11=f 11;f12=i_n 12;f13=f 13;f14=f 14;
@@ -317,89 +120,89 @@ let create_t4 f i32 i64 i_n =
   f253=f 253;f254=f 254;f255=f 255;f256=f 256;f257=f 257;f258=i32 258;f259=i64 259;
   }
 
-let iter_t4 f i32 i64 i_n t4 =
-  f t4.f1 1; i_n t4.f2 2; f t4.f3 3; f t4.f4 4; f t4.f5 5; f t4.f6 6; f t4.f7 7;
-    i32 t4.f8 8; i64 t4.f9 9; f t4.f10 10; f t4.f11 11;
-    i_n t4.f12 12; f t4.f13 13; f t4.f14 14;
-    f t4.f15 15; f t4.f16 16; f t4.f17 17; i32 t4.f18 18;
-    i64 t4.f19 19; f t4.f20 20; f t4.f21 21;
-    i_n t4.f22 22; f t4.f23 23; f t4.f24 24; f t4.f25 25;
-    f t4.f26 26; f t4.f27 27; i32 t4.f28 28;
-    i64 t4.f29 29; f t4.f30 30; f t4.f31 31; i_n t4.f32 32;
-    f t4.f33 33; f t4.f34 34; f t4.f35 35;
-    f t4.f36 36; f t4.f37 37; i32 t4.f38 38; i64 t4.f39 39;
-    f t4.f40 40; f t4.f41 41; i_n t4.f42 42;
-    f t4.f43 43; f t4.f44 44; f t4.f45 45; f t4.f46 46;
-    f t4.f47 47; i32 t4.f48 48; i64 t4.f49 49;
-    f t4.f50 50; f t4.f51 51; i_n t4.f52 52; f t4.f53 53;
-    f t4.f54 54; f t4.f55 55; f t4.f56 56;
-    f t4.f57 57; i32 t4.f58 58; i64 t4.f59 59; f t4.f60 60;
-    f t4.f61 61; i_n t4.f62 62; f t4.f63 63;
-    f t4.f64 64; f t4.f65 65; f t4.f66 66; f t4.f67 67;
-    i32 t4.f68 68; i64 t4.f69 69; f t4.f70 70;
-    f t4.f71 71; i_n t4.f72 72; f t4.f73 73; f t4.f74 74;
-    f t4.f75 75; f t4.f76 76; f t4.f77 77;
-    i32 t4.f78 78; i64 t4.f79 79; f t4.f80 80; f t4.f81 81;
-    i_n t4.f82 82; f t4.f83 83; f t4.f84 84;
-    f t4.f85 85; f t4.f86 86; f t4.f87 87; i32 t4.f88 88;
-    i64 t4.f89 89; f t4.f90 90; f t4.f91 91;
-    i_n t4.f92 92; f t4.f93 93; f t4.f94 94; f t4.f95 95;
-    f t4.f96 96; f t4.f97 97; i32 t4.f98 98;
-    i64 t4.f99 99; f t4.f100 100; f t4.f101 101; i_n t4.f102 102;
-    f t4.f103 103; f t4.f104 104; f t4.f105 105;
-    f t4.f106 106; f t4.f107 107; i32 t4.f108 108; i64 t4.f109 109;
-    f t4.f110 110; f t4.f111 111; i_n t4.f112 112;
-    f t4.f113 113; f t4.f114 114; f t4.f115 115; f t4.f116 116;
-    f t4.f117 117; i32 t4.f118 118; i64 t4.f119 119;
-    f t4.f120 120; f t4.f121 121; i_n t4.f122 122; f t4.f123 123;
-    f t4.f124 124; f t4.f125 125; f t4.f126 126;
-    f t4.f127 127; i32 t4.f128 128; i64 t4.f129 129; f t4.f130 130;
-    f t4.f131 131; i_n t4.f132 132; f t4.f133 133;
-    f t4.f134 134; f t4.f135 135; f t4.f136 136; f t4.f137 137;
-    i32 t4.f138 138; i64 t4.f139 139; f t4.f140 140;
-    f t4.f141 141; i_n t4.f142 142; f t4.f143 143; f t4.f144 144;
-    f t4.f145 145; f t4.f146 146; f t4.f147 147;
-    i32 t4.f148 148; i64 t4.f149 149; f t4.f150 150; f t4.f151 151;
-    i_n t4.f152 152; f t4.f153 153; f t4.f154 154;
-    f t4.f155 155; f t4.f156 156; f t4.f157 157; i32 t4.f158 158;
-    i64 t4.f159 159; f t4.f160 160; f t4.f161 161;
-    i_n t4.f162 162; f t4.f163 163; f t4.f164 164; f t4.f165 165;
-    f t4.f166 166; f t4.f167 167; i32 t4.f168 168;
-    i64 t4.f169 169; f t4.f170 170; f t4.f171 171; i_n t4.f172 172;
-    f t4.f173 173; f t4.f174 174; f t4.f175 175;
-    f t4.f176 176; f t4.f177 177; i32 t4.f178 178; i64 t4.f179 179;
-    f t4.f180 180; f t4.f181 181; i_n t4.f182 182;
-    f t4.f183 183; f t4.f184 184; f t4.f185 185; f t4.f186 186;
-    f t4.f187 187; i32 t4.f188 188; i64 t4.f189 189;
-    f t4.f190 190; f t4.f191 191; i_n t4.f192 192; f t4.f193 193;
-    f t4.f194 194; f t4.f195 195; f t4.f196 196;
-    f t4.f197 197; i32 t4.f198 198; i64 t4.f199 199; f t4.f200 200;
-    f t4.f201 201; i_n t4.f202 202; f t4.f203 203;
-    f t4.f204 204; f t4.f205 205; f t4.f206 206; f t4.f207 207;
-    i32 t4.f208 208; i64 t4.f209 209; f t4.f210 210;
-    f t4.f211 211; i_n t4.f212 212; f t4.f213 213; f t4.f214 214;
-    f t4.f215 215; f t4.f216 216; f t4.f217 217;
-    i32 t4.f218 218; i64 t4.f219 219; f t4.f220 220; f t4.f221 221;
-    i_n t4.f222 222; f t4.f223 223; f t4.f224 224;
-    f t4.f225 225; f t4.f226 226; f t4.f227 227; i32 t4.f228 228;
-    i64 t4.f229 229; f t4.f230 230; f t4.f231 231;
-    i_n t4.f232 232; f t4.f233 233; f t4.f234 234; f t4.f235 235;
-    f t4.f236 236; f t4.f237 237; i32 t4.f238 238;
-    i64 t4.f239 239; f t4.f240 240; f t4.f241 241; i_n t4.f242 242;
-    f t4.f243 243; f t4.f244 244; f t4.f245 245;
-    f t4.f246 246; f t4.f247 247; i32 t4.f248 248; i64 t4.f249 249;
-    f t4.f250 250; f t4.f251 251; i_n t4.f252 252;
-    f t4.f253 253; f t4.f254 254; f t4.f255 255; f t4.f256 256;
-    f t4.f257 257; i32 t4.f258 258; i64 t4.f259 259;
+let iter_large f i32 i64 i_n t =
+  f t.f1 1; i_n t.f2 2; f t.f3 3; f t.f4 4; f t.f5 5; f t.f6 6; f t.f7 7;
+    i32 t.f8 8; i64 t.f9 9; f t.f10 10; f t.f11 11;
+    i_n t.f12 12; f t.f13 13; f t.f14 14;
+    f t.f15 15; f t.f16 16; f t.f17 17; i32 t.f18 18;
+    i64 t.f19 19; f t.f20 20; f t.f21 21;
+    i_n t.f22 22; f t.f23 23; f t.f24 24; f t.f25 25;
+    f t.f26 26; f t.f27 27; i32 t.f28 28;
+    i64 t.f29 29; f t.f30 30; f t.f31 31; i_n t.f32 32;
+    f t.f33 33; f t.f34 34; f t.f35 35;
+    f t.f36 36; f t.f37 37; i32 t.f38 38; i64 t.f39 39;
+    f t.f40 40; f t.f41 41; i_n t.f42 42;
+    f t.f43 43; f t.f44 44; f t.f45 45; f t.f46 46;
+    f t.f47 47; i32 t.f48 48; i64 t.f49 49;
+    f t.f50 50; f t.f51 51; i_n t.f52 52; f t.f53 53;
+    f t.f54 54; f t.f55 55; f t.f56 56;
+    f t.f57 57; i32 t.f58 58; i64 t.f59 59; f t.f60 60;
+    f t.f61 61; i_n t.f62 62; f t.f63 63;
+    f t.f64 64; f t.f65 65; f t.f66 66; f t.f67 67;
+    i32 t.f68 68; i64 t.f69 69; f t.f70 70;
+    f t.f71 71; i_n t.f72 72; f t.f73 73; f t.f74 74;
+    f t.f75 75; f t.f76 76; f t.f77 77;
+    i32 t.f78 78; i64 t.f79 79; f t.f80 80; f t.f81 81;
+    i_n t.f82 82; f t.f83 83; f t.f84 84;
+    f t.f85 85; f t.f86 86; f t.f87 87; i32 t.f88 88;
+    i64 t.f89 89; f t.f90 90; f t.f91 91;
+    i_n t.f92 92; f t.f93 93; f t.f94 94; f t.f95 95;
+    f t.f96 96; f t.f97 97; i32 t.f98 98;
+    i64 t.f99 99; f t.f100 100; f t.f101 101; i_n t.f102 102;
+    f t.f103 103; f t.f104 104; f t.f105 105;
+    f t.f106 106; f t.f107 107; i32 t.f108 108; i64 t.f109 109;
+    f t.f110 110; f t.f111 111; i_n t.f112 112;
+    f t.f113 113; f t.f114 114; f t.f115 115; f t.f116 116;
+    f t.f117 117; i32 t.f118 118; i64 t.f119 119;
+    f t.f120 120; f t.f121 121; i_n t.f122 122; f t.f123 123;
+    f t.f124 124; f t.f125 125; f t.f126 126;
+    f t.f127 127; i32 t.f128 128; i64 t.f129 129; f t.f130 130;
+    f t.f131 131; i_n t.f132 132; f t.f133 133;
+    f t.f134 134; f t.f135 135; f t.f136 136; f t.f137 137;
+    i32 t.f138 138; i64 t.f139 139; f t.f140 140;
+    f t.f141 141; i_n t.f142 142; f t.f143 143; f t.f144 144;
+    f t.f145 145; f t.f146 146; f t.f147 147;
+    i32 t.f148 148; i64 t.f149 149; f t.f150 150; f t.f151 151;
+    i_n t.f152 152; f t.f153 153; f t.f154 154;
+    f t.f155 155; f t.f156 156; f t.f157 157; i32 t.f158 158;
+    i64 t.f159 159; f t.f160 160; f t.f161 161;
+    i_n t.f162 162; f t.f163 163; f t.f164 164; f t.f165 165;
+    f t.f166 166; f t.f167 167; i32 t.f168 168;
+    i64 t.f169 169; f t.f170 170; f t.f171 171; i_n t.f172 172;
+    f t.f173 173; f t.f174 174; f t.f175 175;
+    f t.f176 176; f t.f177 177; i32 t.f178 178; i64 t.f179 179;
+    f t.f180 180; f t.f181 181; i_n t.f182 182;
+    f t.f183 183; f t.f184 184; f t.f185 185; f t.f186 186;
+    f t.f187 187; i32 t.f188 188; i64 t.f189 189;
+    f t.f190 190; f t.f191 191; i_n t.f192 192; f t.f193 193;
+    f t.f194 194; f t.f195 195; f t.f196 196;
+    f t.f197 197; i32 t.f198 198; i64 t.f199 199; f t.f200 200;
+    f t.f201 201; i_n t.f202 202; f t.f203 203;
+    f t.f204 204; f t.f205 205; f t.f206 206; f t.f207 207;
+    i32 t.f208 208; i64 t.f209 209; f t.f210 210;
+    f t.f211 211; i_n t.f212 212; f t.f213 213; f t.f214 214;
+    f t.f215 215; f t.f216 216; f t.f217 217;
+    i32 t.f218 218; i64 t.f219 219; f t.f220 220; f t.f221 221;
+    i_n t.f222 222; f t.f223 223; f t.f224 224;
+    f t.f225 225; f t.f226 226; f t.f227 227; i32 t.f228 228;
+    i64 t.f229 229; f t.f230 230; f t.f231 231;
+    i_n t.f232 232; f t.f233 233; f t.f234 234; f t.f235 235;
+    f t.f236 236; f t.f237 237; i32 t.f238 238;
+    i64 t.f239 239; f t.f240 240; f t.f241 241; i_n t.f242 242;
+    f t.f243 243; f t.f244 244; f t.f245 245;
+    f t.f246 246; f t.f247 247; i32 t.f248 248; i64 t.f249 249;
+    f t.f250 250; f t.f251 251; i_n t.f252 252;
+    f t.f253 253; f t.f254 254; f t.f255 255; f t.f256 256;
+    f t.f257 257; i32 t.f258 258; i64 t.f259 259;
 ;;
 
-let test4 () =
+let test_large_mixed_blocks () =
   let t =
-    create_t4 Float_u.of_int Int32_u.of_int Int64_u.of_int Nativeint_u.of_int
+    create_large Float_u.of_int Int32_u.of_int Int64_u.of_int Nativeint_u.of_int
   in
   let sum () =
     let total = ref 0.0 in
-    iter_t4
+    iter_large
       (fun f _ -> total := !total +. Float_u.to_float f)
       (fun i _ -> total := !total +. Int32_u.to_float i)
       (fun i _ -> total := !total +. Int64_u.to_float i)
@@ -407,9 +210,9 @@ let test4 () =
       t;
     !total
   in
-  Printf.printf "Test 4: sum (33670) = %.3f\n" (sum ());
+  Printf.printf "Test large mixed blocks: sum (33670) = %.3f\n" (sum ());
   let check () =
-    iter_t4
+    iter_large
       (fun f i -> assert (Float_u.equal f (Float_u.of_int i)))
       (fun i32 i -> assert (Int32_u.equal i32 (Int32_u.of_int i)))
       (fun i64 i -> assert (Int64_u.equal i64 (Int64_u.of_int i)))
@@ -422,7 +225,7 @@ let test4 () =
   Printf.printf "  at end, sum (33670) = %.3f\n" (sum ());
 ;;
 
-let () = test4 ()
+let () = test_large_mixed_blocks ()
 
 (*************************)
 (* Test 5: optimizations *)
@@ -433,7 +236,7 @@ let () = test4 ()
    doesn't fall over.
 *)
 
-type t5_1 =
+type t_opt1 =
   { imm : int; fl : float#; i32 : int32#; i64 : int64#; i_n : nativeint# }
 
 let construct_and_destruct_1_1 imm fl i32 i64 i_n =
@@ -444,7 +247,6 @@ let construct_and_destruct_1_1 imm fl i32 i64 i_n =
       +. Int32_u.to_float i32
       +. Int64_u.to_float i64
       +. Nativeint_u.to_float i_n
-
 
 let construct_and_destruct_1_2 b imm fl i32 i64 i_n =
   let { imm; fl; i32; i64; i_n } =
@@ -458,7 +260,7 @@ let construct_and_destruct_1_2 b imm fl i32 i64 i_n =
   +. Int64_u.to_float i64
   +. Nativeint_u.to_float i_n
 
-type t5_2 = { x : float; y : float# }
+type t_opt2 = { x : float; y : float# }
 
 let construct_and_destruct_2_1 ~x ~y =
   match { x; y } with
@@ -472,13 +274,13 @@ let construct_and_destruct_2_2 b ~x ~y =
   in
   x +. Float_u.to_float y
 
-let test5 () =
+let test_opt () =
   let result1_1 = construct_and_destruct_1_1 36 #4. (-#10l) #13L (-#1n) in
   let result1_2 = construct_and_destruct_1_2 true 38 #4. #255l (-#435L) #180n in
   let result2_1 = construct_and_destruct_2_1 ~x:37. ~y:#5. in
   let result2_2 = construct_and_destruct_2_2 false ~x:36. ~y:#5. in
-  Printf.printf "Test 5: result (42) = %.3f = %.3f = %.3f = %.3f\n"
+  Printf.printf "Test opt: result (42) = %.3f = %.3f = %.3f = %.3f\n"
     result1_1 result1_2 result2_1 result2_2
 ;;
 
-let () = test5 ()
+let () = test_opt ()
