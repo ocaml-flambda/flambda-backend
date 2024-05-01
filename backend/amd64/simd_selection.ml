@@ -106,6 +106,7 @@ let select_operation_sse2 op args =
   | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
   | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
   | "caml_sse2_float64_sqrt" -> Some (Sqrt_scalar_f64, args)
+  | "caml_sse2_float32_sqrt" -> Some (Sqrt_scalar_f32, args)
   | "caml_sse2_float64x2_sqrt" -> Some (Sqrt_f64, args)
   | "caml_sse2_int8x16_add" -> Some (Add_i8, args)
   | "caml_sse2_int16x8_add" -> Some (Add_i16, args)

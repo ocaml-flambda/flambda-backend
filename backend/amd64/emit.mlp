@@ -1051,6 +1051,10 @@ let emit_simd_instr op i =
     if arg i 0 <> res i 0 then
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
     I.sqrtsd (arg i 0) (res i 0)
+  | SSE2 Sqrt_scalar_f32 ->
+    if arg i 0 <> res i 0 then
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+    I.sqrtss (arg i 0) (res i 0)
   | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
   | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
   | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
@@ -1622,9 +1626,9 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Ispecific(Ifloatsqrtf (Float64, addr))) ->
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float32, _addr))) ->
-      (* CR mslater: (float32) Ifloatsqrtf Float32 *)
-      Misc.fatal_error "Ifloatsqrtf Float32 should never be generated."
+  | Lop(Ispecific(Ifloatsqrtf (Float32, addr))) ->
+      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
+      I.sqrtss (addressing addr REAL4 i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

@@ -88,6 +88,7 @@ type sse_operation =
 type sse2_operation =
   | Cast_scalar_f64_i64
   | Sqrt_scalar_f64
+  | Sqrt_scalar_f32
   | Min_scalar_f64
   | Max_scalar_f64
   | Sqrt_f64
@@ -316,6 +317,7 @@ let equal_operation_sse2 l r =
   | Min_scalar_f64, Min_scalar_f64
   | Max_scalar_f64, Max_scalar_f64
   | Sqrt_scalar_f64, Sqrt_scalar_f64
+  | Sqrt_scalar_f32, Sqrt_scalar_f32
   | Cast_scalar_f64_i64, Cast_scalar_f64_i64
   | Sqrt_f64, Sqrt_f64
   | Add_i8, Add_i8
@@ -405,8 +407,8 @@ let equal_operation_sse2 l r =
     true
   | Cmp_f64 l, Cmp_f64 r when float_condition_equal l r -> true
   | ( ( Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Min_scalar_f64
-      | Max_scalar_f64 | Cast_scalar_f64_i64 | Sqrt_scalar_f64 | Sqrt_f64
-      | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16
+      | Max_scalar_f64 | Cast_scalar_f64_i64 | Sqrt_scalar_f64 | Sqrt_scalar_f32
+      | Sqrt_f64 | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16
       | Add_saturating_i8 | Add_saturating_i16 | Sub_i8 | Sub_i16 | Sub_i32
       | Sub_i64 | Sub_f64 | Sub_saturating_unsigned_i8
       | Sub_saturating_unsigned_i16 | Sub_saturating_i8 | Sub_saturating_i16
@@ -629,6 +631,7 @@ let print_operation_sse printreg op ppf arg =
 let print_operation_sse2 printreg op ppf arg =
   match op with
   | Sqrt_scalar_f64 -> fprintf ppf "sqrt_scalar_f64 %a" printreg arg.(0)
+  | Sqrt_scalar_f32 -> fprintf ppf "sqrt_scalar_f32 %a" printreg arg.(0)
   | Min_scalar_f64 ->
     fprintf ppf "min_scalar_f64 %a %a" printreg arg.(0) printreg arg.(1)
   | Max_scalar_f64 ->
@@ -911,7 +914,7 @@ let class_of_operation_sse = function
 let class_of_operation_sse2 = function
   | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
   | Cast_scalar_f64_i64 | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64
-  | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
+  | Sqrt_scalar_f32 | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
   | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
   | Sub_saturating_unsigned_i16 | Max_unsigned_i8 | Max_i16 | Max_f64

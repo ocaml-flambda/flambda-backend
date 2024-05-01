@@ -309,6 +309,16 @@ method! select_operation op args dbg =
      | _ ->
          assert false
     end
+  | Cextcall { func = "sqrtf"; alloc = false; } ->
+     begin match args with
+       [Cop(Cload { memory_chunk = Single { reg = Float32 } as chunk; _}, [loc], _dbg)] ->
+         let (addr, arg) = self#select_addressing chunk loc in
+         (Ispecific(Ifloatsqrtf (Float32, addr)), [arg])
+     | [arg] ->
+         (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f32)), [arg])
+     | _ ->
+         assert false
+    end
   | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
                ty = [|Int|]; ty_args = [XFloat] } ->
       (match args with
@@ -331,8 +341,29 @@ method! select_operation op args dbg =
                 mutability = mut;
                 is_atomic; }, [arg]
       | _ -> Imove, args)
+  | Cextcall { func = "caml_float32_to_bits"; alloc = false;
+               ty = [|Int|]; ty_args = [XFloat32] } ->
+      (match args with
+        | [Cop(Cload { memory_chunk = Single { reg = Float32 }; mutability = mut; is_atomic }, [loc], _dbg)] ->
+        let c = Word_int in
+        let (addr, arg) = self#select_addressing c loc in
+        Iload { memory_chunk = c;
+                addressing_mode = addr;
+                mutability = mut;
+                is_atomic; }, [arg]
+      | _ -> Imove, args)
+  | Cextcall { func = "caml_float32_of_bits"; alloc = false;
+               ty = [|Float32|]; ty_args = [XInt32] } ->
+      (match args with
+      | [Cop(Cload { memory_chunk = Thirtytwo_signed; mutability = mut; is_atomic }, [loc], _dbg)] ->
+        let c = Single { reg = Float32 } in
+        let (addr, arg) = self#select_addressing c loc in
+        Iload { memory_chunk = c;
+                addressing_mode = addr;
+                mutability = mut;
+                is_atomic; }, [arg]
+      | _ -> Imove, args)
   (* x86 intrinsics ([@@builtin]) *)
-  (* CR mslater: (float32) casting/sqrt intrinsics *)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args

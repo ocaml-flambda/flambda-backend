@@ -69,7 +69,7 @@ let register_behavior_sse2 = function
   | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
     R_to_fst
   | Movemask_8 | Movemask_64 -> R_to_R
-  | Sqrt_scalar_f64 -> (* Backwards compatibility *) R_to_R
+  | Sqrt_scalar_f64 | Sqrt_scalar_f32 -> (* Backwards compatibility *) R_to_R
 
 let register_behavior_sse3 = function
   | Addsub_f32 | Addsub_f64 | Hadd_f32 | Hadd_f64 | Hsub_f32 | Hsub_f64 ->
