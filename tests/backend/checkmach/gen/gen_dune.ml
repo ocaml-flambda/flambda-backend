@@ -183,6 +183,4 @@ let () =
     ~extra_dep:None ~exit_code:2 "test_assume_error";
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_assume_stub";
-  print_test_expected_output ~cutoff:default_cutoff
-    ~extra_dep:None ~exit_code:0 "test_assume_stub";
   ()
