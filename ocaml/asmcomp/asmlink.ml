@@ -38,7 +38,7 @@ exception Error of error
 (* Consistency check between interfaces and implementations *)
 
 module Cmi_consistbl =
-  Consistbl.Make (CU.Name) (Import_info.Intf.Specification.Nonalias)
+  Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
 

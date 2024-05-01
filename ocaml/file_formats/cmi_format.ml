@@ -197,7 +197,7 @@ let output_cmi filename oc cmi =
   let my_info =
     match cmi.cmi_kind with
     | Normal { cmi_impl } ->
-      Import_info.Intf.create_ordinary cmi.cmi_name cmi_impl ~crc
+      Import_info.Intf.create_normal cmi.cmi_name cmi_impl ~crc
     | Parameter ->
       Import_info.Intf.create_parameter cmi.cmi_name ~crc
   in

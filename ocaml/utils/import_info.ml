@@ -15,7 +15,7 @@
 module CU = Compilation_unit
 
 type intf =
-  | Ordinary of CU.Name.t * CU.t * Digest.t
+  | Normal of CU.Name.t * CU.t * Digest.t
   | Alias of CU.Name.t
   | Parameter of CU.Name.t * Digest.t
 
@@ -35,7 +35,7 @@ let create cu_name ~crc_with_unit =
      cares should use the [Impl] API. *)
   match crc_with_unit with
   | None -> Intf (Alias cu_name)
-  | Some (cu, crc) -> Intf (Ordinary (cu_name, cu, crc))
+  | Some (cu, crc) -> Intf (Normal (cu_name, cu, crc))
 
 let create_normal cu ~crc =
   match crc with
@@ -45,11 +45,11 @@ let create_normal cu ~crc =
 let name t =
   match t with
   | Impl (Loaded (cu, _) | Unloaded cu) -> CU.name cu
-  | Intf (Ordinary (name, _, _) | Alias name | Parameter (name, _)) -> name
+  | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) -> name
 
 let cu t =
   match t with
-  | Intf (Ordinary (_, cu, _)) -> cu
+  | Intf (Normal (_, cu, _)) -> cu
   | Impl (Loaded (cu, _) | Unloaded cu) -> cu
   | Intf (Alias name | Parameter (name, _)) ->
     Misc.fatal_errorf
@@ -59,7 +59,7 @@ let cu t =
 
 let crc t =
   match t with
-  | Intf (Ordinary (_, _, crc) | Parameter (_, crc)) -> Some crc
+  | Intf (Normal (_, _, crc) | Parameter (_, crc)) -> Some crc
   | Intf (Alias _) -> None
   | Impl (Loaded (_, crc)) -> Some crc
   | Impl (Unloaded _) -> None
@@ -73,32 +73,32 @@ module Intf = struct
      #1746). *)
   type nonrec t = t
 
-  let create_ordinary name cu ~crc =
+  let create_normal name cu ~crc =
     if not (CU.Name.equal (CU.name cu) name)
     then
       Misc.fatal_errorf
         "@[<hv>Mismatched import name and compilation unit:@ %a != %a@]"
         CU.Name.print name CU.print cu;
-    Intf (Ordinary (name, cu, crc))
+    Intf (Normal (name, cu, crc))
 
   let create_alias name = Intf (Alias name)
 
   let create_parameter name ~crc = Intf (Parameter (name, crc))
 
   module Nonalias = struct
-    module Sort = struct
+    module Kind = struct
       type t =
-        | Ordinary of CU.t
+        | Normal of CU.t
         | Parameter
     end
 
-    type t = Sort.t * Digest.t
+    type t = Kind.t * Digest.t
   end
 
   let create name nonalias =
     match (nonalias : Nonalias.t option) with
     | None -> create_alias name
-    | Some (Ordinary cu, crc) -> create_ordinary name cu ~crc
+    | Some (Normal cu, crc) -> create_normal name cu ~crc
     | Some (Parameter, crc) -> create_parameter name ~crc
 
   let expect_intf t =
@@ -110,17 +110,17 @@ module Intf = struct
 
   let name t =
     match expect_intf t with
-    | Ordinary (name, _, _) | Alias name | Parameter (name, _) -> name
+    | Normal (name, _, _) | Alias name | Parameter (name, _) -> name
 
   let nonalias t : Nonalias.t option =
     match expect_intf t with
-    | Ordinary (_, cu, crc) -> Some (Ordinary cu, crc)
+    | Normal (_, cu, crc) -> Some (Normal cu, crc)
     | Parameter (_, crc) -> Some (Parameter, crc)
     | Alias _ -> None
 
   let crc t =
     match expect_intf t with
-    | Ordinary (_, _, crc) | Parameter (_, crc) -> Some crc
+    | Normal (_, _, crc) | Parameter (_, crc) -> Some crc
     | Alias _ -> None
 
   let has_name t ~name:name' = CU.Name.equal (name t) name'
@@ -145,7 +145,7 @@ module Impl = struct
   let expect_impl t =
     match t with
     | Impl impl -> impl
-    | Intf (Ordinary (name, _, _) | Alias name | Parameter (name, _)) ->
+    | Intf (Normal (name, _, _) | Alias name | Parameter (name, _)) ->
       Misc.fatal_errorf "Expected an [Import_info.Intf.t] but found %a"
         CU.Name.print name
 

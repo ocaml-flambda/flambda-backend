@@ -20,7 +20,7 @@ open Misc
 open Cmi_format
 
 module CU = Compilation_unit
-module Consistbl_data = Import_info.Intf.Nonalias.Sort
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
 module Consistbl = Consistbl.Make (CU.Name) (Consistbl_data)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
@@ -188,15 +188,15 @@ let check_consistency penv imp =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      inconsistent_data = source_data;
-      original_data = auth_data;
+      inconsistent_data = source_kind;
+      original_data = auth_kind;
     } ->
-    match source_data, auth_data with
-    | Ordinary source_unit, Ordinary auth_unit
+    match source_kind, auth_kind with
+    | Normal source_unit, Normal auth_unit
       when not (CU.equal source_unit auth_unit) ->
         error (Inconsistent_package_declaration_between_imports(
             imp.imp_filename, auth_unit, source_unit))
-    | (Ordinary _ | Parameter), _ ->
+    | (Normal _ | Parameter), _ ->
       error (Inconsistent_import(name, auth, source))
 
 let is_registered_parameter_import {param_imports; _} import =
@@ -538,9 +538,9 @@ let save_cmi penv psig =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in consistbl so that imports()
          will also return its crc *)
-      let data : Import_info.Intf.Nonalias.Sort.t =
+      let data : Import_info.Intf.Nonalias.Kind.t =
         match kind with
-        | Normal { cmi_impl } -> Ordinary cmi_impl
+        | Normal { cmi_impl } -> Normal cmi_impl
         | Parameter -> Parameter
       in
       save_import penv crc modname data flags filename

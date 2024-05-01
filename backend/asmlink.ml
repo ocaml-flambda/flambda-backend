@@ -47,7 +47,7 @@ type unit_link_info = {
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Sort)
+module Cmi_consistbl = Consistbl.Make (CU.Name) (Import_info.Intf.Nonalias.Kind)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = CU.Name.Tbl.create 100
 
