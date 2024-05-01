@@ -71,7 +71,7 @@ module CF32 = struct
   external floor : (t [@unboxed]) -> (t [@unboxed]) = "float32_floor_boxed" "float32_floor" [@@noalloc]
 
   external sign_bit : (t [@unboxed]) -> bool = "float32_sign_bit_boxed" "float32_sign_bit" [@@noalloc]
-  external classify : (t [@unboxed]) -> Stdlib.fpclass = "float32_classify_boxed" "float32_classify" [@@noalloc]
+  external classify_float : (t [@unboxed]) -> Stdlib.fpclass = "float32_classify_boxed" "float32_classify" [@@noalloc]
   external succ : (t [@unboxed]) -> (t [@unboxed]) = "float32_succ_boxed" "float32_succ" [@@noalloc]
   external pred : (t [@unboxed]) -> (t [@unboxed]) = "float32_pred_boxed" "float32_pred" [@@noalloc]
   external is_finite : (t [@unboxed]) -> bool = "float32_is_finite_boxed" "float32_is_finite" [@@noalloc]
@@ -162,7 +162,7 @@ let () =
   CF32.check_float32s (fun f _ ->
     bit_eq (F32.neg f) (CF32.neg f);
     bit_eq (F32.abs f) (CF32.abs f);
-    bit_eq (F32.( ~-. ) f) (CF32.neg f);
+    bit_eq (F32.Operators.( ~-. ) f) (CF32.neg f);
     bit_eq (F32.succ f) (CF32.succ f);
     bit_eq (F32.pred f) (CF32.pred f);
     bit_eq (F32.sqrt f) (CF32.sqrt f);
@@ -196,7 +196,7 @@ let () =
     assert ((F32.is_infinite f) = (CF32.is_infinite f));
     assert ((F32.is_nan f) = (CF32.is_nan f));
     assert ((F32.is_integer f) = (CF32.is_integer f));
-    assert ((F32.classify f) = (CF32.classify f));
+    assert ((F32.classify_float f) = (CF32.classify_float f));
     assert ((F32.sign_bit f) = (CF32.sign_bit f));
   )
 ;;
@@ -207,17 +207,17 @@ let () =
     bit_eq (F32.sub f1 f2) (CF32.sub f1 f2);
     bit_eq (F32.mul f1 f2) (CF32.mul f1 f2);
     bit_eq (F32.div f1 f2) (CF32.div f1 f2);
-    bit_eq (F32.rem f1 f2) (CF32.rem f1 f2);
     bit_eq (F32.pow f1 f2) (CF32.pow f1 f2);
+    bit_eq (F32.Operators.( +. ) f1 f2) (CF32.add f1 f2);
+    bit_eq (F32.Operators.( -. ) f1 f2) (CF32.sub f1 f2);
+    bit_eq (F32.Operators.( *. ) f1 f2) (CF32.mul f1 f2);
+    bit_eq (F32.Operators.( /. ) f1 f2) (CF32.div f1 f2);
+    bit_eq (F32.Operators.( ** ) f1 f2) (CF32.pow f1 f2);
+    bit_eq (F32.rem f1 f2) (CF32.rem f1 f2);
     bit_eq (F32.atan2 f1 f2) (CF32.atan2 f1 f2);
     bit_eq (F32.hypot f1 f2) (CF32.hypot f1 f2);
     bit_eq (F32.next_after f1 f2) (CF32.next_after f1 f2);
     bit_eq (F32.copy_sign f1 f2) (CF32.copy_sign f1 f2);
-    bit_eq (F32.( +. ) f1 f2) (CF32.add f1 f2);
-    bit_eq (F32.( -. ) f1 f2) (CF32.sub f1 f2);
-    bit_eq (F32.( *. ) f1 f2) (CF32.mul f1 f2);
-    bit_eq (F32.( /. ) f1 f2) (CF32.div f1 f2);
-    bit_eq (F32.( ** ) f1 f2) (CF32.pow f1 f2);
     bit_eq (F32.min f1 f2) (CF32.min f1 f2);
     bit_eq (F32.max f1 f2) (CF32.max f1 f2);
     bit_eq (F32.min_num f1 f2) (CF32.min_num f1 f2);
