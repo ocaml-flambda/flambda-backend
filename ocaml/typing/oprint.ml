@@ -379,9 +379,33 @@ let is_initially_labeled_tuple ty =
   | Otyp_tuple ((Some _, _) :: _) -> true
   | _ -> false
 
-let string_of_gbl_space = function
-  | Ogf_global -> "global_ "
-  | Ogf_unrestricted -> ""
+let print_out_modality_legacy ppf = function
+  | Ogf_global -> Format.fprintf ppf "global_"
+
+let print_out_modality ppf = function
+  | Ogf_legacy m -> print_out_modality_legacy ppf m
+  | Ogf_new m -> pp_print_string ppf m
+
+let print_out_modalities_new ppf l =
+  match l with
+  | [] -> ()
+  | _ ->
+    pp_print_space ppf ();
+    pp_print_string ppf "@@";
+    pp_print_space ppf ();
+    pp_print_list ~pp_sep:pp_print_space pp_print_string ppf l
+
+let print_out_modalities_legacy =
+  pp_print_list
+  (fun ppf m ->
+    print_out_modality_legacy ppf m;
+    pp_print_space ppf ())
+
+let partition_modalities l =
+  List.partition_map (function
+  | Ogf_legacy m -> Left m
+  | Ogf_new m -> Right m
+  ) l
 
 let rec print_out_type_0 ppf =
   function
@@ -572,13 +596,17 @@ and print_out_label ppf (name, mut, arg, gbl) =
     | Om_mutable None -> "mutable "
     | Om_mutable (Some s) -> "mutable(" ^ s ^ ") "
   in
-  fprintf ppf "@[<2>%s%s%s :@ %a@];"
+  let m_legacy, m_new = partition_modalities gbl in
+  fprintf ppf "@[<2>%s%a%s :@ %a%a@];"
     mut
-    (string_of_gbl_space gbl)
+    print_out_modalities_legacy m_legacy
     name
     print_out_type arg
+    print_out_modalities_new m_new
 
 let out_label = ref print_out_label
+
+let out_modality = ref print_out_modality
 
 let out_type = ref print_out_type
 
@@ -922,14 +950,10 @@ and print_out_type_decl kwd ppf td =
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
-  match gf with
-  | Ogf_global ->
-      (* See the notes [NON-LEGACY MODES] *)
-      pp_print_string ppf "global_";
-      pp_print_space ppf ();
-      print_simple_out_type ppf ty
-  | Ogf_unrestricted ->
-    print_simple_out_type ppf ty
+  let m_legacy, m_new = partition_modalities gf in
+  print_out_modalities_legacy ppf m_legacy;
+  print_simple_out_type ppf ty;
+  print_out_modalities_new ppf m_new
 
 and print_out_constr_args ppf tyl =
   print_typlist print_simple_out_gf_type " *" ppf tyl

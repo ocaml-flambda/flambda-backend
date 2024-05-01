@@ -612,9 +612,9 @@ val foo : unit -> unit = <fun>
 |}]
 
 (* Testing modalities in records *)
-type r_global = {x : string; global_ y : string}
+type r_shared = {x : string; y : string @@ shared many}
 [%%expect{|
-type r_global = { x : string; global_ y : string; }
+type r_shared = { x : string; y : string @@ many shared; }
 |}]
 
 let foo () =
@@ -697,14 +697,14 @@ Line 3, characters 19-20:
 |}]
 
 (* testing modalities in constructors *)
-type r_global = R_global of string * global_ string
+type r_shared = R_shared of string * string @@ shared many
 [%%expect{|
-type r_global = R_global of string * global_ string
+type r_shared = R_shared of string * string @@ many shared
 |}]
 
 let foo () =
-  let r = R_global ("hello", "world") in
-  let R_global (_, y) = r in
+  let r = R_shared ("hello", "world") in
+  let R_shared (_, y) = r in
   ignore (shared_id y);
   (* the following is allowed, because using r uniquely implies using r.x
      shared *)
@@ -715,8 +715,8 @@ val foo : unit -> unit = <fun>
 
  (* Similarly for linearity *)
 let foo () =
-  let r = once_ (R_global ("hello", "world")) in
-  let R_global (_, y) = r in
+  let r = once_ (R_shared ("hello", "world")) in
+  let R_shared (_, y) = r in
   ignore_once y;
   ignore_once r;
 [%%expect{|
@@ -724,8 +724,8 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = once_ (R_global ("hello", "world")) in
-  let R_global (x, _) = r in
+  let r = once_ (R_shared ("hello", "world")) in
+  let R_shared (x, _) = r in
   ignore_once x;
   ignore_once r;
 [%%expect{|
@@ -741,8 +741,8 @@ Line 4, characters 14-15:
 |}]
 
 let foo () =
-  let r = R_global ("hello", "world") in
-  let R_global (x, _) = r in
+  let r = R_shared ("hello", "world") in
+  let R_shared (x, _) = r in
   ignore (shared_id x);
   (* doesn't work for normal fields *)
   ignore (unique_id r)

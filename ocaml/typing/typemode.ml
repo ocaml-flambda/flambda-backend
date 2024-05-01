@@ -57,28 +57,46 @@ let transl_mode_annots modes =
   in
   loop Alloc.Const.Option.none modes.txt
 
-let transl_global_flags gfs =
-  let rec loop (acc : Global_flag.t) = function
-    | [] -> acc
-    | m :: rest ->
-      let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
-      let acc : Global_flag.t =
-        match txt with
-        | "global" -> (
-          Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
-          match acc with
-          | Unrestricted -> Global
-          (* Duplicated modality is not an error, just silly and thus a warning.
-             As we introduce more modalities, it might be in general difficult
-             to detect all redundant modalities, but we should do our best. *)
-          | Global ->
-            Location.prerr_warning loc (Warnings.Redundant_modality txt);
-            Global)
-        | s -> raise (Error (loc, Unrecognized_modality s))
-      in
-      loop acc rest
+let transl_modality m : Modality.t =
+  let { txt; loc } = (m : Mode_expr.Const.t :> _ Location.loc) in
+  Jane_syntax_parsing.assert_extension_enabled ~loc Mode ();
+  match txt with
+  | "global" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Global)
+  | "local" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Local)
+  | "many" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Many)
+  | "once" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Once)
+  | "shared" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared)
+  | "unique" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique)
+  | s -> raise (Error (loc, Unrecognized_modality s))
+
+let compose_modalities modalities =
+  (* The ordering:
+     type r = { x : string @@ foo bar hello }
+     is interpreted as
+     x = foo (bar (hello (r))) *)
+  List.fold_right Modality.Value.cons modalities Modality.Value.id
+
+let mutable_implied_modalities =
+  let open Jane_syntax.Mode_expr.Const in
+  let l =
+    [ mk "global" Location.none;
+      mk "many" Location.none;
+      mk "shared" Location.none ]
   in
-  loop Unrestricted gfs.txt
+  List.map transl_modality l
+
+let is_mutable_implied_modality m =
+  (* polymorphic equality suffices for now. *)
+  List.mem m mutable_implied_modalities
+
+let transl_modalities mut modalities =
+  let modalities = List.map transl_modality modalities.txt in
+  let modalities =
+    if Types.is_mutable mut
+    then modalities @ mutable_implied_modalities
+    else modalities
+  in
+  compose_modalities modalities
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in
@@ -96,6 +114,8 @@ let report_error ppf = function
     fprintf ppf "The %t axis has already been specified." ax
   | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
   | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
+
+let mutable_implied_modalities = compose_modalities mutable_implied_modalities
 
 let () =
   Location.register_error_of_exn (function
