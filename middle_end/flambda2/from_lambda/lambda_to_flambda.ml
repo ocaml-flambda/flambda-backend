@@ -627,6 +627,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
   | Pnegfloat (_, _)
   | Pabsfloat (_, _)
   | Paddfloat (_, _)
@@ -1508,13 +1509,18 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let unboxing_kind (layout : Lambda.layout) :
       Function_decl.unboxing_kind option =
-    match layout with
-    | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
+    match[@warning "-fragile-match"] layout with
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })
+      ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
-    | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
+    | Pvalue
+        (Pvariant
+          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all
@@ -1522,16 +1528,13 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
             match kind with
             | Pboxedfloatval Pfloat64 -> true
             | Pboxedfloatval Pfloat32
-            (* CR mshinwell: should this unboxing apply for Pfloat32? *)
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
             | Pboxedvectorval _ ->
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
     | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
-    | Pvalue (Pboxedfloatval Pfloat32) ->
-      (* CR mslater: (float32) middle end support *)
-      assert false
+    | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
     | Pvalue (Pboxedintval bi) ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with
@@ -1786,7 +1789,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
           CC.close_let acc ccenv
-            [scrutinee_tag, Flambda_kind.With_subkind.naked_immediate]
+            [scrutinee_tag, Flambda_kind.With_subkind.tagged_immediate]
             Not_user_visible (Get_tag scrutinee) ~body
         in
         if switch.sw_numblocks = 0
@@ -1812,7 +1815,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             let region = Env.current_region env in
             CC.close_let acc ccenv
-              [is_scrutinee_int, Flambda_kind.With_subkind.naked_immediate]
+              [is_scrutinee_int, Flambda_kind.With_subkind.tagged_immediate]
               Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };

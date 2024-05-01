@@ -114,7 +114,7 @@ class virtual selector_generic : object
     environment -> Cmm.exttype list -> Cmm.expression list -> Reg.t array * int
     (* Can be overridden to deal with stack-based calling conventions *)
   method emit_stores :
-    environment -> Cmm.expression list -> Reg.t array -> unit
+    environment -> Debuginfo.t -> Cmm.expression list -> Reg.t array -> unit
     (* Fill a freshly allocated block.  Can be overridden for architectures
        that do not provide Arch.offset_addressing. *)
 

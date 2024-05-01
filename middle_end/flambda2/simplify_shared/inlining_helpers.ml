@@ -17,10 +17,10 @@
 open! Flambda.Import
 module RC = Apply.Result_continuation
 
-let make_inlined_body ~callee ~region_inlined_into ~params ~args ~my_closure
-    ~my_region ~my_depth ~rec_info ~body ~exn_continuation ~return_continuation
-    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
-    ~apply_renaming =
+let make_inlined_body ~callee ~called_code_id:_ ~region_inlined_into ~params
+    ~args ~my_closure ~my_region ~my_depth ~rec_info ~body ~exn_continuation
+    ~return_continuation ~apply_exn_continuation ~apply_return_continuation
+    ~bind_params ~bind_depth ~apply_renaming =
   let renaming = Renaming.empty in
   let renaming =
     match (apply_return_continuation : RC.t) with

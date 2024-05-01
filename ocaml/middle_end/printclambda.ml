@@ -50,12 +50,7 @@ let rec value_kind0 ppf kind =
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
       consts
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-          (fun ppf (tag, fields) ->
-            fprintf ppf "@[<hov 1>[%d:@ %a]@]" tag
-              (Format.pp_print_list
-                ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-                value_kind0)
-              fields))
+         (Printlambda.tag_and_constructor_shape value_kind0))
       non_consts
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind

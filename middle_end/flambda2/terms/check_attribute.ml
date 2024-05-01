@@ -54,14 +54,14 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
     then Check { property = Zero_alloc; strict = false; loc }
     else Default_check
   | Ignore_assert_all Zero_alloc -> Default_check
-  | Assume { property; strict; never_returns_normally; loc } ->
+  | Assume { property; strict; never_returns_normally; loc; arity = _ } ->
     Assume
       { property = Property.from_lambda property;
         strict;
         never_returns_normally;
         loc
       }
-  | Check { property; strict; opt; loc } ->
+  | Check { property; strict; opt; loc; arity = _ } ->
     if Builtin_attributes.is_check_enabled ~opt property
     then Check { property = Property.from_lambda property; strict; loc }
     else Default_check

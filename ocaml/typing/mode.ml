@@ -504,11 +504,11 @@ module Lattices_mono = struct
 
   type ('a, 'b, 'd) morph =
     | Id : ('a, 'a, 'd) morph  (** identity morphism *)
-    | Meet_with : 'a -> ('a, 'a, 'd * disallowed) morph
+    | Meet_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Meet the input with the parameter *)
     | Imply : 'a -> ('a, 'a, disallowed * 'd) morph
         (** The right adjoint of [Meet_with] *)
-    | Join_with : 'a -> ('a, 'a, disallowed * 'd) morph
+    | Join_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Join the input with the parameter *)
     | Subtract : 'a -> ('a, 'a, 'd * disallowed) morph
         (** The left adjoint of [Join_with] *)
@@ -557,6 +557,7 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Min_with ax -> Min_with ax
       | Meet_with c -> Meet_with c
+      | Join_with c -> Join_with c
       | Subtract c -> Subtract c
       | Compose (f, g) ->
         let f = allow_left f in
@@ -579,6 +580,7 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Max_with ax -> Max_with ax
       | Join_with c -> Join_with c
+      | Meet_with c -> Meet_with c
       | Imply c -> Imply c
       | Compose (f, g) ->
         let f = allow_right f in
@@ -893,7 +895,9 @@ module Lattices_mono = struct
     | Imply c0, Imply c1 -> Some (Imply (meet dst c0 c1))
     | Subtract c0, Subtract c1 -> Some (Subtract (join dst c0 c1))
     | Imply c0, Join_with c1 when le dst c0 c1 -> Some (Join_with (max dst))
+    | Imply c0, Meet_with c1 when le dst c0 c1 -> Some (Imply c0)
     | Subtract c0, Meet_with c1 when le dst c1 c0 -> Some (Meet_with (min dst))
+    | Subtract c0, Join_with c1 when le dst c1 c0 -> Some (Subtract c0)
     | Meet_with c0, m1 when is_max c0 -> Some m1
     | Join_with c0, m1 when is_min c0 -> Some m1
     | Imply c0, m1 when is_max c0 -> Some m1
@@ -1045,6 +1049,10 @@ module Lattices_mono = struct
       let g' = left_adjoint mid g in
       Compose (g', f')
     | Join_with c -> Subtract c
+    | Meet_with _c ->
+      (* The downward closure of [Meet_with c]'s image is all [x <= c].
+         For those, [x <= meet c y] is equivalent to [x <= y]. *)
+      Id
     | Imply c -> Meet_with c
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_min
     | Monadic_to_comonadic_max -> Comonadic_to_monadic dst
@@ -1072,6 +1080,10 @@ module Lattices_mono = struct
       Compose (g', f')
     | Meet_with c -> Imply c
     | Subtract c -> Join_with c
+    | Join_with _c ->
+      (* The upward closure of [Join_with c]'s image is all [x >= c].
+         For those, [join c y <= x] is equivalent to [y <= x]. *)
+      Id
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_max
     | Monadic_to_comonadic_min -> Comonadic_to_monadic dst
     | Local_to_regional -> Regional_to_local
@@ -1346,11 +1358,9 @@ module Comonadic_with_regionality = struct
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
-  let meet_const c m =
-    Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
+  let meet_const c m = Solver.via_monotone obj (Meet_with c) m
 
-  let join_const c m =
-    Solver.via_monotone obj (Join_with c) (Solver.disallow_left m)
+  let join_const c m = Solver.via_monotone obj (Join_with c) m
 
   let min_with ax m =
     Solver.via_monotone Obj.obj (Min_with ax) (Solver.disallow_right m)
@@ -1411,11 +1421,9 @@ module Comonadic_with_locality = struct
 
   let proj ax m = Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
-  let meet_const c m =
-    Solver.via_monotone obj (Meet_with c) (Solver.disallow_right m)
+  let meet_const c m = Solver.via_monotone obj (Meet_with c) m
 
-  let join_const c m =
-    Solver.via_monotone obj (Join_with c) (Solver.disallow_left m)
+  let join_const c m = Solver.via_monotone obj (Join_with c) m
 
   let min_with ax m =
     Solver.via_monotone Obj.obj (Min_with ax) (Solver.disallow_right m)
@@ -1483,11 +1491,9 @@ module Monadic = struct
      by [Solver_polarized], but some remain, such as the [Min_with] below which
      is inverted from [Max_with]. *)
 
-  let meet_const c m =
-    Solver.via_monotone obj (Join_with c) (Solver.disallow_right m)
+  let meet_const c m = Solver.via_monotone obj (Join_with c) m
 
-  let join_const c m =
-    Solver.via_monotone obj (Meet_with c) (Solver.disallow_left m)
+  let join_const c m = Solver.via_monotone obj (Meet_with c) m
 
   let max_with ax m =
     Solver.via_monotone Obj.obj (Min_with ax) (Solver.disallow_left m)
@@ -1744,34 +1750,30 @@ module Value = struct
     | Comonadic ax -> min_with_comonadic ax m
 
   let join_with_monadic ax c { monadic; comonadic } =
-    let comonadic = Comonadic.disallow_left comonadic in
     let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
 
   let join_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
     let comonadic = Comonadic.join_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with :
-      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (disallowed * r) t =
+  let join_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
+      =
    fun ax c m ->
     match ax with
     | Monadic ax -> join_with_monadic ax c m
     | Comonadic ax -> join_with_comonadic ax c m
 
   let meet_with_monadic ax c { monadic; comonadic } =
-    let comonadic = Comonadic.disallow_right comonadic in
     let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
   let meet_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_right monadic in
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let meet_with :
-      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * disallowed) t =
+  let meet_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
+      =
    fun ax c m ->
     match ax with
     | Monadic ax -> meet_with_monadic ax c m
@@ -2004,34 +2006,30 @@ module Alloc = struct
     | Comonadic ax -> min_with_comonadic ax m
 
   let join_with_monadic ax c { monadic; comonadic } =
-    let comonadic = Comonadic.disallow_left comonadic in
     let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
 
   let join_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_left monadic in
     let comonadic = Comonadic.join_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with :
-      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (disallowed * r) t =
+  let join_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
+      =
    fun ax c m ->
     match ax with
     | Monadic ax -> join_with_monadic ax c m
     | Comonadic ax -> join_with_comonadic ax c m
 
   let meet_with_monadic ax c { monadic; comonadic } =
-    let comonadic = Comonadic.disallow_right comonadic in
     let monadic = Monadic.meet_with ax c monadic in
     { monadic; comonadic }
 
   let meet_with_comonadic ax c { monadic; comonadic } =
-    let monadic = Monadic.disallow_right monadic in
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let meet_with :
-      type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * disallowed) t =
+  let meet_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
+      =
    fun ax c m ->
     match ax with
     | Monadic ax -> meet_with_monadic ax c m

@@ -183,6 +183,8 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -323,7 +325,7 @@ and value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * constructor_shape) list;
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
@@ -356,6 +358,13 @@ and mixed_block_shape = Types.mixed_record_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
   }
+
+and constructor_shape =
+  | Constructor_uniform of value_kind list
+  | Constructor_mixed of
+      { value_prefix : value_kind list;
+        flat_suffix : flat_element list;
+      }
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
@@ -463,6 +472,13 @@ let join_boxed_vector_layout v1 v2 =
   match v1, v2 with
   | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
+let equal_flat_element e1 e2 =
+  match e1, e2 with
+  | Imm, Imm -> true
+  | Float, Float -> true
+  | Float64, Float64 -> true
+  | (Imm | Float | Float64), _ -> false
+
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
@@ -480,13 +496,25 @@ let rec equal_value_kind x y =
     let non_consts1 = List.sort compare_by_tag non_consts1 in
     let non_consts2 = List.sort compare_by_tag non_consts2 in
     List.equal Int.equal consts1 consts2
-      && List.equal (fun (tag1, fields1) (tag2, fields2) ->
+      && List.equal (fun (tag1, cstr1) (tag2, cstr2) ->
              Int.equal tag1 tag2
-             && List.length fields1 = List.length fields2
-             && List.for_all2 equal_value_kind fields1 fields2)
+             && equal_constructor_shape cstr1 cstr2)
            non_consts1 non_consts2
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
+
+and equal_constructor_shape x y =
+  match x, y with
+  | Constructor_uniform fields1, Constructor_uniform fields2 ->
+      List.length fields1 = List.length fields2
+      && List.for_all2 equal_value_kind fields1 fields2
+  | Constructor_mixed { value_prefix = p1; flat_suffix = s1 },
+    Constructor_mixed { value_prefix = p2; flat_suffix = s2 } ->
+      List.length p1 = List.length p2
+      && List.for_all2 equal_value_kind p1 p2
+      && List.length s1 = List.length s2
+      && List.for_all2 equal_flat_element s1 s2
+  | (Constructor_uniform _ | Constructor_mixed _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -613,12 +641,14 @@ type check_attribute = Builtin_attributes.check_attribute =
   | Check of { property: property;
                strict: bool;
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =
@@ -806,7 +836,8 @@ let layout_int = Pvalue Pintval
 let layout_array kind = Pvalue (Parrayval kind)
 let layout_block = Pvalue Pgenval
 let layout_list =
-  Pvalue (Pvariant { consts = [0] ; non_consts = [0, [Pgenval; Pgenval]] })
+  Pvalue (Pvariant { consts = [0] ;
+                     non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
 let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
@@ -1620,6 +1651,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Poffsetref _ -> None
   | Pintoffloat _ -> None
   | Pfloatofint (_, m) -> Some m
+  | Pfloatoffloat32 m -> Some m
+  | Pfloat32offloat m -> Some m
   | Pnegfloat (_, m) | Pabsfloat (_, m)
   | Paddfloat (_, m) | Psubfloat (_, m)
   | Pmulfloat (_, m) | Pdivfloat (_, m) -> Some m
@@ -1764,6 +1797,8 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Pfloatfield _ -> layout_boxed_float Pfloat64
+  | Pfloatoffloat32 _ -> layout_boxed_float Pfloat64
+  | Pfloat32offloat _ -> layout_boxed_float Pfloat32
   | Pfloatofint (f, _) | Pnegfloat (f, _) | Pabsfloat (f, _)
   | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
   | Pbox_float (f, _) -> layout_boxed_float f
@@ -1834,7 +1869,7 @@ let primitive_result_layout (p : primitive) =
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
       | Pbigarray_float32 ->
-        (* CR mslater: (float32) bigarrays *)
+        (* float32 bigarrays return 64-bit floats for backward compatibility. *)
         layout_boxed_float Pfloat64
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
       | Pbigarray_sint8 | Pbigarray_uint8

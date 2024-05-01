@@ -328,6 +328,8 @@ val any_tagged_immediate : t
 
 val any_tagged_bool : t
 
+val any_boxed_float32 : t
+
 val any_boxed_float : t
 
 val any_boxed_int32 : t
@@ -339,6 +341,8 @@ val any_boxed_nativeint : t
 val any_naked_immediate : t
 
 val any_naked_bool : t
+
+val any_naked_float32 : t
 
 val any_naked_float : t
 
@@ -356,6 +360,9 @@ val any_rec_info : t
     constants. *)
 val this_tagged_immediate : Targetint_31_63.t -> t
 
+val this_boxed_float32 :
+  Numeric_types.Float32_by_bit_pattern.t -> Alloc_mode.For_types.t -> t
+
 val this_boxed_float :
   Numeric_types.Float_by_bit_pattern.t -> Alloc_mode.For_types.t -> t
 
@@ -369,6 +376,9 @@ val this_boxed_vec128 :
   Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> t
+
+val these_boxed_float32s :
+  Numeric_types.Float32_by_bit_pattern.Set.t -> Alloc_mode.For_types.t -> t
 
 val these_boxed_floats :
   Numeric_types.Float_by_bit_pattern.Set.t -> Alloc_mode.For_types.t -> t
@@ -386,6 +396,8 @@ val these_boxed_nativeints :
     constants. *)
 val this_naked_immediate : Targetint_31_63.t -> t
 
+val this_naked_float32 : Numeric_types.Float32_by_bit_pattern.t -> t
+
 val this_naked_float : Numeric_types.Float_by_bit_pattern.t -> t
 
 val this_naked_int32 : Numeric_types.Int32.t -> t
@@ -398,6 +410,8 @@ val this_rec_info : Rec_info_expr.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
 
+val these_naked_float32s : Numeric_types.Float32_by_bit_pattern.Set.t -> t
+
 val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
 val these_naked_int32s : Numeric_types.Int32.Set.t -> t
@@ -405,6 +419,9 @@ val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
+
+val boxed_float32_alias_to :
+  naked_float32:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
@@ -417,6 +434,8 @@ val boxed_nativeint_alias_to :
 
 val boxed_vec128_alias_to :
   naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
+
+val box_float32 : t -> Alloc_mode.For_types.t -> t
 
 val box_float : t -> Alloc_mode.For_types.t -> t
 
@@ -557,6 +576,9 @@ val meet_naked_immediates :
 val meet_equals_single_tagged_immediate :
   Typing_env.t -> t -> Targetint_31_63.t meet_shortcut
 
+val meet_naked_float32s :
+  Typing_env.t -> t -> Numeric_types.Float32_by_bit_pattern.Set.t meet_shortcut
+
 val meet_naked_floats :
   Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
@@ -595,6 +617,8 @@ val prove_is_a_boxed_or_tagged_number :
   Typing_env.t -> t -> boxed_or_tagged_number proof_of_property
 
 val prove_is_a_tagged_immediate : Typing_env.t -> t -> unit proof_of_property
+
+val prove_is_a_boxed_float32 : Typing_env.t -> t -> unit proof_of_property
 
 val prove_is_a_boxed_float : Typing_env.t -> t -> unit proof_of_property
 
@@ -671,6 +695,9 @@ val prove_tagging_of_simple :
 val meet_tagging_of_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
+val meet_boxed_float32_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
+
 val meet_boxed_float_containing_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
@@ -721,11 +748,14 @@ type to_lift = private
         is_unique : bool;
         fields : Simple.t list
       }
+  | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
+  | Immutable_float32_array of
+      { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
   | Immutable_int32_array of { fields : Int32.t list }

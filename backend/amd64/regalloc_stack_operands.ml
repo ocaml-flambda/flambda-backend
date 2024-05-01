@@ -190,7 +190,10 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Scalarcast (V128_to_scalar (Int16x8 | Int8x16))) ->
     (* CR mslater: (SIMD) replace once we have unboxed int16/int8 *)
     May_still_have_spilled_registers
-  | Op (Scalarcast (Float_of_int | Float_to_int) | Vectorcast _) ->
+  | Op (Scalarcast (Float_of_int (Float32 | Float64) |
+                    Float_to_int (Float32 | Float64) |
+                    Float_of_float32 | Float_to_float32) |
+                    Vectorcast _) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->
     if !Clflags.pic_code || !Clflags.dlcode || Arch.win64 then
@@ -224,7 +227,8 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
   | Op (Intop_atomic _)
-  | Op (Move | Spill | Reload | Floatop (Inegf | Iabsf | Icompf _) | Const_float _  | Const_vec128 _
+  | Op (Move | Spill | Reload | Floatop (Inegf | Iabsf | Icompf _)
+       | Const_float _ | Const_float32 _  | Const_vec128 _
        | Stackoffset _ | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region | Dls_get | Poll | Alloc _)
   | Op (Specific (Isextend32 | Izextend32 | Ilea _

@@ -36,8 +36,8 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
       ~const:(fun const ->
         match Reg_width_const.descr const with
         | Tagged_immediate imm -> Field_of_static_block.Tagged_immediate imm, ty
-        | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ | Naked_vec128 _ ->
+        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
           (* CR mshinwell: This should be "invalid" and propagate up *)
           field, ty)
 
@@ -95,6 +95,17 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     ( Rebuilt_static_const.create_block
         (DA.are_rebuilding_terms dacc)
         tag is_mutable ~fields,
+      dacc )
+  | Boxed_float32 or_var ->
+    let or_var, ty =
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_float32 f Alloc_mode.For_types.heap)
+        or_var K.value
+    in
+    let dacc = bind_result_sym ty in
+    ( Rebuilt_static_const.create_boxed_float32
+        (DA.are_rebuilding_terms dacc)
+        or_var,
       dacc )
   | Boxed_float or_var ->
     let or_var, ty =

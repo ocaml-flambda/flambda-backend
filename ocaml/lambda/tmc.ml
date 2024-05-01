@@ -889,6 +889,7 @@ let rec choice ctx t =
     | Pintcomp _ | Punboxed_int_comp _
     | Poffsetint _ | Poffsetref _
     | Pintoffloat _ | Pfloatofint (_, _)
+    | Pfloatoffloat32 _ | Pfloat32offloat _
     | Pnegfloat (_, _) | Pabsfloat (_, _)
     | Paddfloat (_, _) | Psubfloat (_, _)
     | Pmulfloat (_, _) | Pdivfloat (_, _)

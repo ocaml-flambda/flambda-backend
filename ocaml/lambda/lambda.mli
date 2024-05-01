@@ -145,6 +145,9 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
+  (* CR mslater: (float32) use a single cast primitive *)
+  | Pfloatoffloat32 of alloc_mode
+  | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
   | Pfloatofint of boxed_float * alloc_mode
   | Pnegfloat of boxed_float * alloc_mode
@@ -325,7 +328,7 @@ and value_kind =
   | Pboxedintval of boxed_integer
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * constructor_shape) list;
       (** [non_consts] must be non-empty.  For constant variants [Pintval]
           must be used.  This causes a small loss of precision but it is not
           expected to be significant. *)
@@ -347,7 +350,7 @@ and layout =
 and block_shape =
   value_kind list option
 
-and flat_element = Imm | Float | Float64
+and flat_element = Types.flat_element = Imm | Float | Float64
 and flat_element_read =
   | Flat_read_imm
   | Flat_read_float of alloc_mode
@@ -364,6 +367,13 @@ and mixed_block_shape =
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
   }
+
+and constructor_shape =
+  | Constructor_uniform of value_kind list
+  | Constructor_mixed of
+      { value_prefix : value_kind list;
+        flat_suffix : flat_element list;
+      }
 
 and boxed_float = Primitive.boxed_float =
   | Pfloat64
@@ -505,12 +515,14 @@ type check_attribute = Builtin_attributes.check_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                opt: bool;
+               arity: int;
                loc: Location.t;
              }
   | Assume of { property: property;
                 strict: bool;
-                loc: Location.t;
                 never_returns_normally: bool;
+                arity: int;
+                loc: Location.t;
               }
 
 type loop_attribute =

@@ -21,6 +21,24 @@ let () =
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
+  let print_cmi_target name =
+    let subst = function
+      | "enabled_if" -> enabled_if
+      | "name" -> name
+      | _ -> "assert false"
+    in
+    Buffer.clear buf;
+    Buffer.add_substitute buf subst
+    {|
+(rule
+ (alias runtest)
+ (deps ${name}.ml)
+ (target ${name}.cmi)
+ ${enabled_if}
+ (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -stop-after typing -O3 -warn-error +a)))
+|};
+    Buffer.output_buffer Out_channel.stdout buf
+  in
   let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
     let ml_deps =
       let s =
@@ -138,4 +156,7 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_flags:"-zero-alloc-check opt"
     ~extra_dep:None ~exit_code:2 "test_all_opt3";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_arity";
+  print_cmi_target "stop_after_typing";
   ()

@@ -360,7 +360,7 @@ chunk:
   | SIGNED INT32                { Thirtytwo_signed }
   | INT                         { Word_int }
   | ADDR                        { Word_val }
-  | FLOAT32                     { Single }
+  | FLOAT32                     { Single { reg = Float64 } }
   | FLOAT64                     { Double }
   | FLOAT                       { Double }
   | VAL                         { Word_val }
@@ -369,8 +369,8 @@ unaryop:
     LOAD chunk                  { Cload {memory_chunk=$2;
                                          mutability=Asttypes.Mutable;
                                          is_atomic=false} }
-  | FLOATOFINT                  { Cscalarcast Float_of_int }
-  | INTOFFLOAT                  { Cscalarcast Float_to_int }
+  | FLOATOFINT                  { Cscalarcast (Float_of_int Float64) }
+  | INTOFFLOAT                  { Cscalarcast (Float_to_int Float64) }
   | VALUEOFINT                  { Cvalueofint }
   | INTOFVALUE                  { Cintofvalue }
   | RAISE                       { Craise $1 }

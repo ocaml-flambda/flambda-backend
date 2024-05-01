@@ -34,6 +34,7 @@ UTILS = \
   utils/arg_helper.cmo \
   utils/local_store.cmo \
   utils/load_path.cmo \
+  utils/zero_alloc_annotations.cmo \
   utils/clflags.cmo \
   utils/debug.cmo \
   utils/language_extension_kernel.cmo \
