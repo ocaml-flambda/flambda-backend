@@ -3968,9 +3968,19 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
 
 (* Handling of tupled functions and matchings *)
 
+let for_tupled_multiple_match
+    ~scopes ~return_layout loc args pats_act_list partial =
+  let partial = check_partial_list pats_act_list partial in
+  let handler =
+    toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
+      partial args pats_act_list in
+  handler (fun partial pm ->
+      compile_match ~scopes return_layout None partial
+        (Context.start (List.length args)) pm
+    )
+
 (* Easy case since variables are available *)
 let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial =
-  let partial = check_partial_list pats_act_list partial in
   (* The arguments of a tupled function are always values since they must be
      tuple elements *)
   let args =
@@ -3978,13 +3988,17 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
                          layout_tuple_element))
       paraml
   in
-  let handler =
-    toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
-      partial args pats_act_list in
-  handler (fun partial pm ->
-    compile_match ~scopes return_layout None partial
-      (Context.start (List.length paraml)) pm
-  )
+  for_tupled_multiple_match
+    ~scopes ~return_layout loc args pats_act_list partial
+
+let for_tuple_of_unboxed_multiple_match
+    ~scopes ~return_layout loc args pats_act_list partial =
+  let args =
+    List.map (fun (expr, sort, layout) -> (expr, Strict, sort, layout))
+      args
+  in
+  for_tupled_multiple_match
+    ~scopes ~return_layout loc args pats_act_list partial
 
 let flatten_pattern size p =
   match p.pat_desc with

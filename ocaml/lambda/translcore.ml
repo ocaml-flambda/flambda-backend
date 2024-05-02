@@ -453,10 +453,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
-  | Texp_tuple (el, alloc_mode) ->
+  | Texp_tuple (el, alloc_mode, materialization) ->
+      assert (is_tuple_materialized materialization);
       let ll, shape =
         transl_value_list_with_shape ~scopes
-          (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
+          (List.map (fun (_, a, _) -> (a, Jkind.Sort.for_tuple_element)) el)
       in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -1947,17 +1948,40 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   in
   let classic =
     match arg, exn_cases with
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
+    | {exp_desc = Texp_tuple (argl, alloc_mode, materialization)}, [] ->
       assert (static_handlers = []);
-      let mode = transl_alloc_mode_r alloc_mode in
-      let argl =
-        List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
-      in
-      Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
-    | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
+      begin match is_tuple_materialized materialization with
+      | false ->
+          let argl = List.map (fun (_, a, s) -> (a, s)) argl in
+          let size = List.length argl in
+          let val_cases =
+            List.map
+              (fun (lhs, rhs) ->
+                  let flattened =
+                    try Matching.flatten_pattern size lhs
+                    with Matching.Cannot_flatten ->
+                      fatal_errorf
+                        "Must be able to flatten Texp_multi patterns: %a"
+                        Printtyped.pattern lhs
+                  in
+                  flattened, rhs)
+                val_cases
+          in
+          Matching.for_tuple_of_unboxed_multiple_match ~scopes ~return_layout
+            e.exp_loc
+            (transl_list_with_layout ~scopes argl) val_cases partial
+      | true ->
+          let mode = transl_alloc_mode_r alloc_mode in
+          let argl =
+            List.map (fun (_, a, _) -> (a, Jkind.Sort.for_tuple_element)) argl
+          in
+          Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
+            (transl_list_with_layout ~scopes argl) mode val_cases partial
+      end
+    | {exp_desc = Texp_tuple (argl, alloc_mode, materialization)}, _ :: _ ->
+        assert (is_tuple_materialized materialization);
         let argl =
-          List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
+          List.map (fun (_, a, _) -> (a, Jkind.Sort.for_tuple_element)) argl
         in
         let val_ids, lvars =
           List.map

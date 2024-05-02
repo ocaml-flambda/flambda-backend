@@ -1249,8 +1249,8 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let uf_cases = check_uniqueness_cases ienv value cases in
     (* we don't know how much of e will be run; safe to assume all of them *)
     UF.seq uf_body uf_cases
-  | Texp_tuple (es, _) ->
-    UF.pars (List.map (fun (_, e) -> check_uniqueness_exp ienv e) es)
+  | Texp_tuple (es, _, _) ->
+    UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
   | Texp_construct (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused
@@ -1418,10 +1418,10 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
 (** take typed expression, do some parsing and returns [value_to_match] *)
 and check_uniqueness_exp_for_match ienv exp : value_to_match * UF.t =
   match exp.exp_desc with
-  | Texp_tuple (es, _) ->
+  | Texp_tuple (es, _, _) ->
     let values, ufs =
       List.split
-        (List.map (fun (_, e) -> check_uniqueness_exp_as_value ienv e) es)
+        (List.map (fun (_, e, _) -> check_uniqueness_exp_as_value ienv e) es)
     in
     Match_tuple values, UF.pars ufs
   | _ ->

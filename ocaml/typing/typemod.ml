@@ -3159,12 +3159,14 @@ let remove_mode_and_jkind_variables_for_toplevel str =
 let type_toplevel_phrase env sig_acc s =
   Env.reset_required_globals ();
   Env.reset_probes ();
+  Typecore.reset_materializations ();
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
     type_structure ~toplevel:(Some sig_acc) false None env s in
   remove_mode_and_jkind_variables env sg;
   remove_mode_and_jkind_variables_for_toplevel str;
   Typecore.optimise_allocations ();
+  Typecore.finalize_materializations ();
   (str, sg, to_remove_from_sg, shape, env)
 
 let type_module_alias = type_module ~alias:true true false None
@@ -3375,6 +3377,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
       Typecore.reset_allocations ();
+      Typecore.reset_materializations ();
       Env.reset_required_globals ();
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
@@ -3391,6 +3394,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         remove_mode_and_jkind_variables finalenv sg;
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
+        Typecore.finalize_materializations ();
         let shape = Shape_reduce.local_reduce Env.empty shape in
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
@@ -3429,6 +3433,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
+          Typecore.finalize_materializations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
@@ -3459,6 +3464,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           normalize_signature simple_sg;
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
+          Typecore.finalize_materializations ();
           (* See comment above. Here the target signature contains all
              the values being exported. We can still capture unused
              declarations like "let x = true;; let x = 1;;", because in this

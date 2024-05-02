@@ -19,6 +19,36 @@ open Asttypes
 open Types
 open Mode
 
+type tuple_materialization_status =
+  | Materialized
+  | Not_materialized
+  | Could_become_materialized of { on_materialization : unit -> unit }
+
+type tuple_materialization = tuple_materialization_status ref
+
+let is_tuple_materialized x =
+  match !x with
+  | Materialized -> true
+  | Not_materialized -> false
+  | Could_become_materialized _ -> failwith "Unknown materialization"
+
+let create_materialized () = ref Materialized
+let create_not_materialized ~on_materialization =
+  ref (Could_become_materialized { on_materialization })
+
+let finalize_materialization x =
+  match !x with
+  | Materialized | Not_materialized -> ()
+  | Could_become_materialized _ -> x := Not_materialized
+
+let materialize_tuple x =
+  match !x with
+  | Materialized -> ()
+  | Not_materialized -> failwith "Already not materialized"
+  | Could_become_materialized { on_materialization } ->
+      x := Materialized;
+      on_materialization ()
+
 type constant =
     Const_int of int
   | Const_char of char
@@ -152,7 +182,8 @@ and expression_desc =
         Mode.Locality.l * Zero_alloc_utils.Assume_info.t
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression * Jkind.sort) list * Mode.Alloc.r
+                  * tuple_materialization
   | Texp_construct of
       Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
   | Texp_variant of label * (expression * Mode.Alloc.r) option

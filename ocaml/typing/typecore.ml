@@ -628,6 +628,17 @@ let optimise_allocations () =
     !allocations;
   reset_allocations ()
 
+
+let materializations : tuple_materialization list ref = Local_store.s_ref []
+
+let reset_materializations () = materializations := []
+
+let register_materialization materialization =
+  materializations := materialization :: !materializations
+
+let finalize_materializations () =
+  List.iter finalize_materialization !materializations
+
 (* Typing of constants *)
 
 let type_constant: Typedtree.constant -> type_expr = function
@@ -1424,12 +1435,11 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       List.init arity (fun _ -> alloc_mode.mode)
   in
   let ann =
-    (* CR layouts v5: restriction to value here to be relaxed. *)
     List.map2
       (fun (label, p) mode ->
         ( label,
           p,
-          newgenvar (Jkind.value ~why:Tuple_element),
+          newgenvar (Jkind.of_new_sort ~why:Multi_element),
           simple_pat_mode mode ))
       args arg_modes
   in
@@ -3749,8 +3759,8 @@ let rec is_nonexpansive exp =
            && not (contains_exception_pat c_lhs)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
-  | Texp_tuple (el, _) ->
-      List.for_all (fun (_,e) -> is_nonexpansive e) el
+  | Texp_tuple (el, _, _) ->
+      List.for_all (fun (_,e,_) -> is_nonexpansive e) el
   | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
@@ -4199,7 +4209,7 @@ and type_approx_aux_jane_syntax
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
-    (fun (label, _) -> label, newvar (Jkind.value ~why:Tuple_element)) l
+      (fun (label, _) -> label, newvar (Jkind.of_new_sort ~why:Multi_element)) l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
@@ -5058,6 +5068,10 @@ let add_check_attribute expr attributes =
     end
   | _ -> expr
 
+type tuple_materialization =
+  | Must_materialize
+  | May_not_materialize
+
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
@@ -5070,13 +5084,14 @@ let rec type_exp ?recarg env expected_mode sexp =
    at [generic_level] (but its variables no higher than [!current_level]).
  *)
 
-and type_expect ?recarg env
+and type_expect ?recarg ?tuple_materialization env
       (expected_mode : expected_mode) sexp ty_expected_explained =
   let previous_saved_types = Cmt_format.get_saved_types () in
   let exp =
     Builtin_attributes.warning_scope sexp.pexp_attributes
       (fun () ->
          type_expect_ ?recarg env expected_mode sexp ty_expected_explained
+           ?tuple_materialization
       )
   in
   Cmt_format.set_saved_types
@@ -5085,6 +5100,7 @@ and type_expect ?recarg env
 
 and type_expect_
     ?(recarg=Rejected)
+    ?(tuple_materialization=Must_materialize)
     env (expected_mode : expected_mode) sexp ty_expected_explained =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let loc = sexp.pexp_loc in
@@ -5100,6 +5116,7 @@ and type_expect_
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
+        ~tuple_materialization
         ~loc
         ~env
         ~expected_mode
@@ -5418,6 +5435,7 @@ and type_expect_
           let expected_ty, sort = new_rep_var ~why:Match () in
           let arg =
             type_expect env arg_expected_mode sarg (mk_expected expected_ty)
+              ~tuple_materialization:May_not_materialize
           in
           arg, sort
         end ~post:(fun (arg, _) ->
@@ -5431,6 +5449,27 @@ and type_expect_
         List.for_all (fun c -> pattern_needs_partial_application_check c.c_lhs)
           cases
       then check_partial_application ~statement:false arg;
+      let () =
+        let rec pat_allowed_for_non_materialized :
+          type k. k general_pattern -> bool =
+          fun pat ->
+          match pat.pat_desc with
+          | Tpat_any -> true
+          | Tpat_tuple _ -> true
+          | Tpat_value pat ->
+              pat_allowed_for_non_materialized (pat :> value general_pattern)
+          (* Note we can't handle this case *)
+          | Tpat_or (_, _, _) -> false
+          | _ -> false
+        in
+        match arg.exp_desc with
+        | Texp_tuple (_, _, materialization) ->
+            if List.for_all
+                (fun c -> pat_allowed_for_non_materialized c.c_lhs) cases
+            then ()
+            else materialize_tuple materialization
+        | _ -> ()
+      in
       re {
         exp_desc = Texp_match(arg, sort, cases, partial);
         exp_loc = loc; exp_extra = [];
@@ -5455,6 +5494,7 @@ and type_expect_
         exp_env = env }
   | Pexp_tuple sexpl ->
       type_tuple ~loc ~env ~expected_mode ~ty_expected ~explanation
+        ~tuple_materialization
         ~attributes:sexp.pexp_attributes (List.map (fun e -> None, e) sexpl)
   | Pexp_construct(lid, sarg) ->
       type_construct env expected_mode loc lid
@@ -7667,19 +7707,35 @@ and type_application env app_loc expected_mode position_and_mode
       args, ty_ret, ap_mode, position_and_mode
 
 and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
-    ~explanation ~attributes sexpl =
+    ~explanation ~attributes ~tuple_materialization sexpl =
   let arity = List.length sexpl in
   assert (arity >= 2);
   let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
   (* CR layouts v5: non-values in tuples *)
-  let labeled_subtypes =
-    List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.value ~why:Tuple_element))
-    sexpl
+  let labeled_subtypes, jkinds =
+    match tuple_materialization with
+    | Must_materialize ->
+        List.map (fun (label, _) ->
+            label,
+            newgenvar (Jkind.value ~why:Tuple_element),
+            Jkind.Sort.for_tuple_element)
+          sexpl,
+        `All_value
+    | May_not_materialize ->
+        let labeled_subtypes, jkinds =
+          List.map (fun (label, _) ->
+              let jkind, sort = Jkind.of_new_sort_var ~why:Multi_element in
+              (label, newgenvar jkind, sort), jkind)
+            sexpl
+          |> List.split
+        in
+        labeled_subtypes, `Maybe_not_value jkinds
   in
-  let to_unify = newgenty (Ttuple labeled_subtypes) in
+  let to_unify =
+    newgenty (Ttuple (List.map (fun (lbl, ty, _) -> lbl, ty) labeled_subtypes))
+  in
   with_explanation explanation (fun () ->
-    unify_exp_types loc env to_unify (generic_instance ty_expected));
+      unify_exp_types loc env to_unify (generic_instance ty_expected));
   let argument_modes =
     if List.compare_length_with expected_mode.tuple_modes arity = 0 then
       expected_mode.tuple_modes
@@ -7688,17 +7744,33 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let types_and_modes = List.combine labeled_subtypes argument_modes in
   let expl =
     List.map2
-      (fun (label, body) ((_, ty), argument_mode) ->
+      (fun (label, body) ((_, ty, sort), argument_mode) ->
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
-          (label, type_expect env argument_mode body (mk_expected ty)))
+          (label, type_expect env argument_mode body (mk_expected ty), sort))
       sexpl types_and_modes
   in
+  let materialization =
+    match jkinds with
+    | `All_value -> create_materialized ()
+    | `Maybe_not_value jkinds ->
+        create_not_materialized ~on_materialization:(fun () ->
+          List.iter (fun jkind ->
+              match
+                Jkind.intersection jkind (Jkind.value ~why:Tuple_element)
+                  ~reason:Subjkind
+              with
+              | Ok (_ : Jkind.t) -> ()
+              | Error _violation -> assert false)
+            jkinds)
+  in
+  register_materialization materialization;
   re {
-    exp_desc = Texp_tuple (expl, alloc_mode);
+    exp_desc = Texp_tuple (expl, alloc_mode, materialization);
     exp_loc = loc; exp_extra = [];
     (* Keep sharing *)
-    exp_type = newty (Ttuple (List.map (fun (label, e) -> label, e.exp_type) expl));
+    exp_type =
+      newty (Ttuple (List.map (fun (label, e, _) -> label, e.exp_type) expl));
     exp_attributes = attributes;
     exp_env = env }
 
@@ -8719,6 +8791,7 @@ and type_generic_array
 
 and type_expect_jane_syntax
       ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes
+      ~tuple_materialization
   : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x ->
       type_comprehension_expr
@@ -8735,6 +8808,7 @@ and type_expect_jane_syntax
   | Jexp_tuple x ->
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+        ~tuple_materialization
   | Jexp_modes x ->
       type_mode_expr
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x

@@ -45,6 +45,16 @@ val for_tupled_function:
         Ident.t list -> (pattern list * lambda) list -> partial ->
         lambda
 
+(* This is distinct from [for_multiple_match] because the cases list is known to
+   be [(pattern list * lambda) list] and not [(pattern * lambda) list], so
+   therefore (critically) the tuple never needs to be materialized.
+*)
+val for_tuple_of_unboxed_multiple_match:
+        scopes:scopes -> return_layout:layout -> Location.t ->
+        (lambda * Jkind.sort * layout) list ->
+        (pattern list * lambda) list -> partial ->
+        lambda
+
 (** [for_optional_arg_default pat body ~default_arg ~param] is:
     {[
       let $pat =

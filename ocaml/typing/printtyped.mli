@@ -21,3 +21,5 @@ val implementation : formatter -> structure -> unit
 
 val implementation_with_coercion :
   formatter -> Typedtree.implementation -> unit
+
+val pattern : formatter -> 'k general_pattern -> unit

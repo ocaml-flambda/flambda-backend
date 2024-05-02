@@ -217,6 +217,8 @@ type concrete_jkind_reason =
   | Optional_arg_default
   | Layout_poly_in_external
   | Array_element
+  (* CR nroberts: rename *)
+  | Multi_element
 
 type annotation_context =
   | Type_declaration of Path.t

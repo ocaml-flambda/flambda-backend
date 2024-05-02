@@ -465,7 +465,7 @@ and expression i ppf x =
       line i ppf "Texp_try\n";
       expression i ppf e;
       list i case ppf l;
-  | Texp_tuple (l, am) ->
+  | Texp_tuple (l, am, _) ->
       line i ppf "Texp_tuple\n";
       alloc_mode i ppf am;
       list i labeled_expression ppf l;
@@ -1143,10 +1143,11 @@ and label_x_apply_arg i ppf (l, e) =
   arg_label (i+1) ppf l;
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
-and labeled_expression i ppf (l, e) =
+and labeled_expression i ppf (l, e, sort) =
   line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
-  expression (i+1) ppf e;
+  line i ppf "%a\n" Jkind.Sort.format sort;
+  expression (i+1) ppf e
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;
@@ -1165,6 +1166,8 @@ and label_x_bool_x_core_type_list i ppf x =
 let interface ppf x = list 0 signature_item ppf x.sig_items
 
 let implementation ppf x = list 0 structure_item ppf x.str_items
+
+let pattern ppf x = pattern 0 ppf x
 
 let implementation_with_coercion ppf Typedtree.{structure; _} =
   implementation ppf structure

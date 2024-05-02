@@ -332,7 +332,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_try (exp, cases) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
-  | Texp_tuple (list, _) -> List.iter (fun (_,e) -> sub.expr sub e) list
+  | Texp_tuple (list, _, _) -> List.iter (fun (_,e,_) -> sub.expr sub e) list
   | Texp_construct (lid, _, args, _) ->
       iter_loc sub lid;
       List.iter (sub.expr sub) args

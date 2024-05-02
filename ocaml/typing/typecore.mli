@@ -164,6 +164,9 @@ val force_delayed_checks: unit -> unit
 val reset_allocations: unit -> unit
 val optimise_allocations: unit -> unit
 
+val reset_materializations: unit -> unit
+val finalize_materializations: unit -> unit
+
 val has_poly_constraint : Parsetree.pattern -> bool
 
 
@@ -329,4 +332,4 @@ val check_recursive_bindings : Env.t -> Typedtree.value_binding list -> unit
 val check_recursive_class_bindings :
   Env.t -> Ident.t list -> Typedtree.class_expr list -> unit
 
-val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression 
+val src_pos : Location.t -> Typedtree.attributes -> Env.t -> Typedtree.expression

@@ -614,8 +614,12 @@ let rec expression : Typedtree.expression -> term_judg =
           else Dereference
         in
         join [expression e; list arg args] << app_mode
-    | Texp_tuple (exprs, _) ->
-      list expression (List.map snd exprs) << Guard
+    | Texp_tuple (exprs, _, materialization) ->
+      let exprs = list expression (List.map (fun (_, e, _) -> e) exprs) in
+      if is_tuple_materialized materialization
+      then exprs << Guard
+      else exprs << Dereference
+    (* CR nroberts: I have no idea if this is right *)
     | Texp_array (_, elt_sort, exprs, _) ->
       list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->

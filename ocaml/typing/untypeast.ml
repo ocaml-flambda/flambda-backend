@@ -603,9 +603,9 @@ let expression sub exp =
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
-    | Texp_tuple (list, _) ->
+    | Texp_tuple (list, _, _) ->
         Jane_syntax.Labeled_tuples.expr_of ~loc
-          (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
+          (List.map (fun (lbl, e, _) -> lbl, sub.expr sub e) list)
         |> add_jane_syntax_attributes
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,

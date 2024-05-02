@@ -23,6 +23,15 @@
 
 open Asttypes
 
+type tuple_materialization
+
+val is_tuple_materialized : tuple_materialization -> bool
+val materialize_tuple : tuple_materialization -> unit
+val finalize_materialization : tuple_materialization -> unit
+val create_materialized : unit -> tuple_materialization
+val create_not_materialized :
+  on_materialization:(unit -> unit) -> tuple_materialization
+
 (* We define a new constant type that can represent unboxed values.
    This is currently used only in [Typedtree], but the long term goal
    is to share this definition with [Lambda] and completely replace the
@@ -311,12 +320,14 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression * Jkind.sort) list * Mode.Alloc.r
+                  * tuple_materialization
         (** [Texp_tuple(el)] represents
             - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
             - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
             - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
           *)
+  (* CR nroberts: document *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
       expression list * Mode.Alloc.r option
