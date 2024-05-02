@@ -2294,7 +2294,7 @@ end = struct
         else assert (Unresolved_dependencies.is_empty unresolved_deps);
         check_and_save_unit_info ppf unit_info)
 
-  (* [fixpoint_self_rec] try to resolves the common case of self-recursive
+  (* [fixpoint_self_rec] tries to resolve the common case of self-recursive
      functions with no other unresolved dependencies, instead of waiting until
      the end of the compilation unit to compute its fixpoint. Return the
      unresolved callees of [func_info]. *)
