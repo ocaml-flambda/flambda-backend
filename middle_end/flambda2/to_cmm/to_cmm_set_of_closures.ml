@@ -165,18 +165,17 @@ end = struct
                 closure_symbol_for_updates;
                 _
               } ->
-            let update_kind : C.Update_kind.t =
+            let update_kind =
               match Flambda_kind.With_subkind.kind kind with
-              | Value -> Value
-              | Naked_number Naked_immediate -> Immediate
-              | Naked_number Naked_float32 -> Naked_float32
-              | Naked_number Naked_float -> Naked_float
-              (* Int32s are not tightly packed and are loaded via Word_int. *)
-              | Naked_number Naked_int32
+              | Value -> C.Update_kind.values
+              | Naked_number Naked_immediate
               | Naked_number Naked_int64
               | Naked_number Naked_nativeint ->
-                Naked_int64
-              | Naked_number Naked_vec128 -> Naked_vec128
+                C.Update_kind.naked_int64s
+              | Naked_number Naked_float -> C.Update_kind.naked_floats
+              | Naked_number Naked_float32 -> C.Update_kind.naked_float32_fields
+              | Naked_number Naked_int32 -> C.Update_kind.naked_int32_fields
+              | Naked_number Naked_vec128 -> C.Update_kind.naked_vec128_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind."
             in

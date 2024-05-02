@@ -87,14 +87,25 @@ val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
 module Update_kind : sig
-  type t =
-    | Value
-    | Immediate
-    | Naked_int32
-    | Naked_int64
-    | Naked_float
-    | Naked_float32
-    | Naked_vec128
+  type t
+
+  val values : t
+
+  val naked_int32s : t
+
+  val naked_int32_fields : t
+
+  val naked_int64s : t
+
+  val naked_floats : t
+
+  val naked_float32s : t
+
+  val naked_float32_fields : t
+
+  val naked_vec128s : t
+
+  val naked_vec128_fields : t
 end
 
 (** Make an update to a statically-allocated block. *)
