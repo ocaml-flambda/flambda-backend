@@ -440,3 +440,17 @@ Line 2, characters 2-43:
 Error: Expected all flat constructor arguments after non-value argument,
        float#, but found boxed argument, 'a tv.
 |}]
+
+(* Inlined record syntax *)
+
+(* it just isn't supported yet *)
+
+type t_inlined_record = A of { x : float# }
+
+[%%expect{|
+Line 1, characters 31-41:
+1 | type t_inlined_record = A of { x : float# }
+                                   ^^^^^^^^^^
+Error: Type float# has layout float64.
+       Inlined records may not yet contain types of this layout.
+|}]

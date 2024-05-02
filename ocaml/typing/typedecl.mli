@@ -75,9 +75,9 @@ type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a jkind representability requirement in errors. *)
 type jkind_sort_loc =
-  | Cstr_tuple
-  | Record
-  | Unboxed_record
+  | Cstr_tuple of { unboxed : bool }
+  | Record of { unboxed : bool }
+  | Inlined_record of { unboxed : bool }
   | External
   | External_with_layout_poly
 

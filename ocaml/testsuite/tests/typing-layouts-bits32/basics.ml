@@ -266,7 +266,7 @@ Line 1, characters 12-25:
 1 | type t5_6 = A of t_bits32 [@@unboxed];;
                 ^^^^^^^^^^^^^
 Error: Type t_bits32 has layout bits32.
-       Variants may not yet contain types of this layout.
+       Unboxed variants may not yet contain types of this layout.
 |}];;
 
 type ('a : bits32) t5_7 = A of int
