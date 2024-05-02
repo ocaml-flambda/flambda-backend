@@ -354,7 +354,7 @@ and mixed_block_write =
   | Mwrite_value_prefix of immediate_or_pointer
   | Mwrite_flat_suffix of flat_element
 
-and mixed_block_shape = Types.mixed_record_shape =
+and mixed_block_shape = Types.mixed_product_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
   }
@@ -1243,17 +1243,17 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-let transl_mixed_record_shape : Types.mixed_record_shape -> mixed_block_shape =
+let transl_mixed_product_shape : Types.mixed_product_shape -> mixed_block_shape =
   fun x -> x
 
 let count_mixed_block_values_and_floats =
   Types.count_mixed_record_values_and_floats
 
-type mixed_block_element = Types.mixed_record_element =
+type mixed_block_element = Types.mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
-let get_mixed_block_element = Types.get_mixed_record_element
+let get_mixed_block_element = Types.get_mixed_product_element
 
 (* Compile a sequence of expressions *)
 

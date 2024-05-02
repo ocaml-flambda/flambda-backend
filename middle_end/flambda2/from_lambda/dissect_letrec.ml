@@ -296,7 +296,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | Record_float | Record_ufloat ->
         build_block cl size Flat_float_record arg letrec
       | Record_mixed mixed ->
-        let mixed = Lambda.transl_mixed_record_shape mixed in
+        let mixed = Lambda.transl_mixed_product_shape mixed in
         build_block cl size (Mixed mixed) arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
