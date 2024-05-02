@@ -255,7 +255,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Immediate64 | Immediate | Non_null_value | Value -> Print_as_value
       | Void -> Print_as "<void>"
       | Any -> Print_as "<any>"
-      | Float64 | Bits32 | Bits64 | Word -> Print_as "<unboxed>"
+      | Float64 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
