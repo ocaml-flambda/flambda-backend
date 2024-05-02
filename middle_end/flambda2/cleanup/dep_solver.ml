@@ -261,12 +261,9 @@ let rec cut_at depth elt =
 
 let target (dep : dep) : Code_id_or_name.t =
   match dep with
-  | Return_of_that_function n -> Code_id_or_name.name n
-  | Called_by_that_function c -> Code_id_or_name.code_id c
   | Alias n -> Code_id_or_name.name n
-  | Apply _ -> assert false
   | Contains n -> n
-  | Use n -> Code_id_or_name.name n
+  | Use n -> n
   | Field (_, n) -> Code_id_or_name.name n
   | Block (_, n) -> n
   | Alias_if_def (n, _) -> Code_id_or_name.name n
@@ -277,14 +274,10 @@ let propagate uses (elt : elt) (dep : dep) : elt =
   | Bottom -> Bottom
   | Top | Fields _ -> begin
     match dep with
-    | Return_of_that_function _ -> begin
-      match elt with Bottom -> assert false | Fields _ -> Bottom | Top -> Top
-    end
-    | Called_by_that_function _ -> Top
     | Alias _ -> elt
-    | Apply (_, _) -> assert false
     | Contains _ -> (
-      match elt with Bottom -> assert false | Fields _ -> Bottom | Top -> Top)
+        assert false
+      )
     | Use _ -> Top
     | Field (f, _) ->
       let depth = depth_of elt + 1 in
@@ -310,10 +303,7 @@ let propagate uses (elt : elt) (dep : dep) : elt =
 
 let propagate_top uses (dep : dep) : bool =
   match dep with
-  | Return_of_that_function _ -> true
-  | Called_by_that_function _ -> true
   | Alias _ -> true
-  | Apply (_, _) -> true
   | Contains _ -> true
   | Use _ -> true
   | Field _ -> false

@@ -46,15 +46,11 @@ module P = struct
 
   let dep_names (dep : Graph.Dep.t) =
     match dep with
-    | Graph.Dep.Return_of_that_function n
     | Graph.Dep.Alias n
-    | Graph.Dep.Use n
     | Graph.Dep.Field (_, n) ->
       [Code_id_or_name.name n]
+    | Graph.Dep.Use n
     | Graph.Dep.Contains n | Graph.Dep.Block (_, n) -> [n]
-    | Graph.Dep.Called_by_that_function c -> [Code_id_or_name.code_id c]
-    | Graph.Dep.Apply (n, c) ->
-      [Code_id_or_name.name n; Code_id_or_name.code_id c]
     | Graph.Dep.Alias_if_def (n, c) ->
       [Code_id_or_name.name n; Code_id_or_name.code_id c]
     | Graph.Dep.Propagate (n1, n2) ->
@@ -90,18 +86,15 @@ module P = struct
   let edge ~ctx ppf src (dst : Graph.Dep.t) =
     let color, deps =
       match dst with
-      | Return_of_that_function name -> "purple", [Code_id_or_name.name name]
-      | Called_by_that_function code_id ->
-        "orange", [Code_id_or_name.code_id code_id]
       | Alias name -> "black", [Code_id_or_name.name name]
       | Use name ->
         (* ignore name; *)
         (* "red", [] *)
-        "red", [Code_id_or_name.name name]
+        "red", [name]
       | Contains name -> "yellow", [name]
       | Field (_, name) -> "green", [Code_id_or_name.name name]
       | Block (_, name) -> "blue", [name]
-      | Apply (name, _code) | Alias_if_def (name, _code) ->
+      | Alias_if_def (name, _code) ->
         "pink", [Code_id_or_name.name name]
       | Propagate (name, _from) -> "brown", [Code_id_or_name.name name]
     in
@@ -152,17 +145,8 @@ module P = struct
 
   let print ~ctx ~print_name ppf
       ((code_dep, t) : code_dep Code_id.Map.t * Graph.graph) =
-    let all_cdep =
-      Code_id.Map.fold
-        (fun code_id dep s ->
-          List.fold_left
-            (fun s x -> Code_id_or_name.Set.add x s)
-            s
-            (Code_id_or_name.code_id code_id
-            :: List.map Code_id_or_name.var
-                 ((dep.my_closure :: dep.exn :: dep.return) @ dep.params)))
-        code_dep Code_id_or_name.Set.empty
-    in
+    let all_cdep = Code_id_or_name.Set.empty in
+    (* TODO: clean cdep, not useful anymore *)
     Flambda_colours.without_colours ~f:(fun () ->
         Format.fprintf ppf
           "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a}@." ctx print_name

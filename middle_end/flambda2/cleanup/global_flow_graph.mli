@@ -5,6 +5,7 @@ module Field : sig
     | Block of int
     | Value_slot of Value_slot.t
     | Function_slot of Function_slot.t
+    | Code_of_closure
 
   val print : Format.formatter -> t -> unit
 
@@ -14,13 +15,10 @@ end
 module Dep : sig
   type t =
     | Alias of Name.t
-    | Use of Name.t
+    | Use of Code_id_or_name.t
     | Contains of Code_id_or_name.t
     | Field of Field.t * Name.t
     | Block of Field.t * Code_id_or_name.t
-    | Apply of Name.t * Code_id.t
-    | Return_of_that_function of Name.t
-    | Called_by_that_function of Code_id.t
     | Alias_if_def of Name.t * Code_id.t
     | Propagate of Name.t * Name.t
 

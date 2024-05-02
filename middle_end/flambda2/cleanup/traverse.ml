@@ -188,7 +188,7 @@ end = struct
         | Some code_id ->
           Graph.add_dep t.deps2
             (Code_id_or_name.code_id code_id)
-            (Graph.Dep.Use name))
+            (Graph.Dep.Use (Code_id_or_name.name name)))
       ~const:(fun _ -> ())
 
   let used_code_id code_id t =
@@ -202,7 +202,7 @@ end = struct
     | Some code_id2 ->
       Graph.add_dep t.deps2
         (Code_id_or_name.code_id code_id2)
-        (Graph.Dep.Called_by_that_function code_id)
+        (Graph.Dep.Use (Code_id_or_name.code_id code_id))
 
   let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
@@ -275,7 +275,7 @@ end = struct
           (Graph.Dep.Contains (Code_id_or_name.code_id code_id));
         Graph.add_dep t.deps2
           (Code_id_or_name.name name)
-          (Graph.Dep.Contains (Code_id_or_name.code_id code_id)))
+          (Graph.Dep.Block (Code_of_closure, (Code_id_or_name.code_id code_id))))
       t.set_of_closures_dep;
     t.deps1, t.deps2
 end
@@ -314,9 +314,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
         ((my_closure :: params) @ (exn :: return))
     else
       let deps =
-        Graph.Dep.Return_of_that_function (Name.var exn)
+        Graph.Dep.Use (Code_id_or_name.var exn)
         :: List.map
-             (fun var -> Graph.Dep.Return_of_that_function (Name.var var))
+             (fun var -> Graph.Dep.Use (Code_id_or_name.var var))
              return
       in
       List.iter
@@ -329,7 +329,7 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let () =
     Acc.record_dep' ~denv
       (Code_id_or_name.code_id code_id_for_escape)
-      (Graph.Dep.Contains (Code_id_or_name.code_id code_id))
+      (Graph.Dep.Use (Code_id_or_name.code_id code_id))
       acc
   in
   Acc.add_code code_id code_dep acc
@@ -608,7 +608,7 @@ let rec traverse (denv : denv) (acc : acc) (expr : Flambda.Expr.t) : rev_expr =
     in
     let default acc =
       Name_occurrences.fold_names
-        ~f:(fun () free_name -> default_bp acc (Graph.Dep.Use free_name))
+        ~f:(fun () free_name -> default_bp acc (Graph.Dep.Use (Code_id_or_name.name free_name)))
         ~init:()
         (Flambda.Named.free_names defining_expr)
     in
@@ -926,5 +926,6 @@ let run (unit : Flambda_unit.t) =
   in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
-  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, fst deps) in
+  let graph = { Global_flow_graph.toplevel_graph = snd deps; function_graphs = Hashtbl.create 0 } in
+  let () = if debug_print then Dot.print_dep (Acc.code_deps acc, graph) in
   holed, deps, kinds
