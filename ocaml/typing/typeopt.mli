@@ -77,3 +77,8 @@ val layout_union :
       Lambda.layout -> Lambda.layout -> Lambda.layout
   (** [layout_union layout1 layout2] is a layout at least as general as
       [layout1] and [layout2] *)
+
+val value_kind_union : Lambda.value_kind -> Lambda.value_kind
+  -> Lambda.value_kind
+  (** [value_kind_union kind1 kind2] is a value kind at least as general as
+      [kind1] and [kind2] *)

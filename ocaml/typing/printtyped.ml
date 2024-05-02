@@ -60,6 +60,7 @@ let fmt_path f x = fprintf f "\"%a\"" fmt_path_aux x
 
 let fmt_constant f x =
   match x with
+  | Const_null -> fprintf f "Const_null"
   | Const_int (i) -> fprintf f "Const_int %d" i
   | Const_char (c) -> fprintf f "Const_char %02x" (Char.code c)
   | Const_string (s, strloc, None) ->

@@ -28,7 +28,7 @@ let remove_vars_with_machtype free_vars vars =
 
 let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   match k with
-  | Value -> XInt
+  | Value | Nullable_value -> XInt
   | Naked_number Naked_float -> XFloat
   | Naked_number Naked_float32 -> XFloat32
   | Naked_number Naked_int64 -> XInt64
@@ -43,13 +43,14 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
 
 let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
-  | Value -> (
+  | Value | Nullable_value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_int32_array | Unboxed_int64_array
-    | Unboxed_nativeint_array | Value_array | Generic_array ->
+    | Unboxed_nativeint_array | Value_array | Generic_array | Nullable_array _
+      ->
       Cmm.typ_val)
   | Naked_number (Naked_float | Naked_float32) -> Cmm.typ_float
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
@@ -60,13 +61,14 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
 
 let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
-  | Value -> (
+  | Value | Nullable_value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_int32_array | Unboxed_int64_array
-    | Unboxed_nativeint_array | Value_array | Generic_array ->
+    | Unboxed_nativeint_array | Value_array | Generic_array | Nullable_array _
+      ->
       Extended_machtype.typ_val)
   | Naked_number (Naked_float32 | Naked_float) -> Extended_machtype.typ_float
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
@@ -78,13 +80,14 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
 let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     =
   match Flambda_kind.With_subkind.kind kind with
-  | Value -> (
+  | Value | Nullable_value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_int32_array | Unboxed_int64_array
-    | Unboxed_nativeint_array | Value_array | Generic_array ->
+    | Unboxed_nativeint_array | Value_array | Generic_array | Nullable_array _
+      ->
       Word_val)
   | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
     ->
@@ -137,6 +140,7 @@ let name env name = name0 env name
 
 let const ~dbg cst =
   match Reg_width_const.descr cst with
+  | Null -> targetint ~dbg Targetint_32_64.zero
   | Naked_immediate i -> targetint ~dbg (Targetint_31_63.to_targetint i)
   | Tagged_immediate i ->
     targetint ~dbg (tag_targetint (Targetint_31_63.to_targetint i))
@@ -174,6 +178,7 @@ let name_static res name =
 
 let const_static cst =
   match Reg_width_const.descr cst with
+  | Null -> [cint 0n]
   | Naked_immediate i ->
     [cint (nativeint_of_targetint (Targetint_31_63.to_targetint i))]
   | Tagged_immediate i ->

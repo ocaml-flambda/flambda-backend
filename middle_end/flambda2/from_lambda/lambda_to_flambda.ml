@@ -698,7 +698,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
   | Pbox_float (_, _)
   | Punbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-  | Punboxed_product_field _ | Pget_header _ ->
+  | Punboxed_product_field _ | Pget_header _ | Pcoerce_to_null
+  | Pcoerce_to_non_null ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform | Pdls_get ->
@@ -890,8 +891,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             match layout with
             | Ptop | Pbottom ->
               Misc.fatal_error "Cannot bind layout [Ptop] or [Pbottom]"
-            | Pvalue _ | Punboxed_int _ | Punboxed_float _ | Punboxed_vector _
-              ->
+            | Pvalue _ | Pnullable_value _ | Punboxed_int _ | Punboxed_float _
+            | Punboxed_vector _ ->
               ( env,
                 [ ( id,
                     Flambda_kind.With_subkind
@@ -1014,8 +1015,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
-      | Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-      | Punboxed_product _ ->
+      | Pvalue _ | Pnullable_value _ | Punboxed_float _ | Punboxed_int _
+      | Punboxed_vector _ | Punboxed_product _ ->
         ()
       | Ptop | Pbottom ->
         Misc.fatal_errorf "Invalid result layout %a for primitive %a"
@@ -1549,8 +1550,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       in
       Some (Unboxed_number bn)
     | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-    | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-    | Punboxed_product _ ->
+    | Pnullable_value _ | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _
+    | Punboxed_vector _ | Punboxed_product _ ->
       Location.prerr_warning
         (Debuginfo.Scoped_location.to_location loc)
         Warnings.Unboxing_impossible;

@@ -1170,6 +1170,7 @@ let can_group discr pat =
   let open Patterns.Head in
   match (discr.pat_desc, (Simple.head pat).pat_desc) with
   | Any, Any
+  | Constant Const_null, Constant Const_null
   | Constant (Const_int _), Constant (Const_int _)
   | Constant (Const_char _), Constant (Const_char _)
   | Constant (Const_string _), Constant (Const_string _)
@@ -1201,7 +1202,8 @@ let can_group discr pat =
   | ( _,
       ( Any
       | Constant
-          ( Const_int _ | Const_char _ | Const_string _ | Const_float _
+          ( Const_null
+          | Const_int _ | Const_char _ | Const_string _ | Const_float _
           | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
           | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
           | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
@@ -2845,6 +2847,8 @@ let combine_constant value_kind loc arg cst partial ctx def
   let fail, local_jumps = mk_failaction_neg partial ctx def in
   let lambda1 =
     match cst with
+    | Const_null ->
+      Misc.fatal_error "mshinwell: front-end or_null"
     | Const_int _ ->
         let int_lambda_list =
           List.map

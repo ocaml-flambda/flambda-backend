@@ -17,6 +17,8 @@
 module RWC = Reg_width_const
 include Int_ids.Simple
 
+let null = const RWC.null
+
 let const_bool b = const (if b then RWC.const_true else RWC.const_false)
 
 let const_true = const_bool true

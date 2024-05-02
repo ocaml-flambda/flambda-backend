@@ -16,6 +16,7 @@
 
 (** Inhabitants (of kind [Value]) of fields of statically-allocated blocks. *)
 type t =
+  | Null
   | Symbol of Symbol.t  (** The address of the given symbol. *)
   | Tagged_immediate of Targetint_31_63.t  (** The given tagged immediate. *)
   | Dynamically_computed of Variable.t * Debuginfo.t

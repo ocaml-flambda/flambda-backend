@@ -49,6 +49,8 @@ end
 module Lambda_utils : sig
   (** Creating AST fragments for constants from OCaml values *)
   module Constants : sig
+    val null : lambda
+
     (** Lambda integer literals *)
     val int : int -> lambda
 

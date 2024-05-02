@@ -362,6 +362,7 @@ let targetint i = i |> Targetint_32_64.to_int64
 
 let const c : Fexpr.const =
   match Reg_width_const.descr c with
+  | Null -> Misc.fatal_error "Null not supported"
   | Naked_immediate imm ->
     Naked_immediate
       (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
@@ -440,6 +441,8 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array ->
     Misc.fatal_error
       "fexpr support for unboxed int32/64/nativeint arrays not yet implemented"
+  | Nullable_array _ ->
+    Misc.fatal_error "fexpr support for nullable arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -456,6 +459,7 @@ and kind_with_subkind (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind =
   match Flambda_kind.With_subkind.kind k with
   | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Nullable_value -> Misc.fatal_error "Nullable_value not supported"
   | Naked_number nnk -> Naked_number nnk
   | Region -> Region
   | Rec_info -> Rec_info
@@ -520,7 +524,7 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
-  | Array_length ak -> Array_length ak
+  | Array_length _ak -> Misc.fatal_error "TBD" (*Array_length ak *)
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
@@ -546,7 +550,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ ->
+  | Get_header | Atomic_load _ | Coerce_to_null | Coerce_to_non_null ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -557,14 +561,11 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
     match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
   in
   match bk with
-  | Values { field_kind; size = s; tag } ->
-    let size = s |> size in
-    let tag =
-      match tag with
-      | Unknown -> None
-      | Known tag -> Some (tag |> Tag.Scannable.to_int)
-    in
-    Values { field_kind; size; tag }
+  | Values { field_kind = _; size = _s; tag = _ } ->
+    Misc.fatal_error "TBD"
+    (* let size = s |> size in let tag = match tag with | Unknown -> None |
+       Known tag -> Some (tag |> Tag.Scannable.to_int) in Values { field_kind;
+       size; tag } *)
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
@@ -574,7 +575,8 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
-  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
+  | Array_load _ ->
+    Misc.fatal_error "TBD" (* (ak, width, mut) -> Array_load (ak, width, mut) *)
   | Block_load (access_kind, mutability) ->
     let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
@@ -598,10 +600,11 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, width) ->
-    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
-    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
-    Array_set (ak, width, init_or_assign env ia)
+  | Array_set _ ->
+    (* (ak, width) -> let ia = Flambda_primitive.Array_set_kind.init_or_assign
+       ak in let ak = Flambda_primitive.Array_set_kind.array_kind ak in
+       Array_set (ak, width, init_or_assign env ia) *)
+    Misc.fatal_error "TBD"
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->
@@ -673,6 +676,7 @@ let set_of_closures env sc =
 let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
     =
   match field with
+  | Null -> Misc.fatal_error "Null not supported"
   | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
   | Tagged_immediate imm ->
     Tagged_immediate

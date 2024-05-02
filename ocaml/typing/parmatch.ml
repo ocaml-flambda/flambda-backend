@@ -143,6 +143,7 @@ let all_coherent column =
       && c.cstr_nonconsts = c'.cstr_nonconsts
     | Constant c1, Constant c2 -> begin
         match c1, c2 with
+        | Const_null, Const_null
         | Const_char _, Const_char _
         | Const_int _, Const_int _
         | Const_int32 _, Const_int32 _
@@ -155,7 +156,8 @@ let all_coherent column =
         | Const_float32 _, Const_float32 _
         | Const_unboxed_float _, Const_unboxed_float _
         | Const_string _, Const_string _ -> true
-        | ( Const_char _
+        | ( Const_null
+          | Const_char _
           | Const_int _
           | Const_int32 _
           | Const_int64 _
@@ -273,7 +275,8 @@ let const_compare x y =
       Stdlib.compare (float_of_string f1) (float_of_string f2)
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
-  | (Const_int _
+  | (Const_null
+    |Const_int _
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
@@ -2153,6 +2156,7 @@ let inactive ~partial pat =
             true
         | Tpat_constant c -> begin
             match c with
+            | Const_null
             | Const_string _
             | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
             | Const_unboxed_float _ | Const_int32 _ | Const_int64 _

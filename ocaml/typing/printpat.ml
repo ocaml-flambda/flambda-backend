@@ -25,6 +25,7 @@ let is_cons = function
 | _ -> false
 
 let pretty_const c = match c with
+| Const_null -> "null"
 | Const_int i -> Printf.sprintf "%d" i
 | Const_char c -> Printf.sprintf "%C" c
 | Const_string (s, _, _) -> Printf.sprintf "%S" s

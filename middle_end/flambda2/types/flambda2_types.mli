@@ -358,6 +358,9 @@ val any_rec_info : t
 
 (** Building of types representing tagged / boxed values from specified
     constants. *)
+
+val null : t
+
 val this_tagged_immediate : Targetint_31_63.t -> t
 
 val this_boxed_float32 :
@@ -761,7 +764,7 @@ type to_lift = private
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
-  | Immutable_value_array of { fields : Simple.t list }
+  | Immutable_value_or_nullable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 
 type reification_result = private

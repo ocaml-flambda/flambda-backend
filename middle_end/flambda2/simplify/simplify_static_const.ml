@@ -17,8 +17,11 @@
 open! Flambda.Import
 open! Simplify_import
 
+(* CR mshinwell: Think about static allocation of [or_null] values. *)
+
 let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   match field with
+  | Null -> field, T.null
   | Symbol sym -> field, T.alias_type_of K.value (Simple.symbol sym)
   | Tagged_immediate i -> field, T.this_tagged_immediate i
   | Dynamically_computed (var, dbg) ->
@@ -36,8 +39,8 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
       ~const:(fun const ->
         match Reg_width_const.descr const with
         | Tagged_immediate imm -> Field_of_static_block.Tagged_immediate imm, ty
-        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+        | Null | Naked_immediate _ | Naked_float _ | Naked_float32 _
+        | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
           (* CR mshinwell: This should be "invalid" and propagate up *)
           field, ty)
 

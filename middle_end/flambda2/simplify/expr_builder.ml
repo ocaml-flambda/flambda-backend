@@ -531,8 +531,18 @@ let create_let_symbols uacc lifted_constant ~body =
                     if Flambda_kind.With_subkind.equal kind
                          Flambda_kind.With_subkind.tagged_immediate
                     then Immediate
-                    else Any_value
+                    else Value
                   in
+                  Values { tag = Unknown; size = Unknown; field_kind }
+                | Nullable_value ->
+                  let field_kind : P.Block_access_field_kind.t =
+                    if Flambda_kind.With_subkind.equal kind
+                         Flambda_kind.With_subkind.tagged_immediate
+                    then Immediate
+                    else Value
+                  in
+                  (* XXX maybe this again indicates [Nullable_value] in BAK is
+                     redundant *)
                   Values { tag = Unknown; size = Unknown; field_kind }
                 | Naked_number Naked_float -> Naked_floats { size = Unknown }
                 | Naked_number

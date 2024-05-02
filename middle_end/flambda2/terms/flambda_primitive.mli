@@ -40,6 +40,7 @@ module Array_kind : sig
     | Values
         (** An array consisting of elements of kind [value]. With the float
             array optimisation enabled, such elements must never be [float]s. *)
+    | Nullable_values of Flambda_kind.Subkind.t
     | Naked_floats
         (** An array consisting of naked floats, represented using
             [Double_array_tag]. *)
@@ -90,6 +91,7 @@ module Array_set_kind : sig
     | Values of Init_or_assign.t
         (** An array consisting of elements of kind [value]. With the float
         array optimisation enabled, such elements must never be [float]s. *)
+    | Nullable_values of Init_or_assign.t * Flambda_kind.Subkind.t
     | Naked_floats
         (** An array consisting of naked floats, represented using
         [Double_array_tag]. *)
@@ -130,6 +132,7 @@ module Duplicate_array_kind : sig
   type t =
     | Immediates
     | Values
+    | Nullable_values of Flambda_kind.Subkind.t
     | Naked_floats of { length : Targetint_31_63.t option }
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
@@ -141,9 +144,11 @@ module Duplicate_array_kind : sig
 end
 
 module Block_access_field_kind : sig
-  (* CR mshinwell: For [Block_load] this is always [Any_value]. *)
+  (* CR mshinwell: For [Block_load] this is always [Value]. *)
   type t =
-    | Any_value
+    | Value
+    (* XXX do we need this nullable case? *)
+    | Nullable_value of Flambda_kind.Subkind.t
     | Immediate
 
   val print : Format.formatter -> t -> unit
@@ -389,6 +394,8 @@ type unary_primitive =
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
   | Atomic_load of Block_access_field_kind.t
+  | Coerce_to_null
+  | Coerce_to_non_null
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

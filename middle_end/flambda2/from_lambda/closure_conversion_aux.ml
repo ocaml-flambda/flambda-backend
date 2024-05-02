@@ -396,12 +396,12 @@ module Acc = struct
               "Closure_conversion: approximation loader returned a Symbol \
                approximation (%a) for symbol %a"
               Symbol.print sym Symbol.print symbol
-          | Value_unknown | Value_int _ | Closure_approximation _
+          | Value_unknown | Value_null | Value_int _ | Closure_approximation _
           | Block_approximation _ ->
             ());
         let rec filter_inlinable approx =
           match (approx : Env.value_approximation) with
-          | Value_unknown | Value_symbol _ | Value_int _ -> approx
+          | Value_unknown | Value_symbol _ | Value_null | Value_int _ -> approx
           | Block_approximation (tag, approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (tag, approxs, alloc_mode)
@@ -491,6 +491,7 @@ module Acc = struct
           let approx_of_field :
               Field_of_static_block.t -> _ Value_approximation.t = function
             | Symbol sym -> Value_symbol sym
+            | Null -> Value_null
             | Tagged_immediate i -> Value_int i
             | Dynamically_computed _ -> Value_unknown
           in
@@ -535,7 +536,7 @@ module Acc = struct
       Misc.fatal_errorf "Symbol %a approximated to symbol %a" Symbol.print
         symbol Symbol.print s
     | Value_unknown | Closure_approximation _ | Block_approximation _
-    | Value_int _ ->
+    | Value_null | Value_int _ ->
       (* We need all defined symbols to be present in [symbol_approximations],
          even when their approximation is [Value_unknown] *)
       { t with

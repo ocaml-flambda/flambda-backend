@@ -137,6 +137,7 @@ module Array_kind = struct
   type t =
     | Immediates
     | Values
+    | Nullable_values of Flambda_kind.Subkind.t
     | Naked_floats
     | Naked_int32s
     | Naked_int64s
@@ -147,6 +148,9 @@ module Array_kind = struct
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
     | Values -> Format.pp_print_string ppf "Values"
+    | Nullable_values subkind ->
+      Format.fprintf ppf "@[<hov 1>(Nullable_values@ %a)@]"
+        K.Subkind.print subkind
     | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
@@ -156,6 +160,7 @@ module Array_kind = struct
   let element_kind_for_primitive t =
     match t with
     | Immediates | Values -> K.value
+    | Nullable_values _ -> K.nullable_value
     | Naked_floats -> K.naked_float
     | Naked_int32s -> K.naked_int32
     | Naked_int64s -> K.naked_int64
@@ -165,6 +170,9 @@ module Array_kind = struct
     match t with
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values -> Flambda_kind.With_subkind.any_value
+    | Nullable_values subkind ->
+      Flambda_kind.With_subkind.nullable_value
+        (Flambda_kind.Subkind.to_with_subkind subkind)
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
     | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
@@ -172,7 +180,8 @@ module Array_kind = struct
 
   let for_empty_array t : Empty_array_kind.t =
     match t with
-    | Immediates | Values | Naked_floats -> Values_or_immediates_or_naked_floats
+    | Immediates | Values | Nullable_values _ | Naked_floats ->
+      Values_or_immediates_or_naked_floats
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
@@ -182,6 +191,7 @@ module Array_set_kind = struct
   type t =
     | Immediates
     | Values of Init_or_assign.t
+    | Nullable_values of Init_or_assign.t * K.Subkind.t
     | Naked_floats
     | Naked_int32s
     | Naked_int64s
@@ -193,6 +203,9 @@ module Array_set_kind = struct
     | Values init_or_assign ->
       Format.fprintf ppf "@[<hov 1>(Values %a)@]" Init_or_assign.print
         init_or_assign
+    | Nullable_values (init_or_assign, subkind) ->
+      Format.fprintf ppf "@[<hov 1>(Values %a@ %a)@]" Init_or_assign.print
+        init_or_assign K.Subkind.print subkind
     | Naked_floats -> Format.fprintf ppf "Naked_floats"
     | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
@@ -203,6 +216,7 @@ module Array_set_kind = struct
   let element_kind_for_set t =
     match t with
     | Immediates | Values _ -> K.value
+    | Nullable_values _ -> K.nullable_value
     | Naked_floats -> K.naked_float
     | Naked_int32s -> K.naked_int32
     | Naked_int64s -> K.naked_int64
@@ -212,6 +226,7 @@ module Array_set_kind = struct
     match t with
     | Immediates -> Immediates
     | Values _ -> Values
+    | Nullable_values (_, subkind) -> Nullable_values subkind
     | Naked_floats -> Naked_floats
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
@@ -219,7 +234,7 @@ module Array_set_kind = struct
 
   let init_or_assign t : Init_or_assign.t =
     match t with
-    | Values ia -> ia
+    | Values ia | Nullable_values (ia, _) -> ia
     | Immediates | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints
       ->
       Assignment Alloc_mode.For_assignments.heap
@@ -228,6 +243,8 @@ module Array_set_kind = struct
     match t with
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values _ -> Flambda_kind.With_subkind.any_value
+    | Nullable_values (_, subkind) ->
+      Flambda_kind.Subkind.to_with_subkind subkind
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
     | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
@@ -301,6 +318,7 @@ module Duplicate_array_kind = struct
   type t =
     | Immediates
     | Values
+    | Nullable_values of Flambda_kind.Subkind.t
     | Naked_floats of { length : Targetint_31_63.t option }
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
@@ -310,6 +328,9 @@ module Duplicate_array_kind = struct
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Values -> Format.pp_print_string ppf "Values"
+    | Nullable_values subkind ->
+      Format.fprintf ppf "@[<hov 1>(Nullable_values@ %a)@]"
+        K.Subkind.print subkind
     | Naked_floats { length; } ->
       Format.fprintf ppf
         "@[<hov 1>(Naked_floats@ \
@@ -338,6 +359,8 @@ module Duplicate_array_kind = struct
   let compare t1 t2 =
     match t1, t2 with
     | Immediates, Immediates | Values, Values -> 0
+    | Nullable_values subkind1, Nullable_values subkind2 ->
+      K.Subkind.compare subkind1 subkind2
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Option.compare Targetint_31_63.compare length1 length2
     | Naked_int32s { length = length1 }, Naked_int32s { length = length2 } ->
@@ -351,6 +374,8 @@ module Duplicate_array_kind = struct
     | _, Immediates -> 1
     | Values, _ -> -1
     | _, Values -> 1
+    | Nullable_values _, _ -> -1
+    | _, Nullable_values _ -> 1
     | Naked_floats _, _ -> -1
     | _, Naked_floats _ -> 1
     | Naked_int32s _, _ -> -1
@@ -361,12 +386,16 @@ end
 
 module Block_access_field_kind = struct
   type t =
-    | Any_value
+    | Value
+    | Nullable_value of Flambda_kind.Subkind.t
     | Immediate
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
-    | Any_value -> Format.pp_print_string ppf "Any_value"
+    | Value -> Format.pp_print_string ppf "Value"
+    | Nullable_value subkind ->
+      Format.fprintf ppf "@[<hov 1>(Nullable_value@ %a)@]"
+        K.Subkind.print subkind
     | Immediate -> Format.pp_print_string ppf "Immediate"
 
   let compare = Stdlib.compare
@@ -454,12 +483,16 @@ module Block_access_kind = struct
 
   let element_subkind_for_load t =
     match t with
-    | Values { field_kind = Any_value; _ }
-    | Mixed { field_kind = Value_prefix Any_value; _ } ->
+    | Values { field_kind = Value; _ }
+    | Mixed { field_kind = Value_prefix Value; _ } ->
       K.With_subkind.any_value
     | Values { field_kind = Immediate; _ }
     | Mixed { field_kind = Value_prefix Immediate; _ } ->
       K.With_subkind.tagged_immediate
+    | Values { field_kind = Nullable_value subkind; _ }
+    | Mixed { field_kind = Value_prefix (Nullable_value subkind); _ } ->
+      K.With_subkind.create K.nullable_value
+        (K.With_subkind.subkind (K.Subkind.to_with_subkind subkind))
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
       match field_kind with
@@ -520,8 +553,8 @@ let reading_from_an_array (array_kind : Array_kind.t)
     (mutable_or_immutable : Mutability.t) =
   let effects : Effects.t =
     match array_kind with
-    | Immediates | Values | Naked_floats | Naked_int32s | Naked_int64s
-    | Naked_nativeints ->
+    | Immediates | Values | Nullable_values _ | Naked_floats | Naked_int32s
+    | Naked_int64s | Naked_nativeints ->
       No_effects
   in
   let coeffects =
@@ -963,6 +996,8 @@ type unary_primitive =
   | Obj_dup
   | Get_header
   | Atomic_load of Block_access_field_kind.t
+  | Coerce_to_null
+  | Coerce_to_non_null
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -993,7 +1028,9 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | End_region | End_try_region | Obj_dup | Atomic_load _ -> false
+  | End_region | End_try_region | Obj_dup | Atomic_load _ | Coerce_to_null
+  | Coerce_to_non_null ->
+    false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -1025,6 +1062,8 @@ let compare_unary_primitive p1 p2 =
     | Obj_dup -> 24
     | Get_header -> 25
     | Atomic_load _ -> 26
+    | Coerce_to_null -> 27
+    | Coerce_to_non_null -> 28
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -1092,13 +1131,16 @@ let compare_unary_primitive p1 p2 =
     ->
     Block_access_field_kind.compare block_access_field_kind1
       block_access_field_kind2
+  | Coerce_to_null, Coerce_to_null -> 0
+  | Coerce_to_non_null, Coerce_to_non_null -> 0
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length _ | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
-      | End_try_region | Obj_dup | Get_header | Atomic_load _ ),
+      | End_try_region | Obj_dup | Get_header | Atomic_load _ | Coerce_to_null
+      | Coerce_to_non_null ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1157,6 +1199,8 @@ let print_unary_primitive ppf p =
   | Atomic_load block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_load@ %a)@]" Block_access_field_kind.print
       block_access_field_kind
+  | Coerce_to_null -> Format.pp_print_string ppf "Coerce_to_null"
+  | Coerce_to_non_null -> Format.pp_print_string ppf "Coerce_to_non_null"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1183,6 +1227,8 @@ let arg_kind_of_unary_primitive p =
   | Obj_dup -> K.value
   | Get_header -> K.value
   | Atomic_load _ -> K.value
+  | Coerce_to_null -> K.value
+  | Coerce_to_non_null -> K.nullable_value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -1212,6 +1258,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Obj_dup -> Singleton K.value
   | Get_header -> Singleton K.naked_nativeint
   | Atomic_load _ -> Singleton K.value
+  | Coerce_to_null -> Singleton K.nullable_value
+  | Coerce_to_non_null -> Singleton K.value
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1300,6 +1348,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
       Strict )
   | Get_header -> No_effects, No_coeffects, Strict
   | Atomic_load _ -> Arbitrary_effects, Has_coeffects, Strict
+  | Coerce_to_null | Coerce_to_non_null -> No_effects, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1316,6 +1365,7 @@ let unary_classify_for_printing p =
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region | End_try_region -> Neither
   | Get_header -> Neither
+  | Coerce_to_null | Coerce_to_non_null -> Neither
 
 let free_names_unary_primitive p =
   match p with
@@ -1337,7 +1387,8 @@ let free_names_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region | Obj_dup
   | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Coerce_to_null | Coerce_to_non_null ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1358,7 +1409,8 @@ let apply_renaming_unary_primitive p renaming =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Coerce_to_null | Coerce_to_non_null ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1371,7 +1423,8 @@ let ids_for_export_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Coerce_to_null | Coerce_to_non_null ->
     Ids_for_export.empty
 
 type binary_int_arith_op =

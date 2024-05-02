@@ -35,6 +35,7 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
             F.Symbol sym)
           ~const:(fun const ->
             match Reg_width_const.descr const with
+            | Null -> F.Null
             | Tagged_immediate imm -> F.Tagged_immediate imm
             | Naked_immediate _ | Naked_float _ | Naked_float32 _
             | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _
@@ -72,7 +73,7 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Immutable_nativeint_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_nativeint_array art fields
-  | Immutable_value_array { fields } ->
+  | Immutable_value_or_nullable_value_array { fields } ->
     let fields = convert_fields fields in
     RSC.create_immutable_value_array art fields
   | Empty_array array_kind -> RSC.create_empty_array art array_kind

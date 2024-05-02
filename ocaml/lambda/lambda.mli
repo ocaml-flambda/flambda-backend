@@ -274,6 +274,8 @@ type primitive =
      if the value is locally allocated *)
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pcoerce_to_null
+  | Pcoerce_to_non_null
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)
@@ -293,13 +295,15 @@ and float_comparison =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
 and array_kind =
-    Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Pnullablearray of value_kind
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
 and array_ref_kind =
+  | Pnullablearray_ref of value_kind  (* Never a flat float array *)
   | Pgenarray_ref of alloc_mode (* This might be a flat float array *)
   | Paddrarray_ref
   | Pintarray_ref
@@ -310,6 +314,7 @@ and array_ref_kind =
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
 and array_set_kind =
+  | Pnullablearray_set of modify_mode * value_kind
   | Pgenarray_set of modify_mode (* This might be an array of pointers *)
   | Paddrarray_set of modify_mode
   | Pintarray_set
@@ -340,6 +345,7 @@ and value_kind =
    need a constructor for it here. *)
 and layout =
   | Ptop
+  | Pnullable_value of value_kind
   | Pvalue of value_kind
   | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer

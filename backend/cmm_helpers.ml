@@ -1383,6 +1383,7 @@ module Extended_machtype = struct
     | Pvalue Pintval -> typ_tagged_int
     | Pvalue _ -> typ_val
     | Punboxed_product fields -> Array.concat (List.map of_layout fields)
+    | Pnullable_value vk -> of_layout (Lambda.Pvalue vk)
 end
 
 let machtype_of_layout layout =
@@ -2997,7 +2998,7 @@ let arraylength kind arg dbg =
                 Any ))
     in
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
-  | Paddrarray | Pintarray ->
+  | Pnullablearray _ | Paddrarray | Pintarray ->
     Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Pfloatarray | Punboxedfloatarray Pfloat64 ->
     (* Note: we only support 64 bit targets now, so this is ok for
@@ -3792,7 +3793,7 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
   | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-  | Punboxed_product _ ->
+  | Punboxed_product _ | Pnullable_value _ ->
     Any
 
 (* Atomics *)

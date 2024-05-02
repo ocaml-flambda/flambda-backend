@@ -693,7 +693,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       ( Mutable,
         Lprim (Pmakearray (Pgenarray, Immutable, Lambda.alloc_heap), [], loc) )
     (* Case 2: Fixed size, known array kind *)
-    | Fixed_size, (Pintarray | Paddrarray) ->
+    | Fixed_size, (Pnullablearray _ | Pintarray | Paddrarray) ->
       Immutable StrictOpt, make_vect ~loc ~length:array_size.var ~init:(int 0)
     | Fixed_size, (Pfloatarray | Punboxedfloatarray Pfloat64) ->
       (* The representations of these two are the same, it's only
@@ -706,7 +706,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Fixed_size, Punboxedintarray Pnativeint ->
       Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
-    | Dynamic_size, (Pintarray | Paddrarray) ->
+    | Dynamic_size, (Pnullablearray _ | Pintarray | Paddrarray) ->
       Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
       Mutable, Resizable_array.make ~loc array_kind (float 0.)
@@ -807,7 +807,7 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
              Lassign (array.id, make_array),
              set_element_in_bounds elt.var,
              Pvalue Pintval (* [unit] is immediate *) ))
-    | Pintarray | Paddrarray | Pfloatarray
+    | Pnullablearray _ | Pintarray | Paddrarray | Pfloatarray
     | Punboxedfloatarray Pfloat64
     | Punboxedintarray _ ->
       set_element_in_bounds body
@@ -821,7 +821,7 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
 let comprehension ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
     { comp_body; comp_clauses } =
   (match array_kind with
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
+  | Pnullablearray _ | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
   | Punboxedfloatarray _ | Punboxedintarray _ ->
     if not !Clflags.native_code
     then
@@ -843,7 +843,21 @@ let comprehension ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
     | Dynamic_size_info -> Dynamic_size
   in
   let array = initial_array ~loc ~array_kind ~array_size ~array_sizing in
-  let index = Let_binding.make Mutable (Pvalue Pintval) "index" (int 0) in
+  let dummy_layout, dummy_value =
+    match array_kind with
+    | Pnullablearray _ -> Pnullable_value Pintval, null
+    | Pgenarray | Paddrarray | Pintarray -> Pvalue Pintval, int 0
+    | Pfloatarray -> Pvalue (Pboxedfloatval Pfloat64), float 0.
+    | Punboxedfloatarray Pfloat64 -> Punboxed_float Pfloat64, unboxed_float 0.
+    | Punboxedfloatarray Pfloat32 ->
+      (* XXX mshinwell: shouldn't this be [unboxed_float32]? *)
+      Punboxed_float Pfloat32, unboxed_float 0.
+    | Punboxedintarray Pint32 -> Punboxed_int Pint32, unboxed_int32 0l
+    | Punboxedintarray Pint64 -> Punboxed_int Pint64, unboxed_int64 0L
+    | Punboxedintarray Pnativeint ->
+      Punboxed_int Pnativeint, unboxed_nativeint Targetint.zero
+  in
+  let index = Let_binding.make Mutable dummy_layout "index" dummy_value in
   (* The core of the comprehension: the array, the index, and the iteration that
      fills everything in.  The translation of the clauses will produce a check
      to see if we can avoid doing the hard work of growing the array, which is

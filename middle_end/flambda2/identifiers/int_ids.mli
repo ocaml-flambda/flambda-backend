@@ -25,6 +25,8 @@ module Const : sig
 
   include Container_types.S with type t := t
 
+  val null : t
+
   val const_true : t
 
   val const_false : t
@@ -66,6 +68,7 @@ module Const : sig
 
   module Descr : sig
     type t = private
+      | Null
       | Naked_immediate of Targetint_31_63.t
       | Tagged_immediate of Targetint_31_63.t
       | Naked_float32 of Numeric_types.Float32_by_bit_pattern.t

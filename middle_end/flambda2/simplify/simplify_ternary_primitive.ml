@@ -36,6 +36,13 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
     in
     assert (K.equal elt_kind elt_kind');
     let array_set_kind : P.Array_set_kind.t =
+      let[@inline] fail () =
+        Misc.fatal_errorf
+          "Didn't expect array specialisation to yield array kind %a from \
+           array set kind %a:@ %a"
+          P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
+          Named.print original_term
+      in
       match array_kind with
       | Immediates -> Immediates
       | Values -> (
@@ -44,12 +51,21 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
         | Immediates
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
-        | Naked_floats | Naked_int32s | Naked_int64s | Naked_nativeints ->
-          Misc.fatal_errorf
-            "Didn't expect array specialisation to yield array kind %a from \
-             array set kind %a:@ %a"
-            P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
-            Named.print original_term)
+        | Nullable_values _ | Naked_floats | Naked_int32s | Naked_int64s
+        | Naked_nativeints ->
+          fail ())
+      | Nullable_values subkind -> (
+        match array_set_kind with
+        | Nullable_values (init_or_assign, spec_subkind) ->
+          if not
+               (Flambda_kind.With_subkind.compatible
+                  (K.Subkind.to_with_subkind spec_subkind)
+                  ~when_used_at:(K.Subkind.to_with_subkind subkind))
+          then fail ()
+          else Nullable_values (init_or_assign, subkind)
+        | Immediates | Values _ | Naked_floats | Naked_int32s | Naked_int64s
+        | Naked_nativeints ->
+          fail ())
       | Naked_floats -> Naked_floats
       | Naked_int32s -> Naked_int32s
       | Naked_int64s -> Naked_int64s

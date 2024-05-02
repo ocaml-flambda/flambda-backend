@@ -40,6 +40,7 @@ let code_id_flags = 4
 
 module Const_data = struct
   type t =
+    | Null
     | Naked_immediate of Targetint_31_63.t
     | Tagged_immediate of Targetint_31_63.t
     | Naked_float32 of Numeric_types.Float32_by_bit_pattern.t
@@ -56,6 +57,8 @@ module Const_data = struct
 
     let [@ocamlformat "disable"] print ppf (t : t) =
       match t with
+      | Null ->
+        Format.fprintf ppf "%tNull%t" Flambda_colours.null Flambda_colours.pop
       | Naked_immediate i ->
         Format.fprintf ppf "%t#%a%t"
           Flambda_colours.naked_number
@@ -99,6 +102,7 @@ module Const_data = struct
 
     let compare t1 t2 =
       match t1, t2 with
+      | Null, Null -> 0
       | Naked_immediate i1, Naked_immediate i2 -> Targetint_31_63.compare i1 i2
       | Tagged_immediate i1, Tagged_immediate i2 ->
         Targetint_31_63.compare i1 i2
@@ -111,6 +115,8 @@ module Const_data = struct
       | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.compare n1 n2
       | Naked_vec128 v1, Naked_vec128 v2 ->
         Vector_types.Vec128.Bit_pattern.compare v1 v2
+      | Null, _ -> -1
+      | _, Null -> 1
       | Naked_immediate _, _ -> -1
       | _, Naked_immediate _ -> 1
       | Tagged_immediate _, _ -> -1
@@ -131,6 +137,7 @@ module Const_data = struct
       then true
       else
         match t1, t2 with
+        | Null, Null -> true
         | Naked_immediate i1, Naked_immediate i2 -> Targetint_31_63.equal i1 i2
         | Tagged_immediate i1, Tagged_immediate i2 ->
           Targetint_31_63.equal i1 i2
@@ -143,7 +150,7 @@ module Const_data = struct
         | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.equal n1 n2
         | Naked_vec128 v1, Naked_vec128 v2 ->
           Vector_types.Vec128.Bit_pattern.equal v1 v2
-        | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
+        | ( ( Null | Naked_immediate _ | Tagged_immediate _ | Naked_float _
             | Naked_float32 _ | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _
             | Naked_nativeint _ ),
             _ ) ->
@@ -151,6 +158,7 @@ module Const_data = struct
 
     let hash t =
       match t with
+      | Null -> Hashtbl.hash "NULL"
       | Naked_immediate n -> Targetint_31_63.hash n
       | Tagged_immediate n -> Targetint_31_63.hash n
       | Naked_float32 n -> Numeric_types.Float32_by_bit_pattern.hash n
@@ -276,6 +284,8 @@ module Const = struct
   module Descr = Const_data
 
   let create (data : Const_data.t) = Table.add !grand_table_of_constants data
+
+  let null = create Null
 
   let naked_immediate imm = create (Naked_immediate imm)
 

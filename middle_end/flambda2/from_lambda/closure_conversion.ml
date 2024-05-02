@@ -106,6 +106,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * declare_const_result * string =
   let module SC = Static_const in
   match const with
+  | Const_base Const_null -> acc, Field Null, "null"
   | Const_base (Const_int c) ->
     acc, Field (Tagged_immediate (Targetint_31_63.of_int c)), "int"
   | Const_base (Const_char c) ->
@@ -180,6 +181,12 @@ let rec declare_const acc (const : Lambda.structured_constant) :
 let close_const0 acc (const : Lambda.structured_constant) =
   let acc, const, name = declare_const acc const in
   match const with
+  | Field Null ->
+    ( acc,
+      Simple.const Reg_width_const.null,
+      name,
+      Flambda_kind.With_subkind.nullable_value
+        Flambda_kind.With_subkind.any_value )
   | Field (Tagged_immediate i) ->
     ( acc,
       Simple.const (Reg_width_const.tagged_immediate i),
@@ -255,6 +262,7 @@ let find_value_approximation env simple =
     ~symbol:(fun sym ~coercion:_ -> Value_approximation.Value_symbol sym)
     ~const:(fun const ->
       match Reg_width_const.descr const with
+      | Null -> Value_approximation.Value_null
       | Tagged_immediate i -> Value_approximation.Value_int i
       | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
       | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ ->
@@ -283,8 +291,10 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
-      ->
+    | Some (Value_symbol _)
+    | Some Value_null
+    | Some (Value_int _)
+    | Some (Block_approximation _) ->
       assert false
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
@@ -865,7 +875,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Patomic_load _ ->
+      | Patomic_fetch_add | Pdls_get | Patomic_load _ | Pcoerce_to_null
+      | Pcoerce_to_non_null ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -930,7 +941,8 @@ type simplified_block_load =
 let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   match find_value_approximation_through_symbol acc body_env block with
   | Value_unknown -> Unknown
-  | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
+  | Closure_approximation _ | Value_symbol _ | Value_null | Value_int _ ->
+    Not_a_block
   | Block_approximation (_tag, approx, _alloc_mode) -> (
     let approx =
       Simple.pattern_match field
@@ -944,6 +956,7 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
     in
     match approx with
     | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
+    | Some Value_null -> Field_contents Simple.null
     | Some (Value_int i) -> Field_contents (Simple.const_int i)
     | Some approx -> Block_but_cannot_simplify approx
     | None -> Not_a_block)
@@ -1271,8 +1284,8 @@ let close_exact_or_unknown_apply acc env
           acc, Call_kind.direct_function_call code_id mode, can_erase_callee
       | None -> acc, Call_kind.indirect_function_call_unknown_arity mode, false
       | Some
-          (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
-        ->
+          ( Value_unknown | Value_symbol _ | Value_null | Value_int _
+          | Block_approximation _ ) ->
         assert false (* See [close_apply] *))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
@@ -1473,7 +1486,7 @@ let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
       Values
         { tag = Known Tag.Scannable.zero;
           size = Known (Targetint_31_63.of_int (List.length kinds));
-          field_kind = Any_value
+          field_kind = Value
         }
     in
     Flambda_primitive.Binary
@@ -2891,7 +2904,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.result_mode metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata )
     | Value_unknown -> None
-    | Value_symbol _ | Value_int _ | Block_approximation _ ->
+    | Value_symbol _ | Value_null | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf
@@ -3168,7 +3181,7 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
       Values
         { tag = Known Tag.Scannable.zero;
           size = Known (Targetint_31_63.of_int module_block_size_in_words);
-          field_kind = Any_value
+          field_kind = Value
         }
     in
     List.fold_left

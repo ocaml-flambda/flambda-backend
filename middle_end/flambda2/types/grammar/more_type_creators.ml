@@ -21,6 +21,7 @@ module TG = Type_grammar
 let unknown (kind : K.t) =
   match kind with
   | Value -> TG.any_value
+  | Nullable_value -> TG.any_nullable_value
   | Naked_number Naked_immediate -> TG.any_naked_immediate
   | Naked_number Naked_float32 -> TG.any_naked_float32
   | Naked_number Naked_float -> TG.any_naked_float
@@ -36,6 +37,7 @@ let unknown_like t = unknown (TG.kind t)
 let bottom (kind : K.t) =
   match kind with
   | Value -> TG.bottom_value
+  | Nullable_value -> TG.bottom_nullable_value
   | Naked_number Naked_immediate -> TG.bottom_naked_immediate
   | Naked_number Naked_float32 -> TG.bottom_naked_float32
   | Naked_number Naked_float -> TG.bottom_naked_float
@@ -272,6 +274,7 @@ let closure_with_at_least_this_value_slot ~this_function_slot value_slot
 
 let type_for_const const =
   match RWC.descr const with
+  | Null -> TG.null
   | Naked_immediate i -> TG.this_naked_immediate i
   | Tagged_immediate i -> TG.this_tagged_immediate i
   | Naked_float32 f -> TG.this_naked_float32 f
@@ -310,6 +313,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Anything -> (
     match Flambda_kind.With_subkind.kind kind with
     | Value -> TG.any_value
+    | Nullable_value -> TG.any_nullable_value
     | Naked_number Naked_immediate -> TG.any_naked_immediate
     | Naked_number Naked_float32 -> TG.any_naked_float32
     | Naked_number Naked_float -> TG.any_naked_float
@@ -363,6 +367,9 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Generic_array ->
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
+  | Nullable_array _ ->
+    (* XXX mshinwell: improve *)
+    TG.any_value
 
 let unknown_types_from_arity arity =
   List.map

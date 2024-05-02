@@ -935,8 +935,8 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
           Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
             ~projection_bound_to:result_var ~kind
-        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+        | Null | Naked_immediate _ | Naked_float _ | Naked_float32 _
+        | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
           Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
             Simple.print arg1 Simple.print arg2)
       ~name:(fun _ ~coercion:_ -> dacc)

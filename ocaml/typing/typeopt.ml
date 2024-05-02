@@ -737,6 +737,8 @@ let rec layout_union l1 l2 =
   match l1, l2 with
   | Pbottom, l
   | l, Pbottom -> l
+  | Pnullable_value value_kind1, Pnullable_value value_kind2 ->
+      Pnullable_value (value_kind_union value_kind1 value_kind2)
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
   | Punboxed_float f1, Punboxed_float f2 ->
@@ -748,7 +750,7 @@ let rec layout_union l1 l2 =
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
-  | (Ptop | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
+  | (Ptop | Pnullable_value _ | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
      Punboxed_vector _ | Punboxed_product _),
     _ ->
       Ptop

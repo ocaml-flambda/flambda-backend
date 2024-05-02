@@ -32,7 +32,8 @@ let compare = Stdlib.compare
 
 let of_element_kind t =
   match (t : Flambda_kind.t) with
-  | Value | Naked_number Naked_float -> Values_or_immediates_or_naked_floats
+  | Value | Nullable_value | Naked_number Naked_float ->
+    Values_or_immediates_or_naked_floats
   | Naked_number Naked_immediate ->
     Misc.fatal_errorf
       "Arrays cannot yet contain elements of kind naked immediate"
@@ -49,7 +50,7 @@ let of_element_kind t =
 
 let of_lambda array_kind =
   match (array_kind : Lambda.array_kind) with
-  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Pnullablearray _ | Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray Pfloat64 ->
     Values_or_immediates_or_naked_floats
   | Punboxedfloatarray Pfloat32 -> Naked_float32s

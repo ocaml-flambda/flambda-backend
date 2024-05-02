@@ -254,7 +254,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
       ( P.Block_access_kind.Values
           { size;
             tag = Known (Option.get (Tag.Scannable.of_tag tag));
-            field_kind = Any_value
+            field_kind = Value
           },
         Const.const_zero )
   in
@@ -359,7 +359,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
           Values
             { size = Known (Targetint_31_63.of_int size);
               tag = Known tag_decision;
-              field_kind = Any_value
+              field_kind = Value
             }
         in
         let new_fields_decisions, _ =

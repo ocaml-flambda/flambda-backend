@@ -20,6 +20,7 @@ open Types
 open Lambda
 
 let rec struct_const ppf = function
+  | Const_base Const_null -> fprintf ppf "null"
   | Const_base(Const_int n) -> fprintf ppf "%i" n
   | Const_base(Const_char c) -> fprintf ppf "%C" c
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
@@ -56,7 +57,8 @@ let rec struct_const ppf = function
         List.iter (fun f -> fprintf ppf "@ %s" f) fl in
       fprintf ppf "@[<1>[|@[%s%a@]|]@]" f1 floats fl
 
-let array_kind = function
+let array_kind print_value_kind = function
+  | Pnullablearray vk -> asprintf "%a or_null" print_value_kind vk
   | Pgenarray -> "gen"
   | Paddrarray -> "addr"
   | Pintarray -> "int"
@@ -67,12 +69,13 @@ let array_kind = function
   | Punboxedintarray Pint64 -> "unboxed_int64"
   | Punboxedintarray Pnativeint -> "unboxed_nativeint"
 
-let array_ref_kind ppf k =
+let array_ref_kind print_value_kind ppf k =
   let pp_mode ppf = function
     | Alloc_heap -> ()
     | Alloc_local -> fprintf ppf "(local)"
   in
   match k with
+  | Pnullablearray_ref vk -> fprintf ppf "%a or_null" print_value_kind vk
   | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
   | Paddrarray_ref -> fprintf ppf "addr"
   | Pintarray_ref -> fprintf ppf "int"
@@ -90,12 +93,14 @@ let array_index_kind ppf k =
   | Punboxed_int_index Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxed_int_index Pnativeint -> fprintf ppf "unboxed_nativeint"
 
-let array_set_kind ppf k =
+let array_set_kind print_value_kind ppf k =
   let pp_mode ppf = function
     | Modify_heap -> ()
     | Modify_maybe_stack -> fprintf ppf "(local)"
   in
   match k with
+  | Pnullablearray_set (mode, vk) ->
+    fprintf ppf "%a or_null%a" print_value_kind vk pp_mode mode
   | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
   | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
   | Pintarray_set -> fprintf ppf "int"
@@ -165,7 +170,8 @@ let rec value_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf "[int]"
   | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
-  | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
+  | Parrayval elt_kind ->
+    fprintf ppf "[%sarray]" (array_kind value_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
@@ -175,7 +181,8 @@ and value_kind' ppf = function
   | Pgenval -> fprintf ppf "*"
   | Pintval -> fprintf ppf "[int]"
   | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
-  | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
+  | Parrayval elt_kind ->
+    fprintf ppf "[%sarray]" (array_kind value_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
@@ -183,6 +190,7 @@ and value_kind' ppf = function
 
 let rec layout is_top ppf layout_ =
   match layout_ with
+  | Pnullable_value k -> fprintf ppf "nullable %a" (layout false) (Pvalue k)
   | Pvalue k -> (if is_top then value_kind else value_kind') ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
@@ -196,16 +204,18 @@ let rec layout is_top ppf layout_ =
 
 let layout ppf layout_ = layout true ppf layout_
 
-let return_kind ppf (mode, kind) =
+let rec return_kind ppf (mode, kind) =
   let smode = alloc_mode_if_local mode in
   match kind with
+  | Pnullable_value k ->
+    fprintf ppf "%a or_null" return_kind (mode, Pvalue k)
   | Pvalue Pgenval when is_heap_mode mode -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
   | Pvalue Pintval -> fprintf ppf ": int@ "
   | Pvalue (Pboxedfloatval bf) ->
      fprintf ppf ": %s%s@ " smode (boxed_float_name bf)
   | Pvalue (Parrayval elt_kind) ->
-     fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
+     fprintf ppf ": %s%sarray@ " smode (array_kind value_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
   | Pvalue (Pboxedvectorval (Pvec128 v)) ->
     fprintf ppf ": %s%s@ " smode (vec128_name v)
@@ -222,7 +232,8 @@ let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
   | Pintval -> pp_print_string ppf "int"
   | Pboxedfloatval bf -> pp_print_string ppf (boxed_float_name bf)
-  | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
+  | Parrayval elt_kind ->
+    fprintf ppf "%s-array" (array_kind value_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
   | Pboxedvectorval (Pvec128 v) -> pp_print_string ppf (vec128_name v)
   | Pvariant { consts; non_consts; } ->
@@ -380,6 +391,10 @@ let field_read_semantics ppf sem =
   match sem with
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
+
+let array_kind = array_kind value_kind
+let array_set_kind = array_set_kind value_kind
+let array_ref_kind = array_ref_kind value_kind
 
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
@@ -563,12 +578,14 @@ let primitive ppf = function
   | Pmakearray (k, Mutable, mode) ->
      fprintf ppf "make%sarray[%s]" (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable, mode) ->
-     fprintf ppf "make%sarray_imm[%s]" (alloc_mode_if_local mode) (array_kind k)
+     fprintf ppf "make%sarray_imm[%s]"
+       (alloc_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable_unique, mode) ->
       fprintf ppf "make%sarray_unique[%s]" (alloc_mode_if_local mode)
         (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
-  | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
+  | Pduparray (k, Immutable) ->
+      fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
   | Parrayrefu (rk, idx) -> fprintf ppf "array.unsafe_get[%a indexed by %a]"
@@ -776,6 +793,8 @@ let primitive ppf = function
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
   | Pget_header m -> fprintf ppf "get_header%s" (alloc_kind m)
+  | Pcoerce_to_null -> fprintf ppf "coerce_to_null"
+  | Pcoerce_to_non_null -> fprintf ppf "coerce_to_non_null"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -934,6 +953,8 @@ let name_of_primitive = function
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"
+  | Pcoerce_to_null -> "Pcoerce_to_null"
+  | Pcoerce_to_non_null -> "Pcoerce_to_non_null"
 
 let check_attribute ppf check =
   let check_property = function

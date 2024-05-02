@@ -276,7 +276,8 @@ let create ~dacc_prior_to_sets ~simplify_function_body ~all_sets_of_closures
                 | Some ty -> (
                   match T.kind ty with
                   | Rec_info -> Variable.Set.add var free_depth_variables
-                  | Value | Naked_number _ | Region -> free_depth_variables)))
+                  | Value | Nullable_value | Naked_number _ | Region ->
+                    free_depth_variables)))
           value_slot_types
         |> Value_slot.Map.data)
       value_slot_types_all_sets

@@ -34,6 +34,7 @@ end
 (** The kinds themselves. *)
 type t = private
   | Value  (** OCaml values, either immediates or pointers. *)
+  | Nullable_value  (** Either "null", or a valid OCaml value. *)
   | Naked_number of Naked_number_kind.t
       (** The kind of unboxed numbers and untagged immediates. *)
   | Region
@@ -47,6 +48,8 @@ type kind = t
 
 (** Constructors for the various kinds. *)
 val value : t
+
+val nullable_value : t
 
 val naked_number : Naked_number_kind.t -> t
 
@@ -68,6 +71,7 @@ val region : t
 
 val rec_info : t
 
+(** Note that [is_value] returns [false] for [Nullable_value]. *)
 val is_value : t -> bool
 
 val is_naked_float : t -> bool
@@ -160,6 +164,7 @@ module With_subkind : sig
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array
+      | Nullable_array of t
 
     include Container_types.S with type t := t
   end
@@ -177,6 +182,9 @@ module With_subkind : sig
   val has_useful_subkind_info : t -> bool
 
   val any_value : t
+
+  (* XXX: is [t] the correct parameter type? *)
+  val nullable_value : t -> t
 
   val naked_immediate : t
 
@@ -237,4 +245,19 @@ module With_subkind : sig
   include Container_types.S with type t := t
 
   val equal_ignoring_subkind : t -> t -> bool
+end
+
+module Subkind : sig
+  type t
+
+  (** The provided [With_subkind.t] must have kind [Value]. *)
+  val create : With_subkind.t -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val to_with_subkind : t -> With_subkind.t
+
+  val is_immediate_for_gc : t -> bool
 end
