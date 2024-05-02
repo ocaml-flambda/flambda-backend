@@ -80,7 +80,7 @@ let reset compilation_unit =
 let record_external_symbols () =
   current_unit.ui_external_symbols <- (List.filter_map (fun prim ->
       if not (Primitive.native_name_is_external prim) then None
-      else begin Some (Primitive.native_name prim) end)
+      else Some (Primitive.native_name prim))
       !Translmod.primitive_declarations)
 
 let current_unit_infos () =
