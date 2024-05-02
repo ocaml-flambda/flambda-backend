@@ -86,20 +86,34 @@ val bound_parameters :
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
-type update_kind =
-  | Word_val
-  | Word_int
-  | Single of { reg : Cmm.float_width }
-  | Double
-  | Thirtytwo_signed
-  | Onetwentyeight_unaligned
+module Update_kind : sig
+  type t
+
+  val values : t
+
+  val naked_int32s : t
+
+  val naked_int32_fields : t
+
+  val naked_int64s : t
+
+  val naked_floats : t
+
+  val naked_float32s : t
+
+  val naked_float32_fields : t
+
+  val naked_vec128s : t
+
+  val naked_vec128_fields : t
+end
 
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Debuginfo.t ->
-  update_kind ->
+  Update_kind.t ->
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->

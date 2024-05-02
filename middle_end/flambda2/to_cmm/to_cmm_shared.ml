@@ -86,9 +86,8 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Immediate_array | Unboxed_int32_array | Unboxed_int64_array
     | Unboxed_nativeint_array | Value_array | Generic_array ->
       Word_val)
-  | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
-    ->
-    Word_int
+  | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
+  | Naked_number Naked_int32 -> Thirtytwo_signed
   | Naked_number Naked_float -> Double
   | Naked_number Naked_float32 -> Single { reg = Float32 }
   | Naked_number Naked_vec128 ->
@@ -258,48 +257,77 @@ let invalid res ~message =
   in
   call_expr, res
 
-type update_kind =
-  | Word_val
-  | Word_int
-  | Single of { reg : Cmm.float_width }
-  | Double
-  | Thirtytwo_signed
-  | Onetwentyeight_unaligned
+module Update_kind = struct
+  type kind =
+    | Value
+    | Naked_int32
+    | Naked_int64
+    | Naked_float
+    | Naked_float32
+    | Naked_vec128
 
-let make_update env res dbg (kind : update_kind) ~symbol var ~index
+  type t =
+    { kind : kind;
+      stride : int
+    }
+
+  let values = { kind = Value; stride = Arch.size_addr }
+
+  let naked_int32s = { kind = Naked_int32; stride = 4 }
+
+  let naked_int64s = { kind = Naked_int64; stride = 8 }
+
+  let naked_floats = { kind = Naked_float; stride = Arch.size_float }
+
+  let naked_float32s = { kind = Naked_float32; stride = 4 }
+
+  let naked_vec128s = { kind = Naked_vec128; stride = 16 }
+
+  let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
+
+  let naked_float32_fields = { kind = Naked_float32; stride = Arch.size_addr }
+
+  let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
+end
+
+let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
   let cmm =
     let must_use_setfield =
-      if not Config.runtime5
-      then None
-      else
-        match kind with
-        | Word_val -> Some Lambda.Pointer
-        | Word_int -> Some Lambda.Immediate
-        | Thirtytwo_signed | Single _ | Double | Onetwentyeight_unaligned ->
-          (* The GC never sees these fields, so we can avoid using
-             [caml_initialize]. This is important as it significantly reduces
-             the complexity of the statically-allocated inconstant unboxed int32
-             array case, which otherwise would have to use 64-bit writes. *)
-          None
+      match kind.kind with
+      | Value -> Some Lambda.Pointer
+      | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+        ->
+        (* The GC never sees these fields, so we can avoid using
+           [caml_initialize]. This is important as it significantly reduces the
+           complexity of the statically-allocated inconstant unboxed int32 array
+           case, which otherwise would have to use 64-bit writes. *)
+        None
     in
     match must_use_setfield with
     | Some imm_or_ptr ->
+      assert (kind.stride = Arch.size_addr);
       Cmm_helpers.setfield index imm_or_ptr Root_initialization symbol cmm dbg
     | None ->
       let memory_chunk : Cmm.memory_chunk =
-        match kind with
-        | Word_val -> Word_val
-        | Word_int -> Word_int
-        | Single { reg } -> Single { reg }
-        | Double -> Double
-        | Thirtytwo_signed -> Thirtytwo_signed
-        | Onetwentyeight_unaligned -> Onetwentyeight_unaligned
+        match kind.kind with
+        | Value -> Misc.fatal_errorf "update_kind requires using setfield."
+        | Naked_int32 -> Thirtytwo_signed
+        | Naked_int64 -> Word_int
+        | Naked_float -> Double
+        | Naked_float32 -> Single { reg = Float32 }
+        | Naked_vec128 -> Onetwentyeight_unaligned
       in
-      let addr = field_address ~memory_chunk symbol index dbg in
+      let addr =
+        if index * kind.stride = 0
+        then symbol
+        else
+          Cmm.(
+            Cop (Cadda, [symbol; Cconst_int (index * kind.stride, dbg)], dbg))
+      in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =
