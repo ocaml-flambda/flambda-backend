@@ -34,15 +34,14 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_debug_runtime_nnp
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: ''
-            use_runtime: d
-            ocamlrunparam: "v=0,V=1"
+            ocamlparam: '_,O3=1'
 
-          - name: flambda2_nnp_o3
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+          - name: flambda2_o3_heap
+            config: --enable-middle-end=flambda2 --disable-stack-allocation
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
