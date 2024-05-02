@@ -136,7 +136,7 @@ let mk_checkmach_details_cutoff f =
 let mk_checkmach_join f =
   "-checkmach-join", Arg.Int f,
   Printf.sprintf " How many abstract paths before losing precision \
-                  (default %d, negative to fail instead of widenning, \
+                  (default %d, negative to fail instead of widening, \
                   0 to keep all)"
     (match Flambda_backend_flags.default_checkmach_join with
      | Keep_all -> 0
