@@ -30,6 +30,7 @@ type mapper = {
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
   modes : mapper -> Asttypes.mode loc list -> Asttypes.mode loc list;
+  modalities : mapper -> Asttypes.modality loc list -> Asttypes.modality loc list;
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
@@ -251,13 +252,10 @@ module T = struct
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
-  let map_modalities sub modalities =
-    List.map (map_loc sub) modalities
-
   let map_constructor_argument sub x =
     let pca_type = sub.typ sub x.pca_type in
     let pca_loc = sub.location sub x.pca_loc in
-    let pca_modalities = map_modalities sub x.pca_modalities in
+    let pca_modalities = sub.modalities sub x.pca_modalities in
     { pca_type; pca_loc; pca_modalities }
 
   let map_constructor_arguments sub = function
@@ -1044,7 +1042,7 @@ let default_mapper =
            (map_loc this pld_name)
            (this.typ this pld_type)
            ~mut:pld_mutable
-           ~modalities:(T.map_modalities this pld_modalities)
+           ~modalities:(this.modalities this pld_modalities)
            ~loc:(this.location this pld_loc)
            ~attrs:(this.attributes this pld_attributes)
       );
@@ -1092,6 +1090,9 @@ let default_mapper =
     typ_jane_syntax = T.map_jst;
 
     modes = (fun this m ->
+      List.map (map_loc this) m);
+
+    modalities = (fun this m ->
       List.map (map_loc this) m);
   }
 

@@ -161,6 +161,12 @@ let mkpat_with_modes ~loc ~pat ~cty ~modes =
   | None, [] -> pat
   | cty, modes -> mkpat ~loc (Ppat_constraint (pat, cty, modes))
 
+let add_mode_constraint_to_exp ~loc ~exp ~modes =
+  match exp.pexp_desc with
+  | Pexp_constraint (exp', cty', modes') ->
+    { exp with pexp_desc = Pexp_constraint (exp', cty', modes @ modes')}
+  | _ -> mkexp ~loc (Pexp_constraint (exp, None, modes))
+
 let exclave_ext_loc loc = mkloc "extension.exclave" loc
 
 let exclave_extension loc =
@@ -2742,7 +2748,7 @@ fun_expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | mode=mode_legacy exp=seq_expr
-     { mkexp ~loc:$sloc (Pexp_constraint (exp, None, [mode])) }
+     { add_mode_constraint_to_exp ~loc:$sloc ~exp ~modes:[mode] }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
@@ -2878,7 +2884,7 @@ comprehension_clause_binding:
      over to the RHS of the binding, so we need everything to be visible. *)
   | attributes mode_legacy pattern IN expr
       { let expr =
-          mkexp ~loc:$sloc (Pexp_constraint ($5, None, [$2]))
+          add_mode_constraint_to_exp ~loc:$sloc ~exp:$5 ~modes:[$2]
         in
         Jane_syntax.Comprehensions.
           { pattern    = $3

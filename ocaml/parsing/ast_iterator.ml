@@ -28,6 +28,7 @@ type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
   modes : iterator -> Asttypes.mode loc list -> unit;
+  modalities : iterator -> Asttypes.modality loc list -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
@@ -210,13 +211,10 @@ module T = struct
     | Ptype_record l -> List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
-  let iter_modalities sub modalities =
-    List.iter (iter_loc sub) modalities
-
   let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
     sub.typ sub pca_type;
     sub.location sub pca_loc;
-    iter_modalities sub pca_modalities
+    sub.modalities sub pca_modalities
 
   let iter_constructor_arguments sub = function
     | Pcstr_tuple l -> List.iter (iter_constructor_argument sub) l
@@ -911,7 +909,7 @@ let default_iterator =
          this.typ this pld_type;
          this.location this pld_loc;
          this.attributes this pld_attributes;
-         T.iter_modalities this pld_modalities
+         this.modalities this pld_modalities
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
@@ -934,6 +932,10 @@ let default_iterator =
 
     (* Location inside a mode expression needs to be traversed. *)
     modes = (fun this m ->
+      List.iter (iter_loc this) m
+    );
+
+    modalities = (fun this m ->
       List.iter (iter_loc this) m
     );
 

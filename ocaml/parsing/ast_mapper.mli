@@ -59,6 +59,7 @@ type mapper = {
   attribute: mapper -> attribute -> attribute;
   attributes: mapper -> attribute list -> attribute list;
   modes : mapper -> Asttypes.mode Location.loc list -> Asttypes.mode Location.loc list;
+  modalities : mapper -> Asttypes.modality Location.loc list -> Asttypes.modality Location.loc list;
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;

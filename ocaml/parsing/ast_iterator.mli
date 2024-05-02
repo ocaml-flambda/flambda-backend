@@ -31,6 +31,7 @@ type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
   modes : iterator -> Asttypes.mode Location.loc list -> unit;
+  modalities : iterator -> Asttypes.modality Location.loc list -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
