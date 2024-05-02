@@ -35,23 +35,27 @@ let () =
  (deps ${name}.ml)
  (target ${name}.cmi)
  ${enabled_if}
- (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -stop-after typing -O3 -warn-error +a)))
+ (action (run %{bin:ocamlopt.opt} ${name}.ml -g -c -opaque -stop-after typing -O3 -warn-error +a)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
-  let print_test_expected_output ?(extra_flags="-zero-alloc-check default") ~cutoff ~extra_dep ~exit_code name =
-    let ml_deps =
-      let s =
-        match extra_dep with
-        | None -> ""
-        | Some s -> s^" "
-      in
-      Printf.sprintf {|(:ml %s%s.ml)|} s name
+  let print_test_expected_output ?(extra_flags="-zero-alloc-check default")
+        ?output ~cutoff ~extra_dep ~exit_code name =
+    let extra_deps =
+      match extra_dep with
+      | None -> Printf.sprintf {|(:ml %s.ml)|} name
+      | Some s ->
+        if String.ends_with ~suffix:".ml" s
+        || String.ends_with ~suffix:".mli" s
+        then Printf.sprintf {|(:ml %s %s.ml)|} s name
+        else Printf.sprintf {|%s (:ml %s.ml)|} s name
     in
+    let output = Option.value output ~default:(name ^ ".output") in
     let subst = function
       | "enabled_if" -> enabled_if
       | "name" -> name
-      | "ml_deps" -> ml_deps
+      | "output" -> output
+      | "extra_deps" -> extra_deps
       | "exit_code" -> string_of_int exit_code
       | "cutoff" -> string_of_int cutoff
       | "extra_flags" -> extra_flags
@@ -62,10 +66,10 @@ let () =
     {|
 (rule
  ${enabled_if}
- (targets ${name}.output.corrected)
- (deps ${ml_deps} filter.sh)
+ (targets ${output}.corrected)
+ (deps ${extra_deps} filter.sh)
  (action
-   (with-outputs-to ${name}.output.corrected
+   (with-outputs-to ${output}.corrected
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
@@ -76,8 +80,8 @@ let () =
 (rule
  (alias   runtest)
  ${enabled_if}
- (deps ${name}.output ${name}.output.corrected)
- (action (diff ${name}.output ${name}.output.corrected)))
+ (deps ${output} ${output}.corrected)
+ (action (diff ${output} ${output}.corrected)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -159,4 +163,18 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_arity";
   print_cmi_target "stop_after_typing";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_functors";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~extra_dep:None ~exit_code:2 "test_signatures_first_class_modules";
+  print_cmi_target "test_signatures_separate_a";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_signatures_separate.output"
+    ~extra_dep:(Some "test_signatures_separate_a.cmi")
+    ~exit_code:2 "test_signatures_separate_b";
+  print_test_expected_output ~cutoff:default_cutoff
+    ~output:"test_signatures_separate.opt.output"
+    ~extra_flags:"-zero-alloc-check all"
+    ~extra_dep:(Some "test_signatures_separate_a.cmi")
+    ~exit_code:2 "test_signatures_separate_b";
   ()
