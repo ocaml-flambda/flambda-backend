@@ -1745,6 +1745,7 @@ let constant_layout: constant -> layout = function
   | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
   | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
+  | Const_unboxed_float32 _ -> Punboxed_float Pfloat32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
@@ -1760,6 +1761,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     begin match s with
     | Value -> layout_any_value
     | Float64 -> layout_unboxed_float Pfloat64
+    | Float32 -> layout_unboxed_float Pfloat32
     | Word -> layout_unboxed_nativeint
     | Bits32 -> layout_unboxed_int32
     | Bits64 -> layout_unboxed_int64

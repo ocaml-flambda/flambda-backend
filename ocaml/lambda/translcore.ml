@@ -74,8 +74,9 @@ let check_record_field_sort loc sort repres =
     raise (Error (loc, Illegal_record_field Float64))
   | Void, _ ->
     raise (Error (loc, Illegal_record_field Void))
-  | (Word | Bits32 | Bits64 as const), _ ->
+  | (Word | Float32 | Bits32 | Bits64 as const), _ ->
     (* CR layouts v2.1: support unboxed ints here *)
+    (* CR mslater: (float32) float32# in records *)
     raise (Error (loc, Illegal_record_field const))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)

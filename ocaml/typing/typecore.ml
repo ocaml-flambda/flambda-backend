@@ -622,6 +622,7 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_float _ -> instance Predef.type_float
   | Const_float32 _ -> instance Predef.type_float32
   | Const_unboxed_float _ -> instance Predef.type_unboxed_float
+  | Const_unboxed_float32 _ -> instance Predef.type_unboxed_float32
   | Const_int32 _ -> instance Predef.type_int32
   | Const_int64 _ -> instance Predef.type_int64
   | Const_nativeint _ -> instance Predef.type_nativeint
@@ -694,8 +695,7 @@ let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, erro
   = function
   | Float (f, None) -> Ok (Const_unboxed_float f)
   | Float (f, Some 's') ->
-    (* CR mslater: (float32) unboxed *)
-    if Language_extension.is_enabled Small_numbers then assert false
+    if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
     else Error (Float32_literal (Misc.format_as_unboxed_literal f))
   | Float (x, Some c) ->
     Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))

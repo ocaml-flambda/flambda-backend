@@ -1,0 +1,6 @@
+Unboxed:
+  estimate: 3.141699
+  allocations: Did not allocate
+Boxed:
+  estimate: 3.141699
+  allocations: Allocated

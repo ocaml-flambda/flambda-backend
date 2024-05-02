@@ -123,8 +123,9 @@ let check_record_field_jkind lbl =
   | Float64, (Record_boxed _ | Record_inlined _
              | Record_unboxed | Record_float) ->
     raise (Error (lbl.lbl_loc, Illegal_record_field Float64))
-  | (Any | Void | Word | Bits32 | Bits64) as c, _ ->
+  | (Any | Void | Word | Float32 | Bits32 | Bits64) as c, _ ->
     (* CR layouts v2.1: support unboxed ints here *)
+    (* CR mslater: (float32) float32# in records *)
     raise (Error (lbl.lbl_loc, Illegal_record_field c))
 
 (*
@@ -1176,6 +1177,7 @@ let can_group discr pat =
   | Constant (Const_float _), Constant (Const_float _)
   | Constant (Const_float32 _), Constant (Const_float32 _)
   | Constant (Const_unboxed_float _), Constant (Const_unboxed_float _)
+  | Constant (Const_unboxed_float32 _), Constant (Const_unboxed_float32 _)
   | Constant (Const_int32 _), Constant (Const_int32 _)
   | Constant (Const_int64 _), Constant (Const_int64 _)
   | Constant (Const_nativeint _), Constant (Const_nativeint _)
@@ -1202,9 +1204,10 @@ let can_group discr pat =
       ( Any
       | Constant
           ( Const_int _ | Const_char _ | Const_string _ | Const_float _
-          | Const_float32 _ | Const_unboxed_float _ | Const_int32 _
-          | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
-          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
+          | Const_float32 _ | Const_unboxed_float _ | Const_unboxed_float32 _
+          | Const_int32 _ | Const_int64 _ | Const_nativeint _
+          | Const_unboxed_int32 _ | Const_unboxed_int64 _
+          | Const_unboxed_nativeint _ )
       | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
@@ -2883,7 +2886,7 @@ let combine_constant value_kind loc arg cst partial ctx def
         make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
           (Pfloatcomp (Pfloat64, CFlt)) arg
           const_lambda_list
-    | Const_float32 _ ->
+    | Const_float32 _ | Const_unboxed_float32 _ ->
         (* Should be caught in do_compile_matching. *)
         Misc.fatal_error "Found unexpected float32 literal pattern."
     | Const_unboxed_float _ ->
@@ -3559,7 +3562,8 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
-      | Constant (Const_float32 _) -> Parmatch.raise_matched_float32 ()
+      | Constant (Const_float32 _ | Const_unboxed_float32 _) ->
+          Parmatch.raise_matched_float32 ()
       | Constant cst ->
           compile_test
             (compile_match ~scopes value_kind repr partial)

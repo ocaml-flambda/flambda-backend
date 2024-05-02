@@ -1092,9 +1092,10 @@ let check_representable ~why ~allow_float env loc kloc typ =
       | Float64 when allow_float -> ()
       (* CR layouts v2.5: If we want to hold back [float#] records from the
          maturity progression of [float64], we can add a check here. *)
-      | (Float64 | Word | Bits32 | Bits64 as const) ->
+      | (Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
         (* CR layouts v2.1: Consider changing the allow_float parameter to
            allow unboxed ints. *)
+        (* CR mslater: (float32) float32# in records *)
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
@@ -1273,6 +1274,10 @@ let update_decl_jkind env dpath decl =
           | Word | Bits32 | Bits64 ->
               Misc.fatal_error
                 "Typedecl.update_record_kind: no support for unboxed ints"
+          | Float32 ->
+              (* CR mslater: (float32) float32# in records *)
+              Misc.fatal_error
+                "Typedecl.update_record_kind: no support for unboxed float32"
           | Any ->
               Misc.fatal_error "Typedecl.update_record_kind: unexpected Any"
       in
