@@ -282,6 +282,16 @@ Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
 
+type 'a t_cstr_bad_value_after_float = C of float# * 'a
+
+[%%expect{|
+Line 1, characters 39-55:
+1 | type 'a t_cstr_bad_value_after_float = C of float# * 'a
+                                           ^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       float#, but found boxed argument, 'a.
+|}];;
+
 (* Recursive groups. There's not a good way to exercise the same functionality
    for extensible variants, so we omit that aspect of this test.
 *)
@@ -429,3 +439,48 @@ Lines 2-35, characters 2-16:
 Error: The enabled layouts extension does not allow for mixed constructors.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
+
+(* GADT syntax *)
+
+type ('a : float64) tf : float64
+type ('a : value) tv : value
+
+[%%expect {|
+type ('a : float64) tf : float64
+type 'a tv : value
+|}]
+
+type ('a : any) t_gadt_any =
+  | A : 'a tf -> 'a t_gadt_any
+  | B : 'b tv -> 'a t_gadt_any
+
+[%%expect {|
+Line 2, characters 2-30:
+2 |   | A : 'a tf -> 'a t_gadt_any
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
+type ('a : any) t_gadt_any_multiple_fields =
+  | A : float# * 'a tf -> 'a t_gadt_any_multiple_fields
+  | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
+
+[%%expect {|
+Line 2, characters 2-55:
+2 |   | A : float# * 'a tf -> 'a t_gadt_any_multiple_fields
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The enabled layouts extension does not allow for mixed constructors.
+       You must enable -extension layouts_alpha to use this feature.
+|}]
+
+type ('a : any) t_gadt_any_bad =
+  | A : float# * 'a tv -> 'a t_gadt_any_bad
+
+[%%expect{|
+Line 2, characters 2-43:
+2 |   | A : float# * 'a tv -> 'a t_gadt_any_bad
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       float#, but found boxed argument, 'a tv.
+|}]
