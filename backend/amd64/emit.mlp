@@ -1905,7 +1905,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-  if Config.runtime5 && !Clflags.runtime_variant = "d" then begin
+  if Config.runtime5 && (not Config.no_stack_checks) && !Clflags.runtime_variant = "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
   emit_all ~first:true ~fallthrough:true fundecl.fun_body;

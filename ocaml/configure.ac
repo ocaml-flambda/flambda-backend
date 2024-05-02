@@ -97,10 +97,18 @@ AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=],
       [runtime_suffix=4])
 
+AC_ARG_ENABLE([stack_checks],
+  [AS_HELP_STRING([--enable-stack_checks],
+    [Enable stack checks])])
+AS_IF([test x"$enable_stack_checks" = xyes],
+      [AC_DEFINE([STACK_CHECKS_ENABLED])],
+      [])
+
 ## Output variables
 
 AC_SUBST([enable_runtime5])
 AC_SUBST([runtime_suffix])
+AC_SUBST([enable_stack_checks])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([default_build_target])

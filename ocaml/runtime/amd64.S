@@ -545,6 +545,23 @@ LBL(caml_call_gc):
 CFI_ENDPROC
 ENDFUNCTION(G(caml_call_gc))
 
+FUNCTION(G(caml_raise_stack_overflow_nat))
+CFI_STARTPROC
+        CFI_SIGNAL_FRAME
+        ENTER_FUNCTION
+LBL(caml_raise_stack_overflow_nat):
+        SAVE_ALL_REGS
+        movq    %r15, Caml_state(gc_regs)
+        SWITCH_OCAML_TO_C
+        C_call (GCALL(caml_raise_stack_overflow))
+        SWITCH_C_TO_OCAML
+        movq    Caml_state(gc_regs), %r15
+        RESTORE_ALL_REGS
+        LEAVE_FUNCTION
+        ret
+CFI_ENDPROC
+ENDFUNCTION(G(caml_raise_stack_overflow_nat))
+
 FUNCTION(G(caml_alloc1))
 CFI_STARTPROC
         ENTER_FUNCTION
@@ -800,16 +817,10 @@ LBL(117):
         movq    %rax, %r12        /* Save exception bucket */
         movq    Caml_state(c_stack), %rsp
         movq    %rax, C_ARG_1     /* arg 1: exception bucket */
-#ifdef WITH_FRAME_POINTERS
-        movq    8(%r10), C_ARG_2   /* arg 2: pc of raise */
-        leaq    16(%r10), C_ARG_3  /* arg 3: sp at raise */
-#else
-        movq    (%r10), C_ARG_2   /* arg 2: pc of raise */
-        leaq    8(%r10), C_ARG_3  /* arg 3: sp at raise */
-#endif
-        movq    Caml_state(exn_handler), C_ARG_4
-                                  /* arg 4: sp of handler */
-        C_call  (GCALL(caml_stash_backtrace))
+        movq    %r10, C_ARG_2     /* arg 2: passed rsp */
+        movq    Caml_state(exn_handler), C_ARG_3
+                                  /* arg 3: sp of handler */
+        C_call  (GCALL(caml_stash_backtrace_wrapper))
         movq    %r12, %rax        /* Recover exception bucket */
         RESTORE_EXN_HANDLER_OCAML
         ret

@@ -150,6 +150,8 @@ let configuration_variables () =
   p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;
+
+  p_bool "no_stack_checks" no_stack_checks;
 ]
 
 let print_config_value oc = function
