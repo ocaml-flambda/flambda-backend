@@ -17,7 +17,18 @@ type graph = (Code_id_or_name.t, node) Hashtbl.t
 type elt = Code_id_or_name.t
 type dep = Global_flow_graph.Dep.t
 
-let get_or_create_node (g : graph) (id : Code_id_or_name.t) : node = assert false
+let get_or_create_node (g : graph) (id : Code_id_or_name.t) : node =
+  match Hashtbl.find_opt g id with
+  | Some node -> node
+  | None ->
+    let node =
+      { id;
+        is_top = false;
+        is_bot = true;
+        edges = Hashtbl.create 0 }
+    in
+    Hashtbl.add g id node;
+    node
 
 type updated = Updated | Not_updated
 
