@@ -90,8 +90,8 @@ module Update_kind : sig
   type t =
     | Value
     | Immediate
-    | Naked_int64
     | Naked_int32
+    | Naked_int64
     | Naked_float
     | Naked_float32
     | Naked_vec128

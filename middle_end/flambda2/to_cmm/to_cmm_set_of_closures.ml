@@ -171,8 +171,10 @@ end = struct
               | Naked_number Naked_immediate -> Immediate
               | Naked_number Naked_float32 -> Naked_float32
               | Naked_number Naked_float -> Naked_float
-              | Naked_number Naked_int32 -> Naked_int32
-              | Naked_number Naked_int64 | Naked_number Naked_nativeint ->
+              (* Int32s are not tightly packed and are loaded via Word_int. *)
+              | Naked_number Naked_int32
+              | Naked_number Naked_int64
+              | Naked_number Naked_nativeint ->
                 Naked_int64
               | Naked_number Naked_vec128 -> Naked_vec128
               | Region | Rec_info ->
