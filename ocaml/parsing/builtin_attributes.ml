@@ -847,6 +847,10 @@ let zero_alloc_lookup_table =
      fun arity loc ->
        Assume { property; strict = true; never_returns_normally = true;
                 arity; loc; });
+    (["assume"; "error"],
+     fun arity loc ->
+       Assume { property; strict = false; never_returns_normally = true;
+                arity; loc; });
     (["ignore"], fun _ _ -> Ignore_assert_all property)
   ]
 
@@ -930,6 +934,7 @@ let assume_zero_alloc ~is_check_allowed check : Zero_alloc_utils.Assume_info.t =
       let msg = "Only the following combinations are supported in this context: \
                  'zero_alloc assume', \
                  `zero_alloc assume strict`, \
+                 `zero_alloc assume error`,\
                  `zero_alloc assume never_returns_normally`,\
                  `zero_alloc assume never_returns_normally strict`."
       in
