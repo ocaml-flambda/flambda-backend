@@ -487,6 +487,11 @@ let option : 'a. ('a -> term_judg) -> 'a option -> term_judg =
 let list : 'a. ('a -> term_judg) -> 'a list -> term_judg =
   fun f li m ->
     List.fold_left (fun env item -> Env.join env (f item m)) Env.empty li
+let listi : 'a. (int -> 'a -> term_judg) -> 'a list -> term_judg =
+  fun f li m ->
+    List.fold_left (fun (idx, env) item -> idx+1, Env.join env (f idx item m))
+      (0, Env.empty) li
+    |> (snd : (int * Env.t) -> Env.t)
 let array : 'a. ('a -> term_judg) -> 'a array -> term_judg =
   fun f ar m ->
     Array.fold_left (fun env item -> Env.join env (f item m)) Env.empty ar
@@ -626,15 +631,21 @@ let rec expression : Typedtree.expression -> term_judg =
           path pth << Dereference
         | _ -> empty
       in
-      let m' = match desc.cstr_repr with
+      let arg_mode i = match desc.cstr_repr with
         | Variant_unboxed ->
           Return
         | Variant_boxed _ | Variant_extensible ->
-          Guard
+           (match desc.cstr_shape with
+            | Constructor_uniform_value -> Guard
+            | Constructor_mixed mixed_shape ->
+                (match get_mixed_record_element mixed_shape i with
+                 | Value_prefix -> Guard
+                 | Flat_suffix _ -> Dereference))
       in
+      let arg i e = expression e << arg_mode i in
       join [
         access_constructor;
-        list expression exprs << m'
+        listi arg exprs;
       ]
     | Texp_variant (_, eo) ->
       (*
