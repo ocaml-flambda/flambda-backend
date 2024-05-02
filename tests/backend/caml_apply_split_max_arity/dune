@@ -4,20 +4,28 @@
  (ocamlopt_flags
   (:standard -linscan -Oclassic)))
 
+(executable
+ (name stack)
+ (modules stack)
+ (ocamlopt_flags
+  (:standard -linscan -Oclassic)))
+
 (rule
  (enabled_if
   (and
    (<> %{system} "macosx")
    (= %{context_name} "main")))
- (target t.output)
- (deps t.exe)
+ (targets t.output stack.output)
+ (deps t.exe stack.exe)
  (action
-  (with-outputs-to
-   t.output
-   (progn
+  (progn
+   (with-outputs-to
+    t.output
     (bash
-     "readelf -sW ./t.exe | grep \" caml_apply[0-9][0-9][0-9]\" | sed \"s/.*caml_//\" | sort | uniq")
-    (run ./t.exe)))))
+     "readelf -sW ./t.exe | grep \" caml_apply[0-9]\\{1,3\\}\" | sed \"s/.*caml_//\" | sed \"s/L\\$//\" | sort | uniq"))
+   (with-outputs-to
+    stack.output
+    (run ./stack.exe)))))
 
 (rule
  (alias runtest)
@@ -28,4 +36,6 @@
     (= %{context_name} "main")
     (<> %{ocaml-config:flambda} true))))
  (action
-  (diff t.expected t.output)))
+ (progn
+  (diff t.expected t.output)
+  (diff stack.expected stack.output))))
