@@ -628,17 +628,6 @@ let optimise_allocations () =
     !allocations;
   reset_allocations ()
 
-
-let materializations : tuple_materialization list ref = Local_store.s_ref []
-
-let reset_materializations () = materializations := []
-
-let register_materialization materialization =
-  materializations := materialization :: !materializations
-
-let finalize_materializations () =
-  List.iter finalize_materialization !materializations
-
 (* Typing of constants *)
 
 let type_constant: Typedtree.constant -> type_expr = function
@@ -5466,8 +5455,8 @@ and type_expect_
         | Texp_tuple (_, _, materialization) ->
             if List.for_all
                 (fun c -> pat_allowed_for_non_materialized c.c_lhs) cases
-            then ()
-            else materialize_tuple materialization
+            then finalize_materialization materialization false
+            else finalize_materialization materialization true
         | _ -> ()
       in
       re {
@@ -7754,7 +7743,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     match jkinds with
     | `All_value -> create_materialized ()
     | `Maybe_not_value jkinds ->
-        create_not_materialized ~on_materialization:(fun () ->
+        create_maybe_materialized ~on_materialization:(fun () ->
           List.iter (fun jkind ->
               match
                 Jkind.intersection jkind (Jkind.value ~why:Tuple_element)
@@ -7764,7 +7753,6 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
               | Error _violation -> assert false)
             jkinds)
   in
-  register_materialization materialization;
   re {
     exp_desc = Texp_tuple (expl, alloc_mode, materialization);
     exp_loc = loc; exp_extra = [];

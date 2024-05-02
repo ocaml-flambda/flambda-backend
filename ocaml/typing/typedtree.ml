@@ -33,21 +33,21 @@ let is_tuple_materialized x =
   | Could_become_materialized _ -> failwith "Unknown materialization"
 
 let create_materialized () = ref Materialized
-let create_not_materialized ~on_materialization =
+let create_maybe_materialized ~on_materialization =
   ref (Could_become_materialized { on_materialization })
 
-let finalize_materialization x =
-  match !x with
-  | Materialized | Not_materialized -> ()
-  | Could_become_materialized _ -> x := Not_materialized
-
-let materialize_tuple x =
-  match !x with
-  | Materialized -> ()
-  | Not_materialized -> failwith "Already not materialized"
-  | Could_become_materialized { on_materialization } ->
-      x := Materialized;
-      on_materialization ()
+(* CR nroberts: split into two functions, [materialize] and [try_not_materialize]? *)
+let finalize_materialization x b =
+  match !x, b with
+  | Materialized, true -> ()
+  | Not_materialized, false -> ()
+  | Not_materialized, true -> failwith "Already not materialized"
+  | Materialized, false -> ()
+  | Could_become_materialized { on_materialization }, _ ->
+      if b then (
+        x := Materialized;
+        on_materialization ())
+      else x := Not_materialized;
 
 type constant =
     Const_int of int

@@ -26,10 +26,9 @@ open Asttypes
 type tuple_materialization
 
 val is_tuple_materialized : tuple_materialization -> bool
-val materialize_tuple : tuple_materialization -> unit
-val finalize_materialization : tuple_materialization -> unit
+val finalize_materialization : tuple_materialization -> bool -> unit
 val create_materialized : unit -> tuple_materialization
-val create_not_materialized :
+val create_maybe_materialized :
   on_materialization:(unit -> unit) -> tuple_materialization
 
 (* We define a new constant type that can represent unboxed values.

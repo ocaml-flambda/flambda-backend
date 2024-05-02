@@ -164,9 +164,6 @@ val force_delayed_checks: unit -> unit
 val reset_allocations: unit -> unit
 val optimise_allocations: unit -> unit
 
-val reset_materializations: unit -> unit
-val finalize_materializations: unit -> unit
-
 val has_poly_constraint : Parsetree.pattern -> bool
 
 
