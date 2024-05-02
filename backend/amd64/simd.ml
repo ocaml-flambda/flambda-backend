@@ -88,6 +88,8 @@ type sse_operation =
 type sse2_operation =
   | Bit_cast_f64_i64
   | Bit_cast_f32_i32
+  | Bit_cast_i64_f64
+  | Bit_cast_i32_f32
   | Sqrt_scalar_f64
   | Sqrt_scalar_f32
   | Cast_scalar_f64_i64
@@ -323,6 +325,8 @@ let equal_operation_sse2 l r =
   | Sqrt_scalar_f32, Sqrt_scalar_f32
   | Bit_cast_f64_i64, Bit_cast_f64_i64
   | Bit_cast_f32_i32, Bit_cast_f32_i32
+  | Bit_cast_i64_f64, Bit_cast_i64_f64
+  | Bit_cast_i32_f32, Bit_cast_i32_f32
   | Sqrt_f64, Sqrt_f64
   | Add_i8, Add_i8
   | Add_i16, Add_i16
@@ -412,25 +416,26 @@ let equal_operation_sse2 l r =
   | Cmp_f64 l, Cmp_f64 r when float_condition_equal l r -> true
   | ( ( Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Min_scalar_f64
       | Max_scalar_f64 | Cast_scalar_f64_i64 | Bit_cast_f64_i64
-      | Bit_cast_f32_i32 | Sqrt_scalar_f64 | Sqrt_scalar_f32 | Sqrt_f64
-      | Add_saturating_unsigned_i8 | Add_saturating_unsigned_i16
-      | Add_saturating_i8 | Add_saturating_i16 | Sub_i8 | Sub_i16 | Sub_i32
-      | Sub_i64 | Sub_f64 | Sub_saturating_unsigned_i8
-      | Sub_saturating_unsigned_i16 | Sub_saturating_i8 | Sub_saturating_i16
-      | Max_unsigned_i8 | Max_i16 | Max_f64 | Min_unsigned_i8 | Min_i16
-      | Min_f64 | Mul_f64 | Div_f64 | And_bits | Andnot_bits | Or_bits
-      | Xor_bits | Movemask_8 | Movemask_64 | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32
-      | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32 | I32_to_f64 | I32_to_f32 | F64_to_i32
-      | F64_to_f32 | F32_to_i32 | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64
-      | SRL_i16 | SRL_i32 | SRL_i64 | SRA_i16 | SRA_i32 | I16_to_i8 | I32_to_i16
-      | I16_to_unsigned_i8 | I32_to_unsigned_i16 | Avg_unsigned_i8
-      | Avg_unsigned_i16 | SAD_unsigned_i8 | Interleave_high_8
-      | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
-      | Interleave_low_16 | Interleave_low_64 | SLLi_i16 _ | SLLi_i32 _
-      | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _
-      | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ | Cmp_f64 _
-      | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ | Mulhi_i16
-      | Mulhi_unsigned_i16 | Mullo_i16 | Mul_hadd_i16_to_i32 ),
+      | Bit_cast_f32_i32 | Bit_cast_i64_f64 | Bit_cast_i32_f32 | Sqrt_scalar_f64
+      | Sqrt_scalar_f32 | Sqrt_f64 | Add_saturating_unsigned_i8
+      | Add_saturating_unsigned_i16 | Add_saturating_i8 | Add_saturating_i16
+      | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
+      | Sub_saturating_unsigned_i8 | Sub_saturating_unsigned_i16
+      | Sub_saturating_i8 | Sub_saturating_i16 | Max_unsigned_i8 | Max_i16
+      | Max_f64 | Min_unsigned_i8 | Min_i16 | Min_f64 | Mul_f64 | Div_f64
+      | And_bits | Andnot_bits | Or_bits | Xor_bits | Movemask_8 | Movemask_64
+      | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16 | Cmpgt_i32
+      | I32_to_f64 | I32_to_f32 | F64_to_i32 | F64_to_f32 | F32_to_i32
+      | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32 | SRL_i64
+      | SRA_i16 | SRA_i32 | I16_to_i8 | I32_to_i16 | I16_to_unsigned_i8
+      | I32_to_unsigned_i16 | Avg_unsigned_i8 | Avg_unsigned_i16
+      | SAD_unsigned_i8 | Interleave_high_8 | Interleave_high_16
+      | Interleave_high_64 | Interleave_low_8 | Interleave_low_16
+      | Interleave_low_64 | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _
+      | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _
+      | Shift_right_bytes _ | Cmp_f64 _ | Shuffle_64 _ | Shuffle_high_16 _
+      | Shuffle_low_16 _ | Mulhi_i16 | Mulhi_unsigned_i16 | Mullo_i16
+      | Mul_hadd_i16_to_i32 ),
       _ ) ->
     false
 
@@ -710,6 +715,8 @@ let print_operation_sse2 printreg op ppf arg =
   | Cast_scalar_f64_i64 -> fprintf ppf "cast_scalar_f64_i64 %a" printreg arg.(0)
   | Bit_cast_f32_i32 -> fprintf ppf "bit_cast_f32_i32 %a" printreg arg.(0)
   | Bit_cast_f64_i64 -> fprintf ppf "bit_cast_f64_i64 %a" printreg arg.(0)
+  | Bit_cast_i32_f32 -> fprintf ppf "bit_cast_i32_f32 %a" printreg arg.(0)
+  | Bit_cast_i64_f64 -> fprintf ppf "bit_cast_i64_f64 %a" printreg arg.(0)
   | I32_to_f64 -> fprintf ppf "i32_to_f64 %a" printreg arg.(0)
   | I32_to_f32 -> fprintf ppf "i32_to_f32 %a" printreg arg.(0)
   | F64_to_i32 -> fprintf ppf "f64_to_i32 %a" printreg arg.(0)
@@ -920,9 +927,9 @@ let class_of_operation_sse = function
 
 let class_of_operation_sse2 = function
   | Add_i8 | Add_i16 | Add_i32 | Add_i64 | Add_f64 | Add_saturating_i8
-  | Cast_scalar_f64_i64 | Bit_cast_f64_i64 | Bit_cast_f32_i32 | Min_scalar_f64
-  | Max_scalar_f64 | Sqrt_scalar_f64 | Sqrt_scalar_f32 | Sqrt_f64
-  | Add_saturating_i16 | Add_saturating_unsigned_i8
+  | Cast_scalar_f64_i64 | Bit_cast_f64_i64 | Bit_cast_f32_i32 | Bit_cast_i64_f64
+  | Bit_cast_i32_f32 | Min_scalar_f64 | Max_scalar_f64 | Sqrt_scalar_f64
+  | Sqrt_scalar_f32 | Sqrt_f64 | Add_saturating_i16 | Add_saturating_unsigned_i8
   | Add_saturating_unsigned_i16 | Sub_i8 | Sub_i16 | Sub_i32 | Sub_i64 | Sub_f64
   | Sub_saturating_i8 | Sub_saturating_i16 | Sub_saturating_unsigned_i8
   | Sub_saturating_unsigned_i16 | Max_unsigned_i8 | Max_i16 | Max_f64

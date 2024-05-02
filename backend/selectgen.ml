@@ -171,7 +171,10 @@ let oper_result_type = function
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
-  | Cnegf _ | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ -> typ_float
+  | Cnegf Float64 | Cabsf Float64 | Caddf Float64
+  | Csubf Float64 | Cmulf Float64 | Cdivf Float64 -> typ_float
+  | Cnegf Float32 | Cabsf Float32 | Caddf Float32
+  | Csubf Float32 | Cmulf Float32 | Cdivf Float32 -> typ_float32
   | Ccsel ty -> ty
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int

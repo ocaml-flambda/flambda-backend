@@ -786,7 +786,7 @@ let move (src : Reg.t) (dst : Reg.t) =
     begin match src.typ, src.loc, dst.typ, dst.loc with
     | Float, Reg _, Float, Reg _
     | Float32, Reg _, Float32, Reg _
-    | Vec128, _, Vec128, _  (* Vec128 stack slots are always aligned. *) ->
+    | Vec128, _, Vec128, _ (* Vec128 stack slots are always aligned. *) ->
       I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
@@ -796,8 +796,9 @@ let move (src : Reg.t) (dst : Reg.t) =
       I.mov (reg src) (reg dst)
     | _ ->
       Misc.fatal_errorf
-        "Illegal move between registers of different types (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
+        "Illegal move between registers of differing types (%s:%a to %s:%a)\n"
+        (Reg.name src) Printcmm.machtype_component src.typ
+        (Reg.name dst) Printcmm.machtype_component dst.typ
     end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -1103,7 +1104,9 @@ let emit_simd_instr op i =
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
   | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
   | SSE2 Bit_cast_f64_i64 -> I.movq (arg i 0) (res i 0)
-  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res i 0)
+  | SSE2 Bit_cast_i64_f64 -> I.movq (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res32 i 0)
+  | SSE2 Bit_cast_i32_f32 -> I.movd (arg32 i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
