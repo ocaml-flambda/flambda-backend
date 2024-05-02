@@ -149,8 +149,6 @@ type specific_operation =
                                        (* Add a constant to a location *)
   | Ifloatarithmem of float_width * float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ifloatsqrtf of float_width * addressing_mode
-                                       (* Float square root from memory *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
@@ -251,12 +249,6 @@ let print_specific_operation printreg op ppf arg =
          (if is_assign then "(assign)" else "(init)")
   | Ioffset_loc(n, addr) ->
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
-  | Ifloatsqrtf (Float64, addr) ->
-     fprintf ppf "sqrtf float64[%a]"
-             (print_addressing printreg addr) [|arg.(0)|]
-  | Ifloatsqrtf (Float32, addr) ->
-     fprintf ppf "sqrtf float32[%a]"
-             (print_addressing printreg addr) [|arg.(0)|]
   | Ifloatarithmem(width, op, addr) ->
       let op_name = match width, op with
       | Float64, Ifloatadd -> "+f"
@@ -305,7 +297,7 @@ let win64 =
 
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _ -> true
+  | Ifloatarithmem _  -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -316,7 +308,7 @@ let operation_is_pure = function
 
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -324,7 +316,7 @@ let operation_can_raise = function
 
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
-  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloatarithmem _
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -393,9 +385,6 @@ let equal_specific_operation left right =
     equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
-  | Ifloatsqrtf (left_w, left), Ifloatsqrtf (right_w, right) ->
-    Cmm.equal_float_width left_w right_w &&
-    equal_addressing_mode left right
   | Isextend32, Isextend32 ->
     true
   | Izextend32, Izextend32 ->
@@ -418,7 +407,7 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | Isimd l, Isimd r ->
     Simd.equal_operation l r
-  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ifloatsqrtf _ | Ibswap _ |
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Iprefetch _), _ ->
     false

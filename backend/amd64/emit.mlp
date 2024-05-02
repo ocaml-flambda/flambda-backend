@@ -1115,6 +1115,7 @@ let emit_simd_instr op i =
   | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
   | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f64_i64 -> I.movq (arg i 0) (res i 0)
   | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
@@ -1624,12 +1625,6 @@ let emit_instr ~first ~fallthrough i =
       I.bswap (res32 i 0);
   | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float64, addr))) ->
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
-  | Lop(Ispecific(Ifloatsqrtf (Float32, addr))) ->
-      I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
-      I.sqrtss (addressing addr REAL4 i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

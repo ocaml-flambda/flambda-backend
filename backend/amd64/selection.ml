@@ -173,7 +173,7 @@ let pseudoregs_for_operation op arg res =
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ipause|Ilfence|Isfence|Imfence
-              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
+              |Ioffset_loc (_, _)|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ivalueofint|Iintofvalue
   | Ivectorcast _ | Iscalarcast _
   | Iconst_int _|Iconst_float32 _|Iconst_float _|Iconst_vec128 _
@@ -298,52 +298,19 @@ method! select_operation op args dbg =
       self#select_floatarith true width Imulf Ifloatmul args
   | Cdivf width ->
       self#select_floatarith false width Idivf Ifloatdiv args
-  (* Special cases overriding C implementations. *)
-  | Cextcall { func = "sqrt"; alloc = false; } ->
-     begin match args with
-       [Cop(Cload { memory_chunk = Double as chunk; _}, [loc], _dbg)] ->
-         let (addr, arg) = self#select_addressing chunk loc in
-         (Ispecific(Ifloatsqrtf (Float64, addr)), [arg])
-     | [arg] ->
-         (Ispecific Simd.(Isimd (SSE2 Sqrt_scalar_f64)), [arg])
-     | _ ->
-         assert false
-    end
-  | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
-               ty = [|Int|]; ty_args = [XFloat] } ->
-      (match args with
-        | [Cop(Cload { memory_chunk = Double; mutability = mut; is_atomic }, [loc], _dbg)] ->
-        let c = Word_int in
-        let (addr, arg) = self#select_addressing c loc in
-        Iload { memory_chunk = c;
-                addressing_mode = addr;
-                mutability = mut;
-                is_atomic; }, [arg]
-      | _ -> Imove, args)
-  | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
-               ty = [|Float|]; ty_args = [XInt64] } ->
-      (match args with
-      | [Cop(Cload { memory_chunk = Word_int; mutability = mut; is_atomic }, [loc], _dbg)] ->
-        let c = Double in
-        let (addr, arg) = self#select_addressing c loc in
-        Iload { memory_chunk = c;
-                addressing_mode = addr;
-                mutability = mut;
-                is_atomic; }, [arg]
-      | _ -> Imove, args)
+  (* Special cases overriding C implementations (regardless of [@@builtin]). *)
+  | Cextcall { func = ("sqrt" as func); _ }
+  | Cextcall { func = ("caml_int64_bits_of_float_unboxed" as func); _ }
+  | Cextcall { func = ("caml_int64_float_of_bits_unboxed" as func); _ }
   (* x86 intrinsics ([@@builtin]) *)
-  | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
-      begin match func, ret with
-      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
-      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
-      | "caml_pause_hint", ([|Val|] | [| |]) ->
-         Ispecific Ipause, args
-      | "caml_load_fence", ([|Val|] | [| |]) ->
-         Ispecific Ilfence, args
-      | "caml_store_fence", ([|Val|] | [| |]) ->
-         Ispecific Isfence, args
-      | "caml_memory_fence", ([|Val|] | [| |]) ->
-         Ispecific Imfence, args
+  | Cextcall { func; builtin = true; _ } ->
+      begin match func with
+      | "caml_rdtsc_unboxed" -> Ispecific Irdtsc, args
+      | "caml_rdpmc_unboxed" -> Ispecific Irdpmc, args
+      | "caml_pause_hint" -> Ispecific Ipause, args
+      | "caml_load_fence" -> Ispecific Ilfence, args
+      | "caml_store_fence" -> Ispecific Isfence, args
+      | "caml_memory_fence" -> Ispecific Imfence, args
       | _ ->
         (match Simd_selection.select_operation func args with
          | Some (op, args) -> op, args

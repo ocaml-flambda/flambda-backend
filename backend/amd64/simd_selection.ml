@@ -102,13 +102,15 @@ let select_operation_sse op args =
 
 let select_operation_sse2 op args =
   match op with
+  | "caml_int64_bits_of_float_unboxed" | "caml_int64_bits_to_float_unboxed" ->
+    Some (Bit_cast_f64_i64, args)
   | "caml_float32_of_bits" | "caml_float32_to_bits" ->
     Some (Bit_cast_f32_i32, args)
-  | "caml_sse2_cast_float64_int64" -> Some (Cast_scalar_f64_i64, args)
-  | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
-  | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
   | "caml_sse2_float64_sqrt" | "sqrt" -> Some (Sqrt_scalar_f64, args)
   | "caml_sse2_float32_sqrt" | "sqrtf" -> Some (Sqrt_scalar_f32, args)
+  | "caml_sse2_float64_max" -> Some (Max_scalar_f64, args)
+  | "caml_sse2_float64_min" -> Some (Min_scalar_f64, args)
+  | "caml_sse2_cast_float64_int64" -> Some (Cast_scalar_f64_i64, args)
   | "caml_sse2_float64x2_sqrt" -> Some (Sqrt_f64, args)
   | "caml_sse2_int8x16_add" -> Some (Add_i8, args)
   | "caml_sse2_int16x8_add" -> Some (Add_i16, args)
