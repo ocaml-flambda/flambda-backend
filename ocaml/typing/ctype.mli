@@ -215,6 +215,10 @@ val instance_prim:
         Primitive.description -> type_expr ->
         type_expr * Mode.Locality.lr option * Jkind.Sort.t option
 
+val mode_cross_left : Env.t -> type_expr -> ('l * 'r) Alloc.t -> ('l * disallowed) Alloc.t
+
+val mode_cross_right : Env.t -> type_expr -> ('l * 'r) Alloc.t -> (disallowed * 'r) Alloc.t
+
 (* The following two are about the scenario where we partially apply a function
 [A -> B -> C] to [A] and get back [B -> C]. The mode of the three are
 constrained. *)

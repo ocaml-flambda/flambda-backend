@@ -812,40 +812,22 @@ let has_poly_constraint spat =
 
 (** Mode cross a left mode *)
 let mode_cross_left env ty mode =
-  let mode =
-    if not (is_principal ty) then mode else
-    let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-    let upper_bounds = Const.alloc_as_value upper_bounds in
-    Value.meet_const upper_bounds mode
-  in
-  mode |> Value.disallow_right
+  if not (is_principal ty) then mode |> Value.disallow_right else
+  let jkind = type_jkind_purely env ty in
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_left crossing mode
 
-let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
+  let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
   let mode = mode_cross_left env ty actual_mode.mode in
   {actual_mode with mode}
-
-(** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
-    fragment is a left mode. *)
-let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
-  let monadic = Alloc.Monadic.disallow_left monadic in
-  let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Alloc.Const.split upper_bounds in
-  let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
-  let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
-  { monadic; comonadic }
 
 (** Mode cross a right mode *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  let mode = Value.imply upper_bounds expected_mode.mode in
+  let crossing = Jkind.get_mode_crossing jkind in
+  let mode = Crossing.apply_right crossing expected_mode.mode in
   (* - [strict_local] doesn't need to be updated, because it's only relavant for
      functions, which don't cross locality.
      - [mode_tuples] doesn't need to be updated, because [mode] being higher
@@ -6713,9 +6695,10 @@ and type_function
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
                      mode-crossed differently. *)
-                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
-                    Alloc.submode (close_over arg_mode) fun_alloc_mode
+                    Alloc.submode
+                      (Ctype.mode_cross_left env ty_arg (close_over arg_mode))
+                      fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->

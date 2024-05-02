@@ -225,8 +225,8 @@ module Nullability = struct
     | Maybe_null -> Format.fprintf ppf "maybe_null"
 end
 
-module Modes = struct
-  include Alloc.Const
+module Mode_crossing = struct
+  include Crossing
 
   let less_or_equal a b : Misc.Le_result.t =
     match le a b, le b a with
@@ -281,20 +281,20 @@ module Const = struct
 
   let max =
     { layout = Layout.Const.max;
-      modes_upper_bounds = Modes.max;
+      mode_crossing = Crossing.max;
       externality_upper_bound = Externality.max;
       nullability_upper_bound = Nullability.max
     }
 
   let get_layout const = const.layout
 
-  let get_modal_upper_bounds const = const.modes_upper_bounds
+  let get_mode_crossing const = const.mode_crossing
 
   let get_externality_upper_bound const = const.externality_upper_bound
 
   let get_legacy_layout
       { layout;
-        modes_upper_bounds = _;
+        mode_crossing = _;
         externality_upper_bound;
         nullability_upper_bound
       } : Layout.Const.Legacy.t =
@@ -315,45 +315,45 @@ module Const = struct
 
   let equal
       { layout = lay1;
-        modes_upper_bounds = modes1;
+        mode_crossing = modes1;
         externality_upper_bound = ext1;
         nullability_upper_bound = null1
       }
       { layout = lay2;
-        modes_upper_bounds = modes2;
+        mode_crossing = modes2;
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
     Layout.Const.equal lay1 lay2
-    && Modes.equal modes1 modes2
+    && Mode_crossing.equal modes1 modes2
     && Externality.equal ext1 ext2
     && Nullability.equal null1 null2
 
   let sub
       { layout = lay1;
-        modes_upper_bounds = modes1;
+        mode_crossing = modes1;
         externality_upper_bound = ext1;
         nullability_upper_bound = null1
       }
       { layout = lay2;
-        modes_upper_bounds = modes2;
+        mode_crossing = modes2;
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
     Misc.Le_result.combine_list
       [ Layout.Const.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
+        Mode_crossing.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2;
         Nullability.less_or_equal null1 null2 ]
 
   let of_layout ~mode_crossing ~nullability layout =
-    let modes_upper_bounds, externality_upper_bound =
+    let mode_crossing, externality_upper_bound =
       match mode_crossing with
-      | true -> Modes.min, Externality.min
-      | false -> Modes.max, Externality.max
+      | true -> Mode_crossing.min, Externality.min
+      | false -> Mode_crossing.max, Externality.max
     in
     { layout;
-      modes_upper_bounds;
+      mode_crossing;
       externality_upper_bound;
       nullability_upper_bound = nullability
     }
@@ -391,12 +391,13 @@ module Const = struct
     let immutable_data =
       { jkind =
           { layout = Sort Value;
-            modes_upper_bounds =
-              { linearity = Linearity.Const.min;
-                contention = Contention.Const.min;
-                portability = Portability.Const.min;
-                uniqueness = Uniqueness.Const.max;
-                areality = Locality.Const.max
+            mode_crossing =
+              { monadic = Join_const (Uniqueness.Const.max, Contention.Const.min);
+                comonadic =
+                  Meet_const
+                    ( Regionality.Const.max,
+                      Linearity.Const.min,
+                      Portability.Const.min )
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -407,12 +408,13 @@ module Const = struct
     let mutable_data =
       { jkind =
           { layout = Sort Value;
-            modes_upper_bounds =
-              { linearity = Linearity.Const.min;
-                contention = Contention.Const.max;
-                portability = Portability.Const.min;
-                uniqueness = Uniqueness.Const.max;
-                areality = Locality.Const.max
+            mode_crossing =
+              { monadic = Join_const (Uniqueness.Const.max, Contention.Const.max);
+                comonadic =
+                  Meet_const
+                    ( Regionality.Const.max,
+                      Linearity.Const.min,
+                      Portability.Const.min )
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -548,24 +550,24 @@ module Const = struct
   module To_out_jkind_const = struct
     type printable_jkind =
       { base : string;
-        modal_bounds : string list
+        mode_crossings : string list
       }
 
     module Bounds = struct
       type t =
-        { alloc_bounds : Alloc.Const.t;
+        { mode_crossing : Crossing.t;
           externality_bound : Externality.t;
           nullability_bound : Nullability.t
         }
 
-      let of_jkind jkind =
-        { alloc_bounds = jkind.modes_upper_bounds;
+      let of_jkind (jkind : _ Jkind_types.Const.t) =
+        { mode_crossing = jkind.mode_crossing;
           externality_bound = jkind.externality_upper_bound;
           nullability_bound = jkind.nullability_upper_bound
         }
     end
 
-    let get_modal_bound ~le ~print ~base actual =
+    let get_mode_crossing ~le ~print ~base actual =
       match le actual base with
       | true -> (
         match le base actual with
@@ -573,20 +575,21 @@ module Const = struct
         | false -> `Valid (Some (Format.asprintf "%a" print actual)))
       | false -> `Invalid
 
-    let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
-      [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
-          ~base:base.alloc_bounds.areality actual.alloc_bounds.areality;
-        get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
-          ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
-        get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
-          ~base:base.alloc_bounds.linearity actual.alloc_bounds.linearity;
-        get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
-          ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
-        get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
-          ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
-        get_modal_bound ~le:Externality.le ~print:Externality.print
+    let get_mode_crossings ~(base : Bounds.t) (actual : Bounds.t) =
+      [ get_mode_crossing ~le:Locality.Const.le ~print:Locality.Const.print
+          ~base:base.mode_crossing.areality actual.mode_crossing.areality;
+        get_mode_crossing ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
+          ~base:base.mode_crossing.uniqueness actual.mode_crossing.uniqueness;
+        get_mode_crossing ~le:Linearity.Const.le ~print:Linearity.Const.print
+          ~base:base.mode_cross   ing.linearity actual.mode_crossing.linearity;
+        get_mode_crossing ~le:Contention.Const.le ~print:Contention.Const.print
+          ~base:base.mode_crossing.contention actual.mode_crossing.contention;
+        get_mode_crossing ~le:Portability.Const.le
+          ~print:Portability.Const.print ~base:base.mode_crossing.portability
+          actual.mode_crossing.portability;
+        get_mode_crossing ~le:Externality.le ~print:Externality.print
           ~base:base.externality_bound actual.externality_bound;
-        get_modal_bound ~le:Nullability.le ~print:Nullability.print
+        get_mode_crossing ~le:Nullability.le ~print:Nullability.print
           ~base:base.nullability_bound actual.nullability_bound ]
       |> List.rev
       |> List.fold_left
@@ -602,20 +605,20 @@ module Const = struct
       let matching_layouts =
         Layout.Const.equal base.jkind.layout actual.layout
       in
-      let modal_bounds =
-        get_modal_bounds
+      let mode_crossings =
+        get_mode_crossings
           ~base:(Bounds.of_jkind base.jkind)
           (Bounds.of_jkind actual)
       in
-      match matching_layouts, modal_bounds with
-      | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
+      match matching_layouts, mode_crossings with
+      | true, Some mode_crossings -> Some { base = base.name; mode_crossings }
       | false, _ | _, None -> None
 
     (** Select the out_jkind_const with the least number of modal bounds to print *)
     let rec select_simplest = function
       | a :: b :: tl ->
         let simpler =
-          if List.length a.modal_bounds < List.length b.modal_bounds
+          if List.length a.mode_crossings < List.length b.mode_crossings
           then a
           else b
         in
@@ -647,7 +650,7 @@ module Const = struct
               ~base:
                 { jkind =
                     { layout = jkind.layout;
-                      modes_upper_bounds = Modes.max;
+                      mode_crossing = Mode_crossing.max;
                       externality_upper_bound = Externality.max;
                       nullability_upper_bound = Nullability.Non_null
                     };
@@ -664,7 +667,7 @@ module Const = struct
                 ~base:
                   { jkind =
                       { layout = jkind.layout;
-                        modes_upper_bounds = Modes.max;
+                        mode_crossing = Mode_crossing.max;
                         externality_upper_bound = Externality.max;
                         nullability_upper_bound = Nullability.max
                       };
@@ -677,10 +680,10 @@ module Const = struct
             Option.get out_jkind_verbose)
       in
       match printable_jkind with
-      | { base; modal_bounds = _ :: _ as modal_bounds } ->
+      | { base; mode_crossings = _ :: _ as mode_crossings } ->
         Outcometree.Ojkind_const_mod
-          (Ojkind_const_abbreviation base, modal_bounds)
-      | { base; modal_bounds = [] } ->
+          (Ojkind_const_abbreviation base, mode_crossings)
+      | { base; mode_crossings = [] } ->
         Outcometree.Ojkind_const_abbreviation base
   end
 
@@ -762,49 +765,48 @@ module Const = struct
         match mode with
         | Areality areality ->
           { jkind with
-            modes_upper_bounds =
-              { jkind.modes_upper_bounds with
+            mode_crossing =
+              { jkind.mode_crossing with
                 areality =
-                  Locality.Const.meet jkind.modes_upper_bounds.areality areality
+                  Locality.Const.meet jkind.mode_crossing.areality areality
               }
           }
         | Linearity linearity ->
           { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
+            mode_crossing =
+              Mode_crossing.meet jkind.mode_crossing
+                { jkind.mode_crossing with
                   linearity =
-                    Linearity.Const.meet jkind.modes_upper_bounds.linearity
-                      linearity
+                    Linearity.Const.meet jkind.mode_crossing.linearity linearity
                 }
           }
         | Uniqueness uniqueness ->
           { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
+            mode_crossing =
+              Mode_crossing.meet jkind.mode_crossing
+                { jkind.mode_crossing with
                   uniqueness =
-                    Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
+                    Uniqueness.Const.meet jkind.mode_crossing.uniqueness
                       uniqueness
                 }
           }
         | Contention contention ->
           { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
+            mode_crossing =
+              Mode_crossing.meet jkind.mode_crossing
+                { jkind.mode_crossing with
                   contention =
-                    Contention.Const.meet jkind.modes_upper_bounds.contention
+                    Contention.Const.meet jkind.mode_crossing.contention
                       contention
                 }
           }
         | Portability portability ->
           { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
+            mode_crossing =
+              Mode_crossing.meet jkind.mode_crossing
+                { jkind.mode_crossing with
                   portability =
-                    Portability.Const.meet jkind.modes_upper_bounds.portability
+                    Portability.Const.meet jkind.mode_crossing.portability
                       portability
                 }
           }
@@ -854,41 +856,39 @@ module Jkind_desc = struct
 
   let of_const
       ({ layout;
-         modes_upper_bounds;
+         mode_crossing;
          externality_upper_bound;
          nullability_upper_bound
        } :
         Const.t) =
     { layout = Layout.of_const layout;
-      modes_upper_bounds;
+      mode_crossing;
       externality_upper_bound;
       nullability_upper_bound
     }
 
   let add_mode_crossing t =
     { t with
-      modes_upper_bounds = Modes.min;
+      mode_crossing = Crossing.min;
       externality_upper_bound = Externality.min
     }
 
   let add_portability_and_contention_crossing ~from t =
     let new_portability =
-      Portability.Const.meet t.modes_upper_bounds.portability
-        from.modes_upper_bounds.portability
+      Portability.Const.meet t.mode_crossing.portability
+        from.mode_crossing.portability
     in
     let new_contention =
-      Contention.Const.meet t.modes_upper_bounds.contention
-        from.modes_upper_bounds.contention
+      Contention.Const.meet t.mode_crossing.contention
+        from.mode_crossing.contention
     in
     let added_crossings =
-      (not
-         (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
+      (not (Portability.Const.le t.mode_crossing.portability new_portability))
+      || not (Contention.Const.le t.mode_crossing.contention new_contention)
     in
     ( { t with
-        modes_upper_bounds =
-          { t.modes_upper_bounds with
+        mode_crossing =
+          { t.mode_crossing with
             portability = new_portability;
             contention = new_contention
           }
@@ -899,52 +899,52 @@ module Jkind_desc = struct
 
   let equate_or_equal ~allow_mutation
       { layout = lay1;
-        modes_upper_bounds = modes1;
+        mode_crossing = modes1;
         externality_upper_bound = ext1;
         nullability_upper_bound = null1
       }
       { layout = lay2;
-        modes_upper_bounds = modes2;
+        mode_crossing = modes2;
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
     Layout.equate_or_equal ~allow_mutation lay1 lay2
-    && Modes.equal modes1 modes2
+    && Modal_bound.equal modes1 modes2
     && Externality.equal ext1 ext2
     && Nullability.equal null1 null2
 
   let sub
       { layout = lay1;
-        modes_upper_bounds = modes1;
+        mode_crossing = modes1;
         externality_upper_bound = ext1;
         nullability_upper_bound = null1
       }
       { layout = lay2;
-        modes_upper_bounds = modes2;
+        mode_crossing = modes2;
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
     Misc.Le_result.combine_list
       [ Layout.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
+        Modal_bound.less_or_equal modes1 modes2;
         Externality.less_or_equal ext1 ext2;
         Nullability.less_or_equal null1 null2 ]
 
   let intersection
       { layout = lay1;
-        modes_upper_bounds = modes1;
+        mode_crossing = modes1;
         externality_upper_bound = ext1;
         nullability_upper_bound = null1
       }
       { layout = lay2;
-        modes_upper_bounds = modes2;
+        mode_crossing = modes2;
         externality_upper_bound = ext2;
         nullability_upper_bound = null2
       } =
     Option.bind (Layout.intersection lay1 lay2) (fun layout ->
         Some
           { layout;
-            modes_upper_bounds = Modes.meet modes1 modes2;
+            mode_crossing = Modal_bound.meet modes1 modes2;
             externality_upper_bound = Externality.meet ext1 ext2;
             nullability_upper_bound = Nullability.meet null1 null2
           })
@@ -952,7 +952,7 @@ module Jkind_desc = struct
   let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
     ( { layout;
-        modes_upper_bounds = Modes.max;
+        mode_crossing = Mode_crossing.max;
         externality_upper_bound = Externality.max;
         nullability_upper_bound
       },
@@ -1021,7 +1021,7 @@ module Jkind_desc = struct
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get
       { layout;
-        modes_upper_bounds;
+        mode_crossing;
         externality_upper_bound;
         nullability_upper_bound
       } : Desc.t =
@@ -1029,7 +1029,7 @@ module Jkind_desc = struct
     | Any ->
       Const
         { layout = Any;
-          modes_upper_bounds;
+          mode_crossing;
           externality_upper_bound;
           nullability_upper_bound
         }
@@ -1038,7 +1038,7 @@ module Jkind_desc = struct
       | Const s ->
         Const
           { layout = Sort s;
-            modes_upper_bounds;
+            mode_crossing;
             externality_upper_bound;
             nullability_upper_bound
           }
@@ -1049,14 +1049,14 @@ module Jkind_desc = struct
 
     let t ppf
         { layout;
-          modes_upper_bounds;
+          mode_crossing;
           externality_upper_bound;
           nullability_upper_bound
         } =
       fprintf ppf
-        "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-         %a;@ nullability_upper_bound = %a }"
-        Layout.Debug_printers.t layout Modes.print modes_upper_bounds
+        "{ layout = %a;@ mode_crossing = %a;@ externality_upper_bound = %a;@ \
+         nullability_upper_bound = %a }"
+        Layout.Debug_printers.t layout Modal_bound.print mode_crossing
         Externality.print externality_upper_bound Nullability.print
         nullability_upper_bound
   end
@@ -1180,15 +1180,11 @@ let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
 (* CR layouts v2.8: remove this function *)
 let of_const ~why
-    ({ layout;
-       modes_upper_bounds;
-       externality_upper_bound;
-       nullability_upper_bound
-     } :
+    ({ layout; mode_crossing; externality_upper_bound; nullability_upper_bound } :
       Const.t) =
   { jkind =
       { layout = Layout.of_const layout;
-        modes_upper_bounds;
+        mode_crossing;
         externality_upper_bound;
         nullability_upper_bound
       };
@@ -1273,7 +1269,7 @@ let for_boxed_variant ~all_voids =
 let for_arrow =
   fresh_jkind
     { layout = Sort (Const Value);
-      modes_upper_bounds =
+      mode_crossing =
         { linearity = Linearity.Const.max;
           areality = Locality.Const.max;
           uniqueness = Uniqueness.Const.min;
@@ -1291,7 +1287,7 @@ let for_arrow =
 let default_to_value_and_get
     { jkind =
         { layout;
-          modes_upper_bounds;
+          mode_crossing;
           externality_upper_bound;
           nullability_upper_bound
         };
@@ -1300,13 +1296,13 @@ let default_to_value_and_get
   match layout with
   | Any ->
     { layout = Any;
-      modes_upper_bounds;
+      mode_crossing;
       externality_upper_bound;
       nullability_upper_bound
     }
   | Sort s ->
     { layout = Sort (Sort.default_to_value_and_get s);
-      modes_upper_bounds;
+      mode_crossing;
       externality_upper_bound;
       nullability_upper_bound
     }
@@ -1329,7 +1325,9 @@ let get_layout jk : Layout.Const.t option =
   | Sort s -> (
     match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
-let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
+let get_mode_crossing jk =
+  let modality = Modality.Value.join_meet jk.jkind.mode_crossing in
+  Crossing.modality modality Crossing.none
 
 let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 

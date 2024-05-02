@@ -1651,6 +1651,8 @@ module Monadic = struct
 
   let imply c m = Solver.via_monotone obj (Subtract c) (Solver.disallow_left m)
 
+  let subtract m c = Solver.via_monotone obj (Imply c) (Solver.disallow_right m)
+
   let zap_to_legacy m =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
     let contention = proj Contention m |> Contention.zap_to_legacy in
@@ -2118,6 +2120,14 @@ let alloc_to_value_l2r m =
   in
   { comonadic; monadic }
 
+let alloc_to_value_g2r m =
+  let { comonadic; monadic } = Alloc.disallow_left m in
+  let comonadic =
+    S.Positive.via_monotone Value.Comonadic.Obj.obj
+      (Map_comonadic Global_to_regional) comonadic
+  in
+  { comonadic; monadic }
+
 let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
  fun m ->
   let { comonadic; monadic } = m in
@@ -2520,4 +2530,143 @@ module Modality = struct
       let comonadic = Comonadic.max in
       { monadic; comonadic }
   end
+end
+
+(* CR zqian: to do this properly, we need a crossing for [Alloc], and a crossing
+   for [Value]. Because with finer regionality, specifying mode crossing with
+   region index would be nonsense. Similar for [Modality]. *)
+module Crossing = struct
+  module Monadic = struct
+    module Mode = Value.Monadic
+    module Const = Mode.Const
+
+    (* The mode crossong on monadic axes is limited to [Join]. *)
+    type t = Join_const of Const.t
+
+    let apply_left : type l r. t -> (l * r) Mode.t -> (l * disallowed) Mode.t =
+     fun t m ->
+      match t with Join_const c -> Mode.subtract (Mode.join_const c m) c
+
+    let apply_right : type l r. t -> (l * r) Mode.t -> (disallowed * r) Mode.t =
+     fun t m ->
+      match t with Join_const c -> Mode.disallow_left (Mode.join_const c m)
+
+    let max = Join_const Const.min
+
+    let min = Join_const Const.max
+
+    let meet t0 t1 =
+      match t0, t1 with
+      | Join_const c0, Join_const c1 ->
+        (* Only correct for product of total orders. In general, the meet is
+           not representable as [Join_const] and might not have left/right
+           adjoint. *)
+        Join_const (Const.join(c0, c1))
+
+    let imply t0 t1 =
+      match t0, t1 with
+      | Join_const c0, Join_const c1 ->
+        (* We want the smallest [x] such that
+          [x join c0 >= c1], which means [x >= c1 - c0] *)
+        Join_const (Const.subtract c1 c0)
+
+    let le t0 t1 =
+      match t0, t1 with Join_const c0, Join_const c1 -> Const.le c1 c0
+
+    let modality (modality : Modality.Monadic.Const.t) (t : t) : t =
+      match modality, t with
+      | Join_const c0, Join_const c1 -> Join_const (Const.join c0 c1)
+
+  end
+
+  module Comonadic = struct
+    module Mode = Value.Comonadic
+    module Const = Mode.Const
+
+    type t = Meet_const of Const.t
+
+    let apply_left : type l r. t -> (l * r) Mode.t -> (l * disallowed) Mode.t =
+     fun t m ->
+      match t with Meet_const c -> Mode.disallow_right (Mode.meet_const c m)
+
+    let apply_right : type l r. t -> (l * r) Mode.t -> (disallowed * r) Mode.t =
+     fun t m ->
+      match t with Meet_const c -> Mode.imply c (Mode.meet_const c m)
+
+    let max = Meet_const Const.max
+
+    let min = Meet_const Const.min
+
+    let meet t0 t1 =
+      match t0, t1 with
+      | Meet_const c0, Meet_const c1 ->
+        (* Only correct for product of total orders. In general, the meet is not
+           representable as [Meet_const] and might not have left/right adjoint.
+           *)
+        Meet_const (Const.meet(c0,c1))
+
+    let imply t0 t1 =
+      match t0, t1 with
+      | Meet_const c0, Meet_const c1 ->
+          Meet_const (Const.imply c0 c1)
+
+    let le t0 t1 =
+      match t0, t1 with Meet_const c0, Meet_const c1 -> Const.le c0 c1
+
+    let modality (modality : Modality.Comonadic.Const.t) (t : t) : t =
+      match modality, t with
+      | Meet_const c0, Meet_const c1 -> Meet_const (Const.meet c0 c1)
+  end
+
+  type t = (Monadic.t, Comonadic.t) monadic_comonadic
+
+  let apply_left t {monadic; comonadic}=
+    let monadic = Monadic.apply_left t.monadic monadic in
+    let comonadic = Comonadic.apply_left t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_left_alloc t m =
+    m |> alloc_as_value
+    |> apply_left t
+    |> value_to_alloc_r2l (* the left adjoint of [alloc_as_value] *)
+
+  let apply_right t {monadic; comonadic} =
+    let monadic = Monadic.apply_right t.monadic monadic in
+    let comonadic = Comonadic.apply_right t.comonadic comonadic in
+    { monadic; comonadic }
+
+  let apply_right_alloc t m =
+    m
+    |> alloc_as_value
+    |>  apply_right t
+    |> value_to_alloc_r2g (* the right adjoint of [alloc_as_value] *)
+
+  let max =
+    let monadic = Monadic.max in
+    let comonadic = Comonadic.max in
+    { monadic; comonadic }
+
+  let min =
+    let monadic = Monadic.min in
+    let comonadic = Comonadic.min in
+    { monadic; comonadic }
+
+  let le t0 t1 =
+    Monadic.le t0.monadic t1.monadic && Comonadic.le t0.comonadic t1.comonadic
+
+  let meet t0 t1 =
+    let monadic = Moandic.meet t0.monadic t1.monadic in
+    let comonadic = Comonadic.meet t0.comonadic t1.comonadic in
+    {monadic; comonadic}
+
+  let imply t0 t1 =
+    let monadic = Moandic.imply t0.monadic t1.monadic in
+    let comonadic = Comonadic.imply t0.comonadic t1.comonadic in
+    {monadic; comonadic}
+
+  let modality m { monadic; comonadic } =
+    let monadic = Monadic.modality m.monadic monadic in
+    let comonadic = Comonadic.modality m.comonadic comonadic in
+    { monadic; comonadic }
+
 end

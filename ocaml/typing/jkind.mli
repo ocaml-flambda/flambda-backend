@@ -432,8 +432,8 @@ val sort_of_jkind : t -> sort
     Never does mutation. *)
 val get_layout : t -> Layout.Const.t option
 
-(** Gets the maximum modes for types of this jkind. *)
-val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+(** Gets the mode crossing for types of this jkind. *)
+val get_mode_crossing : t -> Mode.Crossing.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound : t -> Externality.t

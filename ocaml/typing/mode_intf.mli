@@ -260,9 +260,9 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+  type 'a comonadic_with = 'a * Linearity.Const.t * Portability.Const.t
 
-  type monadic = private Uniqueness.Const.t * Contention.Const.t
+  type monadic = Uniqueness.Const.t * Contention.Const.t
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -436,6 +436,9 @@ module type S = sig
   (** Similar to [local_to_regional], behaves as identity in other axes *)
   val alloc_to_value_l2r : ('l * 'r) Alloc.t -> ('l * disallowed) Value.t
 
+  (** Similar to [global_to_regional], behaves as identity in other axes *)
+  val alloc_to_value_g2r : ('l * 'r) Alloc.t -> (disallowed * 'r) Value.t
+
   (** Similar to [regional_to_local], behaves as identity on other axes *)
   val value_to_alloc_r2l : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
@@ -547,5 +550,45 @@ module type S = sig
       (** The top modality; [sub x max] succeeds for any [x]. *)
       val max : t
     end
+  end
+
+  module Crossing : sig
+    module Monadic : sig
+      type t = Join_const of Value.Monadic.Const.t
+    end
+
+    module Comonadic : sig
+      type t = Meet_const of Value.Comonadic.Const.t
+    end
+
+    (** Represents a crossing of [Value.t] modes. *)
+    type t = (Monadic.t, Comonadic.t) monadic_comonadic
+
+    (** The crossing that does nothing. *)
+    val max : t
+
+    (** The crossing that collapse everything. *)
+    val min : t
+
+    (** [le t0 t1] returns [true] iff [t0] allows more crossing than [t1]. *)
+    val le : t -> t -> bool
+
+    (** [apply_left t m] gives the lowest of [m] as allowed by [t]. *)
+    val apply_left : t -> ('l * 'r) Value.t -> ('l * disallowed) Value.t
+
+    (** [apply_right t m] gives the highest of [m] as allowed by [t]. *)
+    val apply_right : t -> ('l * 'r) Value.t -> (disallowed * 'r) Value.t
+
+    (** Similar to [apply_left] but via [alloc_as_value]. Concretely,
+        [alloc_as_value(apply_left_alloc t m)
+         = apply_left t (alloc_as_value m)] *)
+    val apply_left_alloc : t -> ('l * 'r) Alloc.t -> ('l * disallowed) Alloc.t
+
+    (** Dual to [apply_left_alloc]. *)
+    val apply_right_alloc : t -> ('l * 'r) Alloc.t -> (disallowed * 'r) Alloc.t
+
+    (** [modality m t] gives the crossing of [a @@ m] where type [a] has
+    crossing [t]. *)
+    val modality : Modality.Value.Const.t -> t -> t
   end
 end

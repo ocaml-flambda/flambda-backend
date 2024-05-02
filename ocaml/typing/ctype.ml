@@ -5666,8 +5666,8 @@ let mode_cross_left env ty mode =
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_left_alloc crossing mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
    and [Alloc] get unified *)
@@ -5675,8 +5675,8 @@ let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
+  let crossing = Jkind.get_mode_crossing jkind in
+  Crossing.apply_right_alloc crossing mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =

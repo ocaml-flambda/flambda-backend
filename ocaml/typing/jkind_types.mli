@@ -120,12 +120,10 @@ module Nullability : sig
     | Maybe_null
 end
 
-module Modes = Mode.Alloc.Const
-
 module Jkind_desc : sig
   type 'type_expr t =
     { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
+      mode_crossing : Mode.Crossing.t;
       externality_upper_bound : Externality.t;
       nullability_upper_bound : Nullability.t
     }
@@ -150,7 +148,7 @@ type 'type_expr t =
 module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
+      mode_crossing : Mode.Crossing.t;
       externality_upper_bound : Externality.t;
       nullability_upper_bound : Nullability.t
     }
