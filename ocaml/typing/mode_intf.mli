@@ -359,11 +359,9 @@ module type S = sig
       a0] for axes where [a] is [a0] and [b] isn't. *)
       val diff : t -> t -> Option.t
 
-      (** Similar to [Alloc.close_over] but for constants *)
-      val close_over : t -> t
-
-      (** Similar to [Alloc.partial_apply] but for constants *)
-      val partial_apply : t -> t
+      (** Dualize a monadic fragment to the comonadic fragment, and set the
+          areality axis to min. *)
+      val monadic_to_comonadic_min : Monadic.Const.t -> Comonadic.Const.t
 
       (** Prints a constant on any axis. *)
       val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
@@ -404,17 +402,10 @@ module type S = sig
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
-    (* The following two are about the scenario where we partially apply a
-       function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
-       three are constrained. *)
-
-    (** Returns the lower bound needed for [B -> C] in relation to [A] *)
-    val close_over :
-      (('l * allowed) Monadic.t, (allowed * 'r) Comonadic.t) monadic_comonadic ->
-      l
-
-    (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
-    val partial_apply : (allowed * 'r) t -> l
+    (** Dualize a monadic fragment to the comonadic fragment, and set the
+          areality axis to min. *)
+    val monadic_to_comonadic_min :
+      ('l * 'r) Monadic.t -> ('r * disallowed) Comonadic.t
   end
 
   (** The most general mode. Used in most type checking,

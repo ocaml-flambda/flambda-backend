@@ -1589,12 +1589,46 @@ let with_locality locality m =
   Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
   m'
 
-let curry_mode alloc arg : Alloc.Const.t =
-  let acc =
-    Alloc.Const.join
-      (Alloc.Const.close_over arg)
-      (Alloc.Const.partial_apply alloc)
+(** This is about partially applying [A -> B -> C] to [A] and getting [B ->
+  C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
+  give the lower bound mode of [B -> C]. *)
+let close_over { comonadic; monadic } =
+  let comonadic = Alloc.Comonadic.disallow_right comonadic in
+  (* The comonadic of the returned function is constrained by the monadic of the closed argument via the dualizing morphism. *)
+  let comonadic1 = Alloc.monadic_to_comonadic_min monadic in
+  (* It's also constrained by the comonadic of the closed argument. *)
+  let comonadic = Alloc.Comonadic.join [comonadic; comonadic1] in
+  (* The returned function crosses all monadic axes that we know of
+      (uniqueness/contention). *)
+  let monadic = Alloc.Monadic.disallow_right Alloc.Monadic.min in
+  { comonadic; monadic }
+
+(** Similar to above, but we are given the mode of [A -> B -> C], and need to
+    give the lower bound mode of [B -> C]. *)
+let partial_apply { comonadic; _ } =
+  (* The returned function crosses all monadic axes that we know of. *)
+  let monadic = Alloc.Monadic.disallow_right Alloc.Monadic.min in
+  let comonadic = Alloc.Comonadic.disallow_right comonadic in
+  { comonadic; monadic }
+
+(** See [Alloc.close_over] for explanation. *)
+let close_over_const m =
+  let { monadic; comonadic } = Alloc.Const.split m in
+  let comonadic =
+    Alloc.Comonadic.Const.join comonadic
+      (Alloc.Const.monadic_to_comonadic_min monadic)
   in
+  let monadic = Alloc.Monadic.Const.min in
+  Alloc.Const.merge { comonadic; monadic }
+
+(** See [Alloc.partial_apply] for explanation. *)
+let partial_apply_const m =
+  let { comonadic; _ } = Alloc.Const.split m in
+  let monadic = Alloc.Monadic.Const.min in
+  Alloc.Const.merge { comonadic; monadic }
+
+let curry_mode alloc arg : Alloc.Const.t =
+  let acc = Alloc.Const.join (close_over_const arg) (partial_apply_const alloc) in
   (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
     legacy mode which helps with legacy compatibility. Arrow types cross
     uniqueness so we are not losing too much expressvity here. One
@@ -1617,8 +1651,8 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
-        Alloc.close_over marg;
-        Alloc.partial_apply macc
+        close_over marg;
+        partial_apply macc
        ]
      in
      let mret =

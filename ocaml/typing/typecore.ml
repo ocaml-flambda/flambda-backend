@@ -3516,8 +3516,8 @@ let check_curried_application_complete ~env ~app_loc args =
           in
           raise (Error(loc, env, Curried_application_complete (lbl, e, loc_kind)))
       in
-      submode (Alloc.partial_apply mode_fun) mode_ret;
-      submode (Alloc.close_over mode_arg) mode_ret;
+      submode (Ctype.partial_apply mode_fun) mode_ret;
+      submode (Ctype.close_over mode_arg) mode_ret;
       loop has_commuted rest
   in
   loop false args
@@ -3744,8 +3744,8 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              in
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
-             let mode_closed_args = List.map Alloc.close_over closed_args in
-             let mode_partial_fun = Alloc.partial_apply mode_fun in
+             let mode_closed_args = List.map close_over closed_args in
+             let mode_partial_fun = partial_apply mode_fun in
              let mode_closure, _ =
                Alloc.newvar_above (Alloc.join
                 (mode_partial_fun:: mode_closed_args))
@@ -6715,14 +6715,14 @@ and type_function
                      mode-crossed differently. *)
                   let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
-                    Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
+                    Alloc.submode (close_over arg_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
                       raise (Error(loc_fun, env, Uncurried_function_escapes e))
                   end;
                   begin match
-                    Alloc.submode (Alloc.partial_apply alloc_mode) fun_alloc_mode
+                    Alloc.submode (partial_apply alloc_mode) fun_alloc_mode
                   with
                     | Ok () -> ()
                     | Error e ->
