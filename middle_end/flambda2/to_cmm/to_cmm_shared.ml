@@ -258,33 +258,34 @@ let invalid res ~message =
   in
   call_expr, res
 
-type update_kind =
-  | Word_val
-  | Word_int
-  | Single of { reg : Cmm.float_width }
-  | Double
-  | Thirtytwo_signed
-  | Onetwentyeight_unaligned
+module Update_kind = struct
+  type t =
+    | Value
+    | Immediate
+    | Naked_int64
+    | Naked_int32
+    | Naked_float
+    | Naked_float32
+    | Naked_vec128
+end
 
-let make_update env res dbg (kind : update_kind) ~symbol var ~index
+let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     ~prev_updates =
   let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
     To_cmm_env.inline_variable env res var
   in
   let cmm =
     let must_use_setfield =
-      if not Config.runtime5
-      then None
-      else
-        match kind with
-        | Word_val -> Some Lambda.Pointer
-        | Word_int -> Some Lambda.Immediate
-        | Thirtytwo_signed | Single _ | Double | Onetwentyeight_unaligned ->
-          (* The GC never sees these fields, so we can avoid using
-             [caml_initialize]. This is important as it significantly reduces
-             the complexity of the statically-allocated inconstant unboxed int32
-             array case, which otherwise would have to use 64-bit writes. *)
-          None
+      match kind with
+      | Value -> Some Lambda.Pointer
+      | Immediate -> Some Lambda.Immediate
+      | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
+        ->
+        (* The GC never sees these fields, so we can avoid using
+           [caml_initialize]. This is important as it significantly reduces the
+           complexity of the statically-allocated inconstant unboxed int32 array
+           case, which otherwise would have to use 64-bit writes. *)
+        None
     in
     match must_use_setfield with
     | Some imm_or_ptr ->
@@ -292,12 +293,13 @@ let make_update env res dbg (kind : update_kind) ~symbol var ~index
     | None ->
       let memory_chunk : Cmm.memory_chunk =
         match kind with
-        | Word_val -> Word_val
-        | Word_int -> Word_int
-        | Single { reg } -> Single { reg }
-        | Double -> Double
-        | Thirtytwo_signed -> Thirtytwo_signed
-        | Onetwentyeight_unaligned -> Onetwentyeight_unaligned
+        | Value | Immediate ->
+          Misc.fatal_errorf "update_kind requires using setfield."
+        | Naked_int32 -> Thirtytwo_signed
+        | Naked_int64 -> Word_int
+        | Naked_float -> Double
+        | Naked_float32 -> Single { reg = Float32 }
+        | Naked_vec128 -> Onetwentyeight_unaligned
       in
       let addr = field_address ~memory_chunk symbol index dbg in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm

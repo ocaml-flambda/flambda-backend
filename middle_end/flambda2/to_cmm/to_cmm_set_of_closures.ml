@@ -165,8 +165,21 @@ end = struct
                 closure_symbol_for_updates;
                 _
               } ->
+            let update_kind : C.Update_kind.t =
+              match Flambda_kind.With_subkind.kind kind with
+              | Value -> Value
+              | Naked_number Naked_immediate -> Immediate
+              | Naked_number Naked_float32 -> Naked_float32
+              | Naked_number Naked_float -> Naked_float
+              | Naked_number Naked_int32 -> Naked_int32
+              | Naked_number Naked_int64 | Naked_number Naked_nativeint ->
+                Naked_int64
+              | Naked_number Naked_vec128 -> Naked_vec128
+              | Region | Rec_info ->
+                Misc.fatal_errorf "Unexpected value slot kind."
+            in
             let env, res, updates =
-              C.make_update env res dbg Word_val
+              C.make_update env res dbg update_kind
                 ~symbol:(C.symbol ~dbg closure_symbol_for_updates)
                 v
                 ~index:(slot_offset - function_slot_offset_for_updates)
