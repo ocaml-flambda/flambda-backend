@@ -276,7 +276,7 @@ and abstract_reason =
   | Abstract_rec_check_regularity
 
 and flat_element = Imm | Float | Float64
-and mixed_record_shape =
+and mixed_product_shape =
   { value_prefix_len : int;
     flat_suffix : flat_element array;
   }
@@ -287,7 +287,7 @@ and record_representation =
   | Record_boxed of Jkind.t array
   | Record_float
   | Record_ufloat
-  | Record_mixed of mixed_record_shape
+  | Record_mixed of mixed_product_shape
 
 and variant_representation =
   | Variant_unboxed
@@ -296,7 +296,7 @@ and variant_representation =
 
 and constructor_representation =
   | Constructor_uniform_value
-  | Constructor_mixed of mixed_record_shape
+  | Constructor_mixed of mixed_product_shape
 
 and label_declaration =
   {
@@ -574,7 +574,7 @@ let equal_flat_element e1 e2 =
   | Imm, Imm | Float64, Float64 | Float, Float -> true
   | (Imm | Float64 | Float), _ -> false
 
-let equal_mixed_record_shape r1 r2 = r1 == r2 ||
+let equal_mixed_product_shape r1 r2 = r1 == r2 ||
   (* Warning 9 alerts us if we add another field *)
   let[@warning "+9"] { value_prefix_len = l1; flat_suffix = s1 } = r1
   and                { value_prefix_len = l2; flat_suffix = s2 } = r2
@@ -584,7 +584,7 @@ let equal_mixed_record_shape r1 r2 = r1 == r2 ||
 let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Constructor_uniform_value, Constructor_uniform_value -> true
   | Constructor_mixed mx1, Constructor_mixed mx2 ->
-      equal_mixed_record_shape mx1 mx2
+      equal_mixed_product_shape mx1 mx2
   | (Constructor_mixed _ | Constructor_uniform_value), _ -> false
 
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
@@ -612,7 +612,7 @@ let equal_record_representation r1 r2 = match r1, r2 with
       true
   | Record_ufloat, Record_ufloat ->
       true
-  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_record_shape mx1 mx2
+  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_product_shape mx1 mx2
   | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
     | Record_ufloat | Record_mixed _), _ ->
       false
@@ -699,11 +699,11 @@ let count_mixed_record_values_and_floats { value_prefix_len; flat_suffix } =
     (value_prefix_len, 0)
     flat_suffix
 
-type mixed_record_element =
+type mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
-let get_mixed_record_element { value_prefix_len; flat_suffix } i =
+let get_mixed_product_element { value_prefix_len; flat_suffix } i =
   if i < 0 then Misc.fatal_errorf "Negative index: %d" i;
   if i < value_prefix_len then Value_prefix
   else Flat_suffix flat_suffix.(i - value_prefix_len)

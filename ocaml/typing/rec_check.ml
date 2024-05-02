@@ -638,7 +638,7 @@ let rec expression : Typedtree.expression -> term_judg =
            (match desc.cstr_shape with
             | Constructor_uniform_value -> Guard
             | Constructor_mixed mixed_shape ->
-                (match get_mixed_record_element mixed_shape i with
+                (match get_mixed_product_element mixed_shape i with
                  | Value_prefix -> Guard
                  | Flat_suffix _ -> Dereference))
       in
@@ -661,7 +661,7 @@ let rec expression : Typedtree.expression -> term_judg =
           | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
           | Record_mixed mixed_shape ->
-              (match get_mixed_record_element mixed_shape i with
+              (match get_mixed_product_element mixed_shape i with
                | Value_prefix -> Guard
                | Flat_suffix _ -> Dereference)
         in
