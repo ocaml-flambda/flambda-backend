@@ -103,18 +103,18 @@ let propagate (uses : graph) (elt : elt) (dep : dep) : updated =
         List.iter (fun target -> acc := add_alias elt node target !acc) targets;
         !acc
     end
-    | Alias_if_def (_, _c) ->
-      failwith "TODO"
-    (*         begin *)
-    (*   match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with *)
-    (*   | None | Some Bottom -> Bottom *)
-    (*   | Some (Fields _ | Top) -> elt *)
-    (* end *)
-    | Propagate (_, _n) ->
-      failwith "TODO"
-    (*         begin *)
-    (*   match Hashtbl.find_opt uses (Code_id_or_name.name n) with *)
-    (*   | None -> Bottom *)
-    (*   | Some elt -> elt *)
-    (* end *)
+    | Alias_if_def (n, c) ->
+      let control = get_or_create_node uses (Code_id_or_name.code_id c) in
+      let target = get_or_create_node uses (Code_id_or_name.name n) in
+      if not (control.is_bot) then
+        add_alias elt node target Not_updated
+      else
+        Not_updated
+    | Propagate (n1, n2) ->
+      let t1 = get_or_create_node uses (Code_id_or_name.name n1) in
+      let t2 = get_or_create_node uses (Code_id_or_name.name n2) in
+      if not (t2.is_bot) then
+        add_alias (Code_id_or_name.name n2) t2 t1 Not_updated
+      else
+        Not_updated
   end
