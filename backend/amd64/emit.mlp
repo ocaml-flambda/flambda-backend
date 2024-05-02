@@ -797,18 +797,13 @@ let move (src : Reg.t) (dst : Reg.t) =
          They should instead generate a separate Ispecific and this case should be
          removed. *)
       I.movq (reg src) (reg dst)
-    | Float32, _, Int, _ | Int, _, Float32, _ ->
-      (* CR-soon mslater: this case is used by the float32_to_bits/float32_of_bits intrinsics.
-         They should instead generate a separate Ispecific and this case should be
-         removed. *)
-      I.movd (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
     | Vec128, _, _, _ | _, _, Vec128, _ ->
       Misc.fatal_errorf
         "Illegal move between a vector and non-vector register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
-    | Float32, _, (Val | Addr | Float), _ | (Val | Addr | Float), _, Float32, _ ->
+    | Float32, _, _, _ | _, _, Float32, _ ->
       Misc.fatal_errorf
         "Illegal move between a float32 and non-float32 register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
@@ -1120,6 +1115,7 @@ let emit_simd_instr op i =
   | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
   | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
   | SSE2 Cast_scalar_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
+  | SSE2 Bit_cast_f32_i32 -> I.movd (arg i 0) (res i 0)
   | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
   | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
   | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
