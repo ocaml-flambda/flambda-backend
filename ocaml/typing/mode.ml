@@ -1138,8 +1138,8 @@ module Lattices_mono = struct
     match maybe_compose dst f g with Some m -> m | None -> Compose (f, g)
 
   let rec left_adjoint :
-      type a b l.
-      b obj -> (a, b, l * allowed) morph -> (b, a, allowed * disallowed) morph =
+      type a b l l'.
+      b obj -> (a, b, l * allowed) morph -> (b, a, l' * disallowed) morph =
    fun dst f ->
     match f with
     | Id -> Id
@@ -1168,8 +1168,8 @@ module Lattices_mono = struct
       Map_comonadic f'
 
   and right_adjoint :
-      type a b r.
-      b obj -> (a, b, allowed * r) morph -> (b, a, disallowed * allowed) morph =
+      type a b r r'.
+      b obj -> (a, b, allowed * r) morph -> (b, a, disallowed * r') morph =
    fun dst f ->
     match f with
     | Id -> Id

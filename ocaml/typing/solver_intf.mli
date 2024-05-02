@@ -183,11 +183,11 @@ module type Lattices_mono = sig
 
   (** Give left adjoint of a morphism  *)
   val left_adjoint :
-    'b obj -> ('a, 'b, 'l * allowed) morph -> ('b, 'a, left_only) morph
+    'b obj -> ('a, 'b, 'l * allowed) morph -> ('b, 'a, 'l_ * disallowed) morph
 
   (** Give the right adjoint of a morphism *)
   val right_adjoint :
-    'b obj -> ('a, 'b, allowed * 'r) morph -> ('b, 'a, right_only) morph
+    'b obj -> ('a, 'b, allowed * 'r) morph -> ('b, 'a, disallowed * 'r_) morph
 
   include Allow_disallow with type ('a, 'b, 'd) sided = ('a, 'b, 'd) morph
 
