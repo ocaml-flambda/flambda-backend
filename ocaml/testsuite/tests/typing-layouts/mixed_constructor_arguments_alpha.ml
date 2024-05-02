@@ -245,6 +245,16 @@ type ('a : float64, 'b : immediate) t_cstr_param_ext2 = ..
 type ('a, 'b) t_cstr_param_ext2 += A of string * 'a * 'b
 |}];;
 
+type 'a t_cstr_bad_value_after_float = C of float# * 'a
+
+[%%expect{|
+Line 1, characters 39-55:
+1 | type 'a t_cstr_bad_value_after_float = C of float# * 'a
+                                           ^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       float#, but found boxed argument, 'a.
+|}];;
+
 (* Recursive groups. There's not a good way to exercise the same functionality
    for extensible variants, so we omit that aspect of this test.
 *)
@@ -389,3 +399,58 @@ Lines 2-35, characters 2-16:
 35 |     int * float#
 Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
+
+(* GADT syntax *)
+
+type ('a : float64) tf : float64
+type ('a : value) tv : value
+
+[%%expect {|
+type ('a : float64) tf : float64
+type 'a tv : value
+|}]
+
+type ('a : any) t_gadt_any =
+  | A : 'a tf -> 'a t_gadt_any
+  | B : 'b tv -> 'a t_gadt_any
+
+[%%expect {|
+type ('a : any) t_gadt_any =
+    A : ('a : float64). 'a tf -> 'a t_gadt_any
+  | B : 'b tv -> 'a t_gadt_any
+|}]
+
+type ('a : any) t_gadt_any_multiple_fields =
+  | A : float# * 'a tf -> 'a t_gadt_any_multiple_fields
+  | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
+
+[%%expect {|
+type ('a : any) t_gadt_any_multiple_fields =
+    A : ('a : float64). float# * 'a tf -> 'a t_gadt_any_multiple_fields
+  | B : 'b tv * float# -> 'a t_gadt_any_multiple_fields
+|}]
+
+type ('a : any) t_gadt_any_bad =
+  | A : float# * 'a tv -> 'a t_gadt_any_bad
+
+[%%expect{|
+Line 2, characters 2-43:
+2 |   | A : float# * 'a tv -> 'a t_gadt_any_bad
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument,
+       float#, but found boxed argument, 'a tv.
+|}]
+
+(* Inlined record syntax *)
+
+(* it just isn't supported yet *)
+
+type t_inlined_record = A of { x : float# }
+
+[%%expect{|
+Line 1, characters 31-41:
+1 | type t_inlined_record = A of { x : float# }
+                                   ^^^^^^^^^^
+Error: Type float# has layout float64.
+       Inlined records may not yet contain types of this layout.
+|}]

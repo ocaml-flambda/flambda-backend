@@ -1804,7 +1804,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
       | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
       | Constructor_mixed shape ->
           let read =
-            match get_mixed_record_element shape field with
+            match get_mixed_product_element shape field with
             | Value_prefix -> Mread_value_prefix Pointer
             | Flat_suffix flat ->
                 let flat_read =

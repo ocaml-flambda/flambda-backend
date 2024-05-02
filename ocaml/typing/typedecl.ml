@@ -27,9 +27,9 @@ module String = Misc.Stdlib.String
 type native_repr_kind = Unboxed | Untagged
 
 type jkind_sort_loc =
-  | Cstr_tuple
-  | Record
-  | Unboxed_record
+  | Cstr_tuple of { unboxed : bool }
+  | Record of { unboxed : bool }
+  | Inlined_record of { unboxed : bool }
   | External
   | External_with_layout_poly
 
@@ -1095,7 +1095,7 @@ let check_abbrev env sdecl (id, decl) =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~why ~allow_unboxed env loc kloc typ =
+let check_representable ~why ~allow_non_value env loc kloc typ =
   match Ctype.type_sort ~why env typ with
   (* CR layouts v3: This is a convenient place to rule out [float#] in
      structures for now, as it is called on all the types in declared blocks in
@@ -1110,7 +1110,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
          sort - we just want the [const]. *)
       | Void | Value -> ()
       | Float64 | Word | Bits32 | Bits64 as const ->
-          if not allow_unboxed then
+          if not allow_non_value then
             raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
@@ -1121,7 +1121,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
 *)
 (* [update_label_jkinds] additionally returns whether all the jkinds
    were void *)
-let update_label_jkinds env loc lbls named =
+let update_label_jkinds env loc lbls named ~is_inlined =
   (* [named] is [Some jkinds] for top-level records (we will update the
      jkinds) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
@@ -1131,10 +1131,15 @@ let update_label_jkinds env loc lbls named =
     | None -> fun _ _ -> ()
     | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
   in
+  let kloc =
+    if is_inlined
+    then Inlined_record { unboxed = false }
+    else Record { unboxed = false }
+  in
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~why:(Label_declaration ld_id)
-        ~allow_unboxed:(Option.is_some named) env ld_loc Record ld_type;
+        ~allow_non_value:(Option.is_some named) env ld_loc kloc ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       update idx ld_jkind;
       {lbl with ld_jkind}
@@ -1152,12 +1157,15 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~why:(Constructor_declaration idx) ~allow_unboxed:true
-        env loc Cstr_tuple ty;
+      check_representable ~why:(Constructor_declaration idx)
+        ~allow_non_value:true
+        env loc (Cstr_tuple { unboxed = false }) ty;
       jkinds.(idx) <- Ctype.type_jkind env ty) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
-    let lbls, all_void = update_label_jkinds env loc lbls None in
+    let lbls, all_void =
+      update_label_jkinds env loc lbls None ~is_inlined:true
+    in
     jkinds.(0) <- Jkind.value ~why:Boxed_record;
     Types.Cstr_record lbls, all_void
 
@@ -1349,12 +1357,14 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~why:(Label_declaration ld_id) ~allow_unboxed:false
-        env ld_loc Unboxed_record ld_type;
+      check_representable ~why:(Label_declaration ld_id) ~allow_non_value:false
+        env ld_loc (Record { unboxed = true }) ld_type;
       let ld_jkind = Ctype.type_jkind env ld_type in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
-      let lbls, all_void = update_label_jkinds env loc lbls (Some jkinds) in
+      let lbls, all_void =
+        update_label_jkinds env loc lbls (Some jkinds) ~is_inlined:false
+      in
       let jkind = Jkind.for_boxed_record ~all_void in
       let reprs =
         List.mapi
@@ -1462,13 +1472,15 @@ let update_decl_jkind env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             check_representable ~why:(Constructor_declaration 0)
-              ~allow_unboxed:false env cd_loc Cstr_tuple ty;
+              ~allow_non_value:false env cd_loc (Cstr_tuple { unboxed = true })
+              ty;
             let jkind = Ctype.type_jkind env ty in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~why:(Label_declaration ld_id)
-              ~allow_unboxed:false env ld_loc Record ld_type;
+              ~allow_non_value:false env ld_loc
+              (Inlined_record { unboxed = true }) ld_type;
             let ld_jkind = Ctype.type_jkind env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
@@ -3501,15 +3513,17 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
-      | Cstr_tuple -> "Constructor argument types"
-      | Record -> "Record element types"
-      | Unboxed_record -> "Unboxed record element types"
+      | Cstr_tuple _ -> "Constructor argument types"
+      | Inlined_record { unboxed = false }
+      | Record { unboxed = false } -> "Record element types"
+      | Inlined_record { unboxed = true }
+      | Record { unboxed = true } -> "Unboxed record element types"
       | External -> "Types in an external"
       | External_with_layout_poly -> "Types in an external"
     in
     let extra =
       match kloc with
-      | Cstr_tuple | Record | Unboxed_record | External -> dprintf ""
+      | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
           made representable by [@@layout_poly])"
@@ -3526,13 +3540,14 @@ let report_error ppf = function
       val_name (Jkind.Violation.report_with_offender ~offender) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
-      match lloc, sort_const with
-      | Record, Float64 -> "Unboxed variant records"
-      | Record, _ -> "Records"
-      | Unboxed_record, _ -> "Unboxed records"
-      | Cstr_tuple, Float64 -> "Unboxed variants"
-      | Cstr_tuple, _ -> "Variants"
-      | (External | External_with_layout_poly), _ -> assert false
+      match lloc with
+      | Inlined_record { unboxed = false } -> "Inlined records"
+      | Inlined_record { unboxed = true } -> "Unboxed inlined records"
+      | Record { unboxed = false } -> "Records"
+      | Record { unboxed = true }-> "Unboxed records"
+      | Cstr_tuple { unboxed = false } -> "Variants"
+      | Cstr_tuple { unboxed = true } -> "Unboxed variants"
+      | External | External_with_layout_poly -> assert false
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"

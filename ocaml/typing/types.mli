@@ -554,12 +554,12 @@ and abstract_reason =
     Abstract_def
   | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
-(* A mixed record contains a possibly-empty prefix of values followed by a
+(* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
    need not be scanned by the garbage collector.
 *)
 and flat_element = Imm | Float | Float64 | Bits32 | Bits64 | Word
-and mixed_record_shape =
+and mixed_product_shape =
   { value_prefix_len : int;
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
@@ -576,7 +576,7 @@ and record_representation =
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
      but operations on these (e.g., projection, update) work with unboxed floats
      rather than boxed floats. *)
-  | Record_mixed of mixed_record_shape
+  | Record_mixed of mixed_product_shape
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
@@ -599,7 +599,7 @@ and constructor_representation =
      This is named 'uniform_value' to distinguish from the 'Constructor_uniform'
      of [lambda.mli], which can also represent all-flat-float records.
   *)
-  | Constructor_mixed of mixed_record_shape
+  | Constructor_mixed of mixed_product_shape
   (* A constructor that has some non-value fields. *)
 
 and label_declaration =
@@ -870,12 +870,13 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-type mixed_record_element =
+type mixed_product_element =
   | Value_prefix
   | Flat_suffix of flat_element
 
 (** Raises if the int is out of bounds. *)
-val get_mixed_record_element : mixed_record_shape -> int -> mixed_record_element
+val get_mixed_product_element :
+  mixed_product_shape -> int -> mixed_product_element
 
 val equal_flat_element : flat_element -> flat_element -> bool
 val compare_flat_element : flat_element -> flat_element -> int

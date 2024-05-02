@@ -789,7 +789,7 @@ val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
-val transl_mixed_record_shape: Types.mixed_record_shape -> mixed_block_shape
+val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 
 type mixed_block_element =
   | Value_prefix

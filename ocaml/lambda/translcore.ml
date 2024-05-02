@@ -515,7 +515,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   in
                   Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
               | Constructor_mixed shape ->
-                  let shape = Lambda.transl_mixed_record_shape shape in
+                  let shape = Lambda.transl_mixed_product_shape shape in
                   Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
             in
             Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
@@ -542,7 +542,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Pmakeblock(0, Immutable, Some (Pgenval :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
-                  let shape = Lambda.transl_mixed_record_shape shape in
+                  let shape = Lambda.transl_mixed_product_shape shape in
                   let shape =
                     { shape with value_prefix_len = shape.value_prefix_len + 1 }
                   in
@@ -1798,7 +1798,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
         | Record_mixed shape ->
-            let shape = transl_mixed_record_shape shape in
+            let shape = transl_mixed_product_shape shape in
             Lprim (Pmakemixedblock (0, mut, shape, Option.get mode), ll, loc)
     in
     begin match opt_init_expr with
