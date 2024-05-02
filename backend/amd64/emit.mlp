@@ -784,32 +784,19 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | (Float | Float32), Reg.Reg _, (Float | Float32), Reg.Reg _
-    | Vec128, _, Vec128, _ ->
-      (* Vec128 stack slots are always aligned. *)
+    | Float, Reg _, Float, Reg _
+    | Float32, Reg _, Float32, Reg _
+    | Vec128, _, Vec128, _  (* Vec128 stack slots are always aligned. *) ->
       I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
     | Float32, _, Float32, _ ->
       I.movss (reg src) (reg dst)
-    | Float, _, Int, _ | Int, _, Float, _ ->
-      (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
-         They should instead generate a separate Ispecific and this case should be
-         removed. *)
-      I.movq (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
-    | Vec128, _, _, _ | _, _, Vec128, _ ->
+    | _ ->
       Misc.fatal_errorf
-        "Illegal move between a vector and non-vector register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
-    | Float32, _, _, _ | _, _, Float32, _ ->
-      Misc.fatal_errorf
-        "Illegal move between a float32 and non-float32 register (%s to %s)\n"
-        (Reg.name src) (Reg.name dst)
-    | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
-      Misc.fatal_errorf
-        "Illegal move between a float and non-float register (%s to %s)\n"
+        "Illegal move between registers of different types (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
     end
 

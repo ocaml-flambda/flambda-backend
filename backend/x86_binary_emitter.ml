@@ -608,14 +608,11 @@ let emit_movupd b dst src =
   | _ -> assert false
 
 let emit_movd b ~dst ~src =
-  (* CR-soon mslater: float32_to_bits/float32_of_bits directly generate
-     a movd with an int reg, which becomes a Reg64. Here, we map it back
-     to a 32-bit reg. This should go through a separate Ispecific instead. *)
   match (dst, src) with
-  | Regf reg, ((Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
+  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
     buf_int8 b 0x66;
     emit_mod_rm_reg b no_rex [ 0x0F; 0x6E ] rm (rd_of_regf reg)
-  | ((Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
+  | ((Reg32 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
     buf_int8 b 0x66;
     emit_mod_rm_reg b no_rex [ 0x0F; 0x7E ] rm (rd_of_regf reg)
   | _ -> assert false
