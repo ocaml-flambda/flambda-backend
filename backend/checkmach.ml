@@ -77,20 +77,9 @@ module Witness = struct
     Format.fprintf ppf "%a {%a}@," print_kind kind Debuginfo.print_compact dbg
 end
 
-(* CR gyorsh: avoid duplicating somehwat tricky logic. is there a nicer way
-   way? *)
-let take_first_n (t : 't) n ~(fold : ('elt -> 'a -> 'a) -> 't -> 'a -> 'a)
-    ~remove ~cardinal =
+let take_first_n t n ~to_seq ~of_seq ~cardinal =
   let len = cardinal t in
-  if len <= n
-  then t
-  else
-    (* [0 < n < len <= n+n] so removing instead of constructing a new set is
-       faster and would prefer witnesses at the function start. *)
-    fst
-      (fold
-         (fun w (acc, c) -> if c > 0 then acc, c - 1 else remove w acc, c)
-         t (t, n))
+  if len <= n then t else t |> to_seq |> Seq.take n |> of_seq
 
 module Witnesses : sig
   type t
@@ -133,7 +122,7 @@ end = struct
 
   let size t = cardinal t
 
-  let cutoff t ~n = take_first_n t n ~fold ~remove ~cardinal
+  let cutoff t ~n = take_first_n t n ~to_seq ~of_seq ~cardinal
 
   let join t1 t2 =
     let res = union t1 t2 in
@@ -360,10 +349,8 @@ end = struct
 
     let cutoff t n =
       let t = cutoff_witnesses t n in
-      let fold f t init =
-        Var.Map.fold (fun key _data acc -> f key acc) t init
-      in
-      take_first_n t n ~fold ~remove:Var.Map.remove ~cardinal:Var.Map.cardinal
+      take_first_n t n ~to_seq:Var.Map.to_seq ~of_seq:Var.Map.of_seq
+        ~cardinal:Var.Map.cardinal
   end
 
   (** Normal form of Transform.
@@ -570,8 +557,7 @@ end = struct
 
     let cutoff t n =
       let t = map (Transform.cutoff_witnesses ~n) t in
-      let fold f t init = M.fold (fun key _ -> f key) t init in
-      take_first_n t n ~fold ~remove:M.remove ~cardinal:M.cardinal
+      take_first_n t n ~to_seq:M.to_seq ~of_seq:M.of_seq ~cardinal:M.cardinal
   end
 
   (* CR-someday gyorsh: treatment of vars and top is duplicated between Args and
