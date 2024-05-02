@@ -49,13 +49,21 @@
 
 static _Atomic int64_t fiber_id = 0;
 
-uintnat caml_get_init_stack_wsize (void)
+uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
 {
-  uintnat default_stack_wsize = Wsize_bsize(Stack_init_bsize);
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  uintnat init_stack_wsize =
+    thread_stack_wsz < 0
+    ? caml_params->init_main_stack_wsz
+    : caml_params->init_thread_stack_wsz > 0 ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
+#else
+  (void) thread_stack_wsz;
+  uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);
+#endif
   uintnat stack_wsize;
 
-  if (default_stack_wsize < caml_max_stack_wsize)
-    stack_wsize = default_stack_wsize;
+  if (init_stack_wsize < caml_max_stack_wsize)
+    stack_wsize = init_stack_wsize;
   else
     stack_wsize = caml_max_stack_wsize;
 
@@ -97,11 +105,11 @@ struct stack_info** caml_alloc_stack_cache (void)
 
 Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 {
+#ifdef USE_MMAP_MAP_STACK
   size_t len = sizeof(struct stack_info) +
                sizeof(value) * wosize +
                8 /* for alignment to 16-bytes, needed for arm64 */ +
                sizeof(struct stack_handler);
-#ifdef USE_MMAP_MAP_STACK
   struct stack_info* si;
   si = mmap(NULL, len, PROT_WRITE | PROT_READ,
              MAP_ANONYMOUS | MAP_PRIVATE | MAP_STACK, -1, 0);
@@ -111,7 +119,65 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   si->size = len;
   return si;
 #else
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  /* (We use the following strategy only in native code, because bytecode
+   * has its own way of dealing with stack checks.)
+   *
+   * We want to detect a stack overflow by triggering a segfault when a
+   * given part of the memory is accessed; in order to do so, we protect
+   * a page near the end of the stack to make it unreadable/unwritable.
+   * A signal handler for segfault will be installed, that will check if
+   * the invalid address is in the range we protect, and will raise a stack
+   * overflow exception accordingly.
+   *
+   * The sequence of steps to achieve that is loosely based on the glibc
+   * code (See nptl/allocatestack.c):
+   * - first, we mmap the memory for the stack, with PROT_NONE so that
+   *   the allocated memory is not committed;
+   * - second, we madvise to not use huge pages for this memory chunk;
+   * - third, we restore the read/write permissions for the whole memory
+   *   chunk;
+   * - finally, we disable the read/write permissions again, but only
+   *   for the page that will act as the guard.
+   *
+   * The reasoning behind this convoluted process is that if we only
+   * mmap and then mprotect, we incur the risk of splitting a huge page
+   * and losing its benefits while causing more bookkeeping.
+   */
+  size_t bsize = Bsize_wsize(wosize);
+  int page_size = getpagesize();
+  int num_pages = (bsize + page_size - 1) / page_size;
+  bsize = (num_pages + 2) * page_size;
+  size_t len = sizeof(struct stack_info) +
+               bsize +
+               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               sizeof(struct stack_handler);
+  struct stack_info* block;
+  block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+  if (block == MAP_FAILED) {
+    return NULL;
+  }
+  if (madvise (block, len, MADV_NOHUGEPAGE)) {
+    munmap(block, len);
+    return NULL;
+  }
+  if (mprotect(block, len, PROT_READ | PROT_WRITE)) {
+    munmap(block, len);
+    return NULL;
+  }
+  if (mprotect((char *) block + page_size, page_size, PROT_NONE)) {
+    munmap(block, len);
+    return NULL;
+  }
+  block->size = len;
+  return block;
+#else
+  size_t len = sizeof(struct stack_info) +
+               sizeof(value) * wosize +
+               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               sizeof(struct stack_handler);
   return caml_stat_alloc_noexc(len);
+#endif /* NATIVE_CODE */
 #endif /* USE_MMAP_MAP_STACK */
 }
 
@@ -808,6 +874,16 @@ void caml_free_stack (struct stack_info* stack)
 
   CAMLassert(stack->magic == 42);
   CAMLassert(cache != NULL);
+
+#ifndef USE_MMAP_MAP_STACK
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  int page_size = getpagesize();
+  mprotect((void *) ((char *) stack + page_size),
+           page_size,
+           PROT_READ | PROT_WRITE);
+#endif
+#endif
+
   if (stack->cache_bucket != -1) {
     stack->exception_ptr =
       (void*)(cache[stack->cache_bucket]);
@@ -823,7 +899,11 @@ void caml_free_stack (struct stack_info* stack)
 #ifdef USE_MMAP_MAP_STACK
     munmap(stack, stack->size);
 #else
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+    munmap(stack, stack->size);
+#else
     caml_stat_free(stack);
+#endif
 #endif
   }
 }

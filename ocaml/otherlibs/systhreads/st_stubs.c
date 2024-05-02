@@ -354,6 +354,16 @@ static void caml_thread_leave_blocking_section(void)
   restore_runtime_state(th);
 }
 
+int get_pthreads_stack_size(void) {
+  pthread_attr_t attr;
+  size_t res = 8388608;
+  if (pthread_attr_init(&attr) == 0) {
+    pthread_attr_getstacksize(&attr, &res);
+  }
+  pthread_attr_destroy(&attr);
+  return res;
+}
+
 /* Create and setup a new thread info block.
    This block has no associated thread descriptor and
    is not inserted in the list of threads. */
@@ -362,7 +372,7 @@ static caml_thread_t caml_thread_new_info(void)
 {
   caml_thread_t th;
   caml_domain_state *domain_state;
-  uintnat stack_wsize = caml_get_init_stack_wsize();
+  uintnat stack_wsize = caml_get_init_stack_wsize(get_pthreads_stack_size());
 
   domain_state = Caml_state;
   th = NULL;

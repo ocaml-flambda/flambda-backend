@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "caml/alloc.h"
 #include "caml/backtrace.h"
@@ -130,6 +131,32 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
     /* Stop when we reach the current exception handler */
     if (sp > trapsp) return;
   }
+}
+
+void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp) {
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+  /* if we have protected part of the memory, and get an rsp in the
+   * protected range, just do nothing - using rsp would trigger another
+   * segfault, while we are probably in the process of raising the
+   * exception from a segfault... */
+  struct stack_info *block = Caml_state->current_stack;
+  int page_size = getpagesize();
+  char* protected_low = (char *) block + page_size;
+  char* protected_high = protected_low + page_size;
+  if ((rsp >= protected_low) && (rsp < protected_high)) {
+    return;
+  }
+#endif
+  char* pc;
+  char* sp;
+#ifdef WITH_FRAME_POINTERS
+  pc = rsp + 8;
+  sp = rsp + 16;
+#else
+  pc = rsp;
+  sp = rsp + 8;
+#endif
+  caml_stash_backtrace(exn, *((uintnat*) pc), sp, trapsp);
 }
 
 /* minimum size to allocate a backtrace (in slots) */
