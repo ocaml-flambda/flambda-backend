@@ -1294,6 +1294,11 @@ let update_constructor_representation
               in
               raise (Error (loc, Illegal_mixed_product violation)))
     | Cstr_record fields ->
+        (* CR layouts v5.1: Mixed inline records are rejected in
+           [update_label_jkinds] so this apparent "support" is misleading.
+           This will be resolved soon by adding support for mixed inline
+           records.
+        *)
         let arg_reprs =
           List.map (fun ld ->
               Element_repr.classify env ld.Types.ld_type ld.ld_jkind, ld)
