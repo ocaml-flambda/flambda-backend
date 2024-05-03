@@ -1819,7 +1819,8 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
                 in
                 Mread_flat_suffix flat_read
           in
-          Pmixedfield (pos, read, Reads_agree)
+          let shape = Lambda.transl_mixed_product_shape shape in
+          Pmixedfield (pos, read, shape, Reads_agree)
     in
     let jkind = cstr.cstr_arg_jkinds.(field) in
     let sort = Jkind.sort_of_jkind jkind in
@@ -2191,7 +2192,10 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
                 in
                 Mread_flat_suffix read
             in
-            Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [ arg ], loc),
+            let shape : Lambda.mixed_block_shape =
+              { value_prefix_len; flat_suffix }
+            in
+            Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
             lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in

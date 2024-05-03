@@ -29,7 +29,7 @@ let is_unboxing_beneficial_for_epa (epa : Extra_param_and_args.t) =
 let rec filter_non_beneficial_decisions decision : U.decision =
   match (decision : U.decision) with
   | Do_not_unbox _ -> decision
-  | Unbox (Unique_tag_and_size { tag; fields }) ->
+  | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
     let is_unboxing_beneficial, fields =
       List.fold_left_map
         (fun is_unboxing_beneficial ({ epa; decision; kind } : U.field_decision)
@@ -42,7 +42,7 @@ let rec filter_non_beneficial_decisions decision : U.decision =
         false fields
     in
     if is_unboxing_beneficial
-    then Unbox (Unique_tag_and_size { tag; fields })
+    then Unbox (Unique_tag_and_size { tag; shape; fields })
     else Do_not_unbox Not_beneficial
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     let is_unboxing_beneficial = ref false in
@@ -62,13 +62,17 @@ let rec filter_non_beneficial_decisions decision : U.decision =
     let is_unboxing_beneficial = ref false in
     let fields_by_tag =
       Tag.Scannable.Map.map
-        (List.map
-           (fun ({ epa; decision; kind } : U.field_decision) : U.field_decision
-           ->
-             is_unboxing_beneficial
-               := !is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa;
-             let decision = filter_non_beneficial_decisions decision in
-             { epa; decision; kind }))
+        (fun (shape, fields) ->
+          ( shape,
+            List.map
+              (fun ({ epa; decision; kind } : U.field_decision) :
+                   U.field_decision ->
+                is_unboxing_beneficial
+                  := !is_unboxing_beneficial
+                     || is_unboxing_beneficial_for_epa epa;
+                let decision = filter_non_beneficial_decisions decision in
+                { epa; decision; kind })
+              fields ))
         fields_by_tag
     in
     if !is_unboxing_beneficial

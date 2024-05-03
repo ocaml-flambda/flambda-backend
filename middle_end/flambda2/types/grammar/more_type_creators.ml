@@ -33,6 +33,15 @@ let unknown (kind : K.t) =
 
 let unknown_like t = unknown (TG.kind t)
 
+let unknown_from_shape (shape : K.Block_shape.t) index =
+  let kind =
+    match shape with
+    | Value_only -> K.value
+    | Float_record -> K.naked_float
+    | Mixed_record fields -> (K.Mixed_block_shape.field_kinds fields).(index)
+  in
+  unknown kind
+
 let bottom (kind : K.t) =
   match kind with
   | Value -> TG.bottom_value
@@ -142,15 +151,15 @@ let blocks_with_these_tags tags alloc_mode : _ Or_unknown.t =
   if not (Tag.Set.for_all Tag.is_structured_block tags)
   then Unknown
   else
+    let tags = Tag.Map.of_set (fun _ -> Or_unknown.Unknown) tags in
     let blocks =
-      TG.Row_like_for_blocks.create_blocks_with_these_tags ~field_kind:K.value
-        tags alloc_mode
+      TG.Row_like_for_blocks.create_blocks_with_these_tags tags alloc_mode
     in
     Known
       (TG.create_variant ~is_unique:false
          ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks))
 
-let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
+let immutable_block ~is_unique tag ~shape alloc_mode ~fields =
   match Targetint_31_63.of_int_option (List.length fields) with
   | None ->
     (* CR-someday mshinwell: This should be a special kind of error. *)
@@ -159,13 +168,20 @@ let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
     TG.create_variant ~is_unique ~immediates:(Known TG.bottom_naked_immediate)
       ~blocks:
         (Known
-           (TG.Row_like_for_blocks.create ~field_kind ~field_tys:fields
-              (Closed tag) alloc_mode))
+           (TG.Row_like_for_blocks.create ~shape ~field_tys:fields (Closed tag)
+              alloc_mode))
 
-let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
+let immutable_block_with_size_at_least ~tag ~n ~shape ~field_n_minus_one =
   let n = Targetint_31_63.to_int n in
   let field_tys =
     List.init n (fun index ->
+        let field_kind =
+          match (shape : K.Block_shape.t) with
+          | Value_only -> K.value
+          | Float_record -> K.naked_float
+          | Mixed_record kinds ->
+            (K.Mixed_block_shape.field_kinds kinds).(index)
+        in
         if index < n - 1
         then unknown field_kind
         else TG.alias_type_of field_kind (Simple.var field_n_minus_one))
@@ -174,18 +190,19 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
     ~immediates:(Known (bottom K.naked_immediate))
     ~blocks:
       (Known
-         (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)
+         (TG.Row_like_for_blocks.create ~shape ~field_tys (Open tag)
             (Alloc_mode.For_types.unknown ())))
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
-    let field_tys_by_tag =
+    let shape_and_field_tys_by_tag =
       Tag.Scannable.Map.fold
         (fun tag ty non_const_ctors ->
           Tag.Map.add (Tag.Scannable.to_tag tag) ty non_const_ctors)
         non_const_ctors Tag.Map.empty
     in
-    TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag alloc_mode
+    TG.Row_like_for_blocks.create_exactly_multiple ~shape_and_field_tys_by_tag
+      alloc_mode
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
     ~blocks:(Known blocks)
@@ -330,14 +347,14 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     let const_ctors = these_naked_immediates consts in
     let non_const_ctors =
       Tag.Scannable.Map.map
-        (fun fields ->
-          List.map (fun subkind -> unknown_with_subkind subkind) fields)
+        (fun (shape, fields) ->
+          shape, List.map (fun subkind -> unknown_with_subkind subkind) fields)
         non_consts
     in
     variant ~const_ctors ~non_const_ctors alloc_mode
   | Float_block { num_fields } ->
     immutable_block ~is_unique:false Tag.double_array_tag
-      ~field_kind:Flambda_kind.naked_float
+      ~shape:Flambda_kind.Block_shape.Float_record
       ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
       alloc_mode
   | Float_array ->

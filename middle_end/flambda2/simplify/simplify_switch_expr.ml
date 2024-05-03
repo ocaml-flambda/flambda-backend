@@ -291,7 +291,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   let uacc =
     let fields = List.map Field_of_static_block.tagged_immediate consts in
     let block_type =
-      T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
+      T.immutable_block ~is_unique:false Tag.zero ~shape:Value_only
         Alloc_mode.For_types.heap
         ~fields:
           (List.map

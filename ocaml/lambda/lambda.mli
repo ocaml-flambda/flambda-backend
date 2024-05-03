@@ -109,13 +109,15 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  | Pmixedfield of
+      int * mixed_block_read * mixed_block_shape * field_read_semantics
   (* [Pmixedfield] is an access to either the flat suffix or value prefix of a
      mixed record.
   *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
+  | Psetmixedfield of
+      int * mixed_block_write * mixed_block_shape * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list

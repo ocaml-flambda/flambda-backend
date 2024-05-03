@@ -208,15 +208,21 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> try_canonical_simple ()
-          | Some ((tag, size), field_types, alloc_mode) -> (
+          | Some (tag, shape, size, field_types, alloc_mode) -> (
             assert (
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));
             (* CR mshinwell: Could recognise other things, e.g. tagged
                immediates and float arrays, supported by [Static_part]. *)
-            match Tag.Scannable.of_tag tag with
-            | None -> try_canonical_simple ()
-            | Some tag -> (
+            match shape with
+            | Float_record | Mixed_record _ -> try_canonical_simple ()
+            | Value_only -> (
+              let tag =
+                match Tag.Scannable.of_tag tag with
+                | Some tag -> tag
+                | None ->
+                  Misc.fatal_errorf "Value-only block has tag %a" Tag.print tag
+              in
               let field_types = TG.Product.Int_indexed.components field_types in
               match
                 try_to_reify_fields env ~var_allowed alloc_mode ~field_types

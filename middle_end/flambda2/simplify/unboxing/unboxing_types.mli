@@ -42,12 +42,14 @@ end
 type unboxing_decision =
   | Unique_tag_and_size of
       { tag : Tag.t;
+        shape : Flambda_kind.Block_shape.t;
         fields : field_decision list
       }
   | Variant of
       { tag : Extra_param_and_args.t;
         const_ctors : const_ctors_decision;
-        fields_by_tag : field_decision list Tag.Scannable.Map.t
+        fields_by_tag :
+          (Flambda_kind.Block_shape.t * field_decision list) Tag.Scannable.Map.t
       }
   | Closure_single_entry of
       { function_slot : Function_slot.t;

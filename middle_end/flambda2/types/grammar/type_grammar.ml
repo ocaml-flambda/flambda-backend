@@ -130,33 +130,38 @@ and head_of_kind_region = unit
  * type 'index row_like_index = { at_least : 'index; at_most : 'index }
  * representing { x | at_least \subset x /\ x \subset at_most }
  *)
-and 'index row_like_index =
-  | Known of 'index  (** [Known x] represents the singleton set: { x } *)
-  | At_least of 'index
+and 'lattice row_like_index_domain =
+  | Known of 'lattice  (** [Known x] represents the singleton set: { x } *)
+  | At_least of 'lattice
       (** [At_least x] represents the set { y | x \subset y } *)
 
-and ('index, 'maps_to) row_like_case =
+and ('lattice, 'shape) row_like_index =
+  { domain : 'lattice row_like_index_domain;
+    shape : 'shape
+  }
+
+and ('lattice, 'shape, 'maps_to) row_like_case =
   { maps_to : 'maps_to;
-        (** Kinds different from [Value] are only allowed in cases with known
-            tags. Currently cases with tag 254 must have fields of kind
-            [Naked_float] and all other must have fields of kind [Value]. *)
-    index : 'index row_like_index;
+    index : ('lattice, 'shape) row_like_index;
     env_extension : env_extension
   }
 
+and row_like_block_case = (Block_size.t, K.Block_shape.t, t array) row_like_case
+
 and row_like_for_blocks =
-  { known_tags : (Block_size.t, int_indexed_product) row_like_case Tag.Map.t;
-    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t;
+  { known_tags : row_like_block_case Or_unknown.t Tag.Map.t;
+    other_tags : row_like_block_case Or_bottom.t;
     alloc_mode : Alloc_mode.For_types.t
   }
 
 and row_like_for_closures =
   { known_closures :
-      (Set_of_closures_contents.t, closures_entry) row_like_case
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
       Function_slot.Map.t;
     (* CR pchambart: this field is always Bottom, we should remove it *)
     other_closures :
-      (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
+      Or_bottom.t
   }
 
 and closures_entry =
@@ -177,11 +182,6 @@ and function_slot_indexed_product =
 
 and value_slot_indexed_product =
   { value_slot_components_by_index : t Value_slot.Map.t }
-
-and int_indexed_product =
-  { fields : t array;
-    kind : Flambda_kind.t
-  }
 
 and function_type =
   { code_id : Code_id.t;
@@ -301,23 +301,26 @@ and free_names_head_of_kind_rec_info head =
 and free_names_head_of_kind_region () = Name_occurrences.empty
 
 and free_names_row_like :
-      'row_tag 'index 'maps_to 'known.
-      free_names_index:('index -> Name_occurrences.t) ->
+      'row_tag 'lattice 'shape 'maps_to 'known.
+      free_names_lattice:('lattice -> Name_occurrences.t) ->
       free_names_maps_to:
         (follow_value_slots:bool -> 'maps_to -> Name_occurrences.t) ->
       follow_value_slots:bool ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       fold_known:
-        (('row_tag -> ('index, 'maps_to) row_like_case -> 'acc -> 'acc) ->
+        (('row_tag ->
+         ('lattice, 'shape, 'maps_to) row_like_case ->
+         'acc ->
+         'acc) ->
         'known ->
         'acc ->
         'acc) ->
       Name_occurrences.t =
- fun ~free_names_index ~free_names_maps_to ~follow_value_slots ~known ~other
+ fun ~free_names_lattice ~free_names_maps_to ~follow_value_slots ~known ~other
      ~fold_known ->
-  let[@inline always] free_names_index index =
-    match index with Known index | At_least index -> free_names_index index
+  let[@inline always] free_names_index { domain; shape = _ } =
+    match domain with Known index | At_least index -> free_names_lattice index
   in
   let from_known =
     fold_known
@@ -340,14 +343,22 @@ and free_names_row_like :
 
 and free_names_row_like_for_blocks ~follow_value_slots
     { known_tags; other_tags; alloc_mode = _ } =
+  let fold_known f map acc =
+    Tag.Map.fold
+      (fun tag case acc ->
+        match (case : _ Or_unknown.t) with
+        | Unknown -> acc
+        | Known case -> f tag case acc)
+      map acc
+  in
   free_names_row_like
-    ~free_names_index:(fun _block_size -> Name_occurrences.empty)
+    ~free_names_lattice:(fun _block_size -> Name_occurrences.empty)
     ~free_names_maps_to:free_names_int_indexed_product ~follow_value_slots
-    ~known:known_tags ~other:other_tags ~fold_known:Tag.Map.fold
+    ~known:known_tags ~other:other_tags ~fold_known
 
 and free_names_row_like_for_closures ~follow_value_slots
     { known_closures; other_closures } =
-  free_names_row_like ~free_names_index:Set_of_closures_contents.free_names
+  free_names_row_like ~free_names_lattice:Set_of_closures_contents.free_names
     ~free_names_maps_to:free_names_closures_entry ~follow_value_slots
     ~known:known_closures ~other:other_closures
     ~fold_known:Function_slot.Map.fold
@@ -394,7 +405,7 @@ and free_names_value_slot_indexed_product ~follow_value_slots
         value_slot)
     value_slot_components_by_index Name_occurrences.empty
 
-and free_names_int_indexed_product ~follow_value_slots { fields; kind = _ } =
+and free_names_int_indexed_product ~follow_value_slots fields =
   Array.fold_left
     (fun free_names_acc t ->
       Name_occurrences.union (free_names0 ~follow_value_slots t) free_names_acc)
@@ -608,22 +619,27 @@ and apply_renaming_head_of_kind_rec_info head renaming =
 and apply_renaming_head_of_kind_region () _renaming = ()
 
 and apply_renaming_row_like :
-      'index 'maps_to 'known.
-      apply_renaming_index:('index -> Renaming.t -> 'index) ->
+      'lattice 'shape 'maps_to 'known.
+      apply_renaming_lattice:('lattice -> Renaming.t -> 'lattice) ->
       apply_renaming_maps_to:('maps_to -> Renaming.t -> 'maps_to) ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       map_known:
-        ((('index, 'maps_to) row_like_case -> ('index, 'maps_to) row_like_case) ->
+        ((('lattice, 'shape, 'maps_to) row_like_case ->
+         ('lattice, 'shape, 'maps_to) row_like_case) ->
         'known ->
         'known) ->
       Renaming.t ->
-      ('known * ('index, 'maps_to) row_like_case Or_bottom.t) option =
- fun ~apply_renaming_index ~apply_renaming_maps_to ~known ~other ~map_known
+      ('known * ('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t) option =
+ fun ~apply_renaming_lattice ~apply_renaming_maps_to ~known ~other ~map_known
      renaming ->
-  let rename_index = function
-    | Known index -> Known (apply_renaming_index index renaming)
-    | At_least index -> At_least (apply_renaming_index index renaming)
+  let rename_index { domain; shape } =
+    let domain =
+      match domain with
+      | Known index -> Known (apply_renaming_lattice index renaming)
+      | At_least index -> At_least (apply_renaming_lattice index renaming)
+    in
+    { domain; shape }
   in
   let known' =
     map_known
@@ -648,12 +664,14 @@ and apply_renaming_row_like :
 
 and apply_renaming_row_like_for_blocks
     ({ known_tags; other_tags; alloc_mode } as row_like_for_tags) renaming =
+  let map_known map_case =
+    Tag.Map.map_sharing (Or_unknown.map_sharing ~f:map_case)
+  in
   match
     apply_renaming_row_like
-      ~apply_renaming_index:(fun block_size _ -> block_size)
+      ~apply_renaming_lattice:(fun block_size _ -> block_size)
       ~apply_renaming_maps_to:apply_renaming_int_indexed_product
-      ~known:known_tags ~other:other_tags ~map_known:Tag.Map.map_sharing
-      renaming
+      ~known:known_tags ~other:other_tags ~map_known renaming
   with
   | None -> row_like_for_tags
   | Some (known_tags, other_tags) -> { known_tags; other_tags; alloc_mode }
@@ -662,7 +680,7 @@ and apply_renaming_row_like_for_closures
     ({ known_closures; other_closures } as row_like_for_closures) renaming =
   match
     apply_renaming_row_like
-      ~apply_renaming_index:Set_of_closures_contents.apply_renaming
+      ~apply_renaming_lattice:Set_of_closures_contents.apply_renaming
       ~apply_renaming_maps_to:apply_renaming_closures_entry
       ~known:known_closures ~other:other_closures
       ~map_known:Function_slot.Map.map_sharing renaming
@@ -706,12 +724,12 @@ and apply_renaming_value_slot_indexed_product { value_slot_components_by_index }
   in
   { value_slot_components_by_index }
 
-and apply_renaming_int_indexed_product { fields; kind } renaming =
+and apply_renaming_int_indexed_product fields renaming =
   let fields = Array.copy fields in
   for i = 0 to Array.length fields - 1 do
     fields.(i) <- apply_renaming fields.(i) renaming
   done;
-  { fields; kind }
+  fields
 
 and apply_renaming_function_type ({ code_id; rec_info } as function_type)
     renaming =
@@ -870,27 +888,25 @@ and print_head_of_kind_rec_info ppf head = Rec_info_expr.print ppf head
 and print_head_of_kind_region ppf () = Format.pp_print_string ppf "Region"
 
 and print_row_like :
-      'index 'maps_to 'known.
-      print_index:(Format.formatter -> 'index -> unit) ->
+      'lattice 'shape 'maps_to 'known.
+      print_index:
+        (Format.formatter -> ('lattice, 'shape) row_like_index -> unit) ->
       print_maps_to:(Format.formatter -> 'maps_to -> unit) ->
       print_known_map:
-        ((Format.formatter -> ('index, 'maps_to) row_like_case -> unit) ->
+        ((Format.formatter ->
+         ('lattice, 'shape, 'maps_to) row_like_case ->
+         unit) ->
         Format.formatter ->
         'known ->
         unit) ->
       is_empty_map_known:('known -> bool) ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       Alloc_mode.For_types.t ->
       Format.formatter ->
       unit =
  fun ~print_index ~print_maps_to ~print_known_map ~is_empty_map_known ~known
      ~other alloc_mode ppf ->
-  let print_index ppf = function
-    | Known index -> Format.fprintf ppf "(Known @[<2>%a@])" print_index index
-    | At_least min_index ->
-      Format.fprintf ppf "(At_least @[<2>%a@])" print_index min_index
-  in
   if row_like_is_bottom ~known ~other ~is_empty_map_known
   then
     let colour = Flambda_colours.top_or_bottom_type in
@@ -913,15 +929,39 @@ and print_row_like :
       (Or_bottom.print print) other
 
 and print_row_like_for_blocks ppf { known_tags; other_tags; alloc_mode } =
-  print_row_like ~print_index:Block_size.print
-    ~print_maps_to:print_int_indexed_product ~print_known_map:Tag.Map.print
-    ~is_empty_map_known:Tag.Map.is_empty ~known:known_tags ~other:other_tags
-    alloc_mode ppf
+  let print_index ppf { domain; shape = _ } =
+    (* TODO: print shape *)
+    match domain with
+    | Known index ->
+      Format.fprintf ppf "(Known @[<2>%a@])" Block_size.print index
+    | At_least min_index ->
+      Format.fprintf ppf "(At_least @[<2>%a@])" Block_size.print min_index
+  in
+  let print_known_map print_case ppf cases =
+    Tag.Map.print
+      (fun ppf case ->
+        match (case : _ Or_unknown.t) with
+        | Unknown -> Format.fprintf ppf "Unknown_shape"
+        | Known case -> print_case ppf case)
+      ppf cases
+  in
+  print_row_like ~print_index ~print_maps_to:print_int_indexed_product
+    ~print_known_map ~is_empty_map_known:Tag.Map.is_empty ~known:known_tags
+    ~other:other_tags alloc_mode ppf
 
 and print_row_like_for_closures alloc_mode ppf
     { known_closures; other_closures } =
-  print_row_like ~print_index:Set_of_closures_contents.print
-    ~print_maps_to:print_closures_entry ~print_known_map:Function_slot.Map.print
+  let print_index ppf { domain; shape = _ } =
+    match domain with
+    | Known index ->
+      Format.fprintf ppf "(Known @[<2>%a@])" Set_of_closures_contents.print
+        index
+    | At_least min_index ->
+      Format.fprintf ppf "(At_least @[<2>%a@])" Set_of_closures_contents.print
+        min_index
+  in
+  print_row_like ~print_index ~print_maps_to:print_closures_entry
+    ~print_known_map:Function_slot.Map.print
     ~is_empty_map_known:Function_slot.Map.is_empty ~known:known_closures
     ~other:other_closures alloc_mode ppf
 
@@ -947,8 +987,8 @@ and print_value_slot_indexed_product ppf { value_slot_components_by_index } =
     (Value_slot.Map.print print)
     value_slot_components_by_index
 
-and print_int_indexed_product ppf { fields; kind } =
-  Format.fprintf ppf "@[<hov 1>((kind %a)@ %a)@]" K.print kind
+and print_int_indexed_product ppf fields =
+  Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
     (Array.to_list fields)
 
@@ -1061,12 +1101,15 @@ and ids_for_export_head_of_kind_rec_info head =
 and ids_for_export_head_of_kind_region () = Ids_for_export.empty
 
 and ids_for_export_row_like :
-      'row_tag 'index 'maps_to 'known.
+      'row_tag 'lattice 'shape 'maps_to 'known.
       ids_for_export_maps_to:('maps_to -> Ids_for_export.t) ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       fold_known:
-        (('row_tag -> ('index, 'maps_to) row_like_case -> 'acc -> 'acc) ->
+        (('row_tag ->
+         ('lattice, 'shape, 'maps_to) row_like_case ->
+         'acc ->
+         'acc) ->
         'known ->
         'acc ->
         'acc) ->
@@ -1091,9 +1134,17 @@ and ids_for_export_row_like :
 
 and ids_for_export_row_like_for_blocks
     { known_tags; other_tags; alloc_mode = _ } =
+  let fold_known f map acc =
+    Tag.Map.fold
+      (fun tag case acc ->
+        match (case : _ Or_unknown.t) with
+        | Unknown -> acc
+        | Known case -> f tag case acc)
+      map acc
+  in
   ids_for_export_row_like
     ~ids_for_export_maps_to:ids_for_export_int_indexed_product ~known:known_tags
-    ~other:other_tags ~fold_known:Tag.Map.fold
+    ~other:other_tags ~fold_known
 
 and ids_for_export_row_like_for_closures { known_closures; other_closures } =
   ids_for_export_row_like ~ids_for_export_maps_to:ids_for_export_closures_entry
@@ -1128,7 +1179,7 @@ and ids_for_export_value_slot_indexed_product { value_slot_components_by_index }
     (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
     value_slot_components_by_index Ids_for_export.empty
 
-and ids_for_export_int_indexed_product { fields; kind = _ } =
+and ids_for_export_int_indexed_product fields =
   Array.fold_left
     (fun ids field -> Ids_for_export.union ids (ids_for_export field))
     Ids_for_export.empty fields
@@ -1303,20 +1354,21 @@ and apply_coercion_head_of_kind_rec_info head coercion : _ Or_bottom.t =
 and apply_coercion_head_of_kind_region () _coercion : _ Or_bottom.t = Ok ()
 
 and apply_coercion_row_like :
-      'index 'maps_to 'row_tag 'known.
+      'lattice 'shape 'maps_to 'row_tag 'known.
       apply_coercion_maps_to:
         ('row_tag option -> 'maps_to -> Coercion.t -> 'maps_to Or_bottom.t) ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       is_empty_map_known:('known -> bool) ->
       filter_map_known:
         (('row_tag ->
-         ('index, 'maps_to) row_like_case ->
-         ('index, 'maps_to) row_like_case option) ->
+         ('lattice, 'shape, 'maps_to) row_like_case ->
+         ('lattice, 'shape, 'maps_to) row_like_case option) ->
         'known ->
         'known) ->
       Coercion.t ->
-      ('known * ('index, 'maps_to) row_like_case Or_bottom.t) Or_bottom.t =
+      ('known * ('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t)
+      Or_bottom.t =
  fun ~apply_coercion_maps_to ~known ~other ~is_empty_map_known ~filter_map_known
      coercion ->
   let known =
@@ -1733,39 +1785,44 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_region ()
   ()
 
 and remove_unused_value_slots_and_shortcut_aliases_row_like :
-      'index 'maps_to 'known.
-      remove_unused_value_slots_and_shortcut_aliases_index:
-        ('index ->
+      'lattice 'shape 'maps_to 'known.
+      remove_unused_value_slots_and_shortcut_aliases_lattice:
+        ('lattice ->
         used_value_slots:Value_slot.Set.t ->
         canonicalise:(Simple.t -> Simple.t) ->
-        'index) ->
+        'lattice) ->
       remove_unused_value_slots_and_shortcut_aliases_maps_to:
         ('maps_to ->
         used_value_slots:Value_slot.Set.t ->
         canonicalise:(Simple.t -> Simple.t) ->
         'maps_to) ->
       known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      other:('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t ->
       map_known:
-        ((('index, 'maps_to) row_like_case -> ('index, 'maps_to) row_like_case) ->
+        ((('lattice, 'shape, 'maps_to) row_like_case ->
+         ('lattice, 'shape, 'maps_to) row_like_case) ->
         'known ->
         'known) ->
       used_value_slots:Value_slot.Set.t ->
       canonicalise:(Simple.t -> Simple.t) ->
-      ('known * ('index, 'maps_to) row_like_case Or_bottom.t) option =
- fun ~remove_unused_value_slots_and_shortcut_aliases_index
+      ('known * ('lattice, 'shape, 'maps_to) row_like_case Or_bottom.t) option =
+ fun ~remove_unused_value_slots_and_shortcut_aliases_lattice
      ~remove_unused_value_slots_and_shortcut_aliases_maps_to ~known ~other
      ~map_known ~used_value_slots ~canonicalise ->
-  let[@inline always] remove_unused_value_slots_and_shortcut_aliases_index =
-    function
-    | Known index ->
-      Known
-        (remove_unused_value_slots_and_shortcut_aliases_index index
-           ~used_value_slots ~canonicalise)
-    | At_least index ->
-      At_least
-        (remove_unused_value_slots_and_shortcut_aliases_index index
-           ~used_value_slots ~canonicalise)
+  let[@inline always] remove_unused_value_slots_and_shortcut_aliases_index
+      { domain; shape } =
+    let domain =
+      match domain with
+      | Known index ->
+        Known
+          (remove_unused_value_slots_and_shortcut_aliases_lattice index
+             ~used_value_slots ~canonicalise)
+      | At_least index ->
+        At_least
+          (remove_unused_value_slots_and_shortcut_aliases_lattice index
+             ~used_value_slots ~canonicalise)
+    in
+    { domain; shape }
   in
   let known' =
     map_known
@@ -1800,14 +1857,17 @@ and remove_unused_value_slots_and_shortcut_aliases_row_like :
 and remove_unused_value_slots_and_shortcut_aliases_row_like_for_blocks
     ({ known_tags; other_tags; alloc_mode } as row_like_for_tags)
     ~used_value_slots ~canonicalise =
+  let map_known map_case =
+    Tag.Map.map_sharing (Or_unknown.map_sharing ~f:map_case)
+  in
   match
     remove_unused_value_slots_and_shortcut_aliases_row_like
-      ~remove_unused_value_slots_and_shortcut_aliases_index:
+      ~remove_unused_value_slots_and_shortcut_aliases_lattice:
         (fun block_size ~used_value_slots:_ ~canonicalise:_ -> block_size)
       ~remove_unused_value_slots_and_shortcut_aliases_maps_to:
         remove_unused_value_slots_and_shortcut_aliases_int_indexed_product
-      ~known:known_tags ~other:other_tags ~map_known:Tag.Map.map_sharing
-      ~used_value_slots ~canonicalise
+      ~known:known_tags ~other:other_tags ~map_known ~used_value_slots
+      ~canonicalise
   with
   | None -> row_like_for_tags
   | Some (known_tags, other_tags) -> { known_tags; other_tags; alloc_mode }
@@ -1817,7 +1877,7 @@ and remove_unused_value_slots_and_shortcut_aliases_row_like_for_closures
     ~used_value_slots ~canonicalise =
   match
     remove_unused_value_slots_and_shortcut_aliases_row_like
-      ~remove_unused_value_slots_and_shortcut_aliases_index:
+      ~remove_unused_value_slots_and_shortcut_aliases_lattice:
         (fun index ~used_value_slots ~canonicalise:_ ->
         Set_of_closures_contents.remove_unused_value_slots index
           ~used_value_slots)
@@ -1877,15 +1937,15 @@ and remove_unused_value_slots_and_shortcut_aliases_value_slot_indexed_product
   in
   { value_slot_components_by_index }
 
-and remove_unused_value_slots_and_shortcut_aliases_int_indexed_product
-    { fields; kind } ~used_value_slots ~canonicalise =
+and remove_unused_value_slots_and_shortcut_aliases_int_indexed_product fields
+    ~used_value_slots ~canonicalise =
   let fields = Array.copy fields in
   for i = 0 to Array.length fields - 1 do
     fields.(i)
       <- remove_unused_value_slots_and_shortcut_aliases fields.(i)
            ~used_value_slots ~canonicalise
   done;
-  { fields; kind }
+  fields
 
 and remove_unused_value_slots_and_shortcut_aliases_function_type
     ({ code_id; rec_info } as function_type) ~used_value_slots ~canonicalise =
@@ -2213,16 +2273,17 @@ and project_row_like_for_blocks ~to_project ~expand
     ({ known_tags; other_tags; alloc_mode } as blocks) =
   let known_tags' =
     Tag.Map.map_sharing
-      (fun ({ index; maps_to; env_extension } as case) ->
-        let env_extension' =
-          project_env_extension ~to_project ~expand env_extension
-        in
-        let maps_to' =
-          project_int_indexed_product ~to_project ~expand maps_to
-        in
-        if env_extension == env_extension' && maps_to == maps_to'
-        then case
-        else { index; env_extension = env_extension'; maps_to = maps_to' })
+      (Or_unknown.map_sharing
+         ~f:(fun ({ index; maps_to; env_extension } as case) ->
+           let env_extension' =
+             project_env_extension ~to_project ~expand env_extension
+           in
+           let maps_to' =
+             project_int_indexed_product ~to_project ~expand maps_to
+           in
+           if env_extension == env_extension' && maps_to == maps_to'
+           then case
+           else { index; env_extension = env_extension'; maps_to = maps_to' }))
       known_tags
   in
   let other_tags' : _ Or_bottom.t =
@@ -2319,8 +2380,7 @@ and project_value_slot_indexed_product ~to_project ~expand
   then product
   else { value_slot_components_by_index = value_slot_components_by_index' }
 
-and project_int_indexed_product ~to_project ~expand
-    ({ fields; kind } as product) =
+and project_int_indexed_product ~to_project ~expand fields =
   let changed = ref false in
   let fields' = Array.copy fields in
   for i = 0 to Array.length fields - 1 do
@@ -2331,7 +2391,7 @@ and project_int_indexed_product ~to_project ~expand
       changed := true;
       fields'.(i) <- field')
   done;
-  if !changed then { fields = fields'; kind } else product
+  if !changed then fields' else fields
 
 and project_function_type ~to_project ~expand
     ({ code_id; rec_info } as function_type) =
@@ -2458,24 +2518,28 @@ module Product = struct
   end
 
   module Int_indexed = struct
-    type t = int_indexed_product
+    type t = flambda_type array
 
-    let field_kind t = t.kind
+    let create_from_list tys = Array.of_list tys
 
-    let create_from_list kind tys = { kind; fields = Array.of_list tys }
+    let create_from_array fields = fields
 
-    let create_from_array kind fields = { kind; fields }
+    let create_top () = [||]
 
-    let create_top kind = { kind; fields = [||] }
+    let width t = Targetint_31_63.of_int (Array.length t)
 
-    let width t = Targetint_31_63.of_int (Array.length t.fields)
-
-    let components t = Array.to_list t.fields
+    let components t = Array.to_list t
   end
 end
 
 module Row_like_index = struct
-  type 'index t = 'index row_like_index
+  type ('lattice, 'shape) t = ('lattice, 'shape) row_like_index
+
+  let create ~domain ~shape = { domain; shape }
+end
+
+module Row_like_index_domain = struct
+  type 'lattice t = 'lattice row_like_index_domain
 
   let known index = Known index
 
@@ -2483,7 +2547,8 @@ module Row_like_index = struct
 end
 
 module Row_like_case = struct
-  type ('index, 'maps_to) t = ('index, 'maps_to) row_like_case
+  type ('lattice, 'shape, 'maps_to) t =
+    ('lattice, 'shape, 'maps_to) row_like_case
 
   let create ~maps_to ~index ~env_extension = { maps_to; index; env_extension }
 end
@@ -2511,59 +2576,63 @@ module Row_like_for_blocks = struct
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.keys known_tags)
 
-  let create_exactly tag index maps_to alloc_mode =
+  let create_exactly tag index shape maps_to alloc_mode =
     { known_tags =
         Tag.Map.singleton tag
-          { maps_to;
-            index = Known index;
-            env_extension = { equations = Name.Map.empty }
-          };
+          (Or_unknown.Known
+             { maps_to;
+               index = { domain = Known index; shape };
+               env_extension = { equations = Name.Map.empty }
+             });
       other_tags = Bottom;
       alloc_mode
     }
 
-  let create_at_least tag index maps_to alloc_mode =
+  let create_at_least tag index shape maps_to alloc_mode =
     { known_tags =
         Tag.Map.singleton tag
-          { maps_to;
-            index = At_least index;
-            env_extension = { equations = Name.Map.empty }
-          };
+          (Or_unknown.Known
+             { maps_to;
+               index = { domain = At_least index; shape };
+               env_extension = { equations = Name.Map.empty }
+             });
       other_tags = Bottom;
       alloc_mode
     }
 
-  let create_at_least_unknown_tag index maps_to alloc_mode =
+  let create_at_least_unknown_tag index shape maps_to alloc_mode =
     { known_tags = Tag.Map.empty;
       other_tags =
         Ok
           { maps_to;
-            index = At_least index;
+            index = { domain = At_least index; shape };
             env_extension = { equations = Name.Map.empty }
           };
       alloc_mode
     }
 
-  let check_field_tys ~field_kind ~field_tys =
-    let field_kind' =
-      List.map kind field_tys |> Flambda_kind.Set.of_list
-      |> Flambda_kind.Set.get_singleton
-    in
+  let check_field_tys ~shape ~field_tys =
     if Flambda_features.check_invariants ()
     then
-      match field_kind' with
-      | None ->
-        if List.length field_tys <> 0
-        then Misc.fatal_error "[field_tys] must all be of the same kind"
-      | Some field_kind' ->
-        if not (Flambda_kind.equal field_kind field_kind')
-        then
-          Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
-            Flambda_kind.print field_kind
+      List.iteri
+        (fun i ty ->
+          let field_kind = kind ty in
+          let shape_kind =
+            match (shape : K.Block_shape.t) with
+            | Value_only -> K.value
+            | Float_record -> K.naked_float
+            | Mixed_record kinds -> (K.Mixed_block_shape.field_kinds kinds).(i)
+          in
+          if not (Flambda_kind.equal field_kind shape_kind)
+          then
+            Misc.fatal_errorf
+              "Kind mismatch for field %d: %a doesn't match its shape (%a)" i
+              Flambda_kind.print field_kind Flambda_kind.print shape_kind)
+        field_tys
 
-  let create ~(field_kind : Flambda_kind.t) ~field_tys
+  let create ~(shape : K.Block_shape.t) ~field_tys
       (open_or_closed : open_or_closed) alloc_mode =
-    check_field_tys ~field_kind ~field_tys;
+    check_field_tys ~shape ~field_tys;
     let tag : _ Or_unknown.t =
       let tag : _ Or_unknown.t =
         match open_or_closed with
@@ -2573,87 +2642,64 @@ module Row_like_for_blocks = struct
       in
       match tag with
       | Unknown -> (
-        match field_kind with
-        | Value -> Unknown
-        | Naked_number Naked_float -> Known Tag.double_array_tag
-        | Naked_number Naked_float32
-        | Naked_number Naked_immediate
-        | Naked_number Naked_int32
-        | Naked_number Naked_int64
-        | Naked_number Naked_nativeint
-        | Naked_number Naked_vec128
-        | Region | Rec_info ->
-          Misc.fatal_errorf "Bad kind %a for fields" Flambda_kind.print
-            field_kind)
+        match shape with
+        | Value_only | Mixed_record _ -> Unknown
+        | Float_record -> Known Tag.double_array_tag)
       | Known tag -> (
-        match field_kind with
-        | Value -> (
+        match shape with
+        | Value_only | Mixed_record _ -> (
           match Tag.Scannable.of_tag tag with
           | Some _ -> Known tag
           | None ->
             Misc.fatal_error
-              "Blocks full of [Value]s must have a tag less than [No_scan_tag]")
-        | Naked_number Naked_float ->
+              "Blocks must have a tag less than [No_scan_tag] (except for \
+               float records)")
+        | Float_record ->
           if not (Tag.equal tag Tag.double_array_tag)
           then
             Misc.fatal_error
               "Blocks full of naked floats must have tag [Tag.double_array_tag]";
-          Known tag
-        | Naked_number Naked_float32
-        | Naked_number Naked_immediate
-        | Naked_number Naked_int32
-        | Naked_number Naked_int64
-        | Naked_number Naked_nativeint
-        | Naked_number Naked_vec128
-        | Region | Rec_info ->
-          Misc.fatal_errorf "Bad kind %a for fields" Flambda_kind.print
-            field_kind)
+          Known tag)
     in
-    let product = { kind = field_kind; fields = Array.of_list field_tys } in
+    let product = Array.of_list field_tys in
     let size = Targetint_31_63.of_int (List.length field_tys) in
     match open_or_closed with
     | Open _ -> (
       match tag with
-      | Known tag -> create_at_least tag size product alloc_mode
-      | Unknown -> create_at_least_unknown_tag size product alloc_mode)
+      | Known tag -> create_at_least tag size shape product alloc_mode
+      | Unknown -> create_at_least_unknown_tag size shape product alloc_mode)
     | Closed _ -> (
       match tag with
-      | Known tag -> create_exactly tag size product alloc_mode
+      | Known tag -> create_exactly tag size shape product alloc_mode
       | Unknown -> assert false)
   (* see above *)
 
-  let create_blocks_with_these_tags ~field_kind tags alloc_mode =
-    let maps_to = Product.Int_indexed.create_top field_kind in
-    let case =
-      { maps_to;
-        index = At_least Targetint_31_63.zero;
-        env_extension = { equations = Name.Map.empty }
-      }
-    in
-    { known_tags = Tag.Map.of_set (fun _ -> case) tags;
-      other_tags = Bottom;
-      alloc_mode
-    }
-
-  let create_exactly_multiple ~field_tys_by_tag alloc_mode =
-    let known_tags =
-      Tag.Map.map
-        (fun field_tys ->
-          let field_kind =
-            match field_tys with
-            | [] -> Flambda_kind.value
-            | field_ty :: _ -> kind field_ty
-          in
-          check_field_tys ~field_kind ~field_tys;
-          let maps_to =
-            { kind = field_kind; fields = Array.of_list field_tys }
-          in
-          let size = Targetint_31_63.of_int (List.length field_tys) in
+  let create_blocks_with_these_tags tags alloc_mode =
+    let maps_to = Product.Int_indexed.create_top () in
+    let case shape =
+      Or_unknown.map
+        ~f:(fun shape ->
           { maps_to;
-            index = Known size;
+            index = { domain = At_least Targetint_31_63.zero; shape };
             env_extension = { equations = Name.Map.empty }
           })
-        field_tys_by_tag
+        shape
+    in
+    { known_tags = Tag.Map.map case tags; other_tags = Bottom; alloc_mode }
+
+  let create_exactly_multiple ~shape_and_field_tys_by_tag alloc_mode =
+    let known_tags =
+      Tag.Map.map
+        (fun (shape, field_tys) ->
+          check_field_tys ~shape ~field_tys;
+          let maps_to = Array.of_list field_tys in
+          let size = Targetint_31_63.of_int (List.length field_tys) in
+          Or_unknown.Known
+            { maps_to;
+              index = { domain = Known size; shape };
+              env_extension = { equations = Name.Map.empty }
+            })
+        shape_and_field_tys_by_tag
     in
     { known_tags; other_tags = Bottom; alloc_mode }
 
@@ -2661,26 +2707,27 @@ module Row_like_for_blocks = struct
     (* CR-someday mshinwell: add invariant check? *)
     { known_tags; other_tags; alloc_mode }
 
-  let all_tags_and_indexes { known_tags; other_tags; alloc_mode = _ } :
-      _ Or_unknown.t =
-    match other_tags with
+  let all_tags_and_sizes t :
+      (Targetint_31_63.t * K.Block_shape.t) Tag.Map.t Or_unknown.t =
+    match t.other_tags with
     | Ok _ -> Unknown
-    | Bottom -> Known (Tag.Map.map (fun case -> case.index) known_tags)
-
-  let all_tags_and_sizes t : Targetint_31_63.t Tag.Map.t Or_unknown.t =
-    match all_tags_and_indexes t with
-    | Unknown -> Unknown
-    | Known tags_and_indexes ->
+    | Bottom ->
       let any_unknown = ref false in
       let by_tag =
         Tag.Map.map
-          (fun index ->
-            match index with
-            | Known index -> index
-            | At_least index ->
+          (fun case ->
+            match (case : _ Or_unknown.t) with
+            | Unknown ->
               any_unknown := true;
-              index)
-          tags_and_indexes
+              (* result doesn't matter as it is unused *)
+              Targetint_31_63.zero, K.Block_shape.Value_only
+            | Known { index = { domain; shape }; _ } -> (
+              match domain with
+              | Known size -> size, shape
+              | At_least size ->
+                any_unknown := true;
+                size, shape))
+          t.known_tags
       in
       if !any_unknown then Unknown else Known by_tag
 
@@ -2690,20 +2737,21 @@ module Row_like_for_blocks = struct
     | Bottom -> (
       match Tag.Map.get_singleton known_tags with
       | None -> None
-      | Some (tag, { maps_to; index; env_extension = _ }) -> (
+      | Some (_tag, Unknown) -> None
+      | Some (tag, Known { maps_to; index; env_extension = _ }) -> (
         (* If this is a singleton all the information from the env_extension is
            already part of the environment *)
-        match index with
+        match index.domain with
         | At_least _ -> None
-        | Known index -> Some ((tag, index), maps_to, alloc_mode)))
+        | Known size -> Some (tag, index.shape, size, maps_to, alloc_mode)))
 
-  let project_int_indexed_product { fields; kind = _ } index : _ Or_unknown.t =
+  let project_int_indexed_product fields index : _ Or_unknown.t =
     if Array.length fields <= index then Unknown else Known fields.(index)
 
   let get_field t index : _ Or_unknown_or_bottom.t =
     match get_singleton t with
     | None -> Unknown
-    | Some ((_tag, size), maps_to, _alloc_mode) -> (
+    | Some (_tag, _shape, size, maps_to, _alloc_mode) -> (
       if Targetint_31_63.( <= ) size index
       then Bottom
       else
@@ -2722,7 +2770,7 @@ module Row_like_for_closures = struct
       =
     let known_closures =
       Function_slot.Map.singleton function_slot
-        { index = Known contents;
+        { index = { domain = Known contents; shape = () };
           maps_to = closures_entry;
           env_extension = { equations = Name.Map.empty }
         }
@@ -2734,7 +2782,7 @@ module Row_like_for_closures = struct
       =
     let known_closures =
       Function_slot.Map.singleton function_slot
-        { index = At_least contents;
+        { index = { domain = At_least contents; shape = () };
           maps_to = closures_entry;
           env_extension = { equations = Name.Map.empty }
         }
@@ -2754,7 +2802,7 @@ module Row_like_for_closures = struct
       | Some (tag, { maps_to; index; env_extension = _ }) -> (
         (* If this is a singleton all the information from the env_extension is
            already part of the environment *)
-        match index with
+        match index.domain with
         | At_least _ -> None
         | Known index -> Some ((tag, index), maps_to)))
 

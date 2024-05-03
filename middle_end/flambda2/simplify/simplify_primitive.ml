@@ -168,7 +168,9 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       let arg_tys = List.map snd args_with_tys in
       let arg_tys_and_expected_kinds =
         match P.args_kind_of_variadic_primitive variadic_prim with
-        | Variadic arg_kinds -> List.combine arg_tys arg_kinds
+        | Variadic_mixed arg_kinds ->
+          List.combine arg_tys
+            (Array.to_list (K.Mixed_block_shape.field_kinds arg_kinds))
         | Variadic_all_of_kind kind ->
           List.map (fun arg_ty -> arg_ty, kind) arg_tys
       in

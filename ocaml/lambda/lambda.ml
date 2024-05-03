@@ -152,10 +152,12 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * mixed_block_read * field_read_semantics
+  | Pmixedfield of
+      int * mixed_block_read * mixed_block_shape * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * mixed_block_write * initialization_or_assignment
+  | Psetmixedfield of
+      int * mixed_block_write * mixed_block_shape * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -1678,7 +1680,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
-  | Pmixedfield (_, read, _) -> begin
+  | Pmixedfield (_, read, _, _) -> begin
       match read with
       | Mread_value_prefix _ -> None
       | Mread_flat_suffix (Flat_read_float_boxed m) -> Some m
@@ -1872,7 +1874,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
-  | Pmixedfield (_, kind, _) -> layout_of_mixed_field kind
+  | Pmixedfield (_, kind, _, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

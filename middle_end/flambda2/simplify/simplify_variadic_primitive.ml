@@ -16,68 +16,31 @@
 
 open! Simplify_import
 
-(* Allow [simplify_make_block] to fold over the fields, whether they are backed
-   by a list (for non-mixed blocks) or an array (for mixed blocks). *)
-module Block_shape = struct
-  type t =
-    | Not_mixed of
-        { field_kind : K.t;
-          shape : K.With_subkind.t list
-        }
-    | Mixed of P.Mixed_block_kind.t
-
-  type possibly_refined_kind =
-    | Just_kind of K.t
-    | With_subkind of K.With_subkind.t
-
-  let length = function
-    | Not_mixed { shape; _ } -> List.length shape
-    | Mixed shape -> P.Mixed_block_kind.length shape
-
-  let fold_left_fields f init t =
-    match t with
-    | Not_mixed { shape; _ } ->
-      List.fold_left (fun acc x -> f acc (With_subkind x)) init shape
-    | Mixed mixed ->
-      P.Mixed_block_kind.fold_left (fun acc x -> f acc (Just_kind x)) init mixed
-end
-
-let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
+let simplify_make_block ~original_prim ~(block_kind : P.Block_kind.t)
     ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term _dbg
     ~args_with_tys ~result_var =
-  let args, _arg_tys = List.split args_with_tys in
-  if List.compare_length_with args (Block_shape.length block_shape) <> 0
-  then
-    Misc.fatal_errorf
-      "Shape in [Make_block] of different length from argument list:@ %a"
-      Named.print original_term;
-  let remaining_args, result =
-    let typing_env = DA.typing_env dacc in
-    Block_shape.fold_left_fields
-      (fun (args, env_extension) arg_kind : (_ * _ Or_bottom.t) ->
-        let arg, args =
-          match args with
-          | arg :: args -> arg, args
-          | [] ->
-            Misc.fatal_error
-              "We already checked that [args] and [block_shape] have the same \
-               length"
-        in
-        let result =
+  let env_extension : _ Or_bottom.t =
+    match block_kind with
+    | Naked_floats | Mixed _ ->
+      (* No useful subkinf information *)
+      Ok TEE.empty
+    | Values (_tag, field_kinds) ->
+      if List.compare_lengths args_with_tys field_kinds <> 0
+      then
+        Misc.fatal_errorf
+          "Shape in [Make_block] of different length from argument list:@ %a"
+          Named.print original_term;
+      let typing_env = DA.typing_env dacc in
+      List.fold_left2
+        (fun env_extension arg_kind (arg, _arg_ty) : _ Or_bottom.t ->
           let open Or_bottom.Let_syntax in
           let<* env_extension = env_extension in
           Simple.pattern_match' arg
             ~var:(fun _ ~coercion:_ : _ Or_bottom.t ->
               let<* _ty, env_extension' =
-                match arg_kind with
-                | Just_kind arg_kind ->
-                  T.meet typing_env
-                    (T.alias_type_of arg_kind arg)
-                    (T.unknown arg_kind)
-                | With_subkind arg_kind ->
-                  T.meet typing_env
-                    (T.alias_type_of (K.With_subkind.kind arg_kind) arg)
-                    (T.unknown_with_subkind arg_kind)
+                T.meet typing_env
+                  (T.alias_type_of (K.With_subkind.kind arg_kind) arg)
+                  (T.unknown_with_subkind arg_kind)
               in
               let<+ env_extension =
                 T.Typing_env_extension.meet typing_env env_extension
@@ -85,20 +48,10 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
               in
               env_extension)
             ~const:(fun _ : _ Or_bottom.t -> Ok env_extension)
-            ~symbol:(fun _ ~coercion:_ : _ Or_bottom.t -> Ok env_extension)
-        in
-        args, result)
-      (args, Or_bottom.Ok TEE.empty)
-      block_shape
+            ~symbol:(fun _ ~coercion:_ : _ Or_bottom.t -> Ok env_extension))
+        (Or_bottom.Ok TEE.empty) field_kinds args_with_tys
   in
-  let () =
-    match remaining_args with
-    | [] -> ()
-    | _ :: _ ->
-      Misc.fatal_error
-        "We already checked that [args] and [block_shape] have the same length"
-  in
-  match result with
+  match env_extension with
   | Bottom -> SPR.create_invalid dacc
   | Ok env_extension ->
     let dacc =
@@ -107,22 +60,15 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
               TE.add_env_extension typing_env env_extension))
     in
     let ty =
-      match block_shape with
-      | Mixed _ -> T.any_value
-      | Not_mixed { shape; field_kind } -> (
-        let fields =
-          List.map2
-            (fun arg kind_with_subkind ->
-              T.alias_type_of (K.With_subkind.kind kind_with_subkind) arg)
-            args shape
-        in
-        let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
-        match mutable_or_immutable with
-        | Immutable ->
-          T.immutable_block ~is_unique:false tag ~field_kind alloc_mode ~fields
-        | Immutable_unique ->
-          T.immutable_block ~is_unique:true tag ~field_kind alloc_mode ~fields
-        | Mutable -> T.mutable_block alloc_mode)
+      let fields = List.map snd args_with_tys in
+      let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
+      let tag, shape = P.Block_kind.to_shape block_kind in
+      match mutable_or_immutable with
+      | Immutable ->
+        T.immutable_block ~is_unique:false tag ~shape alloc_mode ~fields
+      | Immutable_unique ->
+        T.immutable_block ~is_unique:true tag ~shape alloc_mode ~fields
+      | Mutable -> T.mutable_block alloc_mode
     in
     let dacc = DA.add_variable dacc result_var ty in
     let dacc =
@@ -137,14 +83,6 @@ let simplify_make_block ~original_prim tag ~(block_shape : Block_shape.t)
                 ~bound_to:(Simple.var (Bound_var.var result_var))))
     in
     SPR.create original_term ~try_reify:true dacc
-
-let simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
-    alloc_mode dacc ~original_term dbg ~args_with_tys ~result_var =
-  let shape = List.map (fun _ -> K.With_subkind.naked_float) args_with_tys in
-  simplify_make_block ~original_prim
-    ~block_shape:(Not_mixed { field_kind = K.naked_float; shape })
-    Tag.double_array_tag ~mutable_or_immutable alloc_mode dacc ~original_term
-    dbg ~args_with_tys ~result_var
 
 let simplify_make_array (array_kind : P.Array_kind.t)
     ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term dbg
@@ -201,31 +139,15 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     in
     SPR.create named ~try_reify:true dacc
 
-let simplify_make_mixed_block ~original_prim ~kind
-    ~(mutable_or_immutable : Mutability.t) tag alloc_mode dacc ~original_term
-    dbg ~args_with_tys ~result_var =
-  simplify_make_block ~original_prim ~mutable_or_immutable
-    ~block_shape:(Mixed kind) tag alloc_mode dacc ~original_term dbg
-    ~args_with_tys ~result_var
-
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode) ->
-      let tag = Tag.Scannable.to_tag tag in
-      simplify_make_block ~original_prim tag
-        ~block_shape:(Not_mixed { field_kind = K.value; shape })
-        ~mutable_or_immutable alloc_mode
-    | Make_block (Naked_floats, mutable_or_immutable, alloc_mode) ->
-      simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
+    | Make_block (block_kind, mutable_or_immutable, alloc_mode) ->
+      simplify_make_block ~original_prim ~block_kind ~mutable_or_immutable
         alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_array array_kind ~mutable_or_immutable alloc_mode
-    | Make_mixed_block (tag, kind, mutable_or_immutable, alloc_mode) ->
-      let tag = Tag.Scannable.to_tag tag in
-      simplify_make_mixed_block ~original_prim tag ~kind ~mutable_or_immutable
-        alloc_mode
   in
   simplifier dacc ~original_term dbg ~args_with_tys ~result_var
