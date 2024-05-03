@@ -154,7 +154,7 @@ val mk_load_mut : memory_chunk -> operation
 
 (** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
     address of the [index]th field of the block pointed to by [ptr]. The field
-    width is detrmined by [stride]. *)
+    width is determined by [stride]. *)
 val strided_field_address :
   expression -> index:int -> stride:int -> Debuginfo.t -> expression
 
