@@ -268,3 +268,4 @@ Lines 2-37, characters 0-3:
 Error: The enabled layouts extension does not allow for mixed records.
        You must enable -extension layouts_alpha to use this feature.
 |}];;
+

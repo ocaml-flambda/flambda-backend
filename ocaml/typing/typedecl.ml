@@ -30,6 +30,7 @@ type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
   | Inlined_record of { unboxed : bool }
+  | Mixed_product
   | External
   | External_with_layout_poly
 
@@ -1213,9 +1214,9 @@ module Element_repr = struct
     | Imm_element
     | Float_element
     | Value_element
-    | Element_without_runtime_component
+    | Element_without_runtime_component of { loc : Location.t; ty : type_expr }
 
-  let classify env ty jkind =
+  let classify env loc ty jkind =
     if is_float env ty then Float_element
     else match Jkind.get_default_value jkind with
       | Value | Immediate64 | Non_null_value -> Value_element
@@ -1224,7 +1225,7 @@ module Element_repr = struct
       | Word -> Unboxed_element Word
       | Bits32 -> Unboxed_element Bits32
       | Bits64 -> Unboxed_element Bits64
-      | Void -> Element_without_runtime_component
+      | Void -> Element_without_runtime_component { loc; ty }
       | Any ->
           Misc.fatal_error "Element_repr.classify: unexpected Any"
 
@@ -1237,11 +1238,11 @@ module Element_repr = struct
   let to_flat : _ -> flat_element option = function
     | Imm_element -> Some Imm
     | Unboxed_element unboxed -> Some (unboxed_to_flat unboxed)
-    (* CR layouts v7: Eventually void components will have no runtime width.
-      We return [Some Imm] as a nonsense placeholder for now. (No record
-      with a void field can be compiled past lambda.)
-    *)
-    | Element_without_runtime_component -> Some Imm
+    (* CR layouts v7: Supporting void with mixed blocks will require
+       updating some assumptions in lambda, e.g. the translation
+       of [value_prefix_len]. *)
+    | Element_without_runtime_component { loc; ty } ->
+        raise (Error (loc, Invalid_jkind_in_block (ty, Void, Mixed_product)))
     | Float_element | Value_element -> None
 
   (* Compute the [flat_suffix] field of a mixed block record kind. *)
@@ -1265,8 +1266,7 @@ module Element_repr = struct
               Some (`Continue (unboxed_to_flat unboxed :: suffix))
           | Float_element
           | Imm_element
-          | Value_element
-          | Element_without_runtime_component as repr -> begin
+          | Value_element as repr -> begin
               match find_flat_suffix ts with
               | None -> None
               | Some `Stop _ as stop -> stop
@@ -1275,6 +1275,16 @@ module Element_repr = struct
                     match to_flat repr with
                     | None -> `Stop suffix
                     | Some flat -> `Continue (flat :: suffix))
+            end
+          (* CR layouts v7: Supporting void with mixed blocks will require
+             updating some assumptions in lambda, e.g. the translation
+             of [value_prefix_len]. *)
+          | Element_without_runtime_component { loc; ty } -> begin
+              match find_flat_suffix ts with
+              | None -> None
+              | Some _ ->
+                  raise (Error (loc,
+                    Invalid_jkind_in_block (ty, Void, Mixed_product)))
             end
     in
     match find_flat_suffix ts with
@@ -1292,7 +1302,7 @@ let update_constructor_representation
     | Cstr_tuple arg_types_and_modes ->
         let arg_reprs =
           List.map2 (fun (arg_type, _mode) arg_jkind ->
-            Element_repr.classify env arg_type arg_jkind, arg_type)
+            Element_repr.classify env loc arg_type arg_jkind, arg_type)
             arg_types_and_modes arg_jkinds
         in
         Element_repr.mixed_product_flat_suffix arg_reprs
@@ -1312,7 +1322,7 @@ let update_constructor_representation
         *)
         let arg_reprs =
           List.map (fun ld ->
-              Element_repr.classify env ld.Types.ld_type ld.ld_jkind, ld)
+              Element_repr.classify env loc ld.Types.ld_type ld.ld_jkind, ld)
             fields
         in
         Element_repr.mixed_product_flat_suffix arg_reprs
@@ -1376,7 +1386,7 @@ let update_decl_jkind env dpath decl =
       let reprs =
         List.mapi
           (fun i lbl ->
-             Element_repr.classify env lbl.Types.ld_type jkinds.(i), lbl)
+             Element_repr.classify env loc lbl.Types.ld_type jkinds.(i), lbl)
           lbls
       in
       let repr_summary =
@@ -1393,7 +1403,7 @@ let update_decl_jkind env dpath decl =
            | Unboxed_element (Bits32 | Bits64 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
-           | Element_without_runtime_component -> ())
+           | Element_without_runtime_component _ -> ())
         reprs;
       let rep =
         match repr_summary with
@@ -1409,7 +1419,9 @@ let update_decl_jkind env dpath decl =
                   match repr with
                   | Float_element -> Float
                   | Unboxed_element Float64 -> Float64
-                  | Element_without_runtime_component -> Imm
+                  | Element_without_runtime_component { ty; loc } ->
+                      raise (Error (loc,
+                        Invalid_jkind_in_block (ty, Void, Mixed_product)))
                   | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
                 reprs
@@ -3519,6 +3531,7 @@ let report_error ppf = function
   | Jkind_sort {kloc; typ; err} ->
     let s =
       match kloc with
+      | Mixed_product -> "Structures with non-value elements"
       | Cstr_tuple _ -> "Constructor argument types"
       | Inlined_record { unboxed = false }
       | Record { unboxed = false } -> "Record element types"
@@ -3529,6 +3542,7 @@ let report_error ppf = function
     in
     let extra =
       match kloc with
+      | Mixed_product
       | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
@@ -3547,6 +3561,7 @@ let report_error ppf = function
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
+      | Mixed_product -> "Structures with non-value elements"
       | Inlined_record { unboxed = false } -> "Inlined records"
       | Inlined_record { unboxed = true } -> "Unboxed inlined records"
       | Record { unboxed = false } -> "Records"
