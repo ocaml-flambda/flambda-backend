@@ -93,9 +93,13 @@ module Mixed_block_flat_element = struct
 
   let compare t1 t2 =
     match t1, t2 with
-    | Imm, Imm | Float, Float | Float64, Float64
-    | Word, Word | Bits32, Bits32 | Bits64, Bits64
-      -> 0
+    | Imm, Imm
+    | Float, Float
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      0
     | Imm, _ -> -1
     | _, Imm -> 1
     | Float, _ -> -1
