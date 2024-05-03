@@ -793,7 +793,10 @@ let transl_declaration env sdecl (id, uid) =
             Variant_unboxed, any
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
-               after the circular type checks make it safe to check jkinds. *)
+               after the circular type checks make it safe to check jkinds.
+               Likewise, [Constructor_uniform_value] is potentially wrong
+               and will be updated later.
+            *)
             Variant_boxed (
               Array.map
                 (fun cstr ->
