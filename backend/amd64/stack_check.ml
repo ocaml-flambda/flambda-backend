@@ -33,7 +33,8 @@ let linear : Linear.fundecl -> Linear.fundecl =
         ~trap_size:16
     in
     let insert_stack_check =
-      contains_nontail_calls || max_frame_size >= stack_threshold_size
+      (not Config.no_stack_checks)
+      && (contains_nontail_calls || max_frame_size >= stack_threshold_size)
     in
     if insert_stack_check
     then

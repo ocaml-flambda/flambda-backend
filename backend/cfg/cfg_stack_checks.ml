@@ -217,11 +217,13 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
   | false -> cfg_with_layout
   | true ->
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
-    let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
-      build_cfg_info cfg
-    in
-    if not (Label.Set.is_empty blocks_needing_stack_checks)
+    (if not Config.no_stack_checks
     then
-      insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
-        ~max_instr_id;
+      let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
+        build_cfg_info cfg
+      in
+      if not (Label.Set.is_empty blocks_needing_stack_checks)
+      then
+        insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
+          ~max_instr_id);
     cfg_with_layout
