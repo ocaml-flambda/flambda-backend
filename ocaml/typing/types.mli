@@ -806,6 +806,9 @@ type constructor_description =
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    (* CR layouts v5.1: this duplicates information from [cstr_arg_jkinds].
+       We might be able to move the jkind array into this type.
+    *)
     cstr_shape: constructor_representation; (* Repr of the constructor itself *)
     cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
