@@ -323,8 +323,7 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     | None ->
       let memory_chunk : Cmm.memory_chunk =
         match kind.kind with
-        | Pointer | Immediate ->
-          Misc.fatal_errorf "update_kind requires using setfield."
+        | Pointer | Immediate -> Word_val
         | Naked_int32 -> Thirtytwo_signed
         | Naked_int64 -> Word_int
         | Naked_float -> Double
