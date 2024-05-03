@@ -354,9 +354,10 @@ static void caml_thread_leave_blocking_section(void)
   restore_runtime_state(th);
 }
 
-int get_pthreads_stack_size(void) {
+static int get_pthreads_stack_size(void)
+{
   pthread_attr_t attr;
-  size_t res = 8388608;
+  size_t res = 8388608; // default value, retrieved from a recent system (May 2024)
   if (pthread_attr_init(&attr) == 0) {
     pthread_attr_getstacksize(&attr, &res);
   }
