@@ -490,6 +490,9 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
+          (* CR layouts v5.1: This will need to be updated when we support
+             mixed inlined records.
+          *)
         let num_nodes_visited, fields =
           List.fold_left_map
             (fun (is_mutable, num_nodes_visited)
