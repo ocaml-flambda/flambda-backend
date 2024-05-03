@@ -290,7 +290,7 @@ let rewrite_set_of_closures bound (uses : uses) value_slots alloc_mode
         with
         | None | Some Bottom -> false
         | Some Top -> true
-        | Some (Fields f) -> Global_flow_graph.Field.Map.mem slot f.fields)
+        | Some (Fields f) -> Global_flow_graph.Field.Map.mem slot f)
       bound
   in
   let value_slots =

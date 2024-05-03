@@ -31,7 +31,7 @@ module type Graph = sig
 
   val less_equal : state -> elt -> elt -> bool
 
-  val propagate : state -> elt -> edge -> elt
+  val propagate : state -> Node.t -> elt -> edge -> elt
 
   val propagate_top : state -> edge -> bool
 
@@ -107,7 +107,7 @@ module Make_Fixpoint (G : Graph) = struct
       then
         G.fold_edges graph id
           (fun dep () ->
-            let propagated = G.propagate state current_elt dep in
+            let propagated = G.propagate state id current_elt dep in
             if not (G.is_bottom propagated)
             then
               let target = G.target dep in
@@ -134,7 +134,7 @@ module Make_Fixpoint (G : Graph) = struct
         then
           G.fold_edges graph id
             (fun dep () ->
-              let propagated = G.propagate state current_elt dep in
+              let propagated = G.propagate state id current_elt dep in
               if not (G.is_bottom propagated)
               then
                 let target = G.target dep in
@@ -183,53 +183,40 @@ module Make_Fixpoint (G : Graph) = struct
       components
 end
 
-let max_depth = 2
-
 (** Represents the part of a value that can be accessed *)
-type elt = Dep_solver_safe.elt =
+type elt =
   | Top  (** Value completely accessed *)
-  | Fields of
-      { depth : int;
-        fields : elt Field.Map.t
-      }
-      (** Those fields of the value are accessed;
-      invariants:
-    * depth is the maximum of fields depth + 1
-    * no element of fields is Bottom *)
+  | Fields of Code_id_or_name.Set.t Field.Map.t
   | Bottom  (** Value not accessed *)
 
-(* To avoid cut_at, elt could be int*elt and everything bellow the depth = 0 is
-   Top *)
-
+(*
 let rec pp_elt ppf elt =
   match elt with
   | Top -> Format.pp_print_string ppf "⊤"
   | Bottom -> Format.pp_print_string ppf "⊥"
   | Fields { depth; fields } ->
     Format.fprintf ppf "%d{ %a }" depth (Field.Map.print pp_elt) fields
+*)
 
-let rec less_equal_elt e1 e2 =
+let less_equal_elt e1 e2 =
   match e1, e2 with
   | Bottom, _ | _, Top -> true
   | (Top | Fields _), Bottom | Top, Fields _ -> false
-  | Fields { fields = f1; _ }, Fields { fields = f2; _ } ->
-    if f1 == f2
-    then true
+  | Fields f1, Fields f2 ->
+    if f1 == f2 then true
     else
       let ok = ref true in
       ignore
         (Field.Map.merge
            (fun _ e1 e2 ->
-             let e1 = Option.value e1 ~default:Bottom in
-             let e2 = Option.value e2 ~default:Bottom in
-             if not (less_equal_elt e1 e2) then ok := false;
+             let e1 = Option.value e1 ~default:Code_id_or_name.Set.empty in
+             let e2 = Option.value e2 ~default:Code_id_or_name.Set.empty in
+             if not (Code_id_or_name.Set.subset e1 e2) then ok := false;
              None)
            f1 f2);
       !ok
 
-let depth_of e = match e with Bottom | Top -> 0 | Fields f -> f.depth
-
-let rec join_elt e1 e2 =
+let join_elt e1 e2 =
   if e1 == e2
   then e1
   else
@@ -237,27 +224,7 @@ let rec join_elt e1 e2 =
     | Bottom, e | e, Bottom -> e
     | Top, _ | _, Top -> Top
     | Fields f1, Fields f2 ->
-      let unioner _k e1 e2 =
-        let e = join_elt e1 e2 in
-        Some e
-      in
-      let fields = Field.Map.union unioner f1.fields f2.fields in
-      let max_depth =
-        Field.Map.fold (fun _k e depth -> max depth (depth_of e)) fields 0
-      in
-      Fields { depth = 1 + max_depth; fields }
-
-let rec cut_at depth elt =
-  match elt with
-  | Top | Bottom -> elt
-  | Fields { depth = d; fields } ->
-    if d <= depth
-    then elt
-    else if depth = 0
-    then Top
-    else
-      let fields = Field.Map.map (cut_at (depth - 1)) fields in
-      Fields { depth; fields }
+      Fields (Field.Map.union (fun _ e1 e2 -> Some (Code_id_or_name.Set.union e1 e2)) f1 f2)
 
 let target (dep : dep) : Code_id_or_name.t =
   match dep with
@@ -269,7 +236,7 @@ let target (dep : dep) : Code_id_or_name.t =
   | Alias_if_def (n, _) -> Code_id_or_name.name n
   | Propagate (n, _) -> Code_id_or_name.name n
 
-let propagate uses (elt : elt) (dep : dep) : elt =
+let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
   match elt with
   | Bottom -> Bottom
   | Top | Fields _ -> begin
@@ -280,14 +247,14 @@ let propagate uses (elt : elt) (dep : dep) : elt =
       )
     | Use _ -> Top
     | Field (f, _) ->
-      let depth = depth_of elt + 1 in
-      Fields { depth; fields = Field.Map.singleton f elt }
+      Fields (Field.Map.singleton f (Code_id_or_name.Set.singleton k))
     | Block (f, _) -> begin
       match elt with
       | Bottom -> assert false
       | Top -> Top
-      | Fields { fields = path; _ } -> (
-        match Field.Map.find_opt f path with None -> Bottom | Some elt -> elt)
+      | Fields fields -> (
+          let elems = match Field.Map.find_opt f fields with None -> Code_id_or_name.Set.empty | Some s -> s in
+          Code_id_or_name.Set.fold (fun n acc -> join_elt acc (match Hashtbl.find_opt uses n with None -> Bottom | Some e -> e)) elems Bottom)
     end
     | Alias_if_def (_, c) -> begin
       match Hashtbl.find_opt uses (Code_id_or_name.code_id c) with
@@ -321,6 +288,7 @@ let propagate_top uses (dep : dep) : bool =
 
 type result = (Code_id_or_name.t, elt) Hashtbl.t
 
+(*
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
@@ -331,6 +299,8 @@ let pp_result ppf (res : result) =
     Format.pp_print_list ~pp_sep pp ppf l
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
+*)
+let pp_result _ppf _res = assert false
 
 module Graph = struct
   type graph = Global_flow_graph.fun_graph
@@ -361,9 +331,9 @@ module Graph = struct
 
   let is_bottom = function Bottom -> true | Top | Fields _ -> false
 
-  let widen _ ~old:elt1 elt2 = cut_at max_depth (join_elt elt1 elt2)
+  let widen _ ~old:elt1 elt2 = join_elt elt1 elt2
 
-  let join _ elt1 elt2 = cut_at max_depth (join_elt elt1 elt2)
+  let join _ elt1 elt2 = join_elt elt1 elt2
   (* XXX no need to cut *)
 
   let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
@@ -381,12 +351,13 @@ end
 module Solver = Make_Fixpoint (Graph)
 
 let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
-  let result = Dep_solver_safe.fixpoint graph_old in
+  let _result = Dep_solver_safe.fixpoint graph_old in
   let result_topo = Hashtbl.create 17 in
   Solver.fixpoint_topo graph_new
     (graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
    |> Code_id_or_name.Set.of_list)
     result_topo;
+  (*
   if Sys.getenv_opt "TOTO" <> None
   then (
     Format.eprintf "TOPO:@.%a@.@." pp_result result_topo;
@@ -399,4 +370,5 @@ let fixpoint graph_old (graph_new : Global_flow_graph.fun_graph) =
     assert false
   end;
   assert (Dep_solver_safe.equal_result result_topo result);
-  result
+  *)
+  result_topo
