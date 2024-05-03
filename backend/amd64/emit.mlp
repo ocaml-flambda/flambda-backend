@@ -794,7 +794,7 @@ let move (src : Reg.t) (dst : Reg.t) =
       I.movss (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
-    | _ ->
+    | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
       Misc.fatal_errorf
         "Illegal move between registers of differing types (%s:%a to %s:%a)\n"
         (Reg.name src) Printcmm.machtype_component src.typ
