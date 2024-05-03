@@ -93,8 +93,6 @@ module Update_kind : sig
 
   val naked_int32s : t
 
-  val naked_int32_fields : t
-
   val naked_int64s : t
 
   val naked_floats : t

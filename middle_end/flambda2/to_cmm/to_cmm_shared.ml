@@ -283,8 +283,6 @@ module Update_kind = struct
 
   let naked_vec128s = { kind = Naked_vec128; stride = 16 }
 
-  let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
-
   let naked_float32_fields = { kind = Naked_float32; stride = Arch.size_addr }
 
   let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
