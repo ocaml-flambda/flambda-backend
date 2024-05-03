@@ -484,3 +484,15 @@ let foo (local_ x : int) =
 [%%expect{|
 val foo : local_ int -> (int -> int) ref = <fun>
 |}]
+
+(* During record update, the original record's type does NOT help with
+mode-crossing. *)
+let foo (local_ r : foo) =
+  let bar = {r with y = "hello"} in
+  ref bar
+[%%expect{|
+Line 3, characters 6-9:
+3 |   ref bar
+          ^^^
+Error: This value escapes its region.
+|}]

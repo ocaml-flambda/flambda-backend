@@ -864,13 +864,15 @@ let mutable_mode m0 =
   in
   m0 |> Const.alloc_as_value |> Value.of_const
 
-(** Takes the mutability on a field, and expected mode of the record (adjusted
-    for allocation), check that the construction would be allowed. *)
-let check_construct_mutability ~loc ~env mutability argument_mode =
+(** Takes the modality and mutability on a field, and expected mode of the field
+    (adjusted for allocation, modality and mode crossing of the field type
+    without modality), check that the construction would be allowed. *)
+let check_construct_mutability modality ~loc ~env mutability argument_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
+      let m0 = Modality.Value.apply modality m0 in
       submode ~loc ~env m0 argument_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
@@ -5558,8 +5560,11 @@ and type_expect_
                   let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
                   check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
-                    mode_modality lbl.lbl_modalities argument_mode
+                    argument_mode
+                    |> mode_modality lbl.lbl_modalities
+                    |> expect_mode_cross env lbl.lbl_arg
                   in
+                  check_construct_mutability lbl.lbl_modalities lbl.lbl_mut argument_mode;
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode argument_mode.mode)
@@ -8637,7 +8642,12 @@ and type_generic_array
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross env ty argument_mode in
+  let argument_mode =
+    argument_mode
+    |> mode_modality modalities
+    |> expect_mode_cross env ty
+  in
+  check_construct_mutability modalities mutability argument_mode;
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
