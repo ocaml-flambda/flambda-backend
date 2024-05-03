@@ -89,7 +89,9 @@ val invalid :
 module Update_kind : sig
   type t
 
-  val values : t
+  val pointers : t
+
+  val tagged_immediates : t
 
   val naked_int32s : t
 

@@ -44,7 +44,7 @@ let rec static_block_updates symb env res acc i = function
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
       let env, res, acc =
-        C.make_update env res dbg C.Update_kind.values
+        C.make_update env res dbg C.Update_kind.pointers
           ~symbol:(C.symbol ~dbg symb) var ~index:i ~prev_updates:acc
       in
       static_block_updates symb env res acc (i + 1) r)

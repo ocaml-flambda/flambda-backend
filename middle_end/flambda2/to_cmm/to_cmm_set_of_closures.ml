@@ -167,7 +167,12 @@ end = struct
               } ->
             let update_kind =
               match Flambda_kind.With_subkind.kind kind with
-              | Value -> C.Update_kind.values
+              | Value ->
+                if Flambda_kind.With_subkind.Subkind.equal
+                     (Flambda_kind.With_subkind.subkind kind)
+                     Tagged_immediate
+                then C.Update_kind.tagged_immediates
+                else C.Update_kind.pointers
               | Naked_number Naked_int32
               (* Int32s are not tightly packed, but we write all 64 bits for
                  backwards compatability. *)

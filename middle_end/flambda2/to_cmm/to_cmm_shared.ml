@@ -259,7 +259,8 @@ let invalid res ~message =
 
 module Update_kind = struct
   type kind =
-    | Value
+    | Pointer
+    | Immediate
     | Naked_int32
     | Naked_int64
     | Naked_float
@@ -271,7 +272,9 @@ module Update_kind = struct
       stride : int
     }
 
-  let values = { kind = Value; stride = Arch.size_addr }
+  let pointers = { kind = Pointer; stride = Arch.size_addr }
+
+  let tagged_immediates = { kind = Immediate; stride = Arch.size_addr }
 
   let naked_int32s = { kind = Naked_int32; stride = 4 }
 
@@ -296,7 +299,8 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
   let cmm =
     let must_use_setfield =
       match kind.kind with
-      | Value -> Some Lambda.Pointer
+      | Pointer -> Some Lambda.Pointer
+      | Immediate -> Some Lambda.Immediate
       | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
         ->
         (* The GC never sees these fields, so we can avoid using
@@ -312,7 +316,8 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
     | None ->
       let memory_chunk : Cmm.memory_chunk =
         match kind.kind with
-        | Value -> Misc.fatal_errorf "update_kind requires using setfield."
+        | Pointer | Immediate ->
+          Misc.fatal_errorf "update_kind requires using setfield."
         | Naked_int32 -> Thirtytwo_signed
         | Naked_int64 -> Word_int
         | Naked_float -> Double
