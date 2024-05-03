@@ -859,6 +859,11 @@ let complex_im c dbg =
 
 let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
 
+let strided_field_address ptr ~index ~stride dbg =
+  if index * stride = 0
+  then ptr
+  else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
+
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
   if n = 0
   then ptr

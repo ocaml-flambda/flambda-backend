@@ -326,13 +326,7 @@ let make_update env res dbg (kind : Update_kind.t) ~symbol var ~index
         | Naked_float32 -> Single { reg = Float32 }
         | Naked_vec128 -> Onetwentyeight_unaligned
       in
-      let addr =
-        if index * kind.stride = 0
-        then symbol
-        else
-          Cmm.(
-            Cop (Cadda, [symbol; Cconst_int (index * kind.stride, dbg)], dbg))
-      in
+      let addr = strided_field_address symbol ~stride:kind.stride ~index dbg in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm
   in
   let update =
