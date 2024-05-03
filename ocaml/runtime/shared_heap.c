@@ -519,7 +519,7 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
         /* add to freelist */
         atomic_store_relaxed((atomic_uintnat*)p, 0);
         p[1] = (value)a->next_obj;
-        CAMLassert(Is_block((value)p));
+        CAMLassert((value) p != Val_null && Is_block((value)p));
 #ifdef DEBUG
         {
           int i;
@@ -763,7 +763,7 @@ struct heap_verify_state* caml_verify_begin (void)
 static void verify_push (void* st_v, value v, volatile value* ignored)
 {
   struct heap_verify_state* st = st_v;
-  if (!Is_block(v)) return;
+  if (v == Val_null || !Is_block(v)) return;
 
   if (st->sp == st->stack_len) {
     st->stack_len = st->stack_len * 2 + 100;
@@ -782,7 +782,7 @@ static scanning_action_flags verify_scanning_flags = 0;
 
 static void verify_object(struct heap_verify_state* st, value v) {
   intnat* entry;
-  if (!Is_block(v)) return;
+  if (v == Val_null || !Is_block(v)) return;
 
   CAMLassert (!Is_young(v));
   CAMLassert (Hd_val(v));
@@ -813,7 +813,8 @@ static void verify_object(struct heap_verify_state* st, value v) {
     mlsize_t scannable_wosize = Scannable_wosize_val(v);
     for (; i < scannable_wosize; i++) {
       value f = Field(v, i);
-      if (Is_block(f)) verify_push(st, f, Op_val(v)+i);
+      if (v != Val_null && Is_block(f))
+        verify_push(st, f, Op_val(v)+i);
     }
   }
 }
@@ -839,7 +840,7 @@ static inline void compact_update_value(void* ignored,
                                         value v,
                                         volatile value* p)
 {
-  if (Is_block(v)) {
+  if (v != Val_null && Is_block(v)) {
     CAMLassert(!Is_young(v));
 
     tag_t tag = Tag_val(v);
@@ -864,7 +865,7 @@ static inline void compact_update_value(void* ignored,
          to update to the new location. */
       if (Has_status_val(v, caml_global_heap_state.MARKED)) {
         value fwd = Field(v, 0) + infix_offset;
-        CAMLassert(Is_block(fwd));
+        CAMLassert(fwd != Val_null && Is_block(fwd));
         CAMLassert(Tag_val(fwd) == tag);
         *p = fwd;
       }

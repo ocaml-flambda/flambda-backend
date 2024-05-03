@@ -802,7 +802,7 @@ static void extern_rec(struct caml_extern_state* s, value v)
   sp = s->extern_stack;
 
   while(1) {
-  if (Is_long(v)) {
+  if (Is_long(v) || v == Val_null) {
     extern_int(s, Long_val(v));
   }
   else {
