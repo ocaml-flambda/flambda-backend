@@ -20,7 +20,7 @@ type t =
       { property : Property.t;
         strict : bool;
         never_returns_normally : bool;
-        never_raises:bool;
+        never_raises : bool;
         loc : Location.t
       }
   | Check of

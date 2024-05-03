@@ -26,7 +26,7 @@ type t =
       { property : Property.t;
         strict : bool;
         never_returns_normally : bool;
-        never_raises:bool;
+        never_raises : bool;
         loc : Location.t
       }
   | Check of
@@ -38,7 +38,8 @@ type t =
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Assume { property; strict; never_returns_normally; never_raises; loc = _ } ->
+  | Assume { property; strict; never_returns_normally; never_raises; loc = _ }
+    ->
     Format.fprintf ppf "@[assume_%a%s%s%s@]" Property.print property
       (if strict then "_strict" else "")
       (if never_returns_normally then "_never_returns_normally" else "")
@@ -56,7 +57,9 @@ let from_lambda : Lambda.check_attribute -> Location.t -> t =
     then Check { property = Zero_alloc; strict = false; loc }
     else Default_check
   | Ignore_assert_all Zero_alloc -> Default_check
-  | Assume { property; strict; never_returns_normally; never_raises; loc; arity = _ } ->
+  | Assume
+      { property; strict; never_returns_normally; never_raises; loc; arity = _ }
+    ->
     Assume
       { property = Property.from_lambda property;
         strict;
@@ -76,14 +79,21 @@ let equal x y =
       Check { property = p2; strict = s2; loc = loc2 } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Location.compare loc1 loc2 = 0
   | ( Assume
-        { property = p1; strict = s1; never_returns_normally = n1; never_raises = r1;
-          loc = loc1 },
+        { property = p1;
+          strict = s1;
+          never_returns_normally = n1;
+          never_raises = r1;
+          loc = loc1
+        },
       Assume
-        { property = p2; strict = s2; never_returns_normally = n2; never_raises = r2;
-          loc = loc2 }
-    ) ->
+        { property = p2;
+          strict = s2;
+          never_returns_normally = n2;
+          never_raises = r2;
+          loc = loc2
+        } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal n1 n2
-                                                  && Bool.equal r1 r2
+    && Bool.equal r1 r2
     && Location.compare loc1 loc2 = 0
   | (Default_check | Check _ | Assume _), _ -> false
 
