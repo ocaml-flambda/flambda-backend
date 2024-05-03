@@ -273,7 +273,9 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
     let non_consts =
       non_consts
       |> List.map (fun (tag, sk) ->
-             tag_scannable tag, List.map value_kind_with_subkind sk)
+             ( tag_scannable tag,
+               ( Flambda_kind.Block_shape.Value_only,
+                 List.map value_kind_with_subkind sk ) ))
       |> Tag.Scannable.Map.of_list
     in
     Variant { consts; non_consts }
@@ -439,14 +441,14 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
-  | Mixed { tag; size = s; field_kind } ->
-    let tag : Tag.Scannable.t Or_unknown.t =
-      match tag with
-      | Some tag -> Known (tag |> tag_scannable)
-      | None -> Unknown
-    in
-    let s = size s in
-    Mixed { tag; size = s; field_kind }
+  | Mixed _ -> Misc.fatal_error "Mixed records not supported"
+(* let tag : Tag.Scannable.t Or_unknown.t = *)
+(*   match tag with *)
+(*   | Some tag -> Known (tag |> tag_scannable) *)
+(*   | None -> Unknown *)
+(* in *)
+(* let s = size s in *)
+(* Mixed { tag; size = s; field_kind } *)
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with

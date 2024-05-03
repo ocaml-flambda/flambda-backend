@@ -93,28 +93,37 @@ and head_of_kind_rec_info = Rec_info_expr.t
 
 and head_of_kind_region = unit
 
-and 'index row_like_index = private
-  | Known of 'index
-  | At_least of 'index
+and 'lattice row_like_index_domain =
+  | Known of 'lattice
+  | At_least of 'lattice
 
-and ('index, 'maps_to) row_like_case = private
+and ('lattice, 'shape) row_like_index =
+  { domain : 'lattice row_like_index_domain;
+    shape : 'shape
+  }
+
+and ('lattice, 'shape, 'maps_to) row_like_case =
   { maps_to : 'maps_to;
-    index : 'index row_like_index;
+    index : ('lattice, 'shape) row_like_index;
     env_extension : env_extension
   }
 
-and row_like_for_blocks = private
-  { known_tags : (Block_size.t, int_indexed_product) row_like_case Tag.Map.t;
-    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t;
+and row_like_block_case =
+  (Block_size.t, Flambda_kind.Block_shape.t, t array) row_like_case
+
+and row_like_for_blocks =
+  { known_tags : row_like_block_case Or_unknown.t Tag.Map.t;
+    other_tags : row_like_block_case Or_bottom.t;
     alloc_mode : Alloc_mode.For_types.t
   }
 
-and row_like_for_closures = private
+and row_like_for_closures =
   { known_closures :
-      (Set_of_closures_contents.t, closures_entry) row_like_case
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
       Function_slot.Map.t;
     other_closures :
-      (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
+      Or_bottom.t
   }
 
 and closures_entry = private
@@ -128,11 +137,6 @@ and function_slot_indexed_product = private
 
 and value_slot_indexed_product = private
   { value_slot_components_by_index : t Value_slot.Map.t }
-
-and int_indexed_product = private
-  { fields : t array;
-    kind : Flambda_kind.t
-  }
 
 and function_type = private
   { code_id : Code_id.t;
@@ -342,15 +346,13 @@ module Product : sig
   end
 
   module Int_indexed : sig
-    type t = int_indexed_product
+    type t = flambda_type array
 
-    val create_top : Flambda_kind.t -> t
+    val create_top : unit -> t
 
-    val create_from_list : Flambda_kind.t -> flambda_type list -> t
+    val create_from_list : flambda_type list -> t
 
-    val create_from_array : Flambda_kind.t -> flambda_type array -> t
-
-    val field_kind : t -> Flambda_kind.t
+    val create_from_array : flambda_type array -> t
 
     val width : t -> Targetint_31_63.t
 
@@ -384,21 +386,31 @@ module Closures_entry : sig
 end
 
 module Row_like_index : sig
-  type 'index t = 'index row_like_index
+  type ('lattice, 'shape) t = ('lattice, 'shape) row_like_index
 
-  val known : 'index -> 'index t
+  val create :
+    domain:'lattice row_like_index_domain ->
+    shape:'shape ->
+    ('lattice, 'shape) t
+end
 
-  val at_least : 'index -> 'index t
+module Row_like_index_domain : sig
+  type 'lattice t = 'lattice row_like_index_domain
+
+  val known : 'lattice -> 'lattice t
+
+  val at_least : 'lattice -> 'lattice t
 end
 
 module Row_like_case : sig
-  type ('index, 'maps_to) t = ('index, 'maps_to) row_like_case
+  type ('lattice, 'shape, 'maps_to) t =
+    ('lattice, 'shape, 'maps_to) row_like_case
 
   val create :
     maps_to:'maps_to ->
-    index:'index row_like_index ->
+    index:('lattice, 'shape) row_like_index ->
     env_extension:env_extension ->
-    ('index, 'maps_to) row_like_case
+    ('lattice, 'shape, 'maps_to) row_like_case
 end
 
 module Row_like_for_blocks : sig
@@ -411,31 +423,42 @@ module Row_like_for_blocks : sig
     | Closed of Tag.t
 
   val create :
-    field_kind:Flambda_kind.t ->
+    shape:Flambda_kind.Block_shape.t ->
     field_tys:flambda_type list ->
     open_or_closed ->
     Alloc_mode.For_types.t ->
     t
 
   val create_blocks_with_these_tags :
-    field_kind:Flambda_kind.t -> Tag.Set.t -> Alloc_mode.For_types.t -> t
+    Flambda_kind.Block_shape.t Or_unknown.t Tag.Map.t ->
+    Alloc_mode.For_types.t ->
+    t
 
   val create_exactly_multiple :
-    field_tys_by_tag:flambda_type list Tag.Map.t -> Alloc_mode.For_types.t -> t
+    shape_and_field_tys_by_tag:
+      (Flambda_kind.Block_shape.t * flambda_type list) Tag.Map.t ->
+    Alloc_mode.For_types.t ->
+    t
 
   val create_raw :
-    known_tags:(Block_size.t, int_indexed_product) row_like_case Tag.Map.t ->
-    other_tags:(Block_size.t, int_indexed_product) row_like_case Or_bottom.t ->
+    known_tags:row_like_block_case Or_unknown.t Tag.Map.t ->
+    other_tags:row_like_block_case Or_bottom.t ->
     alloc_mode:Alloc_mode.For_types.t ->
     t
 
   val all_tags : t -> Tag.Set.t Or_unknown.t
 
-  val all_tags_and_sizes : t -> Targetint_31_63.t Tag.Map.t Or_unknown.t
+  val all_tags_and_sizes :
+    t -> (Targetint_31_63.t * Flambda_kind.Block_shape.t) Tag.Map.t Or_unknown.t
 
   val get_singleton :
     t ->
-    (Tag_and_size.t * Product.Int_indexed.t * Alloc_mode.For_types.t) option
+    (Tag.t
+    * Flambda_kind.Block_shape.t
+    * Targetint_31_63.t
+    * Product.Int_indexed.t
+    * Alloc_mode.For_types.t)
+    option
 
   (** Get the nth field of the block if it is unambiguous.
 
@@ -486,10 +509,11 @@ module Row_like_for_closures : sig
 
   val create_raw :
     known_closures:
-      (Set_of_closures_contents.t, closures_entry) row_like_case
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
       Function_slot.Map.t ->
     other_closures:
-      (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t ->
+      (Set_of_closures_contents.t, unit, closures_entry) row_like_case
+      Or_bottom.t ->
     t
 
   val get_singleton :

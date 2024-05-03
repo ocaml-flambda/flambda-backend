@@ -449,7 +449,7 @@ and variant_subkind consts non_consts : Fexpr.subkind =
   in
   let non_consts =
     non_consts |> Tag.Scannable.Map.bindings
-    |> List.map (fun (tag, sk) ->
+    |> List.map (fun (tag, (_shape, sk)) ->
            Tag.Scannable.to_int tag, List.map kind_with_subkind sk)
   in
   Variant { consts; non_consts }
@@ -570,7 +570,7 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
   | Naked_floats { size = s } ->
     let size = s |> size in
     Naked_floats { size }
-  | Mixed { tag; size = s; field_kind } ->
+  | Mixed { tag; size = s; shape = _; field_kind } ->
     let size = s |> size in
     let tag =
       match tag with
@@ -622,7 +622,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
     Make_block (tag, mutability, alloc)
-  | Make_block (Naked_floats, _, _) | Make_array _ | Make_mixed_block _ ->
+  | Make_block ((Naked_floats | Mixed _), _, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)

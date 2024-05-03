@@ -72,9 +72,42 @@ val is_value : t -> bool
 
 val is_naked_float : t -> bool
 
+val from_lambda_flat_element : Lambda.flat_element -> t
+
 val to_lambda : t -> Lambda.layout
 
 include Container_types.S with type t := t
+
+module Mixed_block_shape : sig
+  type t
+
+  val from_lambda : Lambda.mixed_block_shape -> t
+
+  val field_kinds : t -> kind array
+
+  val value_prefix_size : t -> int
+
+  val to_lambda : t -> Lambda.mixed_block_shape
+
+  val equal : t -> t -> bool
+
+  val compare : t -> t -> int
+end
+
+module Block_shape : sig
+  type t =
+    | Value_only
+    | Float_record
+    | Mixed_record of Mixed_block_shape.t
+
+  val equal : t -> t -> bool
+
+  val compare : t -> t -> int
+
+  val print : Format.formatter -> t -> unit
+
+  val element_kind : t -> int -> kind
+end
 
 module Standard_int : sig
   (** "Standard" because these correspond to the usual representations of tagged
@@ -150,7 +183,7 @@ module With_subkind : sig
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
-            non_consts : with_subkind list Tag.Scannable.Map.t
+            non_consts : (Block_shape.t * with_subkind list) Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
