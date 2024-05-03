@@ -83,9 +83,29 @@ module Mixed_block_flat_element = struct
     | Bits64 -> Bits64
     | Word -> Word
 
-  let to_string x = Types.flat_element_to_string (to_lambda x)
+  let to_string = function
+    | Imm -> "Imm"
+    | Float -> "Float"
+    | Float64 -> "Float64"
+    | Bits32 -> "Bits32"
+    | Bits64 -> "Bits64"
+    | Word -> "Word"
 
-  let compare x1 x2 = Types.compare_flat_element (to_lambda x1) (to_lambda x2)
+  let compare t1 t2 =
+    match t1, t2 with
+    | Imm, Imm | Float, Float | Float64, Float64
+    | Word, Word | Bits32, Bits32 | Bits64, Bits64
+      -> 0
+    | Imm, _ -> -1
+    | _, Imm -> 1
+    | Float, _ -> -1
+    | _, Float -> 1
+    | Float64, _ -> -1
+    | _, Float64 -> 1
+    | Word, _ -> -1
+    | _, Word -> 1
+    | Bits32, _ -> -1
+    | _, Bits32 -> 1
 
   let print ppf t = Format.fprintf ppf "%s" (to_string t)
 
