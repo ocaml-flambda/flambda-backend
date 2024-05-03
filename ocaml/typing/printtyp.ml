@@ -846,7 +846,7 @@ let wrap_printing_env ~error env f =
 let wrap_printing_env_error env f =
   let wrap (loc : _ Location.loc) =
     { loc with txt =
-        (fun fmt -> wrap_printing_env ~error:true env (fun () -> loc.txt fmt))
+        (fun fmt -> Env.without_cmis (fun () -> loc.txt fmt) ())
     }
   in
   let err : Location.error = wrap_printing_env ~error:true env f in
