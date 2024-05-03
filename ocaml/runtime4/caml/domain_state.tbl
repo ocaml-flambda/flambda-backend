@@ -107,6 +107,7 @@ DOMAIN_STATE(void*, checking_pointer_pc)
 DOMAIN_STATE(void*, dls_root)
 DOMAIN_STATE(void*, c_stack)
 DOMAIN_STATE(void*, current_stack)
+DOMAIN_STATE(void*, current_stack_bound)
 /* Unused: compatibility with runtime5 */
 
 DOMAIN_STATE(extra_params_area, extra_params)

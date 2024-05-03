@@ -1230,7 +1230,7 @@ let emit_simd_instr op i =
     I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0); I.set E (res8 i 0); I.movzx (res8 i 0) (res i 0)
 
 (* Emit an instruction *)
-let emit_instr ~first ~fallthrough i =
+let emit_instr ~fallthrough i =
   emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
@@ -1832,13 +1832,8 @@ let emit_instr ~first ~fallthrough i =
           I.jmp r11
     end
   | Lstackcheck { max_frame_size_bytes; } ->
-    let save_registers = not first in
     let overflow = new_label () and ret = new_label () in
-    let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
-    if save_registers then I.push r10;
-    I.lea (mem64 NONE (-(max_frame_size_bytes + threshold_offset)) RSP) r10;
-    I.cmp (domain_field Domainstate.Domain_current_stack) r10;
-    if save_registers then I.pop r10;
+    I.cmp (domain_field Domainstate.Domain_current_stack_bound) rsp;
     I.jb (label overflow);
     def_label ret;
     stack_realloc := Some {
@@ -1847,12 +1842,12 @@ let emit_instr ~first ~fallthrough i =
       sc_max_frame_size_in_bytes = max_frame_size_bytes;
     }
 
-let rec emit_all ~first ~fallthrough i =
+let rec emit_all ~fallthrough i =
   match i.desc with
   | Lend -> ()
   | _ ->
-      emit_instr ~first ~fallthrough i;
-      emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
+      emit_instr ~fallthrough i;
+      emit_all ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
@@ -1912,7 +1907,7 @@ let fundecl fundecl =
   if Config.runtime5 && !Clflags.runtime_variant = "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
-  emit_all ~first:true ~fallthrough:true fundecl.fun_body;
+  emit_all ~fallthrough:true fundecl.fun_body;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
