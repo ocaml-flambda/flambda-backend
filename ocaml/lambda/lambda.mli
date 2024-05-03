@@ -346,7 +346,13 @@ and value_kind =
 and layout =
   | Ptop
   | Pnullable_value of value_kind
+    (** [Pnullable_value] is a superkind of [Pvalue].  The [Pcoerce_to_null]
+        ([Pvalue] to [Pnullable_value] coercion) and [Pcoerce_to_non_null]
+        (the converse) primitives must be used to transfer values between
+        the two different kinds.  These primitives are no-ops at runtime. *)
   | Pvalue of value_kind
+    (** [Pvalue] is the default layout of a value of abstract type.
+        It is not nullable. *)
   | Punboxed_float of boxed_float
   | Punboxed_int of boxed_integer
   | Punboxed_vector of boxed_vector
