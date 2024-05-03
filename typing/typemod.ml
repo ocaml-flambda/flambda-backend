@@ -3869,7 +3869,7 @@ let report_error ~loc _env = function
         "Cannot compile an implementation with -as-parameter."
 
 let report_error env ~loc err =
-  Printtyp.wrap_printing_env ~error:true env
+  Printtyp.wrap_printing_env_error env
     (fun () -> report_error env ~loc err)
 
 let () =
